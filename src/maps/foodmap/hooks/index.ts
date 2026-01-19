@@ -1,0 +1,1 @@
+export { useRestaurantData } from './useRestaurantData'
