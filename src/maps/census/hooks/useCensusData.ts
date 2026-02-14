@@ -1,71 +1,127 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CensusArea } from '../types'
+import type { CensusBounds, CensusHierarchyLevel, CensusUnit } from '../types'
 
-interface CensusDataRow {
-  GeoUID?: string
-  Type?: string
-  'Region Name'?: string
-  rpid?: string
-  rgid?: string
-  ruid?: string
-  rguid?: string
-  'Area (sq km)'?: string
-  'Population '?: string
-  'Dwellings '?: string
-  'Households '?: string
-  'v_CA21_1: Population, 2021'?: string
-  'v_CA21_4: Total private dwellings'?: string
-  'v_CA21_6: Population density per square kilometre'?: string
-  'v_CA21_7: Land area in square kilometres'?: string
-  'v_CA21_434: Occupied private dwellings by structural type of dwelling data'?: string
-}
-
-interface CensusDataResponse {
-  data: CensusDataRow[]
-  count: number
-}
-
-interface CensusGeoFeature {
+interface RawGeoFeature {
   type: 'Feature'
-  properties: {
-    id?: string
-    name?: string
-    t?: string
-    rpid?: string
-    rgid?: string
-    ruid?: string
-    rguid?: string
-    pop?: string
-    dw?: string
-    hh?: string
-    a?: string
-  }
-  geometry: GeoJSON.MultiPolygon | GeoJSON.Polygon
+  properties?: Record<string, unknown>
+  geometry?: GeoJSON.Geometry | null
 }
 
-interface CensusGeoResponse {
+interface RawGeoResponse {
   type: 'FeatureCollection'
-  features: CensusGeoFeature[]
+  features?: RawGeoFeature[]
 }
 
-function parseNumber(value: string | undefined): number | null {
-  if (!value) return null
-  const cleaned = value.replace(/,/g, '').trim()
+const LEVEL_FILES: Record<CensusHierarchyLevel, string> = {
+  cd: '/data/census/prince_george_cd.geo.json',
+  csd: '/data/census/prince_george_csd.geo.json',
+  ct: '/data/census/prince_george_ct.geo.json',
+  da: '/data/census/prince_george_da.geo.json',
+  db: '/data/census/prince_george_db.geo.json'
+}
+
+function emptyUnitsByLevel(): Record<CensusHierarchyLevel, CensusUnit[]> {
+  return {
+    cd: [],
+    csd: [],
+    ct: [],
+    da: [],
+    db: []
+  }
+}
+
+function parseNumber(value: unknown): number | null {
+  if (value == null) return null
+  const cleaned = String(value).replace(/,/g, '').trim()
   if (!cleaned) return null
   const parsed = Number.parseFloat(cleaned)
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function chooseNumber(...candidates: Array<string | undefined>): number | null {
-  for (const candidate of candidates) {
-    const parsed = parseNumber(candidate)
-    if (parsed != null) return parsed
+function parseString(value: unknown): string | null {
+  if (value == null) return null
+  const text = String(value).trim()
+  return text ? text : null
+}
+
+function readUnit(feature: RawGeoFeature, fallbackLevel: CensusHierarchyLevel): CensusUnit | null {
+  const geometry = feature.geometry
+  if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) {
+    return null
   }
-  return null
+
+  const properties = feature.properties || {}
+  const id = parseString(properties.id)
+  if (!id) return null
+
+  const levelRaw = parseString(properties.level)
+  const level = (levelRaw || fallbackLevel) as CensusHierarchyLevel
+  const daCount = parseNumber(properties.daCount)
+  const dbCount = parseNumber(properties.dbCount)
+
+  return {
+    id,
+    level,
+    name: parseString(properties.name) || `${level.toUpperCase()} ${id}`,
+    population: parseNumber(properties.population),
+    populationDensity: parseNumber(properties.populationDensity),
+    households: parseNumber(properties.households),
+    dwellings: parseNumber(properties.dwellings),
+    areaSqKm: parseNumber(properties.areaSqKm),
+    daCount: Number.isFinite(daCount) ? Math.round(daCount || 0) : 0,
+    dbCount: Number.isFinite(dbCount) ? Math.round(dbCount || 0) : 0,
+    parentCdId: parseString(properties.parentCdId),
+    parentCsdId: parseString(properties.parentCsdId),
+    parentCtId: parseString(properties.parentCtId),
+    parentDaId: parseString(properties.parentDaId),
+    geometry
+  }
+}
+
+function scanCoordinates(ring: number[][], accumulator: CensusBounds) {
+  ring.forEach(([lng, lat]) => {
+    if (lng < accumulator.minLng) accumulator.minLng = lng
+    if (lng > accumulator.maxLng) accumulator.maxLng = lng
+    if (lat < accumulator.minLat) accumulator.minLat = lat
+    if (lat > accumulator.maxLat) accumulator.maxLat = lat
+  })
+}
+
+function computeBounds(units: CensusUnit[]): CensusBounds | null {
+  if (!units.length) return null
+
+  const bounds: CensusBounds = {
+    minLng: Infinity,
+    minLat: Infinity,
+    maxLng: -Infinity,
+    maxLat: -Infinity
+  }
+
+  units.forEach((unit) => {
+    if (unit.geometry.type === 'Polygon') {
+      unit.geometry.coordinates.forEach((ring) => scanCoordinates(ring, bounds))
+    } else {
+      unit.geometry.coordinates.forEach((polygon) => {
+        polygon.forEach((ring) => scanCoordinates(ring, bounds))
+      })
+    }
+  })
+
+  if (!Number.isFinite(bounds.minLng) || !Number.isFinite(bounds.minLat)) {
+    return null
+  }
+
+  return bounds
+}
+
+function getPrimaryBounds(
+  boundsByLevel: Record<CensusHierarchyLevel, CensusBounds | null>
+): CensusBounds | null {
+  return boundsByLevel.csd || boundsByLevel.da || boundsByLevel.ct || boundsByLevel.db || boundsByLevel.cd || null
 }
 
 export function useCensusData() {
-  const [areas, setAreas] = useState<CensusArea[]>([])
+  const [unitsByLevel, setUnitsByLevel] = useState<Record<CensusHierarchyLevel, CensusUnit[]>>(emptyUnitsByLevel)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -77,78 +133,28 @@ export function useCensusData() {
       setError(null)
 
       try {
-        const [dataResponse, geoResponse] = await Promise.all([
-          fetch('/data/census/prince_george_da_data.json', { signal: controller.signal }),
-          fetch('/data/census/prince_george_da_geo.json', { signal: controller.signal })
-        ])
+        const levelEntries = Object.entries(LEVEL_FILES) as Array<[CensusHierarchyLevel, string]>
+        const responses = await Promise.all(
+          levelEntries.map(async ([level, file]) => {
+            const response = await fetch(file, { signal: controller.signal })
+            if (!response.ok) {
+              throw new Error(`Failed to load ${level.toUpperCase()} geometry (${response.status})`)
+            }
+            const json = await response.json() as RawGeoResponse
+            const units = (json.features || [])
+              .map((feature) => readUnit(feature, level))
+              .filter((unit): unit is CensusUnit => unit !== null)
+              .sort((a, b) => a.id.localeCompare(b.id))
+            return [level, units] as const
+          })
+        )
 
-        if (!dataResponse.ok) {
-          throw new Error(`Failed to load census data (${dataResponse.status})`)
-        }
-        if (!geoResponse.ok) {
-          throw new Error(`Failed to load census geometry (${geoResponse.status})`)
-        }
-
-        const dataJson = await dataResponse.json() as CensusDataResponse
-        const geoJson = await geoResponse.json() as CensusGeoResponse
-
-        const dataMap = new Map<string, CensusDataRow>()
-        ;(dataJson.data || []).forEach((row) => {
-          if (row.GeoUID) {
-            dataMap.set(row.GeoUID, row)
-          }
+        const next = emptyUnitsByLevel()
+        responses.forEach(([level, units]) => {
+          next[level] = units
         })
 
-        const merged: CensusArea[] = (geoJson.features || [])
-          .map((feature) => {
-            const id = feature.properties?.id || ''
-            if (!id) return null
-
-            const row = dataMap.get(id)
-            const population = chooseNumber(
-              row?.['v_CA21_1: Population, 2021'],
-              row?.['Population '],
-              feature.properties?.pop
-            )
-            const dwellings = chooseNumber(
-              row?.['v_CA21_4: Total private dwellings'],
-              row?.['Dwellings '],
-              feature.properties?.dw
-            )
-            const households = chooseNumber(
-              row?.['v_CA21_434: Occupied private dwellings by structural type of dwelling data'],
-              row?.['Households '],
-              feature.properties?.hh
-            )
-            const areaSqKm = chooseNumber(
-              row?.['v_CA21_7: Land area in square kilometres'],
-              row?.['Area (sq km)'],
-              feature.properties?.a
-            )
-            const populationDensity = chooseNumber(
-              row?.['v_CA21_6: Population density per square kilometre']
-            )
-
-            return {
-              id,
-              name: row?.['Region Name'] || feature.properties?.name || id,
-              type: row?.Type || feature.properties?.t || 'DA',
-              rpid: row?.rpid || feature.properties?.rpid || null,
-              rgid: row?.rgid || feature.properties?.rgid || null,
-              ruid: row?.ruid || feature.properties?.ruid || null,
-              rguid: row?.rguid || feature.properties?.rguid || null,
-              population,
-              populationDensity,
-              households,
-              dwellings,
-              areaSqKm,
-              geometry: feature.geometry
-            } satisfies CensusArea
-          })
-          .filter((item): item is CensusArea => item !== null)
-
-        merged.sort((a, b) => a.id.localeCompare(b.id))
-        setAreas(merged)
+        setUnitsByLevel(next)
       } catch (err) {
         if ((err as Error).name === 'AbortError') return
         setError((err as Error).message || 'Unable to load census data')
@@ -158,40 +164,20 @@ export function useCensusData() {
     }
 
     load()
-
     return () => controller.abort()
   }, [])
 
-  const bounds = useMemo(() => {
-    if (!areas.length) return null
-    let minLng = Infinity
-    let minLat = Infinity
-    let maxLng = -Infinity
-    let maxLat = -Infinity
+  const boundsByLevel = useMemo(() => {
+    return {
+      cd: computeBounds(unitsByLevel.cd),
+      csd: computeBounds(unitsByLevel.csd),
+      ct: computeBounds(unitsByLevel.ct),
+      da: computeBounds(unitsByLevel.da),
+      db: computeBounds(unitsByLevel.db)
+    } satisfies Record<CensusHierarchyLevel, CensusBounds | null>
+  }, [unitsByLevel])
 
-    const scanCoordinates = (coords: number[][]) => {
-      coords.forEach(([lng, lat]) => {
-        if (lng < minLng) minLng = lng
-        if (lng > maxLng) maxLng = lng
-        if (lat < minLat) minLat = lat
-        if (lat > maxLat) maxLat = lat
-      })
-    }
+  const bounds = useMemo(() => getPrimaryBounds(boundsByLevel), [boundsByLevel])
 
-    areas.forEach((area) => {
-      if (area.geometry.type === 'Polygon') {
-        area.geometry.coordinates.forEach((ring) => scanCoordinates(ring))
-      } else {
-        area.geometry.coordinates.forEach((polygon) => {
-          polygon.forEach((ring) => scanCoordinates(ring))
-        })
-      }
-    })
-
-    return Number.isFinite(minLng) && Number.isFinite(minLat) && Number.isFinite(maxLng) && Number.isFinite(maxLat)
-      ? { minLng, minLat, maxLng, maxLat }
-      : null
-  }, [areas])
-
-  return { areas, bounds, loading, error }
+  return { unitsByLevel, boundsByLevel, bounds, loading, error }
 }

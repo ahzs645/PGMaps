@@ -4,92 +4,34 @@ import { CensusMap } from './components/CensusMap'
 import { CensusSidebar } from './components/CensusSidebar'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS } from './constants'
 import { useCensusData } from './hooks/useCensusData'
-import type { CensusArea, CensusHierarchyLevel, CensusMetricKey, CensusUnit } from './types'
+import type { CensusHierarchyLevel, CensusMetricKey } from './types'
 
 const LEGEND_SWATCHES = ['#fef3c7', '#fde68a', '#fbbf24', '#f59e0b', '#b45309']
 
-function getAreaHierarchyId(area: CensusArea, hierarchy: CensusHierarchyLevel): string {
-  switch (hierarchy) {
-    case 'rpid':
-      return area.rpid || area.id
-    case 'rgid':
-      return area.rgid || area.id
-    case 'ruid':
-      return area.ruid || area.id
-    case 'rguid':
-      return area.rguid || area.id
-    case 'da':
-    default:
-      return area.id
-  }
-}
-
-function getUnitName(level: CensusHierarchyLevel, id: string, area: CensusArea): string {
-  if (level === 'da') {
-    return area.name || `DA ${id}`
-  }
-  return `${level.toUpperCase()} ${id}`
-}
-
-function aggregateUnits(areas: CensusArea[], level: CensusHierarchyLevel): CensusUnit[] {
-  const map = new Map<string, CensusUnit>()
-
-  areas.forEach((area) => {
-    const id = getAreaHierarchyId(area, level)
-    const existing = map.get(id)
-
-    if (!existing) {
-      map.set(id, {
-        id,
-        level,
-        name: getUnitName(level, id, area),
-        daCount: 1,
-        population: area.population,
-        populationDensity: null,
-        households: area.households,
-        dwellings: area.dwellings,
-        areaSqKm: area.areaSqKm
-      })
-      return
-    }
-
-    existing.daCount += 1
-    existing.population = (existing.population || 0) + (area.population || 0)
-    existing.households = (existing.households || 0) + (area.households || 0)
-    existing.dwellings = (existing.dwellings || 0) + (area.dwellings || 0)
-    existing.areaSqKm = (existing.areaSqKm || 0) + (area.areaSqKm || 0)
-  })
-
-  const units = Array.from(map.values()).map((unit) => {
-    const population = unit.population || 0
-    const areaSqKm = unit.areaSqKm || 0
-    return {
-      ...unit,
-      populationDensity: areaSqKm > 0 ? population / areaSqKm : null
-    }
-  })
-
-  units.sort((a, b) => a.id.localeCompare(b.id))
-  return units
-}
-
 export default function CensusSection() {
-  const { areas, bounds, loading, error } = useCensusData()
+  const { unitsByLevel, boundsByLevel, bounds, loading, error } = useCensusData()
   const [showSidebar, setShowSidebar] = useState(true)
   const [selectedHierarchy, setSelectedHierarchy] = useState<CensusHierarchyLevel>('da')
   const [selectedMetric, setSelectedMetric] = useState<CensusMetricKey>('populationDensity')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null)
 
-  const allUnits = useMemo(() => {
-    return aggregateUnits(areas, selectedHierarchy)
-  }, [areas, selectedHierarchy])
+  const allUnits = useMemo(() => unitsByLevel[selectedHierarchy], [selectedHierarchy, unitsByLevel])
+
+  const availableMetrics = useMemo(() => {
+    return CENSUS_METRICS.filter((metric) => metric.levels.includes(selectedHierarchy))
+  }, [selectedHierarchy])
 
   const filteredUnits = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return allUnits
     return allUnits.filter((unit) => {
-      return unit.id.toLowerCase().includes(query) || unit.name.toLowerCase().includes(query)
+      return (
+        unit.id.toLowerCase().includes(query)
+        || unit.name.toLowerCase().includes(query)
+        || (unit.parentCsdId || '').toLowerCase().includes(query)
+        || (unit.parentCtId || '').toLowerCase().includes(query)
+      )
     })
   }, [allUnits, searchQuery])
 
@@ -101,12 +43,20 @@ export default function CensusSection() {
   }, [allUnits, filteredUnits, selectedUnitId])
 
   const selectedMetricLabel = useMemo(() => {
-    return CENSUS_METRICS.find((item) => item.key === selectedMetric)?.label || 'Metric'
-  }, [selectedMetric])
+    return availableMetrics.find((item) => item.key === selectedMetric)?.label || 'Metric'
+  }, [availableMetrics, selectedMetric])
 
   const selectedHierarchyLabel = useMemo(() => {
     return CENSUS_HIERARCHIES.find((item) => item.key === selectedHierarchy)?.label || 'Hierarchy'
   }, [selectedHierarchy])
+
+  useEffect(() => {
+    if (!availableMetrics.length) return
+    const currentSupported = availableMetrics.some((item) => item.key === selectedMetric)
+    if (!currentSupported) {
+      setSelectedMetric(availableMetrics[0].key)
+    }
+  }, [availableMetrics, selectedMetric])
 
   useEffect(() => {
     setSelectedUnitId(null)
@@ -121,6 +71,7 @@ export default function CensusSection() {
           selectedUnit={selectedUnit}
           selectedMetric={selectedMetric}
           selectedHierarchy={selectedHierarchy}
+          availableMetrics={availableMetrics}
           searchQuery={searchQuery}
           loading={loading}
           error={error}
@@ -144,12 +95,10 @@ export default function CensusSection() {
 
       <div className="relative flex-1">
         <CensusMap
-          areas={areas}
           units={allUnits}
           selectedMetric={selectedMetric}
-          selectedHierarchy={selectedHierarchy}
           selectedUnitId={selectedUnitId}
-          bounds={bounds}
+          bounds={boundsByLevel[selectedHierarchy] || bounds}
           onUnitClick={(id) => setSelectedUnitId(id)}
         />
 

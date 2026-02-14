@@ -1,14 +1,12 @@
 import { useEffect, useId, useMemo, useRef } from 'react'
 import { Map as PgMap, MapControls, useMap, type MapRef } from '@/components/ui/map'
-import type { CensusArea, CensusHierarchyLevel, CensusMetricKey, CensusUnit } from '../types'
+import type { CensusBounds, CensusMetricKey, CensusUnit } from '../types'
 
 interface CensusMapProps {
-  areas: CensusArea[]
   units: CensusUnit[]
   selectedMetric: CensusMetricKey
-  selectedHierarchy: CensusHierarchyLevel
   selectedUnitId: string | null
-  bounds: { minLng: number; minLat: number; maxLng: number; maxLat: number } | null
+  bounds: CensusBounds | null
   onUnitClick: (id: string) => void
 }
 
@@ -22,22 +20,6 @@ const CENTER: [number, number] = [-122.764593, 53.909784]
 const ZOOM = 10
 const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/bright'
 const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
-
-function getAreaHierarchyId(area: CensusArea, hierarchy: CensusHierarchyLevel): string {
-  switch (hierarchy) {
-    case 'rpid':
-      return area.rpid || area.id
-    case 'rgid':
-      return area.rgid || area.id
-    case 'ruid':
-      return area.ruid || area.id
-    case 'rguid':
-      return area.rguid || area.id
-    case 'da':
-    default:
-      return area.id
-  }
-}
 
 function getChoroplethColor(value: number | null, min: number, max: number): string {
   if (value == null || !Number.isFinite(value)) return '#475569'
@@ -99,7 +81,7 @@ function CensusChoroplethLayer({ data, selectedUnitId, onUnitClick }: Choropleth
         id: selectedLayerId,
         type: 'line',
         source: sourceId,
-        filter: ['==', ['get', 'unitId'], ''],
+        filter: ['==', ['get', 'id'], ''],
         paint: {
           'line-color': '#38bdf8',
           'line-width': 2.8,
@@ -109,9 +91,9 @@ function CensusChoroplethLayer({ data, selectedUnitId, onUnitClick }: Choropleth
     }
 
     const handleClick = (event: unknown) => {
-      const e = event as { features?: Array<{ properties?: { unitId?: string } }> }
-      const unitId = e.features?.[0]?.properties?.unitId
-      if (unitId) onUnitClick(unitId)
+      const e = event as { features?: Array<{ properties?: { id?: string } }> }
+      const id = e.features?.[0]?.properties?.id
+      if (id) onUnitClick(id)
     }
 
     const handleMouseEnter = () => {
@@ -146,31 +128,21 @@ function CensusChoroplethLayer({ data, selectedUnitId, onUnitClick }: Choropleth
 
   useEffect(() => {
     if (!isLoaded || !map || !map.getLayer(selectedLayerId)) return
-    map.setFilter(selectedLayerId, ['==', ['get', 'unitId'], selectedUnitId || ''])
+    map.setFilter(selectedLayerId, ['==', ['get', 'id'], selectedUnitId || ''])
   }, [isLoaded, map, selectedLayerId, selectedUnitId])
 
   return null
 }
 
 export function CensusMap({
-  areas,
   units,
   selectedMetric,
-  selectedHierarchy,
   selectedUnitId,
   bounds,
   onUnitClick
 }: CensusMapProps) {
   const mapRef = useRef<MapRef>(null)
-  const hasFittedRef = useRef(false)
-
-  const unitsById = useMemo(() => {
-    const map = new Map<string, CensusUnit>()
-    units.forEach((unit) => {
-      map.set(unit.id, unit)
-    })
-    return map
-  }, [units])
+  const lastBoundsKeyRef = useRef<string | null>(null)
 
   const metricValues = useMemo(() => {
     return units
@@ -189,32 +161,35 @@ export function CensusMap({
   const featureCollection = useMemo<GeoJSON.FeatureCollection<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>>(() => {
     return {
       type: 'FeatureCollection',
-      features: areas.map((area) => {
-        const unitId = getAreaHierarchyId(area, selectedHierarchy)
-        const unit = unitsById.get(unitId)
-        const value = unit?.[selectedMetric] ?? null
-
+      features: units.map((unit) => {
+        const value = unit[selectedMetric] ?? null
         return {
           type: 'Feature',
-          geometry: area.geometry,
+          geometry: unit.geometry,
           properties: {
-            id: area.id,
-            unitId,
+            id: unit.id,
             metricValue: value,
             color: getChoroplethColor(value, metricRange.min, metricRange.max)
           }
         }
       })
     }
-  }, [areas, metricRange.max, metricRange.min, selectedHierarchy, selectedMetric, unitsById])
+  }, [metricRange.max, metricRange.min, selectedMetric, units])
 
   const selectedFeatures = useMemo(() => {
     if (!selectedUnitId) return []
-    return areas.filter((area) => getAreaHierarchyId(area, selectedHierarchy) === selectedUnitId)
-  }, [areas, selectedHierarchy, selectedUnitId])
+    return units.filter((unit) => unit.id === selectedUnitId)
+  }, [selectedUnitId, units])
+
+  const boundsKey = useMemo(() => {
+    if (!bounds) return null
+    return [bounds.minLng, bounds.minLat, bounds.maxLng, bounds.maxLat].join('|')
+  }, [bounds])
 
   useEffect(() => {
-    if (!bounds || !mapRef.current || hasFittedRef.current) return
+    if (!bounds || !boundsKey || !mapRef.current) return
+    if (lastBoundsKeyRef.current === boundsKey) return
+
     mapRef.current.fitBounds(
       [
         [bounds.minLng, bounds.minLat],
@@ -225,8 +200,8 @@ export function CensusMap({
         duration: 700
       }
     )
-    hasFittedRef.current = true
-  }, [bounds])
+    lastBoundsKeyRef.current = boundsKey
+  }, [bounds, boundsKey])
 
   useEffect(() => {
     if (!selectedFeatures.length || !mapRef.current) return

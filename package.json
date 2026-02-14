@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "census:sync": "node scripts/build-census-hierarchy.mjs"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.2.6",

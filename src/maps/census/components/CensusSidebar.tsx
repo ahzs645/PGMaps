@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from '../constants'
-import type { CensusHierarchyLevel, CensusMetricKey, CensusUnit } from '../types'
+import type { CensusHierarchyLevel, CensusMetricKey, CensusMetricOption, CensusUnit } from '../types'
 
 interface CensusSidebarProps {
   units: CensusUnit[]
@@ -9,6 +9,7 @@ interface CensusSidebarProps {
   selectedUnit: CensusUnit | null
   selectedMetric: CensusMetricKey
   selectedHierarchy: CensusHierarchyLevel
+  availableMetrics: CensusMetricOption[]
   searchQuery: string
   loading: boolean
   error: string | null
@@ -22,8 +23,24 @@ interface CensusSidebarProps {
 const MAX_ROWS = 140
 
 function formatUnitLabel(unit: CensusUnit): string {
-  if (unit.level === 'da') return `DA ${unit.id}`
-  return `${unit.level.toUpperCase()} ${unit.id}`
+  switch (unit.level) {
+    case 'cd':
+      return `CD ${unit.id}`
+    case 'csd':
+      return `${unit.name} (${unit.id})`
+    case 'ct':
+      return `CT ${unit.name}`
+    case 'da':
+      return `DA ${unit.id}`
+    case 'db':
+      return `DB ${unit.id}`
+    default:
+      return unit.id
+  }
+}
+
+function formatArea(value: number): string {
+  return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
 }
 
 export function CensusSidebar({
@@ -32,6 +49,7 @@ export function CensusSidebar({
   selectedUnit,
   selectedMetric,
   selectedHierarchy,
+  availableMetrics,
   searchQuery,
   loading,
   error,
@@ -42,8 +60,10 @@ export function CensusSidebar({
   onClearSelection
 }: CensusSidebarProps) {
   const selectedMetricDef = useMemo(
-    () => CENSUS_METRICS.find((metric) => metric.key === selectedMetric) || CENSUS_METRICS[0],
-    [selectedMetric]
+    () => availableMetrics.find((metric) => metric.key === selectedMetric)
+      || availableMetrics[0]
+      || CENSUS_METRICS[0],
+    [availableMetrics, selectedMetric]
   )
   const selectedHierarchyDef = useMemo(
     () => CENSUS_HIERARCHIES.find((level) => level.key === selectedHierarchy) || CENSUS_HIERARCHIES[0],
@@ -52,20 +72,21 @@ export function CensusSidebar({
 
   const totals = useMemo(() => {
     let population = 0
-    let households = 0
-    let dwellings = 0
+    let areaSqKm = 0
     filteredUnits.forEach((unit) => {
       population += unit.population || 0
-      households += unit.households || 0
-      dwellings += unit.dwellings || 0
+      areaSqKm += unit.areaSqKm || 0
     })
-    return { population, households, dwellings }
+    return { population, areaSqKm }
   }, [filteredUnits])
 
   const sortedUnits = useMemo(() => {
     const sorted = [...filteredUnits].sort((a, b) => {
-      const av = a[selectedMetric] ?? -Infinity
-      const bv = b[selectedMetric] ?? -Infinity
+      const av = a[selectedMetric]
+      const bv = b[selectedMetric]
+      if (av == null && bv == null) return a.id.localeCompare(b.id)
+      if (av == null) return 1
+      if (bv == null) return -1
       return bv - av
     })
     return sorted.slice(0, MAX_ROWS)
@@ -75,7 +96,7 @@ export function CensusSidebar({
     <div className="z-10 flex h-full w-[350px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur">
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">Census Hierarchy</h1>
-        <p className="text-sm text-muted-foreground">Drill from DA up to parent group levels</p>
+        <p className="text-sm text-muted-foreground">CD, CSD, CT, DA, and DB boundary views</p>
       </div>
 
       <div className="border-b border-border bg-background/95 px-4 py-3">
@@ -100,7 +121,7 @@ export function CensusSidebar({
             onChange={(event) => onMetricChange(event.target.value as CensusMetricKey)}
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500"
           >
-            {CENSUS_METRICS.map((metric) => (
+            {availableMetrics.map((metric) => (
               <option key={metric.key} value={metric.key}>
                 {metric.label}
               </option>
@@ -122,16 +143,16 @@ export function CensusSidebar({
       <div className="border-b border-border bg-background/95 px-4 py-3">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
+            <div className="text-base font-bold text-foreground">{filteredUnits.length.toLocaleString()}</div>
+            <div className="text-[10px] text-muted-foreground">units</div>
+          </div>
+          <div>
             <div className="text-base font-bold text-foreground">{totals.population.toLocaleString()}</div>
             <div className="text-[10px] text-muted-foreground">population</div>
           </div>
           <div>
-            <div className="text-base font-bold text-foreground">{totals.households.toLocaleString()}</div>
-            <div className="text-[10px] text-muted-foreground">households</div>
-          </div>
-          <div>
-            <div className="text-base font-bold text-foreground">{totals.dwellings.toLocaleString()}</div>
-            <div className="text-[10px] text-muted-foreground">dwellings</div>
+            <div className="text-base font-bold text-foreground">{formatArea(totals.areaSqKm)}</div>
+            <div className="text-[10px] text-muted-foreground">km² area</div>
           </div>
         </div>
       </div>
@@ -161,10 +182,12 @@ export function CensusSidebar({
             {formatMetricValue(selectedUnit[selectedMetric], selectedMetricDef.format)}
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-amber-800 dark:text-amber-300">
-            <div>DA count: {selectedUnit.daCount}</div>
+            <div>Area: {formatArea(selectedUnit.areaSqKm || 0)} km²</div>
             <div>Pop: {(selectedUnit.population || 0).toLocaleString()}</div>
             <div>Households: {(selectedUnit.households || 0).toLocaleString()}</div>
             <div>Dwellings: {(selectedUnit.dwellings || 0).toLocaleString()}</div>
+            <div>DA count: {selectedUnit.daCount.toLocaleString()}</div>
+            <div>DB count: {selectedUnit.dbCount.toLocaleString()}</div>
           </div>
         </div>
       )}
@@ -205,7 +228,7 @@ export function CensusSidebar({
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    DA {unit.daCount} | Pop {(unit.population || 0).toLocaleString()}
+                    Area {formatArea(unit.areaSqKm || 0)} km² | DA {unit.daCount} | DB {unit.dbCount}
                   </div>
                 </button>
               )
