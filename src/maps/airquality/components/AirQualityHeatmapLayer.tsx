@@ -72,12 +72,16 @@ export function AirQualityHeatmapLayer({ monitors, visible }: AirQualityHeatmapL
     }
 
     return () => {
-      if (!map) return
-      if (map.getLayer(layerId)) {
-        map.removeLayer(layerId)
-      }
-      if (map.getSource(sourceId)) {
-        map.removeSource(sourceId)
+      try {
+        if (!map || !map.getStyle()) return
+        if (map.getLayer(layerId)) {
+          map.removeLayer(layerId)
+        }
+        if (map.getSource(sourceId)) {
+          map.removeSource(sourceId)
+        }
+      } catch {
+        // Map already destroyed during unmount
       }
     }
   }, [data, isLoaded, layerId, map, sourceId, visible])

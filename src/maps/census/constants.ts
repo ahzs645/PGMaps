@@ -5,25 +5,25 @@ export const CENSUS_METRICS: CensusMetricOption[] = [
     key: 'populationDensity',
     label: 'Population Density (/km²)',
     format: 'decimal',
-    levels: ['cd', 'csd', 'ct', 'da']
+    levels: ['cd', 'csd', 'ct', 'da', 'db']
   },
   {
     key: 'population',
     label: 'Population (2021)',
     format: 'int',
-    levels: ['cd', 'csd', 'ct', 'da']
+    levels: ['cd', 'csd', 'ct', 'da', 'db']
   },
   {
     key: 'households',
     label: 'Households',
     format: 'int',
-    levels: ['cd', 'csd', 'ct', 'da']
+    levels: ['cd', 'csd', 'ct', 'da', 'db']
   },
   {
     key: 'dwellings',
     label: 'Dwellings',
     format: 'int',
-    levels: ['cd', 'csd', 'ct', 'da']
+    levels: ['cd', 'csd', 'ct', 'da', 'db']
   },
   {
     key: 'areaSqKm',

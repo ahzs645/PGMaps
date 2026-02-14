@@ -15,6 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '..')
 const outputDir = path.join(projectRoot, 'public/data/census')
 const daDataPath = path.join(outputDir, 'prince_george_da_data.json')
+const dbDataPath = path.join(outputDir, 'prince_george_db_data.json')
 
 function toNumber(value) {
   if (value == null) return null
@@ -156,6 +157,19 @@ async function main() {
   daRows.forEach((row) => {
     if (row.GeoUID) daRowsById.set(String(row.GeoUID), row)
   })
+
+  // Load DB-level census data from CensusMapper (has population/dwellings/households)
+  let dbRowsById = new Map()
+  try {
+    const dbDataJson = JSON.parse(await fs.readFile(dbDataPath, 'utf8'))
+    const dbRows = Array.isArray(dbDataJson.data) ? dbDataJson.data : []
+    dbRows.forEach((row) => {
+      if (row.GeoUID) dbRowsById.set(String(row.GeoUID), row)
+    })
+    console.log(`Loaded ${dbRowsById.size} DB census records from CensusMapper`)
+  } catch {
+    console.warn('No DB data file found, DB features will have geometry only')
+  }
 
   console.log('Fetching CSD geometry...')
   const csdRaw = await queryLayerGeoJson(9, {
@@ -340,6 +354,20 @@ async function main() {
         const parentCd = cdById.get(TARGET_CD_UID)
         if (parentCd) parentCd.properties.dbCount += 1
 
+        // Enrich DB with CensusMapper data (basic fields have values even when vectors are suppressed)
+        const dbRow = dbRowsById.get(id)
+        const dbPopulation = chooseNumber(dbRow?.['Population '])
+        const dbDwellings = chooseNumber(dbRow?.['Dwellings '])
+        const dbHouseholds = chooseNumber(dbRow?.['Households '])
+        const dbAreaSqKm = chooseNumber(
+          dbRow?.['Area (sq km)'],
+          feature.properties?.LANDAREA,
+          turf.area(feature) / 1_000_000
+        )
+        const dbDensity = dbAreaSqKm > 0 && dbPopulation != null
+          ? dbPopulation / dbAreaSqKm
+          : null
+
         return {
           type: 'Feature',
           geometry: feature.geometry,
@@ -347,7 +375,11 @@ async function main() {
             ...metricTemplate('db'),
             id,
             name: `DB ${id}`,
-            areaSqKm: chooseNumber(feature.properties?.LANDAREA, turf.area(feature) / 1_000_000),
+            population: dbPopulation,
+            households: dbHouseholds,
+            dwellings: dbDwellings,
+            areaSqKm: dbAreaSqKm,
+            populationDensity: dbDensity,
             parentCdId: parentDa.properties.parentCdId,
             parentCsdId: parentDa.properties.parentCsdId,
             parentCtId: parentDa.properties.parentCtId,
