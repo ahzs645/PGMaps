@@ -1,0 +1,1484 @@
+[
+  {
+    "id": "NCORE-1",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.55305600100007,
+    "longitude": -86.81499999999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-2",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 64.84569000000005,
+    "longitude": -147.72741299999996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-3",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.50383300000004,
+    "longitude": -112.09576699999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-4",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.295150000000035,
+    "longitude": -110.98229999999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-5",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.75618880400003,
+    "longitude": -92.28129586399996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arkansas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-7",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.78537999900004,
+    "longitude": -119.77320999999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-8",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.36068400000005,
+    "longitude": -118.33078299999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-9",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.066590001000066,
+    "longitude": -118.22688,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-10",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.99958000100003,
+    "longitude": -117.41600999999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-11",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.61377900100007,
+    "longitude": -121.36801399999996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-14",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.78956500000004,
+    "longitude": -116.94430799999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-15",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.348497000000066,
+    "longitude": -121.89489799999996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-17",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.77949000000007,
+    "longitude": -105.00517999999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-18",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.82134200100006,
+    "longitude": -73.29725699999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Connecticut",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-19",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.30140000100005,
+    "longitude": -72.90287099999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Connecticut",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-20",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.739441000000056,
+    "longitude": -75.55753399999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Delaware",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-21",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.92184700100006,
+    "longitude": -77.01317799999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "District Of Columbia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-22",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 26.05388890000006,
+    "longitude": -80.25694439999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-23",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 27.96565000100003,
+    "longitude": -82.23039999999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-24",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.092500001000076,
+    "longitude": -84.16111099999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-25",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.68780000000004,
+    "longitude": -84.29049999999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-26",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 21.323744790000035,
+    "longitude": -158.08861269999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Hawaii",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-27",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.60069900000008,
+    "longitude": -116.34785299999999,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Idaho",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-28",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.05278000000004,
+    "longitude": -88.37250999999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-29",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.13999619100008,
+    "longitude": -87.79922691699994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-30",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.81083300000006,
+    "longitude": -86.11444399999993,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Indiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-31",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.53001062100003,
+    "longitude": -90.58761081399996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Iowa",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-32",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.117219000000034,
+    "longitude": -94.63560499999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kansas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-33",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.22876000100007,
+    "longitude": -85.65451999999999,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kentucky",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-34",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.461980999000048,
+    "longitude": -91.17921899999999,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Louisiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-35",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.37705000100004,
+    "longitude": -68.26089999999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maine",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-36",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.31083300000006,
+    "longitude": -76.47444399999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-37",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.70595000000003,
+    "longitude": -79.01199999999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-38",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.055277000000046,
+    "longitude": -76.87833299999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-39",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.32950000000005,
+    "longitude": -71.08259999999996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Massachusetts",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-40",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.984173000000055,
+    "longitude": -85.67133899999999,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-41",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.22861100000006,
+    "longitude": -83.20833299999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-42",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.137679536000064,
+    "longitude": -93.20761497499996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Minnesota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-44",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.32911100000007,
+    "longitude": -90.18272199999996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Mississippi",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-45",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.65642894400003,
+    "longitude": -90.19834826799996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-46",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.85050000000007,
+    "longitude": -111.98716399999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-47",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.24748600100003,
+    "longitude": -95.97314199999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nebraska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-48",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.14187499900004,
+    "longitude": -115.07874199999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nevada",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-50",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.52193333200006,
+    "longitude": -119.79539999999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nevada",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-51",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.861830000000054,
+    "longitude": -71.87862599999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Hampshire",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-52",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.86253100000005,
+    "longitude": -71.38013999999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Hampshire",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-54",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.13430000100004,
+    "longitude": -106.58519999999999,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-55",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.14618000000007,
+    "longitude": -77.54816999999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-56",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.736140000000034,
+    "longitude": -73.82152999999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-57",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.09142000000003,
+    "longitude": -77.20977999999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-58",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.24010000100003,
+    "longitude": -80.78568299999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-59",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.856111000000055,
+    "longitude": -78.57416699999999,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-60",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.82542500000005,
+    "longitude": -100.76820999999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Dakota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-62",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.492116999000075,
+    "longitude": -81.67844899999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-63",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.12885999900004,
+    "longitude": -84.50403999999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-65",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.83561999900007,
+    "longitude": -84.72052399999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-66",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.750735001000066,
+    "longitude": -94.66969699999999,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oklahoma",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-67",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.20490200100005,
+    "longitude": -95.97653699999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oklahoma",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-68",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.49664100000007,
+    "longitude": -122.60287699999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-69",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.46542032800005,
+    "longitude": -79.96075744999996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-70",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.99138900000003,
+    "longitude": -75.08083299999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-72",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.841038999000034,
+    "longitude": -71.36096999999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Rhode Island",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-73",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.09395900000004,
+    "longitude": -80.96230399999996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-75",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.59901000000008,
+    "longitude": -96.78330999999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Dakota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-76",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.63348000000008,
+    "longitude": -83.94160599999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-77",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.151699000000065,
+    "longitude": -89.85024899999996,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-78",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.82006100000007,
+    "longitude": -96.86011699999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-79",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 31.765685000000076,
+    "longitude": -106.45522699999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-81",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.670025000000066,
+    "longitude": -95.12850799999995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-82",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.73638900000003,
+    "longitude": -111.87222199999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-83",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.52839000100005,
+    "longitude": -72.86883999999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Vermont",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-84",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.556520001000024,
+    "longitude": -77.40026999999998,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-85",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.29786000000007,
+    "longitude": -124.62490999999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-86",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.56823600000007,
+    "longitude": -122.30862799999994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-88",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.346258000000034,
+    "longitude": -81.62116099999997,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "West Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-89",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.46611000000007,
+    "longitude": -88.62110999999999,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wisconsin",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-90",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.18222710600003,
+    "longitude": -104.77833420599995,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wyoming",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-91",
+    "name": "NCore Multipollutant Network",
+    "network": "EPA NCORE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 18.420089117000032,
+    "longitude": -66.15061549599994,
+    "parameters": [
+      "Multipollutant"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Puerto Rico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  }
+]

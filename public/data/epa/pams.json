@@ -1,0 +1,344 @@
+[
+  {
+    "id": "PAMS-2",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.59744199900007,
+    "longitude": -119.50365899999997,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-3",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.81944899900003,
+    "longitude": -119.716433,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-5",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.331611999000074,
+    "longitude": -118.99996099999998,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-7",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.50358709300008,
+    "longitude": -119.27260621799996,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-9",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.066590001000066,
+    "longitude": -118.22688,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-10",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.867124999000055,
+    "longitude": -120.01015799999999,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-12",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.99958000100003,
+    "longitude": -117.41600999999997,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-13",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.61377900100007,
+    "longitude": -121.36801399999996,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-42",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.31083300000006,
+    "longitude": -76.47444399999995,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-44",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.055277000000046,
+    "longitude": -76.87833299999994,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-62",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.86790000000008,
+    "longitude": -73.87808999999999,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-64",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.96101700000003,
+    "longitude": -73.13904599999995,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-70",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.82006100000007,
+    "longitude": -96.86011699999995,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-74",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 31.765685000000076,
+    "longitude": -106.45522699999998,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-80",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.733726000000047,
+    "longitude": -95.25759299999999,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-81",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.670025000000066,
+    "longitude": -95.12850799999995,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-82",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.036422000000073,
+    "longitude": -94.07106099999999,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  },
+  {
+    "id": "PAMS-84",
+    "name": "Photochemical Assessment Monitoring Stations",
+    "network": "EPA PAMS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.979958000000067,
+    "longitude": -94.00474599999995,
+    "parameters": [
+      "Ozone Precursors"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pams"
+  }
+]

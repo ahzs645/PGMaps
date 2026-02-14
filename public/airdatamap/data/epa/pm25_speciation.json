@@ -1,0 +1,2928 @@
+[
+  {
+    "id": "PM25_SPECIATION-2",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.55305600100007,
+    "longitude": -86.81499999999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-4",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.499722001000066,
+    "longitude": -86.92416699999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-10",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.437027999000065,
+    "longitude": -84.99965299999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-13",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 64.84569000000005,
+    "longitude": -147.72741299999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-14",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 64.76264100000003,
+    "longitude": -147.31027899999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-15",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 64.84528056000005,
+    "longitude": -147.68390299999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-20",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.50383300000004,
+    "longitude": -112.09576699999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-22",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.295150000000035,
+    "longitude": -110.98229999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-24",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.75618880400003,
+    "longitude": -92.28129586399996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arkansas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-27",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.76167999900008,
+    "longitude": -121.84046999999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-29",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.78537999900004,
+    "longitude": -119.77320999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-30",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.676179999000055,
+    "longitude": -115.48306999999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-31",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.356614999000044,
+    "longitude": -119.06261299999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-32",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.066590001000066,
+    "longitude": -118.22688,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-33",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.83062000000007,
+    "longitude": -117.93844999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-35",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.813360000000046,
+    "longitude": -120.47068999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-36",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.99958000100003,
+    "longitude": -117.41600999999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-37",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.61377900100007,
+    "longitude": -121.36801399999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-38",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.56843999900008,
+    "longitude": -121.49310999999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-39",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.10002000000003,
+    "longitude": -117.49201,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-43",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.78956500000004,
+    "longitude": -116.94430799999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-45",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.348497000000066,
+    "longitude": -121.89489799999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-46",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.642164999000045,
+    "longitude": -120.99421199999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-48",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.30815000000007,
+    "longitude": -119.31289999999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-52",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.82810000000006,
+    "longitude": -104.93646999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-54",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.77949000000007,
+    "longitude": -105.00517999999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-59",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.20938700100004,
+    "longitude": -104.82404999999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-61",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.30140000100005,
+    "longitude": -72.90287099999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Connecticut",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-64",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.739441000000056,
+    "longitude": -75.55753399999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Delaware",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-66",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.92184700100006,
+    "longitude": -77.01317799999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "District Of Columbia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-67",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 26.05388890000006,
+    "longitude": -80.25694439999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-72",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 27.96565000100003,
+    "longitude": -82.23039999999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-73",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.439722001000064,
+    "longitude": -84.34638899999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-76",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.77746466100007,
+    "longitude": -83.64099571399998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-79",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 31.51309685700005,
+    "longitude": -82.74997097899995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-80",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.68780000000004,
+    "longitude": -84.29049999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-81",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.260500000000036,
+    "longitude": -85.32319999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-84",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.427400000000034,
+    "longitude": -84.94569999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-85",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.43390000000005,
+    "longitude": -82.02239999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-87",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.97840000000008,
+    "longitude": -85.29429999999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-88",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 21.323744790000035,
+    "longitude": -158.08861269999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Hawaii",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-90",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.60069900000008,
+    "longitude": -116.34785299999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Idaho",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-93",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.912738999000055,
+    "longitude": -87.72267299999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-94",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.75139997900004,
+    "longitude": -87.71348815199997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-95",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.13999619100008,
+    "longitude": -87.79922691699994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-96",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.77107094400003,
+    "longitude": -88.15253365199999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-98",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.70063150000004,
+    "longitude": -90.14476267399994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-102",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.28819082600006,
+    "longitude": -85.74133650599998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Indiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-103",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.39179900000005,
+    "longitude": -86.92966799999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Indiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-106",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.00954376100003,
+    "longitude": -85.52347038799996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Indiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-107",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.60666232300008,
+    "longitude": -87.30494332099994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Indiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-109",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.81083300000006,
+    "longitude": -86.11444399999993,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Indiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-112",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.013333000000046,
+    "longitude": -87.57722199999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Indiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-117",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.53001062100003,
+    "longitude": -90.58761081399996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Iowa",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-118",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.70206600000006,
+    "longitude": -97.31484699999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kansas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-119",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.117219000000034,
+    "longitude": -94.63560499999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kansas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-127",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.22876000100007,
+    "longitude": -85.65451999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kentucky",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-134",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.461980999000048,
+    "longitude": -91.17921899999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Louisiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-136",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.31083300000006,
+    "longitude": -76.47444399999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-137",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.055277000000046,
+    "longitude": -76.87833299999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-139",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.19438046500005,
+    "longitude": -72.55511169599998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Massachusetts",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-140",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.32950000000005,
+    "longitude": -71.08259999999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Massachusetts",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-144",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.984173000000055,
+    "longitude": -85.67133899999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-153",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.22861100000006,
+    "longitude": -83.20833299999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-154",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.302778000000046,
+    "longitude": -83.10666699999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-156",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.306666000000064,
+    "longitude": -83.14888899999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-157",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.137679536000064,
+    "longitude": -93.20761497499996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Minnesota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-158",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.95366000100006,
+    "longitude": -93.25820999999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Minnesota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-167",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.32911100000007,
+    "longitude": -90.18272199999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Mississippi",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-172",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.44853000000006,
+    "longitude": -90.39859999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-175",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.65642894400003,
+    "longitude": -90.19834826799996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-178",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.85050000000007,
+    "longitude": -111.98716399999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-182",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.00260200000008,
+    "longitude": -112.50124699999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-183",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.24748600100003,
+    "longitude": -95.97314199999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nebraska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-185",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.14187499900004,
+    "longitude": -115.07874199999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nevada",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-189",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.52193333200006,
+    "longitude": -119.79539999999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nevada",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-192",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.934558999000046,
+    "longitude": -75.12521899999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Jersey",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-194",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.923969000000056,
+    "longitude": -75.12231699999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Jersey",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-197",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.46218199900005,
+    "longitude": -74.42943899999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Jersey",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-198",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.78762800000004,
+    "longitude": -74.67630099999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Jersey",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-199",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.641440000000046,
+    "longitude": -74.20836499999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Jersey",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-200",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.13430000100004,
+    "longitude": -106.58519999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-201",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.64225000000005,
+    "longitude": -73.75463999999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-203",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.81600000000003,
+    "longitude": -73.90199999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-204",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.87690666700007,
+    "longitude": -78.80952601199994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-205",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.393080000000054,
+    "longitude": -73.85889999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-206",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.14618000000007,
+    "longitude": -77.54816999999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-209",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.714360000000056,
+    "longitude": -73.99517999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-210",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.736140000000034,
+    "longitude": -73.82152999999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-211",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.09142000000003,
+    "longitude": -77.20977999999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-217",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.11094000000003,
+    "longitude": -80.22450099999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-220",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.24010000100003,
+    "longitude": -80.78568299999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-222",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.856111000000055,
+    "longitude": -78.57416699999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-223",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.82542500000005,
+    "longitude": -100.76820999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Dakota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-224",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.93375400100007,
+    "longitude": -96.85534999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Dakota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-227",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.47701099900007,
+    "longitude": -81.68238299999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-228",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.492116999000075,
+    "longitude": -81.67844899999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-229",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.44662439900003,
+    "longitude": -81.66235589999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-230",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.42352999900004,
+    "longitude": -81.64754999999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-233",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.12885999900004,
+    "longitude": -84.50403999999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-236",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.36630000000008,
+    "longitude": -80.61579999999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-246",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.75596900000005,
+    "longitude": -84.19867399999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-247",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.83561999900007,
+    "longitude": -84.72052399999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-248",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.78680359900005,
+    "longitude": -81.39415299999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-252",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.61413100100003,
+    "longitude": -97.47508299999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oklahoma",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-253",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.20490200100005,
+    "longitude": -95.97653699999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oklahoma",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-254",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.29978700000004,
+    "longitude": -120.84477299999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-256",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.58925000000005,
+    "longitude": -119.04871999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-260",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.49664100000007,
+    "longitude": -122.60287699999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-263",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.52850100000006,
+    "longitude": -122.97239799999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-264",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.92002011300008,
+    "longitude": -77.30968016599996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-265",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.46542032800005,
+    "longitude": -79.96075744999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-267",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.32376755200005,
+    "longitude": -79.86806240099997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-270",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.30972200000008,
+    "longitude": -78.91499999999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-272",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.83446058700008,
+    "longitude": -75.76824207499999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-273",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.246992000000034,
+    "longitude": -76.84698799999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-274",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.835556000000054,
+    "longitude": -75.37249999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-275",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.818715000000054,
+    "longitude": -75.41397299999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-278",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.04666700000007,
+    "longitude": -76.28333299999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-279",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.04383300100005,
+    "longitude": -76.11239999999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-280",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.62805600000007,
+    "longitude": -75.34111099999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-283",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.99138900000003,
+    "longitude": -75.08083299999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-284",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.92286700000005,
+    "longitude": -75.18692099999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-287",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.44527800000003,
+    "longitude": -80.42083299999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-288",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.30469400000004,
+    "longitude": -79.50566699999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-291",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.841038999000034,
+    "longitude": -71.36096999999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Rhode Island",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-293",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.61536700100004,
+    "longitude": -80.19878699999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-297",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.09395900000004,
+    "longitude": -80.96230399999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-301",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.59901000000008,
+    "longitude": -96.78330999999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Dakota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-304",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.97807400100004,
+    "longitude": -83.95066599999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-310",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.151699000000065,
+    "longitude": -89.85024899999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-317",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.82006100000007,
+    "longitude": -96.86011699999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-319",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 31.765685000000076,
+    "longitude": -106.45522699999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-327",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.670025000000066,
+    "longitude": -95.12850799999995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-328",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.66900099900005,
+    "longitude": -94.16746799999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-341",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.84264900000005,
+    "longitude": -111.85219899999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-343",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.90296700000005,
+    "longitude": -111.88446699999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-344",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.73638900000003,
+    "longitude": -111.87222199999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-345",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.34138900000005,
+    "longitude": -111.71361099999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-348",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.556520001000024,
+    "longitude": -77.40026999999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-356",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.597222000000045,
+    "longitude": -122.31972199999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-361",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.56823600000007,
+    "longitude": -122.30862799999994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-362",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.18640000000005,
+    "longitude": -122.45169999999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-366",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.594952000000035,
+    "longitude": -120.51228299999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-367",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.448833001000025,
+    "longitude": -81.68471699999998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "West Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-368",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.346258000000034,
+    "longitude": -81.62116099999997,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "West Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-370",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.91596097200005,
+    "longitude": -80.73385802299998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "West Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-372",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.50729000000007,
+    "longitude": -87.99343999999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wisconsin",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-373",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.46611000000007,
+    "longitude": -88.62110999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wisconsin",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-377",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.01724000000007,
+    "longitude": -87.93368999999996,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wisconsin",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-379",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.20660000000004,
+    "longitude": -90.59719999999999,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wisconsin",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-381",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.18222710600003,
+    "longitude": -104.77833420599995,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wyoming",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-382",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 18.420089117000032,
+    "longitude": -66.15061549599994,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Puerto Rico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-385",
+    "name": "PM2.5 Chemical Speciation Network",
+    "network": "EPA CSN STN",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.63367104500003,
+    "longitude": -115.50499484699998,
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Country Of Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  }
+]

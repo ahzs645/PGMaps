@@ -1,0 +1,5452 @@
+[
+  {
+    "id": "132913",
+    "name": "1031 Karluk Street",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.21202,
+    "longitude": -149.86253,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": null,
+      "humidity": 100,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "23943",
+    "name": "1051 Dakota St. North Pole AK",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.82082,
+    "longitude": -147.41585,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 6.7,
+      "humidity": 60,
+      "pressure": 987.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "32553",
+    "name": "1231 Sundance, Fairbanks",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.90141,
+    "longitude": -147.75743,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.7,
+    "metadata": {
+      "temperature": 5.4,
+      "humidity": 60,
+      "pressure": 979.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "16863",
+    "name": "12th Ave",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.83823,
+    "longitude": -147.7102,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.7,
+    "metadata": {
+      "temperature": 8.2,
+      "humidity": 62.8,
+      "pressure": 985.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "150546",
+    "name": "1479 Farmers Loop Road - Outside",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.88298,
+    "longitude": -147.78932,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 5.5,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 61,
+      "pressure": 986.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "206881",
+    "name": "1716 Reed Circle",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.87382,
+    "longitude": -147.81425,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 5.6,
+    "metadata": {
+      "temperature": 6.9,
+      "humidity": 54.3,
+      "pressure": 984.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "230037",
+    "name": "2 mile Gilmore Trail",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.92076,
+    "longitude": -147.54247,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.2,
+    "metadata": {
+      "temperature": 2.8,
+      "humidity": 69,
+      "pressure": 947.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "35151",
+    "name": "2190 Cripple Creek Rd",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.76939,
+    "longitude": -148.04025,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 66,
+      "pressure": 971.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "148859",
+    "name": "3rd ave",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.845055,
+    "longitude": -147.73999,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.9,
+    "metadata": {
+      "temperature": 6.7,
+      "humidity": 62.7,
+      "pressure": 988.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "161743",
+    "name": "6 South Metlakatla",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 55.045326,
+    "longitude": -131.58585,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.8,
+    "metadata": {
+      "temperature": 16,
+      "humidity": 58,
+      "pressure": 1010.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "162167",
+    "name": "668 Steele Creek",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.90637,
+    "longitude": -147.58319,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.5,
+    "metadata": {
+      "temperature": 8.1,
+      "humidity": 54,
+      "pressure": 966.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "132903",
+    "name": "910 Nelchina St.",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.21327,
+    "longitude": -149.85693,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 14.4,
+      "humidity": 68.8,
+      "pressure": 996.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "255831",
+    "name": "97th &amp; birch",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.132378,
+    "longitude": -149.77835,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 10.6,
+      "humidity": 63.3,
+      "pressure": 985
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "20900040",
+    "name": "A Street",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.845931,
+    "longitude": -147.693278,
+    "province": "United States",
+    "dateObserved": "2025-10-17 20:00:00",
+    "pm25Recent": 3.1,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "17345",
+    "name": "Abraham Rd @ 1640Ft",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.92465,
+    "longitude": -148.25847,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 56.2,
+      "pressure": 943.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "148147",
+    "name": "ACAT 7",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.734047,
+    "longitude": -151.2165,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 11.8,
+      "humidity": 58,
+      "pressure": 994.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "163815",
+    "name": "Airfield",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.66564,
+    "longitude": -147.10144,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.2,
+    "metadata": {
+      "temperature": 7.8,
+      "humidity": 58,
+      "pressure": 983.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "151768",
+    "name": "Airhounds",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.205948,
+    "longitude": -149.82735,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 12.6,
+      "humidity": 56,
+      "pressure": 997.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "177995",
+    "name": "Akhiok",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 56.94538,
+    "longitude": -154.1744,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 13.9,
+      "humidity": 54,
+      "pressure": 1003.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "279826",
+    "name": "Alex Moses Greenland Building",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 68.35575,
+    "longitude": -133.72475,
+    "province": "Northwest Territories",
+    "dateObserved": "2025-10-02 19:10:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "126961",
+    "name": "Alutiiq Pride Marine Institute",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.098682,
+    "longitude": -149.44476,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 13.9,
+      "humidity": 48.3,
+      "pressure": 999
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "149214",
+    "name": "Alyeska Highwqay",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.95637,
+    "longitude": -149.1569,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-09-18 20:00:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "196299",
+    "name": "Anderson, AK",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.34314,
+    "longitude": -149.18932,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 6.2,
+      "humidity": 65,
+      "pressure": 985.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "178825",
+    "name": "Anikkan Clinic",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.87937,
+    "longitude": -160.79207,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.6,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 60,
+      "pressure": 1003.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "56869",
+    "name": "ANTHC-Johns Road Anchorage",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.10959,
+    "longitude": -149.87827,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 12.8,
+      "humidity": 53.5,
+      "pressure": 996.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "103874",
+    "name": "AQSU - 747E - NAPS",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.71965,
+    "longitude": -135.0587,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 8.7,
+      "humidity": 52,
+      "pressure": 926.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "26653",
+    "name": "AQSU - FA54 - Haines Junction",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.75921,
+    "longitude": -137.52063,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.6,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 57,
+      "pressure": 930.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "103866",
+    "name": "AQSU 65B6 - Dawson",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.06151,
+    "longitude": -139.43198,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 6.7,
+      "humidity": 59,
+      "pressure": 963.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "168829",
+    "name": "AQSU-002E (Teslin)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.166557,
+    "longitude": -132.72392,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 13.9,
+      "humidity": 43.5,
+      "pressure": 921
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "168803",
+    "name": "AQSU-3082",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.77631,
+    "longitude": -135.13805,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.2,
+    "metadata": {
+      "temperature": 10.6,
+      "humidity": 46.8,
+      "pressure": 918.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "168831",
+    "name": "AQSU-374A (Tagish Firehall)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.265038,
+    "longitude": -134.30074,
+    "province": "Yukon",
+    "dateObserved": "2025-10-15 03:00:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "168819",
+    "name": "AQSU-442E (Faro)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.22864,
+    "longitude": -133.3564,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 13.3,
+      "humidity": 37,
+      "pressure": 916.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "35241",
+    "name": "AQSU-5DA",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.01411,
+    "longitude": -135.13133,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.3,
+    "metadata": {
+      "temperature": 11.5,
+      "humidity": 49.3,
+      "pressure": 927
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "168797",
+    "name": "AQSU-6327 (Johnsons Crossing)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.482967,
+    "longitude": -133.30878,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 10.6,
+      "humidity": 49.3,
+      "pressure": 921.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "168813",
+    "name": "AQSU-83B9",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.719517,
+    "longitude": -135.05872,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.6,
+    "metadata": {
+      "temperature": 9.3,
+      "humidity": 52.7,
+      "pressure": 927.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "24337",
+    "name": "AQSU-89F3 (Burwash Landing)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.356308,
+    "longitude": -138.9901,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 9.2,
+      "humidity": 44,
+      "pressure": 908.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197891",
+    "name": "AQSU-B136",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.347244,
+    "longitude": -135.6339,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 6.2,
+      "humidity": 56,
+      "pressure": 874.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "103970",
+    "name": "AQSU-D5D8 (Copper Ridge)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.70346,
+    "longitude": -135.10953,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.2,
+    "metadata": {
+      "temperature": 8,
+      "humidity": 54,
+      "pressure": 911.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "27261",
+    "name": "AQSU-D7E (Atlin)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.50447,
+    "longitude": -133.63092,
+    "province": "British Columbia",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 10.6,
+      "humidity": 41.8,
+      "pressure": 920.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "26683",
+    "name": "AQSU-E63B(Carcross)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.170574,
+    "longitude": -134.70367,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 14.3,
+      "humidity": 30.5,
+      "pressure": 924.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "168825",
+    "name": "AQSU-FB85 (Whitehorse-Takhini North)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.740948,
+    "longitude": -135.09488,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 53,
+      "pressure": 922.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "168815",
+    "name": "AQSU-FFF9 (Carmacks)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.08972,
+    "longitude": -136.28635,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 7.8,
+      "humidity": 51.3,
+      "pressure": 939.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "101710",
+    "name": "AQSU3A12 - Old Crow",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 67.570274,
+    "longitude": -139.82722,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3,
+    "metadata": {
+      "temperature": 0,
+      "humidity": 58.2,
+      "pressure": 976.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "198429",
+    "name": "Arkell Pl",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.614555,
+    "longitude": -134.9578,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 10.6,
+      "humidity": 50,
+      "pressure": 917.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "36315",
+    "name": "Ballaine/Fairway",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.881256,
+    "longitude": -147.82672,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.7,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 100,
+      "pressure": 979.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "202171",
+    "name": "Bedford",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.90075,
+    "longitude": -147.82819,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.6,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 62.5,
+      "pressure": 973.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "21481",
+    "name": "Birch lane",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84331,
+    "longitude": -147.84102,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 67,
+      "pressure": 987.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "278387",
+    "name": "Blackburn",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.78529,
+    "longitude": -147.35721,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.2,
+    "metadata": {
+      "temperature": 4.1,
+      "humidity": 73.3,
+      "pressure": 986.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "34349",
+    "name": "BLM Arctic Interagency Visitor's Center",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 67.25146,
+    "longitude": -150.18536,
+    "province": "United States",
+    "dateObserved": "2025-09-26 23:20:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "228313",
+    "name": "BONA tower - NEON",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 65.15408,
+    "longitude": -147.50266,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 6.4,
+      "humidity": 65.5,
+      "pressure": 974.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "208403",
+    "name": "Brock Road",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.81654,
+    "longitude": -147.37656,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.6,
+    "metadata": {
+      "temperature": 7.5,
+      "humidity": 54.8,
+      "pressure": 985.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "236305",
+    "name": "Bullion",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.92892,
+    "longitude": -147.59454,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.2,
+    "metadata": {
+      "temperature": 8.7,
+      "humidity": 52.7,
+      "pressure": 964.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "34855",
+    "name": "by the dike",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.91047,
+    "longitude": -147.64989,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.2,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 66,
+      "pressure": 985.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "33931",
+    "name": "Campbell Lake Alaska",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.13393,
+    "longitude": -149.93704,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 12.2,
+      "humidity": 55.5,
+      "pressure": 1000.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "18663",
+    "name": "Capricorn St.",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.895004,
+    "longitude": -147.74683,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 8.2,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 69,
+      "pressure": 983.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "23073",
+    "name": "Center of the universe",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.94702,
+    "longitude": -147.67053,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.4,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 65,
+      "pressure": 977
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "30261",
+    "name": "Chalkyitsik",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 66.65,
+    "longitude": -143.73,
+    "province": "United States",
+    "dateObserved": "2025-09-19 15:30:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "286488",
+    "name": "Chatanika",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 65.144455,
+    "longitude": -147.42696,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 5.4,
+      "humidity": 66,
+      "pressure": 979.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "42071",
+    "name": "Chena Ridge",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.81868,
+    "longitude": -147.99039,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.3,
+    "metadata": {
+      "temperature": 10,
+      "humidity": 51,
+      "pressure": 964.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "189467",
+    "name": "Chief Evan drive",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.844765,
+    "longitude": -147.78368,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.1,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 63,
+      "pressure": 987.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "126995",
+    "name": "Chilkoot Indian Association",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.233624,
+    "longitude": -135.44756,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 11.9,
+      "humidity": 68,
+      "pressure": 1004.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "188675",
+    "name": "CIA Dock",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.22678,
+    "longitude": -135.43405,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 11.7,
+      "humidity": 67.8,
+      "pressure": 1004.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "188351",
+    "name": "City Hall",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.80104,
+    "longitude": -161.77489,
+    "province": "United States",
+    "dateObserved": "2025-10-12 03:10:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "36957",
+    "name": "City Hall",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.455482,
+    "longitude": -135.3115,
+    "province": "United States",
+    "dateObserved": "2025-10-03 12:50:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "188643",
+    "name": "CIV OUTDOOR",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.39856,
+    "longitude": -135.8906,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.2,
+    "metadata": {
+      "temperature": 12.8,
+      "humidity": 63.5,
+      "pressure": 1001
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "24653",
+    "name": "Clear Space Force Station",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.2923,
+    "longitude": -149.16444,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 53.5,
+      "pressure": 982
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "127005",
+    "name": "Copper River Native Association",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.06746,
+    "longitude": -145.42949,
+    "province": "United States",
+    "dateObserved": "2025-09-26 21:40:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "36125",
+    "name": "Corbin Creek Farm",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.10612,
+    "longitude": -146.21748,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 11.7,
+      "humidity": 100,
+      "pressure": 999
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "26415",
+    "name": "CTC building",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.841,
+    "longitude": -147.72641,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.5,
+    "metadata": {
+      "temperature": 6.7,
+      "humidity": 61,
+      "pressure": 985.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "39603",
+    "name": "CTCTrailer#1",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84064,
+    "longitude": -147.72763,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.8,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 66.2,
+      "pressure": 987.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "266307",
+    "name": "DEC - Floyd Dryden 1",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 58.3876,
+    "longitude": -134.5671,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.1,
+    "metadata": {
+      "temperature": 12.6,
+      "humidity": 79.2,
+      "pressure": 1006.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "266367",
+    "name": "DEC - Floyd Dryden 2",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 58.388107,
+    "longitude": -134.56775,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.7,
+    "metadata": {
+      "temperature": 12.6,
+      "humidity": 76.2,
+      "pressure": 1006.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "266325",
+    "name": "DEC - Garden 1",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.205925,
+    "longitude": -149.82408,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-09 11:00:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "266893",
+    "name": "DEC - Garden 2",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.205906,
+    "longitude": -149.8247,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-09 11:10:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "28923",
+    "name": "Delta Community Library",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.046364,
+    "longitude": -145.73454,
+    "province": "United States",
+    "dateObserved": "2025-10-01 07:40:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "180135",
+    "name": "Delta Junction ASCENT",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.88112,
+    "longitude": -145.75136,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "ASCENT-1",
+    "name": "Delta Junction, AK",
+    "network": "ASCENT",
+    "latitude": 63.88112,
+    "longitude": -145.75136,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "rural",
+    "siteNumber": 1,
+    "aqsSiteId": "n/a",
+    "cbsa": "n/a",
+    "address": "Southeast Fairbanks County, AK",
+    "currentNetwork": "NEON",
+    "instrumentMentor": "Jingqiu Mao, University of Alaska Fairbanks",
+    "comments": "Remote, arctic, background, boreal forest, intercontinental transport, EPSCoR",
+    "description": "Site Number: 1\nAQS Site ID: n/a\nCore Based Statistical Area (CBSA): n/a\nAddress: Southeast Fairbanks County, AK\nLatitude: 63.88112\nLongitude: -145.75136\nCurrent Network: NEON\nInstrument Mentor: Jingqiu Mao, University of Alaska Fairbanks\nComments: Remote, arctic, background, boreal forest, intercontinental transport, EPSCoR"
+  },
+  {
+    "id": "218785",
+    "name": "Denali Education Center",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.65494,
+    "longitude": -148.82516,
+    "province": "United States",
+    "dateObserved": "2025-09-24 23:10:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "36865",
+    "name": "Denali National Park",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.721004,
+    "longitude": -148.96619,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.3,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 53.7,
+      "pressure": 924.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "94239",
+    "name": "EAS_PA_008",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.71571,
+    "longitude": -135.07945,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 52.3,
+      "pressure": 919.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "93807",
+    "name": "EAS_PA_012",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.584724,
+    "longitude": -134.92004,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 9.4,
+      "humidity": 49,
+      "pressure": 914.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "94523",
+    "name": "EAS_PA_013",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.598526,
+    "longitude": -134.87453,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 9,
+      "humidity": 53,
+      "pressure": 917.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "94221",
+    "name": "EAS_PA_017",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.81448,
+    "longitude": -135.31,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 51.5,
+      "pressure": 914.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "85493",
+    "name": "EAS_PA_034",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.06696,
+    "longitude": -139.42645,
+    "province": "Yukon",
+    "dateObserved": "2025-09-23 19:30:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "94885",
+    "name": "EAS_PA_038",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.70908,
+    "longitude": -135.10039,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 9.4,
+      "humidity": 51,
+      "pressure": 915.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "93853",
+    "name": "EAS_PA_047",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.828796,
+    "longitude": -136.562,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.8,
+    "metadata": {
+      "temperature": 7.2,
+      "humidity": 52,
+      "pressure": 943.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "93827",
+    "name": "EAS-PA-016",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.06619,
+    "longitude": -139.42834,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 20:50:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 3.9,
+      "humidity": 66.7,
+      "pressure": 963.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "93889",
+    "name": "EAS-PA-15",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.75452,
+    "longitude": -137.5135,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 39.6,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 51,
+      "pressure": 930.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "227755",
+    "name": "Eldorado",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.83866,
+    "longitude": -147.72308,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.8,
+    "metadata": {
+      "temperature": 7.2,
+      "humidity": 60.2,
+      "pressure": 986.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "244453",
+    "name": "Eldorado Drive",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.775932,
+    "longitude": -135.09514,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 9.4,
+      "humidity": 52,
+      "pressure": 923
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "171599",
+    "name": "ENV Dease Lake Airport",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 58.42367,
+    "longitude": -130.02695,
+    "province": "British Columbia",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 55.8,
+      "pressure": 914.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "176199",
+    "name": "Eskay Creek Camp 58",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 56.653,
+    "longitude": -130.443,
+    "province": "British Columbia",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 9.9,
+      "humidity": 63,
+      "pressure": 911.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "175977",
+    "name": "Eskay Creek Camp 59",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 56.6537,
+    "longitude": -130.43,
+    "province": "British Columbia",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 9.6,
+    "metadata": {
+      "temperature": 11.8,
+      "humidity": 57.8,
+      "pressure": 920.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "7776",
+    "name": "Fairbanks Ballaine &amp; Lynx",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.90278,
+    "longitude": -147.82834,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.6,
+    "metadata": {
+      "temperature": 8.3,
+      "humidity": 54,
+      "pressure": 973.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "25199",
+    "name": "Fairbanks Lemon Ln",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.85901,
+    "longitude": -147.96252,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 7.4,
+    "metadata": {
+      "temperature": 6.9,
+      "humidity": 58.5,
+      "pressure": 977.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "148659",
+    "name": "fairway dr",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.87955,
+    "longitude": -147.82263,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.4,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 62,
+      "pressure": 982.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "116215",
+    "name": "Fairweather and Farmers Loop",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.902214,
+    "longitude": -147.69244,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.7,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 59.8,
+      "pressure": 976.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "237135",
+    "name": "FGFD",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.986897,
+    "longitude": -145.72397,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.5,
+    "metadata": {
+      "temperature": 6.8,
+      "humidity": 57.8,
+      "pressure": 957
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "21100004",
+    "name": "Floyd Dryden",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 58.388889,
+    "longitude": -134.565556,
+    "province": "United States",
+    "dateObserved": "2025-10-17 20:00:00",
+    "pm25Recent": 2.3,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "126679",
+    "name": "FNSB Shady Ln.",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.74824,
+    "longitude": -147.29878,
+    "province": "United States",
+    "dateObserved": "2025-10-17 20:10:00",
+    "pm25Recent": 4.3,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 63,
+      "pressure": 985.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "102806",
+    "name": "FNSB Tops St",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.77585,
+    "longitude": -147.29715,
+    "province": "United States",
+    "dateObserved": "2025-10-17 19:50:00",
+    "pm25Recent": 1.5,
+    "metadata": {
+      "temperature": 4.2,
+      "humidity": 70,
+      "pressure": 984.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "181103",
+    "name": "FNSB Wyatt Rd 3",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.75022,
+    "longitude": -147.30862,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 71.5,
+      "pressure": 986.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "245669",
+    "name": "FNSB-9th and Smythe",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.83999,
+    "longitude": -147.73038,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.7,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 60,
+      "pressure": 988.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "145168",
+    "name": "FNSB-Back Ct 2",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.81748,
+    "longitude": -147.9118,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 67,
+      "pressure": 988.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "181039",
+    "name": "FNSB-Birch Hill 2",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.86991,
+    "longitude": -147.64616,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.8,
+    "metadata": {
+      "temperature": 3.9,
+      "humidity": 77,
+      "pressure": 969.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "181055",
+    "name": "FNSB-Hutchison High 2",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.85035,
+    "longitude": -147.81647,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 68,
+      "pressure": 989
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "246283",
+    "name": "FNSB-Nordale Elem.",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84715,
+    "longitude": -147.69337,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.4,
+    "metadata": {
+      "temperature": 6.7,
+      "humidity": 61,
+      "pressure": 987.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "245675",
+    "name": "FNSB-Peger AQ Office",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.81851,
+    "longitude": -147.77788,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.5,
+    "metadata": {
+      "temperature": 6.7,
+      "humidity": 62,
+      "pressure": 986.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "30137",
+    "name": "Fort Yukon CATG",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 66.56705,
+    "longitude": -145.23279,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.5,
+    "metadata": {
+      "temperature": 3.1,
+      "humidity": 60,
+      "pressure": 987.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "33951",
+    "name": "Fox Creek",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.971535,
+    "longitude": -147.61899,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 62,
+      "pressure": 965.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "166973",
+    "name": "Front Yard",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.208485,
+    "longitude": -149.90775,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.5,
+    "metadata": {
+      "temperature": 13.1,
+      "humidity": 59,
+      "pressure": 1001.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "30133",
+    "name": "GAKONA, AK",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.315453,
+    "longitude": -145.2113,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 62.7,
+      "pressure": 948.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "20200018",
+    "name": "Garden",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.205861,
+    "longitude": -149.8246,
+    "province": "United States",
+    "dateObserved": "2025-10-17 20:00:00",
+    "pm25Recent": 9,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "227053",
+    "name": "Geranium",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.918335,
+    "longitude": -147.55139,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 4.4,
+      "humidity": 62,
+      "pressure": 958.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "33291",
+    "name": "Girdwood",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.960903,
+    "longitude": -149.13562,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.7,
+    "metadata": {
+      "temperature": 11.9,
+      "humidity": 69.8,
+      "pressure": 997.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "227029",
+    "name": "Goldstreak",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.93661,
+    "longitude": -147.59682,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.7,
+    "metadata": {
+      "temperature": 3.3,
+      "humidity": 69,
+      "pressure": 947.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "104988",
+    "name": "Goldstream Creek",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.89325,
+    "longitude": -147.87521,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.3,
+    "metadata": {
+      "temperature": 4.4,
+      "humidity": 64,
+      "pressure": 981.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "178839",
+    "name": "Golovin Clinic",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.54365,
+    "longitude": -163.03395,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 72.3,
+      "pressure": 1004.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "178805",
+    "name": "Granite Creek",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.101723,
+    "longitude": -135.39719,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.8,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "102028",
+    "name": "Haines - Skyline",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.247658,
+    "longitude": -135.43358,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 10,
+      "humidity": 71.8,
+      "pressure": 988.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "209881",
+    "name": "Haman",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.82881,
+    "longitude": -147.91267,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.3,
+    "metadata": {
+      "temperature": 4.9,
+      "humidity": 70.8,
+      "pressure": 982.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "18541",
+    "name": "hazen",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.9064,
+    "longitude": -147.63498,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.1,
+    "metadata": {
+      "temperature": 6.7,
+      "humidity": 61,
+      "pressure": 974
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "228305",
+    "name": "HEAL tower - NEON",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.87598,
+    "longitude": -149.21417,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 2.8,
+      "humidity": 67,
+      "pressure": 922.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "29413",
+    "name": "Healy Transfer Station",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.92429,
+    "longitude": -149.08913,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.7,
+    "metadata": {
+      "temperature": 7.1,
+      "humidity": 55.2,
+      "pressure": 954.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "26535",
+    "name": "Herning Road",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.88303,
+    "longitude": -147.43729,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.1,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 64.3,
+      "pressure": 975.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "278401",
+    "name": "Home",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.76911,
+    "longitude": -147.30724,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.7,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 72,
+      "pressure": 986.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "99941",
+    "name": "Hoonah",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 58.110775,
+    "longitude": -135.44409,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 13.9,
+      "humidity": 65.7,
+      "pressure": 1005.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "237143",
+    "name": "HQ",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.97165,
+    "longitude": -145.72202,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.2,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 64.2,
+      "pressure": 954.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "24641",
+    "name": "Hurst Rd.",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.76256,
+    "longitude": -147.31035,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 63.2,
+      "pressure": 985.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "20900035",
+    "name": "Hurst Road",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.762973,
+    "longitude": -147.310297,
+    "province": "United States",
+    "dateObserved": "2025-10-17 20:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "IMPROVE-3",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 55.32467481400005,
+    "longitude": -160.50833114299996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-4",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 63.72320000000008,
+    "longitude": -148.96759999999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-6",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 60.01231500000006,
+    "longitude": -151.71149099999997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-7",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 62.31475379800008,
+    "longitude": -150.31790942299997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-8",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 68.63723300000004,
+    "longitude": -149.59094899999997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "32527",
+    "name": "Inclination Dr.",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.92208,
+    "longitude": -147.8813,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.8,
+    "metadata": {
+      "temperature": 22.2,
+      "humidity": 52,
+      "pressure": 645.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "129203",
+    "name": "INUVIK",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 68.35702,
+    "longitude": -133.714057,
+    "province": "Northwest Territories",
+    "dateObserved": "2025-10-17 19:00:00",
+    "pm25Recent": 0.4,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "156283",
+    "name": "Inuvik DOI Maintenance Shop",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 68.365814,
+    "longitude": -133.71986,
+    "province": "Northwest Territories",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.4,
+    "metadata": {
+      "temperature": 1.4,
+      "humidity": 69.5,
+      "pressure": 1000.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "150870",
+    "name": "Josh House",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.137856,
+    "longitude": -142.5218,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 27.3,
+    "metadata": {
+      "temperature": 4.3,
+      "humidity": 66,
+      "pressure": 942.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "33145",
+    "name": "KBNERR",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.638683,
+    "longitude": -151.48428,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": null,
+      "humidity": 31.3,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "53307",
+    "name": "Kluane Lake Research Station",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.02759,
+    "longitude": -138.41045,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2,
+    "metadata": {
+      "temperature": 8.1,
+      "humidity": 49,
+      "pressure": 910
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "149958",
+    "name": "kobuk",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.76677,
+    "longitude": -148.0158,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 68,
+      "pressure": 986.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "149518",
+    "name": "Kogru Place",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.25686,
+    "longitude": -149.31471,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 9.4,
+      "humidity": 65,
+      "pressure": 979.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "177991",
+    "name": "Kotzebue Fire Dept #1",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 66.89845,
+    "longitude": -162.5877,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.2,
+    "metadata": {
+      "temperature": 11.4,
+      "humidity": 51.5,
+      "pressure": 1002
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "167069",
+    "name": "L&amp;12 KC outside",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.211403,
+    "longitude": -149.9037,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.3,
+    "metadata": {
+      "temperature": 15.6,
+      "humidity": 54,
+      "pressure": 997.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "84451",
+    "name": "L64",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84251,
+    "longitude": -147.709,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.4,
+    "metadata": {
+      "temperature": 4.3,
+      "humidity": 66.5,
+      "pressure": 987.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "162121",
+    "name": "Lancaster Dr",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.91186,
+    "longitude": -147.71863,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 6.8,
+    "metadata": {
+      "temperature": 7.2,
+      "humidity": 56,
+      "pressure": 973.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "179241",
+    "name": "Louden Tribal Office",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.74714,
+    "longitude": -156.85458,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 8.5,
+      "humidity": 58.8,
+      "pressure": 997.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "284202",
+    "name": "Loveland",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.88243,
+    "longitude": -147.85582,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 5.1,
+    "metadata": {
+      "temperature": 21.1,
+      "humidity": 34,
+      "pressure": 737.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "232783",
+    "name": "McGrath",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.951073,
+    "longitude": -155.6001,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-08 07:00:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "35389",
+    "name": "Miner's Court Observatory",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.894035,
+    "longitude": -147.68353,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.4,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 66,
+      "pressure": 981.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "209907",
+    "name": "Moonshine",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.82271,
+    "longitude": -147.97984,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.2,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 63,
+      "pressure": 970.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "160621",
+    "name": "Moose and Squirrel",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.90681,
+    "longitude": -147.79645,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.1,
+    "metadata": {
+      "temperature": 6.7,
+      "humidity": 56,
+      "pressure": 964.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "22979",
+    "name": "Moose Mtn 1600'",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.9423,
+    "longitude": -147.94789,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.6,
+    "metadata": {
+      "temperature": 4.4,
+      "humidity": 60,
+      "pressure": 943.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "227025",
+    "name": "Morris Thompson Cultural and Visitor Center",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84611,
+    "longitude": -147.71214,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.1,
+    "metadata": {
+      "temperature": 6,
+      "humidity": 65.5,
+      "pressure": 987.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "18757",
+    "name": "Mushers Road, East of Crossman, Fairbanks, Alaska",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.89222,
+    "longitude": -147.72755,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.8,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "178811",
+    "name": "Nanwalek Clinic",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.353508,
+    "longitude": -151.91512,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 12.6,
+      "humidity": 60,
+      "pressure": 1000.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "20900034",
+    "name": "NCore",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.8458,
+    "longitude": -147.72727,
+    "province": "United States",
+    "dateObserved": "2025-10-17 20:00:00",
+    "pm25Recent": 5.4,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "16315",
+    "name": "NCore 4",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.845314,
+    "longitude": -147.72636,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1,
+    "metadata": {
+      "temperature": 8.3,
+      "humidity": 65.7,
+      "pressure": 985.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "266321",
+    "name": "NCore DEC-25-5",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.845764,
+    "longitude": -147.72726,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.1,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 71.3,
+      "pressure": 987.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "266317",
+    "name": "NCore DEC-25-6",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84552,
+    "longitude": -147.72667,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3,
+    "metadata": {
+      "temperature": 5.7,
+      "humidity": 71.5,
+      "pressure": 986.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "NCORE-2",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 64.84569000000005,
+    "longitude": -147.72741299999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "39503",
+    "name": "NCORE#3",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.841,
+    "longitude": -147.727,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.8,
+    "metadata": {
+      "temperature": 4.3,
+      "humidity": 70.8,
+      "pressure": 987.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "39501",
+    "name": "NCORE#4",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84607,
+    "longitude": -147.72823,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1,
+    "metadata": {
+      "temperature": 5.2,
+      "humidity": 83.3,
+      "pressure": 986.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265291",
+    "name": "Near Chinook Conservation Park",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84354,
+    "longitude": -147.88077,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.1,
+    "metadata": {
+      "temperature": 10.6,
+      "humidity": 50,
+      "pressure": 985.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "232757",
+    "name": "Nenana",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.56325,
+    "longitude": -149.09665,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 8,
+      "humidity": 62.3,
+      "pressure": 991.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "151684",
+    "name": "Nikiski",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.727493,
+    "longitude": -151.29672,
+    "province": "United States",
+    "dateObserved": "2025-10-16 00:50:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "151646",
+    "name": "Nikiski_1",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.733383,
+    "longitude": -151.26534,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.3,
+    "metadata": {
+      "temperature": 13.3,
+      "humidity": 53.3,
+      "pressure": 997
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "36305",
+    "name": "North Pole - Plack &amp; Nelson",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.776634,
+    "longitude": -147.2581,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 67,
+      "pressure": 985.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "24655",
+    "name": "North Pole City Hall",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.75499,
+    "longitude": -147.35217,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.8,
+    "metadata": {
+      "temperature": 6.3,
+      "humidity": 100,
+      "pressure": 986.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "133644",
+    "name": "Old Rich &amp; Dennis",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.8027,
+    "longitude": -147.54242,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 5.8,
+      "humidity": 58.8,
+      "pressure": 985.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "226391",
+    "name": "ONH",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.83781,
+    "longitude": -148.09668,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-09-27 23:00:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "132895",
+    "name": "Orca House",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.20671,
+    "longitude": -149.85483,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 13.9,
+      "humidity": 55.2,
+      "pressure": 996.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "151342",
+    "name": "Outside house on the hill",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.88986,
+    "longitude": -147.80063,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 4.4,
+    "metadata": {
+      "temperature": 4.1,
+      "humidity": 64.7,
+      "pressure": 971
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "182949",
+    "name": "Paddock Drive",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.56102,
+    "longitude": -149.32906,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 8.1,
+      "humidity": 71,
+      "pressure": 997.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "41909",
+    "name": "Pennington Park",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.064445,
+    "longitude": -149.77644,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.6,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "PM25_SPECIATION-13",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 64.84569000000005,
+    "longitude": -147.72741299999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-14",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 64.76264100000003,
+    "longitude": -147.31027899999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-15",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 64.84528056000005,
+    "longitude": -147.68390299999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "21700010",
+    "name": "PMC",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.52326,
+    "longitude": -149.08019,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 20:00:00",
+    "pm25Recent": 2,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "87641",
+    "name": "Pond",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84361,
+    "longitude": -147.79579,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.7,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 66,
+      "pressure": 987.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "99327924",
+    "name": "Port Edward Sunset Drive",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 54.2231999,
+    "longitude": -130.29045,
+    "province": "British Columbia",
+    "dateObserved": "2025-10-17 19:00:00",
+    "pm25Recent": 2.7,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "BC-589",
+    "name": "Port Edward Sunset Drive",
+    "network": "BC ENV",
+    "type": "point",
+    "latitude": 54.2231999,
+    "longitude": -130.29045,
+    "date": "Friday 17 October 2025 3PM (PDT)",
+    "pm25_recent": 6,
+    "pm25_24hr": 3.4,
+    "temperature": 10.2,
+    "humidity": 89.7,
+    "pressure": null,
+    "parameters": [
+      "PM2.5",
+      "PM2.5 (24h)",
+      "PM10",
+      "PM10 (24h)",
+      "NO",
+      "NO2"
+    ],
+    "status": "active",
+    "city": "Port Edward",
+    "stationOwner": "INDUSTRY-PRPA",
+    "category": "OPERATIONAL",
+    "stationEnvironment": null,
+    "notes": null,
+    "url": "https://envistaweb.env.gov.bc.ca/StationDetails.aspx?ST_ID=589",
+    "source": "bc-air-monitoring"
+  },
+  {
+    "id": "99312331",
+    "name": "Prince Rupert Fairview",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 54.292637,
+    "longitude": -130.35242,
+    "province": "British Columbia",
+    "dateObserved": "2025-10-17 19:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "BC-546",
+    "name": "Prince Rupert Fairview",
+    "network": "BC ENV",
+    "type": "point",
+    "latitude": 54.292637,
+    "longitude": -130.35242,
+    "date": "Friday 17 October 2025 6PM (PDT)",
+    "pm25_recent": 1.5,
+    "pm25_24hr": 3.2,
+    "temperature": 10,
+    "humidity": 91.9,
+    "pressure": null,
+    "parameters": [
+      "PM2.5",
+      "PM2.5 (24h)",
+      "PM10",
+      "PM10 (24h)",
+      "NO",
+      "NO2",
+      "Ozone",
+      "Ozone (8h)",
+      "SO2",
+      "SO2 (24h)"
+    ],
+    "status": "active",
+    "city": "Prince Rupert",
+    "stationOwner": "INDUSTRY-PRPA",
+    "category": "OPERATIONAL",
+    "stationEnvironment": null,
+    "notes": null,
+    "url": "https://envistaweb.env.gov.bc.ca/StationDetails.aspx?ST_ID=546",
+    "source": "bc-air-monitoring"
+  },
+  {
+    "id": "BC-425",
+    "name": "Prince Rupert Roosevelt Park School",
+    "network": "BC ENV",
+    "type": "point",
+    "latitude": 54.3064,
+    "longitude": -130.3269,
+    "date": "Friday 17 October 2025 6PM (PDT)",
+    "pm25_recent": null,
+    "pm25_24hr": null,
+    "temperature": 8.6,
+    "humidity": 90.6,
+    "pressure": null,
+    "parameters": [],
+    "status": "active",
+    "city": "Prince Rupert",
+    "stationOwner": "ENV",
+    "category": "OPERATIONAL",
+    "stationEnvironment": null,
+    "notes": null,
+    "url": "https://envistaweb.env.gov.bc.ca/StationDetails.aspx?ST_ID=425",
+    "source": "bc-air-monitoring"
+  },
+  {
+    "id": "36959",
+    "name": "Public Safety building",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.462723,
+    "longitude": -135.30261,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.2,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "186943",
+    "name": "PWSSC",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.564102,
+    "longitude": -145.74295,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 68.5,
+    "metadata": {
+      "temperature": 15.8,
+      "humidity": 57,
+      "pressure": 999.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "137284",
+    "name": "QE",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.87951,
+    "longitude": -147.74533,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 27.2,
+      "humidity": 25,
+      "pressure": 982
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "34767",
+    "name": "radio tower",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 59.4601,
+    "longitude": -135.32875,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 12.2,
+      "humidity": 62,
+      "pressure": 993.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "227043",
+    "name": "Raven Dr",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.88788,
+    "longitude": -147.83508,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.3,
+    "metadata": {
+      "temperature": 6,
+      "humidity": 61.8,
+      "pressure": 978.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "30529",
+    "name": "Reed Circle",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.87414,
+    "longitude": -147.81898,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.5,
+    "metadata": {
+      "temperature": 6.1,
+      "humidity": 61,
+      "pressure": 984.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "188091",
+    "name": "RIverdale North",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.710682,
+    "longitude": -135.0333,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 12.9,
+      "humidity": 41.8,
+      "pressure": 926.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "20093",
+    "name": "Rocky Top",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.919334,
+    "longitude": -147.72893,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.7,
+    "metadata": {
+      "temperature": 7.8,
+      "humidity": 57.5,
+      "pressure": 949.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "150480",
+    "name": "RODAN1",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.84815,
+    "longitude": -147.886,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 64,
+      "pressure": 980.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "282200",
+    "name": "Rosie Creek",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.75153,
+    "longitude": -148.09398,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 5.7,
+      "humidity": 71.3,
+      "pressure": 985.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "278967",
+    "name": "Rosie Creek Farm",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.74643,
+    "longitude": -148.08528,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.5,
+    "metadata": {
+      "temperature": 7.8,
+      "humidity": 60.7,
+      "pressure": 987.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "164469",
+    "name": "Schuss Drive",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.12709,
+    "longitude": -149.73187,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 11.7,
+      "humidity": 57.8,
+      "pressure": 967.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "6422",
+    "name": "Scuppers Bane",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.535084,
+    "longitude": -149.62167,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.8,
+    "metadata": {
+      "temperature": 13.1,
+      "humidity": 59.8,
+      "pressure": 986
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "151686",
+    "name": "Seward Middle School",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.131805,
+    "longitude": -149.44121,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 14.3,
+      "humidity": 45.5,
+      "pressure": 996
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "178797",
+    "name": "SHH OLD CLINIC",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 66.25475,
+    "longitude": -166.07004,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.8,
+    "metadata": {
+      "temperature": 7.9,
+      "humidity": 64.2,
+      "pressure": 1003.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "34385",
+    "name": "Snowhook Trail",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.93356,
+    "longitude": -147.81125,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 64,
+      "pressure": 979.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "228311",
+    "name": "Sonata",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.800476,
+    "longitude": -148.07068,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 7.4,
+      "humidity": 59,
+      "pressure": 973.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "171767",
+    "name": "STA_PAF001",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.052483,
+    "longitude": -135.34406,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.8,
+    "metadata": {
+      "temperature": 16.5,
+      "humidity": 63.2,
+      "pressure": 1009.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "171807",
+    "name": "STA_PAF002",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.05259,
+    "longitude": -135.34438,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.2,
+    "metadata": {
+      "temperature": 14.4,
+      "humidity": 67,
+      "pressure": 1009.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265891",
+    "name": "STA_PAF003",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.04966,
+    "longitude": -135.33376,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 19:50:00",
+    "pm25Recent": 3.4,
+    "metadata": {
+      "temperature": 15.4,
+      "humidity": 64.5,
+      "pressure": 1009.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265855",
+    "name": "STA_PAF004",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.046387,
+    "longitude": -135.28636,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.4,
+    "metadata": {
+      "temperature": 17.4,
+      "humidity": 58.3,
+      "pressure": 1008.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "179181",
+    "name": "STA_PAF005",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.053062,
+    "longitude": -135.33618,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.5,
+    "metadata": {
+      "temperature": 18.3,
+      "humidity": 59.7,
+      "pressure": 1008.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265941",
+    "name": "STA_PAF007",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.05923,
+    "longitude": -135.34486,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 2.7,
+    "metadata": {
+      "temperature": 15.6,
+      "humidity": 67.7,
+      "pressure": 1008.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265849",
+    "name": "STA_PAF008",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.11484,
+    "longitude": -135.39044,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3,
+    "metadata": {
+      "temperature": 15,
+      "humidity": 68,
+      "pressure": 1007.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265915",
+    "name": "STA_PAF009",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.097397,
+    "longitude": -135.39424,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.3,
+    "metadata": {
+      "temperature": 13.3,
+      "humidity": 72.7,
+      "pressure": 1007.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265901",
+    "name": "STA_PAF010",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.061317,
+    "longitude": -135.35085,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.1,
+    "metadata": {
+      "temperature": 16.1,
+      "humidity": 62,
+      "pressure": 1009.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265863",
+    "name": "STA_PAF011",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.0555,
+    "longitude": -135.31517,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.4,
+    "metadata": {
+      "temperature": 15,
+      "humidity": 69.5,
+      "pressure": 1007.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "267425",
+    "name": "STA_PAF012",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.057693,
+    "longitude": -135.31456,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.2,
+    "metadata": {
+      "temperature": 16.1,
+      "humidity": 66,
+      "pressure": 1006.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265921",
+    "name": "STA_PAF013",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.067097,
+    "longitude": -135.36533,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 5.5,
+    "metadata": {
+      "temperature": 14.7,
+      "humidity": 64.8,
+      "pressure": 1009.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "267427",
+    "name": "STA_PAF015",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.04689,
+    "longitude": -135.30164,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.6,
+    "metadata": {
+      "temperature": 20.2,
+      "humidity": 52.7,
+      "pressure": 1008.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265873",
+    "name": "STA_PAF016",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.062267,
+    "longitude": -135.33861,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 4.1,
+    "metadata": {
+      "temperature": 14.6,
+      "humidity": 68.7,
+      "pressure": 1006.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "265898",
+    "name": "STA_PAF016",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 57.06222,
+    "longitude": -135.33888,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-03 17:40:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "149842",
+    "name": "Steele Creek",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.89638,
+    "longitude": -147.52554,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 11.4,
+    "metadata": {
+      "temperature": 4.4,
+      "humidity": 63.5,
+      "pressure": 974.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "119004",
+    "name": "STEELE STREET",
+    "type": "point",
+    "network": "FEM",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.71972,
+    "longitude": -135.05875,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 20:00:00",
+    "pm25Recent": 2,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "261799",
+    "name": "Tanana",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 65.1718,
+    "longitude": -152.08937,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3,
+    "metadata": {
+      "temperature": 4.1,
+      "humidity": 65,
+      "pressure": 995.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "30479",
+    "name": "Tanana Valley Clinic",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.839005,
+    "longitude": -147.71371,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.5,
+    "metadata": {
+      "temperature": 7.6,
+      "humidity": 100,
+      "pressure": 987.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "150888",
+    "name": "Taylor house 2",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.135242,
+    "longitude": -142.52618,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 55.4,
+    "metadata": {
+      "temperature": 4.4,
+      "humidity": 66,
+      "pressure": 943.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "59777",
+    "name": "Tetlin NWR HQ",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.323845,
+    "longitude": -143.03908,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.6,
+    "metadata": {
+      "temperature": 6.5,
+      "humidity": 57,
+      "pressure": 943.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "59831",
+    "name": "Tetlin NWR Northway Bunkhouse",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.009537,
+    "longitude": -141.80096,
+    "province": "United States",
+    "dateObserved": "2025-09-19 13:40:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "133624",
+    "name": "TFS Flux Hut",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 68.62573,
+    "longitude": -149.60349,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 10,
+      "humidity": 31,
+      "pressure": 918.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "23917",
+    "name": "TMMAK",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.557274,
+    "longitude": -149.09262,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.8,
+    "metadata": {
+      "temperature": 6.7,
+      "humidity": 100,
+      "pressure": 990.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "26423",
+    "name": "Toolik Field Station",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 68.62674,
+    "longitude": -149.59428,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": -0.6,
+      "humidity": 58,
+      "pressure": 917.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "35185",
+    "name": "Totem Park",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.856026,
+    "longitude": -147.79497,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 1.8,
+    "metadata": {
+      "temperature": 6.8,
+      "humidity": 63,
+      "pressure": 986.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "176303",
+    "name": "Tributary Cir",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.10639,
+    "longitude": -149.84349,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.5,
+    "metadata": {
+      "temperature": 12.2,
+      "humidity": 63,
+      "pressure": 995.3
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "131785",
+    "name": "Trinity Lutheran Church",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.205933,
+    "longitude": -149.82462,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 11.1,
+      "humidity": 65.2,
+      "pressure": 996.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "112010",
+    "name": "Two Rivers",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.86789,
+    "longitude": -146.88858,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 7.2,
+      "humidity": 64,
+      "pressure": 983.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "24677",
+    "name": "UAF - Kuskokwim Campus",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.791733,
+    "longitude": -161.77539,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 8.2,
+      "humidity": 65.5,
+      "pressure": 1004.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "133005",
+    "name": "UAF North Campus Ski Hut",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.85921,
+    "longitude": -147.85274,
+    "province": "United States",
+    "dateObserved": "2025-10-07 19:30:00",
+    "pm25Recent": null,
+    "metadata": {
+      "temperature": null,
+      "humidity": null,
+      "pressure": null
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "116447",
+    "name": "uaf-acep-one_tree-0B7A",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.85564,
+    "longitude": -147.82628,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 4.4,
+      "humidity": 66,
+      "pressure": 986.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "15139",
+    "name": "USFWS_PM2.5/10_ANC_1",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.20771,
+    "longitude": -149.90163,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.2,
+    "metadata": {
+      "temperature": 13.9,
+      "humidity": 65.3,
+      "pressure": 997.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "23791",
+    "name": "Vide Way",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.904526,
+    "longitude": -147.73097,
+    "province": "United States",
+    "dateObserved": "2025-10-17 20:50:00",
+    "pm25Recent": 3.1,
+    "metadata": {
+      "temperature": 5.6,
+      "humidity": 66,
+      "pressure": 976.8
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "18533",
+    "name": "W Davis",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.82792,
+    "longitude": -147.80391,
+    "province": "United States",
+    "dateObserved": "2025-10-17 20:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 26.1,
+      "humidity": 35,
+      "pressure": 985.9
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "36849",
+    "name": "Walter Harper Talkeetna Ranger Station",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.32247,
+    "longitude": -150.1171,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.4,
+    "metadata": {
+      "temperature": 9.9,
+      "humidity": 63,
+      "pressure": 987.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "42593",
+    "name": "Westchester Lagoon Area",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 61.20837,
+    "longitude": -149.90994,
+    "province": "United States",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.3,
+    "metadata": {
+      "temperature": 12.6,
+      "humidity": 63,
+      "pressure": 1000.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "93477",
+    "name": "Whitehorse Yukon (Hillcrest)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.71157,
+    "longitude": -135.08955,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 51,
+      "pressure": 918.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "278449",
+    "name": "Wrangell",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.779175,
+    "longitude": -147.35196,
+    "province": "Canada_Buffer",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.8,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 65,
+      "pressure": 986.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197543",
+    "name": "YG-ENV-1D77",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.383583,
+    "longitude": -140.87724,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 5.8,
+      "humidity": 55.8,
+      "pressure": 925.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197519",
+    "name": "YG-ENV-22B4",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.75436,
+    "longitude": -137.50708,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 3.5,
+    "metadata": {
+      "temperature": 8.9,
+      "humidity": 52.3,
+      "pressure": 931
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "198433",
+    "name": "YG-ENV-22B9 (Beaver Creek)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.383717,
+    "longitude": -140.87717,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 4.4,
+      "humidity": 60,
+      "pressure": 925
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197528",
+    "name": "YG-ENV-47F0 (Old Crow School- outdoor)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 67.57647,
+    "longitude": -139.8248,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.6,
+    "metadata": {
+      "temperature": 0.7,
+      "humidity": 57,
+      "pressure": 976
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197501",
+    "name": "YG-ENV-47F6",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.86741,
+    "longitude": -135.19,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 10.6,
+      "humidity": 48.3,
+      "pressure": 926.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197499",
+    "name": "YG-ENV-4DE4 (Old Crow Community Center- outdoor)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 67.569374,
+    "longitude": -139.83037,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.3,
+    "metadata": {
+      "temperature": 1.1,
+      "humidity": 55,
+      "pressure": 976.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197509",
+    "name": "YG-ENV-4E35",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.742664,
+    "longitude": -135.07637,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 10,
+      "humidity": 48.2,
+      "pressure": 928.5
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197521",
+    "name": "YG-ENV-4E9A",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.16725,
+    "longitude": -134.7105,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 12.2,
+    "metadata": {
+      "temperature": 12.2,
+      "humidity": 37,
+      "pressure": 925.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197505",
+    "name": "YG-ENV-50A0",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.78401,
+    "longitude": -136.47887,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 9.4,
+      "humidity": 50,
+      "pressure": 921.7
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197527",
+    "name": "YG-ENV-8550",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 64.05227,
+    "longitude": -139.10718,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 7.2,
+      "humidity": 57,
+      "pressure": 958.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197535",
+    "name": "YG-ENV-AC24",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.22704,
+    "longitude": -133.35292,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 10.3,
+      "humidity": 41,
+      "pressure": 918
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197547",
+    "name": "YG-ENV-AC2B",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.453594,
+    "longitude": -134.27003,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.5,
+    "metadata": {
+      "temperature": 11.7,
+      "humidity": 43,
+      "pressure": 924.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "198447",
+    "name": "YG-ENV-AC34",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.707943,
+    "longitude": -135.02545,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 10.6,
+      "humidity": 47,
+      "pressure": 927.2
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197537",
+    "name": "YG-ENV-ACE8",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 63.61048,
+    "longitude": -135.87582,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.1,
+    "metadata": {
+      "temperature": 5,
+      "humidity": 62,
+      "pressure": 943.1
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "198443",
+    "name": "YG-ENV-ACF6 (Outdoors)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.699284,
+    "longitude": -135.11069,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0.9,
+    "metadata": {
+      "temperature": 11.1,
+      "humidity": 48,
+      "pressure": 908.4
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "198419",
+    "name": "YG-ENV-B1E0 (outside)",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 60.71805,
+    "longitude": -135.04443,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 10.6,
+      "humidity": 50,
+      "pressure": 927.6
+    },
+    "source": "monitors.csv"
+  },
+  {
+    "id": "197503",
+    "name": "YG-ENV-B1F9",
+    "type": "point",
+    "network": "PA",
+    "parameters": [
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 62.089523,
+    "longitude": -136.28726,
+    "province": "Yukon",
+    "dateObserved": "2025-10-17 21:00:00",
+    "pm25Recent": 0,
+    "metadata": {
+      "temperature": 7.9,
+      "humidity": 50.5,
+      "pressure": 939.9
+    },
+    "source": "monitors.csv"
+  }
+]

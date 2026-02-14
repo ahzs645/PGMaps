@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2025-10-18T01:14:53.512Z",
+  "totals": {
+    "pm25_speciation": 154,
+    "improve": 156,
+    "natts": 35,
+    "ncore": 78,
+    "near_road": 83,
+    "pams": 18
+  }
+}

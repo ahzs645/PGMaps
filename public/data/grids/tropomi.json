@@ -1,0 +1,91 @@
+[
+  {
+    "id": "TROPOMI-NO2-NA",
+    "name": "TROPOMI NO2 Column Density",
+    "type": "hexgrid",
+    "network": "ESA Sentinel-5P",
+    "parameters": [
+      "NO2"
+    ],
+    "resolution": "h3-4",
+    "temporal": "2018-present",
+    "frequency": "daily",
+    "sourceUrl": "https://sentinel.esa.int/web/sentinel/missions/sentinel-5p",
+    "cells": [
+      "8428c47ffffffff",
+      "8428c4bffffffff",
+      "8428c43ffffffff",
+      "8428c57ffffffff"
+    ]
+  },
+  {
+    "id": "GEOS-CF-GLOBAL",
+    "name": "GEOS-CF Global Composition Model",
+    "type": "hexgrid",
+    "network": "NASA GMAO",
+    "parameters": [
+      "O3",
+      "PM2.5",
+      "NO2"
+    ],
+    "resolution": "0.25° grid",
+    "temporal": "2018-present",
+    "frequency": "hourly",
+    "coverage": "global",
+    "description": "Demonstration metadata showing a global atmospheric composition modeling product.",
+    "sourceUrl": "https://gmao.gsfc.nasa.gov/GEOS_systems/",
+    "geometry": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [
+          [
+            [
+              -180,
+              -90
+            ],
+            [
+              -180,
+              90
+            ],
+            [
+              0,
+              90
+            ],
+            [
+              0,
+              -90
+            ],
+            [
+              -180,
+              -90
+            ]
+          ]
+        ],
+        [
+          [
+            [
+              0,
+              -90
+            ],
+            [
+              0,
+              90
+            ],
+            [
+              180,
+              90
+            ],
+            [
+              180,
+              -90
+            ],
+            [
+              0,
+              -90
+            ]
+          ]
+        ]
+      ]
+    }
+  }
+]

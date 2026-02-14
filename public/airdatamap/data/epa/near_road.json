@@ -1,0 +1,1662 @@
+[
+  {
+    "id": "NEAR_ROAD-1",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.52142748600005,
+    "longitude": -86.84411199999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-3",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.461730000000045,
+    "longitude": -112.12795999999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-4",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.41046000000006,
+    "longitude": -112.00263999999999,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-5",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.19467100000003,
+    "longitude": -111.03316699999999,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-6",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.79362400000008,
+    "longitude": -122.263376,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-7",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.86476700000003,
+    "longitude": -122.30274099999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-8",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.70122200000003,
+    "longitude": -121.90301899999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-9",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.71083300000004,
+    "longitude": -119.77749999999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-10",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.37695278000007,
+    "longitude": -119.04388888999995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-11",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.85966200000007,
+    "longitude": -118.20070699999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-12",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.81930500000004,
+    "longitude": -117.91875899999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-13",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.59332200000006,
+    "longitude": -121.50379499999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-14",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.06812000000008,
+    "longitude": -117.52578999999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-15",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.03083300000003,
+    "longitude": -117.61721999999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-16",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.98542800000007,
+    "longitude": -117.08219799999995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-17",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.552824000000044,
+    "longitude": -117.04734499999995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-18",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.33813500000008,
+    "longitude": -121.84978299999995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-19",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.73217000000005,
+    "longitude": -105.01529999999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-20",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.78610000000003,
+    "longitude": -104.98859999999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-21",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.77144400000003,
+    "longitude": -72.67992299999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Connecticut",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-22",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.89477000000005,
+    "longitude": -76.95342599999998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "District Of Columbia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-23",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 26.132677000000058,
+    "longitude": -80.16981699999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-24",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.262778000000026,
+    "longitude": -81.60683299999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-25",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 27.955133000000046,
+    "longitude": -82.46953199999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-26",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 25.785471999000038,
+    "longitude": -80.28420599999998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-27",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 28.534170000000074,
+    "longitude": -81.38491999999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-28",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 28.446308000000045,
+    "longitude": -81.41743899999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-29",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 27.83440925000008,
+    "longitude": -82.66525124999998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-30",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.69864284200003,
+    "longitude": -84.27261363399998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-31",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.77840000000003,
+    "longitude": -84.39139999999998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-33",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.57861962000004,
+    "longitude": -87.55740607499996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-34",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.92000899900006,
+    "longitude": -87.67299499999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-35",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.787933053000074,
+    "longitude": -86.13087959299997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Indiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-36",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.19360000000006,
+    "longitude": -85.71189999999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kentucky",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-37",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.99601300000006,
+    "longitude": -90.11818999999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Louisiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-38",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.37167900000003,
+    "longitude": -76.74681399999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-39",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.14313000000004,
+    "longitude": -76.84610999999995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-40",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.612084681000056,
+    "longitude": -71.30698640599996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Massachusetts",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-41",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.32518600000003,
+    "longitude": -71.05606099999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Massachusetts",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-42",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.88536800000003,
+    "longitude": -85.67976499999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-43",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.38599805200005,
+    "longitude": -83.26618865599994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-46",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.39357400000006,
+    "longitude": -83.43194799999998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-47",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.70612300000005,
+    "longitude": -93.28580299999999,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Minnesota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-48",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.965242000000046,
+    "longitude": -93.25475899999998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Minnesota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-50",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.94079400000004,
+    "longitude": -94.57850799999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-51",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.75264000000004,
+    "longitude": -90.44883999999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-52",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.65642894400003,
+    "longitude": -90.19834826799996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-53",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.656478951000054,
+    "longitude": -90.18986799599998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-54",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.63114000000007,
+    "longitude": -90.28114999999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-55",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.139707000000044,
+    "longitude": -115.17565399999995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nevada",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-56",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.17436500000008,
+    "longitude": -115.13976999999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nevada",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-57",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.85354999900005,
+    "longitude": -73.96617999999995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Jersey",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-58",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.92110728000006,
+    "longitude": -78.76582532799995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-59",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.145012681000026,
+    "longitude": -77.55728025999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-60",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.73926399900006,
+    "longitude": -73.81769399999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-61",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.213171000000045,
+    "longitude": -80.87408399999998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-62",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.27829200000008,
+    "longitude": -80.79699599999998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-63",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.86520000000007,
+    "longitude": -78.81969999999995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-64",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.44012999900008,
+    "longitude": -81.49483299999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-65",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.11106999900005,
+    "longitude": -83.06541499999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-67",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.146024999000076,
+    "longitude": -84.53837499999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-68",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.50306968800004,
+    "longitude": -97.57798096899995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oklahoma",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-69",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.399200000000064,
+    "longitude": -122.74549999999999,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-70",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.43743000000006,
+    "longitude": -79.86357199999998,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-71",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.054170999000064,
+    "longitude": -74.98516599999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-72",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.988841999000044,
+    "longitude": -75.20720499999999,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-78",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.77198700000008,
+    "longitude": -71.42788099999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Rhode Island",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-79",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.142400000000066,
+    "longitude": -86.73409999999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-80",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.16126000000003,
+    "longitude": -89.87064999999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-81",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.529431999000053,
+    "longitude": -98.39140299999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-82",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.48512500000004,
+    "longitude": -98.53142199999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-83",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.92118000000005,
+    "longitude": -96.75354999999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-84",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.814530000000047,
+    "longitude": -95.38768999999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-85",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.721600000000024,
+    "longitude": -95.49264999999997,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-86",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.66475299900003,
+    "longitude": -97.33791699999995,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-87",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.353859999000065,
+    "longitude": -97.69165999999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-88",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.662961100000075,
+    "longitude": -111.90185139999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-89",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.768350000000055,
+    "longitude": -77.18346999999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-90",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.59088000000003,
+    "longitude": -77.46924999999999,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-91",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.597222000000045,
+    "longitude": -122.31972199999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-92",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.22634000000005,
+    "longitude": -122.46255999999994,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-93",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.932570000000055,
+    "longitude": -87.93433999999996,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wisconsin",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-94",
+    "name": "Near Road Network",
+    "network": "EPA NEAR ROAD",
+    "type": "point",
+    "status": "yes",
+    "latitude": 18.198712055000044,
+    "longitude": -66.05223745699993,
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Puerto Rico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  }
+]

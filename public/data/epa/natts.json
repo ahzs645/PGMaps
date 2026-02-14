@@ -1,0 +1,667 @@
+[
+  {
+    "id": "NATTS-1",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.50383300000004,
+    "longitude": -112.09576699999997,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-2",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.066590001000066,
+    "longitude": -118.22688,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-3",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.99958000100003,
+    "longitude": -117.41600999999997,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-4",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.348497000000066,
+    "longitude": -121.89489799999996,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-5",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.063798001000066,
+    "longitude": -108.56117299999994,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-6",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.06428900100008,
+    "longitude": -108.56154999999995,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-7",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.92184700100006,
+    "longitude": -77.01317799999998,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "District Of Columbia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-8",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 27.96565000100003,
+    "longitude": -82.23039999999997,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-9",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 27.78586555000004,
+    "longitude": -82.73987536199996,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-10",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 27.850348391000068,
+    "longitude": -82.71446456899997,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-11",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.68780000000004,
+    "longitude": -84.29049999999995,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-12",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.13999619100008,
+    "longitude": -87.79922691699994,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-13",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.23887000000008,
+    "longitude": -82.98809999999997,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kentucky",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-15",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.32950000000005,
+    "longitude": -71.08259999999996,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Massachusetts",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-16",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.76138000000003,
+    "longitude": -84.56286699999998,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-17",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.302778000000046,
+    "longitude": -83.10666699999996,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-18",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.306666000000064,
+    "longitude": -83.14888899999994,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-19",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.31215800000007,
+    "longitude": -83.09194299999996,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-20",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.65642894400003,
+    "longitude": -90.19834826799996,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-21",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.64093100000008,
+    "longitude": -73.75651099999999,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-24",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.81600000000003,
+    "longitude": -73.90199999999999,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-25",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.14618000000007,
+    "longitude": -77.54816999999997,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-26",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.09637281700003,
+    "longitude": -79.01144686299995,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New York",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-27",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.20490200100005,
+    "longitude": -95.97653699999995,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oklahoma",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-29",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.55808100000007,
+    "longitude": -122.67098499999997,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-31",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.32350000000008,
+    "longitude": -118.07779999999997,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-32",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.46542032800005,
+    "longitude": -79.96075744999996,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-34",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.80746899900004,
+    "longitude": -71.41296799999998,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Rhode Island",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-35",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.87466799900005,
+    "longitude": -71.37997099999995,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Rhode Island",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-39",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.61536700100004,
+    "longitude": -80.19878699999998,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-43",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.90296700000005,
+    "longitude": -111.88446699999997,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-44",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.52839000100005,
+    "longitude": -72.86883999999998,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Vermont",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-45",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.556520001000024,
+    "longitude": -77.40026999999998,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-46",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.56823600000007,
+    "longitude": -122.30862799999994,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-49",
+    "name": "National Air Toxics Trends Stations",
+    "network": "EPA NATTS",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.01724000000007,
+    "longitude": -87.93368999999996,
+    "parameters": [
+      "Air Toxics"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wisconsin",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  }
+]

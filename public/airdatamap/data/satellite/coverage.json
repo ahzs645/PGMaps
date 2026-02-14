@@ -1,0 +1,80 @@
+[
+  {
+    "id": "MODIS-AOD-CONUS",
+    "name": "MODIS Aerosol Optical Depth",
+    "type": "polygon",
+    "network": "NASA MODIS",
+    "parameters": [
+      "AOD"
+    ],
+    "temporal": "2000-present",
+    "frequency": "daily",
+    "sourceUrl": "https://modis.gsfc.nasa.gov/data/dataprod/mod04.php",
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            -125,
+            24
+          ],
+          [
+            -125,
+            50
+          ],
+          [
+            -66,
+            50
+          ],
+          [
+            -66,
+            24
+          ],
+          [
+            -125,
+            24
+          ]
+        ]
+      ]
+    }
+  },
+  {
+    "id": "GOES-16-AI",
+    "name": "GOES-16 Aerosol Index",
+    "type": "polygon",
+    "network": "NOAA GOES",
+    "parameters": [
+      "UV Aerosol Index"
+    ],
+    "temporal": "2017-present",
+    "frequency": "hourly",
+    "sourceUrl": "https://www.star.nesdis.noaa.gov/goes/index.php",
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            -140,
+            5
+          ],
+          [
+            -140,
+            60
+          ],
+          [
+            -30,
+            60
+          ],
+          [
+            -30,
+            5
+          ],
+          [
+            -140,
+            5
+          ]
+        ]
+      ]
+    }
+  }
+]

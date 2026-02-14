@@ -1,0 +1,1386 @@
+[
+  {
+    "id": "ASCENT-12",
+    "name": "Great Smoky Mountains NP - Look Rock",
+    "network": "ASCENT",
+    "latitude": 35.63348,
+    "longitude": -83.941606,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "rural",
+    "siteNumber": 12,
+    "aqsSiteId": "47-009-0101",
+    "cbsa": "Knoxville, TN",
+    "address": "GREAT SMOKY MOUNTAINS NP LOOK ROCK",
+    "currentNetwork": "IMPROVE",
+    "instrumentMentor": "Jason Surratt, University of North Carolina, Chapel Hill",
+    "comments": "Paired site 2: background, biogenic",
+    "description": "Site Number: 12\nAQS Site ID: 47-009-0101\nCore Based Statistical Area (CBSA): Knoxville, TN\nAddress: GREAT SMOKY MOUNTAINS NP LOOK ROCK\nLatitude: 35.63348\nLongitude: -83.941606\nCurrent Network: IMPROVE\nInstrument Mentor: Jason Surratt, University of North Carolina, Chapel Hill\nComments: Paired site 2: background, biogenic"
+  },
+  {
+    "id": "IMPROVE-1",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 33.55305600100007,
+    "longitude": -86.81499999999994,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-2",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 34.342904400000066,
+    "longitude": -87.33973040099994,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-80",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 28.748678145000042,
+    "longitude": -82.55476895399994,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-83",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 25.391220000000033,
+    "longitude": -80.68081899999999,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-85",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 30.092500001000076,
+    "longitude": -84.16111099999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-86",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 30.740717708000034,
+    "longitude": -82.12815392599998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-87",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 33.68780000000004,
+    "longitude": -84.29049999999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-88",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 34.785218704000044,
+    "longitude": -84.62642331299998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-108",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 30.108633000000054,
+    "longitude": -89.76168299999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Louisiana",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-133",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 36.97005203400005,
+    "longitude": -90.14010005399996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-168",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 35.97234700000007,
+    "longitude": -81.93307199999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-170",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 35.37916700000005,
+    "longitude": -82.79249999999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-171",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 35.451090427000054,
+    "longitude": -76.20716540599994,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-191",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 32.941023001000076,
+    "longitude": -79.65718699999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-194",
+    "name": "IMPROVE Visibility Network",
+    "type": "point",
+    "network": "EPA IMPROVE",
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "status": "active",
+    "latitude": 35.63348000000008,
+    "longitude": -83.94160599999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "NATTS-8",
+    "name": "National Air Toxics Trends Stations",
+    "type": "point",
+    "network": "EPA NATTS",
+    "parameters": [
+      "Air Toxics"
+    ],
+    "status": "active",
+    "latitude": 27.96565000100003,
+    "longitude": -82.23039999999997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-9",
+    "name": "National Air Toxics Trends Stations",
+    "type": "point",
+    "network": "EPA NATTS",
+    "parameters": [
+      "Air Toxics"
+    ],
+    "status": "active",
+    "latitude": 27.78586555000004,
+    "longitude": -82.73987536199996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-10",
+    "name": "National Air Toxics Trends Stations",
+    "type": "point",
+    "network": "EPA NATTS",
+    "parameters": [
+      "Air Toxics"
+    ],
+    "status": "active",
+    "latitude": 27.850348391000068,
+    "longitude": -82.71446456899997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-11",
+    "name": "National Air Toxics Trends Stations",
+    "type": "point",
+    "network": "EPA NATTS",
+    "parameters": [
+      "Air Toxics"
+    ],
+    "status": "active",
+    "latitude": 33.68780000000004,
+    "longitude": -84.29049999999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NATTS-39",
+    "name": "National Air Toxics Trends Stations",
+    "type": "point",
+    "network": "EPA NATTS",
+    "parameters": [
+      "Air Toxics"
+    ],
+    "status": "active",
+    "latitude": 34.61536700100004,
+    "longitude": -80.19878699999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-natts"
+  },
+  {
+    "id": "NCORE-1",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 33.55305600100007,
+    "longitude": -86.81499999999994,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-22",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 26.05388890000006,
+    "longitude": -80.25694439999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-23",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 27.96565000100003,
+    "longitude": -82.23039999999997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-24",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 30.092500001000076,
+    "longitude": -84.16111099999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-25",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 33.68780000000004,
+    "longitude": -84.29049999999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-34",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 30.461980999000048,
+    "longitude": -91.17921899999999,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Louisiana",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-44",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 32.32911100000007,
+    "longitude": -90.18272199999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Mississippi",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-58",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 35.24010000100003,
+    "longitude": -80.78568299999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-59",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 35.856111000000055,
+    "longitude": -78.57416699999999,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-73",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 34.09395900000004,
+    "longitude": -80.96230399999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-76",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 35.63348000000008,
+    "longitude": -83.94160599999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NCORE-77",
+    "name": "NCore Multipollutant Network",
+    "type": "point",
+    "network": "EPA NCORE",
+    "parameters": [
+      "Multipollutant"
+    ],
+    "status": "active",
+    "latitude": 35.151699000000065,
+    "longitude": -89.85024899999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-ncore"
+  },
+  {
+    "id": "NEAR_ROAD-1",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 33.52142748600005,
+    "longitude": -86.84411199999994,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-23",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 26.132677000000058,
+    "longitude": -80.16981699999997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-24",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 30.262778000000026,
+    "longitude": -81.60683299999994,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-25",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 27.955133000000046,
+    "longitude": -82.46953199999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-26",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 25.785471999000038,
+    "longitude": -80.28420599999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-27",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 28.534170000000074,
+    "longitude": -81.38491999999997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-28",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 28.446308000000045,
+    "longitude": -81.41743899999994,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-29",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 27.83440925000008,
+    "longitude": -82.66525124999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-30",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 33.69864284200003,
+    "longitude": -84.27261363399998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-31",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 33.77840000000003,
+    "longitude": -84.39139999999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-37",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 29.99601300000006,
+    "longitude": -90.11818999999997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Louisiana",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-61",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 35.213171000000045,
+    "longitude": -80.87408399999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-62",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 35.27829200000008,
+    "longitude": -80.79699599999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-63",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 35.86520000000007,
+    "longitude": -78.81969999999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-79",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 36.142400000000066,
+    "longitude": -86.73409999999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "NEAR_ROAD-80",
+    "name": "Near Road Network",
+    "type": "point",
+    "network": "EPA NEAR ROAD",
+    "parameters": [
+      "Traffic",
+      "PM2.5"
+    ],
+    "status": "active",
+    "latitude": 35.16126000000003,
+    "longitude": -89.87064999999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-near_road"
+  },
+  {
+    "id": "PM25_SPECIATION-2",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 33.55305600100007,
+    "longitude": -86.81499999999994,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-4",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 33.499722001000066,
+    "longitude": -86.92416699999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-10",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 32.437027999000065,
+    "longitude": -84.99965299999997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-67",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 26.05388890000006,
+    "longitude": -80.25694439999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-72",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 27.96565000100003,
+    "longitude": -82.23039999999997,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-73",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 30.439722001000064,
+    "longitude": -84.34638899999999,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-76",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 32.77746466100007,
+    "longitude": -83.64099571399998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-79",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 31.51309685700005,
+    "longitude": -82.74997097899995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-80",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 33.68780000000004,
+    "longitude": -84.29049999999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-81",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 34.260500000000036,
+    "longitude": -85.32319999999999,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-84",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 32.427400000000034,
+    "longitude": -84.94569999999999,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-85",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 33.43390000000005,
+    "longitude": -82.02239999999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-87",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 34.97840000000008,
+    "longitude": -85.29429999999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-134",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 30.461980999000048,
+    "longitude": -91.17921899999999,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Louisiana",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-167",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 32.32911100000007,
+    "longitude": -90.18272199999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Mississippi",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-220",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 35.24010000100003,
+    "longitude": -80.78568299999995,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-222",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 35.856111000000055,
+    "longitude": -78.57416699999999,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-293",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 34.61536700100004,
+    "longitude": -80.19878699999998,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-297",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 34.09395900000004,
+    "longitude": -80.96230399999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-304",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 35.97807400100004,
+    "longitude": -83.95066599999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "PM25_SPECIATION-310",
+    "name": "PM2.5 Chemical Speciation Network",
+    "type": "point",
+    "network": "EPA CSN STN",
+    "parameters": [
+      "PM2.5 Speciation"
+    ],
+    "status": "active",
+    "latitude": 35.151699000000065,
+    "longitude": -89.85024899999996,
+    "siteType": null,
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-pm25_speciation"
+  },
+  {
+    "id": "ASCENT-11",
+    "name": "South DeKalb",
+    "network": "ASCENT",
+    "latitude": 33.6878,
+    "longitude": -84.2905,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "urban",
+    "siteNumber": 11,
+    "aqsSiteId": "13-089-0002",
+    "cbsa": "Atlanta-Sandy Springs-Roswell, GA",
+    "address": "2390-B Wildcat Road, Decatur GA 30034",
+    "currentNetwork": "NCore, PAMS",
+    "instrumentMentor": "Nga Lee Ng, Georgia Institute of Technology",
+    "comments": "Paired site 1: urban, biogenic",
+    "description": "Site Number: 11\nAQS Site ID: 13-089-0002\nCore Based Statistical Area (CBSA): Atlanta-Sandy Springs-Roswell, GA\nAddress: 2390-B Wildcat Road, Decatur GA 30034\nLatitude: 33.6878\nLongitude: -84.2905\nCurrent Network: NCore, PAMS\nInstrument Mentor: Nga Lee Ng, Georgia Institute of Technology\nComments: Paired site 1: urban, biogenic"
+  }
+]

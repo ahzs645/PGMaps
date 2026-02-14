@@ -72,7 +72,7 @@ const mapProjects: MapCardProps[] = [
     icon: Wind,
     href: '/airquality',
     color: 'bg-sky-500',
-    status: 'coming-soon',
+    status: 'available',
   },
   {
     title: 'Parks & Trails',

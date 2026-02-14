@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2025-10-18T01:44:05.257Z",
+  "totals": {
+    "all": 3712,
+    "byRegion": {
+      "northeast": 727,
+      "southeast": 71,
+      "midwest": 314,
+      "west": 2341,
+      "alaska": 259
+    }
+  },
+  "sources": {
+    "monitors": {
+      "file": "public/data/monitors.csv",
+      "records": 3034
+    },
+    "spartan": {
+      "file": "public/data/spartan.csv",
+      "records": 39
+    },
+    "ascent": {
+      "file": "public/data/ascent-sites.json",
+      "records": 12
+    },
+    "bcEnv": {
+      "file": "public/data/bc/bc_air_monitoring_stations.csv",
+      "records": 106
+    },
+    "epa": {
+      "directory": "public/data/epa",
+      "records": 524
+    }
+  },
+  "networks": [
+    "ASCENT",
+    "BC ENV",
+    "EGG",
+    "EPA CSN STN",
+    "EPA IMPROVE",
+    "EPA NATTS",
+    "EPA NCORE",
+    "EPA NEAR ROAD",
+    "EPA PAMS",
+    "FEM",
+    "PA",
+    "SPARTAN"
+  ]
+}

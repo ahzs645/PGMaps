@@ -1,0 +1,254 @@
+[
+  {
+    "id": "ASCENT-1",
+    "name": "Delta Junction, AK",
+    "network": "ASCENT",
+    "latitude": 63.88112,
+    "longitude": -145.75136,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "rural",
+    "siteNumber": 1,
+    "aqsSiteId": "n/a",
+    "cbsa": "n/a",
+    "address": "Southeast Fairbanks County, AK",
+    "currentNetwork": "NEON",
+    "instrumentMentor": "Jingqiu Mao, University of Alaska Fairbanks",
+    "comments": "Remote, arctic, background, boreal forest, intercontinental transport, EPSCoR",
+    "description": "Site Number: 1\nAQS Site ID: n/a\nCore Based Statistical Area (CBSA): n/a\nAddress: Southeast Fairbanks County, AK\nLatitude: 63.88112\nLongitude: -145.75136\nCurrent Network: NEON\nInstrument Mentor: Jingqiu Mao, University of Alaska Fairbanks\nComments: Remote, arctic, background, boreal forest, intercontinental transport, EPSCoR"
+  },
+  {
+    "id": "ASCENT-2",
+    "name": "Cheeka Peak/ Makah",
+    "network": "ASCENT",
+    "latitude": 48.29786,
+    "longitude": -124.62491,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "rural",
+    "siteNumber": 2,
+    "aqsSiteId": "53-009-0013",
+    "cbsa": "Port Angeles, WA",
+    "address": "LOCATED IN A TREE FARM (Cheeka Peak)",
+    "currentNetwork": "IMPROVE, NCore",
+    "instrumentMentor": "Joel Thornton, University of Washington",
+    "comments": "Marine background/inflow, smoke at times, tribal site",
+    "description": "Site Number: 2\nAQS Site ID: 53-009-0013\nCore Based Statistical Area (CBSA): Port Angeles, WA\nAddress: LOCATED IN A TREE FARM (Cheeka Peak)\nLatitude: 48.29786\nLongitude: -124.62491\nCurrent Network: IMPROVE, NCore\nInstrument Mentor: Joel Thornton, University of Washington\nComments: Marine background/inflow, smoke at times, tribal site"
+  },
+  {
+    "id": "ASCENT-5",
+    "name": "Joshua Tree",
+    "network": "ASCENT",
+    "latitude": 34.06957,
+    "longitude": -116.38893,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "rural",
+    "siteNumber": 5,
+    "aqsSiteId": "06-071-9002",
+    "cbsa": "Joshua Tree NP - Black Rock",
+    "address": "JOSHUA TREE NATIONAL MONUMENT",
+    "currentNetwork": "IMPROVE",
+    "instrumentMentor": "Lelia Hawkins, Harvey Mudd College, and Roya Bahreini, University of California, Riverside",
+    "comments": "Paired site 3: aged OA, downwind of LA and Riverside",
+    "description": "Site Number: 5\nAQS Site ID: 06-071-9002\nCore Based Statistical Area (CBSA): Joshua Tree NP - Black Rock\nAddress: JOSHUA TREE NATIONAL MONUMENT\nLatitude: 34.06957\nLongitude: -116.38893\nCurrent Network: IMPROVE\nInstrument Mentor: Lelia Hawkins, Harvey Mudd College, and Roya Bahreini, University of California, Riverside\nComments: Paired site 3: aged OA, downwind of LA and Riverside"
+  },
+  {
+    "id": "ASCENT-6",
+    "name": "Yellowstone NP 2",
+    "network": "ASCENT",
+    "latitude": 44.565217,
+    "longitude": -110.400996,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "rural",
+    "siteNumber": 6,
+    "aqsSiteId": "56-039-9000",
+    "cbsa": "Jackson, WY-ID",
+    "address": "Yellowstone NP 2",
+    "currentNetwork": "IMPROVE",
+    "instrumentMentor": "Shane Murphy, University of Wyoming",
+    "comments": "Background site with wildfires, EPSCoR",
+    "description": "Site Number: 6\nAQS Site ID: 56-039-9000\nCore Based Statistical Area (CBSA): Jackson, WY-ID\nAddress: Yellowstone NP 2\nLatitude: 44.565217\nLongitude: -110.400996\nCurrent Network: IMPROVE\nInstrument Mentor: Shane Murphy, University of Wyoming\nComments: Background site with wildfires, EPSCoR"
+  },
+  {
+    "id": "ASCENT-12",
+    "name": "Great Smoky Mountains NP - Look Rock",
+    "network": "ASCENT",
+    "latitude": 35.63348,
+    "longitude": -83.941606,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "rural",
+    "siteNumber": 12,
+    "aqsSiteId": "47-009-0101",
+    "cbsa": "Knoxville, TN",
+    "address": "GREAT SMOKY MOUNTAINS NP LOOK ROCK",
+    "currentNetwork": "IMPROVE",
+    "instrumentMentor": "Jason Surratt, University of North Carolina, Chapel Hill",
+    "comments": "Paired site 2: background, biogenic",
+    "description": "Site Number: 12\nAQS Site ID: 47-009-0101\nCore Based Statistical Area (CBSA): Knoxville, TN\nAddress: GREAT SMOKY MOUNTAINS NP LOOK ROCK\nLatitude: 35.63348\nLongitude: -83.941606\nCurrent Network: IMPROVE\nInstrument Mentor: Jason Surratt, University of North Carolina, Chapel Hill\nComments: Paired site 2: background, biogenic"
+  },
+  {
+    "id": "ASCENT-3",
+    "name": "Los Angeles-Pico Rivera",
+    "network": "ASCENT",
+    "latitude": 34.010278,
+    "longitude": -118.068611,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "urban",
+    "siteNumber": 3,
+    "aqsSiteId": "n/a",
+    "cbsa": "Los Angeles-Long Beach, CA",
+    "address": "4144 San Gabriel River Pkwy. Pico Rivera, CA 90660",
+    "currentNetwork": "AQMD",
+    "instrumentMentor": "John Seinfeld, California Institute of Technology",
+    "comments": "Paired site 1: urban, anthropogenic, volatile chemical products, wildfires",
+    "description": "Site Number: 3\nAQS Site ID: n/a\nCore Based Statistical Area (CBSA): Los Angeles-Long Beach, CA\nAddress: 4144 San Gabriel River Pkwy. Pico Rivera, CA 90660\nLatitude: 34.010278\nLongitude: -118.068611\nCurrent Network: AQMD\nInstrument Mentor: John Seinfeld, California Institute of Technology\nComments: Paired site 1: urban, anthropogenic, volatile chemical products, wildfires"
+  },
+  {
+    "id": "ASCENT-4",
+    "name": "Rubidoux",
+    "network": "ASCENT",
+    "latitude": 33.99958,
+    "longitude": -117.41601,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "urban",
+    "siteNumber": 4,
+    "aqsSiteId": "06-065-8001",
+    "cbsa": "Riverside-San Bernardino-Ontario, CA",
+    "address": "5888 MISSION BLVD., RUBIDOUX",
+    "currentNetwork": "NCore, PAMS",
+    "instrumentMentor": "Roya Bahreini, University of California, Riverside",
+    "comments": "Paired site 2: urban, anthropogenic, aged OA, wildfires",
+    "description": "Site Number: 4\nAQS Site ID: 06-065-8001\nCore Based Statistical Area (CBSA): Riverside-San Bernardino-Ontario, CA\nAddress: 5888 MISSION BLVD., RUBIDOUX\nLatitude: 33.99958\nLongitude: -117.41601\nCurrent Network: NCore, PAMS\nInstrument Mentor: Roya Bahreini, University of California, Riverside\nComments: Paired site 2: urban, anthropogenic, aged OA, wildfires"
+  },
+  {
+    "id": "ASCENT-7",
+    "name": "La Casa",
+    "network": "ASCENT",
+    "latitude": 39.77949,
+    "longitude": -105.0491253,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "urban",
+    "siteNumber": 7,
+    "aqsSiteId": "08-031-0026",
+    "cbsa": "Denver-Aurora-Lakewood, CO",
+    "address": "4545 Navajo St.",
+    "currentNetwork": "NCore, PAMS",
+    "instrumentMentor": "Jose Jimenez, University of Colorado, Boulder",
+    "comments": "Urban, wintertime pollution, oil and gas, wildfires, agriculture",
+    "description": "Site Number: 7\nAQS Site ID: 08-031-0026\nCore Based Statistical Area (CBSA): Denver-Aurora-Lakewood, CO\nAddress: 4545 Navajo St.\nLatitude: 39.77949\nLongitude: -105.0491253\nCurrent Network: NCore, PAMS\nInstrument Mentor: Jose Jimenez, University of Colorado, Boulder\nComments: Urban, wintertime pollution, oil and gas, wildfires, agriculture"
+  },
+  {
+    "id": "ASCENT-8",
+    "name": "Houston-UH West Liberty",
+    "network": "ASCENT",
+    "latitude": 30.0583,
+    "longitude": -94.9781,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "urban",
+    "siteNumber": 8,
+    "aqsSiteId": "n/a",
+    "cbsa": "Houston, TX",
+    "address": "91 Weldon Texaco Road CR 615/610 N",
+    "currentNetwork": "HNET",
+    "instrumentMentor": "Rob Griffin, Rice University (now at Roger Williams University) and Jimmy Flynn, University of Houston",
+    "comments": "Urban, petrochemical industry, maritime shipping",
+    "description": "Site Number: 8\nAQS Site ID: n/a\nCore Based Statistical Area (CBSA): Houston, TX\nAddress: 91 Weldon Texaco Road CR 615/610 N\nLatitude: 30.0583\nLongitude: -94.9781\nCurrent Network: HNET\nInstrument Mentor: Rob Griffin, Rice University (now at Roger Williams University) and Jimmy Flynn, University of Houston\nComments: Urban, petrochemical industry, maritime shipping"
+  },
+  {
+    "id": "ASCENT-9",
+    "name": "Lawrenceville",
+    "network": "ASCENT",
+    "latitude": 40.46542,
+    "longitude": -79.960757,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "urban",
+    "siteNumber": 9,
+    "aqsSiteId": "42-003-0008",
+    "cbsa": "Pittsburgh, PA",
+    "address": "301 39th St, Pittsburgh, PA 15201 (Lawrenceville)",
+    "currentNetwork": "NCore, PAMS",
+    "instrumentMentor": "Allen Robinson and Albert Presto, Carnegie Mellon University",
+    "comments": "Urban, oil and gas, fracking, heavy industry",
+    "description": "Site Number: 9\nAQS Site ID: 42-003-0008\nCore Based Statistical Area (CBSA): Pittsburgh, PA\nAddress: 301 39th St, Pittsburgh, PA 15201 (Lawrenceville)\nLatitude: 40.46542\nLongitude: -79.960757\nCurrent Network: NCore, PAMS\nInstrument Mentor: Allen Robinson and Albert Presto, Carnegie Mellon University\nComments: Urban, oil and gas, fracking, heavy industry"
+  },
+  {
+    "id": "ASCENT-10",
+    "name": "QUEENS COLLEGE 2",
+    "network": "ASCENT",
+    "latitude": 40.73614,
+    "longitude": -73.82153,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "urban",
+    "siteNumber": 10,
+    "aqsSiteId": "36-081-0124",
+    "cbsa": "New York-Newark-Jersey City, NY-NJ-PA",
+    "address": "Queens College 65-30 Kissena Blvd Parking Lot#6",
+    "currentNetwork": "NCore, PAMS",
+    "instrumentMentor": "Drew Gentner, Yale University",
+    "comments": "Urban, coastal, volatile chemical products",
+    "description": "Site Number: 10\nAQS Site ID: 36-081-0124\nCore Based Statistical Area (CBSA): New York-Newark-Jersey City, NY-NJ-PA\nAddress: Queens College 65-30 Kissena Blvd Parking Lot#6\nLatitude: 40.73614\nLongitude: -73.82153\nCurrent Network: NCore, PAMS\nInstrument Mentor: Drew Gentner, Yale University\nComments: Urban, coastal, volatile chemical products"
+  },
+  {
+    "id": "ASCENT-11",
+    "name": "South DeKalb",
+    "network": "ASCENT",
+    "latitude": 33.6878,
+    "longitude": -84.2905,
+    "parameters": [
+      "Aerosol Chemistry",
+      "Aerosol Physics"
+    ],
+    "status": "planned",
+    "siteType": "urban",
+    "siteNumber": 11,
+    "aqsSiteId": "13-089-0002",
+    "cbsa": "Atlanta-Sandy Springs-Roswell, GA",
+    "address": "2390-B Wildcat Road, Decatur GA 30034",
+    "currentNetwork": "NCore, PAMS",
+    "instrumentMentor": "Nga Lee Ng, Georgia Institute of Technology",
+    "comments": "Paired site 1: urban, biogenic",
+    "description": "Site Number: 11\nAQS Site ID: 13-089-0002\nCore Based Statistical Area (CBSA): Atlanta-Sandy Springs-Roswell, GA\nAddress: 2390-B Wildcat Road, Decatur GA 30034\nLatitude: 33.6878\nLongitude: -84.2905\nCurrent Network: NCore, PAMS\nInstrument Mentor: Nga Lee Ng, Georgia Institute of Technology\nComments: Paired site 1: urban, biogenic"
+  }
+]

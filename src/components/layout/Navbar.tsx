@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Map, Layers, Calculator, Sun, Moon } from 'lucide-react'
+import { Map, Layers, Calculator, Wind, Sun, Moon } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const navLinks = [
   { path: '/', label: 'Home', icon: Map },
+  { path: '/airquality', label: 'Air Quality', icon: Wind },
   { path: '/explorer', label: 'Explorer', icon: Layers },
   { path: '/score-builder', label: 'Score Builder', icon: Calculator },
 ]

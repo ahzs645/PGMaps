@@ -1,0 +1,3122 @@
+[
+  {
+    "id": "IMPROVE-1",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.55305600100007,
+    "longitude": -86.81499999999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-2",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.342904400000066,
+    "longitude": -87.33973040099994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alabama",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-3",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 55.32467481400005,
+    "longitude": -160.50833114299996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-4",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 63.72320000000008,
+    "longitude": -148.96759999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-6",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 60.01231500000006,
+    "longitude": -151.71149099999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-7",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 62.31475379800008,
+    "longitude": -150.31790942299997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-8",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 68.63723300000004,
+    "longitude": -149.59094899999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Alaska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-12",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.05847503700005,
+    "longitude": -109.44125853499997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-14",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.00941000000006,
+    "longitude": -109.38905999999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-18",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.973116799000024,
+    "longitude": -111.98484632699996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-20",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.16390000000007,
+    "longitude": -111.98229999999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-21",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.65470000000005,
+    "longitude": -111.10739999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-23",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.50383300000004,
+    "longitude": -112.09576699999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-25",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.82251000000008,
+    "longitude": -109.89248999999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-26",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 31.94999972200003,
+    "longitude": -112.80099999999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-27",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.17453800000004,
+    "longitude": -110.73711599999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-28",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.24871247800007,
+    "longitude": -111.21849361399995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-30",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 31.337450000000047,
+    "longitude": -110.93714999999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-32",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.34055558100005,
+    "longitude": -111.68392325699995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arizona",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-33",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.82589343300003,
+    "longitude": -93.20318732999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arkansas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-34",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.45451398700004,
+    "longitude": -94.14352122599996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Arkansas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-35",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.56095238800003,
+    "longitude": -124.083964246,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-38",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.92480000000006,
+    "longitude": -119.96999999999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-39",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.980000000000075,
+    "longitude": -120.09999999999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-41",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.78537999900004,
+    "longitude": -119.77320999999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-42",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.22063986100005,
+    "longitude": -119.15555695699999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-43",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.36068400000005,
+    "longitude": -118.33078299999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-45",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.82192179900005,
+    "longitude": -118.88759766999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-50",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.81303425700003,
+    "longitude": -118.88481945799998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-52",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.12297852200004,
+    "longitude": -122.90943969199998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-53",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.71325000000007,
+    "longitude": -119.70619999999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-54",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.088023038000074,
+    "longitude": -119.17806876199995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-56",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.46364383500003,
+    "longitude": -116.97145729699997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-57",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.48324000000008,
+    "longitude": -121.15687999999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-58",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.069570000000056,
+    "longitude": -116.38892999999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-59",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.193925325000066,
+    "longitude": -116.91406310599996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-60",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.733888869000054,
+    "longitude": -120.00834936899997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-61",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.539990000000046,
+    "longitude": -121.57645999999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-62",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.71182450900005,
+    "longitude": -121.50999311999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-63",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.78624735600005,
+    "longitude": -122.80570665199997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-64",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.498834948000024,
+    "longitude": -118.82482111299998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "California",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-65",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.72491929500006,
+    "longitude": -105.51907301299997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-67",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.53830000000005,
+    "longitude": -106.67659999999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-68",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.30389000100007,
+    "longitude": -107.48416699999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-69",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.27813000000003,
+    "longitude": -105.54563999999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-71",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.59286100000003,
+    "longitude": -105.14312199999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-72",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.19840000000005,
+    "longitude": -108.49045999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-73",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.15400000000005,
+    "longitude": -106.82099999999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-76",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.65940868300004,
+    "longitude": -107.80054064099994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Colorado",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-77",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.82134200100006,
+    "longitude": -73.29725699999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Connecticut",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-80",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 28.748678145000042,
+    "longitude": -82.55476895399994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-83",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 25.391220000000033,
+    "longitude": -80.68081899999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-85",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.092500001000076,
+    "longitude": -84.16111099999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Florida",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-86",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.740717708000034,
+    "longitude": -82.12815392599998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-87",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.68780000000004,
+    "longitude": -84.29049999999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-88",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.785218704000044,
+    "longitude": -84.62642331299998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Georgia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-89",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 19.430800000000033,
+    "longitude": -155.25779999999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Hawaii",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-91",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 20.758500000000026,
+    "longitude": -156.24788999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Hawaii",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-93",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.460556000000054,
+    "longitude": -113.56222199999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Idaho",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-94",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.170384815000034,
+    "longitude": -114.92803389399995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Idaho",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-96",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.05278000000004,
+    "longitude": -88.37250999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Illinois",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-104",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.434141348000026,
+    "longitude": -96.56050038599994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kansas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-105",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.77008100000006,
+    "longitude": -99.76342399999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kansas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-106",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.13179000000008,
+    "longitude": -86.14295299999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Kentucky",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-108",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 30.108633000000054,
+    "longitude": -89.76168299999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Louisiana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-111",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.69633999500007,
+    "longitude": -68.03261448899997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maine",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-113",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.83245801500004,
+    "longitude": -70.06381523199997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maine",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-114",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.37705000100004,
+    "longitude": -68.26089999999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maine",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-116",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.94798000000003,
+    "longitude": -68.64787999999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maine",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-117",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.12583728100003,
+    "longitude": -67.26540785199995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maine",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-119",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.70595000000003,
+    "longitude": -79.01199999999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Maryland",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-120",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.97580364000004,
+    "longitude": -70.02359822399995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Massachusetts",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-121",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.33046932700006,
+    "longitude": -70.78522523299995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Massachusetts",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-123",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.91670015300008,
+    "longitude": -89.15007526299996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-125",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.28887716100007,
+    "longitude": -85.95022692199996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-126",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.22861100000006,
+    "longitude": -83.20833299999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Michigan",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-127",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.94862200000006,
+    "longitude": -91.49557399999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Minnesota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-129",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.41252000000003,
+    "longitude": -92.82922499999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Minnesota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-131",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.937298809000026,
+    "longitude": -91.40534847699996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Minnesota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-133",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.97005203400005,
+    "longitude": -90.14010005399996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-134",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.61387894100005,
+    "longitude": -92.92228048599998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Missouri",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-135",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.582225108000046,
+    "longitude": -108.72038333499995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-136",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.51030000000003,
+    "longitude": -113.99680999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-137",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.77328289700006,
+    "longitude": -114.26997471699997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-138",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.82610275800005,
+    "longitude": -111.71157310499996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-139",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.59677810000005,
+    "longitude": -112.29998890999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-140",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.12209148300008,
+    "longitude": -113.15532602999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-141",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.859685727000056,
+    "longitude": -114.00103211199996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-142",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.30794995600007,
+    "longitude": -105.10286608899997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-143",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.64832821400006,
+    "longitude": -106.55724715999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-144",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.95477099300007,
+    "longitude": -115.67192453199999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-145",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.487054218000026,
+    "longitude": -104.47634584999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Montana",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-147",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.888788598000076,
+    "longitude": -100.33914080999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nebraska",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-149",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.89249899300006,
+    "longitude": -115.42701481899996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nevada",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-151",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.00512000000003,
+    "longitude": -114.21592999999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Nevada",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-152",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.30813200000006,
+    "longitude": -71.21763899999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Hampshire",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-153",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.861830000000054,
+    "longitude": -71.87862599999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Hampshire",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-154",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.86253100000005,
+    "longitude": -71.38013999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Hampshire",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-155",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.46487200000007,
+    "longitude": -74.44873599999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Jersey",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-156",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.22050217300006,
+    "longitude": -108.23571859199996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-157",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.45991358300006,
+    "longitude": -104.40471148599994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-159",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.178300001000025,
+    "longitude": -104.44059999999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-160",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.46880855000006,
+    "longitude": -105.53544391499997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-161",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.80419270400006,
+    "longitude": -106.29863900899994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-162",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.01394479500004,
+    "longitude": -106.84529925599998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-163",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 33.86959269400006,
+    "longitude": -106.85258406199995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-164",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.58544025400005,
+    "longitude": -105.45256250499995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "New Mexico",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-168",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.97234700000007,
+    "longitude": -81.93307199999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-170",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.37916700000005,
+    "longitude": -82.79249999999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-171",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.451090427000054,
+    "longitude": -76.20716540599994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-172",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.89430000100003,
+    "longitude": -103.37852999999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Dakota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-173",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.64193000100005,
+    "longitude": -102.40179999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "North Dakota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-174",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.94002872300007,
+    "longitude": -81.33869962399996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Ohio",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-175",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.750735001000066,
+    "longitude": -94.66969699999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oklahoma",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-176",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 34.73240389700004,
+    "longitude": -98.71335099299995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oklahoma",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-178",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 36.61000000000007,
+    "longitude": -97.48999999999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oklahoma",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-180",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.28845000000007,
+    "longitude": -121.78277499999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-181",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.10427800000008,
+    "longitude": -123.68108299999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-182",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.90985112800007,
+    "longitude": -122.14086111099999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-183",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.199819742000045,
+    "longitude": -122.04454680099997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-184",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.22474831100004,
+    "longitude": -118.51396199599998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-185",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.079864040000075,
+    "longitude": -116.84480826199996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Oregon",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-187",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.46542032800005,
+    "longitude": -79.96075744999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Pennsylvania",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-190",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 41.841038999000034,
+    "longitude": -71.36096999999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Rhode Island",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-191",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 32.941023001000076,
+    "longitude": -79.65718699999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Carolina",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-192",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.55764000000005,
+    "longitude": -103.48385999999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Dakota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-193",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 43.745610000000056,
+    "longitude": -101.94121799999999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "South Dakota",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-194",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 35.63348000000008,
+    "longitude": -83.94160599999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Tennessee",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-196",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 29.30265000000003,
+    "longitude": -103.17780999999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-197",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 31.83345022800006,
+    "longitude": -104.81022419099997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Texas",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-199",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.618383289000064,
+    "longitude": -112.17436790399995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-201",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.45832000000007,
+    "longitude": -109.82125999999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-202",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.440000000000055,
+    "longitude": -109.29999999999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-203",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 40.136378000000036,
+    "longitude": -111.65793599999995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-205",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.198300000000074,
+    "longitude": -113.15059999999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-207",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.30217708300006,
+    "longitude": -111.29334945099998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Utah",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-209",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.52839000100005,
+    "longitude": -72.86883999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Vermont",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-210",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.95610000000005,
+    "longitude": -72.90979999999996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Vermont",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-211",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 38.523100000000056,
+    "longitude": -78.43470999999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-212",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 37.62668000100007,
+    "longitude": -79.51256999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-214",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.29786000000007,
+    "longitude": -124.62490999999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-216",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.00629544600008,
+    "longitude": -122.97395296399998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-217",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.56823600000007,
+    "longitude": -122.30862799999994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-218",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 47.399814829000036,
+    "longitude": -121.42709557399996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-219",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.66620400000005,
+    "longitude": -121.00070799999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-221",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.624183962000075,
+    "longitude": -121.38806359199998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-222",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.38753113400003,
+    "longitude": -119.92867138199995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-223",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 46.758380000000045,
+    "longitude": -122.12428999999997,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-226",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 48.73142011600004,
+    "longitude": -121.06581544699998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Washington",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-227",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 39.10533577800004,
+    "longitude": -79.42585147899996,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "West Virginia",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-228",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 45.56498000000005,
+    "longitude": -88.80858999999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wisconsin",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-232",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.74472339600004,
+    "longitude": -109.38236574699994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wyoming",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-233",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.97483079800003,
+    "longitude": -109.75865534599995,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wyoming",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-234",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 42.846483000000035,
+    "longitude": -109.63973299999998,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wyoming",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-235",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 44.56521715800005,
+    "longitude": -110.40099644899999,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Wyoming",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  },
+  {
+    "id": "IMPROVE-237",
+    "name": "IMPROVE Visibility Network",
+    "network": "EPA IMPROVE",
+    "type": "point",
+    "status": "yes",
+    "latitude": 18.334398623000027,
+    "longitude": -64.79597206499994,
+    "parameters": [
+      "Visibility",
+      "Aerosol"
+    ],
+    "aqsSiteId": null,
+    "county": null,
+    "state": "Virgin Islands",
+    "siteType": null,
+    "startDate": null,
+    "endDate": null,
+    "source": "epa-improve"
+  }
+]

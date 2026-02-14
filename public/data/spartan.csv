@@ -1,0 +1,41 @@
+
+Site_Code,City,Country,Latitude,Longitude,Start_date,End_date
+AEAZ,Abu Dhabi,UAE,24.4416,54.6166,2019-04-26,2024-02-06
+AUMN,Melbourne,Australia,-37.7968,144.96291,2022-08-09,2024-05-20
+ARCB,Buenos Aires,Argentina,-34.55542,-58.50641,2014-10-02,2016-10-14
+BDDU,Dhaka,Bangladesh,23.72839,90.39819,2013-10-24,2023-10-07
+BIBU,Bujumbura,Burundi,-3.38,29.384,2022-12-09,2024-03-17
+CADO,Downsview,Canada,43.79,-79.47,2017-07-12,2019-08-12
+CAHA,Halifax,Canada,44.638,-63.594,None,None
+CAKE,Kelowna,Canada,49.94129,-119.40011,None,None
+CALE,Lethbridge,Canada,49.68167,-112.8687,None,None
+CASH,Sherbrooke,Canada,45.37975,-71.93133,None,None
+CHTS,Beijing,China,40.004,116.326,2013-06-28,2024-05-26
+CLST,Santiago,Chile,-33.45722,-70.66167,None,None
+CODC,Palmira,Colombia,4.6369,-74.0808,None,None
+ETAD,Addis Ababa,Ethiopia,9.0106,38.8207,None,None
+ETBI,Bishoftu,Ethiopia,8.760277777777778,38.99972222222223,None,None
+IDBD,Bandung,Indonesia,-6.88842,107.61,2014-01-10,2021-07-11
+ILHA,Haifa,Israel,32.77587,35.0249,None,None
+ILNZ,Rehovot,Israel,31.90724,34.81053,None,None
+INDH,Delhi,India,28.629,77.22233,None,None
+INJA,Jaipur,India,26.90582,75.80622,None,None
+INKA,Kanpur,India,26.51278,80.23164,None,None
+KRSE,Seoul,Korea,37.56443,126.93479,None,None
+KRUL,Ulsan,Korea,35.582,129.19,None,None
+MXMC,Mexico City,Mexico,19.334,-99.182,None,None
+NGIL,Ilorin,Nigeria,8.4841,4.6745,None,None
+PHMO,Manila,Philippines,14.63525,121.07784,None,None
+PRFJ,Fajardo,PuertoRico,18.3845,-65.6199,None,None
+SGSU,Singapore,Singapore,1.29767,103.78038,None,None
+TWKA,Kaohsiung,Taiwan,22.647196,120.309791,None,None
+TWTA,Taipei,Taiwan,25.0416354,121.503398,None,None
+USBA,Baltimore,United States,39.255,-76.709,None,None
+USBO,Bondville,United States,40.05333,-88.37194,None,None
+USMC,Mammoth Cave,United States,37.1318,-86.1479,None,None
+USNO,Norman,United States,35.182,-97.44,None,None
+USPA,Pasadena,United States,34.199433,-118.17317,None,None
+USSL,St Louis,United States,38.648997,-90.305961,None,None
+VNHN,Hanoi,Vietnam,21.04778,105.79964,None,None
+ZAJB,Johannesburg,South Africa,-26.18466,27.999458,None,None
+ZAPR,Pretoria,South Africa,-25.75661,28.27972,None,None

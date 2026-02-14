@@ -65,8 +65,8 @@ export function RestaurantCard({
   return (
     <div
       className={cn(
-        'p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors',
-        isSelected && 'bg-blue-50 dark:bg-blue-900/30'
+        'cursor-pointer p-3 transition-colors hover:bg-slate-100/80 dark:hover:bg-slate-800/60',
+        isSelected && 'bg-sky-50 dark:bg-sky-950/30'
       )}
       onClick={onClick}
     >
@@ -76,7 +76,7 @@ export function RestaurantCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+            <h3 className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
               {restaurant.name}
             </h3>
             {!hasLocation && (
@@ -88,7 +88,7 @@ export function RestaurantCard({
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{restaurant.address}</p>
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400">{restaurant.address}</p>
 
           {/* Stats row */}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -106,26 +106,26 @@ export function RestaurantCard({
           </div>
 
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-gray-400 dark:text-gray-500">
+            <span className="text-xs text-slate-400 dark:text-slate-500">
               {restaurant.facility_type || 'Restaurant'}
             </span>
-            <span className="text-xs text-gray-400 dark:text-gray-500">
+            <span className="text-xs text-slate-400 dark:text-slate-500">
               {violationStats.inspectionCount} insp.
             </span>
           </div>
 
           {/* Expanded details */}
           {expanded && (
-            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 space-y-2">
-              <div className="text-xs text-gray-600 dark:text-gray-300">
+            <div className="mt-3 space-y-2 border-t border-slate-200 pt-3 dark:border-slate-700">
+              <div className="text-xs text-slate-600 dark:text-slate-300">
                 <span className="font-medium">Full Address:</span>{' '}
                 {restaurant.full_address || restaurant.address}
               </div>
 
               {latestInspection && (
                 <div className="text-xs">
-                  <div className="font-medium text-gray-700 dark:text-gray-200">Latest Inspection:</div>
-                  <div className="text-gray-600 dark:text-gray-300">
+                  <div className="font-medium text-slate-700 dark:text-slate-200">Latest Inspection:</div>
+                  <div className="text-slate-600 dark:text-slate-300">
                     {latestInspection.inspection_date || latestInspection.date} -{' '}
                     {latestInspection.inspection_type || latestInspection.type}
                   </div>
@@ -145,7 +145,7 @@ export function RestaurantCard({
               {/* Recent violations preview */}
               {latestInspection?.violations && latestInspection.violations.length > 0 && (
                 <div className="mt-2">
-                  <div className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  <div className="mb-1 text-xs font-medium text-slate-700 dark:text-slate-200">
                     Recent Violations:
                   </div>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -160,7 +160,7 @@ export function RestaurantCard({
                       </div>
                     ))}
                     {latestInspection.violations.length > 2 && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 italic">
+                      <div className="text-xs italic text-slate-500 dark:text-slate-400">
                         +{latestInspection.violations.length - 2} more violations
                       </div>
                     )}

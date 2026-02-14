@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
 import { Timeline } from './components/Timeline'
 import { useRestaurantData } from './hooks/useRestaurantData'
+import { ChevronsLeft, ChevronsRight } from 'lucide-react'
 import type { RestaurantWithStats, HazardRating, VisualizationMode } from './types'
 
 // Parse date string like "18-Mar-2024" or "March 18, 2024"
@@ -211,7 +212,7 @@ export default function FoodMap() {
   }, [])
 
   return (
-    <div className="flex h-full w-full bg-white dark:bg-gray-900">
+    <div className="relative flex h-full w-full bg-slate-100 dark:bg-slate-950">
       {/* Sidebar */}
       {showSidebar && (
         <Sidebar
@@ -244,18 +245,15 @@ export default function FoodMap() {
       {/* Toggle sidebar button */}
       <button
         onClick={() => setShowSidebar(!showSidebar)}
-        className={`absolute top-4 z-20 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-          showSidebar ? 'left-[360px]' : 'left-4'
+        aria-label={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
+        className={`absolute top-6 z-20 flex h-10 w-8 items-center justify-center border border-l-0 border-slate-300/80 bg-slate-50/95 text-slate-600 shadow-md backdrop-blur transition-[left,background-color,color,border-color] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800 ${
+          showSidebar ? 'left-[350px] rounded-r-lg' : 'left-0 rounded-r-lg'
         }`}
       >
         {showSidebar ? (
-          <svg className="w-5 h-5 text-gray-700 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-          </svg>
+          <ChevronsLeft className="h-4 w-4" />
         ) : (
-          <svg className="w-5 h-5 text-gray-700 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-          </svg>
+          <ChevronsRight className="h-4 w-4" />
         )}
       </button>
 
@@ -281,8 +279,8 @@ export default function FoodMap() {
         )}
 
         {/* Map Legend */}
-        <div className="absolute bottom-6 right-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 z-10">
-          <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-2">
+        <div className="absolute bottom-6 right-6 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur">
+          <h4 className="mb-2 text-xs font-semibold text-foreground">
             {visualizationMode === 'violations'
               ? `Violations (${timelineMonths === 0 ? 'All Time' : `Past ${timelineMonths}mo`})`
               : 'Hazard Rating'}
@@ -293,19 +291,19 @@ export default function FoodMap() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-green-500"></span>
-                <span className="text-xs text-gray-600 dark:text-gray-300">0 violations</span>
+                <span className="text-xs text-muted-foreground">0 violations</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-yellow-500"></span>
-                <span className="text-xs text-gray-600 dark:text-gray-300">1-3 violations</span>
+                <span className="text-xs text-muted-foreground">1-3 violations</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-orange-500"></span>
-                <span className="text-xs text-gray-600 dark:text-gray-300">4-6 violations</span>
+                <span className="text-xs text-muted-foreground">4-6 violations</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-red-500"></span>
-                <span className="text-xs text-gray-600 dark:text-gray-300">7+ violations</span>
+                <span className="text-xs text-muted-foreground">7+ violations</span>
               </div>
             </div>
           )}
@@ -315,24 +313,24 @@ export default function FoodMap() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-green-500"></span>
-                <span className="text-xs text-gray-600 dark:text-gray-300">Low ({hazardStatsAtDate.Low})</span>
+                <span className="text-xs text-muted-foreground">Low ({hazardStatsAtDate.Low})</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-amber-500"></span>
-                <span className="text-xs text-gray-600 dark:text-gray-300">Moderate ({hazardStatsAtDate.Moderate})</span>
+                <span className="text-xs text-muted-foreground">Moderate ({hazardStatsAtDate.Moderate})</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-gray-500"></span>
-                <span className="text-xs text-gray-600 dark:text-gray-300">Unknown ({hazardStatsAtDate.Unknown})</span>
+                <span className="text-xs text-muted-foreground">Unknown ({hazardStatsAtDate.Unknown})</span>
               </div>
             </div>
           )}
 
           {visualizationMode === 'violations' && (
-            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="mt-2 border-t border-border pt-2">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full border-2 border-gray-400"></span>
-                <span className="text-xs text-gray-600 dark:text-gray-300">Size = count</span>
+                <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/60"></span>
+                <span className="text-xs text-muted-foreground">Size = count</span>
               </div>
             </div>
           )}
