@@ -6,6 +6,8 @@ import type { AirMonitor } from '../types'
 interface AirQualitySidebarProps {
   monitors: AirMonitor[]
   filteredMonitors: AirMonitor[]
+  visibleMonitorCount: number
+  totalMonitorCount: number
   selectedMonitor: AirMonitor | null
   selectedNetworks: string[]
   searchQuery: string
@@ -26,6 +28,8 @@ const MAX_VISIBLE_ROWS = 250
 export function AirQualitySidebar({
   monitors,
   filteredMonitors,
+  visibleMonitorCount,
+  totalMonitorCount,
   selectedMonitor,
   selectedNetworks,
   searchQuery,
@@ -63,11 +67,11 @@ export function AirQualitySidebar({
         <div className="mb-3 flex items-end justify-between">
           <div>
             <div className="text-xs text-muted-foreground">Visible monitors</div>
-            <div className="text-xl font-bold text-foreground">{filteredMonitors.length}</div>
+            <div className="text-xl font-bold text-foreground">{visibleMonitorCount}</div>
           </div>
           <div className="text-right">
             <div className="text-xs text-muted-foreground">Total monitors</div>
-            <div className="text-sm font-medium text-foreground">{monitors.length}</div>
+            <div className="text-sm font-medium text-foreground">{totalMonitorCount}</div>
           </div>
         </div>
 
@@ -196,7 +200,7 @@ export function AirQualitySidebar({
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
-            <span>{filteredMonitors.length} monitors</span>
+            <span>{visibleMonitorCount} monitors in view</span>
             {filteredMonitors.length > MAX_VISIBLE_ROWS && (
               <span>Showing first {MAX_VISIBLE_ROWS}</span>
             )}

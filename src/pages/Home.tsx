@@ -83,12 +83,12 @@ const mapProjects: MapCardProps[] = [
     status: 'coming-soon',
   },
   {
-    title: 'Socioeconomic Data',
-    description: 'Visualize census data, income levels, demographics, and other socioeconomic indicators by neighborhood.',
+    title: 'Census Data',
+    description: 'Explore dissemination-area census patterns in Prince George with a choropleth map and sortable neighborhood metrics.',
     icon: BarChart3,
-    href: '/socioeconomic',
-    color: 'bg-purple-500',
-    status: 'coming-soon',
+    href: '/census',
+    color: 'bg-amber-600',
+    status: 'available',
   },
   {
     title: 'Community Events',

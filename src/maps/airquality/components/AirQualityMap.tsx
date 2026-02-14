@@ -15,7 +15,15 @@ interface AirQualityMapProps {
   monitors: AirMonitor[]
   selectedMonitor: AirMonitor | null
   showHeatmap: boolean
+  onBoundsChange?: (bounds: AirQualityMapBounds) => void
   onMonitorClick: (monitor: AirMonitor) => void
+}
+
+export interface AirQualityMapBounds {
+  west: number
+  east: number
+  south: number
+  north: number
 }
 
 type MonitorFeatureProperties = {
@@ -44,7 +52,13 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-export function AirQualityMap({ monitors, selectedMonitor, showHeatmap, onMonitorClick }: AirQualityMapProps) {
+export function AirQualityMap({
+  monitors,
+  selectedMonitor,
+  showHeatmap,
+  onBoundsChange,
+  onMonitorClick
+}: AirQualityMapProps) {
   const mapRef = useRef<MapRef>(null)
 
   const monitorById = useMemo(() => {
@@ -92,6 +106,54 @@ export function AirQualityMap({ monitors, selectedMonitor, showHeatmap, onMonito
       duration: 800
     })
   }, [selectedMonitor])
+
+  useEffect(() => {
+    if (!onBoundsChange) return
+
+    let mapInstance: MapRef | null = null
+    let animationFrame: number | null = null
+
+    const publishBounds = () => {
+      if (!mapInstance) return
+      const bounds = mapInstance.getBounds()
+      onBoundsChange({
+        west: bounds.getWest(),
+        east: bounds.getEast(),
+        south: bounds.getSouth(),
+        north: bounds.getNorth()
+      })
+    }
+
+    const bind = () => {
+      mapInstance = mapRef.current
+      if (!mapInstance) {
+        animationFrame = requestAnimationFrame(bind)
+        return
+      }
+
+      mapInstance.on('load', publishBounds)
+      mapInstance.on('moveend', publishBounds)
+      mapInstance.on('zoomend', publishBounds)
+      mapInstance.on('resize', publishBounds)
+
+      if (mapInstance.loaded()) {
+        publishBounds()
+      }
+    }
+
+    bind()
+
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame)
+      }
+      if (!mapInstance) return
+      mapInstance.off('load', publishBounds)
+      mapInstance.off('moveend', publishBounds)
+      mapInstance.off('zoomend', publishBounds)
+      mapInstance.off('resize', publishBounds)
+    }
+  }, [onBoundsChange])
 
   return (
     <div className="h-full w-full">

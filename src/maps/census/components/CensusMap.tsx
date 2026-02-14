@@ -1,0 +1,289 @@
+import { useEffect, useId, useMemo, useRef } from 'react'
+import { Map as PgMap, MapControls, useMap, type MapRef } from '@/components/ui/map'
+import type { CensusArea, CensusHierarchyLevel, CensusMetricKey, CensusUnit } from '../types'
+
+interface CensusMapProps {
+  areas: CensusArea[]
+  units: CensusUnit[]
+  selectedMetric: CensusMetricKey
+  selectedHierarchy: CensusHierarchyLevel
+  selectedUnitId: string | null
+  bounds: { minLng: number; minLat: number; maxLng: number; maxLat: number } | null
+  onUnitClick: (id: string) => void
+}
+
+interface ChoroplethLayerProps {
+  data: GeoJSON.FeatureCollection<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>
+  selectedUnitId: string | null
+  onUnitClick: (id: string) => void
+}
+
+const CENTER: [number, number] = [-122.764593, 53.909784]
+const ZOOM = 10
+const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/bright'
+const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
+
+function getAreaHierarchyId(area: CensusArea, hierarchy: CensusHierarchyLevel): string {
+  switch (hierarchy) {
+    case 'rpid':
+      return area.rpid || area.id
+    case 'rgid':
+      return area.rgid || area.id
+    case 'ruid':
+      return area.ruid || area.id
+    case 'rguid':
+      return area.rguid || area.id
+    case 'da':
+    default:
+      return area.id
+  }
+}
+
+function getChoroplethColor(value: number | null, min: number, max: number): string {
+  if (value == null || !Number.isFinite(value)) return '#475569'
+  if (max <= min) return '#f59e0b'
+
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)))
+  if (t <= 0.2) return '#fef3c7'
+  if (t <= 0.4) return '#fde68a'
+  if (t <= 0.6) return '#fbbf24'
+  if (t <= 0.8) return '#f59e0b'
+  return '#b45309'
+}
+
+function CensusChoroplethLayer({ data, selectedUnitId, onUnitClick }: ChoroplethLayerProps) {
+  const { map, isLoaded } = useMap()
+  const uid = useId().replace(/:/g, '')
+  const sourceId = `census-source-${uid}`
+  const fillLayerId = `census-fill-${uid}`
+  const lineLayerId = `census-line-${uid}`
+  const selectedLayerId = `census-selected-${uid}`
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data
+      } as never)
+    }
+
+    if (!map.getLayer(fillLayerId)) {
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': ['coalesce', ['get', 'color'], '#475569'],
+          'fill-opacity': 0.72
+        }
+      } as never)
+    }
+
+    if (!map.getLayer(lineLayerId)) {
+      map.addLayer({
+        id: lineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#0f172a',
+          'line-width': 0.6,
+          'line-opacity': 0.55
+        }
+      } as never)
+    }
+
+    if (!map.getLayer(selectedLayerId)) {
+      map.addLayer({
+        id: selectedLayerId,
+        type: 'line',
+        source: sourceId,
+        filter: ['==', ['get', 'unitId'], ''],
+        paint: {
+          'line-color': '#38bdf8',
+          'line-width': 2.8,
+          'line-opacity': 1
+        }
+      } as never)
+    }
+
+    const handleClick = (event: unknown) => {
+      const e = event as { features?: Array<{ properties?: { unitId?: string } }> }
+      const unitId = e.features?.[0]?.properties?.unitId
+      if (unitId) onUnitClick(unitId)
+    }
+
+    const handleMouseEnter = () => {
+      map.getCanvas().style.cursor = 'pointer'
+    }
+
+    const handleMouseLeave = () => {
+      map.getCanvas().style.cursor = ''
+    }
+
+    map.on('click', fillLayerId, handleClick as never)
+    map.on('mouseenter', fillLayerId, handleMouseEnter)
+    map.on('mouseleave', fillLayerId, handleMouseLeave)
+
+    return () => {
+      map.off('click', fillLayerId, handleClick as never)
+      map.off('mouseenter', fillLayerId, handleMouseEnter)
+      map.off('mouseleave', fillLayerId, handleMouseLeave)
+
+      if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
+      if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
+      if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+      if (map.getSource(sourceId)) map.removeSource(sourceId)
+    }
+  }, [data, fillLayerId, isLoaded, lineLayerId, map, onUnitClick, selectedLayerId, sourceId])
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    const source = map.getSource(sourceId) as { setData?: (nextData: unknown) => void } | undefined
+    source?.setData?.(data)
+  }, [data, isLoaded, map, sourceId])
+
+  useEffect(() => {
+    if (!isLoaded || !map || !map.getLayer(selectedLayerId)) return
+    map.setFilter(selectedLayerId, ['==', ['get', 'unitId'], selectedUnitId || ''])
+  }, [isLoaded, map, selectedLayerId, selectedUnitId])
+
+  return null
+}
+
+export function CensusMap({
+  areas,
+  units,
+  selectedMetric,
+  selectedHierarchy,
+  selectedUnitId,
+  bounds,
+  onUnitClick
+}: CensusMapProps) {
+  const mapRef = useRef<MapRef>(null)
+  const hasFittedRef = useRef(false)
+
+  const unitsById = useMemo(() => {
+    const map = new Map<string, CensusUnit>()
+    units.forEach((unit) => {
+      map.set(unit.id, unit)
+    })
+    return map
+  }, [units])
+
+  const metricValues = useMemo(() => {
+    return units
+      .map((unit) => unit[selectedMetric])
+      .filter((value): value is number => value != null && Number.isFinite(value))
+  }, [selectedMetric, units])
+
+  const metricRange = useMemo(() => {
+    if (!metricValues.length) return { min: 0, max: 1 }
+    return {
+      min: Math.min(...metricValues),
+      max: Math.max(...metricValues)
+    }
+  }, [metricValues])
+
+  const featureCollection = useMemo<GeoJSON.FeatureCollection<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>>(() => {
+    return {
+      type: 'FeatureCollection',
+      features: areas.map((area) => {
+        const unitId = getAreaHierarchyId(area, selectedHierarchy)
+        const unit = unitsById.get(unitId)
+        const value = unit?.[selectedMetric] ?? null
+
+        return {
+          type: 'Feature',
+          geometry: area.geometry,
+          properties: {
+            id: area.id,
+            unitId,
+            metricValue: value,
+            color: getChoroplethColor(value, metricRange.min, metricRange.max)
+          }
+        }
+      })
+    }
+  }, [areas, metricRange.max, metricRange.min, selectedHierarchy, selectedMetric, unitsById])
+
+  const selectedFeatures = useMemo(() => {
+    if (!selectedUnitId) return []
+    return areas.filter((area) => getAreaHierarchyId(area, selectedHierarchy) === selectedUnitId)
+  }, [areas, selectedHierarchy, selectedUnitId])
+
+  useEffect(() => {
+    if (!bounds || !mapRef.current || hasFittedRef.current) return
+    mapRef.current.fitBounds(
+      [
+        [bounds.minLng, bounds.minLat],
+        [bounds.maxLng, bounds.maxLat]
+      ],
+      {
+        padding: 32,
+        duration: 700
+      }
+    )
+    hasFittedRef.current = true
+  }, [bounds])
+
+  useEffect(() => {
+    if (!selectedFeatures.length || !mapRef.current) return
+
+    let minLng = Infinity
+    let minLat = Infinity
+    let maxLng = -Infinity
+    let maxLat = -Infinity
+
+    const scanRing = (ring: number[][]) => {
+      ring.forEach(([lng, lat]) => {
+        if (lng < minLng) minLng = lng
+        if (lng > maxLng) maxLng = lng
+        if (lat < minLat) minLat = lat
+        if (lat > maxLat) maxLat = lat
+      })
+    }
+
+    selectedFeatures.forEach((area) => {
+      if (area.geometry.type === 'Polygon') {
+        area.geometry.coordinates.forEach((ring) => scanRing(ring))
+      } else {
+        area.geometry.coordinates.forEach((polygon) => {
+          polygon.forEach((ring) => scanRing(ring))
+        })
+      }
+    })
+
+    if (Number.isFinite(minLng) && Number.isFinite(minLat) && Number.isFinite(maxLng) && Number.isFinite(maxLat)) {
+      mapRef.current.fitBounds(
+        [
+          [minLng, minLat],
+          [maxLng, maxLat]
+        ],
+        {
+          padding: 80,
+          duration: 500
+        }
+      )
+    }
+  }, [selectedFeatures])
+
+  return (
+    <div className="h-full w-full">
+      <PgMap
+        ref={mapRef}
+        center={CENTER}
+        zoom={ZOOM}
+        styles={{ light: LIGHT_STYLE, dark: DARK_STYLE }}
+      >
+        <MapControls position="top-right" showZoom showCompass />
+        <CensusChoroplethLayer
+          data={featureCollection}
+          selectedUnitId={selectedUnitId}
+          onUnitClick={onUnitClick}
+        />
+      </PgMap>
+    </div>
+  )
+}

@@ -5,6 +5,27 @@ import { AirQualitySidebar } from './components/AirQualitySidebar'
 import { getNetworkColor } from './constants'
 import { useAirQualityData } from './hooks/useAirQualityData'
 import type { AirMonitor } from './types'
+import type { AirQualityMapBounds } from './components/AirQualityMap'
+
+function normalizeLongitude(lon: number): number {
+  return ((lon + 540) % 360) - 180
+}
+
+function isMonitorInBounds(monitor: AirMonitor, bounds: AirQualityMapBounds | null): boolean {
+  if (!bounds) return true
+
+  const lat = monitor.latitude
+  const lon = normalizeLongitude(monitor.longitude)
+  const west = normalizeLongitude(bounds.west)
+  const east = normalizeLongitude(bounds.east)
+
+  const withinLatitude = lat >= bounds.south && lat <= bounds.north
+  const withinLongitude = west <= east
+    ? lon >= west && lon <= east
+    : lon >= west || lon <= east
+
+  return withinLatitude && withinLongitude
+}
 
 export default function AirQualitySection() {
   const { monitors, loading, error } = useAirQualityData()
@@ -15,6 +36,7 @@ export default function AirQualitySection() {
   const [showHeatmap, setShowHeatmap] = useState(false)
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
+  const [mapBounds, setMapBounds] = useState<AirQualityMapBounds | null>(null)
 
   const allNetworks = useMemo(() => {
     return Array.from(new Set(monitors.map((monitor) => monitor.network))).sort((a, b) => a.localeCompare(b))
@@ -41,6 +63,14 @@ export default function AirQualitySection() {
     })
   }, [monitors, selectedNetworks, searchQuery])
 
+  const totalMonitorsInView = useMemo(() => {
+    return monitors.filter((monitor) => isMonitorInBounds(monitor, mapBounds))
+  }, [mapBounds, monitors])
+
+  const visibleMonitorsInView = useMemo(() => {
+    return filteredMonitors.filter((monitor) => isMonitorInBounds(monitor, mapBounds))
+  }, [filteredMonitors, mapBounds])
+
   useEffect(() => {
     if (!selectedMonitor) return
     const stillVisible = filteredMonitors.some((monitor) => monitor.id === selectedMonitor.id)
@@ -62,12 +92,18 @@ export default function AirQualitySection() {
     return allNetworks.filter((network) => selectedNetworks.includes(network)).slice(0, 8)
   }, [allNetworks, selectedNetworks])
 
+  const handleBoundsChange = useCallback((bounds: AirQualityMapBounds) => {
+    setMapBounds(bounds)
+  }, [])
+
   return (
     <div className="relative flex h-full w-full bg-slate-100 dark:bg-slate-950">
       {showSidebar && (
         <AirQualitySidebar
           monitors={monitors}
-          filteredMonitors={filteredMonitors}
+          filteredMonitors={visibleMonitorsInView}
+          visibleMonitorCount={visibleMonitorsInView.length}
+          totalMonitorCount={totalMonitorsInView.length}
           selectedMonitor={selectedMonitor}
           selectedNetworks={selectedNetworks}
           searchQuery={searchQuery}
@@ -103,6 +139,7 @@ export default function AirQualitySection() {
           monitors={filteredMonitors}
           selectedMonitor={selectedMonitor}
           showHeatmap={showHeatmap}
+          onBoundsChange={handleBoundsChange}
           onMonitorClick={setSelectedMonitor}
         />
 
