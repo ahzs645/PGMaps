@@ -214,11 +214,12 @@ function TrailLinesLayer({
       id: layerId,
       type: 'line',
       source: sourceId,
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      layout: { 'line-join': 'round', 'line-cap': 'butt' },
       paint: {
-        'line-color': ['get', 'color'],
+        'line-color': '#ef4444',
         'line-width': 3,
         'line-opacity': 0.8,
+        'line-dasharray': [2, 1.5],
       },
     })
 
@@ -226,11 +227,12 @@ function TrailLinesLayer({
       id: selectedLayerId,
       type: 'line',
       source: sourceId,
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      layout: { 'line-join': 'round', 'line-cap': 'butt' },
       paint: {
-        'line-color': ['get', 'color'],
+        'line-color': '#ef4444',
         'line-width': 5,
         'line-opacity': 1,
+        'line-dasharray': [2, 1.5],
       },
       filter: ['==', ['get', 'id'], -1],
     })
