@@ -80,7 +80,7 @@ const mapProjects: MapCardProps[] = [
     icon: Trees,
     href: '/parks',
     color: 'bg-green-500',
-    status: 'coming-soon',
+    status: 'available',
   },
   {
     title: 'Census Data',
