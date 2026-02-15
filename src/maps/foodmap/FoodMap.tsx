@@ -3,6 +3,7 @@ import { RestaurantMap } from './components/RestaurantMap'
 import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
 import { Timeline } from './components/Timeline'
+import { RouletteModal } from './components/roulette'
 import { useRestaurantData } from './hooks/useRestaurantData'
 import { ChevronsLeft, ChevronsRight } from 'lucide-react'
 import type { RestaurantWithStats, HazardRating, VisualizationMode } from './types'
@@ -37,6 +38,7 @@ export default function FoodMap() {
   const [selectedRestaurant, setSelectedRestaurant] = useState<RestaurantWithStats | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [showInspectionPanel, setShowInspectionPanel] = useState(false)
+  const [showRoulette, setShowRoulette] = useState(false)
 
   // Visualization mode: 'hazard' or 'violations'
   const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>('violations')
@@ -211,6 +213,12 @@ export default function FoodMap() {
     setShowInspectionPanel(true)
   }, [])
 
+  const handleRouletteSelectOnMap = useCallback((restaurant: RestaurantWithStats) => {
+    setSelectedRestaurant(restaurant)
+    setShowRoulette(false)
+    setShowSidebar(true)
+  }, [])
+
   return (
     <div className="relative flex h-full w-full bg-slate-100 dark:bg-slate-950">
       {/* Sidebar */}
@@ -239,6 +247,7 @@ export default function FoodMap() {
           onOpenInspectionPanel={openInspectionPanel}
           showTimeline={showTimeline}
           onToggleTimeline={() => setShowTimeline(!showTimeline)}
+          onOpenRoulette={() => setShowRoulette(true)}
         />
       )}
 
@@ -342,6 +351,15 @@ export default function FoodMap() {
         <InspectionPanel
           restaurant={selectedRestaurant}
           onClose={() => setShowInspectionPanel(false)}
+        />
+      )}
+
+      {/* Restaurant Roulette Modal */}
+      {showRoulette && (
+        <RouletteModal
+          restaurants={restaurants}
+          onClose={() => setShowRoulette(false)}
+          onSelectOnMap={handleRouletteSelectOnMap}
         />
       )}
     </div>

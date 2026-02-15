@@ -34,6 +34,7 @@ interface SidebarProps {
   onOpenInspectionPanel: () => void
   showTimeline: boolean
   onToggleTimeline: () => void
+  onOpenRoulette: () => void
 }
 
 const hazardOptions: HazardRating[] = ['Low', 'Moderate', 'Unknown']
@@ -75,7 +76,8 @@ export function Sidebar({
   onClearSelection,
   onOpenInspectionPanel,
   showTimeline,
-  onToggleTimeline
+  onToggleTimeline,
+  onOpenRoulette
 }: SidebarProps) {
   const [showFilters, setShowFilters] = useState(false)
 
@@ -111,6 +113,16 @@ export function Sidebar({
             <p className="text-sm text-muted-foreground">Restaurant Inspections</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={onOpenRoulette}
+              className="p-2 rounded-lg bg-purple-500 hover:bg-purple-600 transition-colors"
+              title="Restaurant Roulette"
+            >
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+                <path strokeWidth="2" d="M12 2v10l7 7"/>
+              </svg>
+            </button>
             <button
               onClick={onToggleTimeline}
               className={`p-2 rounded-lg transition-colors ${

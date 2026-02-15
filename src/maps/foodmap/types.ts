@@ -69,3 +69,17 @@ export interface HazardStatsAtDate {
   Moderate: number
   Unknown: number
 }
+
+// Roulette types
+export type LocationMode = 'none' | 'geolocation' | 'manual'
+export type SpinnerMode = 'wheel' | 'slot'
+
+export interface SourceLocation {
+  lat: number
+  lng: number
+}
+
+export interface RouletteRestaurant extends Restaurant {
+  distanceKm: number | null
+  rouletteViolationCount: number
+}

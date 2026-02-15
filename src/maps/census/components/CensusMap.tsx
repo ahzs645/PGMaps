@@ -109,14 +109,19 @@ function CensusChoroplethLayer({ data, selectedUnitId, onUnitClick }: Choropleth
     map.on('mouseleave', fillLayerId, handleMouseLeave)
 
     return () => {
-      map.off('click', fillLayerId, handleClick as never)
-      map.off('mouseenter', fillLayerId, handleMouseEnter)
-      map.off('mouseleave', fillLayerId, handleMouseLeave)
+      try {
+        map.off('click', fillLayerId, handleClick as never)
+        map.off('mouseenter', fillLayerId, handleMouseEnter)
+        map.off('mouseleave', fillLayerId, handleMouseLeave)
 
-      if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
-      if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
-      if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
-      if (map.getSource(sourceId)) map.removeSource(sourceId)
+        if (!map.getStyle()) return
+        if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
+        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
+        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+        if (map.getSource(sourceId)) map.removeSource(sourceId)
+      } catch {
+        // Map already destroyed during unmount
+      }
     }
   }, [data, fillLayerId, isLoaded, lineLayerId, map, onUnitClick, selectedLayerId, sourceId])
 
