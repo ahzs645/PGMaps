@@ -4,6 +4,7 @@ import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from '../consta
 import type { CensusHierarchyLevel, CensusMetricKey, CensusMetricOption, CensusUnit } from '../types'
 
 interface CensusSidebarProps {
+  className?: string
   units: CensusUnit[]
   filteredUnits: CensusUnit[]
   selectedUnit: CensusUnit | null
@@ -44,6 +45,7 @@ function formatArea(value: number): string {
 }
 
 export function CensusSidebar({
+  className,
   units,
   filteredUnits,
   selectedUnit,
@@ -93,7 +95,7 @@ export function CensusSidebar({
   }, [filteredUnits, selectedMetric])
 
   return (
-    <div className="z-10 flex h-full w-[350px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur">
+    <div className={cn('z-10 flex h-full w-[350px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">Census Hierarchy</h1>
         <p className="text-sm text-muted-foreground">CD, CSD, CT, DA, and DB boundary views</p>

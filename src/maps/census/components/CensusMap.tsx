@@ -18,8 +18,8 @@ interface ChoroplethLayerProps {
 
 const CENTER: [number, number] = [-122.764593, 53.909784]
 const ZOOM = 10
-const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/bright'
-const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
+const LIGHT_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+const DARK_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 
 function getChoroplethColor(value: number | null, min: number, max: number): string {
   if (value == null || !Number.isFinite(value)) return '#475569'

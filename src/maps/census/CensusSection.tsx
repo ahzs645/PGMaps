@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { CensusMap } from './components/CensusMap'
 import { CensusSidebar } from './components/CensusSidebar'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS } from './constants'
@@ -63,9 +63,12 @@ export default function CensusSection() {
   }, [selectedHierarchy])
 
   return (
-    <div className="relative flex h-full w-full bg-slate-100 dark:bg-slate-950">
-      {showSidebar && (
+    <MapSectionLayout
+      showDesktopSidebar={showSidebar}
+      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+      sidebar={(
         <CensusSidebar
+          className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
           units={allUnits}
           filteredUnits={filteredUnits}
           selectedUnit={selectedUnit}
@@ -82,18 +85,8 @@ export default function CensusSection() {
           onClearSelection={() => setSelectedUnitId(null)}
         />
       )}
-
-      <button
-        onClick={() => setShowSidebar(!showSidebar)}
-        aria-label={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
-        className={`absolute top-6 z-20 flex h-10 w-8 items-center justify-center border border-l-0 border-slate-300/80 bg-slate-50/95 text-slate-600 shadow-md backdrop-blur transition-[left,background-color,color,border-color] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800 ${
-          showSidebar ? 'left-[350px] rounded-r-lg' : 'left-0 rounded-r-lg'
-        }`}
-      >
-        {showSidebar ? <ChevronsLeft className="h-4 w-4" /> : <ChevronsRight className="h-4 w-4" />}
-      </button>
-
-      <div className="relative flex-1">
+    >
+      <div className="relative h-full">
         <CensusMap
           units={allUnits}
           selectedMetric={selectedMetric}
@@ -102,7 +95,7 @@ export default function CensusSection() {
           onUnitClick={(id) => setSelectedUnitId(id)}
         />
 
-        <div className="absolute bottom-6 right-6 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur">
+        <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
           <h4 className="mb-1 text-xs font-semibold text-foreground">{selectedHierarchyLabel}</h4>
           <h5 className="mb-2 text-xs text-muted-foreground">{selectedMetricLabel}</h5>
           <div className="flex items-center gap-1.5">
@@ -120,6 +113,6 @@ export default function CensusSection() {
           </div>
         </div>
       </div>
-    </div>
+    </MapSectionLayout>
   )
 }

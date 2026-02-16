@@ -4,8 +4,8 @@ import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
 import { Timeline } from './components/Timeline'
 import { RouletteModal } from './components/roulette'
+import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { useRestaurantData } from './hooks/useRestaurantData'
-import { ChevronsLeft, ChevronsRight } from 'lucide-react'
 import type { RestaurantWithStats, HazardRating, VisualizationMode } from './types'
 
 // Parse date string like "18-Mar-2024" or "March 18, 2024"
@@ -220,54 +220,41 @@ export default function FoodMap() {
   }, [])
 
   return (
-    <div className="relative flex h-full w-full bg-slate-100 dark:bg-slate-950">
-      {/* Sidebar */}
-      {showSidebar && (
-        <Sidebar
-          restaurants={filteredRestaurants}
-          geocodedRestaurants={geocodedRestaurants}
-          loading={loading}
-          error={error}
-          stats={stats}
-          timelineStats={timelineStats}
-          hazardStatsAtDate={hazardStatsAtDate}
-          selectedRestaurant={selectedRestaurant}
-          searchQuery={searchQuery}
-          selectedHazardRatings={selectedHazardRatings}
-          selectedFacilityTypes={selectedFacilityTypes}
-          timelineMonths={timelineMonths}
-          visualizationMode={visualizationMode}
-          onSearchQueryChange={setSearchQuery}
-          onHazardRatingsChange={setSelectedHazardRatings}
-          onFacilityTypesChange={setSelectedFacilityTypes}
-          onTimelineMonthsChange={setTimelineMonths}
-          onVisualizationModeChange={setVisualizationMode}
-          onRestaurantClick={handleRestaurantClick}
-          onClearSelection={clearSelection}
-          onOpenInspectionPanel={openInspectionPanel}
-          showTimeline={showTimeline}
-          onToggleTimeline={() => setShowTimeline(!showTimeline)}
-          onOpenRoulette={() => setShowRoulette(true)}
-        />
-      )}
-
-      {/* Toggle sidebar button */}
-      <button
-        onClick={() => setShowSidebar(!showSidebar)}
-        aria-label={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
-        className={`absolute top-6 z-20 flex h-10 w-8 items-center justify-center border border-l-0 border-slate-300/80 bg-slate-50/95 text-slate-600 shadow-md backdrop-blur transition-[left,background-color,color,border-color] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800 ${
-          showSidebar ? 'left-[350px] rounded-r-lg' : 'left-0 rounded-r-lg'
-        }`}
-      >
-        {showSidebar ? (
-          <ChevronsLeft className="h-4 w-4" />
-        ) : (
-          <ChevronsRight className="h-4 w-4" />
+    <>
+      <MapSectionLayout
+        showDesktopSidebar={showSidebar}
+        onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+        sidebar={(
+          <Sidebar
+            className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
+            restaurants={filteredRestaurants}
+            geocodedRestaurants={geocodedRestaurants}
+            loading={loading}
+            error={error}
+            stats={stats}
+            timelineStats={timelineStats}
+            hazardStatsAtDate={hazardStatsAtDate}
+            selectedRestaurant={selectedRestaurant}
+            searchQuery={searchQuery}
+            selectedHazardRatings={selectedHazardRatings}
+            selectedFacilityTypes={selectedFacilityTypes}
+            timelineMonths={timelineMonths}
+            visualizationMode={visualizationMode}
+            onSearchQueryChange={setSearchQuery}
+            onHazardRatingsChange={setSelectedHazardRatings}
+            onFacilityTypesChange={setSelectedFacilityTypes}
+            onTimelineMonthsChange={setTimelineMonths}
+            onVisualizationModeChange={setVisualizationMode}
+            onRestaurantClick={handleRestaurantClick}
+            onClearSelection={clearSelection}
+            onOpenInspectionPanel={openInspectionPanel}
+            showTimeline={showTimeline}
+            onToggleTimeline={() => setShowTimeline(!showTimeline)}
+            onOpenRoulette={() => setShowRoulette(true)}
+          />
         )}
-      </button>
-
-      {/* Map */}
-      <div className="flex-1 relative">
+      >
+        <div className="relative h-full">
         <RestaurantMap
           restaurants={geocodedRestaurants}
           selectedRestaurant={selectedRestaurant}
@@ -277,7 +264,7 @@ export default function FoodMap() {
 
         {/* Timeline */}
         {showTimeline && (
-          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
+          <div className="absolute bottom-36 left-1/2 z-10 -translate-x-1/2 md:bottom-6">
             <Timeline
               startDate={inspectionDateRange.start}
               endDate={inspectionDateRange.end}
@@ -288,7 +275,7 @@ export default function FoodMap() {
         )}
 
         {/* Map Legend */}
-        <div className="absolute bottom-6 right-6 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur">
+        <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
           <h4 className="mb-2 text-xs font-semibold text-foreground">
             {visualizationMode === 'violations'
               ? `Violations (${timelineMonths === 0 ? 'All Time' : `Past ${timelineMonths}mo`})`
@@ -344,7 +331,8 @@ export default function FoodMap() {
             </div>
           )}
         </div>
-      </div>
+        </div>
+      </MapSectionLayout>
 
       {/* Inspection Detail Panel */}
       {showInspectionPanel && selectedRestaurant && (
@@ -362,6 +350,6 @@ export default function FoodMap() {
           onSelectOnMap={handleRouletteSelectOnMap}
         />
       )}
-    </div>
+    </>
   )
 }

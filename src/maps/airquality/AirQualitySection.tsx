@@ -1,10 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronsLeft, ChevronsRight } from 'lucide-react'
+import area from '@turf/area'
+import bbox from '@turf/bbox'
+import bboxPolygon from '@turf/bbox-polygon'
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import convex from '@turf/convex'
+import { featureCollection, point } from '@turf/helpers'
+import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { AirQualityMap } from './components/AirQualityMap'
 import { AirQualitySidebar } from './components/AirQualitySidebar'
 import { getNetworkColor } from './constants'
 import { useAirQualityData } from './hooks/useAirQualityData'
-import type { AirMonitor } from './types'
+import { useBoundaryData } from './hooks/useBoundaryData'
+import { useCensusBoundaryData } from './hooks/useCensusBoundaryData'
+import type {
+  AirMonitor,
+  BoundaryLevel,
+  BoundarySource,
+  CensusBoundaryLevel,
+  RegionLevel,
+  SensorDensityStats
+} from './types'
 import type { AirQualityMapBounds } from './components/AirQualityMap'
 
 function normalizeLongitude(lon: number): number {
@@ -27,20 +42,149 @@ function isMonitorInBounds(monitor: AirMonitor, bounds: AirQualityMapBounds | nu
   return withinLatitude && withinLongitude
 }
 
+const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
+const HEALTH_REGION_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }> = [
+  { value: 'healthAuthority', label: 'Health Authority' },
+  { value: 'hsda', label: 'HSDA' },
+  { value: 'lha', label: 'LHA' },
+  { value: 'chsa', label: 'CHSA' }
+]
+
+function getMonitorSearchText(monitor: AirMonitor): string {
+  return [
+    monitor.name,
+    monitor.network,
+    monitor.city,
+    monitor.province,
+    monitor.parameters.join(' ')
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+}
+
+function calculateDensityStats(monitors: AirMonitor[], areaKm2: number): SensorDensityStats | null {
+  if (!Number.isFinite(areaKm2) || areaKm2 <= 0) return null
+
+  const totalCount = monitors.length
+  const lowCostCount = monitors.filter((monitor) => LOW_COST_NETWORKS.has(monitor.network)).length
+  const otherCount = totalCount - lowCostCount
+
+  let actualCoverageKm2 = 0
+  if (totalCount >= 3) {
+    try {
+      const points = featureCollection(
+        monitors.map((monitor) => point([monitor.longitude, monitor.latitude]))
+      )
+      const hull = convex(points)
+      if (hull) {
+        actualCoverageKm2 = area(hull) / 1_000_000
+      }
+    } catch {
+      // Ignore hull failures for sparse/invalid point clusters.
+    }
+  }
+
+  const boundedCoverageKm2 = Math.min(actualCoverageKm2, areaKm2)
+
+  return {
+    lowCost: lowCostCount / areaKm2,
+    other: otherCount / areaKm2,
+    overall: totalCount / areaKm2,
+    areaKm2,
+    actualCoverageKm2: boundedCoverageKm2,
+    coveragePercent: (boundedCoverageKm2 / areaKm2) * 100,
+    totalCount,
+    lowCostCount,
+    otherCount
+  }
+}
+
 export default function AirQualitySection() {
   const { monitors, loading, error } = useAirQualityData()
+  const healthBoundary = useBoundaryData()
+  const censusBoundary = useCensusBoundaryData()
 
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
   const [networksInitialized, setNetworksInitialized] = useState(false)
+  const [boundarySource, setBoundarySource] = useState<BoundarySource>('bcHealth')
+  const [healthRegionLevel, setHealthRegionLevel] = useState<BoundaryLevel>('lha')
+  const [censusRegionLevel, setCensusRegionLevel] = useState<CensusBoundaryLevel>('csd')
   const [searchQuery, setSearchQuery] = useState('')
   const [showHeatmap, setShowHeatmap] = useState(false)
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [mapBounds, setMapBounds] = useState<AirQualityMapBounds | null>(null)
 
+  const boundaryLoading = boundarySource === 'bcHealth'
+    ? healthBoundary.loading
+    : censusBoundary.loading
+
+  const boundaryError = boundarySource === 'bcHealth'
+    ? healthBoundary.error
+    : censusBoundary.error
+
+  const selectedRegion = boundarySource === 'bcHealth'
+    ? healthBoundary.selectedRegion
+    : censusBoundary.selectedRegion
+
+  const selectedRegionFeature = boundarySource === 'bcHealth'
+    ? healthBoundary.selectedRegionFeature
+    : censusBoundary.selectedRegionFeature
+
+  const selectedRegionLevel: RegionLevel = boundarySource === 'bcHealth'
+    ? healthRegionLevel
+    : censusRegionLevel
+
+  const regionLevelOptions = useMemo(() => {
+    if (boundarySource === 'bcHealth') {
+      return HEALTH_REGION_LEVEL_OPTIONS
+    }
+
+    return censusBoundary.levelOptions.map((option) => ({
+      value: option.value as RegionLevel,
+      label: option.label
+    }))
+  }, [boundarySource, censusBoundary.levelOptions])
+
+  const regionOptions = useMemo(() => {
+    if (boundarySource === 'bcHealth') {
+      return healthBoundary.regionsByLevel[healthRegionLevel]
+    }
+    return censusBoundary.regionsByLevel[censusRegionLevel]
+  }, [
+    boundarySource,
+    censusBoundary.regionsByLevel,
+    censusRegionLevel,
+    healthBoundary.regionsByLevel,
+    healthRegionLevel
+  ])
+
+  const selectedRegionBounds = useMemo(() => {
+    if (!selectedRegionFeature) return null
+    return bbox(selectedRegionFeature)
+  }, [selectedRegionFeature])
+
+  const monitorsInRegionScope = useMemo(() => {
+    if (!selectedRegionFeature || !selectedRegionBounds) return monitors
+
+    const [west, south, east, north] = selectedRegionBounds
+    return monitors
+      .filter((monitor) => (
+        monitor.latitude >= south &&
+        monitor.latitude <= north &&
+        monitor.longitude >= west &&
+        monitor.longitude <= east
+      ))
+      .filter((monitor) => booleanPointInPolygon(
+        point([monitor.longitude, monitor.latitude]),
+        selectedRegionFeature
+      ))
+  }, [monitors, selectedRegionBounds, selectedRegionFeature])
+
   const allNetworks = useMemo(() => {
-    return Array.from(new Set(monitors.map((monitor) => monitor.network))).sort((a, b) => a.localeCompare(b))
-  }, [monitors])
+    return Array.from(new Set(monitorsInRegionScope.map((monitor) => monitor.network))).sort((a, b) => a.localeCompare(b))
+  }, [monitorsInRegionScope])
 
   useEffect(() => {
     if (!networksInitialized && allNetworks.length > 0) {
@@ -51,26 +195,41 @@ export default function AirQualitySection() {
 
   const filteredMonitors = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
-    return monitors.filter((monitor) => {
+    return monitorsInRegionScope.filter((monitor) => {
       const matchesNetwork = selectedNetworks.includes(monitor.network)
-      const matchesSearch = !normalizedQuery || [
-        monitor.name,
-        monitor.network,
-        monitor.city,
-        monitor.province,
-        monitor.parameters.join(' ')
-      ].filter(Boolean).join(' ').toLowerCase().includes(normalizedQuery)
+      const matchesSearch = !normalizedQuery || getMonitorSearchText(monitor).includes(normalizedQuery)
       return matchesNetwork && matchesSearch
     })
-  }, [monitors, selectedNetworks, searchQuery])
-
-  const totalMonitorsInView = useMemo(() => {
-    return monitors.filter((monitor) => isMonitorInBounds(monitor, mapBounds))
-  }, [mapBounds, monitors])
+  }, [monitorsInRegionScope, searchQuery, selectedNetworks])
 
   const visibleMonitorsInView = useMemo(() => {
     return filteredMonitors.filter((monitor) => isMonitorInBounds(monitor, mapBounds))
   }, [filteredMonitors, mapBounds])
+
+  const boundsAreaFeature = useMemo(() => {
+    if (!mapBounds) return null
+    const west = normalizeLongitude(mapBounds.west)
+    const east = normalizeLongitude(mapBounds.east)
+    if (west > east) return null
+    return bboxPolygon([west, mapBounds.south, east, mapBounds.north]) as GeoJSON.Feature<GeoJSON.Polygon>
+  }, [mapBounds])
+
+  const densityScopeArea = selectedRegionFeature ?? boundsAreaFeature
+
+  const densityScopeMonitors = useMemo(() => {
+    if (selectedRegionFeature) return filteredMonitors
+    return visibleMonitorsInView
+  }, [filteredMonitors, selectedRegionFeature, visibleMonitorsInView])
+
+  const densityStats = useMemo(() => {
+    if (!densityScopeArea) return null
+    const areaKm2 = area(densityScopeArea) / 1_000_000
+    return calculateDensityStats(densityScopeMonitors, areaKm2)
+  }, [densityScopeArea, densityScopeMonitors])
+
+  const densityScopeLabel = selectedRegion
+    ? `${selectedRegion.levelLabel}: ${selectedRegion.name}`
+    : 'Current map view'
 
   useEffect(() => {
     if (!selectedMonitor) return
@@ -97,20 +256,62 @@ export default function AirQualitySection() {
     setMapBounds(bounds)
   }, [])
 
+  const handleRegionLevelChange = useCallback((level: RegionLevel) => {
+    if (boundarySource === 'bcHealth') {
+      setHealthRegionLevel(level as BoundaryLevel)
+      return
+    }
+
+    setCensusRegionLevel(level as CensusBoundaryLevel)
+  }, [boundarySource])
+
+  const handleRegionSelect = useCallback((level: RegionLevel, code: string) => {
+    if (boundarySource === 'bcHealth') {
+      void healthBoundary.selectRegion(level as BoundaryLevel, code)
+      return
+    }
+
+    void censusBoundary.selectRegion(level as CensusBoundaryLevel, code)
+  }, [boundarySource, censusBoundary, healthBoundary])
+
+  const handleRegionClear = useCallback(() => {
+    if (boundarySource === 'bcHealth') {
+      healthBoundary.clearSelection()
+      return
+    }
+
+    censusBoundary.clearSelection()
+  }, [boundarySource, censusBoundary, healthBoundary])
+
   return (
-    <div className="relative flex h-full w-full bg-slate-100 dark:bg-slate-950">
-      {showSidebar && (
+    <MapSectionLayout
+      showDesktopSidebar={showSidebar}
+      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+      sidebar={(
         <AirQualitySidebar
+          className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
           monitors={monitors}
           filteredMonitors={visibleMonitorsInView}
           visibleMonitorCount={visibleMonitorsInView.length}
-          totalMonitorCount={totalMonitorsInView.length}
           selectedMonitor={selectedMonitor}
           selectedNetworks={selectedNetworks}
+          boundarySource={boundarySource}
+          selectedRegion={selectedRegion}
+          selectedRegionLevel={selectedRegionLevel}
+          regionLevelOptions={regionLevelOptions}
+          regionOptions={regionOptions}
+          boundaryLoading={boundaryLoading}
+          boundaryError={boundaryError}
+          densityStats={densityStats}
+          densityScopeLabel={densityScopeLabel}
           searchQuery={searchQuery}
           showHeatmap={showHeatmap}
           loading={loading}
           error={error}
+          onBoundarySourceChange={setBoundarySource}
+          onRegionLevelChange={handleRegionLevelChange}
+          onRegionSelect={handleRegionSelect}
+          onRegionClear={handleRegionClear}
           onSearchQueryChange={setSearchQuery}
           onToggleHeatmap={() => setShowHeatmap((prev) => !prev)}
           onToggleNetwork={toggleNetwork}
@@ -120,32 +321,19 @@ export default function AirQualitySection() {
           onClearSelection={() => setSelectedMonitor(null)}
         />
       )}
-
-      <button
-        onClick={() => setShowSidebar(!showSidebar)}
-        aria-label={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
-        className={`absolute top-6 z-20 flex h-10 w-8 items-center justify-center border border-l-0 border-slate-300/80 bg-slate-50/95 text-slate-600 shadow-md backdrop-blur transition-[left,background-color,color,border-color] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800 ${
-          showSidebar ? 'left-[350px] rounded-r-lg' : 'left-0 rounded-r-lg'
-        }`}
-      >
-        {showSidebar ? (
-          <ChevronsLeft className="h-4 w-4" />
-        ) : (
-          <ChevronsRight className="h-4 w-4" />
-        )}
-      </button>
-
-      <div className="relative flex-1">
+    >
+      <div className="relative h-full">
         <AirQualityMap
           monitors={filteredMonitors}
           selectedMonitor={selectedMonitor}
+          selectedRegionFeature={selectedRegionFeature}
           showHeatmap={showHeatmap}
           onBoundsChange={handleBoundsChange}
           onMonitorClick={setSelectedMonitor}
           onMonitorClear={() => setSelectedMonitor(null)}
         />
 
-        <div className="absolute bottom-6 right-6 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur">
+        <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
           <h4 className="mb-2 text-xs font-semibold text-foreground">
             {showHeatmap ? 'Heatmap (Monitor Density)' : `Networks (${selectedNetworks.length})`}
           </h4>
@@ -181,6 +369,6 @@ export default function AirQualitySection() {
           </div>
         </div>
       </div>
-    </div>
+    </MapSectionLayout>
   )
 }

@@ -59,8 +59,8 @@ export function RouletteFilters({
   return (
     <div className="space-y-4">
       {/* Location Section */}
-      <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+      <div className="rounded-xl border border-border bg-muted/50 p-4">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -74,8 +74,8 @@ export function RouletteFilters({
             disabled={geoLoading}
             className={`flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${
               locationMode === 'geolocation'
-                ? 'bg-blue-500 text-white'
-                : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                ? 'bg-sky-500 text-white'
+                : 'border border-input bg-background text-foreground hover:bg-accent'
             }`}
           >
             {geoLoading ? (
@@ -111,8 +111,8 @@ export function RouletteFilters({
         {sourceLocation && (
           <div className="mt-3">
             <div className="flex items-center justify-between text-sm mb-1">
-              <span className="text-gray-600 dark:text-gray-400">Distance</span>
-              <span className="font-medium text-gray-900 dark:text-white">{maxDistance} km</span>
+              <span className="text-muted-foreground">Distance</span>
+              <span className="font-medium text-foreground">{maxDistance} km</span>
             </div>
             <input
               type="range"
@@ -120,9 +120,9 @@ export function RouletteFilters({
               max="20"
               value={maxDistance}
               onChange={(e) => onMaxDistanceChange(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              className="w-full h-2 bg-input rounded-lg appearance-none cursor-pointer accent-sky-500"
             />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
+            <div className="flex justify-between text-xs text-muted-foreground mt-1">
               <span>1 km</span>
               <span>20 km</span>
             </div>
@@ -130,15 +130,15 @@ export function RouletteFilters({
         )}
 
         {!sourceLocation && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             Click the map or use "My Location" to filter by distance
           </p>
         )}
       </div>
 
       {/* Violations Section */}
-      <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+      <div className="rounded-xl border border-border bg-muted/50 p-4">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
@@ -147,11 +147,11 @@ export function RouletteFilters({
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Time Period</label>
+            <label className="block text-xs text-muted-foreground mb-1">Time Period</label>
             <select
               value={violationTimePeriod}
               onChange={(e) => onViolationTimePeriodChange(parseInt(e.target.value))}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
               {timeOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -162,7 +162,7 @@ export function RouletteFilters({
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Max Violations</label>
+            <label className="block text-xs text-muted-foreground mb-1">Max Violations</label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -171,12 +171,12 @@ export function RouletteFilters({
                 value={maxViolations ?? ''}
                 onChange={handleMaxViolationsChange}
                 placeholder="No limit"
-                className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 text-sm rounded-lg border border-input bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
               />
               {maxViolations !== null && (
                 <button
                   onClick={() => onMaxViolationsChange(null)}
-                  className="px-3 py-2 text-sm rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                  className="px-3 py-2 text-sm rounded-lg border border-input bg-background text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                 >
                   Clear
                 </button>
@@ -187,8 +187,8 @@ export function RouletteFilters({
       </div>
 
       {/* Hazard Exclusion Section */}
-      <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+      <div className="rounded-xl border border-border bg-muted/50 p-4">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
           </svg>
@@ -203,14 +203,14 @@ export function RouletteFilters({
               className={`px-4 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
                 excludedHazardRatings.includes(hazard)
                   ? `${hazardColors[hazard].active} text-white border-transparent line-through opacity-75`
-                  : `${hazardColors[hazard].inactive} bg-white dark:bg-gray-700 border-current`
+                  : `${hazardColors[hazard].inactive} bg-background border-current`
               }`}
             >
               {hazard}
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+        <p className="text-xs text-muted-foreground mt-2">
           Click to exclude ratings from the roulette
         </p>
       </div>

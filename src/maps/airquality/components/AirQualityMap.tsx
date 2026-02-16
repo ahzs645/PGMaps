@@ -6,15 +6,19 @@ import {
   MapMarker,
   MapPopup,
   MarkerContent,
+  useMap,
   type MapRef
 } from '@/components/ui/map'
+import bbox from '@turf/bbox'
 import { getNetworkColor } from '../constants'
 import { AirQualityHeatmapLayer } from './AirQualityHeatmapLayer'
 import type { AirMonitor } from '../types'
+import type maplibregl from 'maplibre-gl'
 
 interface AirQualityMapProps {
   monitors: AirMonitor[]
   selectedMonitor: AirMonitor | null
+  selectedRegionFeature?: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
   showHeatmap: boolean
   onBoundsChange?: (bounds: AirQualityMapBounds) => void
   onMonitorClick: (monitor: AirMonitor) => void
@@ -39,8 +43,8 @@ type MonitorFeatureProperties = {
 const CENTER: [number, number] = [-122.764593, 53.909784]
 const ZOOM = 12
 
-const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/bright'
-const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
+const LIGHT_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+const DARK_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 
 function hexToRgba(hex: string, alpha: number): string {
   const cleaned = hex.replace('#', '')
@@ -107,9 +111,99 @@ function SelectedMonitorDetails({ monitor }: { monitor: AirMonitor }) {
   )
 }
 
+function RegionBoundaryLayer({
+  feature,
+  visible
+}: {
+  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null | undefined
+  visible: boolean
+}) {
+  const { map, isLoaded } = useMap()
+  const sourceId = 'airq-region-boundary-source'
+  const fillLayerId = 'airq-region-boundary-fill'
+  const lineLayerId = 'airq-region-boundary-line'
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: []
+        }
+      } as never)
+    }
+
+    if (!map.getLayer(fillLayerId)) {
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#0ea5e9',
+          'fill-opacity': 0.12
+        },
+        layout: {
+          visibility: visible ? 'visible' : 'none'
+        }
+      } as never)
+    }
+
+    if (!map.getLayer(lineLayerId)) {
+      map.addLayer({
+        id: lineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#0284c7',
+          'line-width': 2,
+          'line-opacity': 0.95
+        },
+        layout: {
+          visibility: visible ? 'visible' : 'none'
+        }
+      } as never)
+    }
+
+    return () => {
+      try {
+        if (!map || !map.getStyle()) return
+        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
+        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+        if (map.getSource(sourceId)) map.removeSource(sourceId)
+      } catch {
+        // Map already destroyed during unmount.
+      }
+    }
+  }, [fillLayerId, isLoaded, lineLayerId, map, sourceId, visible])
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+
+    const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+    source?.setData({
+      type: 'FeatureCollection',
+      features: feature ? [feature] : []
+    })
+
+    const layerVisibility = visible && feature ? 'visible' : 'none'
+    if (map.getLayer(fillLayerId)) {
+      map.setLayoutProperty(fillLayerId, 'visibility', layerVisibility)
+    }
+    if (map.getLayer(lineLayerId)) {
+      map.setLayoutProperty(lineLayerId, 'visibility', layerVisibility)
+    }
+  }, [feature, fillLayerId, isLoaded, lineLayerId, map, sourceId, visible])
+
+  return null
+}
+
 export function AirQualityMap({
   monitors,
   selectedMonitor,
+  selectedRegionFeature,
   showHeatmap,
   onBoundsChange,
   onMonitorClick,
@@ -184,6 +278,18 @@ export function AirQualityMap({
   }, [selectedMonitor])
 
   useEffect(() => {
+    if (!selectedRegionFeature || !mapRef.current) return
+    const [minLon, minLat, maxLon, maxLat] = bbox(selectedRegionFeature)
+    mapRef.current.fitBounds(
+      [
+        [minLon, minLat],
+        [maxLon, maxLat]
+      ],
+      { padding: 50, duration: 800, maxZoom: 9 }
+    )
+  }, [selectedRegionFeature])
+
+  useEffect(() => {
     if (!onBoundsChange) return
 
     let mapInstance: MapRef | null = null
@@ -243,6 +349,7 @@ export function AirQualityMap({
         }}
       >
         <MapControls position="top-right" showZoom showCompass />
+        <RegionBoundaryLayer feature={selectedRegionFeature} visible={!showHeatmap} />
         <AirQualityHeatmapLayer monitors={monitors} visible={showHeatmap} />
 
         {!showHeatmap && collectionsByNetwork.map(([network, collection]) => {

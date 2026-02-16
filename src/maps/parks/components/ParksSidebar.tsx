@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
-import { MapPin, Route, TreePine } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ChevronDown, ChevronUp, MapPin, Route, TreePine } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getClassificationColor, getTrailColor } from '../constants'
 import type { Park, Trail, ParkAmenity, ParkClassification, TrailUserClass, ActiveLayer } from '../types'
 
 interface ParksSidebarProps {
+  className?: string
   parks: Park[]
   trails: Trail[]
   amenities: ParkAmenity[]
@@ -47,6 +48,7 @@ function formatLength(m: number | null): string {
 }
 
 export function ParksSidebar({
+  className,
   parks,
   trails,
   filteredParks,
@@ -67,6 +69,8 @@ export function ParksSidebar({
   onTrailClick,
   onClearSelection,
 }: ParksSidebarProps) {
+  const [showExpandedParkTypes, setShowExpandedParkTypes] = useState(false)
+
   const showParks = activeLayers.includes('parks')
   const showTrails = activeLayers.includes('trails')
   const showAmenities = activeLayers.includes('amenities')
@@ -109,7 +113,7 @@ export function ParksSidebar({
   }, [filteredTrails])
 
   return (
-    <div className="z-10 flex h-full w-[350px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur">
+    <div className={cn('z-10 flex h-full w-[350px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       {/* Header */}
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">Parks & Trails</h1>
@@ -163,7 +167,7 @@ export function ParksSidebar({
             className={cn(
               'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors',
               showTrails
-                ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                ? 'border-red-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
                 : 'border-input text-muted-foreground hover:bg-accent'
             )}
           >
@@ -188,8 +192,25 @@ export function ParksSidebar({
       {/* Classification Filters */}
       {showParks && (
         <div className="border-b border-border bg-background/95 p-4">
-          <h2 className="mb-2 text-sm font-medium text-foreground">Park Type</h2>
-          <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-medium text-foreground">Park Type</h2>
+            <button
+              type="button"
+              onClick={() => setShowExpandedParkTypes((prev) => !prev)}
+              className="rounded border border-input p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              aria-label={showExpandedParkTypes ? 'Show compact park types' : 'Expand park types'}
+            >
+              {showExpandedParkTypes ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+          <div
+            className={cn(
+              'flex gap-1.5 pr-1',
+              showExpandedParkTypes
+                ? 'max-h-24 flex-wrap overflow-y-auto'
+                : 'overflow-x-auto pb-1'
+            )}
+          >
             {ALL_CLASSIFICATIONS.map((classification) => {
               const count = classificationCounts.get(classification) || 0
               if (count === 0) return null
@@ -201,6 +222,7 @@ export function ParksSidebar({
                   onClick={() => onToggleClassification(classification)}
                   className={cn(
                     'flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+                    !showExpandedParkTypes && 'shrink-0',
                     selected ? 'bg-background' : 'border-input text-muted-foreground hover:bg-accent'
                   )}
                   style={selected ? { borderColor: color, color } : undefined}

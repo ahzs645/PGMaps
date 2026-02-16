@@ -11,6 +11,7 @@ import type {
 } from '../types'
 
 interface SidebarProps {
+  className?: string
   restaurants: RestaurantWithStats[]
   geocodedRestaurants: RestaurantWithStats[]
   loading: boolean
@@ -54,6 +55,7 @@ const hazardColors: Record<HazardRating, string> = {
 }
 
 export function Sidebar({
+  className,
   restaurants,
   geocodedRestaurants,
   loading,
@@ -104,7 +106,7 @@ export function Sidebar({
   }, [selectedFacilityTypes, onFacilityTypesChange])
 
   return (
-    <div className="z-10 flex h-full w-[350px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur">
+    <div className={cn('z-10 flex h-full w-[350px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       {/* Header */}
       <div className="border-b border-border bg-background/95 p-4">
         <div className="flex items-center justify-between">

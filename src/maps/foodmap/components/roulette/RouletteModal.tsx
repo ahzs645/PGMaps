@@ -132,21 +132,21 @@ export function RouletteModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
-      <div className="w-full max-w-lg max-h-[90vh] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="flex w-full max-w-lg max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-border bg-background/95 shadow-2xl backdrop-blur">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
+        <div className="shrink-0 border-b border-border p-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
               <span className="text-2xl">🎰</span>
               Restaurant Roulette
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Spin to pick a random restaurant</p>
+            <p className="text-sm text-muted-foreground">Spin to pick a random restaurant</p>
           </div>
           <button
             onClick={handleClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -155,21 +155,21 @@ export function RouletteModal({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Filter Toggle */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+          <div className="flex items-center justify-between rounded-xl border border-border bg-muted/50 p-3">
             <div>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Use Filters</span>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="text-sm font-medium text-foreground">Use Filters</span>
+              <p className="text-xs text-muted-foreground">
                 {useFilters ? 'Narrow down by location, violations & hazard' : 'All restaurants included'}
               </p>
             </div>
             <button
               onClick={() => setUseFilters(!useFilters)}
               className={`relative w-12 h-6 rounded-full transition-colors ${
-                useFilters ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'
+                useFilters ? 'bg-sky-500' : 'bg-input'
               }`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-background shadow transition-transform ${
                   useFilters ? 'translate-x-6' : 'translate-x-0'
                 }`}
               ></span>
@@ -198,13 +198,13 @@ export function RouletteModal({
           )}
 
           {/* Mode Toggle */}
-          <div className="flex items-center justify-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-xl">
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 p-2">
             <button
               onClick={() => setSpinnerMode('wheel')}
               className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 spinnerMode === 'wheel'
-                  ? 'bg-purple-500 text-white'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
+                  ? 'bg-sky-500 text-white shadow'
+                  : 'border border-input bg-background text-foreground hover:bg-accent'
               }`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,8 +217,8 @@ export function RouletteModal({
               onClick={() => setSpinnerMode('slot')}
               className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 spinnerMode === 'slot'
-                  ? 'bg-purple-500 text-white'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600'
+                  ? 'bg-sky-500 text-white shadow'
+                  : 'border border-input bg-background text-foreground hover:bg-accent'
               }`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,9 +231,9 @@ export function RouletteModal({
 
           {/* Wheel Size & Eligible Count (for wheel mode) */}
           {spinnerMode === 'wheel' && (
-            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/50 p-3">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Options:</span>
+                <span className="text-sm text-muted-foreground">Options:</span>
                 <div className="flex gap-1">
                   {wheelSizeOptions.map((size) => (
                     <button
@@ -241,8 +241,8 @@ export function RouletteModal({
                       onClick={() => setWheelSize(size)}
                       className={`${size === 0 ? 'px-2' : 'w-8'} h-8 text-sm font-medium rounded-lg transition-colors ${
                         wheelSize === size
-                          ? 'bg-purple-500 text-white'
-                          : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                          ? 'bg-sky-500 text-white shadow'
+                          : 'border border-input bg-background text-foreground hover:bg-accent'
                       }`}
                     >
                       {size === 0 ? 'All' : size}
@@ -314,7 +314,7 @@ export function RouletteModal({
               <div className="flex gap-3 mt-4">
                 <button
                   onClick={handleViewOnMap}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -323,7 +323,7 @@ export function RouletteModal({
                 </button>
                 <button
                   onClick={handleSpinAgain}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2"
+                  className="px-4 py-2 border border-input bg-background text-foreground hover:bg-accent text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -337,7 +337,7 @@ export function RouletteModal({
             {spinnerMode === 'wheel' && !hasSpun && !isSpinning && wheelSize !== 0 && eligibleRestaurants.length > wheelSize && (
               <button
                 onClick={shuffleWheel}
-                className="mt-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="mt-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 hover:bg-accent rounded-lg transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -351,7 +351,7 @@ export function RouletteModal({
               <button
                 onClick={handleSpin}
                 disabled={eligibleRestaurants.length === 0 || isSpinning}
-                className="mt-6 px-8 py-4 text-xl font-bold rounded-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white shadow-lg transform transition-all hover:scale-105 active:scale-95 disabled:hover:scale-100"
+                className="mt-6 px-8 py-4 text-xl font-bold rounded-full bg-sky-500 hover:bg-sky-600 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-white shadow-lg transform transition-all hover:scale-105 active:scale-95 disabled:hover:scale-100"
               >
                 {isSpinning ? (
                   <span className="animate-pulse">Spinning...</span>

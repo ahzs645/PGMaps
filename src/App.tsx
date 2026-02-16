@@ -5,19 +5,21 @@ import { FoodMap } from '@/maps/foodmap'
 import { AirQualitySection } from '@/maps/airquality'
 import { CensusSection } from '@/maps/census'
 import { ParksSection } from '@/maps/parks'
+import { ScoreBuilderSection } from '@/maps/scorebuilder'
+import { ExplorerSection } from '@/maps/explorer'
 
 function App() {
   return (
     <Shell>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/explorer" element={<div className="p-8">Explorer View - Coming Soon</div>} />
+        <Route path="/explorer" element={<ExplorerSection />} />
         <Route path="/foodmap" element={<FoodMap />} />
         <Route path="/airquality" element={<AirQualitySection />} />
         <Route path="/census" element={<CensusSection />} />
         <Route path="/socioeconomic" element={<CensusSection />} />
         <Route path="/parks" element={<ParksSection />} />
-        <Route path="/score-builder" element={<div className="p-8">Score Builder - Coming Soon</div>} />
+        <Route path="/score-builder" element={<ScoreBuilderSection />} />
       </Routes>
     </Shell>
   )
