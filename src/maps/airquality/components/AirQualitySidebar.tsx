@@ -25,6 +25,10 @@ interface AirQualitySidebarProps {
 
 const MAX_VISIBLE_ROWS = 250
 
+function uniqueParameters(parameters: string[]): string[] {
+  return Array.from(new Set(parameters.map((parameter) => parameter.trim()).filter(Boolean)))
+}
+
 export function AirQualitySidebar({
   monitors,
   filteredMonitors,
@@ -56,6 +60,11 @@ export function AirQualitySidebar({
     return filteredMonitors.slice(0, MAX_VISIBLE_ROWS)
   }, [filteredMonitors])
 
+  const selectedMonitorParameters = useMemo(() => {
+    if (!selectedMonitor) return []
+    return uniqueParameters(selectedMonitor.parameters)
+  }, [selectedMonitor])
+
   return (
     <div className="z-10 flex h-full w-[350px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur">
       <div className="border-b border-border bg-background/95 p-4">
@@ -79,7 +88,7 @@ export function AirQualitySidebar({
           type="text"
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
-          placeholder="Search monitors, city, network..."
+          placeholder="Search monitors, city, network, parameter..."
           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
         />
       </div>
@@ -183,6 +192,18 @@ export function AirQualitySidebar({
               </span>
             )}
           </div>
+          {selectedMonitorParameters.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {selectedMonitorParameters.map((parameter) => (
+                <span
+                  key={`${selectedMonitor.id}-${parameter}`}
+                  className="rounded border border-sky-300/60 bg-sky-100/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-900 dark:border-sky-800/60 dark:bg-sky-900/50 dark:text-sky-100"
+                >
+                  {parameter}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -208,6 +229,9 @@ export function AirQualitySidebar({
           <div className="divide-y divide-border">
             {displayedRows.map((monitor) => {
               const isSelected = selectedMonitor?.id === monitor.id
+              const parameters = uniqueParameters(monitor.parameters)
+              const visibleParameters = parameters.slice(0, 3)
+              const hiddenParameterCount = Math.max(parameters.length - visibleParameters.length, 0)
               return (
                 <button
                   key={`${monitor.id}-${monitor.network}`}
@@ -228,6 +252,21 @@ export function AirQualitySidebar({
                   <div className="text-xs text-muted-foreground">
                     {[monitor.city, monitor.province].filter(Boolean).join(', ') || 'No city/province'}
                   </div>
+                  {visibleParameters.length > 0 && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                      {visibleParameters.map((parameter) => (
+                        <span
+                          key={`${monitor.id}-${parameter}`}
+                          className="rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                        >
+                          {parameter}
+                        </span>
+                      ))}
+                      {hiddenParameterCount > 0 && (
+                        <span className="text-[10px] text-muted-foreground">+{hiddenParameterCount} more</span>
+                      )}
+                    </div>
+                  )}
                 </button>
               )
             })}

@@ -4,6 +4,7 @@ import {
   MapClusterLayer,
   MapControls,
   MapMarker,
+  MapPopup,
   MarkerContent,
   type MapRef
 } from '@/components/ui/map'
@@ -17,6 +18,7 @@ interface AirQualityMapProps {
   showHeatmap: boolean
   onBoundsChange?: (bounds: AirQualityMapBounds) => void
   onMonitorClick: (monitor: AirMonitor) => void
+  onMonitorClear?: () => void
 }
 
 export interface AirQualityMapBounds {
@@ -52,12 +54,66 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+function uniqueParameters(parameters: string[]): string[] {
+  return Array.from(new Set(parameters.map((parameter) => parameter.trim()).filter(Boolean)))
+}
+
+function monitorLocationKey(monitor: AirMonitor): string {
+  return `${monitor.longitude.toFixed(6)}:${monitor.latitude.toFixed(6)}`
+}
+
+function monitorEntryKey(monitor: AirMonitor): string {
+  return `${monitor.network}:${monitor.id}:${monitor.longitude.toFixed(6)}:${monitor.latitude.toFixed(6)}`
+}
+
+function isSameLocation(a: AirMonitor, b: AirMonitor): boolean {
+  return monitorLocationKey(a) === monitorLocationKey(b)
+}
+
+function SelectedMonitorDetails({ monitor }: { monitor: AirMonitor }) {
+  const parameters = uniqueParameters(monitor.parameters)
+
+  return (
+    <div>
+      <div className="text-sm font-semibold text-foreground">{monitor.name}</div>
+      <div className="text-xs text-muted-foreground">
+        {[monitor.city, monitor.province].filter(Boolean).join(', ') || 'Location available'}
+      </div>
+      <div className="mt-2 flex items-center gap-2 text-xs">
+        <span
+          className="h-2.5 w-2.5 rounded-full"
+          style={{ backgroundColor: getNetworkColor(monitor.network) }}
+        />
+        <span className="font-medium text-foreground">{monitor.network}</span>
+        {monitor.status && (
+          <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase text-secondary-foreground">
+            {monitor.status}
+          </span>
+        )}
+      </div>
+      {parameters.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {parameters.map((parameter) => (
+            <span
+              key={`${monitorEntryKey(monitor)}:${parameter}`}
+              className="rounded border bg-secondary/40 px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground"
+            >
+              {parameter}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function AirQualityMap({
   monitors,
   selectedMonitor,
   showHeatmap,
   onBoundsChange,
-  onMonitorClick
+  onMonitorClick,
+  onMonitorClear
 }: AirQualityMapProps) {
   const mapRef = useRef<MapRef>(null)
 
@@ -98,11 +154,31 @@ export function AirQualityMap({
     return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
   }, [monitors])
 
+  const selectedMonitorsAtLocation = useMemo(() => {
+    if (!selectedMonitor) return []
+
+    const matches = monitors.filter((monitor) => isSameLocation(monitor, selectedMonitor))
+    const uniqueByEntry = new Map<string, AirMonitor>()
+    matches.forEach((monitor) => uniqueByEntry.set(monitorEntryKey(monitor), monitor))
+
+    const uniqueMatches = Array.from(uniqueByEntry.values()).sort((a, b) => {
+      return a.name.localeCompare(b.name) || a.network.localeCompare(b.network)
+    })
+
+    const selectedKey = monitorEntryKey(selectedMonitor)
+    const selectedMatch = uniqueMatches.find((monitor) => monitorEntryKey(monitor) === selectedKey)
+    if (!selectedMatch) return uniqueMatches
+
+    return [
+      selectedMatch,
+      ...uniqueMatches.filter((monitor) => monitorEntryKey(monitor) !== selectedKey)
+    ]
+  }, [monitors, selectedMonitor])
+
   useEffect(() => {
     if (!selectedMonitor || !mapRef.current) return
     mapRef.current.flyTo({
       center: [selectedMonitor.longitude, selectedMonitor.latitude],
-      zoom: 9,
       duration: 800
     })
   }, [selectedMonitor])
@@ -195,17 +271,47 @@ export function AirQualityMap({
         })}
 
         {selectedMonitor && (
-          <MapMarker
-            longitude={selectedMonitor.longitude}
-            latitude={selectedMonitor.latitude}
-          >
-            <MarkerContent>
-              <div
-                className="h-5 w-5 rounded-full border-2 border-white shadow-lg ring-2 ring-sky-500 ring-offset-2"
-                style={{ backgroundColor: getNetworkColor(selectedMonitor.network) }}
-              />
-            </MarkerContent>
-          </MapMarker>
+          <>
+            <MapMarker
+              longitude={selectedMonitor.longitude}
+              latitude={selectedMonitor.latitude}
+            >
+              <MarkerContent>
+                <div
+                  className="h-5 w-5 rounded-full border-2 border-white shadow-lg ring-2 ring-sky-500 ring-offset-2"
+                  style={{ backgroundColor: getNetworkColor(selectedMonitor.network) }}
+                />
+              </MarkerContent>
+            </MapMarker>
+
+            <MapPopup
+              key={monitorEntryKey(selectedMonitor)}
+              longitude={selectedMonitor.longitude}
+              latitude={selectedMonitor.latitude}
+              closeButton
+              onClose={onMonitorClear}
+              className={selectedMonitorsAtLocation.length > 1 ? 'max-w-sm' : 'max-w-xs'}
+            >
+              <div className="pr-6">
+                {selectedMonitorsAtLocation.length > 1 && (
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {selectedMonitorsAtLocation.length} sensors at this location
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {selectedMonitorsAtLocation.map((monitor, index) => (
+                    <div
+                      key={monitorEntryKey(monitor)}
+                      className={index === 0 ? '' : 'border-t border-border pt-2'}
+                    >
+                      <SelectedMonitorDetails monitor={monitor} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </MapPopup>
+          </>
         )}
       </PgMap>
     </div>

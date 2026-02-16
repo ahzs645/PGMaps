@@ -26,10 +26,26 @@ function normalizeParameters(value: RawMonitor['parameters']): string[] {
     return value.filter(Boolean)
   }
   if (typeof value === 'string') {
-    return value
+    const trimmed = value.trim()
+    if (!trimmed) return ['PM2.5']
+
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        const parsedParams = parsed
+          .map((item) => String(item).trim())
+          .filter(Boolean)
+        if (parsedParams.length > 0) return parsedParams
+      }
+    } catch {
+      // Non-JSON string values are handled by delimiter split below.
+    }
+
+    const splitParams = trimmed
       .split(/[|,]/)
-      .map((item) => item.trim())
+      .map((item) => item.trim().replace(/^["[\]]+|["[\]]+$/g, ''))
       .filter(Boolean)
+    if (splitParams.length > 0) return splitParams
   }
   return ['PM2.5']
 }

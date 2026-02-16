@@ -61,7 +61,7 @@
     @apply bg-transparent! shadow-none! p-0! rounded-none!;
   }
   .maplibregl-popup-tip {
-    @apply hidden!;
+    display: none !important;
   }
 }
 
@@ -101,6 +101,31 @@
 .maplibregl-popup-close-button:hover {
   background-color: #f0f0f0;
   color: #333;
+}
+
+/* Themed map popup arrow tip (used by MapPopup) */
+.pg-map-popup .maplibregl-popup-tip {
+  display: block !important;
+}
+
+.pg-map-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.pg-map-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.pg-map-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: hsl(var(--popover)) !important;
+}
+
+.pg-map-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.pg-map-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.pg-map-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: hsl(var(--popover)) !important;
+}
+
+.pg-map-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: hsl(var(--popover)) !important;
+}
+
+.pg-map-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: hsl(var(--popover)) !important;
 }
 
 /* Hover popup styling - more subtle and lightweight */

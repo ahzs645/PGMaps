@@ -57,7 +57,8 @@ export default function AirQualitySection() {
         monitor.name,
         monitor.network,
         monitor.city,
-        monitor.province
+        monitor.province,
+        monitor.parameters.join(' ')
       ].filter(Boolean).join(' ').toLowerCase().includes(normalizedQuery)
       return matchesNetwork && matchesSearch
     })
@@ -141,6 +142,7 @@ export default function AirQualitySection() {
           showHeatmap={showHeatmap}
           onBoundsChange={handleBoundsChange}
           onMonitorClick={setSelectedMonitor}
+          onMonitorClear={() => setSelectedMonitor(null)}
         />
 
         <div className="absolute bottom-6 right-6 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur">
