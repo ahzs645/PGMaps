@@ -49,6 +49,13 @@ const HEALTH_REGION_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }
   { value: 'lha', label: 'LHA' },
   { value: 'chsa', label: 'CHSA' }
 ]
+type BoundaryPickerFeature = GeoJSON.Feature<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  {
+    code: string
+    name: string
+  }
+>
 
 function getMonitorSearchText(monitor: AirMonitor): string {
   return [
@@ -104,6 +111,16 @@ export default function AirQualitySection() {
   const { monitors, loading, error } = useAirQualityData()
   const healthBoundary = useBoundaryData()
   const censusBoundary = useCensusBoundaryData()
+  const {
+    selectRegion: selectHealthRegion,
+    getFeaturesForLevel: getHealthFeaturesForLevel,
+    clearSelection: clearHealthSelection
+  } = healthBoundary
+  const {
+    selectRegion: selectCensusRegion,
+    getFeaturesForLevel: getCensusFeaturesForLevel,
+    clearSelection: clearCensusSelection
+  } = censusBoundary
 
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
   const [networksInitialized, setNetworksInitialized] = useState(false)
@@ -115,6 +132,8 @@ export default function AirQualitySection() {
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [mapBounds, setMapBounds] = useState<AirQualityMapBounds | null>(null)
+  const [mapBoundaryPickerEnabled, setMapBoundaryPickerEnabled] = useState(false)
+  const [mapBoundaryFeatures, setMapBoundaryFeatures] = useState<BoundaryPickerFeature[]>([])
 
   const boundaryLoading = boundarySource === 'bcHealth'
     ? healthBoundary.loading
@@ -159,6 +178,13 @@ export default function AirQualitySection() {
     healthBoundary.regionsByLevel,
     healthRegionLevel
   ])
+
+  const mapBoundaryFeatureCollection = useMemo(() => {
+    return {
+      type: 'FeatureCollection',
+      features: mapBoundaryFeatures
+    } satisfies GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, { code: string; name: string }>
+  }, [mapBoundaryFeatures])
 
   const selectedRegionBounds = useMemo(() => {
     if (!selectedRegionFeature) return null
@@ -232,6 +258,56 @@ export default function AirQualitySection() {
     : 'Current map view'
 
   useEffect(() => {
+    let cancelled = false
+
+    const loadMapBoundaries = async () => {
+      if (!mapBoundaryPickerEnabled) {
+        setMapBoundaryFeatures([])
+        return
+      }
+
+      const rawFeatures = boundarySource === 'bcHealth'
+        ? await getHealthFeaturesForLevel(healthRegionLevel)
+        : await getCensusFeaturesForLevel(censusRegionLevel)
+
+      if (cancelled) return
+
+      const normalized = rawFeatures
+        .map((feature) => {
+          const properties = (feature.properties ?? {}) as Record<string, unknown>
+          const code = String(properties.code ?? properties.id ?? '').trim()
+          if (!code) return null
+
+          const name = String(properties.name ?? code).trim() || code
+          return {
+            type: 'Feature',
+            geometry: feature.geometry,
+            properties: {
+              code,
+              name
+            }
+          } satisfies BoundaryPickerFeature
+        })
+        .filter((feature): feature is BoundaryPickerFeature => Boolean(feature))
+
+      setMapBoundaryFeatures(normalized)
+    }
+
+    void loadMapBoundaries()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    boundarySource,
+    censusRegionLevel,
+    getCensusFeaturesForLevel,
+    getHealthFeaturesForLevel,
+    healthRegionLevel,
+    mapBoundaryPickerEnabled
+  ])
+
+  useEffect(() => {
     if (!selectedMonitor) return
     const stillVisible = filteredMonitors.some((monitor) => monitor.id === selectedMonitor.id)
     if (!stillVisible) {
@@ -267,21 +343,34 @@ export default function AirQualitySection() {
 
   const handleRegionSelect = useCallback((level: RegionLevel, code: string) => {
     if (boundarySource === 'bcHealth') {
-      void healthBoundary.selectRegion(level as BoundaryLevel, code)
+      void selectHealthRegion(level as BoundaryLevel, code)
+      setMapBoundaryPickerEnabled(false)
       return
     }
 
-    void censusBoundary.selectRegion(level as CensusBoundaryLevel, code)
-  }, [boundarySource, censusBoundary, healthBoundary])
+    void selectCensusRegion(level as CensusBoundaryLevel, code)
+    setMapBoundaryPickerEnabled(false)
+  }, [boundarySource, selectCensusRegion, selectHealthRegion])
+
+  const handleMapBoundarySelect = useCallback((code: string) => {
+    if (boundarySource === 'bcHealth') {
+      void selectHealthRegion(healthRegionLevel, code)
+      setMapBoundaryPickerEnabled(false)
+      return
+    }
+
+    void selectCensusRegion(censusRegionLevel, code)
+    setMapBoundaryPickerEnabled(false)
+  }, [boundarySource, censusRegionLevel, healthRegionLevel, selectCensusRegion, selectHealthRegion])
 
   const handleRegionClear = useCallback(() => {
     if (boundarySource === 'bcHealth') {
-      healthBoundary.clearSelection()
+      clearHealthSelection()
       return
     }
 
-    censusBoundary.clearSelection()
-  }, [boundarySource, censusBoundary, healthBoundary])
+    clearCensusSelection()
+  }, [boundarySource, clearCensusSelection, clearHealthSelection])
 
   return (
     <MapSectionLayout
@@ -317,6 +406,8 @@ export default function AirQualitySection() {
           onToggleNetwork={toggleNetwork}
           onSelectAllNetworks={() => setSelectedNetworks(allNetworks)}
           onClearNetworks={() => setSelectedNetworks([])}
+          mapBoundaryPickerEnabled={mapBoundaryPickerEnabled}
+          onMapBoundaryPickerChange={setMapBoundaryPickerEnabled}
           onMonitorClick={setSelectedMonitor}
           onClearSelection={() => setSelectedMonitor(null)}
         />
@@ -327,9 +418,17 @@ export default function AirQualitySection() {
           monitors={filteredMonitors}
           selectedMonitor={selectedMonitor}
           selectedRegionFeature={selectedRegionFeature}
+          browseBoundaryFeatures={mapBoundaryFeatureCollection}
+          browseBoundariesVisible={mapBoundaryPickerEnabled && !showHeatmap}
+          selectedBrowseBoundaryCode={
+            selectedRegion?.source === boundarySource && selectedRegion?.level === selectedRegionLevel
+              ? selectedRegion.code
+              : null
+          }
           showHeatmap={showHeatmap}
           onBoundsChange={handleBoundsChange}
           onMonitorClick={setSelectedMonitor}
+          onBrowseBoundaryClick={(feature) => handleMapBoundarySelect(feature.code)}
           onMonitorClear={() => setSelectedMonitor(null)}
         />
 

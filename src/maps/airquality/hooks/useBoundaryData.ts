@@ -6,7 +6,13 @@ import type {
   SelectedBoundaryRegion
 } from '../types'
 
-type BoundaryFeature = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+type BoundaryFeature = GeoJSON.Feature<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  Record<string, unknown> & {
+    code?: string
+    name?: string
+  }
+>
 
 const BOUNDARY_INDEX_PATH = '/data/boundaries/BCMoH/index.json'
 
@@ -22,6 +28,13 @@ const BOUNDARY_PROPERTY_BY_LEVEL: Record<BoundaryLevel, string> = {
   hsda: 'HLTH_SERVICE_DLVR_AREA_CODE',
   lha: 'LOCAL_HLTH_AREA_CODE',
   chsa: 'CMNTY_HLTH_SERV_AREA_CODE'
+}
+
+const BOUNDARY_NAME_PROPERTY_BY_LEVEL: Record<BoundaryLevel, string> = {
+  healthAuthority: 'HLTH_AUTHORITY_NAME',
+  hsda: 'HLTH_SERVICE_DLVR_AREA_NAME',
+  lha: 'LOCAL_HLTH_AREA_NAME',
+  chsa: 'CMNTY_HLTH_SERV_AREA_NAME'
 }
 
 const BOUNDARY_INDEX_KEY_BY_LEVEL: Record<BoundaryLevel, keyof BoundaryIndex> = {
@@ -40,6 +53,7 @@ const BOUNDARY_LABEL_BY_LEVEL: Record<BoundaryLevel, string> = {
 
 let indexCache: BoundaryIndex | null = null
 const geometryCache = new Map<string, BoundaryFeature>()
+const levelGeometryCache = new Map<BoundaryLevel, BoundaryFeature[]>()
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(path)
@@ -55,28 +69,69 @@ async function loadBoundaryIndex(): Promise<BoundaryIndex> {
   return indexCache
 }
 
-async function loadBoundaryFeature(level: BoundaryLevel, code: string): Promise<BoundaryFeature> {
-  const cacheKey = `${level}:${code}`
-  const cached = geometryCache.get(cacheKey)
+async function loadBoundaryFeatures(
+  level: BoundaryLevel,
+  boundaryIndex?: BoundaryIndex
+): Promise<BoundaryFeature[]> {
+  const cached = levelGeometryCache.get(level)
   if (cached) return cached
 
+  const indexData = boundaryIndex ?? await loadBoundaryIndex()
   const filename = BOUNDARY_FILE_BY_LEVEL[level]
-  const propertyName = BOUNDARY_PROPERTY_BY_LEVEL[level]
+  const codePropertyName = BOUNDARY_PROPERTY_BY_LEVEL[level]
+  const namePropertyName = BOUNDARY_NAME_PROPERTY_BY_LEVEL[level]
 
   const file = await fetchJson<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>>(
     `/data/boundaries/BCMoH/${filename}`
   )
 
-  const feature = file.features.find((item) => {
-    const value = (item.properties as Record<string, unknown> | null)?.[propertyName]
-    return String(value ?? '') === String(code)
-  })
+  const regionNamesByCode = new Map(
+    (indexData[BOUNDARY_INDEX_KEY_BY_LEVEL[level]] ?? []).map((region) => [String(region.code), region.name])
+  )
+
+  const features = file.features
+    .map((item) => {
+      const rawProperties = (item.properties ?? {}) as Record<string, unknown>
+      const code = String(rawProperties[codePropertyName] ?? '').trim()
+      if (!code) return null
+
+      const nameFromFeature = String(rawProperties[namePropertyName] ?? '').trim()
+      const normalizedFeature: BoundaryFeature = {
+        type: 'Feature',
+        geometry: item.geometry,
+        properties: {
+          ...rawProperties,
+          code,
+          name: nameFromFeature || regionNamesByCode.get(code) || code
+        }
+      }
+
+      geometryCache.set(`${level}:${code}`, normalizedFeature)
+      return normalizedFeature
+    })
+    .filter((feature): feature is BoundaryFeature => Boolean(feature))
+
+  levelGeometryCache.set(level, features)
+  return features
+}
+
+async function loadBoundaryFeature(
+  level: BoundaryLevel,
+  code: string,
+  boundaryIndex?: BoundaryIndex
+): Promise<BoundaryFeature> {
+  const normalizedCode = String(code)
+  const cacheKey = `${level}:${normalizedCode}`
+  const cached = geometryCache.get(cacheKey)
+  if (cached) return cached
+
+  const features = await loadBoundaryFeatures(level, boundaryIndex)
+  const feature = features.find((item) => String(item.properties?.code ?? '') === normalizedCode)
 
   if (!feature) {
     throw new Error(`Boundary not found for ${BOUNDARY_LABEL_BY_LEVEL[level]} ${code}`)
   }
 
-  geometryCache.set(cacheKey, feature)
   return feature
 }
 
@@ -135,7 +190,7 @@ export function useBoundaryData() {
 
         const regions = data[BOUNDARY_INDEX_KEY_BY_LEVEL[level]] ?? []
         const selected = regions.find((region) => String(region.code) === normalizedCode)
-        const feature = await loadBoundaryFeature(level, normalizedCode)
+        const feature = await loadBoundaryFeature(level, normalizedCode, data)
 
         setSelectedRegionFeature(feature)
         setSelectedRegion({
@@ -154,6 +209,24 @@ export function useBoundaryData() {
     [clearSelection, index]
   )
 
+  const getFeaturesForLevel = useCallback(async (level: BoundaryLevel): Promise<BoundaryFeature[]> => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = index ?? (await loadBoundaryIndex())
+      if (!index) {
+        setIndex(data)
+      }
+
+      return await loadBoundaryFeatures(level, data)
+    } catch (err) {
+      setError((err as Error).message || 'Unable to load boundaries')
+      return []
+    } finally {
+      setLoading(false)
+    }
+  }, [index])
+
   const regionsByLevel = useMemo(() => {
     return {
       healthAuthority: sortRegions(index?.healthAuthorities ?? []),
@@ -171,6 +244,7 @@ export function useBoundaryData() {
     selectedRegion,
     selectedRegionFeature,
     selectRegion,
+    getFeaturesForLevel,
     clearSelection,
     loadIndex
   }

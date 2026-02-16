@@ -40,6 +40,8 @@ interface AirQualitySidebarProps {
   onToggleNetwork: (network: string) => void
   onSelectAllNetworks: () => void
   onClearNetworks: () => void
+  mapBoundaryPickerEnabled: boolean
+  onMapBoundaryPickerChange: (enabled: boolean) => void
   onMonitorClick: (monitor: AirMonitor) => void
   onClearSelection: () => void
 }
@@ -106,6 +108,8 @@ export function AirQualitySidebar({
   onToggleNetwork,
   onSelectAllNetworks,
   onClearNetworks,
+  mapBoundaryPickerEnabled,
+  onMapBoundaryPickerChange,
   onMonitorClick,
   onClearSelection
 }: AirQualitySidebarProps) {
@@ -313,7 +317,10 @@ export function AirQualitySidebar({
           </div>
 
           <button
-            onClick={() => setShowRegionBrowser(true)}
+            onClick={() => {
+              setShowRegionBrowser(true)
+              onMapBoundaryPickerChange(false)
+            }}
             disabled={boundaryLoading}
             className={cn(
               'inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors',
@@ -326,6 +333,27 @@ export function AirQualitySidebar({
             <House className="mr-2 h-4 w-4" />
             {boundaryLoading ? 'Loading boundaries...' : selectedRegion ? 'Change Region' : 'Browse Regions'}
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowRegionBrowser(false)
+              onMapBoundaryPickerChange(!mapBoundaryPickerEnabled)
+            }}
+            className={cn(
+              'mt-2 inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition-colors',
+              mapBoundaryPickerEnabled
+                ? 'border-sky-500 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300'
+                : 'border-input bg-background text-foreground hover:bg-accent'
+            )}
+          >
+            {mapBoundaryPickerEnabled ? 'Stop Map Selection' : 'Choose on Map'}
+          </button>
+
+          {mapBoundaryPickerEnabled && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Boundaries are visible on the map. Click a polygon to select it.
+            </p>
+          )}
 
           {selectedRegion && (
             <div className="mt-3 rounded-md bg-muted/50 p-3">
@@ -580,6 +608,17 @@ export function AirQualitySidebar({
               {boundaryError && (
                 <div className="text-xs text-red-600 dark:text-red-400">{boundaryError}</div>
               )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  onMapBoundaryPickerChange(true)
+                  setShowRegionBrowser(false)
+                }}
+                className="inline-flex w-full items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                Choose on map
+              </button>
             </div>
           </div>
         </div>

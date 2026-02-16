@@ -167,6 +167,19 @@ export function useCensusBoundaryData() {
     }
   }, [clearSelection])
 
+  const getFeaturesForLevel = useCallback(async (level: CensusBoundaryLevel): Promise<CensusBoundaryFeature[]> => {
+    setLoading(true)
+    setError(null)
+    try {
+      return await loadLevelFeatures(level)
+    } catch (err) {
+      setError((err as Error).message || 'Unable to load census boundaries')
+      return []
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const levelOptions = useMemo(() => ([
     { value: 'cd', label: LEVEL_LABELS.cd },
     { value: 'csd', label: LEVEL_LABELS.csd },
@@ -181,6 +194,7 @@ export function useCensusBoundaryData() {
     selectedRegion,
     selectedRegionFeature,
     levelOptions,
+    getFeaturesForLevel,
     selectRegion,
     clearSelection,
     loadIndex

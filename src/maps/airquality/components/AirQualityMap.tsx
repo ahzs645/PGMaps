@@ -19,9 +19,16 @@ interface AirQualityMapProps {
   monitors: AirMonitor[]
   selectedMonitor: AirMonitor | null
   selectedRegionFeature?: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
+  browseBoundaryFeatures?: GeoJSON.FeatureCollection<
+    GeoJSON.Polygon | GeoJSON.MultiPolygon,
+    { code: string; name: string }
+  > | null
+  browseBoundariesVisible?: boolean
+  selectedBrowseBoundaryCode?: string | null
   showHeatmap: boolean
   onBoundsChange?: (bounds: AirQualityMapBounds) => void
   onMonitorClick: (monitor: AirMonitor) => void
+  onBrowseBoundaryClick?: (feature: { code: string; name: string }) => void
   onMonitorClear?: () => void
 }
 
@@ -200,13 +207,178 @@ function RegionBoundaryLayer({
   return null
 }
 
+function BoundaryBrowseLayer({
+  features,
+  visible,
+  selectedCode,
+  onBoundaryClick
+}: {
+  features: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, { code: string; name: string }> | null | undefined
+  visible: boolean
+  selectedCode: string | null | undefined
+  onBoundaryClick?: (feature: { code: string; name: string }) => void
+}) {
+  const { map, isLoaded } = useMap()
+  const sourceId = 'airq-browse-boundary-source'
+  const fillLayerId = 'airq-browse-boundary-fill'
+  const lineLayerId = 'airq-browse-boundary-line'
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: []
+        }
+      } as never)
+    }
+
+    if (!map.getLayer(fillLayerId)) {
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#0ea5e9',
+          'fill-opacity': 0.1
+        },
+        layout: {
+          visibility: 'none'
+        }
+      } as never)
+    }
+
+    if (!map.getLayer(lineLayerId)) {
+      map.addLayer({
+        id: lineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#0284c7',
+          'line-width': 1.2,
+          'line-opacity': 0.9
+        },
+        layout: {
+          visibility: 'none'
+        }
+      } as never)
+    }
+
+    const handleClick = (event: maplibregl.MapLayerMouseEvent) => {
+      const firstFeature = event.features?.[0]
+      const properties = (firstFeature?.properties ?? {}) as Record<string, unknown>
+      const code = String(properties.code ?? '').trim()
+      if (!code) return
+      const name = String(properties.name ?? code)
+      onBoundaryClick?.({ code, name })
+    }
+
+    const handleMouseEnter = () => {
+      map.getCanvas().style.cursor = 'pointer'
+    }
+
+    const handleMouseLeave = () => {
+      map.getCanvas().style.cursor = ''
+    }
+
+    map.on('click', fillLayerId, handleClick)
+    map.on('mouseenter', fillLayerId, handleMouseEnter)
+    map.on('mouseleave', fillLayerId, handleMouseLeave)
+
+    return () => {
+      try {
+        if (!map || !map.getStyle()) return
+        map.getCanvas().style.cursor = ''
+        map.off('click', fillLayerId, handleClick)
+        map.off('mouseenter', fillLayerId, handleMouseEnter)
+        map.off('mouseleave', fillLayerId, handleMouseLeave)
+        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
+        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+        if (map.getSource(sourceId)) map.removeSource(sourceId)
+      } catch {
+        // Map already destroyed during unmount.
+      }
+    }
+  }, [fillLayerId, isLoaded, lineLayerId, map, onBoundaryClick, sourceId])
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+
+    const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+    source?.setData(features ?? {
+      type: 'FeatureCollection',
+      features: []
+    })
+
+    const hasFeatures = Boolean(features && features.features.length > 0)
+    const layerVisibility = visible && hasFeatures ? 'visible' : 'none'
+
+    if (map.getLayer(fillLayerId)) {
+      map.setLayoutProperty(fillLayerId, 'visibility', layerVisibility)
+      map.setPaintProperty(
+        fillLayerId,
+        'fill-color',
+        [
+          'case',
+          ['==', ['to-string', ['get', 'code']], selectedCode ?? '__none__'],
+          '#f97316',
+          '#0ea5e9'
+        ] as never
+      )
+      map.setPaintProperty(
+        fillLayerId,
+        'fill-opacity',
+        [
+          'case',
+          ['==', ['to-string', ['get', 'code']], selectedCode ?? '__none__'],
+          0.25,
+          0.1
+        ] as never
+      )
+    }
+
+    if (map.getLayer(lineLayerId)) {
+      map.setLayoutProperty(lineLayerId, 'visibility', layerVisibility)
+      map.setPaintProperty(
+        lineLayerId,
+        'line-color',
+        [
+          'case',
+          ['==', ['to-string', ['get', 'code']], selectedCode ?? '__none__'],
+          '#ea580c',
+          '#0284c7'
+        ] as never
+      )
+      map.setPaintProperty(
+        lineLayerId,
+        'line-width',
+        [
+          'case',
+          ['==', ['to-string', ['get', 'code']], selectedCode ?? '__none__'],
+          2.2,
+          1.1
+        ] as never
+      )
+    }
+  }, [features, fillLayerId, isLoaded, lineLayerId, map, selectedCode, sourceId, visible])
+
+  return null
+}
+
 export function AirQualityMap({
   monitors,
   selectedMonitor,
   selectedRegionFeature,
+  browseBoundaryFeatures,
+  browseBoundariesVisible = false,
+  selectedBrowseBoundaryCode,
   showHeatmap,
   onBoundsChange,
   onMonitorClick,
+  onBrowseBoundaryClick,
   onMonitorClear
 }: AirQualityMapProps) {
   const mapRef = useRef<MapRef>(null)
@@ -349,6 +521,12 @@ export function AirQualityMap({
         }}
       >
         <MapControls position="top-right" showZoom showCompass />
+        <BoundaryBrowseLayer
+          features={browseBoundaryFeatures}
+          visible={browseBoundariesVisible}
+          selectedCode={selectedBrowseBoundaryCode}
+          onBoundaryClick={onBrowseBoundaryClick}
+        />
         <RegionBoundaryLayer feature={selectedRegionFeature} visible={!showHeatmap} />
         <AirQualityHeatmapLayer monitors={monitors} visible={showHeatmap} />
 
