@@ -12,7 +12,9 @@ import {
   SCORE_PRESETS
 } from './constants'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
+import { ScoreBuilderRegionInsightDialog } from './components/ScoreBuilderRegionInsightDialog'
 import { ScoreBuilderSidebar } from './components/ScoreBuilderSidebar'
+import { useMediaQuery } from './hooks/useMediaQuery'
 import { useScoreBuilderRegions } from './hooks/useScoreBuilderRegions'
 import type {
   ScoredBoundaryRegion,
@@ -52,11 +54,14 @@ export default function ScoreBuilderSection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [boundaryLevel, setBoundaryLevel] = useState<BoundaryLevel>('lha')
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
+  const [regionInsightRegionId, setRegionInsightRegionId] = useState<string | null>(null)
+  const [regionInsightOpen, setRegionInsightOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
   const [weights, setWeights] = useState<ScoreMetricWeightMap>(() => createDefaultWeights())
   const [densityMetric, setDensityMetric] = useState<ScoreMetricKey>('overallDensity')
   const [showPoints, setShowPoints] = useState(true)
+  const isDesktop = useMediaQuery('(min-width: 768px)')
 
   const {
     regions,
@@ -86,6 +91,8 @@ export default function ScoreBuilderSection() {
 
   useEffect(() => {
     setSelectedRegionId(null)
+    setRegionInsightOpen(false)
+    setRegionInsightRegionId(null)
   }, [boundaryLevel])
 
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
@@ -254,11 +261,23 @@ export default function ScoreBuilderSection() {
     return scoredRegions.find((entry) => entry.region.id === selectedRegionId) || null
   }, [scoredRegions, selectedRegionId])
 
+  const regionInsightRegion = useMemo(() => {
+    if (!regionInsightRegionId) return null
+    return scoredRegions.find((entry) => entry.region.id === regionInsightRegionId) || null
+  }, [regionInsightRegionId, scoredRegions])
+
   useEffect(() => {
     if (selectedRegionId && !selectedRegion) {
       setSelectedRegionId(null)
     }
   }, [selectedRegion, selectedRegionId])
+
+  useEffect(() => {
+    if (regionInsightRegionId && !regionInsightRegion) {
+      setRegionInsightOpen(false)
+      setRegionInsightRegionId(null)
+    }
+  }, [regionInsightRegion, regionInsightRegionId])
 
   const scoreSpread = useMemo(() => {
     if (!scoredRegions.length) {
@@ -347,81 +366,107 @@ export default function ScoreBuilderSection() {
     setSelectedNetworks([])
   }, [])
 
-  return (
-    <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-      sidebar={(
-        <ScoreBuilderSidebar
-          className="h-full w-full border-0 shadow-none md:w-[360px] md:border-r md:shadow-xl"
-          loadingMonitors={loadingMonitors}
-          loadingRegions={loadingRegions}
-          monitorsError={monitorsError}
-          regionsError={regionsError}
-          boundaryLevel={boundaryLevel}
-          onBoundaryLevelChange={setBoundaryLevel}
-          networkCounts={networkCounts}
-          selectedNetworks={selectedNetworks}
-          onToggleNetwork={toggleNetwork}
-          onSelectAllNetworks={selectAllNetworks}
-          onClearNetworks={clearNetworks}
-          showPoints={showPoints}
-          onTogglePoints={() => setShowPoints((current) => !current)}
-          weights={weights}
-          onWeightChange={handleWeightChange}
-          onApplyPreset={handleApplyPreset}
-          activePresetKey={activePresetKey}
-          equationPreview={equationPreview}
-          scoreSpread={scoreSpread}
-          densityMetric={densityMetric}
-          onDensityMetricChange={setDensityMetric}
-          densitySummary={densitySummary}
-          densityLeaders={densityLeaders}
-          regions={scoredRegions}
-          filteredRegions={filteredRegions}
-          selectedRegion={selectedRegion}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          onRegionSelect={setSelectedRegionId}
-          onClearRegionSelection={() => setSelectedRegionId(null)}
-        />
-      )}
-    >
-      <div className="relative h-full">
-        <ScoreBuilderMap
-          regions={scoredRegions}
-          selectedRegionId={selectedRegionId}
-          monitors={filteredMonitors}
-          showPoints={showPoints}
-          onRegionClick={setSelectedRegionId}
-        />
+  const handleOpenRegionInsight = useCallback((regionId: string) => {
+    setSelectedRegionId(regionId)
+    setRegionInsightRegionId(regionId)
+    setRegionInsightOpen(true)
+  }, [])
 
-        <div className="absolute bottom-24 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
-          <h4 className="mb-2 text-xs font-semibold text-foreground">Composite Score</h4>
-          <div className="h-2 w-44 rounded bg-gradient-to-r from-red-900 via-orange-600 via-55% to-green-700" />
-          <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-            <span>Lower priority</span>
-            <span>Higher priority</span>
-          </div>
-          <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
-            <div>
-              <div className="uppercase">Min</div>
-              <div className="font-medium text-foreground">{scoreSpread.min.toFixed(1)}</div>
+  const handleRegionInsightOpenChange = useCallback((open: boolean) => {
+    setRegionInsightOpen(open)
+    if (!open) {
+      setRegionInsightRegionId(null)
+    }
+  }, [])
+
+  return (
+    <>
+      <MapSectionLayout
+        showDesktopSidebar={showSidebar}
+        onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+        desktopSidebarWidth={360}
+        sidebar={(
+          <ScoreBuilderSidebar
+            className="h-full w-full border-0 shadow-none md:w-[360px] md:border-r md:shadow-xl"
+            loadingMonitors={loadingMonitors}
+            loadingRegions={loadingRegions}
+            monitorsError={monitorsError}
+            regionsError={regionsError}
+            boundaryLevel={boundaryLevel}
+            onBoundaryLevelChange={setBoundaryLevel}
+            networkCounts={networkCounts}
+            selectedNetworks={selectedNetworks}
+            onToggleNetwork={toggleNetwork}
+            onSelectAllNetworks={selectAllNetworks}
+            onClearNetworks={clearNetworks}
+            showPoints={showPoints}
+            onTogglePoints={() => setShowPoints((current) => !current)}
+            weights={weights}
+            onWeightChange={handleWeightChange}
+            onApplyPreset={handleApplyPreset}
+            activePresetKey={activePresetKey}
+            equationPreview={equationPreview}
+            scoreSpread={scoreSpread}
+            densityMetric={densityMetric}
+            onDensityMetricChange={setDensityMetric}
+            densitySummary={densitySummary}
+            densityLeaders={densityLeaders}
+            regions={scoredRegions}
+            filteredRegions={filteredRegions}
+            selectedRegion={selectedRegion}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onRegionSelect={setSelectedRegionId}
+            onClearRegionSelection={() => setSelectedRegionId(null)}
+            onOpenRegionInsight={handleOpenRegionInsight}
+            isDesktop={isDesktop}
+          />
+        )}
+      >
+        <div className="relative h-full">
+          <ScoreBuilderMap
+            regions={scoredRegions}
+            selectedRegionId={selectedRegionId}
+            monitors={filteredMonitors}
+            showPoints={showPoints}
+            onRegionClick={setSelectedRegionId}
+          />
+
+          <div className="absolute bottom-24 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+            <h4 className="mb-2 text-xs font-semibold text-foreground">Composite Score</h4>
+            <div className="h-2 w-44 rounded bg-gradient-to-r from-red-900 via-orange-600 via-55% to-green-700" />
+            <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>Lower priority</span>
+              <span>Higher priority</span>
             </div>
-            <div>
-              <div className="uppercase">Avg</div>
-              <div className="font-medium text-foreground">{scoreSpread.average.toFixed(1)}</div>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
+              <div>
+                <div className="uppercase">Min</div>
+                <div className="font-medium text-foreground">{scoreSpread.min.toFixed(1)}</div>
+              </div>
+              <div>
+                <div className="uppercase">Avg</div>
+                <div className="font-medium text-foreground">{scoreSpread.average.toFixed(1)}</div>
+              </div>
+              <div>
+                <div className="uppercase">Max</div>
+                <div className="font-medium text-foreground">{scoreSpread.max.toFixed(1)}</div>
+              </div>
             </div>
-            <div>
-              <div className="uppercase">Max</div>
-              <div className="font-medium text-foreground">{scoreSpread.max.toFixed(1)}</div>
+            <div className="mt-2 text-[10px] text-muted-foreground">
+              Showing {filteredMonitors.length.toLocaleString()} monitors across {selectedNetworks.length.toLocaleString()} active networks.
             </div>
-          </div>
-          <div className="mt-2 text-[10px] text-muted-foreground">
-            Showing {filteredMonitors.length.toLocaleString()} monitors across {selectedNetworks.length.toLocaleString()} active networks.
           </div>
         </div>
-      </div>
-    </MapSectionLayout>
+      </MapSectionLayout>
+
+      <ScoreBuilderRegionInsightDialog
+        open={regionInsightOpen}
+        onOpenChange={handleRegionInsightOpenChange}
+        region={regionInsightRegion}
+        weights={weights}
+        isMobile={!isDesktop}
+      />
+    </>
   )
 }

@@ -654,6 +654,7 @@ export default function ExplorerSection() {
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+      desktopSidebarWidth={370}
       sidebar={(
         <ExplorerSidebar
           className="h-full w-full border-0 shadow-none md:w-[370px] md:border-r md:shadow-xl"

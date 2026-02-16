@@ -48,3 +48,5 @@ vite.config.d.ts
 
 # Testing
 coverage
+playwright-report
+test-results

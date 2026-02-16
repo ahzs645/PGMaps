@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode, type TouchEvent } from 'react'
+import { useCallback, useRef, useState, type CSSProperties, type ReactNode, type TouchEvent } from 'react'
 import { ChevronsLeft, ChevronsRight, GripHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -8,6 +8,7 @@ interface MapSectionLayoutProps {
   sidebar: ReactNode
   showDesktopSidebar: boolean
   onToggleDesktopSidebar: () => void
+  desktopSidebarWidth?: number
   children: ReactNode
   className?: string
 }
@@ -22,6 +23,7 @@ export function MapSectionLayout({
   sidebar,
   showDesktopSidebar,
   onToggleDesktopSidebar,
+  desktopSidebarWidth = 350,
   children,
   className
 }: MapSectionLayoutProps) {
@@ -71,8 +73,9 @@ export function MapSectionLayout({
       <div
         className={cn(
           'pointer-events-none absolute inset-0 z-30 md:pointer-events-auto md:relative md:inset-auto md:z-10 md:h-full md:shrink-0',
-          showDesktopSidebar ? 'md:block md:w-[350px]' : 'md:hidden'
+          showDesktopSidebar ? 'md:block md:w-[var(--desktop-sidebar-width)]' : 'md:hidden'
         )}
+        style={{ '--desktop-sidebar-width': `${desktopSidebarWidth}px` } as CSSProperties}
       >
         <div
           className={cn(
@@ -100,9 +103,10 @@ export function MapSectionLayout({
         type="button"
         onClick={onToggleDesktopSidebar}
         aria-label={showDesktopSidebar ? 'Hide sidebar' : 'Show sidebar'}
+        style={{ left: showDesktopSidebar ? desktopSidebarWidth : 0 }}
         className={cn(
           'absolute top-6 z-20 hidden h-10 w-8 items-center justify-center border border-l-0 border-slate-300/80 bg-slate-50/95 text-slate-600 shadow-md backdrop-blur transition-[left,background-color,color,border-color] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800 md:flex',
-          showDesktopSidebar ? 'left-[350px] rounded-r-lg' : 'left-0 rounded-r-lg'
+          'rounded-r-lg'
         )}
       >
         {showDesktopSidebar ? (
