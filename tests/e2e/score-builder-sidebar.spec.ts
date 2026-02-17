@@ -11,6 +11,38 @@ async function ensureSectionExpanded(page: Page, sectionId: string) {
 }
 
 test.describe('Score Builder Sidebar', () => {
+  test('boundary source and level switching does not break region scoring', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await page.goto('/score-builder', { waitUntil: 'domcontentloaded' })
+
+    await ensureSectionExpanded(page, 'setup')
+    await ensureSectionExpanded(page, 'filters')
+    await ensureSectionExpanded(page, 'regions')
+
+    const levelSelect = page.locator('[data-score-builder-level-select="true"]')
+    const regionStats = page.locator('[data-score-builder-region-stats="true"]')
+    const errorMessage = page.getByText('Unable to build scores')
+    const loadingMessage = page.getByText('Building region scores...')
+
+    await expect(page.locator('[data-score-builder-network]').first()).toBeVisible({ timeout: 20_000 })
+    await page
+      .locator('[data-score-builder-section="filters"]')
+      .getByRole('button', { name: 'All' })
+      .click()
+
+    await expect(levelSelect).toBeVisible()
+    await levelSelect.selectOption('chsa')
+    await expect(loadingMessage).toBeHidden({ timeout: 30_000 })
+    await expect(errorMessage).toHaveCount(0)
+    await expect(regionStats).not.toHaveText('0 of 0 regions')
+
+    await page.locator('[data-score-builder-boundary-source="census"]').click()
+    await expect(levelSelect).toHaveValue('csd')
+    await expect(loadingMessage).toBeHidden({ timeout: 30_000 })
+    await expect(errorMessage).toHaveCount(0)
+    await expect(regionStats).not.toHaveText('0 of 0 regions')
+  })
+
   test('desktop sidebar scrolls and section ribbon navigation works', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 })
     await page.goto('/score-builder', { waitUntil: 'domcontentloaded' })
@@ -56,7 +88,7 @@ test.describe('Score Builder Sidebar', () => {
     const dialog = page.locator('[data-score-builder-region-insight-dialog="true"]')
     await expect(dialog).toBeVisible()
 
-    await page.keyboard.press('Escape')
+    await dialog.press('Escape')
     await expect(dialog).toBeHidden()
   })
 
@@ -90,7 +122,10 @@ test.describe('Score Builder Sidebar', () => {
       await expect(page.locator('[data-score-builder-region-insight-dialog="true"]')).toBeVisible()
       await expect(page.locator('[data-score-builder-mobile-insight="true"]')).toBeVisible()
 
-      await page.keyboard.press('Escape')
+      await page
+        .locator('[data-score-builder-region-insight-dialog="true"]')
+        .getByRole('button', { name: 'Close' })
+        .click()
       await expect(page.locator('[data-score-builder-region-insight-dialog="true"]')).toBeHidden()
     })
   })

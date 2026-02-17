@@ -12,8 +12,7 @@ import type {
   ExplorerItem,
   ExplorerLineCollection,
   ExplorerPointCollection,
-  ExplorerPolygonCollection,
-  GeometryBounds
+  ExplorerPolygonCollection
 } from '../types'
 import type maplibregl from 'maplibre-gl'
 
@@ -22,7 +21,6 @@ interface ExplorerMapProps {
   lineCollections: ExplorerLineCollection[]
   polygonCollections: ExplorerPolygonCollection[]
   selectedItem: ExplorerItem | null
-  visibleBounds: GeometryBounds | null
   onItemSelect: (itemId: string) => void
 }
 
@@ -42,11 +40,6 @@ const CENTER: [number, number] = [-122.764593, 53.909784]
 const ZOOM = 12
 const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/bright'
 const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
-
-function boundsKey(bounds: GeometryBounds | null): string {
-  if (!bounds) return ''
-  return `${bounds.minLng.toFixed(5)}|${bounds.minLat.toFixed(5)}|${bounds.maxLng.toFixed(5)}|${bounds.maxLat.toFixed(5)}`
-}
 
 function ExplorerLineLayer({ collection, selectedItemId, onItemSelect }: ExplorerLineLayerProps) {
   const { map, isLoaded } = useMap()
@@ -287,34 +280,15 @@ export function ExplorerMap({
   lineCollections,
   polygonCollections,
   selectedItem,
-  visibleBounds,
   onItemSelect
 }: ExplorerMapProps) {
   const mapRef = useRef<MapRef>(null)
-  const lastGlobalBoundsKey = useRef<string>('')
 
   const selectedItemId = selectedItem?.id || null
   const selectedPointCoordinates = useMemo<[number, number] | null>(() => {
     if (!selectedItem || selectedItem.geometry.type !== 'Point') return null
     return selectedItem.geometry.coordinates as [number, number]
   }, [selectedItem])
-
-  const visibleBoundsToken = boundsKey(visibleBounds)
-
-  useEffect(() => {
-    if (!visibleBounds || !mapRef.current || selectedItem) return
-    if (lastGlobalBoundsKey.current === visibleBoundsToken) return
-
-    mapRef.current.fitBounds(
-      [
-        [visibleBounds.minLng, visibleBounds.minLat],
-        [visibleBounds.maxLng, visibleBounds.maxLat]
-      ],
-      { padding: 36, duration: 700, maxZoom: 11 }
-    )
-
-    lastGlobalBoundsKey.current = visibleBoundsToken
-  }, [selectedItem, visibleBounds, visibleBoundsToken])
 
   useEffect(() => {
     if (!selectedItem || !mapRef.current) return

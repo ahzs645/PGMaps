@@ -2,8 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { useAirQualityData, type AirMonitor, type BoundaryLevel } from '@/maps/airquality'
 import {
+  useAirQualityData,
+  type AirMonitor,
+  type BoundaryLevel,
+  type BoundarySource,
+  type CensusBoundaryLevel,
+  type RegionLevel
+} from '@/maps/airquality'
+import {
+  CENSUS_BOUNDARY_LEVEL_OPTIONS,
+  HEALTH_BOUNDARY_LEVEL_OPTIONS,
   SCORE_METRICS,
   createDefaultWeights,
   createMetricValueMap,
@@ -52,7 +61,9 @@ function computeMedian(values: number[]): number {
 export default function ScoreBuilderSection() {
   const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData()
   const [showSidebar, setShowSidebar] = useState(true)
-  const [boundaryLevel, setBoundaryLevel] = useState<BoundaryLevel>('lha')
+  const [boundarySource, setBoundarySource] = useState<BoundarySource>('bcHealth')
+  const [healthBoundaryLevel, setHealthBoundaryLevel] = useState<BoundaryLevel>('lha')
+  const [censusBoundaryLevel, setCensusBoundaryLevel] = useState<CensusBoundaryLevel>('csd')
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
   const [regionInsightRegionId, setRegionInsightRegionId] = useState<string | null>(null)
   const [regionInsightOpen, setRegionInsightOpen] = useState(false)
@@ -63,11 +74,29 @@ export default function ScoreBuilderSection() {
   const [showPoints, setShowPoints] = useState(true)
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
+  const selectedRegionLevel: RegionLevel = boundarySource === 'bcHealth'
+    ? healthBoundaryLevel
+    : censusBoundaryLevel
+
+  const boundaryLevelOptions = useMemo<Array<{ value: RegionLevel; label: string }>>(() => {
+    if (boundarySource === 'bcHealth') {
+      return HEALTH_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label
+      }))
+    }
+
+    return CENSUS_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
+      value: option.value,
+      label: option.label
+    }))
+  }, [boundarySource])
+
   const {
     regions,
     loading: loadingRegions,
     error: regionsError
-  } = useScoreBuilderRegions(boundaryLevel)
+  } = useScoreBuilderRegions(boundarySource, selectedRegionLevel)
 
   const networkCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -93,7 +122,7 @@ export default function ScoreBuilderSection() {
     setSelectedRegionId(null)
     setRegionInsightOpen(false)
     setRegionInsightRegionId(null)
-  }, [boundaryLevel])
+  }, [boundarySource, selectedRegionLevel])
 
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
   const hasActiveNetworks = selectedNetworks.length > 0
@@ -366,6 +395,15 @@ export default function ScoreBuilderSection() {
     setSelectedNetworks([])
   }, [])
 
+  const handleRegionLevelChange = useCallback((level: RegionLevel) => {
+    if (boundarySource === 'bcHealth') {
+      setHealthBoundaryLevel(level as BoundaryLevel)
+      return
+    }
+
+    setCensusBoundaryLevel(level as CensusBoundaryLevel)
+  }, [boundarySource])
+
   const handleOpenRegionInsight = useCallback((regionId: string) => {
     setSelectedRegionId(regionId)
     setRegionInsightRegionId(regionId)
@@ -392,8 +430,11 @@ export default function ScoreBuilderSection() {
             loadingRegions={loadingRegions}
             monitorsError={monitorsError}
             regionsError={regionsError}
-            boundaryLevel={boundaryLevel}
-            onBoundaryLevelChange={setBoundaryLevel}
+            boundarySource={boundarySource}
+            onBoundarySourceChange={setBoundarySource}
+            selectedRegionLevel={selectedRegionLevel}
+            onRegionLevelChange={handleRegionLevelChange}
+            boundaryLevelOptions={boundaryLevelOptions}
             networkCounts={networkCounts}
             selectedNetworks={selectedNetworks}
             onToggleNetwork={toggleNetwork}

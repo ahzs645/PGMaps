@@ -71,7 +71,7 @@ export function ExplorerSidebar({
   }, [items])
 
   return (
-    <div className={cn('z-10 flex h-full w-[370px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
+    <div className={cn('z-10 flex h-full min-h-0 w-[370px] flex-col overflow-y-auto border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">Explorer</h1>
         <p className="text-sm text-muted-foreground">Showcase all point, line, and polygon datasets in one map.</p>
@@ -211,11 +211,11 @@ export function ExplorerSidebar({
       )}
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+        <div className="p-4 text-sm text-muted-foreground">
           Loading explorer datasets...
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div>
           <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
             <span>{items.length.toLocaleString()} items visible</span>
             {items.length > MAX_VISIBLE_ITEMS && <span>Showing {MAX_VISIBLE_ITEMS}</span>}

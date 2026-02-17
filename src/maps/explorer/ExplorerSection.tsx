@@ -97,30 +97,6 @@ function geometryBounds(geometry: GeoJSON.Geometry): GeometryBounds | null {
   return bounds
 }
 
-function unionBounds(items: ExplorerItem[]): GeometryBounds | null {
-  if (!items.length) return null
-
-  const bounds: GeometryBounds = {
-    minLng: Infinity,
-    minLat: Infinity,
-    maxLng: -Infinity,
-    maxLat: -Infinity
-  }
-
-  items.forEach((item) => {
-    bounds.minLng = Math.min(bounds.minLng, item.bounds.minLng)
-    bounds.minLat = Math.min(bounds.minLat, item.bounds.minLat)
-    bounds.maxLng = Math.max(bounds.maxLng, item.bounds.maxLng)
-    bounds.maxLat = Math.max(bounds.maxLat, item.bounds.maxLat)
-  })
-
-  if (!Number.isFinite(bounds.minLng) || !Number.isFinite(bounds.minLat)) {
-    return null
-  }
-
-  return bounds
-}
-
 function formatNullableText(value: string | number | null | undefined, fallback = 'N/A'): string {
   if (value == null) return fallback
   const text = String(value).trim()
@@ -517,8 +493,6 @@ export default function ExplorerSection() {
     }
   }, [selectedItem, selectedItemId])
 
-  const visibleBounds = useMemo(() => unionBounds(filteredItems), [filteredItems])
-
   const mapCollections = useMemo(() => {
     const pointCollections: ExplorerPointCollection[] = []
     const lineCollections: ExplorerLineCollection[] = []
@@ -684,7 +658,6 @@ export default function ExplorerSection() {
           lineCollections={mapCollections.lineCollections}
           polygonCollections={mapCollections.polygonCollections}
           selectedItem={selectedItem}
-          visibleBounds={visibleBounds}
           onItemSelect={setSelectedItemId}
         />
 

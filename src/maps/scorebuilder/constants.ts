@@ -1,4 +1,4 @@
-import type { BoundaryIndex, BoundaryLevel } from '@/maps/airquality'
+import type { BoundaryIndex, BoundaryLevel, BoundarySource, CensusBoundaryLevel } from '@/maps/airquality'
 import type { ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap, ScorePreset } from './types'
 
 export const SCORE_METRICS: ScoreMetricDefinition[] = [
@@ -117,11 +117,38 @@ export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
 
 export const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
 
-export const BOUNDARY_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }> = [
+export const BOUNDARY_SOURCE_OPTIONS: Array<{
+  value: BoundarySource
+  label: string
+  description: string
+}> = [
+  {
+    value: 'bcHealth',
+    label: 'Health Authority boundaries',
+    description: 'Health Authority -> HSDA -> LHA -> CHSA'
+  },
+  {
+    value: 'census',
+    label: 'Census boundaries',
+    description: 'Census Division -> CSD -> CT -> DA'
+  }
+]
+
+export const HEALTH_BOUNDARY_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }> = [
   { value: 'healthAuthority', label: 'Health Authority' },
   { value: 'hsda', label: 'HSDA' },
   { value: 'lha', label: 'LHA' },
   { value: 'chsa', label: 'CHSA' }
+]
+
+// Backward-compatible alias used by existing imports.
+export const BOUNDARY_LEVEL_OPTIONS = HEALTH_BOUNDARY_LEVEL_OPTIONS
+
+export const CENSUS_BOUNDARY_LEVEL_OPTIONS: Array<{ value: CensusBoundaryLevel; label: string }> = [
+  { value: 'cd', label: 'Census Division' },
+  { value: 'csd', label: 'Census Subdivision' },
+  { value: 'ct', label: 'Census Tract' },
+  { value: 'da', label: 'Dissemination Area' }
 ]
 
 export const BOUNDARY_FILE_BY_LEVEL: Record<BoundaryLevel, string> = {

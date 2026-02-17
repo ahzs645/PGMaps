@@ -1,4 +1,4 @@
-import type { BoundaryLevel } from '@/maps/airquality'
+import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 
 export type ScoreMetricKey =
   | 'overallDensity'
@@ -26,7 +26,8 @@ export interface ScoreBuilderRegion {
   id: string
   code: string
   name: string
-  level: BoundaryLevel
+  source: BoundarySource
+  level: RegionLevel
   feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
   bounds: [number, number, number, number]
   areaKm2: number
