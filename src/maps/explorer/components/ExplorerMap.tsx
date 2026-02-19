@@ -8,6 +8,17 @@ import {
   useMap,
   type MapRef
 } from '@/components/ui/map'
+import {
+  MAP_STYLES,
+  PG_CENTER,
+  PG_DEFAULT_ZOOM,
+  SELECTION_LINE_COLOR,
+  SELECTION_LINE_WIDTH,
+  SELECTION_LINE_OPACITY,
+  FIT_BOUNDS_PADDING,
+  FIT_BOUNDS_DURATION,
+  FIT_BOUNDS_MAX_ZOOM,
+} from '@/components/ui/map-constants'
 import type {
   ExplorerItem,
   ExplorerLineCollection,
@@ -35,11 +46,6 @@ interface ExplorerPolygonLayerProps {
   selectedItemId: string | null
   onItemSelect: (itemId: string) => void
 }
-
-const CENTER: [number, number] = [-122.764593, 53.909784]
-const ZOOM = 12
-const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/bright'
-const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
 
 function ExplorerLineLayer({ collection, selectedItemId, onItemSelect }: ExplorerLineLayerProps) {
   const { map, isLoaded } = useMap()
@@ -87,9 +93,9 @@ function ExplorerLineLayer({ collection, selectedItemId, onItemSelect }: Explore
           visibility: collection.visible ? 'visible' : 'none'
         },
         paint: {
-          'line-color': '#38bdf8',
+          'line-color': SELECTION_LINE_COLOR,
           'line-width': 4.2,
-          'line-opacity': 1
+          'line-opacity': SELECTION_LINE_OPACITY
         }
       } as never)
     }
@@ -209,9 +215,9 @@ function ExplorerPolygonLayer({ collection, selectedItemId, onItemSelect }: Expl
           visibility: collection.visible ? 'visible' : 'none'
         },
         paint: {
-          'line-color': '#38bdf8',
-          'line-width': 2.8,
-          'line-opacity': 1
+          'line-color': SELECTION_LINE_COLOR,
+          'line-width': SELECTION_LINE_WIDTH,
+          'line-opacity': SELECTION_LINE_OPACITY
         }
       } as never)
     }
@@ -298,7 +304,7 @@ export function ExplorerMap({
         [selectedItem.bounds.minLng, selectedItem.bounds.minLat],
         [selectedItem.bounds.maxLng, selectedItem.bounds.maxLat]
       ],
-      { padding: 90, duration: 500, maxZoom: 14 }
+      { padding: FIT_BOUNDS_PADDING, duration: FIT_BOUNDS_DURATION, maxZoom: FIT_BOUNDS_MAX_ZOOM }
     )
   }, [selectedItem])
 
@@ -306,9 +312,9 @@ export function ExplorerMap({
     <div className="h-full w-full">
       <PgMap
         ref={mapRef}
-        center={CENTER}
-        zoom={ZOOM}
-        styles={{ light: LIGHT_STYLE, dark: DARK_STYLE }}
+        center={PG_CENTER}
+        zoom={PG_DEFAULT_ZOOM}
+        styles={{ light: MAP_STYLES.light, dark: MAP_STYLES.dark }}
       >
         <MapControls position="top-right" showZoom showCompass />
 

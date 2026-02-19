@@ -1,5 +1,12 @@
-import { useEffect, useId, useMemo, useRef } from 'react'
-import { Map as PgMap, MapControls, useMap, type MapRef } from '@/components/ui/map'
+import { useEffect, useMemo, useRef } from 'react'
+import { Map as PgMap, MapControls, type MapRef } from '@/components/ui/map'
+import { ChoroplethLayer } from '@/components/ui/map-choropleth-layer'
+import {
+  MAP_STYLES,
+  PG_CENTER,
+  FIT_BOUNDS_PADDING,
+  FIT_BOUNDS_DURATION,
+} from '@/components/ui/map-constants'
 import type { CensusBounds, CensusMetricKey, CensusUnit } from '../types'
 
 interface CensusMapProps {
@@ -10,16 +17,7 @@ interface CensusMapProps {
   onUnitClick: (id: string) => void
 }
 
-interface ChoroplethLayerProps {
-  data: GeoJSON.FeatureCollection<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>
-  selectedUnitId: string | null
-  onUnitClick: (id: string) => void
-}
-
-const CENTER: [number, number] = [-122.764593, 53.909784]
 const ZOOM = 10
-const LIGHT_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
-const DARK_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 
 function getChoroplethColor(value: number | null, min: number, max: number): string {
   if (value == null || !Number.isFinite(value)) return '#475569'
@@ -31,112 +29,6 @@ function getChoroplethColor(value: number | null, min: number, max: number): str
   if (t <= 0.6) return '#fbbf24'
   if (t <= 0.8) return '#f59e0b'
   return '#b45309'
-}
-
-function CensusChoroplethLayer({ data, selectedUnitId, onUnitClick }: ChoroplethLayerProps) {
-  const { map, isLoaded } = useMap()
-  const uid = useId().replace(/:/g, '')
-  const sourceId = `census-source-${uid}`
-  const fillLayerId = `census-fill-${uid}`
-  const lineLayerId = `census-line-${uid}`
-  const selectedLayerId = `census-selected-${uid}`
-
-  useEffect(() => {
-    if (!isLoaded || !map) return
-
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, {
-        type: 'geojson',
-        data
-      } as never)
-    }
-
-    if (!map.getLayer(fillLayerId)) {
-      map.addLayer({
-        id: fillLayerId,
-        type: 'fill',
-        source: sourceId,
-        paint: {
-          'fill-color': ['coalesce', ['get', 'color'], '#475569'],
-          'fill-opacity': 0.72
-        }
-      } as never)
-    }
-
-    if (!map.getLayer(lineLayerId)) {
-      map.addLayer({
-        id: lineLayerId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#0f172a',
-          'line-width': 0.6,
-          'line-opacity': 0.55
-        }
-      } as never)
-    }
-
-    if (!map.getLayer(selectedLayerId)) {
-      map.addLayer({
-        id: selectedLayerId,
-        type: 'line',
-        source: sourceId,
-        filter: ['==', ['get', 'id'], ''],
-        paint: {
-          'line-color': '#38bdf8',
-          'line-width': 2.8,
-          'line-opacity': 1
-        }
-      } as never)
-    }
-
-    const handleClick = (event: unknown) => {
-      const e = event as { features?: Array<{ properties?: { id?: string } }> }
-      const id = e.features?.[0]?.properties?.id
-      if (id) onUnitClick(id)
-    }
-
-    const handleMouseEnter = () => {
-      map.getCanvas().style.cursor = 'pointer'
-    }
-
-    const handleMouseLeave = () => {
-      map.getCanvas().style.cursor = ''
-    }
-
-    map.on('click', fillLayerId, handleClick as never)
-    map.on('mouseenter', fillLayerId, handleMouseEnter)
-    map.on('mouseleave', fillLayerId, handleMouseLeave)
-
-    return () => {
-      try {
-        map.off('click', fillLayerId, handleClick as never)
-        map.off('mouseenter', fillLayerId, handleMouseEnter)
-        map.off('mouseleave', fillLayerId, handleMouseLeave)
-
-        if (!map.getStyle()) return
-        if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
-        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
-        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
-        if (map.getSource(sourceId)) map.removeSource(sourceId)
-      } catch {
-        // Map already destroyed during unmount
-      }
-    }
-  }, [data, fillLayerId, isLoaded, lineLayerId, map, onUnitClick, selectedLayerId, sourceId])
-
-  useEffect(() => {
-    if (!isLoaded || !map) return
-    const source = map.getSource(sourceId) as { setData?: (nextData: unknown) => void } | undefined
-    source?.setData?.(data)
-  }, [data, isLoaded, map, sourceId])
-
-  useEffect(() => {
-    if (!isLoaded || !map || !map.getLayer(selectedLayerId)) return
-    map.setFilter(selectedLayerId, ['==', ['get', 'id'], selectedUnitId || ''])
-  }, [isLoaded, map, selectedLayerId, selectedUnitId])
-
-  return null
 }
 
 export function CensusMap({
@@ -202,7 +94,7 @@ export function CensusMap({
       ],
       {
         padding: 32,
-        duration: 700
+        duration: FIT_BOUNDS_DURATION
       }
     )
     lastBoundsKeyRef.current = boundsKey
@@ -242,8 +134,8 @@ export function CensusMap({
           [maxLng, maxLat]
         ],
         {
-          padding: 80,
-          duration: 500
+          padding: FIT_BOUNDS_PADDING,
+          duration: FIT_BOUNDS_DURATION
         }
       )
     }
@@ -253,15 +145,15 @@ export function CensusMap({
     <div className="h-full w-full">
       <PgMap
         ref={mapRef}
-        center={CENTER}
+        center={PG_CENTER}
         zoom={ZOOM}
-        styles={{ light: LIGHT_STYLE, dark: DARK_STYLE }}
+        styles={{ light: MAP_STYLES.light, dark: MAP_STYLES.dark }}
       >
         <MapControls position="top-right" showZoom showCompass />
-        <CensusChoroplethLayer
+        <ChoroplethLayer
           data={featureCollection}
-          selectedUnitId={selectedUnitId}
-          onUnitClick={onUnitClick}
+          selectedFeatureId={selectedUnitId}
+          onFeatureClick={onUnitClick}
         />
       </PgMap>
     </div>
