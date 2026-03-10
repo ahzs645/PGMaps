@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { cn } from '@/lib/utils'
+import { assessViolationRisk, summarizeViolationRisk } from '../risk'
 import type { RestaurantWithStats, HazardRating, Inspection } from '../types'
 
 interface InspectionPanelProps {
@@ -22,6 +23,25 @@ function getHazardColor(rating?: HazardRating): string {
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 
+function getRiskBandClass(band: string): string {
+  if (band === 'Severe') return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
+  if (band === 'Elevated') return 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'
+  if (band === 'Moderate') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
+  if (band === 'Administrative') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
+  return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+}
+
+function getRiskCategoryClass(category: string): string {
+  if (category === 'Pest Control') return 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300'
+  if (category === 'Contamination') return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
+  if (category === 'Temperature Control') return 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'
+  if (category === 'Sanitization & Hygiene') return 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+  if (category === 'Chemical Safety') return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300'
+  if (category === 'Facility & Equipment') return 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300'
+  if (category === 'Administrative') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
+  return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+}
+
 export function InspectionPanel({ restaurant, onClose }: InspectionPanelProps) {
   const inspections = useMemo(() => {
     return restaurant.inspections || []
@@ -37,6 +57,10 @@ export function InspectionPanel({ restaurant, onClose }: InspectionPanelProps) {
     return inspections.reduce((sum, insp) => {
       return sum + (insp.critical_violations_count || 0)
     }, 0)
+  }, [inspections])
+
+  const riskSummary = useMemo(() => {
+    return summarizeViolationRisk(inspections)
   }, [inspections])
 
   const currentRating = (restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown') as HazardRating
@@ -98,6 +122,21 @@ export function InspectionPanel({ restaurant, onClose }: InspectionPanelProps) {
               </div>
               <div className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">Current Rating</div>
             </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Severe'))}>
+              Severe: {riskSummary.severe}
+            </span>
+            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Elevated'))}>
+              Elevated: {riskSummary.elevated}
+            </span>
+            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Moderate'))}>
+              Moderate: {riskSummary.moderate}
+            </span>
+            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Administrative'))}>
+              Administrative: {riskSummary.administrative}
+            </span>
           </div>
         </div>
 
@@ -193,38 +232,47 @@ function InspectionItem({ inspection }: { inspection: Inspection }) {
       {/* Violations list */}
       {violationCount > 0 ? (
         <div className="p-4 space-y-3">
-          {inspection.violations?.map((violation, vIndex) => (
-            <div
-              key={vIndex}
-              className="rounded-lg border border-border bg-background p-3"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
-                      {violation.code}
-                    </span>
-                    {violation.corrected_during_inspection && (
-                      <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/50 dark:text-green-300">
-                        Corrected
+          {inspection.violations?.map((violation, vIndex) => {
+            const risk = assessViolationRisk(violation)
+            return (
+              <div
+                key={vIndex}
+                className="rounded-lg border border-border bg-background p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                        {violation.code}
                       </span>
+                      <span className={cn('rounded px-2 py-0.5 text-xs font-medium', getRiskBandClass(risk.band))}>
+                        {risk.band}
+                      </span>
+                      <span className={cn('rounded px-2 py-0.5 text-xs font-medium', getRiskCategoryClass(risk.category))}>
+                        {risk.category}
+                      </span>
+                      {violation.corrected_during_inspection && (
+                        <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/50 dark:text-green-300">
+                          Corrected
+                        </span>
+                      )}
+                    </div>
+                    <div className="mb-2 text-sm font-medium text-foreground">
+                      {violation.description}
+                    </div>
+                    <div className="mb-2 text-sm leading-relaxed text-muted-foreground">
+                      <span className="font-medium">Observation:</span> {violation.observation}
+                    </div>
+                    {violation.corrective_action && (
+                      <div className="text-sm leading-relaxed text-muted-foreground">
+                        <span className="font-medium">Corrective Action:</span> {violation.corrective_action}
+                      </div>
                     )}
                   </div>
-                  <div className="mb-2 text-sm font-medium text-foreground">
-                    {violation.description}
-                  </div>
-                  <div className="mb-2 text-sm leading-relaxed text-muted-foreground">
-                    <span className="font-medium">Observation:</span> {violation.observation}
-                  </div>
-                  {violation.corrective_action && (
-                    <div className="text-sm leading-relaxed text-muted-foreground">
-                      <span className="font-medium">Corrective Action:</span> {violation.corrective_action}
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ) : (
         <div className="p-4 text-sm italic text-muted-foreground">

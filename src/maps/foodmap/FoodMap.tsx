@@ -6,6 +6,7 @@ import { Timeline } from './components/Timeline'
 import { RouletteModal } from './components/roulette'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { useRestaurantData } from './hooks/useRestaurantData'
+import { createEmptyViolationRiskSummary, summarizeViolationRisk } from './risk'
 import type { RestaurantWithStats, HazardRating, VisualizationMode } from './types'
 
 // Parse date string like "18-Mar-2024" or "March 18, 2024"
@@ -134,6 +135,8 @@ export default function FoodMap() {
         nonCriticalViolations += (insp.non_critical_violations_count || 0)
       })
 
+      const risk = summarizeViolationRisk(filteredInspections)
+
       const result: RestaurantWithStats = {
         ...r,
         filteredInspections,
@@ -142,7 +145,8 @@ export default function FoodMap() {
           total: totalViolations,
           critical: criticalViolations,
           nonCritical: nonCriticalViolations,
-          inspectionCount: filteredInspections.length
+          inspectionCount: filteredInspections.length,
+          risk: totalViolations > 0 ? risk : createEmptyViolationRiskSummary()
         }
       }
 
@@ -290,16 +294,20 @@ export default function FoodMap() {
                 <span className="text-xs text-muted-foreground">0 violations</span>
               </div>
               <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded-full bg-blue-500"></span>
+                <span className="text-xs text-muted-foreground">Administrative only</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-yellow-500"></span>
-                <span className="text-xs text-muted-foreground">1-3 violations</span>
+                <span className="text-xs text-muted-foreground">Moderate risk</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-orange-500"></span>
-                <span className="text-xs text-muted-foreground">4-6 violations</span>
+                <span className="text-xs text-muted-foreground">Elevated risk</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-4 h-4 rounded-full bg-red-500"></span>
-                <span className="text-xs text-muted-foreground">7+ violations</span>
+                <span className="text-xs text-muted-foreground">Severe risk</span>
               </div>
             </div>
           )}

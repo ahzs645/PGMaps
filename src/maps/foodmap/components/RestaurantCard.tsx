@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import type { RestaurantWithStats, HazardRating, VisualizationMode } from '../types'
+import { createEmptyViolationRiskSummary, getRiskBandLabel } from '../risk'
+import type { RestaurantWithStats, HazardRating, VisualizationMode, ViolationRiskBand } from '../types'
 
 interface RestaurantCardProps {
   restaurant: RestaurantWithStats
@@ -22,18 +23,22 @@ const dotColorClasses: Record<HazardRating, string> = {
   Unknown: 'bg-gray-500'
 }
 
-function getViolationDotClass(total: number): string {
-  if (total === 0) return 'bg-green-500'
-  if (total <= 3) return 'bg-yellow-500'
-  if (total <= 6) return 'bg-orange-500'
-  return 'bg-red-500'
+function getRiskDotClass(band: ViolationRiskBand, hasViolations: boolean): string {
+  if (!hasViolations) return 'bg-green-500'
+  if (band === 'Severe') return 'bg-red-500'
+  if (band === 'Elevated') return 'bg-orange-500'
+  if (band === 'Moderate') return 'bg-yellow-500'
+  if (band === 'Administrative') return 'bg-blue-500'
+  return 'bg-gray-500'
 }
 
-function getViolationBadgeClass(total: number): string {
-  if (total === 0) return 'bg-green-500'
-  if (total <= 3) return 'bg-yellow-500'
-  if (total <= 6) return 'bg-orange-500'
-  return 'bg-red-500'
+function getRiskBadgeClass(band: ViolationRiskBand, hasViolations: boolean): string {
+  if (!hasViolations) return 'bg-green-500'
+  if (band === 'Severe') return 'bg-red-500'
+  if (band === 'Elevated') return 'bg-orange-500'
+  if (band === 'Moderate') return 'bg-yellow-500'
+  if (band === 'Administrative') return 'bg-blue-500'
+  return 'bg-gray-500'
 }
 
 export function RestaurantCard({
@@ -48,15 +53,25 @@ export function RestaurantCard({
   }, [restaurant])
 
   const violationStats = useMemo(() => {
-    return restaurant.violationStats || { total: 0, critical: 0, nonCritical: 0, inspectionCount: 0 }
+    return restaurant.violationStats || {
+      total: 0,
+      critical: 0,
+      nonCritical: 0,
+      inspectionCount: 0,
+      risk: createEmptyViolationRiskSummary()
+    }
   }, [restaurant])
+
+  const hasViolations = violationStats.total > 0
+  const riskBand = hasViolations ? violationStats.risk.worstBand : 'Unknown'
+  const riskLabel = getRiskBandLabel(riskBand, hasViolations)
 
   const dotColorClass = useMemo(() => {
     if (visualizationMode === 'violations') {
-      return getViolationDotClass(violationStats.total)
+      return getRiskDotClass(riskBand, hasViolations)
     }
     return dotColorClasses[rating] || dotColorClasses.Unknown
-  }, [visualizationMode, violationStats.total, rating])
+  }, [visualizationMode, riskBand, hasViolations, rating])
 
   const hasLocation = Boolean(restaurant.latitude && restaurant.longitude)
 
@@ -95,8 +110,11 @@ export function RestaurantCard({
             <span className={cn('text-xs px-2 py-0.5 rounded', ratingClasses[rating])}>
               {rating}
             </span>
-            <span className={cn('text-xs px-2 py-0.5 rounded text-white', getViolationBadgeClass(violationStats.total))}>
+            <span className={cn('text-xs px-2 py-0.5 rounded text-white', getRiskBadgeClass(riskBand, hasViolations))}>
               {violationStats.total} violation{violationStats.total !== 1 ? 's' : ''}
+            </span>
+            <span className={cn('text-xs px-2 py-0.5 rounded text-white', getRiskBadgeClass(riskBand, hasViolations))}>
+              {riskLabel}
             </span>
             {violationStats.critical > 0 && (
               <span className="text-xs text-red-600 dark:text-red-400 font-medium">

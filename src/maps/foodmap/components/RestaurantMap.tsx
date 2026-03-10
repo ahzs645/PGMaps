@@ -9,6 +9,7 @@ import {
   type MapRef
 } from '@/components/ui/map'
 import { cn } from '@/lib/utils'
+import { createEmptyViolationRiskSummary, getRiskBandColor, getRiskBandLabel } from '../risk'
 import type { RestaurantWithStats, HazardRating, VisualizationMode } from '../types'
 
 interface RestaurantMapProps {
@@ -33,17 +34,14 @@ const HAZARD_COLORS: Record<HazardRating, string> = {
   Unknown: '#6b7280'
 }
 
-function getViolationColor(violationCount: number): string {
-  if (violationCount === 0) return '#22c55e'
-  if (violationCount <= 3) return '#eab308'
-  if (violationCount <= 6) return '#f97316'
-  return '#ef4444'
-}
-
 function getMarkerColor(restaurant: RestaurantWithStats, visualizationMode: VisualizationMode): string {
   if (visualizationMode === 'violations') {
-    const stats = restaurant.violationStats || { total: 0 }
-    return getViolationColor(stats.total)
+    const stats = restaurant.violationStats || {
+      total: 0,
+      risk: createEmptyViolationRiskSummary()
+    }
+    const hasViolations = stats.total > 0
+    return getRiskBandColor(stats.risk.worstBand, hasViolations)
   } else {
     const rating = restaurant.hazardRatingAtDate || restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown'
     return HAZARD_COLORS[rating as HazardRating] || HAZARD_COLORS.Unknown
@@ -117,19 +115,28 @@ interface RestaurantMarkerProps {
 }
 
 function RestaurantMarker({ restaurant, visualizationMode, isSelected, onClick }: RestaurantMarkerProps) {
+  const stats = restaurant.violationStats || {
+    total: 0,
+    critical: 0,
+    inspectionCount: 0,
+    risk: createEmptyViolationRiskSummary()
+  }
+  const hasViolations = stats.total > 0
   const color = getMarkerColor(restaurant, visualizationMode)
-  const stats = restaurant.violationStats || { total: 0 }
   const size = getMarkerSize(stats.total, visualizationMode)
   const rating = restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown'
+  const riskLabel = getRiskBandLabel(stats.risk.worstBand, hasViolations)
 
   const hazardColorClass = rating === 'Low' ? 'bg-green-500'
     : rating === 'Moderate' ? 'bg-amber-500'
     : 'bg-gray-500'
 
-  const violationColorClass = stats.total === 0 ? 'bg-green-500'
-    : stats.total <= 3 ? 'bg-yellow-500'
-    : stats.total <= 6 ? 'bg-orange-500'
-    : 'bg-red-500'
+  const violationColorClass = !hasViolations ? 'bg-green-500'
+    : stats.risk.worstBand === 'Severe' ? 'bg-red-500'
+    : stats.risk.worstBand === 'Elevated' ? 'bg-orange-500'
+    : stats.risk.worstBand === 'Moderate' ? 'bg-yellow-500'
+    : stats.risk.worstBand === 'Administrative' ? 'bg-blue-500'
+    : 'bg-gray-500'
 
   return (
     <MapMarker
@@ -160,8 +167,11 @@ function RestaurantMarker({ restaurant, visualizationMode, isSelected, onClick }
               {rating}
             </span>
             <span className={cn('text-xs px-1.5 py-0.5 rounded text-white', violationColorClass)}>
-              {stats.total} violation{stats.total !== 1 ? 's' : ''}
+              {riskLabel}
             </span>
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {stats.total} violation{stats.total !== 1 ? 's' : ''}
           </div>
         </div>
       </MarkerTooltip>
@@ -176,11 +186,12 @@ function RestaurantMarker({ restaurant, visualizationMode, isSelected, onClick }
               {rating}
             </span>
             <span className={cn('text-xs px-2 py-1 rounded text-white', violationColorClass)}>
-              {stats.total} violation{stats.total !== 1 ? 's' : ''}
+              {riskLabel}
             </span>
           </div>
 
           <div className="text-xs text-muted-foreground mb-2">
+            {stats.total} violation{stats.total !== 1 ? 's' : ''} |{' '}
             {stats.inspectionCount} inspection{stats.inspectionCount !== 1 ? 's' : ''} |{' '}
             {stats.critical} critical
           </div>

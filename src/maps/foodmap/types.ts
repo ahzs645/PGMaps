@@ -6,6 +6,33 @@ export interface Violation {
   corrected_during_inspection?: boolean
 }
 
+export type ViolationRiskBand = 'Severe' | 'Elevated' | 'Moderate' | 'Administrative' | 'Unknown'
+export type ViolationRiskCategory =
+  | 'Temperature Control'
+  | 'Contamination'
+  | 'Pest Control'
+  | 'Sanitization & Hygiene'
+  | 'Chemical Safety'
+  | 'Facility & Equipment'
+  | 'Administrative'
+  | 'Other'
+
+export interface ViolationRiskAssessment {
+  band: ViolationRiskBand
+  category: ViolationRiskCategory
+  score: number
+}
+
+export interface ViolationRiskSummary {
+  severe: number
+  elevated: number
+  moderate: number
+  administrative: number
+  unknown: number
+  score: number
+  worstBand: ViolationRiskBand
+}
+
 export interface Inspection {
   date?: string
   inspection_date?: string
@@ -40,6 +67,7 @@ export interface ViolationStats {
   critical: number
   nonCritical: number
   inspectionCount: number
+  risk: ViolationRiskSummary
 }
 
 export interface RestaurantWithStats extends Restaurant {
