@@ -50,3 +50,6 @@ vite.config.d.ts
 coverage
 playwright-report
 test-results
+
+# Generated census variable data (built from scripts/build-census-variables.py)
+public/data/census/variables/

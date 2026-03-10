@@ -8,6 +8,7 @@ interface CensusMapProps {
   selectedUnitId: string | null
   bounds: CensusBounds | null
   onUnitClick: (id: string) => void
+  variableValuesByGeoUid?: Map<string, number | null> | null
 }
 
 interface ChoroplethLayerProps {
@@ -144,16 +145,27 @@ export function CensusMap({
   selectedMetric,
   selectedUnitId,
   bounds,
-  onUnitClick
+  onUnitClick,
+  variableValuesByGeoUid
 }: CensusMapProps) {
   const mapRef = useRef<MapRef>(null)
   const lastBoundsKeyRef = useRef<string | null>(null)
 
+  // When variable data is available, use it for coloring; otherwise fall back to built-in metrics
+  const useVariable = variableValuesByGeoUid != null && variableValuesByGeoUid.size > 0
+
   const metricValues = useMemo(() => {
+    if (useVariable) {
+      const values: number[] = []
+      for (const val of variableValuesByGeoUid!.values()) {
+        if (val != null && Number.isFinite(val)) values.push(val)
+      }
+      return values
+    }
     return units
       .map((unit) => unit[selectedMetric])
       .filter((value): value is number => value != null && Number.isFinite(value))
-  }, [selectedMetric, units])
+  }, [selectedMetric, units, useVariable, variableValuesByGeoUid])
 
   const metricRange = useMemo(() => {
     if (!metricValues.length) return { min: 0, max: 1 }
@@ -167,7 +179,9 @@ export function CensusMap({
     return {
       type: 'FeatureCollection',
       features: units.map((unit) => {
-        const value = unit[selectedMetric] ?? null
+        const value = useVariable
+          ? (variableValuesByGeoUid!.get(unit.id) ?? null)
+          : (unit[selectedMetric] ?? null)
         return {
           type: 'Feature',
           geometry: unit.geometry,
@@ -179,7 +193,7 @@ export function CensusMap({
         }
       })
     }
-  }, [metricRange.max, metricRange.min, selectedMetric, units])
+  }, [metricRange.max, metricRange.min, selectedMetric, units, useVariable, variableValuesByGeoUid])
 
   const selectedFeatures = useMemo(() => {
     if (!selectedUnitId) return []

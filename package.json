@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "census:sync": "node scripts/build-census-hierarchy.mjs",
+    "census:variables": "python3 scripts/build-census-variables.py",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed"
   },

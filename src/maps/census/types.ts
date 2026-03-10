@@ -45,3 +45,37 @@ export interface CensusHierarchyOption {
   key: CensusHierarchyLevel
   label: string
 }
+
+// Census variable types for the full variable data
+
+export interface CensusVariable {
+  id: string
+  label: string
+  type: 'Total' | 'Male' | 'Female' | ''
+}
+
+export interface CensusCategory {
+  id: string
+  name: string
+  group: string
+  variableCount: number
+  variables: CensusVariable[]
+}
+
+export interface CensusCatalog {
+  totalVariables: number
+  categories: CensusCategory[]
+  levels: string[]
+}
+
+/** Compact data for a single category at a single level. */
+export interface CensusCategoryData {
+  vectors: string[]
+  data: Record<string, (number | null)[]>
+}
+
+/** Active variable selection for the choropleth. */
+export interface CensusVariableSelection {
+  categoryId: string
+  variableId: string
+}
