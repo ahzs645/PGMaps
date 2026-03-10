@@ -3,7 +3,7 @@
 Process raw census all_vectors data into compact per-category data files
 for the PGMaps web application.
 
-Reads from: Google Drive census all_vectors_data/
+Reads from: scripts/census-source/
 Writes to:  public/data/census/variables/
 
 Output structure:
@@ -22,12 +22,7 @@ from pathlib import Path
 # Paths
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-SOURCE_DIR = Path(
-    os.path.expanduser(
-        "~/Library/CloudStorage/GoogleDrive-ahzs645@gmail.com/"
-        "My Drive/Projects/census/all_vectors_data"
-    )
-)
+SOURCE_DIR = SCRIPT_DIR / "census-source"
 OUTPUT_DIR = PROJECT_ROOT / "public" / "data" / "census" / "variables"
 CATEGORIES_FILE = SCRIPT_DIR / "census_categories.json"
 

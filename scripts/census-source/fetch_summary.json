@@ -1,0 +1,22 @@
+{
+  "DB": {
+    "data_records": 1011,
+    "geo_features": 1011
+  },
+  "DA": {
+    "data_records": 135,
+    "geo_features": 135
+  },
+  "CT": {
+    "data_records": 28,
+    "geo_features": 28
+  },
+  "CSD": {
+    "data_records": 13,
+    "geo_features": 13
+  },
+  "CD": {
+    "data_records": 1,
+    "geo_features": 1
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-03-10T12:42:43.808259",
+  "dataset": "CA21",
+  "total_vectors": 7555,
+  "batch_size": 1500,
+  "num_batches": 6,
+  "levels": {
+    "DB": {
+      "description": "Dissemination Block (smallest unit)",
+      "batches_attempted": 6,
+      "batches_succeeded": 6,
+      "batches_failed": 0,
+      "vectors_fetched": 7555,
+      "data_records": 1011,
+      "geo_features": 1011
+    },
+    "DA": {
+      "description": "Dissemination Area",
+      "batches_attempted": 6,
+      "batches_succeeded": 6,
+      "batches_failed": 0,
+      "vectors_fetched": 7555,
+      "data_records": 135,
+      "geo_features": 135
+    },
+    "CT": {
+      "description": "Census Tract",
+      "batches_attempted": 6,
+      "batches_succeeded": 6,
+      "batches_failed": 0,
+      "vectors_fetched": 7555,
+      "data_records": 28,
+      "geo_features": 28
+    },
+    "CSD": {
+      "description": "Census Subdivision",
+      "batches_attempted": 6,
+      "batches_succeeded": 6,
+      "batches_failed": 0,
+      "vectors_fetched": 7555,
+      "data_records": 13,
+      "geo_features": 13
+    },
+    "CD": {
+      "description": "Census Division",
+      "batches_attempted": 6,
+      "batches_succeeded": 6,
+      "batches_failed": 0,
+      "vectors_fetched": 7555,
+      "data_records": 1,
+      "geo_features": 1
+    }
+  }
+}
