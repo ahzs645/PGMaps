@@ -9,6 +9,7 @@ import {
   type MapRef
 } from '@/components/ui/map'
 import { cn } from '@/lib/utils'
+import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { createEmptyViolationRiskSummary, getRiskBandColor, getRiskBandLabel } from '../risk'
 import type { RestaurantWithStats, HazardRating, VisualizationMode } from '../types'
 
@@ -19,13 +20,7 @@ interface RestaurantMapProps {
   onRestaurantClick: (restaurant: RestaurantWithStats) => void
 }
 
-// Prince George center coordinates
-const CENTER: [number, number] = [-122.764593, 53.909784]
 const ZOOM = 12
-
-// Map styles
-const LIGHT_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
-const DARK_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 
 // Hazard rating colors
 const HAZARD_COLORS: Record<HazardRating, string> = {
@@ -84,12 +79,9 @@ export function RestaurantMap({
     <div className="w-full h-full">
       <Map
         ref={mapRef}
-        center={CENTER}
+        center={PG_CENTER}
         zoom={ZOOM}
-        styles={{
-          light: LIGHT_STYLE,
-          dark: DARK_STYLE
-        }}
+        styles={MAP_STYLES}
       >
         <MapControls position="top-right" showZoom showCompass />
 

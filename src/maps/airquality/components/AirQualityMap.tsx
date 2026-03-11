@@ -10,6 +10,7 @@ import {
   type MapRef
 } from '@/components/ui/map'
 import bbox from '@turf/bbox'
+import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { getNetworkColor } from '../constants'
 import { AirQualityHeatmapLayer } from './AirQualityHeatmapLayer'
 import type { AirMonitor } from '../types'
@@ -47,11 +48,7 @@ type MonitorFeatureProperties = {
   province: string
 }
 
-const CENTER: [number, number] = [-122.764593, 53.909784]
 const ZOOM = 12
-
-const LIGHT_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
-const DARK_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 
 function hexToRgba(hex: string, alpha: number): string {
   const cleaned = hex.replace('#', '')
@@ -513,12 +510,9 @@ export function AirQualityMap({
     <div className="h-full w-full">
       <PgMap
         ref={mapRef}
-        center={CENTER}
+        center={PG_CENTER}
         zoom={ZOOM}
-        styles={{
-          light: LIGHT_STYLE,
-          dark: DARK_STYLE
-        }}
+        styles={MAP_STYLES}
       >
         <MapControls position="top-right" showZoom showCompass />
         <BoundaryBrowseLayer

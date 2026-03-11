@@ -20,6 +20,7 @@ import { createPortal } from "react-dom";
 import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { MAP_STYLES } from "./map-styles";
 
 type MapContextValue = {
   map: MapLibreGL.Map | null;
@@ -36,10 +37,7 @@ function useMap() {
   return context;
 }
 
-const defaultStyles = {
-  dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-  light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-};
+const defaultStyles = MAP_STYLES;
 
 type MapStyleOption = string | MapLibreGL.StyleSpecification;
 
