@@ -7,6 +7,7 @@ import { CensusSection } from '@/maps/census'
 import { ParksSection } from '@/maps/parks'
 import { ScoreBuilderSection } from '@/maps/scorebuilder'
 import { ExplorerSection } from '@/maps/explorer'
+import { PGDataSection } from '@/maps/pgdata'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/socioeconomic" element={<CensusSection />} />
         <Route path="/parks" element={<ParksSection />} />
         <Route path="/score-builder" element={<ScoreBuilderSection />} />
+        <Route path="/pgdata" element={<PGDataSection />} />
       </Routes>
     </Shell>
   )

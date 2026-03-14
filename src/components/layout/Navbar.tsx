@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon } from 'lucide-react'
+import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,7 @@ const navLinks = [
   { path: '/census', label: 'Census', icon: BarChart3 },
   { path: '/explorer', label: 'Explorer', icon: Layers },
   { path: '/score-builder', label: 'Score Builder', icon: Calculator },
+  { path: '/pgdata', label: 'PG Data', icon: ShieldAlert },
 ]
 
 export function Navbar() {

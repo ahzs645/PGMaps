@@ -7,6 +7,7 @@ import {
   Calculator,
   Calendar,
   Layers,
+  ShieldAlert,
   ArrowRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -116,6 +117,14 @@ const mapProjects: MapCardProps[] = [
     icon: Calculator,
     href: '/score-builder',
     color: 'bg-cyan-600',
+    status: 'available',
+  },
+  {
+    title: 'PG Data',
+    description: 'Explore City of Prince George open datasets. View property crime incidents with filters by type, year, and community.',
+    icon: ShieldAlert,
+    href: '/pgdata',
+    color: 'bg-red-500',
     status: 'available',
   },
   {
