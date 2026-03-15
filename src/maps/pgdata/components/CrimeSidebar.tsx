@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
+import type { CensusCategory, CensusVariable } from '@/maps/census/types'
 
 interface CrimeSidebarProps {
   className?: string
@@ -29,6 +30,23 @@ interface CrimeSidebarProps {
   onToggleTimeline: () => void
   onIncidentClick: (incident: CrimeIncident) => void
   onClearSelection: () => void
+  // Data layers
+  showCrimeLayer: boolean
+  showAirQualityLayer: boolean
+  showCensusLayer: boolean
+  onToggleCrimeLayer: () => void
+  onToggleAirQualityLayer: () => void
+  onToggleCensusLayer: () => void
+  // Air quality
+  airMonitorCount: number
+  // Census overlay
+  censusCategories: CensusCategory[]
+  censusVariables: CensusVariable[]
+  selectedCensusCategoryId: string | null
+  selectedCensusVariableId: string | null
+  onCensusCategoryChange: (id: string) => void
+  onCensusVariableChange: (id: string) => void
+  censusLoading: boolean
 }
 
 const MAX_VISIBLE_ROWS = 200
@@ -67,6 +85,20 @@ export function CrimeSidebar({
   onToggleTimeline,
   onIncidentClick,
   onClearSelection,
+  showCrimeLayer,
+  showAirQualityLayer,
+  showCensusLayer,
+  onToggleCrimeLayer,
+  onToggleAirQualityLayer,
+  onToggleCensusLayer,
+  airMonitorCount,
+  censusCategories,
+  censusVariables,
+  selectedCensusCategoryId,
+  selectedCensusVariableId,
+  onCensusCategoryChange,
+  onCensusVariableChange,
+  censusLoading,
 }: CrimeSidebarProps) {
   const categoryCounts = useMemo(() => {
     const counts = new Map<CrimeCategory, number>()
@@ -103,7 +135,7 @@ export function CrimeSidebar({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-foreground">PG Data</h1>
-            <p className="text-sm text-muted-foreground">Property Crime</p>
+            <p className="text-sm text-muted-foreground">City of Prince George</p>
           </div>
           <div className="flex items-center gap-1.5">
             <button
@@ -133,153 +165,235 @@ export function CrimeSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Stats */}
-        {!loading && !error && (
-          <div className="border-b border-border bg-background/95 p-4">
-            <h3 className="mb-2 text-sm font-semibold text-foreground">Summary</h3>
-            <div className="space-y-1 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Total incidents:</span>
-                <span className="font-semibold text-foreground">
-                  {incidents.length.toLocaleString()}
-                </span>
+        {/* Data Layers */}
+        <div className="border-b border-border bg-background/95 p-4">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">Data Layers</h2>
+          <div className="space-y-2">
+            <label className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showCrimeLayer}
+                  onChange={onToggleCrimeLayer}
+                  className="h-3.5 w-3.5 rounded border-input accent-red-500"
+                />
+                <span className="text-sm text-foreground">Property Crime</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Showing:</span>
-                <span className="font-medium">
-                  {filteredIncidents.length.toLocaleString()}
-                </span>
+              <span className="text-xs text-muted-foreground">
+                {incidents.length.toLocaleString()}
+              </span>
+            </label>
+            <label className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showAirQualityLayer}
+                  onChange={onToggleAirQualityLayer}
+                  className="h-3.5 w-3.5 rounded border-input accent-green-500"
+                />
+                <span className="text-sm text-foreground">Air Quality Sensors</span>
               </div>
-              <div className="pt-1 text-[10px] text-muted-foreground">
-                Updated biweekly by City of Prince George
+              <span className="text-xs text-muted-foreground">
+                {airMonitorCount}
+              </span>
+            </label>
+            <label className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={showCensusLayer}
+                  onChange={onToggleCensusLayer}
+                  className="h-3.5 w-3.5 rounded border-input accent-purple-500"
+                />
+                <span className="text-sm text-foreground">Census Socioeconomic</span>
               </div>
-            </div>
+              <span className="text-xs text-muted-foreground">DA level</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Census Variable Selector */}
+        {showCensusLayer && (
+          <div className="border-b border-border bg-purple-50/50 p-4 dark:bg-purple-950/20">
+            <h3 className="mb-2 text-xs font-semibold text-foreground">Census Variable</h3>
+            <select
+              value={selectedCensusCategoryId ?? ''}
+              onChange={(e) => onCensusCategoryChange(e.target.value)}
+              disabled={censusLoading}
+              className="mb-2 w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {censusCategories.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+            <select
+              value={selectedCensusVariableId ?? ''}
+              onChange={(e) => onCensusVariableChange(e.target.value)}
+              disabled={censusLoading || censusVariables.length === 0}
+              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {censusVariables.map((v) => (
+                <option key={v.id} value={v.id}>{v.label}</option>
+              ))}
+            </select>
+            {censusLoading && (
+              <div className="mt-2 text-[10px] text-muted-foreground">Loading census data...</div>
+            )}
           </div>
         )}
 
-        {/* Search */}
-        <div className="border-b border-border bg-background/95 p-4">
-          <label className="mb-2 block text-xs font-medium text-foreground">
-            Search incidents
-          </label>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Address, file number, community..."
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
-          />
-        </div>
+        {/* Crime Filters (only show when crime layer is on) */}
+        {showCrimeLayer && (
+          <>
+            {/* Stats */}
+            {!loading && !error && (
+              <div className="border-b border-border bg-background/95 p-4">
+                <h3 className="mb-2 text-sm font-semibold text-foreground">Crime Summary</h3>
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Total incidents:</span>
+                    <span className="font-semibold text-foreground">
+                      {incidents.length.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Showing:</span>
+                    <span className="font-medium">
+                      {filteredIncidents.length.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="pt-1 text-[10px] text-muted-foreground">
+                    Updated biweekly by City of Prince George
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {/* Crime Type Filter */}
-        <div className="border-b border-border bg-background/95 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-foreground">Crime Type</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onSelectAllCategories}
-                className="text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-              >
-                All
-              </button>
-              <button
-                onClick={onClearCategories}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                None
-              </button>
+            {/* Search */}
+            <div className="border-b border-border bg-background/95 p-4">
+              <label className="mb-2 block text-xs font-medium text-foreground">
+                Search incidents
+              </label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Address, file number, community..."
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+              />
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {categoryCounts.map(([category, count]) => {
-              const selected = selectedCategories.includes(category)
-              const color = CRIME_CATEGORY_COLORS[category]
-              return (
-                <button
-                  key={category}
-                  onClick={() => onToggleCategory(category)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors',
-                    selected
-                      ? 'bg-background'
-                      : 'border-input bg-background text-foreground hover:bg-accent'
-                  )}
-                  style={selected ? { borderColor: color } : undefined}
-                >
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span
-                    className="max-w-[110px] truncate"
-                    style={selected ? { color } : undefined}
-                  >
-                    {category}
-                  </span>
-                  <span
-                    className={cn('opacity-80', selected ? '' : 'text-muted-foreground')}
-                    style={selected ? { color } : undefined}
-                  >
-                    {count.toLocaleString()}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
 
-        {/* Year Filter */}
-        <div className="border-b border-border bg-background/95 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-foreground">Year</h2>
-            <button
-              onClick={onSelectAllYears}
-              className="text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-            >
-              All
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {allYears.map((year) => {
-              const selected = selectedYears.includes(year)
-              const count = yearCounts.get(year) ?? 0
-              return (
-                <button
-                  key={year}
-                  onClick={() => onToggleYear(year)}
-                  className={cn(
-                    'rounded-full border px-3 py-1 text-xs transition-colors',
-                    selected
-                      ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
-                      : 'border-input bg-background text-foreground hover:bg-accent'
-                  )}
-                >
-                  {year}
-                  <span className={cn('ml-1.5', selected ? 'opacity-80' : 'text-muted-foreground')}>
-                    {count.toLocaleString()}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+            {/* Crime Type Filter */}
+            <div className="border-b border-border bg-background/95 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-sm font-medium text-foreground">Crime Type</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={onSelectAllCategories}
+                    className="text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={onClearCategories}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    None
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {categoryCounts.map(([category, count]) => {
+                  const selected = selectedCategories.includes(category)
+                  const color = CRIME_CATEGORY_COLORS[category]
+                  return (
+                    <button
+                      key={category}
+                      onClick={() => onToggleCategory(category)}
+                      className={cn(
+                        'flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition-colors',
+                        selected
+                          ? 'bg-background'
+                          : 'border-input bg-background text-foreground hover:bg-accent'
+                      )}
+                      style={selected ? { borderColor: color } : undefined}
+                    >
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span
+                        className="max-w-[110px] truncate"
+                        style={selected ? { color } : undefined}
+                      >
+                        {category}
+                      </span>
+                      <span
+                        className={cn('opacity-80', selected ? '' : 'text-muted-foreground')}
+                        style={selected ? { color } : undefined}
+                      >
+                        {count.toLocaleString()}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
-        {/* Community Filter */}
-        <div className="border-b border-border bg-background/95 p-4">
-          <label className="mb-2 block text-xs font-medium text-foreground">Community</label>
-          <select
-            value={selectedCommunity}
-            onChange={(e) => onCommunityChange(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">All communities</option>
-            {allCommunities.map((community) => (
-              <option key={community} value={community}>
-                {community}
-              </option>
-            ))}
-          </select>
-        </div>
+            {/* Year Filter */}
+            <div className="border-b border-border bg-background/95 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-sm font-medium text-foreground">Year</h2>
+                <button
+                  onClick={onSelectAllYears}
+                  className="text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+                >
+                  All
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {allYears.map((year) => {
+                  const selected = selectedYears.includes(year)
+                  const count = yearCounts.get(year) ?? 0
+                  return (
+                    <button
+                      key={year}
+                      onClick={() => onToggleYear(year)}
+                      className={cn(
+                        'rounded-full border px-3 py-1 text-xs transition-colors',
+                        selected
+                          ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
+                          : 'border-input bg-background text-foreground hover:bg-accent'
+                      )}
+                    >
+                      {year}
+                      <span className={cn('ml-1.5', selected ? 'opacity-80' : 'text-muted-foreground')}>
+                        {count.toLocaleString()}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Community Filter */}
+            <div className="border-b border-border bg-background/95 p-4">
+              <label className="mb-2 block text-xs font-medium text-foreground">Community</label>
+              <select
+                value={selectedCommunity}
+                onChange={(e) => onCommunityChange(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">All communities</option>
+                {allCommunities.map((community) => (
+                  <option key={community} value={community}>
+                    {community}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
 
         {/* Selected Incident */}
         {selectedIncident && (
@@ -320,60 +434,64 @@ export function CrimeSidebar({
         )}
 
         {/* Incident List */}
-        {loading ? (
-          <div className="flex items-center justify-center p-6 text-sm text-muted-foreground">
-            Loading crime data...
-          </div>
-        ) : error ? (
-          <div className="p-4">
-            <div className="text-center text-sm text-red-500">
-              <p className="font-medium">Error loading crime data</p>
-              <p>{error}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="pb-6">
-            <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
-              <span>{filteredIncidents.length.toLocaleString()} incidents</span>
-              {filteredIncidents.length > MAX_VISIBLE_ROWS && (
-                <span>Showing first {MAX_VISIBLE_ROWS}</span>
-              )}
-            </div>
-            <div className="divide-y divide-border">
-              {displayedRows.map((incident) => {
-                const isSelected = selectedIncident?.id === incident.id
-                return (
-                  <button
-                    key={incident.id}
-                    onClick={() => onIncidentClick(incident)}
-                    className={cn(
-                      'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
-                      isSelected && 'bg-sky-50 dark:bg-sky-950/30'
-                    )}
-                  >
-                    <div className="mb-1 flex items-start justify-between gap-2">
-                      <span className="line-clamp-1 text-sm font-medium text-foreground">
-                        {incident.crimeType}
-                      </span>
-                      <span
-                        className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full"
-                        style={{ backgroundColor: getCrimeCategoryColor(incident.crimeType) }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground">{incident.address}</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {formatDate(incident.date)} &middot; {incident.community}
-                    </div>
-                  </button>
-                )
-              })}
-              {displayedRows.length === 0 && (
-                <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                  No incidents match the current filters.
+        {showCrimeLayer && (
+          <>
+            {loading ? (
+              <div className="flex items-center justify-center p-6 text-sm text-muted-foreground">
+                Loading crime data...
+              </div>
+            ) : error ? (
+              <div className="p-4">
+                <div className="text-center text-sm text-red-500">
+                  <p className="font-medium">Error loading crime data</p>
+                  <p>{error}</p>
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            ) : (
+              <div className="pb-6">
+                <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
+                  <span>{filteredIncidents.length.toLocaleString()} incidents</span>
+                  {filteredIncidents.length > MAX_VISIBLE_ROWS && (
+                    <span>Showing first {MAX_VISIBLE_ROWS}</span>
+                  )}
+                </div>
+                <div className="divide-y divide-border">
+                  {displayedRows.map((incident) => {
+                    const isSelected = selectedIncident?.id === incident.id
+                    return (
+                      <button
+                        key={incident.id}
+                        onClick={() => onIncidentClick(incident)}
+                        className={cn(
+                          'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
+                          isSelected && 'bg-sky-50 dark:bg-sky-950/30'
+                        )}
+                      >
+                        <div className="mb-1 flex items-start justify-between gap-2">
+                          <span className="line-clamp-1 text-sm font-medium text-foreground">
+                            {incident.crimeType}
+                          </span>
+                          <span
+                            className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                            style={{ backgroundColor: getCrimeCategoryColor(incident.crimeType) }}
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground">{incident.address}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {formatDate(incident.date)} &middot; {incident.community}
+                        </div>
+                      </button>
+                    )
+                  })}
+                  {displayedRows.length === 0 && (
+                    <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      No incidents match the current filters.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
