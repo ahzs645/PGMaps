@@ -8,7 +8,8 @@ import {
   DENSITY_METRIC_OPTIONS,
   SCORE_METRICS,
   SCORE_METRICS_BY_CATEGORY,
-  SCORE_PRESETS
+  SCORE_PRESETS,
+  SCORE_EXAMPLES
 } from '../constants'
 import type {
   ScoredBoundaryRegion,
@@ -18,7 +19,7 @@ import type {
 } from '../types'
 import { SCORE_DATA_SOURCES, METRIC_CATEGORY_LABELS } from '../types'
 
-type ScoreBuilderSectionId = 'setup' | 'dataSources' | 'equation' | 'density' | 'regions'
+type ScoreBuilderSectionId = 'examples' | 'setup' | 'dataSources' | 'equation' | 'density' | 'regions'
 
 type ExpandedSectionsState = Record<ScoreBuilderSectionId, boolean>
 
@@ -63,12 +64,15 @@ interface ScoreBuilderSidebarProps {
   onToggleComparison: (regionId: string) => void
   onClearComparison: () => void
   onExport: (format: 'csv' | 'geojson') => void
+  activeExampleKey: string | null
+  onApplyExample: (key: string) => void
   isDesktop: boolean
 }
 
 const MAX_VISIBLE_ROWS = 220
-const SECTION_ORDER: ScoreBuilderSectionId[] = ['setup', 'dataSources', 'equation', 'density', 'regions']
+const SECTION_ORDER: ScoreBuilderSectionId[] = ['examples', 'setup', 'dataSources', 'equation', 'density', 'regions']
 const SECTION_LABELS: Record<ScoreBuilderSectionId, string> = {
+  examples: 'Examples',
   setup: 'Setup',
   dataSources: 'Data Sources',
   equation: 'Equation',
@@ -78,9 +82,9 @@ const SECTION_LABELS: Record<ScoreBuilderSectionId, string> = {
 
 function createExpandedSections(isDesktop: boolean): ExpandedSectionsState {
   if (isDesktop) {
-    return { setup: true, dataSources: true, equation: true, density: false, regions: true }
+    return { examples: true, setup: false, dataSources: false, equation: false, density: false, regions: true }
   }
-  return { setup: true, dataSources: false, equation: false, density: false, regions: true }
+  return { examples: true, setup: false, dataSources: false, equation: false, density: false, regions: true }
 }
 
 function getMetricLabel(key: ScoreMetricKey): string {
@@ -159,6 +163,8 @@ export function ScoreBuilderSidebar({
   onToggleComparison,
   onClearComparison,
   onExport,
+  activeExampleKey,
+  onApplyExample,
   isDesktop
 }: ScoreBuilderSidebarProps) {
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
@@ -176,10 +182,10 @@ export function ScoreBuilderSidebar({
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const sectionRefs = useRef<Record<ScoreBuilderSectionId, HTMLElement | null>>({
-    setup: null, dataSources: null, equation: null, density: null, regions: null
+    examples: null, setup: null, dataSources: null, equation: null, density: null, regions: null
   })
   const sectionRatios = useRef<Record<ScoreBuilderSectionId, number>>({
-    setup: 0, dataSources: 0, equation: 0, density: 0, regions: 0
+    examples: 0, setup: 0, dataSources: 0, equation: 0, density: 0, regions: 0
   })
 
   useEffect(() => { setExpandedSections(createExpandedSections(isDesktop)) }, [isDesktop])
@@ -266,7 +272,7 @@ export function ScoreBuilderSidebar({
     <div className={cn('z-10 flex h-full min-h-0 w-[360px] flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">Score Builder</h1>
-        <p className="text-sm text-muted-foreground">Blend multiple data layers with adjustable equations.</p>
+        <p className="text-sm text-muted-foreground">Pick an example below or build your own custom scoring equation.</p>
       </div>
 
       <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
@@ -290,6 +296,66 @@ export function ScoreBuilderSidebar({
             ))}
           </div>
         </div>
+
+        {/* EXAMPLES */}
+        <section ref={(el) => setSectionRef('examples', el)} data-score-builder-section-id="examples" className="border-b border-border">
+          {renderSectionHeader('examples')}
+          {expandedSections.examples && (
+            <div className="space-y-3 px-4 pb-4">
+              <p className="text-xs text-muted-foreground">Pick a scenario to instantly configure boundaries, data sources, and scoring weights.</p>
+
+              {/* Group examples by boundary source */}
+              {[
+                { source: 'census' as const, title: 'Census Boundaries (Prince George)' },
+                { source: 'bcHealth' as const, title: 'Health Authority Boundaries (BC-wide)' }
+              ].map(({ source, title }) => {
+                const group = SCORE_EXAMPLES.filter((e) => e.boundarySource === source)
+                if (!group.length) return null
+                return (
+                  <div key={source}>
+                    <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</div>
+                    <div className="space-y-2">
+                      {group.map((example) => {
+                        const active = activeExampleKey === example.key
+                        const levelLabel = source === 'bcHealth'
+                          ? { healthAuthority: 'HA', hsda: 'HSDA', lha: 'LHA', chsa: 'CHSA' }[example.boundaryLevel] || example.boundaryLevel
+                          : { cd: 'CD', csd: 'CSD', ct: 'CT', da: 'DA' }[example.boundaryLevel] || example.boundaryLevel
+                        return (
+                          <button
+                            key={example.key}
+                            onClick={() => onApplyExample(example.key)}
+                            className={cn(
+                              'w-full rounded-lg border p-3 text-left transition-colors',
+                              active
+                                ? 'border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500/30 dark:bg-cyan-950/40 dark:ring-cyan-400/20'
+                                : 'border-border bg-background hover:border-cyan-300 hover:bg-accent dark:hover:border-cyan-800'
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="text-sm font-semibold text-foreground">{example.label}</div>
+                              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                {levelLabel}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">{example.question}</div>
+                            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">{example.description}</div>
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {example.dataSources.map((ds) => (
+                                <span key={ds} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                  {ds === 'airQuality' ? 'Air' : ds === 'parks' ? 'Parks' : ds === 'restaurants' ? 'Food' : 'Census'}
+                                </span>
+                              ))}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
 
         {/* SETUP */}
         <section ref={(el) => setSectionRef('setup', el)} data-score-builder-section-id="setup" className="border-b border-border">

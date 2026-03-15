@@ -54,6 +54,18 @@ export interface ScorePreset {
   weights: ScoreMetricWeightMap
 }
 
+export interface ScoreExample {
+  key: string
+  label: string
+  question: string
+  description: string
+  boundarySource: BoundarySource
+  boundaryLevel: string
+  dataSources: ScoreDataSource[]
+  networkFilter: 'all' | 'none' | string[]
+  weights: ScoreMetricWeightMap
+}
+
 export interface RegionDataCounts {
   monitorCount: number
   lowCostCount: number

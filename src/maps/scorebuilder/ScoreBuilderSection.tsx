@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
@@ -18,6 +18,7 @@ import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
   SCORE_METRICS,
+  SCORE_EXAMPLES,
   createDefaultWeights,
   createMetricValueMap,
   getScoreColor,
@@ -151,6 +152,11 @@ export default function ScoreBuilderSection() {
     }
   )
   const [comparisonIds, setComparisonIds] = useState<string[]>([])
+  const [activeExampleKey, setActiveExampleKey] = useState<string | null>(() => {
+    // If no URL params, auto-load first example
+    if (!searchParams.get('w')) return SCORE_EXAMPLES[0]?.key || null
+    return null
+  })
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
   // URL persistence
@@ -493,12 +499,50 @@ export default function ScoreBuilderSection() {
   }, [weights])
 
   const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
+    setActiveExampleKey(null)
     setWeights((current) => ({ ...current, [metric]: value }))
   }, [])
+
+  const applyExample = useCallback((exampleKey: string) => {
+    const example = SCORE_EXAMPLES.find((e) => e.key === exampleKey)
+    if (!example) return
+    setActiveExampleKey(exampleKey)
+    setBoundarySource(example.boundarySource)
+    if (example.boundarySource === 'bcHealth') {
+      setHealthBoundaryLevel(example.boundaryLevel as BoundaryLevel)
+    } else {
+      setCensusBoundaryLevel(example.boundaryLevel as CensusBoundaryLevel)
+    }
+    setEnabledDataSources([...example.dataSources])
+    setWeights({ ...example.weights })
+    if (example.networkFilter === 'all') {
+      // Will be applied once allNetworks is available
+      setSelectedNetworks(allNetworks.length > 0 ? allNetworks : [])
+    } else if (example.networkFilter === 'none') {
+      setSelectedNetworks([])
+    } else {
+      setSelectedNetworks([...example.networkFilter])
+    }
+    setSelectedRegionId(null)
+    setComparisonIds([])
+    setSearchQuery('')
+  }, [allNetworks])
+
+  // Auto-apply first example on mount (once networks are loaded)
+  const appliedInitialExample = useRef(false)
+  useEffect(() => {
+    if (appliedInitialExample.current) return
+    if (!activeExampleKey || allNetworks.length === 0) return
+    // Only auto-apply if no URL weights were provided
+    if (searchParams.get('w')) { appliedInitialExample.current = true; return }
+    appliedInitialExample.current = true
+    applyExample(activeExampleKey)
+  }, [activeExampleKey, allNetworks, applyExample, searchParams])
 
   const handleApplyPreset = useCallback((presetKey: string) => {
     const preset = SCORE_PRESETS.find((entry) => entry.key === presetKey)
     if (!preset) return
+    setActiveExampleKey(null)
     setWeights({ ...preset.weights })
     // Auto-enable data sources used by preset
     const needed = new Set<ScoreDataSource>()
@@ -642,6 +686,8 @@ export default function ScoreBuilderSection() {
             onToggleComparison={toggleComparison}
             onClearComparison={clearComparison}
             onExport={handleExport}
+            activeExampleKey={activeExampleKey}
+            onApplyExample={applyExample}
             isDesktop={isDesktop}
           />
         )}
