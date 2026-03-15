@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Map as PgMap,
   MapClusterLayer,
@@ -9,11 +9,13 @@ import {
 } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { cn } from '@/lib/utils'
 import type {
   ExplorerItem,
   ExplorerLineCollection,
   ExplorerPointCollection,
-  ExplorerPolygonCollection
+  ExplorerPolygonCollection,
+  SpatialFilter
 } from '../types'
 
 interface ExplorerMapProps {
@@ -22,6 +24,8 @@ interface ExplorerMapProps {
   polygonCollections: ExplorerPolygonCollection[]
   selectedItem: ExplorerItem | null
   onItemSelect: (itemId: string) => void
+  spatialFilter: SpatialFilter | null
+  onSpatialFilterChange: (filter: SpatialFilter | null) => void
 }
 
 const ZOOM = 12
@@ -31,9 +35,15 @@ export function ExplorerMap({
   lineCollections,
   polygonCollections,
   selectedItem,
-  onItemSelect
+  onItemSelect,
+  spatialFilter,
+  onSpatialFilterChange
 }: ExplorerMapProps) {
   const mapRef = useRef<MapRef>(null)
+  const [drawMode, setDrawMode] = useState(false)
+  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null)
+  const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
 
   const selectedItemId = selectedItem?.id || null
   const selectedPointCoordinates = useMemo<[number, number] | null>(() => {
@@ -43,7 +53,6 @@ export function ExplorerMap({
 
   useEffect(() => {
     if (!selectedItem || !mapRef.current) return
-
     mapRef.current.fitBounds(
       [
         [selectedItem.bounds.minLng, selectedItem.bounds.minLat],
@@ -53,14 +62,59 @@ export function ExplorerMap({
     )
   }, [selectedItem])
 
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!drawMode) return
+    e.preventDefault()
+    const rect = overlayRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setDrawStart({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+    setDrawCurrent({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+  }, [drawMode])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!drawMode || !drawStart) return
+    e.preventDefault()
+    const rect = overlayRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setDrawCurrent({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+  }, [drawMode, drawStart])
+
+  const handleMouseUp = useCallback(() => {
+    if (!drawMode || !drawStart || !drawCurrent || !mapRef.current) {
+      setDrawStart(null)
+      setDrawCurrent(null)
+      return
+    }
+
+    const map = mapRef.current
+    const sw = map.unproject([Math.min(drawStart.x, drawCurrent.x), Math.max(drawStart.y, drawCurrent.y)])
+    const ne = map.unproject([Math.max(drawStart.x, drawCurrent.x), Math.min(drawStart.y, drawCurrent.y)])
+
+    if (sw && ne && Math.abs(drawStart.x - drawCurrent.x) > 10 && Math.abs(drawStart.y - drawCurrent.y) > 10) {
+      onSpatialFilterChange({
+        minLng: sw.lng, minLat: sw.lat,
+        maxLng: ne.lng, maxLat: ne.lat
+      })
+    }
+
+    setDrawStart(null)
+    setDrawCurrent(null)
+    setDrawMode(false)
+  }, [drawMode, drawStart, drawCurrent, onSpatialFilterChange])
+
+  const drawRect = useMemo(() => {
+    if (!drawStart || !drawCurrent) return null
+    return {
+      left: Math.min(drawStart.x, drawCurrent.x),
+      top: Math.min(drawStart.y, drawCurrent.y),
+      width: Math.abs(drawCurrent.x - drawStart.x),
+      height: Math.abs(drawCurrent.y - drawStart.y)
+    }
+  }, [drawStart, drawCurrent])
+
   return (
-    <div className="h-full w-full">
-      <PgMap
-        ref={mapRef}
-        center={PG_CENTER}
-        zoom={ZOOM}
-        styles={MAP_STYLES}
-      >
+    <div className="h-full w-full relative">
+      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES}>
         <MapControls position="top-right" showZoom showCompass />
 
         {polygonCollections.map((collection) => (
@@ -105,9 +159,7 @@ export function ExplorerMap({
               pointColor={collection.color}
               onPointClick={(feature) => {
                 const itemId = feature.properties?.itemId
-                if (typeof itemId === 'string' && itemId) {
-                  onItemSelect(itemId)
-                }
+                if (typeof itemId === 'string' && itemId) onItemSelect(itemId)
               }}
             />
           ))}
@@ -120,6 +172,61 @@ export function ExplorerMap({
           </MapMarker>
         )}
       </PgMap>
+
+      {/* Draw overlay for spatial filtering */}
+      {drawMode && (
+        <div
+          ref={overlayRef}
+          className="absolute inset-0 z-20 cursor-crosshair"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          {drawRect && (
+            <div
+              className="absolute border-2 border-cyan-500 bg-cyan-500/15"
+              style={{
+                left: drawRect.left,
+                top: drawRect.top,
+                width: drawRect.width,
+                height: drawRect.height
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Spatial filter controls */}
+      <div className="absolute top-4 left-4 z-10 flex gap-2">
+        <button
+          onClick={() => {
+            if (drawMode) {
+              setDrawMode(false)
+              setDrawStart(null)
+              setDrawCurrent(null)
+            } else {
+              setDrawMode(true)
+            }
+          }}
+          className={cn(
+            'rounded-lg border px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors',
+            drawMode
+              ? 'border-cyan-500 bg-cyan-500 text-white'
+              : 'border-border bg-background/95 text-foreground hover:bg-accent'
+          )}
+        >
+          {drawMode ? 'Drawing...' : 'Draw Area'}
+        </button>
+        {spatialFilter && (
+          <button
+            onClick={() => onSpatialFilterChange(null)}
+            className="rounded-lg border border-border bg-background/95 px-3 py-2 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur hover:text-foreground"
+          >
+            Clear Filter
+          </button>
+        )}
+      </div>
     </div>
   )
 }

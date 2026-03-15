@@ -7,6 +7,8 @@ export type ExplorerDatasetId =
   | 'trails'
   | 'parks'
   | 'censusDa'
+  | 'censusCt'
+  | 'censusCsd'
 
 export interface GeometryBounds {
   minLng: number
@@ -20,6 +22,11 @@ export interface ExplorerDetailRow {
   value: string
 }
 
+export interface RelevanceBreakdown {
+  label: string
+  points: number
+}
+
 export interface ExplorerItem {
   id: string
   datasetId: ExplorerDatasetId
@@ -27,10 +34,12 @@ export interface ExplorerItem {
   name: string
   subtitle: string
   relevance: number
+  relevanceBreakdown: RelevanceBreakdown[]
   summary: string
   bounds: GeometryBounds
   geometry: GeoJSON.Geometry
   details: ExplorerDetailRow[]
+  timestamp?: number
 }
 
 export interface ExplorerDatasetDefinition {
@@ -76,4 +85,11 @@ export interface ExplorerPolygonCollection {
   color: string
   data: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ExplorerFeatureProperties>
   visible: boolean
+}
+
+export interface SpatialFilter {
+  minLng: number
+  minLat: number
+  maxLng: number
+  maxLat: number
 }

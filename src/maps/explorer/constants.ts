@@ -48,6 +48,22 @@ export const EXPLORER_DATASETS: ExplorerDatasetDefinition[] = [
     color: '#b45309',
     description: 'Dissemination area boundaries with population attributes.',
     source: 'Statistics Canada 2021'
+  },
+  {
+    id: 'censusCt',
+    label: 'Census Tracts',
+    geometryType: 'polygon',
+    color: '#7c3aed',
+    description: 'Census tract boundaries with aggregated population data.',
+    source: 'Statistics Canada 2021'
+  },
+  {
+    id: 'censusCsd',
+    label: 'Census Subdivisions',
+    geometryType: 'polygon',
+    color: '#0d9488',
+    description: 'Census subdivision (municipal) boundaries with population data.',
+    source: 'Statistics Canada 2021'
   }
 ]
 
@@ -58,7 +74,7 @@ export const GEOMETRY_TYPE_LABEL: Record<ExplorerGeometryType, string> = {
 }
 
 export const RELEVANCE_DESCRIPTION =
-  'Relevance ranks features using available attributes such as activity, density, coverage, and data richness.'
+  'Relevance ranks features using available attributes such as activity, density, coverage, and data richness. Hover the score to see a breakdown.'
 
 export const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
 

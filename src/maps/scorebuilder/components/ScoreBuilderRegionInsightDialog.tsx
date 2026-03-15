@@ -13,6 +13,7 @@ import type {
   ScoreMetricKey,
   ScoreMetricWeightMap
 } from '../types'
+import { METRIC_CATEGORY_LABELS } from '../types'
 
 interface ScoreBuilderRegionInsightDialogProps {
   open: boolean
@@ -28,28 +29,20 @@ function getMetricLabel(key: ScoreMetricKey): string {
   return SCORE_METRICS.find((metric) => metric.key === key)?.label || key
 }
 
-function getMetricFormat(key: ScoreMetricKey): 'density' | 'count' | 'ratio' {
+function getMetricFormat(key: ScoreMetricKey): string {
   return SCORE_METRICS.find((metric) => metric.key === key)?.format || 'count'
 }
 
 function formatMetricValue(metric: ScoreMetricKey, value: number, compact = false): string {
   const format = getMetricFormat(metric)
-
   if (format === 'density') {
     const scaled = value * 1_000
     return compact
       ? scaled.toFixed(2)
       : `${scaled.toLocaleString(undefined, { maximumFractionDigits: 2 })} / 1,000 km²`
   }
-
-  if (format === 'ratio') {
-    return `${(value * 100).toFixed(1)}%`
-  }
-
-  if (Number.isInteger(value)) {
-    return value.toLocaleString()
-  }
-
+  if (format === 'ratio' || format === 'percent') return `${(value * 100).toFixed(1)}%`
+  if (Number.isInteger(value)) return value.toLocaleString()
   return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
 
@@ -66,23 +59,18 @@ export function ScoreBuilderRegionInsightDialog({
 }: ScoreBuilderRegionInsightDialogProps) {
   const contributionRows = useMemo(() => {
     if (!region) return []
-
     return SCORE_METRICS
       .filter((metric) => Math.abs(weights[metric.key]) > 0)
-      .map((metric) => {
-        const contributionRaw = region.contributions[metric.key]
-        const scoreDelta = contributionRaw * 50
-
-        return {
-          key: metric.key,
-          label: metric.shortLabel,
-          fullLabel: metric.label,
-          metricValue: region.metrics[metric.key],
-          normalizedValue: region.normalizedMetrics[metric.key],
-          weight: weights[metric.key],
-          scoreDelta
-        }
-      })
+      .map((metric) => ({
+        key: metric.key,
+        label: metric.shortLabel,
+        fullLabel: metric.label,
+        category: metric.category,
+        metricValue: region.metrics[metric.key],
+        normalizedValue: region.normalizedMetrics[metric.key],
+        weight: weights[metric.key],
+        scoreDelta: region.contributions[metric.key] * 50
+      }))
       .sort((a, b) => Math.abs(b.scoreDelta) - Math.abs(a.scoreDelta))
   }, [region, weights])
 
@@ -90,6 +78,17 @@ export function ScoreBuilderRegionInsightDialog({
     if (!isMobile) return contributionRows
     return contributionRows.slice(0, MOBILE_MAX_CONTRIBUTIONS)
   }, [contributionRows, isMobile])
+
+  // Group visible rows by category
+  const groupedRows = useMemo(() => {
+    const groups: Record<string, typeof visibleContributionRows> = {}
+    visibleContributionRows.forEach((row) => {
+      const cat = row.category
+      if (!groups[cat]) groups[cat] = []
+      groups[cat].push(row)
+    })
+    return groups
+  }, [visibleContributionRows])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -112,6 +111,7 @@ export function ScoreBuilderRegionInsightDialog({
           </div>
         ) : (
           <div className="space-y-4 overflow-y-auto px-6 pb-6">
+            {/* Stats grid */}
             <div className="grid grid-cols-2 gap-2 pt-2 text-xs sm:grid-cols-4">
               <div className="rounded-md border border-border bg-muted/30 p-2">
                 <div className="text-[10px] uppercase text-muted-foreground">Rank</div>
@@ -131,16 +131,22 @@ export function ScoreBuilderRegionInsightDialog({
               </div>
             </div>
 
+            {/* Coverage snapshot */}
             <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs">
               <div className="mb-2 text-sm font-semibold text-foreground">Coverage Snapshot</div>
               <div className="grid grid-cols-2 gap-2 text-muted-foreground sm:grid-cols-4">
                 <div>Low-cost: <span className="font-medium text-foreground">{region.counts.lowCostCount.toLocaleString()}</span></div>
                 <div>Reference: <span className="font-medium text-foreground">{region.counts.referenceCount.toLocaleString()}</span></div>
                 <div>Active: <span className="font-medium text-foreground">{region.counts.activeCount.toLocaleString()}</span></div>
-                <div>Network types: <span className="font-medium text-foreground">{formatMetricValue('networkVariety', region.metrics.networkVariety, true)}</span></div>
+                <div>Networks: <span className="font-medium text-foreground">{formatMetricValue('networkVariety', region.metrics.networkVariety, true)}</span></div>
+                <div>Parks: <span className="font-medium text-foreground">{region.counts.parkCount.toLocaleString()}</span></div>
+                <div>Trails: <span className="font-medium text-foreground">{region.counts.trailCount.toLocaleString()}</span></div>
+                <div>Restaurants: <span className="font-medium text-foreground">{region.counts.restaurantCount.toLocaleString()}</span></div>
+                <div>Population: <span className="font-medium text-foreground">{region.counts.populationSum.toLocaleString()}</span></div>
               </div>
             </div>
 
+            {/* Metric contributions grouped by category */}
             <div className="rounded-lg border border-border bg-background p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-foreground">Metric Contributions</h3>
@@ -150,44 +156,42 @@ export function ScoreBuilderRegionInsightDialog({
               </div>
 
               {isMobile && contributionRows.length > MOBILE_MAX_CONTRIBUTIONS && (
-                <div
-                  className="mb-2 rounded border border-cyan-200/60 bg-cyan-50 px-2 py-1 text-[11px] text-cyan-800 dark:border-cyan-900/70 dark:bg-cyan-950/30 dark:text-cyan-200"
-                  data-score-builder-mobile-insight="true"
-                >
+                <div className="mb-2 rounded border border-cyan-200/60 bg-cyan-50 px-2 py-1 text-[11px] text-cyan-800 dark:border-cyan-900/70 dark:bg-cyan-950/30 dark:text-cyan-200">
                   Compact mobile view showing top {MOBILE_MAX_CONTRIBUTIONS} drivers.
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                {visibleContributionRows.map((row) => {
-                  const positive = row.scoreDelta >= 0
-
-                  return (
-                    <div key={row.key} className="rounded border border-border bg-muted/15 px-2 py-1.5 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-foreground">{row.label}</span>
-                        <span
-                          className={cn(
-                            'font-semibold',
-                            positive ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'
-                          )}
-                        >
-                          {positive ? '+' : ''}{row.scoreDelta.toFixed(2)} pts
-                        </span>
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                        <span>weight {row.weight}</span>
-                        <span>norm {(row.normalizedValue * 100).toFixed(1)}%</span>
-                        <span>{formatMetricValue(row.key, row.metricValue, true)}</span>
-                      </div>
-                      {!isMobile && (
-                        <div className="mt-0.5 text-[10px] text-muted-foreground">
-                          {getMetricLabel(row.key)}
-                        </div>
-                      )}
+              <div className="space-y-3">
+                {Object.entries(groupedRows).map(([category, rows]) => (
+                  <div key={category}>
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
                     </div>
-                  )
-                })}
+                    <div className="space-y-1.5">
+                      {rows.map((row) => {
+                        const positive = row.scoreDelta >= 0
+                        return (
+                          <div key={row.key} className="rounded border border-border bg-muted/15 px-2 py-1.5 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-foreground">{row.label}</span>
+                              <span className={cn('font-semibold', positive ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300')}>
+                                {positive ? '+' : ''}{row.scoreDelta.toFixed(2)} pts
+                              </span>
+                            </div>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                              <span>weight {row.weight}</span>
+                              <span>norm {(row.normalizedValue * 100).toFixed(1)}%</span>
+                              <span>{formatMetricValue(row.key, row.metricValue, true)}</span>
+                            </div>
+                            {!isMobile && (
+                              <div className="mt-0.5 text-[10px] text-muted-foreground">{getMetricLabel(row.key)}</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
 
                 {visibleContributionRows.length === 0 && (
                   <div className="rounded border border-border bg-muted/20 px-2 py-2 text-xs text-muted-foreground">
