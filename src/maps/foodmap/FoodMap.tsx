@@ -34,7 +34,7 @@ export default function FoodMap() {
 
   // Filter state
   const [selectedHazardRatings, setSelectedHazardRatings] = useState<HazardRating[]>(['Low', 'Moderate', 'Unknown'])
-  const [selectedFacilityTypes, setSelectedFacilityTypes] = useState<string[]>(['Restaurant', 'Institutional Kitchen', 'Store', 'Unknown', 'Other'])
+  const [selectedFacilityTypes, setSelectedFacilityTypes] = useState<string[]>(['Restaurant', 'Food Truck', 'Camp', 'Catering', 'Concession', 'Stand', 'Institutional Kitchen', 'Store', 'Unknown', 'Other'])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRestaurant, setSelectedRestaurant] = useState<RestaurantWithStats | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
@@ -165,7 +165,7 @@ export default function FoodMap() {
         : (r.current_hazard_rating || r.hazard_rating || 'Unknown') as HazardRating
 
       const matchesHazard = selectedHazardRatings.includes(ratingToCheck)
-      const matchesFacility = selectedFacilityTypes.includes(r.facility_type || 'Unknown')
+      const matchesFacility = selectedFacilityTypes.includes(r.establishment_type || r.facility_type || 'Unknown')
       const matchesSearch = !searchQuery ||
         r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.address.toLowerCase().includes(searchQuery.toLowerCase())

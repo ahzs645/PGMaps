@@ -125,7 +125,7 @@ export function RestaurantCard({
 
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs text-slate-400 dark:text-slate-500">
-              {restaurant.facility_type || 'Restaurant'}
+              {restaurant.establishment_type || restaurant.facility_type || 'Restaurant'}
             </span>
             <span className="text-xs text-slate-400 dark:text-slate-500">
               {violationStats.inspectionCount} insp.

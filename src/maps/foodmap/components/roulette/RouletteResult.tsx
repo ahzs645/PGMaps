@@ -53,7 +53,7 @@ export function RouletteResult({ winner, onSpinAgain, onViewOnMap }: RouletteRes
               {rating} Hazard
             </span>
             <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-              {winner.facility_type || 'Restaurant'}
+              {winner.establishment_type || winner.facility_type || 'Restaurant'}
             </span>
           </div>
 

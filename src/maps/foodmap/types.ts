@@ -47,6 +47,7 @@ export interface Inspection {
 
 export type HazardRating = 'Low' | 'Moderate' | 'Unknown'
 export type FacilityType = 'Restaurant' | 'Institutional Kitchen' | 'Store' | 'Unknown' | 'Other'
+export type EstablishmentType = 'Restaurant' | 'Food Truck' | 'Camp' | 'Catering' | 'Concession' | 'Stand' | 'Institutional Kitchen' | 'Store' | 'Other' | 'Unknown'
 export type VisualizationMode = 'violations' | 'hazard'
 
 export interface Restaurant {
@@ -56,6 +57,7 @@ export interface Restaurant {
   latitude: number | null
   longitude: number | null
   facility_type: FacilityType
+  establishment_type: EstablishmentType
   hazard_rating: HazardRating
   current_hazard_rating?: HazardRating
   details_url: string

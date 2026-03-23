@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import type { Restaurant, RestaurantStats, HazardRating } from '../types'
+import type { Restaurant, RestaurantStats, HazardRating, EstablishmentType } from '../types'
 
 export function useRestaurantData() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
@@ -11,12 +11,23 @@ export function useRestaurantData() {
     setError(null)
 
     try {
-      const response = await fetch(`${import.meta.env.BASE_URL}data/restaurants.json`)
+      const [response, clsResponse] = await Promise.all([
+        fetch(`${import.meta.env.BASE_URL}data/restaurants.json`),
+        fetch(`${import.meta.env.BASE_URL}data/restaurant-classifications.json`)
+      ])
       if (!response.ok) {
         throw new Error(`Failed to load data: ${response.status}`)
       }
       const data = await response.json()
-      setRestaurants(data)
+      const classifications: Record<string, EstablishmentType> = clsResponse.ok
+        ? await clsResponse.json()
+        : {}
+
+      const merged = data.map((r: Restaurant) => ({
+        ...r,
+        establishment_type: classifications[r.name] || r.facility_type || 'Restaurant'
+      }))
+      setRestaurants(merged)
     } catch (err) {
       console.error('Error loading restaurant data:', err)
       setError((err as Error).message)
@@ -40,7 +51,7 @@ export function useRestaurantData() {
     }, {} as Record<HazardRating, number>)
 
     const byFacilityType = restaurants.reduce((acc, r) => {
-      const type = r.facility_type || 'Unknown'
+      const type = r.establishment_type || r.facility_type || 'Unknown'
       acc[type] = (acc[type] || 0) + 1
       return acc
     }, {} as Record<string, number>)
