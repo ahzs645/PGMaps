@@ -47,7 +47,11 @@ export interface Inspection {
 
 export type HazardRating = 'Low' | 'Moderate' | 'Unknown'
 export type FacilityType = 'Restaurant' | 'Institutional Kitchen' | 'Store' | 'Unknown' | 'Other'
-export type EstablishmentType = 'Restaurant' | 'Food Truck' | 'Camp' | 'Catering' | 'Concession' | 'Stand' | 'Institutional Kitchen' | 'Store' | 'Other' | 'Unknown'
+export type EstablishmentType =
+  | 'Restaurant' | 'Food Truck' | 'Camp' | 'Catering' | 'Concession' | 'Stand'
+  | 'Bakery' | 'Coffee Shop' | 'Bar/Pub' | 'Brewery/Winery' | 'Deli'
+  | 'Community Kitchen' | 'Social Services' | 'Gas Station' | 'Hotel'
+  | 'Recreation' | 'Farm' | 'Institutional Kitchen' | 'Store' | 'Other' | 'Unknown'
 export type VisualizationMode = 'violations' | 'hazard'
 
 export interface Restaurant {

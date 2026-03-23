@@ -34,7 +34,12 @@ export default function FoodMap() {
 
   // Filter state
   const [selectedHazardRatings, setSelectedHazardRatings] = useState<HazardRating[]>(['Low', 'Moderate', 'Unknown'])
-  const [selectedFacilityTypes, setSelectedFacilityTypes] = useState<string[]>(['Restaurant', 'Food Truck', 'Camp', 'Catering', 'Concession', 'Stand', 'Institutional Kitchen', 'Store', 'Unknown', 'Other'])
+  const [selectedFacilityTypes, setSelectedFacilityTypes] = useState<string[]>([
+    'Restaurant', 'Food Truck', 'Camp', 'Catering', 'Concession', 'Stand',
+    'Bakery', 'Coffee Shop', 'Bar/Pub', 'Brewery/Winery', 'Deli',
+    'Community Kitchen', 'Social Services', 'Gas Station', 'Hotel',
+    'Recreation', 'Farm', 'Institutional Kitchen', 'Store', 'Other', 'Unknown'
+  ])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRestaurant, setSelectedRestaurant] = useState<RestaurantWithStats | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
