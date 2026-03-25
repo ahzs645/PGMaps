@@ -113,7 +113,7 @@ export function ParksSidebar({
   }, [filteredTrails])
 
   return (
-    <div className={cn('z-10 flex h-full w-[350px] flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
+    <div className={cn('z-10 flex h-full w-full flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       {/* Header */}
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">Parks & Trails</h1>

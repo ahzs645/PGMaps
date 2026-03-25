@@ -14,9 +14,9 @@ interface MapSectionLayoutProps {
 }
 
 const MOBILE_SHEET_TRANSFORM: Record<MobileSheetState, string> = {
-  collapsed: 'translate-y-[calc(100%-8rem)]',
-  half: 'translate-y-[calc(100%-58dvh)]',
-  full: 'translate-y-0',
+  collapsed: 'translate-y-[calc(100%-12rem)]',
+  half: 'translate-y-[calc(100%-58vh)]',
+  full: 'translate-y-4',
 }
 
 export function MapSectionLayout({

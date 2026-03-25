@@ -126,7 +126,7 @@ export function CrimeSidebar({
   return (
     <div
       className={cn(
-        'relative z-10 flex h-full min-h-0 w-[350px] flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur',
+        'relative z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur',
         className
       )}
     >
