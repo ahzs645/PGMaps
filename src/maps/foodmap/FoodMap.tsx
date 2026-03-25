@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { cn } from '@/lib/utils'
 import { RestaurantMap } from './components/RestaurantMap'
 import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
@@ -273,18 +274,20 @@ export default function FoodMap() {
 
         {/* Timeline */}
         {showTimeline && (
-          <div className="absolute bottom-36 left-1/2 z-10 -translate-x-1/2 md:bottom-6">
-            <Timeline
-              startDate={inspectionDateRange.start}
-              endDate={inspectionDateRange.end}
-              currentDate={hazardTimelineDate}
-              onDateChange={setHazardTimelineDate}
-            />
-          </div>
+          <Timeline
+            startDate={inspectionDateRange.start}
+            endDate={inspectionDateRange.end}
+            currentDate={hazardTimelineDate}
+            onDateChange={setHazardTimelineDate}
+            onClose={() => setShowTimeline(false)}
+          />
         )}
 
         {/* Map Legend */}
-        <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+        <div className={cn(
+          'absolute right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:right-6',
+          showTimeline ? 'bottom-40 md:bottom-28' : 'bottom-36 md:bottom-6'
+        )}>
           <h4 className="mb-2 text-xs font-semibold text-foreground">
             {visualizationMode === 'violations'
               ? `Violations (${timelineMonths === 0 ? 'All Time' : `Past ${timelineMonths}mo`})`

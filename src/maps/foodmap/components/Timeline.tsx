@@ -1,80 +1,76 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pause, Play, SkipBack } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface TimelineProps {
   startDate: Date
   endDate: Date
   currentDate: Date
   onDateChange: (date: Date) => void
+  onClose?: () => void
 }
 
-const speedOptions = [
-  { value: '2000', label: '0.5x' },
-  { value: '1000', label: '1x' },
-  { value: '500', label: '2x' },
-  { value: '250', label: '4x' }
+const SPEED_OPTIONS = [
+  { value: 2000, label: '0.5x' },
+  { value: 1000, label: '1x' },
+  { value: 500, label: '2x' },
+  { value: 250, label: '4x' },
 ]
 
 function snapToMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
-export function Timeline({ startDate, endDate, currentDate, onDateChange }: TimelineProps) {
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [playSpeed, setPlaySpeed] = useState('1000')
-  const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+function buildMonthBuckets(startDate: Date, endDate: Date) {
+  const buckets: { key: string; label: string; shortLabel: string; start: Date; end: Date }[] = []
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-  const progress = useMemo(() => {
-    const total = endDate.getTime() - startDate.getTime()
-    const current = currentDate.getTime() - startDate.getTime()
-    return Math.max(0, Math.min(100, (current / total) * 100))
-  }, [startDate, endDate, currentDate])
+  const startYear = startDate.getFullYear()
+  const startMonth = startDate.getMonth()
+  const endYear = endDate.getFullYear()
+  const endMonth = endDate.getMonth()
+
+  for (let y = startYear; y <= endYear; y++) {
+    const mStart = y === startYear ? startMonth : 0
+    const mEnd = y === endYear ? endMonth : 11
+    for (let m = mStart; m <= mEnd; m++) {
+      const key = `${y}-${String(m).padStart(2, '0')}`
+      const start = new Date(y, m, 1)
+      const end = new Date(y, m + 1, 0, 23, 59, 59, 999)
+      buckets.push({
+        key,
+        label: `${monthNames[m]} ${y}`,
+        shortLabel: m === 0 ? `${y}` : monthNames[m],
+        start,
+        end,
+      })
+    }
+  }
+
+  return buckets
+}
+
+export function Timeline({ startDate, endDate, currentDate, onDateChange, onClose }: TimelineProps) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [speed, setSpeed] = useState(1000)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const buckets = useMemo(() => buildMonthBuckets(startDate, endDate), [startDate, endDate])
+
+  const currentIndex = useMemo(() => {
+    const currentKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth()).padStart(2, '0')}`
+    const idx = buckets.findIndex((b) => b.key === currentKey)
+    return idx >= 0 ? idx : 0
+  }, [buckets, currentDate])
+
+  const maxPosition = Math.max(0, buckets.length - 1)
 
   const formattedDate = useMemo(() => {
     return currentDate.toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long'
+      month: 'long',
     })
   }, [currentDate])
-
-  const formattedStartDate = useMemo(() => {
-    return startDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short'
-    })
-  }, [startDate])
-
-  const formattedEndDate = useMemo(() => {
-    return endDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short'
-    })
-  }, [endDate])
-
-  const yearMarkers = useMemo(() => {
-    const markers: { year: number; position: number }[] = []
-    const startYear = startDate.getFullYear()
-    const endYear = endDate.getFullYear()
-    const totalTime = endDate.getTime() - startDate.getTime()
-
-    for (let year = startYear; year <= endYear; year++) {
-      const yearStart = new Date(year, 0, 1)
-      if (yearStart >= startDate && yearStart <= endDate) {
-        const position = ((yearStart.getTime() - startDate.getTime()) / totalTime) * 100
-        markers.push({ year, position })
-      }
-    }
-    return markers
-  }, [startDate, endDate])
 
   const stepForward = useCallback(() => {
     const newDate = new Date(currentDate)
@@ -96,124 +92,155 @@ export function Timeline({ startDate, endDate, currentDate, onDateChange }: Time
     }
   }, [currentDate, startDate, onDateChange])
 
-  const handleSliderChange = useCallback((value: number[]) => {
-    const progressValue = value[0]
-    const total = endDate.getTime() - startDate.getTime()
-    const newTime = startDate.getTime() + (total * progressValue / 100)
-    onDateChange(snapToMonth(new Date(newTime)))
-  }, [startDate, endDate, onDateChange])
+  const reset = useCallback(() => {
+    onDateChange(snapToMonth(startDate))
+    setIsPlaying(false)
+  }, [startDate, onDateChange])
 
-  const togglePlay = useCallback(() => {
-    setIsPlaying(prev => !prev)
-  }, [])
-
-  // Handle play/pause and speed changes
-  useEffect(() => {
-    if (isPlaying) {
-      playIntervalRef.current = setInterval(stepForward, parseInt(playSpeed))
-    } else {
-      if (playIntervalRef.current) {
-        clearInterval(playIntervalRef.current)
-        playIntervalRef.current = null
+  const handleSliderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const idx = parseInt(e.target.value, 10)
+      if (buckets[idx]) {
+        onDateChange(buckets[idx].start)
       }
+      setIsPlaying(false)
+    },
+    [buckets, onDateChange]
+  )
+
+  // Auto-play
+  useEffect(() => {
+    if (!isPlaying) {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      return
     }
+
+    intervalRef.current = setInterval(stepForward, speed)
 
     return () => {
-      if (playIntervalRef.current) {
-        clearInterval(playIntervalRef.current)
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [isPlaying, playSpeed, stepForward])
+  }, [isPlaying, speed, stepForward])
+
+  if (buckets.length === 0) return null
 
   return (
-    <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg p-4 min-w-[320px]">
-      {/* Current Date Display */}
-      <div className="text-center mb-3">
-        <span className="text-lg font-bold text-gray-900 dark:text-white">{formattedDate}</span>
-      </div>
+    <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-border bg-background/95 backdrop-blur">
+      <div className="px-4 py-3">
+        {/* Top row: label + controls */}
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="text-sm font-semibold text-foreground">{formattedDate}</div>
 
-      {/* Controls Row */}
-      <div className="flex items-center justify-center gap-2 mb-3">
-        {/* Step Backward */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={stepBackward}
-          title="Previous month"
-          className="h-8 w-8"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+          <div className="flex items-center gap-2">
+            {/* Speed */}
+            <div className="hidden items-center gap-1 rounded-md border border-input p-0.5 sm:flex">
+              {SPEED_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSpeed(opt.value)}
+                  className={cn(
+                    'rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors',
+                    speed === opt.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
 
-        {/* Play/Pause */}
-        <Button
-          size="icon"
-          onClick={togglePlay}
-          title={isPlaying ? 'Pause' : 'Play'}
-          className="h-8 w-8 bg-blue-500 hover:bg-blue-600"
-        >
-          {isPlaying ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            <Play className="h-4 w-4" />
-          )}
-        </Button>
-
-        {/* Step Forward */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={stepForward}
-          title="Next month"
-          className="h-8 w-8"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-
-        {/* Speed Control */}
-        <Select value={playSpeed} onValueChange={setPlaySpeed}>
-          <SelectTrigger className="w-16 h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {speedOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Slider */}
-      <div className="relative mb-2">
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
-          <span>{formattedStartDate}</span>
-          <span>{formattedEndDate}</span>
+            {/* Close */}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="rounded border border-input px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                Close
+              </button>
+            )}
+          </div>
         </div>
 
-        <Slider
-          value={[progress]}
-          onValueChange={handleSliderChange}
-          max={100}
-          step={0.1}
-          className="mb-2"
-        />
+        {/* Year tick marks */}
+        <div className="mb-1 flex h-4 items-end">
+          {buckets.map((bucket, i) => {
+            const isCurrentMonth = i === currentIndex
+            const isJanuary = bucket.start.getMonth() === 0
+            return (
+              <div
+                key={bucket.key}
+                className="flex flex-1 cursor-pointer flex-col items-center"
+                onClick={() => {
+                  onDateChange(bucket.start)
+                  setIsPlaying(false)
+                }}
+              >
+                {isJanuary && (
+                  <span className="text-[9px] text-muted-foreground">{bucket.start.getFullYear()}</span>
+                )}
+                <div
+                  className={cn(
+                    'w-full transition-colors',
+                    isCurrentMonth ? 'h-3 bg-primary' : isJanuary ? 'h-2 bg-muted-foreground/30' : 'h-1 bg-muted-foreground/15'
+                  )}
+                  style={{ borderRadius: '1px 1px 0 0', minWidth: '2px' }}
+                />
+              </div>
+            )
+          })}
+        </div>
 
-        {/* Year markers */}
-        <div className="relative h-4">
-          {yearMarkers.map((marker) => (
-            <div
-              key={marker.year}
-              className="absolute transform -translate-x-1/2 flex flex-col items-center"
-              style={{ left: `${marker.position}%` }}
-            >
-              <div className="w-0.5 h-2 bg-gray-400 dark:bg-gray-500" />
-              <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                {marker.year}
-              </span>
-            </div>
-          ))}
+        {/* Slider + play controls */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={reset}
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="Reset to start"
+          >
+            <SkipBack className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={stepBackward}
+            disabled={currentIndex === 0}
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setIsPlaying((p) => !p)}
+            className={cn(
+              'rounded p-1 transition-colors',
+              isPlaying
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            )}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={stepForward}
+            disabled={currentIndex >= maxPosition}
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
+            aria-label="Next month"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+
+          <input
+            type="range"
+            min={0}
+            max={maxPosition}
+            value={currentIndex}
+            onChange={handleSliderChange}
+            className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+          />
+
+          <div className="hidden text-[10px] text-muted-foreground sm:block">
+            {buckets[currentIndex]?.shortLabel}
+          </div>
         </div>
       </div>
     </div>
