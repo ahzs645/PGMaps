@@ -10,6 +10,16 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'maplibre': ['maplibre-gl'],
+          'turf': ['@turf/turf'],
+        }
+      }
+    }
+  },
   server: {
     port: 5173,
     host: '0.0.0.0'

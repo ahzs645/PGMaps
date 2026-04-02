@@ -29,7 +29,6 @@ export function useRestaurantData() {
       }))
       setRestaurants(merged)
     } catch (err) {
-      console.error('Error loading restaurant data:', err)
       setError((err as Error).message)
     } finally {
       setLoading(false)
