@@ -13,9 +13,9 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'maplibre': ['maplibre-gl'],
-          'turf': ['@turf/turf'],
+        manualChunks(id) {
+          if (id.includes('node_modules/maplibre-gl')) return 'maplibre'
+          if (id.includes('node_modules/@turf')) return 'turf'
         }
       }
     }
