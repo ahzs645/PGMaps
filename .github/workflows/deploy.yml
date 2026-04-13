@@ -26,7 +26,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: pip install shapely
       - run: python3 scripts/build-census-variables.py
+      - run: python3 scripts/build-bc-assessment.py
       - run: npm run build
 
       - name: Copy index.html to 404.html for SPA routing
