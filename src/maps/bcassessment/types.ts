@@ -16,9 +16,25 @@ export interface Property {
   salePrice: number | null
   saleDate: string | null
   histValues: number[] | null
+  /** Census boundary IDs (assigned via spatial join) */
+  ct: string | null
+  da: string | null
+  db: string | null
   longitude: number
   latitude: number
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
+}
+
+export interface BoundaryAggregate {
+  boundaryId: string
+  boundaryName: string
+  count: number
+  avgAssessed: number
+  avgLand: number
+  avgBuilding: number
+  avgYearBuilt: number | null
+  categoryCounts: Partial<Record<PropertyCategory, number>>
+  avgHistory: number[] | null
 }
 
 export type PropertyCategory =

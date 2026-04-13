@@ -4,6 +4,7 @@ import { BcAssessmentMap } from './components/BcAssessmentMap'
 import { BcAssessmentSidebar } from './components/BcAssessmentSidebar'
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
 import { useBoundaryData } from './hooks/useBoundaryData'
+import { useBoundaryAggregates } from './hooks/useBoundaryAggregates'
 import { ALL_CATEGORIES, formatCurrency, VALUE_STOPS, YEAR_STOPS } from './constants'
 import type { Property, PropertyCategory, ColorMetric, BoundaryLevel } from './types'
 
@@ -16,6 +17,7 @@ export default function BcAssessmentSection() {
   const [colorMetric, setColorMetric] = useState<ColorMetric>('totalAssessed')
   const [boundaryLevel, setBoundaryLevel] = useState<BoundaryLevel>('none')
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
+  const [selectedBoundaryId, setSelectedBoundaryId] = useState<string | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
 
   const { boundaryData } = useBoundaryData(boundaryLevel)
@@ -37,6 +39,8 @@ export default function BcAssessmentSection() {
     })
   }, [properties, selectedCategories, searchQuery])
 
+  const boundaryAggregates = useBoundaryAggregates(filteredProperties, boundaryLevel)
+
   // Clear selection if it's no longer visible
   useEffect(() => {
     if (selectedProperty && !filteredProperties.some((p) => p.id === selectedProperty.id)) {
@@ -54,10 +58,17 @@ export default function BcAssessmentSection() {
 
   const handlePropertyClick = useCallback((property: Property) => {
     setSelectedProperty(property)
+    setSelectedBoundaryId(null)
+  }, [])
+
+  const handleBoundaryClick = useCallback((boundaryId: string) => {
+    setSelectedBoundaryId(boundaryId)
+    setSelectedProperty(null)
   }, [])
 
   const handleClearSelection = useCallback(() => {
     setSelectedProperty(null)
+    setSelectedBoundaryId(null)
   }, [])
 
   // Build legend
@@ -88,7 +99,8 @@ export default function BcAssessmentSection() {
           onSearchQueryChange={setSearchQuery}
           onToggleCategory={toggleCategory}
           onColorMetricChange={setColorMetric}
-          onBoundaryLevelChange={setBoundaryLevel}
+          selectedBoundary={selectedBoundaryId ? boundaryAggregates.get(selectedBoundaryId) ?? null : null}
+          onBoundaryLevelChange={(level) => { setBoundaryLevel(level); setSelectedBoundaryId(null) }}
           onPropertyClick={handlePropertyClick}
           onClearSelection={handleClearSelection}
         />
@@ -99,14 +111,18 @@ export default function BcAssessmentSection() {
           properties={filteredProperties}
           colorMetric={colorMetric}
           selectedProperty={selectedProperty}
+          selectedBoundaryId={selectedBoundaryId}
           boundaryData={boundaryData}
+          boundaryAggregates={boundaryAggregates}
           onPropertyClick={handlePropertyClick}
+          onBoundaryClick={handleBoundaryClick}
         />
 
         {/* Legend */}
         {legendItems.length > 0 && (
           <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
             <h4 className="mb-2 text-xs font-semibold text-foreground">
+              {boundaryLevel !== 'none' ? 'Avg ' : ''}
               {colorMetric === 'yearBuilt' ? 'Year Built' : 'Assessed Value'}
             </h4>
             <div className="space-y-1">

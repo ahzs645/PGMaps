@@ -7,7 +7,7 @@ import {
   COLOR_METRICS,
   formatCurrency,
 } from '../constants'
-import type { Property, PropertyCategory, ColorMetric, BoundaryLevel } from '../types'
+import type { Property, PropertyCategory, ColorMetric, BoundaryLevel, BoundaryAggregate } from '../types'
 
 const BOUNDARY_OPTIONS: { value: BoundaryLevel; label: string }[] = [
   { value: 'none', label: 'None' },
@@ -22,6 +22,7 @@ interface BcAssessmentSidebarProps {
   filteredProperties: Property[]
   selectedCategories: PropertyCategory[]
   selectedProperty: Property | null
+  selectedBoundary: BoundaryAggregate | null
   searchQuery: string
   colorMetric: ColorMetric
   boundaryLevel: BoundaryLevel
@@ -83,12 +84,55 @@ function HistorySparkline({ values }: { values: number[] }) {
   )
 }
 
+function BoundaryHistorySparkline({ values }: { values: number[] }) {
+  const [hovered, setHovered] = useState<number | null>(null)
+  const max = Math.max(...values)
+  const min = Math.min(...values)
+  const range = max - min || 1
+
+  return (
+    <div className="mt-3">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-xs text-orange-600 dark:text-orange-400">
+          Avg 10-Year History
+        </span>
+        {hovered !== null && (
+          <span className="text-xs font-semibold text-orange-900 dark:text-orange-200">
+            {START_YEAR + hovered}: ${formatNumber(values[hovered])}
+          </span>
+        )}
+      </div>
+      <div className="flex items-end gap-0.5" style={{ height: 40 }}>
+        {values.map((v, i) => (
+          <div
+            key={i}
+            className={cn(
+              'flex-1 cursor-pointer rounded-t transition-colors',
+              hovered === i
+                ? 'bg-orange-600 dark:bg-orange-300'
+                : 'bg-orange-400 dark:bg-orange-500'
+            )}
+            style={{ height: `${((v - min) / range) * 100}%`, minHeight: 2 }}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}
+          />
+        ))}
+      </div>
+      <div className="mt-0.5 flex justify-between text-[10px] text-orange-500 dark:text-orange-400">
+        <span>{START_YEAR}</span>
+        <span>{START_YEAR + values.length - 1}</span>
+      </div>
+    </div>
+  )
+}
+
 export function BcAssessmentSidebar({
   className,
   properties,
   filteredProperties,
   selectedCategories,
   selectedProperty,
+  selectedBoundary,
   searchQuery,
   colorMetric,
   boundaryLevel,
@@ -228,7 +272,91 @@ export function BcAssessmentSidebar({
         </div>
       </div>
 
-      {/* Selected Detail */}
+      {/* Selected Boundary Detail */}
+      {selectedBoundary && (
+        <div className="border-b border-orange-300/60 bg-orange-50 p-4 dark:border-orange-800/60 dark:bg-orange-950/30">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-orange-900 dark:text-orange-200">
+                {selectedBoundary.boundaryName}
+              </div>
+              <div className="text-xs text-orange-700 dark:text-orange-300">
+                {formatNumber(selectedBoundary.count)} properties
+              </div>
+            </div>
+            <button
+              onClick={onClearSelection}
+              className="shrink-0 text-orange-700 hover:text-orange-900 dark:text-orange-300 dark:hover:text-orange-100"
+              aria-label="Clear selection"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div>
+              <span className="text-orange-600 dark:text-orange-400">Avg Assessed</span>
+              <div className="font-semibold text-orange-900 dark:text-orange-200">
+                ${formatNumber(selectedBoundary.avgAssessed)}
+              </div>
+            </div>
+            <div>
+              <span className="text-orange-600 dark:text-orange-400">Avg Land</span>
+              <div className="font-semibold text-orange-900 dark:text-orange-200">
+                ${formatNumber(selectedBoundary.avgLand)}
+              </div>
+            </div>
+            <div>
+              <span className="text-orange-600 dark:text-orange-400">Avg Building</span>
+              <div className="font-semibold text-orange-900 dark:text-orange-200">
+                ${formatNumber(selectedBoundary.avgBuilding)}
+              </div>
+            </div>
+            {selectedBoundary.avgYearBuilt && (
+              <div>
+                <span className="text-orange-600 dark:text-orange-400">Avg Year Built</span>
+                <div className="font-semibold text-orange-900 dark:text-orange-200">
+                  {selectedBoundary.avgYearBuilt}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Category breakdown */}
+          {Object.keys(selectedBoundary.categoryCounts).length > 0 && (
+            <div className="mt-3">
+              <div className="mb-1.5 text-xs text-orange-600 dark:text-orange-400">
+                Property Types
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {ALL_CATEGORIES.map((cat) => {
+                  const count = selectedBoundary.categoryCounts[cat]
+                  if (!count) return null
+                  const pct = Math.round((count / selectedBoundary.count) * 100)
+                  return (
+                    <span
+                      key={cat}
+                      className="flex items-center gap-1 rounded-full border border-orange-300/60 px-2 py-0.5 text-[10px] text-orange-800 dark:border-orange-700/60 dark:text-orange-300"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getCategoryColor(cat) }} />
+                      {CATEGORY_LABELS[cat]} {pct}%
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Avg history sparkline */}
+          {selectedBoundary.avgHistory && selectedBoundary.avgHistory.length > 1 && (
+            <BoundaryHistorySparkline values={selectedBoundary.avgHistory} />
+          )}
+        </div>
+      )}
+
+      {/* Selected Property Detail */}
       {selectedProperty && (
         <div className="border-b border-blue-300/60 bg-blue-50 p-4 dark:border-blue-800/60 dark:bg-blue-950/30">
           <div className="mb-2 flex items-start justify-between gap-3">

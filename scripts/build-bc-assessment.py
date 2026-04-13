@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-Merge BC Assessment parcel geometries with property data from CSVs.
+Merge BC Assessment parcel geometries with property data from CSVs,
+then spatial-join each property to its Census boundary (CT, DA, DB).
 
 Input:
   - scripts/bc-assessment-source/prince_george_parcels.geojson  (30K parcel polygons)
   - scripts/bc-assessment-source/prince_george_full.csv          (assessment + detail data)
+  - public/data/census/prince_george_{ct,da,db}.geo.json         (census boundaries)
 
 Output:
-  - public/data/bc-assessment/parcels.geojson     (enriched GeoJSON)
+  - public/data/bc-assessment/parcels.geojson     (enriched GeoJSON with boundary IDs)
 """
 
 import csv
@@ -15,6 +17,9 @@ import json
 import os
 import re
 import sys
+
+from shapely.geometry import Point, shape
+from shapely.strtree import STRtree
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
@@ -26,6 +31,13 @@ CSV_PATH = os.path.join(SOURCE_DIR, "prince_george_full.csv")
 
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "public", "data", "bc-assessment")
 OUTPUT_PATH = os.path.join(OUTPUT_DIR, "parcels.geojson")
+
+CENSUS_DIR = os.path.join(PROJECT_ROOT, "public", "data", "census")
+BOUNDARY_LEVELS = {
+    "ct": os.path.join(CENSUS_DIR, "prince_george_ct.geo.json"),
+    "da": os.path.join(CENSUS_DIR, "prince_george_da.geo.json"),
+    "db": os.path.join(CENSUS_DIR, "prince_george_db.geo.json"),
+}
 
 
 def categorize(description: str) -> str:
@@ -78,6 +90,54 @@ def categorize(description: str) -> str:
         return "farm"
 
     return "other"
+
+
+def centroid_of(geometry: dict) -> tuple[float, float]:
+    """Get the centroid (lng, lat) of a GeoJSON geometry."""
+    geom = shape(geometry)
+    c = geom.centroid
+    return (c.x, c.y)
+
+
+def build_spatial_index(boundary_path: str) -> tuple[STRtree, list[dict]]:
+    """Load a census boundary GeoJSON and build an STRtree spatial index."""
+    with open(boundary_path, encoding="utf-8") as f:
+        geo = json.load(f)
+    polys = []
+    features_list = []
+    for feat in geo["features"]:
+        geom = shape(feat["geometry"])
+        polys.append(geom)
+        features_list.append(feat)
+    tree = STRtree(polys)
+    return tree, features_list
+
+
+def spatial_join_level(
+    features: list[dict], level_key: str, boundary_path: str
+) -> int:
+    """Assign boundary ID for a given census level to each parcel feature."""
+    print(f"  Spatial join: {level_key} from {os.path.basename(boundary_path)}...")
+    tree, boundary_features = build_spatial_index(boundary_path)
+    boundary_geoms = [shape(f["geometry"]) for f in boundary_features]
+
+    assigned = 0
+    for feature in features:
+        lng, lat = centroid_of(feature["geometry"])
+        pt = Point(lng, lat)
+
+        # Query the STRtree for candidate boundaries
+        candidate_idxs = tree.query(pt)
+        for idx in candidate_idxs:
+            if boundary_geoms[idx].contains(pt):
+                bid = boundary_features[idx]["properties"].get("id")
+                if bid is not None:
+                    feature["properties"][level_key] = str(bid)
+                    assigned += 1
+                break
+
+    print(f"    Assigned {assigned}/{len(features)} properties")
+    return assigned
 
 
 def parse_int(val: str) -> int | None:
@@ -200,7 +260,15 @@ def main():
 
     print(f"  Matched: {matched}, Unmatched: {unmatched}")
 
-    # 4. Write output
+    # 4. Spatial join — assign census boundary IDs
+    print("Running spatial joins...")
+    for level_key, boundary_path in BOUNDARY_LEVELS.items():
+        if os.path.exists(boundary_path):
+            spatial_join_level(features, level_key, boundary_path)
+        else:
+            print(f"  Skipping {level_key}: {boundary_path} not found")
+
+    # 5. Write output
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     print(f"Writing enriched GeoJSON to {OUTPUT_PATH}...")
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
