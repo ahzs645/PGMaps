@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { HeatmapMashupLayer, type HeatmapDataset } from '@/components/HeatmapMashupLayer'
+import { NeighborhoodReport } from '@/components/NeighborhoodReport'
 import { useAirQualityData } from '@/maps/airquality'
 import { useCensusData } from '@/maps/census/hooks/useCensusData'
 import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
@@ -138,6 +140,8 @@ export default function ExplorerSection() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [spatialFilter, setSpatialFilter] = useState<SpatialFilter | null>(null)
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' })
+  const [showHeatmap, setShowHeatmap] = useState(false)
+  const [neighborhoodPoint, setNeighborhoodPoint] = useState<{ lat: number; lng: number } | null>(null)
 
   const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData()
   const { restaurants, loading: loadingRestaurants, error: restaurantsError } = useRestaurantData()
@@ -648,6 +652,41 @@ export default function ExplorerSection() {
   const selectAllDatasets = useCallback(() => { setActiveDatasetIds(ALL_DATASET_IDS) }, [])
   const clearDatasets = useCallback(() => { setActiveDatasetIds([]) }, [])
 
+  const heatmapDatasets = useMemo<HeatmapDataset[]>(() => {
+    const datasets: HeatmapDataset[] = []
+    if (datasetSet.has('airMonitors')) {
+      datasets.push({
+        id: 'air',
+        label: 'Air Monitors',
+        points: monitors
+          .filter((m) => Number.isFinite(m.latitude) && Number.isFinite(m.longitude))
+          .map((m) => ({ lng: m.longitude, lat: m.latitude })),
+        color: ['#bae6fd', '#38bdf8', '#0284c7', '#075985'],
+      })
+    }
+    if (datasetSet.has('restaurants')) {
+      datasets.push({
+        id: 'food',
+        label: 'Restaurants',
+        points: restaurants
+          .filter((r) => r.latitude && r.longitude)
+          .map((r) => ({ lng: r.longitude as number, lat: r.latitude as number })),
+        color: ['#fed7aa', '#fb923c', '#ea580c', '#9a3412'],
+      })
+    }
+    if (datasetSet.has('parkAmenities')) {
+      datasets.push({
+        id: 'amenities',
+        label: 'Amenities',
+        points: amenities
+          .filter((a) => Number.isFinite(a.latitude) && Number.isFinite(a.longitude))
+          .map((a) => ({ lng: a.longitude, lat: a.latitude })),
+        color: ['#bbf7d0', '#4ade80', '#16a34a', '#14532d'],
+      })
+    }
+    return datasets
+  }, [datasetSet, monitors, restaurants, amenities])
+
   const handleExport = useCallback((format: 'csv' | 'geojson') => {
     if (format === 'csv') {
       const header = ['Name', 'Dataset', 'Geometry', 'Relevance', 'Subtitle', 'Summary']
@@ -714,10 +753,32 @@ export default function ExplorerSection() {
           onItemSelect={setSelectedItemId}
           spatialFilter={spatialFilter}
           onSpatialFilterChange={setSpatialFilter}
+          onMapRightClick={(lng, lat) => setNeighborhoodPoint({ lat, lng })}
+          heatmapLayer={showHeatmap ? <HeatmapMashupLayer datasets={heatmapDatasets} visible /> : null}
         />
 
+        {neighborhoodPoint && (
+          <NeighborhoodReport
+            lat={neighborhoodPoint.lat}
+            lng={neighborhoodPoint.lng}
+            onClose={() => setNeighborhoodPoint(null)}
+          />
+        )}
+
         <div className="absolute bottom-24 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
-          <h4 className="mb-2 text-xs font-semibold text-foreground">Active Layers</h4>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h4 className="text-xs font-semibold text-foreground">Active Layers</h4>
+            <button
+              onClick={() => setShowHeatmap((v) => !v)}
+              className={`rounded border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                showHeatmap
+                  ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
+                  : 'border-input text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {showHeatmap ? 'Heatmap ON' : 'Heatmap'}
+            </button>
+          </div>
           <div className="space-y-1">
             {legendDatasets.slice(0, 8).map((dataset) => {
               const stat = datasetStats.find((entry) => entry.dataset.id === dataset.id)

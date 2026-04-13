@@ -9,6 +9,9 @@
     "preview": "vite preview",
     "census:sync": "node scripts/build-census-hierarchy.mjs",
     "census:variables": "python3 scripts/build-census-variables.py",
+    "lint": "eslint src/",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed"
   },
@@ -32,15 +35,21 @@
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.56.1",
     "@types/node": "^20.11.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.17",
+    "eslint": "^10.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "postcss": "^8.4.35",
+    "prettier": "^3.8.2",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.4.0",
+    "typescript-eslint": "^8.58.1",
     "vite": "^8.0.3"
   }
 }

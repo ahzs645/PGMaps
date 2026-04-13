@@ -27,6 +27,7 @@ const WINDOW_OPTIONS = [
   { value: 1, label: '1 mo' },
   { value: 3, label: '3 mo' },
   { value: 6, label: '6 mo' },
+  { value: -1, label: 'Cumul.' },
 ]
 
 const SPEED_OPTIONS = [
@@ -85,7 +86,9 @@ export function CrimeTimeline({ incidents, onChange, onDisable }: CrimeTimelineP
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const buckets = useMemo(() => buildMonthBuckets(incidents), [incidents])
-  const maxPosition = Math.max(0, buckets.length - windowSize)
+  const isCumulative = windowSize === -1
+  const effectiveWindowSize = isCumulative ? position + 1 : windowSize
+  const maxPosition = Math.max(0, isCumulative ? buckets.length - 1 : buckets.length - windowSize)
   const maxCount = useMemo(() => Math.max(1, ...buckets.map((b) => b.count)), [buckets])
 
   // Clamp position when window size changes
@@ -96,13 +99,13 @@ export function CrimeTimeline({ incidents, onChange, onDisable }: CrimeTimelineP
   // Emit range when position or window changes
   useEffect(() => {
     if (buckets.length === 0) return
-    const startIdx = Math.min(position, buckets.length - 1)
-    const endIdx = Math.min(position + windowSize - 1, buckets.length - 1)
+    const startIdx = isCumulative ? 0 : Math.min(position, buckets.length - 1)
+    const endIdx = Math.min(isCumulative ? position : position + windowSize - 1, buckets.length - 1)
     onChange({
       start: buckets[startIdx].start,
       end: buckets[endIdx].end,
     })
-  }, [position, windowSize, buckets, onChange])
+  }, [position, windowSize, isCumulative, buckets, onChange])
 
   // Auto-play
   useEffect(() => {
@@ -149,11 +152,13 @@ export function CrimeTimeline({ incidents, onChange, onDisable }: CrimeTimelineP
 
   if (buckets.length === 0) return null
 
-  const startIdx = Math.min(position, buckets.length - 1)
-  const endIdx = Math.min(position + windowSize - 1, buckets.length - 1)
-  const rangeLabel = windowSize === 1
-    ? buckets[startIdx].label
-    : `${buckets[startIdx].label} - ${buckets[endIdx].label}`
+  const startIdx = isCumulative ? 0 : Math.min(position, buckets.length - 1)
+  const endIdx = Math.min(isCumulative ? position : position + effectiveWindowSize - 1, buckets.length - 1)
+  const rangeLabel = isCumulative
+    ? `Start - ${buckets[endIdx].label}`
+    : effectiveWindowSize === 1
+      ? buckets[startIdx].label
+      : `${buckets[startIdx].label} - ${buckets[endIdx].label}`
 
   const windowCount = buckets
     .slice(startIdx, endIdx + 1)
@@ -221,7 +226,7 @@ export function CrimeTimeline({ incidents, onChange, onDisable }: CrimeTimelineP
         {/* Histogram */}
         <div className="mb-1 flex h-10 items-end gap-px">
           {buckets.map((bucket, i) => {
-            const inWindow = i >= startIdx && i <= endIdx
+            const inWindow = isCumulative ? i <= position : (i >= startIdx && i <= endIdx)
             const height = Math.max(2, (bucket.count / maxCount) * 100)
             return (
               <div

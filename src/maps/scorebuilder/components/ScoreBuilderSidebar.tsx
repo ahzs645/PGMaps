@@ -18,6 +18,7 @@ import type {
   ScoreMetricWeightMap
 } from '../types'
 import { SCORE_DATA_SOURCES, METRIC_CATEGORY_LABELS } from '../types'
+import { RadarChart } from './RadarChart'
 
 type ScoreBuilderSectionId = 'examples' | 'setup' | 'dataSources' | 'equation' | 'density' | 'regions'
 
@@ -645,30 +646,37 @@ export function ScoreBuilderSidebar({
                     ))}
                   </div>
                   {comparisonRegions.length >= 2 && (
-                    <div className="mt-2 overflow-x-auto">
-                      <table className="w-full text-[10px]">
-                        <thead>
-                          <tr className="text-amber-700 dark:text-amber-300">
-                            <th className="pr-2 text-left font-medium">Metric</th>
-                            {comparisonRegions.map((r) => (
-                              <th key={r.region.id} className="px-1 text-right font-medium">{r.region.name.slice(0, 12)}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {SCORE_METRICS.filter((m) => weights[m.key] !== 0).slice(0, 6).map((m) => (
-                            <tr key={m.key} className="text-amber-800 dark:text-amber-200">
-                              <td className="pr-2 text-left">{m.shortLabel}</td>
+                    <>
+                      <RadarChart
+                        regions={comparisonRegions}
+                        weights={weights}
+                        className="mt-2"
+                      />
+                      <div className="mt-2 overflow-x-auto">
+                        <table className="w-full text-[10px]">
+                          <thead>
+                            <tr className="text-amber-700 dark:text-amber-300">
+                              <th className="pr-2 text-left font-medium">Metric</th>
                               {comparisonRegions.map((r) => (
-                                <td key={r.region.id} className="px-1 text-right font-mono">
-                                  {formatMetricValue(m.key, r.metrics[m.key], true)}
-                                </td>
+                                <th key={r.region.id} className="px-1 text-right font-medium">{r.region.name.slice(0, 12)}</th>
                               ))}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {SCORE_METRICS.filter((m) => weights[m.key] !== 0).slice(0, 6).map((m) => (
+                              <tr key={m.key} className="text-amber-800 dark:text-amber-200">
+                                <td className="pr-2 text-left">{m.shortLabel}</td>
+                                {comparisonRegions.map((r) => (
+                                  <td key={r.region.id} className="px-1 text-right font-mono">
+                                    {formatMetricValue(m.key, r.metrics[m.key], true)}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </div>
               )}

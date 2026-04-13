@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { RestaurantMap } from './components/RestaurantMap'
 import { Sidebar } from './components/Sidebar'
@@ -31,6 +32,7 @@ function parseInspectionDate(dateStr: string | undefined): Date | null {
 }
 
 export default function FoodMap() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { restaurants, loading, error, stats } = useRestaurantData()
 
   // Filter state
@@ -41,20 +43,34 @@ export default function FoodMap() {
     'Community Kitchen', 'Social Services', 'Gas Station', 'Hotel',
     'Recreation', 'Farm', 'Institutional Kitchen', 'Store', 'Other', 'Unknown'
   ])
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [selectedRestaurant, setSelectedRestaurant] = useState<RestaurantWithStats | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [showInspectionPanel, setShowInspectionPanel] = useState(false)
   const [showRoulette, setShowRoulette] = useState(false)
 
   // Visualization mode: 'hazard' or 'violations'
-  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>('violations')
+  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>(
+    () => (searchParams.get('mode') as VisualizationMode) || 'violations'
+  )
 
   // Timeline toggle
   const [showTimeline, setShowTimeline] = useState(false)
 
   // Timeline filter - default to past year
-  const [timelineMonths, setTimelineMonths] = useState(12)
+  const [timelineMonths, setTimelineMonths] = useState(() => {
+    const fromUrl = searchParams.get('months')
+    return fromUrl ? parseInt(fromUrl, 10) || 12 : 12
+  })
+
+  // Sync key filters to URL for shareable links
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (searchQuery) params.set('q', searchQuery)
+    if (visualizationMode !== 'violations') params.set('mode', visualizationMode)
+    if (timelineMonths !== 12) params.set('months', String(timelineMonths))
+    setSearchParams(params, { replace: true })
+  }, [searchQuery, visualizationMode, timelineMonths, setSearchParams])
   const cutoffDate = useMemo(() => {
     if (timelineMonths === 0) return null // All time
     const date = new Date()
