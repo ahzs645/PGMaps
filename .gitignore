@@ -53,3 +53,6 @@ test-results
 
 # Generated census variable data (built from scripts/build-census-variables.py)
 public/data/census/variables/
+
+# Generated BC Assessment data (built from scripts/build-bc-assessment.py)
+public/data/bc-assessment/

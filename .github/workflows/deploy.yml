@@ -26,6 +26,7 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: python3 scripts/build-census-variables.py
       - run: npm run build
 
       - name: Copy index.html to 404.html for SPA routing
