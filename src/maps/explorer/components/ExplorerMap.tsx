@@ -26,6 +26,8 @@ interface ExplorerMapProps {
   onItemSelect: (itemId: string) => void
   spatialFilter: SpatialFilter | null
   onSpatialFilterChange: (filter: SpatialFilter | null) => void
+  onMapRightClick?: (lng: number, lat: number) => void
+  heatmapLayer?: React.ReactNode
 }
 
 const ZOOM = 12
@@ -37,7 +39,9 @@ export function ExplorerMap({
   selectedItem,
   onItemSelect,
   spatialFilter,
-  onSpatialFilterChange
+  onSpatialFilterChange,
+  onMapRightClick,
+  heatmapLayer
 }: ExplorerMapProps) {
   const mapRef = useRef<MapRef>(null)
   const [drawMode, setDrawMode] = useState(false)
@@ -50,6 +54,18 @@ export function ExplorerMap({
     if (!selectedItem || selectedItem.geometry.type !== 'Point') return null
     return selectedItem.geometry.coordinates as [number, number]
   }, [selectedItem])
+
+  // Right-click handler for Neighborhood Report
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !onMapRightClick) return
+    const handler = (e: { lngLat: { lng: number; lat: number }; preventDefault: () => void }) => {
+      e.preventDefault()
+      onMapRightClick(e.lngLat.lng, e.lngLat.lat)
+    }
+    map.on('contextmenu', handler)
+    return () => { map.off('contextmenu', handler) }
+  }, [onMapRightClick])
 
   useEffect(() => {
     if (!selectedItem || !mapRef.current) return
@@ -116,6 +132,8 @@ export function ExplorerMap({
     <div className="h-full w-full relative">
       <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES}>
         <MapControls position="top-right" showZoom showCompass />
+
+        {heatmapLayer}
 
         {polygonCollections.map((collection) => (
           <MapFillLayer

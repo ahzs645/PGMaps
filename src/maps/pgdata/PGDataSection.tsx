@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -14,6 +15,7 @@ import type { CrimeIncident, CrimeCategory } from './types'
 const ALL_CATEGORIES = Object.keys(CRIME_CATEGORY_COLORS) as CrimeCategory[]
 
 export default function PGDataSection() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { incidents, loading, error } = useCrimeData()
   const airOverlay = useAirMonitorOverlay()
   const censusOverlay = useCensusOverlay()
@@ -27,8 +29,8 @@ export default function PGDataSection() {
   const [selectedCategories, setSelectedCategories] = useState<CrimeCategory[]>(ALL_CATEGORIES)
   const [selectedYears, setSelectedYears] = useState<number[]>([])
   const [yearsInitialized, setYearsInitialized] = useState(false)
-  const [selectedCommunity, setSelectedCommunity] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCommunity, setSelectedCommunity] = useState(() => searchParams.get('community') || '')
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [showHeatmap, setShowHeatmap] = useState(false)
   const [selectedIncident, setSelectedIncident] = useState<CrimeIncident | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
@@ -77,6 +79,15 @@ export default function PGDataSection() {
       return t >= start.getTime() && t <= end.getTime()
     })
   }, [baseFilteredIncidents, timelineEnabled, timelineRange])
+
+  // Sync filters to URL for shareable links
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (searchQuery) params.set('q', searchQuery)
+    if (selectedCommunity) params.set('community', selectedCommunity)
+    if (showHeatmap) params.set('heatmap', '1')
+    setSearchParams(params, { replace: true })
+  }, [searchQuery, selectedCommunity, showHeatmap, setSearchParams])
 
   const toggleCategory = useCallback((category: CrimeCategory) => {
     setSelectedCategories((current) =>

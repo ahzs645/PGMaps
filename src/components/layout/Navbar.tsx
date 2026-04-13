@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Menu, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
+import { GlobalSearch } from '@/components/GlobalSearch'
 import { cn } from '@/lib/utils'
 
 const navLinks = [
@@ -73,6 +74,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-1">
+          <GlobalSearch />
           <Button
             variant="ghost"
             size="icon"
