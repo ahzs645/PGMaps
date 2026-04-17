@@ -162,6 +162,23 @@ export function BcAssessmentSidebar({
     return Math.round(totalValue / filteredProperties.length)
   }, [totalValue, filteredProperties.length])
 
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  const colorMetricLabel =
+    COLOR_METRICS.find((m) => m.value === colorMetric)?.label ?? ''
+  const boundaryLabel =
+    BOUNDARY_OPTIONS.find((b) => b.value === boundaryLevel)?.label ?? ''
+  const allCategoriesVisible = ALL_CATEGORIES.filter(
+    (c) => (categoryCounts.get(c) || 0) > 0
+  )
+  const categorySummary = (() => {
+    if (selectedCategories.length === 0) return 'None'
+    if (selectedCategories.length === allCategoriesVisible.length) return 'All'
+    const labels = selectedCategories.map((c) => CATEGORY_LABELS[c])
+    if (labels.length <= 2) return labels.join(', ')
+    return `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`
+  })()
+
   return (
     <div className={cn('z-10 flex h-full w-full flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       {/* Header */}
@@ -202,268 +219,113 @@ export function BcAssessmentSidebar({
         />
       </div>
 
-      {/* Color By */}
-      <div className="border-b border-border bg-background/95 p-4">
-        <h2 className="mb-2 text-sm font-medium text-foreground">Color By</h2>
-        <div className="flex flex-wrap gap-1.5">
-          {COLOR_METRICS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => onColorMetricChange(value)}
-              className={cn(
-                'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
-                colorMetric === value
-                  ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400'
-                  : 'border-input text-muted-foreground hover:bg-accent'
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Category Filters */}
-      <div className="border-b border-border bg-background/95 p-4">
-        <h2 className="mb-2 text-sm font-medium text-foreground">Property Type</h2>
-        <div className="flex flex-wrap gap-1.5">
-          {ALL_CATEGORIES.map((category) => {
-            const count = categoryCounts.get(category) || 0
-            if (count === 0) return null
-            const selected = selectedCategories.includes(category)
-            const color = getCategoryColor(category)
-            return (
-              <button
-                key={category}
-                onClick={() => onToggleCategory(category)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
-                  selected ? 'bg-background' : 'border-input text-muted-foreground hover:bg-accent'
-                )}
-                style={selected ? { borderColor: color, color } : undefined}
-              >
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-                {CATEGORY_LABELS[category]}
-                <span className="opacity-70">{formatNumber(count)}</span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Census Boundary Overlay */}
-      <div className="border-b border-border bg-background/95 p-4">
-        <h2 className="mb-2 text-sm font-medium text-foreground">Census Boundaries</h2>
-        <div className="flex flex-wrap gap-1.5">
-          {BOUNDARY_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => onBoundaryLevelChange(value)}
-              className={cn(
-                'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
-                boundaryLevel === value
-                  ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400'
-                  : 'border-input text-muted-foreground hover:bg-accent'
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Selected Boundary Detail */}
-      {selectedBoundary && (
-        <div className="border-b border-orange-300/60 bg-orange-50 p-4 dark:border-orange-800/60 dark:bg-orange-950/30">
-          <div className="mb-2 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-orange-900 dark:text-orange-200">
-                {selectedBoundary.boundaryName}
-              </div>
-              <div className="text-xs text-orange-700 dark:text-orange-300">
-                {formatNumber(selectedBoundary.count)} properties
-              </div>
-            </div>
-            <button
-              onClick={onClearSelection}
-              className="shrink-0 text-orange-700 hover:text-orange-900 dark:text-orange-300 dark:hover:text-orange-100"
-              aria-label="Clear selection"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-            <div>
-              <span className="text-orange-600 dark:text-orange-400">Avg Assessed</span>
-              <div className="font-semibold text-orange-900 dark:text-orange-200">
-                ${formatNumber(selectedBoundary.avgAssessed)}
-              </div>
-            </div>
-            <div>
-              <span className="text-orange-600 dark:text-orange-400">Avg Land</span>
-              <div className="font-semibold text-orange-900 dark:text-orange-200">
-                ${formatNumber(selectedBoundary.avgLand)}
-              </div>
-            </div>
-            <div>
-              <span className="text-orange-600 dark:text-orange-400">Avg Building</span>
-              <div className="font-semibold text-orange-900 dark:text-orange-200">
-                ${formatNumber(selectedBoundary.avgBuilding)}
-              </div>
-            </div>
-            {selectedBoundary.avgYearBuilt && (
-              <div>
-                <span className="text-orange-600 dark:text-orange-400">Avg Year Built</span>
-                <div className="font-semibold text-orange-900 dark:text-orange-200">
-                  {selectedBoundary.avgYearBuilt}
-                </div>
+      {/* Filters (collapsible) */}
+      <div className="border-b border-border bg-background/95">
+        <button
+          onClick={() => setFiltersOpen((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-accent/50"
+          aria-expanded={filtersOpen}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-foreground">Filters</div>
+            {!filtersOpen && (
+              <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                {categorySummary} · Color: {colorMetricLabel} · Boundaries: {boundaryLabel}
               </div>
             )}
           </div>
+          <svg
+            className={cn(
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+              filtersOpen && 'rotate-180'
+            )}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
-          {/* Category breakdown */}
-          {Object.keys(selectedBoundary.categoryCounts).length > 0 && (
-            <div className="mt-3">
-              <div className="mb-1.5 text-xs text-orange-600 dark:text-orange-400">
-                Property Types
-              </div>
+        {filtersOpen && (
+          <div className="space-y-4 px-4 pb-4">
+            <div>
+              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Color By
+              </h2>
               <div className="flex flex-wrap gap-1.5">
-                {ALL_CATEGORIES.map((cat) => {
-                  const count = selectedBoundary.categoryCounts[cat]
-                  if (!count) return null
-                  const pct = Math.round((count / selectedBoundary.count) * 100)
+                {COLOR_METRICS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => onColorMetricChange(value)}
+                    className={cn(
+                      'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+                      colorMetric === value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400'
+                        : 'border-input text-muted-foreground hover:bg-accent'
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Property Type
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                {ALL_CATEGORIES.map((category) => {
+                  const count = categoryCounts.get(category) || 0
+                  if (count === 0) return null
+                  const selected = selectedCategories.includes(category)
+                  const color = getCategoryColor(category)
                   return (
-                    <span
-                      key={cat}
-                      className="flex items-center gap-1 rounded-full border border-orange-300/60 px-2 py-0.5 text-[10px] text-orange-800 dark:border-orange-700/60 dark:text-orange-300"
+                    <button
+                      key={category}
+                      onClick={() => onToggleCategory(category)}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+                        selected ? 'bg-background' : 'border-input text-muted-foreground hover:bg-accent'
+                      )}
+                      style={selected ? { borderColor: color, color } : undefined}
                     >
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getCategoryColor(cat) }} />
-                      {CATEGORY_LABELS[cat]} {pct}%
-                    </span>
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                      {CATEGORY_LABELS[category]}
+                      <span className="opacity-70">{formatNumber(count)}</span>
+                    </button>
                   )
                 })}
               </div>
             </div>
-          )}
 
-          {/* Avg history sparkline */}
-          {selectedBoundary.avgHistory && selectedBoundary.avgHistory.length > 1 && (
-            <BoundaryHistorySparkline values={selectedBoundary.avgHistory} />
-          )}
-        </div>
-      )}
-
-      {/* Selected Property Detail */}
-      {selectedProperty && (
-        <div className="border-b border-blue-300/60 bg-blue-50 p-4 dark:border-blue-800/60 dark:bg-blue-950/30">
-          <div className="mb-2 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-blue-900 dark:text-blue-200">
-                {selectedProperty.address}
-              </div>
-              <div className="text-xs text-blue-700 dark:text-blue-300">
-                {selectedProperty.description}
+            <div>
+              <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Census Boundaries
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                {BOUNDARY_OPTIONS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => onBoundaryLevelChange(value)}
+                    className={cn(
+                      'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+                      boundaryLevel === value
+                        ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400'
+                        : 'border-input text-muted-foreground hover:bg-accent'
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
-            <button
-              onClick={onClearSelection}
-              className="shrink-0 text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
-              aria-label="Clear selection"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
+        )}
+      </div>
 
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-            <div>
-              <span className="text-blue-600 dark:text-blue-400">Total Assessed</span>
-              <div className="font-semibold text-blue-900 dark:text-blue-200">
-                ${formatNumber(selectedProperty.totalAssessed)}
-              </div>
-            </div>
-            <div>
-              <span className="text-blue-600 dark:text-blue-400">Land</span>
-              <div className="font-semibold text-blue-900 dark:text-blue-200">
-                ${formatNumber(selectedProperty.totalLand)}
-              </div>
-            </div>
-            <div>
-              <span className="text-blue-600 dark:text-blue-400">Building</span>
-              <div className="font-semibold text-blue-900 dark:text-blue-200">
-                ${formatNumber(selectedProperty.totalBuilding)}
-              </div>
-            </div>
-            {selectedProperty.yearBuilt && (
-              <div>
-                <span className="text-blue-600 dark:text-blue-400">Year Built</span>
-                <div className="font-semibold text-blue-900 dark:text-blue-200">
-                  {selectedProperty.yearBuilt}
-                </div>
-              </div>
-            )}
-            {selectedProperty.bedrooms != null && (
-              <div>
-                <span className="text-blue-600 dark:text-blue-400">Bedrooms</span>
-                <div className="font-semibold text-blue-900 dark:text-blue-200">
-                  {selectedProperty.bedrooms}
-                </div>
-              </div>
-            )}
-            {selectedProperty.bathrooms != null && (
-              <div>
-                <span className="text-blue-600 dark:text-blue-400">Bathrooms</span>
-                <div className="font-semibold text-blue-900 dark:text-blue-200">
-                  {selectedProperty.bathrooms}
-                </div>
-              </div>
-            )}
-            {selectedProperty.landSize && (
-              <div>
-                <span className="text-blue-600 dark:text-blue-400">Land Size</span>
-                <div className="font-semibold text-blue-900 dark:text-blue-200">
-                  {selectedProperty.landSize}
-                </div>
-              </div>
-            )}
-            {selectedProperty.totalFinishedArea && (
-              <div>
-                <span className="text-blue-600 dark:text-blue-400">Finished Area</span>
-                <div className="font-semibold text-blue-900 dark:text-blue-200">
-                  {formatNumber(selectedProperty.totalFinishedArea)} sqft
-                </div>
-              </div>
-            )}
-            {selectedProperty.salePrice && (
-              <div>
-                <span className="text-blue-600 dark:text-blue-400">Last Sale</span>
-                <div className="font-semibold text-blue-900 dark:text-blue-200">
-                  ${formatNumber(selectedProperty.salePrice)}
-                </div>
-              </div>
-            )}
-            {selectedProperty.pid && (
-              <div>
-                <span className="text-blue-600 dark:text-blue-400">PID</span>
-                <div className="font-semibold text-blue-900 dark:text-blue-200">
-                  {selectedProperty.pid}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Mini history sparkline */}
-          {selectedProperty.histValues && selectedProperty.histValues.length > 1 && (
-            <HistorySparkline values={selectedProperty.histValues} />
-          )}
-        </div>
-      )}
-
-      {/* List */}
+      {/* List + selection details (all scrollable) */}
       {loading ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Loading assessment data...
@@ -477,6 +339,194 @@ export function BcAssessmentSidebar({
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
+          {/* Selected Boundary Detail */}
+          {selectedBoundary && (
+            <div className="border-b border-orange-300/60 bg-orange-50 p-4 dark:border-orange-800/60 dark:bg-orange-950/30">
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-orange-900 dark:text-orange-200">
+                    {selectedBoundary.boundaryName}
+                  </div>
+                  <div className="text-xs text-orange-700 dark:text-orange-300">
+                    {formatNumber(selectedBoundary.count)} properties
+                  </div>
+                </div>
+                <button
+                  onClick={onClearSelection}
+                  className="shrink-0 text-orange-700 hover:text-orange-900 dark:text-orange-300 dark:hover:text-orange-100"
+                  aria-label="Clear selection"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                <div>
+                  <span className="text-orange-600 dark:text-orange-400">Avg Assessed</span>
+                  <div className="font-semibold text-orange-900 dark:text-orange-200">
+                    ${formatNumber(selectedBoundary.avgAssessed)}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-orange-600 dark:text-orange-400">Avg Land</span>
+                  <div className="font-semibold text-orange-900 dark:text-orange-200">
+                    ${formatNumber(selectedBoundary.avgLand)}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-orange-600 dark:text-orange-400">Avg Building</span>
+                  <div className="font-semibold text-orange-900 dark:text-orange-200">
+                    ${formatNumber(selectedBoundary.avgBuilding)}
+                  </div>
+                </div>
+                {selectedBoundary.avgYearBuilt && (
+                  <div>
+                    <span className="text-orange-600 dark:text-orange-400">Avg Year Built</span>
+                    <div className="font-semibold text-orange-900 dark:text-orange-200">
+                      {selectedBoundary.avgYearBuilt}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {Object.keys(selectedBoundary.categoryCounts).length > 0 && (
+                <div className="mt-3">
+                  <div className="mb-1.5 text-xs text-orange-600 dark:text-orange-400">
+                    Property Types
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ALL_CATEGORIES.map((cat) => {
+                      const count = selectedBoundary.categoryCounts[cat]
+                      if (!count) return null
+                      const pct = Math.round((count / selectedBoundary.count) * 100)
+                      return (
+                        <span
+                          key={cat}
+                          className="flex items-center gap-1 rounded-full border border-orange-300/60 px-2 py-0.5 text-[10px] text-orange-800 dark:border-orange-700/60 dark:text-orange-300"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getCategoryColor(cat) }} />
+                          {CATEGORY_LABELS[cat]} {pct}%
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedBoundary.avgHistory && selectedBoundary.avgHistory.length > 1 && (
+                <BoundaryHistorySparkline values={selectedBoundary.avgHistory} />
+              )}
+            </div>
+          )}
+
+          {/* Selected Property Detail */}
+          {selectedProperty && (
+            <div className="border-b border-blue-300/60 bg-blue-50 p-4 dark:border-blue-800/60 dark:bg-blue-950/30">
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                    {selectedProperty.address}
+                  </div>
+                  <div className="text-xs text-blue-700 dark:text-blue-300">
+                    {selectedProperty.description}
+                  </div>
+                </div>
+                <button
+                  onClick={onClearSelection}
+                  className="shrink-0 text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+                  aria-label="Clear selection"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                <div>
+                  <span className="text-blue-600 dark:text-blue-400">Total Assessed</span>
+                  <div className="font-semibold text-blue-900 dark:text-blue-200">
+                    ${formatNumber(selectedProperty.totalAssessed)}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-blue-600 dark:text-blue-400">Land</span>
+                  <div className="font-semibold text-blue-900 dark:text-blue-200">
+                    ${formatNumber(selectedProperty.totalLand)}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-blue-600 dark:text-blue-400">Building</span>
+                  <div className="font-semibold text-blue-900 dark:text-blue-200">
+                    ${formatNumber(selectedProperty.totalBuilding)}
+                  </div>
+                </div>
+                {selectedProperty.yearBuilt && (
+                  <div>
+                    <span className="text-blue-600 dark:text-blue-400">Year Built</span>
+                    <div className="font-semibold text-blue-900 dark:text-blue-200">
+                      {selectedProperty.yearBuilt}
+                    </div>
+                  </div>
+                )}
+                {selectedProperty.bedrooms != null && (
+                  <div>
+                    <span className="text-blue-600 dark:text-blue-400">Bedrooms</span>
+                    <div className="font-semibold text-blue-900 dark:text-blue-200">
+                      {selectedProperty.bedrooms}
+                    </div>
+                  </div>
+                )}
+                {selectedProperty.bathrooms != null && (
+                  <div>
+                    <span className="text-blue-600 dark:text-blue-400">Bathrooms</span>
+                    <div className="font-semibold text-blue-900 dark:text-blue-200">
+                      {selectedProperty.bathrooms}
+                    </div>
+                  </div>
+                )}
+                {selectedProperty.landSize && (
+                  <div>
+                    <span className="text-blue-600 dark:text-blue-400">Land Size</span>
+                    <div className="font-semibold text-blue-900 dark:text-blue-200">
+                      {selectedProperty.landSize}
+                    </div>
+                  </div>
+                )}
+                {selectedProperty.totalFinishedArea && (
+                  <div>
+                    <span className="text-blue-600 dark:text-blue-400">Finished Area</span>
+                    <div className="font-semibold text-blue-900 dark:text-blue-200">
+                      {formatNumber(selectedProperty.totalFinishedArea)} sqft
+                    </div>
+                  </div>
+                )}
+                {selectedProperty.salePrice && (
+                  <div>
+                    <span className="text-blue-600 dark:text-blue-400">Last Sale</span>
+                    <div className="font-semibold text-blue-900 dark:text-blue-200">
+                      ${formatNumber(selectedProperty.salePrice)}
+                    </div>
+                  </div>
+                )}
+                {selectedProperty.pid && (
+                  <div>
+                    <span className="text-blue-600 dark:text-blue-400">PID</span>
+                    <div className="font-semibold text-blue-900 dark:text-blue-200">
+                      {selectedProperty.pid}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {selectedProperty.histValues && selectedProperty.histValues.length > 1 && (
+                <HistorySparkline values={selectedProperty.histValues} />
+              )}
+            </div>
+          )}
+
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur">
             <span>Properties ({formatNumber(filteredProperties.length)})</span>
           </div>
