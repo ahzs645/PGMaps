@@ -5,13 +5,11 @@ test.describe('Home Page Navigation', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
     await expect(page.getByText('Prince George Data Platform')).toBeVisible()
-    await expect(page.getByText('Food Safety')).toBeVisible()
-    await expect(page.getByText('Air Quality')).toBeVisible()
-    await expect(page.getByText('Parks & Trails')).toBeVisible()
-    await expect(page.getByText('Census Data')).toBeVisible()
-    await expect(page.getByText('Score Builder')).toBeVisible()
-    await expect(page.getByText('PG Data')).toBeVisible()
-    await expect(page.getByText('Explorer')).toBeVisible()
+
+    const availableMaps = page.locator('section').filter({ hasText: 'Available Maps' })
+    for (const name of ['Food Safety', 'Air Quality', 'Parks & Trails', 'Census Data', 'Score Builder', 'PG Data', 'Explorer']) {
+      await expect(availableMaps.getByRole('link', { name: new RegExp(`^${name}`) })).toBeVisible()
+    }
   })
 
   test('navigates to food map section', async ({ page }) => {
@@ -34,6 +32,27 @@ test.describe('Home Page Navigation', () => {
     // Census link should be active
     const censusLink = page.locator('nav').getByText('Census')
     await expect(censusLink).toBeVisible()
+  })
+
+  test('mobile menu opens, closes, and navigates', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    const menuButton = page.getByRole('button', { name: 'Toggle menu' })
+    await expect(menuButton).toBeVisible()
+
+    await menuButton.click()
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'true')
+    const airQualityMenuLink = page.getByRole('link', { name: 'Air Quality', exact: true })
+    await expect(airQualityMenuLink).toBeVisible()
+
+    await menuButton.click()
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    await expect(airQualityMenuLink).not.toBeVisible()
+
+    await menuButton.click()
+    await airQualityMenuLink.click()
+    await expect(page).toHaveURL(/airquality/)
   })
 
   test('theme toggle switches between light and dark', async ({ page }) => {

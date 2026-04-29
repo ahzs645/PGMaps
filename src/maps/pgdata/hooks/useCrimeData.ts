@@ -68,12 +68,18 @@ async function fetchTotalCount(signal: AbortSignal): Promise<number> {
   return json.count ?? 0
 }
 
-export function useCrimeData() {
+export function useCrimeData(enabled = true) {
   const [incidents, setIncidents] = useState<CrimeIncident[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     const controller = new AbortController()
 
     async function loadData() {
@@ -106,7 +112,7 @@ export function useCrimeData() {
 
     loadData()
     return () => controller.abort()
-  }, [])
+  }, [enabled])
 
   return { incidents, loading, error }
 }

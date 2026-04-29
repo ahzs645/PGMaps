@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('Global Search', () => {
-  test('opens with Cmd+K and shows section quick links', async ({ page }) => {
+  test('opens and shows section quick links', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    // Press Cmd+K to open search
-    await page.keyboard.press('Meta+k')
+    await page.getByRole('button', { name: 'Open search' }).click()
 
     // Search dialog should appear
     const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
@@ -14,14 +13,14 @@ test.describe('Global Search', () => {
     // Should show map section quick links by default
     await expect(page.getByText('Food Safety Map')).toBeVisible()
     await expect(page.getByText('Air Quality Map')).toBeVisible()
-    await expect(page.getByText('Parks & Trails', { exact: false })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Parks & Trails Parks, trails, and amenities' })).toBeVisible()
   })
 
   test('filters results by search query', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
     // Click the search button
-    await page.getByRole('button', { name: /Search/ }).click()
+    await page.getByRole('button', { name: 'Open search' }).click()
 
     const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
     await expect(searchInput).toBeVisible()
@@ -33,10 +32,21 @@ test.describe('Global Search', () => {
     await expect(page.getByText('Air Quality Map')).toBeVisible()
   })
 
+  test('opens above map pages on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/airquality', { waitUntil: 'domcontentloaded' })
+
+    await page.getByRole('button', { name: 'Open search' }).click()
+
+    const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
+    await expect(searchInput).toBeVisible()
+    await expect(page.getByText('Food Safety Map')).toBeVisible()
+  })
+
   test('closes on Escape', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    await page.keyboard.press('Meta+k')
+    await page.getByRole('button', { name: 'Open search' }).click()
     const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
     await expect(searchInput).toBeVisible()
 
@@ -47,7 +57,7 @@ test.describe('Global Search', () => {
   test('navigates to a section when clicked', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    await page.keyboard.press('Meta+k')
+    await page.getByRole('button', { name: 'Open search' }).click()
     const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
     await expect(searchInput).toBeVisible()
 

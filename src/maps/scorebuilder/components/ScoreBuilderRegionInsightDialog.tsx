@@ -35,19 +35,41 @@ function getMetricFormat(key: ScoreMetricKey): string {
 
 function formatMetricValue(metric: ScoreMetricKey, value: number, compact = false): string {
   const format = getMetricFormat(metric)
+  if (metric === 'foodRiskScore') {
+    const riskScore = value * 100
+    return compact ? `${riskScore.toFixed(0)}/100 risk` : `${riskScore.toFixed(1)} / 100 risk index`
+  }
+  if (metric === 'crimePerCapita') {
+    const perThousand = value * 1_000
+    return compact
+      ? `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k residents`
+      : `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 2 })} incidents / 1,000 residents`
+  }
   if (format === 'density') {
     const scaled = value * 1_000
     return compact
-      ? scaled.toFixed(2)
+      ? `${scaled.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k km²`
       : `${scaled.toLocaleString(undefined, { maximumFractionDigits: 2 })} / 1,000 km²`
   }
   if (format === 'ratio' || format === 'percent') return `${(value * 100).toFixed(1)}%`
+  if (format === 'currency') {
+    if (compact) {
+      if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
+      return `$${Math.round(value / 1000).toLocaleString()}k`
+    }
+    return value.toLocaleString(undefined, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
+  }
+  if (format === 'years') return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} yrs`
   if (Number.isInteger(value)) return value.toLocaleString()
   return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
 
 function formatScore(value: number): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+}
+
+function formatDriverDelta(value: number): string {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`
 }
 
 export function ScoreBuilderRegionInsightDialog({
@@ -69,7 +91,7 @@ export function ScoreBuilderRegionInsightDialog({
         metricValue: region.metrics[metric.key],
         normalizedValue: region.normalizedMetrics[metric.key],
         weight: weights[metric.key],
-        scoreDelta: region.contributions[metric.key] * 50
+        scoreDelta: region.contributions[metric.key] * 100
       }))
       .sort((a, b) => Math.abs(b.scoreDelta) - Math.abs(a.scoreDelta))
   }, [region, weights])
@@ -78,6 +100,12 @@ export function ScoreBuilderRegionInsightDialog({
     if (!isMobile) return contributionRows
     return contributionRows.slice(0, MOBILE_MAX_CONTRIBUTIONS)
   }, [contributionRows, isMobile])
+
+  const topDriverSummary = useMemo(() => {
+    const topDrivers = contributionRows.slice(0, 3)
+    if (!topDrivers.length) return null
+    return topDrivers.map((row) => `${row.label} ${formatDriverDelta(row.scoreDelta)}`).join(', ')
+  }, [contributionRows])
 
   // Group visible rows by category
   const groupedRows = useMemo(() => {
@@ -97,10 +125,10 @@ export function ScoreBuilderRegionInsightDialog({
         data-score-builder-region-insight-dialog="true"
       >
         <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
-          <DialogTitle>Region Insight</DialogTitle>
+          <DialogTitle>{region ? 'Region Score Drivers' : 'Region Insight'}</DialogTitle>
           <DialogDescription>
             {region
-              ? `${region.region.name} (Code ${region.region.code})`
+              ? `${region.region.name} (Code ${region.region.code})${topDriverSummary ? ` | Top drivers: ${topDriverSummary} pts` : ''}`
               : 'Select a region to review detailed score contributions.'}
           </DialogDescription>
         </DialogHeader>
@@ -143,17 +171,26 @@ export function ScoreBuilderRegionInsightDialog({
                 <div>Trails: <span className="font-medium text-foreground">{region.counts.trailCount.toLocaleString()}</span></div>
                 <div>Restaurants: <span className="font-medium text-foreground">{region.counts.restaurantCount.toLocaleString()}</span></div>
                 <div>Population: <span className="font-medium text-foreground">{region.counts.populationSum.toLocaleString()}</span></div>
+                <div>Parcels: <span className="font-medium text-foreground">{region.counts.parcelCount.toLocaleString()}</span></div>
+                <div>Crime: <span className="font-medium text-foreground">{region.counts.crimeCount.toLocaleString()}</span></div>
+                <div>Critical violations: <span className="font-medium text-foreground">{region.counts.criticalViolationCount.toLocaleString()}</span></div>
+                <div>Follow-ups: <span className="font-medium text-foreground">{region.counts.followUpInspectionCount.toLocaleString()}</span></div>
               </div>
             </div>
 
             {/* Metric contributions grouped by category */}
             <div className="rounded-lg border border-border bg-background p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-foreground">Metric Contributions</h3>
+                <h3 className="text-sm font-semibold text-foreground">Weighted Metric Drivers</h3>
                 <span className="text-[11px] text-muted-foreground">
                   {visibleContributionRows.length} of {contributionRows.length}
                 </span>
               </div>
+              {topDriverSummary && (
+                <div className="mb-2 rounded border border-border bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground">
+                  Strongest drivers for this score: <span className="font-medium text-foreground">{topDriverSummary} pts</span>
+                </div>
+              )}
 
               {isMobile && contributionRows.length > MOBILE_MAX_CONTRIBUTIONS && (
                 <div className="mb-2 rounded border border-cyan-200/60 bg-cyan-50 px-2 py-1 text-[11px] text-cyan-800 dark:border-cyan-900/70 dark:bg-cyan-950/30 dark:text-cyan-200">

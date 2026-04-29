@@ -100,17 +100,45 @@ function getMetricFormat(key: ScoreMetricKey): string {
   return SCORE_METRICS.find((metric) => metric.key === key)?.format || 'count'
 }
 
+function getDataSourceLabel(source: ScoreDataSource): string {
+  if (source === 'airQuality') return 'Air'
+  if (source === 'parks') return 'Parks'
+  if (source === 'restaurants') return 'Food'
+  if (source === 'census') return 'Census'
+  if (source === 'bcAssessment') return 'Property'
+  if (source === 'crime') return 'Crime'
+  return source
+}
+
 function formatMetricValue(metric: ScoreMetricKey, value: number, compact = false): string {
   const format = getMetricFormat(metric)
 
+  if (metric === 'foodRiskScore') {
+    const riskScore = value * 100
+    return compact ? `${riskScore.toFixed(0)}/100 risk` : `${riskScore.toFixed(1)} / 100 risk index`
+  }
+  if (metric === 'crimePerCapita') {
+    const perThousand = value * 1_000
+    return compact
+      ? `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k residents`
+      : `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 2 })} incidents / 1,000 residents`
+  }
   if (format === 'density') {
     const scaled = value * 1_000
     return compact
-      ? scaled.toFixed(2)
+      ? `${scaled.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k km²`
       : `${scaled.toLocaleString(undefined, { maximumFractionDigits: 2 })} / 1,000 km²`
   }
   if (format === 'ratio') return `${(value * 100).toFixed(1)}%`
   if (format === 'percent') return `${(value * 100).toFixed(1)}%`
+  if (format === 'currency') {
+    if (compact) {
+      if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
+      return `$${Math.round(value / 1000).toLocaleString()}k`
+    }
+    return value.toLocaleString(undefined, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
+  }
+  if (format === 'years') return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} yrs`
   if (Number.isInteger(value)) return value.toLocaleString()
   return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
@@ -121,6 +149,27 @@ function formatScore(value: number): string {
 
 function clampWeight(value: number): number {
   return Math.max(-100, Math.min(100, Math.round(value)))
+}
+
+function getTopDrivers(
+  region: ScoredBoundaryRegion,
+  weights: ScoreMetricWeightMap,
+  limit = 2
+): Array<{ key: ScoreMetricKey; label: string; scoreDelta: number }> {
+  return SCORE_METRICS
+    .filter((metric) => weights[metric.key] !== 0)
+    .map((metric) => ({
+      key: metric.key,
+      label: metric.shortLabel,
+      scoreDelta: region.contributions[metric.key] * 100
+    }))
+    .filter((driver) => Math.abs(driver.scoreDelta) >= 0.005)
+    .sort((a, b) => Math.abs(b.scoreDelta) - Math.abs(a.scoreDelta))
+    .slice(0, limit)
+}
+
+function formatDriverDelta(value: number): string {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`
 }
 
 export function ScoreBuilderSidebar({
@@ -173,6 +222,18 @@ export function ScoreBuilderSidebar({
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
 
   const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_ROWS), [filteredRegions])
+  const activeExample = useMemo(
+    () => SCORE_EXAMPLES.find((example) => example.key === activeExampleKey) || null,
+    [activeExampleKey]
+  )
+  const activePreset = useMemo(
+    () => SCORE_PRESETS.find((preset) => preset.key === activePresetKey) || null,
+    [activePresetKey]
+  )
+  const selectedRegionDrivers = useMemo(
+    () => selectedRegion ? getTopDrivers(selectedRegion, weights, 2) : [],
+    [selectedRegion, weights]
+  )
 
   const totalAbsoluteWeight = useMemo(() => {
     return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
@@ -273,7 +334,13 @@ export function ScoreBuilderSidebar({
     <div className={cn('z-10 flex h-full min-h-0 w-[360px] flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">Score Builder</h1>
-        <p className="text-sm text-muted-foreground">Pick an example below or build your own custom scoring equation.</p>
+        <p className="text-sm text-muted-foreground">
+          {activeExample
+            ? `${activeExample.label}: ${activeExample.question}`
+            : activePreset
+              ? `${activePreset.label}: ${activePreset.description}`
+              : 'Choose a PG scenario or build a custom scoring equation.'}
+        </p>
       </div>
 
       <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
@@ -303,7 +370,11 @@ export function ScoreBuilderSidebar({
           {renderSectionHeader('examples')}
           {expandedSections.examples && (
             <div className="space-y-3 px-4 pb-4">
-              <p className="text-xs text-muted-foreground">Pick a scenario to instantly configure boundaries, data sources, and scoring weights.</p>
+              <p className="text-xs text-muted-foreground">
+                {activeExample
+                  ? `Active scenario configures ${activeExample.boundaryLevel.toUpperCase()} boundaries, ${activeExample.dataSources.map(getDataSourceLabel).join(', ')}, and the matching weights.`
+                  : 'Pick a PG scenario to configure boundaries, data sources, and scoring weights.'}
+              </p>
 
               {/* Group examples by boundary source */}
               {[
@@ -343,7 +414,7 @@ export function ScoreBuilderSidebar({
                             <div className="mt-2 flex flex-wrap gap-1">
                               {example.dataSources.map((ds) => (
                                 <span key={ds} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                  {ds === 'airQuality' ? 'Air' : ds === 'parks' ? 'Parks' : ds === 'restaurants' ? 'Food' : 'Census'}
+                                  {getDataSourceLabel(ds)}
                                 </span>
                               ))}
                             </div>
@@ -511,6 +582,13 @@ export function ScoreBuilderSidebar({
                     {preset.label}
                   </button>
                 ))}
+              </div>
+              <div className="rounded-md border border-border bg-muted/15 p-2 text-xs text-muted-foreground">
+                {activePreset
+                  ? `${activePreset.label} intent: ${activePreset.description}`
+                  : activeExample
+                    ? `Scenario intent: ${activeExample.description}`
+                    : 'Preset buttons shift the score toward common planning questions; custom weights refine the equation.'}
               </div>
 
               {!isDesktop && (
@@ -694,6 +772,11 @@ export function ScoreBuilderSidebar({
                     <div>Parks: {selectedRegion.counts.parkCount.toLocaleString()}</div>
                     <div>Restaurants: {selectedRegion.counts.restaurantCount.toLocaleString()}</div>
                   </div>
+                  {selectedRegionDrivers.length > 0 && (
+                    <div className="mt-2 text-[11px] text-cyan-800 dark:text-cyan-200">
+                      Top drivers: {selectedRegionDrivers.map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`).join(', ')} pts
+                    </div>
+                  )}
                   <div className="mt-2 flex items-center gap-2">
                     <button
                       onClick={() => onOpenRegionInsight(selectedRegion.region.id)}
@@ -777,6 +860,7 @@ export function ScoreBuilderSidebar({
                   {visibleRows.map((entry) => {
                     const selected = selectedRegion?.region.id === entry.region.id
                     const pinned = comparisonSet.has(entry.region.id)
+                    const topDrivers = getTopDrivers(entry, weights, 2)
                     return (
                       <div
                         key={entry.region.id}
@@ -792,6 +876,11 @@ export function ScoreBuilderSidebar({
                             <div className="mt-0.5 text-xs text-muted-foreground">
                               Code {entry.region.code} | Density {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
                             </div>
+                            {topDrivers.length > 0 && (
+                              <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
+                                Top: {topDrivers.map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`).join(', ')} pts
+                              </div>
+                            )}
                           </button>
                           <div className="flex shrink-0 items-center gap-1">
                             <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">{formatScore(entry.score)}</span>

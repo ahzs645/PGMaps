@@ -14,6 +14,8 @@ import {
 import { useCensusData } from '@/maps/census/hooks/useCensusData'
 import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
 import { useParksData } from '@/maps/parks/hooks/useParksData'
+import { useBcAssessmentData } from '@/maps/bcassessment/hooks/useBcAssessmentData'
+import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
 import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
@@ -21,7 +23,8 @@ import {
   SCORE_EXAMPLES,
   createDefaultWeights,
   createMetricValueMap,
-  getScoreColor,
+  getScorePaletteColor,
+  getScorePaletteProfile,
   LOW_COST_NETWORKS,
   SCORE_PRESETS,
   encodeWeightsToParams,
@@ -49,6 +52,22 @@ interface PointRecord {
   lng: number
   lat: number
   feature: GeoJSON.Feature<GeoJSON.Point>
+}
+
+interface PropertyPointRecord extends PointRecord {
+  assessedValue: number
+  landValue: number
+  buildingValue: number
+  valueGrowth: number | null
+  yearBuilt: number | null
+  category: string
+  ct: string | null
+  da: string | null
+}
+
+interface CrimePointRecord extends PointRecord {
+  date: Date
+  recent: boolean
 }
 
 function normalizeMetric(value: number, min: number, max: number): number {
@@ -96,6 +115,34 @@ function hazardWeight(rating: string | null | undefined): number {
   }
 }
 
+function computeValueGrowth(history: number[] | null | undefined): number | null {
+  if (!history || history.length < 2) return null
+  const first = history[0]
+  const last = history[history.length - 1]
+  if (!Number.isFinite(first) || !Number.isFinite(last) || first <= 0) return null
+  return (last - first) / first
+}
+
+function metricToDataSource(category: string): ScoreDataSource | null {
+  if (category === 'airQuality') return 'airQuality'
+  if (category === 'parksRec') return 'parks'
+  if (category === 'foodSafety') return 'restaurants'
+  if (category === 'demographics') return 'census'
+  if (category === 'property') return 'bcAssessment'
+  if (category === 'safety') return 'crime'
+  return null
+}
+
+function scoreDataSourcesEqual(a: ScoreDataSource[], b: ScoreDataSource[]): boolean {
+  if (a.length !== b.length) return false
+  const bSet = new Set(b)
+  return a.every((source) => bSet.has(source))
+}
+
+function scoreWeightsEqual(a: ScoreMetricWeightMap, b: ScoreMetricWeightMap): boolean {
+  return SCORE_METRICS.every((metric) => a[metric.key] === b[metric.key])
+}
+
 function isInRegion(
   lng: number, lat: number,
   feature: GeoJSON.Feature<GeoJSON.Point>,
@@ -106,7 +153,8 @@ function isInRegion(
   return booleanPointInPolygon(feature, region.feature as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>)
 }
 
-const ALL_DATA_SOURCES: ScoreDataSource[] = ['airQuality', 'parks', 'restaurants', 'census']
+const ALL_DATA_SOURCES: ScoreDataSource[] = ['airQuality', 'parks', 'restaurants', 'census', 'bcAssessment', 'crime']
+const CURRENT_YEAR = new Date().getFullYear()
 
 export default function ScoreBuilderSection() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -191,6 +239,8 @@ export default function ScoreBuilderSection() {
   } = useScoreBuilderRegions(boundarySource, selectedRegionLevel)
 
   const enabledSourceSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
+  const { properties, loading: loadingProperties, error: propertiesError } = useBcAssessmentData(enabledSourceSet.has('bcAssessment'))
+  const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData(enabledSourceSet.has('crime'))
 
   const networkCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -273,16 +323,29 @@ export default function ScoreBuilderSection() {
   }, [amenities, enabledSourceSet])
 
   // Restaurant points
-  const restaurantPointRecords = useMemo<Array<PointRecord & { hazard: number }>>(() => {
+  const restaurantPointRecords = useMemo<Array<PointRecord & {
+    hazard: number
+    inspectionCount: number
+    criticalViolations: number
+    followUps: number
+  }>>(() => {
     if (!enabledSourceSet.has('restaurants')) return []
     return restaurants
       .filter((r) => r.latitude != null && r.longitude != null)
-      .map((r) => ({
-        lng: r.longitude as number,
-        lat: r.latitude as number,
-        feature: point([r.longitude as number, r.latitude as number]),
-        hazard: hazardWeight(r.current_hazard_rating || r.hazard_rating)
-      }))
+      .map((r) => {
+        const inspections = r.inspections || []
+        return {
+          lng: r.longitude as number,
+          lat: r.latitude as number,
+          feature: point([r.longitude as number, r.latitude as number]),
+          hazard: hazardWeight(r.current_hazard_rating || r.hazard_rating),
+          inspectionCount: inspections.length,
+          criticalViolations: inspections.reduce((sum, inspection) => sum + (inspection.critical_violations_count || 0), 0),
+          followUps: inspections.reduce((sum, inspection) => (
+            sum + (String(inspection.follow_up_required || '').toLowerCase() === 'yes' ? 1 : 0)
+          ), 0)
+        }
+      })
   }, [enabledSourceSet, restaurants])
 
   // Census DA centroid points
@@ -299,12 +362,53 @@ export default function ScoreBuilderSection() {
     }).filter(Boolean) as Array<PointRecord & { population: number }>
   }, [enabledSourceSet, unitsByLevel.da])
 
+  const propertyPointRecords = useMemo<PropertyPointRecord[]>(() => {
+    if (!enabledSourceSet.has('bcAssessment')) return []
+    return properties
+      .filter((property) => Number.isFinite(property.latitude) && Number.isFinite(property.longitude))
+      .map((property) => ({
+        lng: property.longitude,
+        lat: property.latitude,
+        feature: point([property.longitude, property.latitude]),
+        assessedValue: property.totalAssessed || 0,
+        landValue: property.totalLand || 0,
+        buildingValue: property.totalBuilding || 0,
+        valueGrowth: computeValueGrowth(property.histValues),
+        yearBuilt: property.yearBuilt,
+        category: property.category,
+        ct: property.ct,
+        da: property.da
+      }))
+  }, [enabledSourceSet, properties])
+
+  const crimePointRecords = useMemo<CrimePointRecord[]>(() => {
+    if (!enabledSourceSet.has('crime')) return []
+    const validIncidents = incidents.filter((incident) => (
+      Number.isFinite(incident.latitude) && Number.isFinite(incident.longitude) && !Number.isNaN(incident.date.getTime())
+    ))
+    const latestTime = validIncidents.reduce((latest, incident) => Math.max(latest, incident.date.getTime()), 0)
+    const recentCutoff = latestTime > 0 ? latestTime - 180 * 24 * 60 * 60 * 1000 : 0
+    return validIncidents.map((incident) => ({
+      lng: incident.longitude,
+      lat: incident.latitude,
+      feature: point([incident.longitude, incident.latitude]),
+      date: incident.date,
+      recent: recentCutoff > 0 && incident.date.getTime() >= recentCutoff
+    }))
+  }, [enabledSourceSet, incidents])
+
   const regionMetricRows = useMemo(() => {
     return regions.map((region) => {
       const counts: RegionDataCounts = {
         monitorCount: 0, lowCostCount: 0, referenceCount: 0, activeCount: 0,
         parkCount: 0, parkAreaSqKm: 0, trailCount: 0, trailLengthKm: 0,
-        amenityCount: 0, restaurantCount: 0, restaurantHazardSum: 0, populationSum: 0
+        amenityCount: 0, restaurantCount: 0, restaurantHazardSum: 0,
+        inspectionCount: 0, criticalViolationCount: 0, followUpInspectionCount: 0,
+        populationSum: 0,
+        parcelCount: 0, assessedValueSum: 0, landValueSum: 0, buildingValueSum: 0,
+        propertyGrowthSum: 0, propertyGrowthCount: 0, yearBuiltSum: 0, yearBuiltCount: 0,
+        vacantParcelCount: 0, multiFamilyParcelCount: 0, commercialParcelCount: 0,
+        crimeCount: 0, recentCrimeCount: 0
       }
       const networks = new Set<string>()
       const parameters = new Set<string>()
@@ -345,12 +449,45 @@ export default function ScoreBuilderSection() {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.restaurantCount += 1
         counts.restaurantHazardSum += rec.hazard
+        counts.inspectionCount += rec.inspectionCount
+        counts.criticalViolationCount += rec.criticalViolations
+        counts.followUpInspectionCount += rec.followUps
       })
 
       // Census
       censusPointRecords.forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.populationSum += rec.population
+      })
+
+      // BC Assessment
+      propertyPointRecords.forEach((rec) => {
+        const directCensusMatch = region.source === 'census'
+          && (region.level === 'ct' || region.level === 'da')
+          && rec[region.level as 'ct' | 'da'] === region.code
+        if (!directCensusMatch && !isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+        counts.parcelCount += 1
+        counts.assessedValueSum += rec.assessedValue
+        counts.landValueSum += rec.landValue
+        counts.buildingValueSum += rec.buildingValue
+        if (rec.valueGrowth != null) {
+          counts.propertyGrowthSum += rec.valueGrowth
+          counts.propertyGrowthCount += 1
+        }
+        if (rec.yearBuilt) {
+          counts.yearBuiltSum += rec.yearBuilt
+          counts.yearBuiltCount += 1
+        }
+        if (rec.category === 'vacant') counts.vacantParcelCount += 1
+        if (rec.category === 'multi-family') counts.multiFamilyParcelCount += 1
+        if (rec.category === 'commercial') counts.commercialParcelCount += 1
+      })
+
+      // Crime
+      crimePointRecords.forEach((rec) => {
+        if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+        counts.crimeCount += 1
+        if (rec.recent) counts.recentCrimeCount += 1
       })
 
       const safeArea = region.areaKm2 > 0 ? region.areaKm2 : 1
@@ -368,11 +505,24 @@ export default function ScoreBuilderSection() {
       metricValues.amenityDensity = counts.amenityCount / safeArea
       metricValues.restaurantDensity = counts.restaurantCount / safeArea
       metricValues.foodRiskScore = counts.restaurantCount > 0 ? counts.restaurantHazardSum / counts.restaurantCount : 0
+      metricValues.criticalViolationRate = counts.inspectionCount > 0 ? counts.criticalViolationCount / counts.inspectionCount : 0
+      metricValues.followUpRate = counts.inspectionCount > 0 ? counts.followUpInspectionCount / counts.inspectionCount : 0
       metricValues.populationDensity = counts.populationSum / safeArea
+      metricValues.parcelDensity = counts.parcelCount / safeArea
+      metricValues.avgAssessedValue = counts.parcelCount > 0 ? counts.assessedValueSum / counts.parcelCount : 0
+      metricValues.valueGrowth10y = counts.propertyGrowthCount > 0 ? counts.propertyGrowthSum / counts.propertyGrowthCount : 0
+      metricValues.buildingAge = counts.yearBuiltCount > 0 ? Math.max(0, CURRENT_YEAR - (counts.yearBuiltSum / counts.yearBuiltCount)) : 0
+      metricValues.vacantParcelShare = counts.parcelCount > 0 ? counts.vacantParcelCount / counts.parcelCount : 0
+      metricValues.multiFamilyShare = counts.parcelCount > 0 ? counts.multiFamilyParcelCount / counts.parcelCount : 0
+      metricValues.commercialShare = counts.parcelCount > 0 ? counts.commercialParcelCount / counts.parcelCount : 0
+      metricValues.landValueShare = counts.assessedValueSum > 0 ? counts.landValueSum / counts.assessedValueSum : 0
+      metricValues.crimeDensity = counts.crimeCount / safeArea
+      metricValues.crimePerCapita = counts.populationSum > 0 ? counts.crimeCount / counts.populationSum : 0
+      metricValues.recentCrimeShare = counts.crimeCount > 0 ? counts.recentCrimeCount / counts.crimeCount : 0
 
       return { region, metrics: metricValues, counts }
     })
-  }, [monitorPointRecords, parkPointRecords, trailPointRecords, amenityPointRecords, restaurantPointRecords, censusPointRecords, regions])
+  }, [monitorPointRecords, parkPointRecords, trailPointRecords, amenityPointRecords, restaurantPointRecords, censusPointRecords, propertyPointRecords, crimePointRecords, regions])
 
   const metricRanges = useMemo(() => {
     return SCORE_METRICS.reduce((accumulator, metric) => {
@@ -389,6 +539,27 @@ export default function ScoreBuilderSection() {
     return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
   }, [weights])
 
+  const activePresetKey = useMemo(() => {
+    const match = SCORE_PRESETS.find((preset) => scoreWeightsEqual(preset.weights, weights))
+    return match?.key || null
+  }, [weights])
+
+  const inferredExampleKey = useMemo(() => {
+    const match = SCORE_EXAMPLES.find((example) => (
+      example.boundarySource === boundarySource
+      && example.boundaryLevel === selectedRegionLevel
+      && scoreDataSourcesEqual(example.dataSources, enabledDataSources)
+      && scoreWeightsEqual(example.weights, weights)
+    ))
+    return match?.key || null
+  }, [boundarySource, enabledDataSources, selectedRegionLevel, weights])
+
+  const resolvedExampleKey = activeExampleKey || inferredExampleKey
+
+  const scorePaletteProfile = useMemo(() => {
+    return getScorePaletteProfile(activePresetKey, resolvedExampleKey)
+  }, [activePresetKey, resolvedExampleKey])
+
   const scoredRegions = useMemo<ScoredBoundaryRegion[]>(() => {
     const ranked = regionMetricRows.map((row) => {
       const normalizedMetrics = createMetricValueMap(0)
@@ -399,18 +570,20 @@ export default function ScoreBuilderSection() {
         const value = row.metrics[metric.key]
         const range = metricRanges[metric.key]
         const normalizedValue = normalizeMetric(value, range.min, range.max)
+        const weight = weights[metric.key]
+        const directionalValue = weight >= 0 ? normalizedValue : 1 - normalizedValue
         normalizedMetrics[metric.key] = normalizedValue
         contributions[metric.key] = totalAbsoluteWeight > 0
-          ? (weights[metric.key] * normalizedValue) / totalAbsoluteWeight
+          ? (Math.abs(weight) * directionalValue) / totalAbsoluteWeight
           : 0
         rawScore += contributions[metric.key]
       })
 
       const score = totalAbsoluteWeight > 0
-        ? clampScore(((rawScore + 1) / 2) * 100)
+        ? clampScore(rawScore * 100)
         : 50
 
-      return { ...row, normalizedMetrics, contributions, score, scoreColor: getScoreColor(score), rank: 0 }
+      return { ...row, normalizedMetrics, contributions, score, scoreColor: getScorePaletteColor(score, scorePaletteProfile), rank: 0 }
     })
 
     ranked.sort((a, b) => {
@@ -420,7 +593,7 @@ export default function ScoreBuilderSection() {
     })
 
     return ranked.map((row, index) => ({ ...row, rank: index + 1 }))
-  }, [metricRanges, regionMetricRows, totalAbsoluteWeight, weights])
+  }, [metricRanges, regionMetricRows, scorePaletteProfile, totalAbsoluteWeight, weights])
 
   const filteredRegions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -487,15 +660,11 @@ export default function ScoreBuilderSection() {
   const equationPreview = useMemo(() => {
     const activeTerms = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
     if (!activeTerms.length) return 'No active terms. Move any weight above or below zero.'
-    const terms = activeTerms.map((metric) => `${weights[metric.key]}×${metric.shortLabel}`)
-    return `score = (${terms.join(' + ')}) / Σ|weight|`
-  }, [weights])
-
-  const activePresetKey = useMemo(() => {
-    const match = SCORE_PRESETS.find((preset) => (
-      SCORE_METRICS.every((metric) => preset.weights[metric.key] === weights[metric.key])
-    ))
-    return match?.key || null
+    const terms = activeTerms.map((metric) => {
+      const weight = weights[metric.key]
+      return weight < 0 ? `${Math.abs(weight)}×low ${metric.shortLabel}` : `${weight}×${metric.shortLabel}`
+    })
+    return `score = weighted average(${terms.join(' + ')})`
   }, [weights])
 
   const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
@@ -548,10 +717,8 @@ export default function ScoreBuilderSection() {
     const needed = new Set<ScoreDataSource>()
     SCORE_METRICS.forEach((m) => {
       if (preset.weights[m.key] !== 0) {
-        if (m.category === 'airQuality') needed.add('airQuality')
-        else if (m.category === 'parksRec') needed.add('parks')
-        else if (m.category === 'foodSafety') needed.add('restaurants')
-        else if (m.category === 'demographics') needed.add('census')
+        const source = metricToDataSource(m.category)
+        if (source) needed.add(source)
       }
     })
     setEnabledDataSources(Array.from(needed))
@@ -627,7 +794,7 @@ export default function ScoreBuilderSection() {
     }
   }, [scoredRegions])
 
-  const loading = loadingMonitors || loadingRegions || loadingParks || loadingRestaurants || loadingCensus
+  const loading = loadingMonitors || loadingRegions || loadingParks || loadingRestaurants || loadingCensus || loadingProperties || loadingCrime
   const dataErrors = useMemo(() => {
     const errors: string[] = []
     if (monitorsError) errors.push(monitorsError)
@@ -635,8 +802,10 @@ export default function ScoreBuilderSection() {
     if (parksError) errors.push(parksError)
     if (restaurantsError) errors.push(restaurantsError)
     if (censusError) errors.push(censusError)
+    if (propertiesError) errors.push(propertiesError)
+    if (crimeError) errors.push(crimeError)
     return errors
-  }, [monitorsError, regionsError, parksError, restaurantsError, censusError])
+  }, [monitorsError, regionsError, parksError, restaurantsError, censusError, propertiesError, crimeError])
 
   return (
     <>
@@ -686,7 +855,7 @@ export default function ScoreBuilderSection() {
             onToggleComparison={toggleComparison}
             onClearComparison={clearComparison}
             onExport={handleExport}
-            activeExampleKey={activeExampleKey}
+            activeExampleKey={resolvedExampleKey}
             onApplyExample={applyExample}
             isDesktop={isDesktop}
           />
@@ -698,15 +867,19 @@ export default function ScoreBuilderSection() {
             selectedRegionId={selectedRegionId}
             monitors={filteredMonitors}
             showPoints={showPoints}
+            paletteProfile={scorePaletteProfile}
             onRegionClick={setSelectedRegionId}
           />
 
           <div className="absolute bottom-24 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
-            <h4 className="mb-2 text-xs font-semibold text-foreground">Composite Score</h4>
-            <div className="h-2 w-44 rounded bg-gradient-to-r from-red-900 via-orange-600 via-55% to-green-700" />
+            <h4 className="mb-2 text-xs font-semibold text-foreground">{scorePaletteProfile.label}</h4>
+            <div
+              className="h-2 w-44 rounded"
+              style={{ background: `linear-gradient(to right, ${scorePaletteProfile.colors.join(', ')})` }}
+            />
             <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Lower priority</span>
-              <span>Higher priority</span>
+              <span>{scorePaletteProfile.legend.low}</span>
+              <span>{scorePaletteProfile.legend.high}</span>
             </div>
             <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
               <div>

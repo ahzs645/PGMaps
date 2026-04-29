@@ -1,6 +1,18 @@
 import type { BoundaryIndex, BoundaryLevel, BoundarySource, CensusBoundaryLevel } from '@/maps/airquality'
 import type { ScoreExample, ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap, ScorePreset } from './types'
 
+export type ScorePaletteKey = 'airCoverage' | 'benefit' | 'affordability' | 'riskPressure' | 'default'
+
+export interface ScorePaletteProfile {
+  key: ScorePaletteKey
+  label: string
+  colors: readonly [string, string, string, string, string]
+  legend: {
+    low: string
+    high: string
+  }
+}
+
 export const SCORE_METRICS: ScoreMetricDefinition[] = [
   // Air Quality
   {
@@ -109,6 +121,22 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     format: 'ratio',
     category: 'foodSafety'
   },
+  {
+    key: 'criticalViolationRate',
+    label: 'Critical Violation Rate',
+    shortLabel: 'Critical rate',
+    description: 'Critical violations per inspection for restaurants in each boundary.',
+    format: 'ratio',
+    category: 'foodSafety'
+  },
+  {
+    key: 'followUpRate',
+    label: 'Follow-Up Inspection Rate',
+    shortLabel: 'Follow-up rate',
+    description: 'Share of inspections that required a follow-up.',
+    format: 'ratio',
+    category: 'foodSafety'
+  },
   // Demographics
   {
     key: 'populationDensity',
@@ -117,6 +145,96 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     description: 'Census population per km² from overlapping DAs.',
     format: 'density',
     category: 'demographics'
+  },
+  // Property & Housing
+  {
+    key: 'parcelDensity',
+    label: 'Parcel Density',
+    shortLabel: 'Parcel density',
+    description: 'BC Assessment parcels per km².',
+    format: 'density',
+    category: 'property'
+  },
+  {
+    key: 'avgAssessedValue',
+    label: 'Average Assessed Value',
+    shortLabel: 'Avg. value',
+    description: 'Average total assessed parcel value.',
+    format: 'currency',
+    category: 'property'
+  },
+  {
+    key: 'valueGrowth10y',
+    label: '10-Year Value Growth',
+    shortLabel: '10y growth',
+    description: 'Average parcel value growth across available assessment history.',
+    format: 'percent',
+    category: 'property'
+  },
+  {
+    key: 'buildingAge',
+    label: 'Average Building Age',
+    shortLabel: 'Building age',
+    description: 'Average age of parcels with a known year built.',
+    format: 'years',
+    category: 'property'
+  },
+  {
+    key: 'vacantParcelShare',
+    label: 'Vacant Parcel Share',
+    shortLabel: 'Vacant share',
+    description: 'Share of parcels classified as vacant.',
+    format: 'percent',
+    category: 'property'
+  },
+  {
+    key: 'multiFamilyShare',
+    label: 'Multi-Family Share',
+    shortLabel: 'Multi-family',
+    description: 'Share of parcels classified as multi-family.',
+    format: 'percent',
+    category: 'property'
+  },
+  {
+    key: 'commercialShare',
+    label: 'Commercial Parcel Share',
+    shortLabel: 'Commercial',
+    description: 'Share of parcels classified as commercial.',
+    format: 'percent',
+    category: 'property'
+  },
+  {
+    key: 'landValueShare',
+    label: 'Land Value Share',
+    shortLabel: 'Land value',
+    description: 'Share of assessed value assigned to land rather than buildings.',
+    format: 'percent',
+    category: 'property'
+  },
+  // Safety
+  {
+    key: 'crimeDensity',
+    label: 'Crime Density',
+    shortLabel: 'Crime density',
+    description: 'Crime incidents per km².',
+    format: 'density',
+    category: 'safety'
+  },
+  {
+    key: 'crimePerCapita',
+    label: 'Crime Per Capita',
+    shortLabel: 'Crime/capita',
+    description: 'Crime incidents per resident based on census population.',
+    format: 'ratio',
+    category: 'safety'
+  },
+  {
+    key: 'recentCrimeShare',
+    label: 'Recent Crime Share',
+    shortLabel: 'Recent crime',
+    description: 'Share of incidents from the most recent 180 days in the loaded data.',
+    format: 'percent',
+    category: 'safety'
   }
 ]
 
@@ -140,7 +258,20 @@ const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   amenityDensity: 0,
   restaurantDensity: 0,
   foodRiskScore: 0,
-  populationDensity: 0
+  criticalViolationRate: 0,
+  followUpRate: 0,
+  populationDensity: 0,
+  parcelDensity: 0,
+  avgAssessedValue: 0,
+  valueGrowth10y: 0,
+  buildingAge: 0,
+  vacantParcelShare: 0,
+  multiFamilyShare: 0,
+  commercialShare: 0,
+  landValueShare: 0,
+  crimeDensity: 0,
+  crimePerCapita: 0,
+  recentCrimeShare: 0
 }
 
 export const DEFAULT_SCORE_WEIGHTS: ScoreMetricWeightMap = {
@@ -229,6 +360,80 @@ export const SCORE_PRESETS: ScorePreset[] = [
       amenityDensity: 5,
       populationDensity: 8,
       networkVariety: 5
+    }
+  },
+  {
+    key: 'housingAffordability',
+    label: 'Housing Affordability',
+    description: 'Highlights areas with lower values, more multi-family parcels, and less recent price pressure.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      avgAssessedValue: -32,
+      valueGrowth10y: -22,
+      multiFamilyShare: 18,
+      parcelDensity: 8,
+      buildingAge: 8,
+      vacantParcelShare: 6,
+      populationDensity: 6
+    }
+  },
+  {
+    key: 'redevelopmentPressure',
+    label: 'Redevelopment Pressure',
+    description: 'Finds areas with high land value share, vacant land, older buildings, and rapid value growth.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      valueGrowth10y: 28,
+      landValueShare: 22,
+      vacantParcelShare: 18,
+      buildingAge: 14,
+      commercialShare: 8,
+      parcelDensity: 6,
+      populationDensity: 4
+    }
+  },
+  {
+    key: 'completeNeighbourhood',
+    label: 'Complete Neighbourhood',
+    description: 'Balances services, parks, trails, density, and housing mix.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      restaurantDensity: 16,
+      parkDensity: 14,
+      trailDensity: 12,
+      amenityDensity: 10,
+      populationDensity: 12,
+      parcelDensity: 8,
+      multiFamilyShare: 8,
+      foodRiskScore: -6,
+      criticalViolationRate: -6,
+      crimePerCapita: -8
+    }
+  },
+  {
+    key: 'foodInspectionRisk',
+    label: 'Food Inspection Risk',
+    description: 'Prioritizes restaurant areas with more critical violations, follow-ups, and hazard risk.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      criticalViolationRate: 34,
+      followUpRate: 24,
+      foodRiskScore: 22,
+      restaurantDensity: 10,
+      populationDensity: 10
+    }
+  },
+  {
+    key: 'safetyPressure',
+    label: 'Safety Pressure',
+    description: 'Ranks areas by crime density, per-capita incident load, and recent activity.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      crimeDensity: 35,
+      crimePerCapita: 35,
+      recentCrimeShare: 15,
+      populationDensity: 10,
+      parcelDensity: 5
     }
   }
 ]
@@ -397,6 +602,103 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       referenceDensity: 7
     }
   },
+  {
+    key: 'housingAffordabilityDa',
+    label: 'Housing Affordability (DA)',
+    question: 'Which small areas combine lower assessed values with more housing choice?',
+    description: 'Uses BC Assessment parcels to balance lower values, multi-family share, parcel density, and recent value growth.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['bcAssessment', 'census'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      avgAssessedValue: -34,
+      valueGrowth10y: -22,
+      multiFamilyShare: 18,
+      parcelDensity: 10,
+      buildingAge: 8,
+      populationDensity: 8
+    }
+  },
+  {
+    key: 'redevelopmentPressureDa',
+    label: 'Redevelopment Pressure (DA)',
+    question: 'Where does PG show the strongest property redevelopment pressure?',
+    description: 'Highlights DAs with older buildings, high land-value share, vacant parcels, and rapid assessment growth.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['bcAssessment', 'census'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      valueGrowth10y: 28,
+      landValueShare: 22,
+      vacantParcelShare: 18,
+      buildingAge: 14,
+      commercialShare: 8,
+      parcelDensity: 6,
+      populationDensity: 4
+    }
+  },
+  {
+    key: 'completeNeighbourhoodDa',
+    label: 'Complete Neighbourhood (DA)',
+    question: 'Which small neighbourhoods have the best mix of services, parks, housing, and safety?',
+    description: 'Combines food, parks, trails, housing mix, density, and crime per capita into a neighbourhood completeness score.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['restaurants', 'parks', 'bcAssessment', 'census', 'crime'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      restaurantDensity: 15,
+      parkDensity: 12,
+      trailDensity: 10,
+      amenityDensity: 8,
+      populationDensity: 12,
+      parcelDensity: 8,
+      multiFamilyShare: 8,
+      foodRiskScore: -6,
+      criticalViolationRate: -6,
+      crimePerCapita: -15
+    }
+  },
+  {
+    key: 'foodInspectionRiskDa',
+    label: 'Food Inspection Risk (DA)',
+    question: 'Which restaurant clusters have higher inspection risk?',
+    description: 'Looks beyond hazard rating by adding critical violation rate and follow-up inspection rate.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['restaurants', 'census'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      criticalViolationRate: 34,
+      followUpRate: 24,
+      foodRiskScore: 22,
+      restaurantDensity: 10,
+      populationDensity: 10
+    }
+  },
+  {
+    key: 'crimePressureDa',
+    label: 'Crime Pressure (DA)',
+    question: 'Where are incident counts high relative to area and population?',
+    description: 'Uses live PG crime points with census population to score density, per-capita risk, and recent activity.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['crime', 'census'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      crimeDensity: 35,
+      crimePerCapita: 35,
+      recentCrimeShare: 15,
+      populationDensity: 15
+    }
+  },
 
   // Census Subdivision (CSD) – 1 unit (city-wide), useful as a baseline
   {
@@ -561,7 +863,13 @@ export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
   'trailDensity',
   'amenityDensity',
   'restaurantDensity',
-  'populationDensity'
+  'populationDensity',
+  'parcelDensity',
+  'avgAssessedValue',
+  'valueGrowth10y',
+  'buildingAge',
+  'crimeDensity',
+  'crimePerCapita'
 ]
 
 export const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
@@ -647,7 +955,20 @@ export function createMetricValueMap(initial = 0): Record<ScoreMetricKey, number
     amenityDensity: initial,
     restaurantDensity: initial,
     foodRiskScore: initial,
-    populationDensity: initial
+    criticalViolationRate: initial,
+    followUpRate: initial,
+    populationDensity: initial,
+    parcelDensity: initial,
+    avgAssessedValue: initial,
+    valueGrowth10y: initial,
+    buildingAge: initial,
+    vacantParcelShare: initial,
+    multiFamilyShare: initial,
+    commercialShare: initial,
+    landValueShare: initial,
+    crimeDensity: initial,
+    crimePerCapita: initial,
+    recentCrimeShare: initial
   }
 }
 
@@ -661,6 +982,115 @@ export function getScoreColor(score: number): string {
   if (score >= 30) return '#c2410c'
   if (score >= 20) return '#b91c1c'
   return '#7f1d1d'
+}
+
+export const SCORE_PALETTE_PROFILES: Record<ScorePaletteKey, ScorePaletteProfile> = {
+  airCoverage: {
+    key: 'airCoverage',
+    label: 'Coverage score',
+    colors: ['#7f1d1d', '#c2410c', '#a16207', '#4d7c0f', '#166534'],
+    legend: { low: 'Lower coverage', high: 'Higher coverage' }
+  },
+  benefit: {
+    key: 'benefit',
+    label: 'Benefit score',
+    colors: ['#fefce8', '#bef264', '#84cc16', '#22c55e', '#14532d'],
+    legend: { low: 'Lower benefit', high: 'Higher benefit' }
+  },
+  affordability: {
+    key: 'affordability',
+    label: 'Affordability score',
+    colors: ['#eff6ff', '#bae6fd', '#67e8f9', '#14b8a6', '#0f766e'],
+    legend: { low: 'Less affordable', high: 'More affordable' }
+  },
+  riskPressure: {
+    key: 'riskPressure',
+    label: 'Risk / pressure score',
+    colors: ['#fef08a', '#fb923c', '#ef4444', '#be123c', '#581c87'],
+    legend: { low: 'Lower pressure', high: 'Higher pressure' }
+  },
+  default: {
+    key: 'default',
+    label: 'Composite score',
+    colors: ['#7f1d1d', '#b91c1c', '#b45309', '#4d7c0f', '#166534'],
+    legend: { low: 'Lower priority', high: 'Higher priority' }
+  }
+}
+
+const SCORE_PRESET_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
+  balancedCoverage: 'airCoverage',
+  lowCostExpansion: 'airCoverage',
+  referenceNetwork: 'airCoverage',
+  livabilityIndex: 'benefit',
+  environmentalHealth: 'benefit',
+  housingAffordability: 'affordability',
+  redevelopmentPressure: 'riskPressure',
+  completeNeighbourhood: 'benefit',
+  foodInspectionRisk: 'riskPressure',
+  safetyPressure: 'riskPressure'
+}
+
+const SCORE_EXAMPLE_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
+  greenestNeighbourhoods: 'benefit',
+  airQualityGapsCt: 'airCoverage',
+  foodSafetyCt: 'benefit',
+  communityLivabilityCt: 'benefit',
+  lowCostSensorDeploymentDa: 'airCoverage',
+  parkAccessDa: 'benefit',
+  foodAccessDa: 'benefit',
+  livabilityDa: 'benefit',
+  housingAffordabilityDa: 'affordability',
+  redevelopmentPressureDa: 'riskPressure',
+  completeNeighbourhoodDa: 'benefit',
+  foodInspectionRiskDa: 'riskPressure',
+  crimePressureDa: 'riskPressure',
+  cityOverviewCsd: 'benefit',
+  provincialAirQualityHa: 'airCoverage',
+  hsdaSensorCoverage: 'airCoverage',
+  lhaMonitoringComparison: 'airCoverage',
+  lhaLowCostExpansion: 'airCoverage',
+  chsaSensorCoverage: 'airCoverage',
+  chsaReferenceGaps: 'airCoverage'
+}
+
+function interpolateChannel(start: number, end: number, ratio: number): number {
+  return Math.round(start + (end - start) * ratio)
+}
+
+function interpolateHexColor(start: string, end: string, ratio: number): string {
+  const startValue = Number.parseInt(start.slice(1), 16)
+  const endValue = Number.parseInt(end.slice(1), 16)
+  const sr = (startValue >> 16) & 255
+  const sg = (startValue >> 8) & 255
+  const sb = startValue & 255
+  const er = (endValue >> 16) & 255
+  const eg = (endValue >> 8) & 255
+  const eb = endValue & 255
+  const r = interpolateChannel(sr, er, ratio).toString(16).padStart(2, '0')
+  const g = interpolateChannel(sg, eg, ratio).toString(16).padStart(2, '0')
+  const b = interpolateChannel(sb, eb, ratio).toString(16).padStart(2, '0')
+  return `#${r}${g}${b}`
+}
+
+export function getScorePaletteProfile(
+  activePresetKey: string | null,
+  activeExampleKey: string | null
+): ScorePaletteProfile {
+  const paletteKey = (activeExampleKey ? SCORE_EXAMPLE_PALETTE_KEYS[activeExampleKey] : undefined)
+    || (activePresetKey ? SCORE_PRESET_PALETTE_KEYS[activePresetKey] : undefined)
+    || 'default'
+  return SCORE_PALETTE_PROFILES[paletteKey]
+}
+
+export function getScorePaletteColor(score: number, profile: ScorePaletteProfile): string {
+  if (!Number.isFinite(score)) return profile.colors[0]
+  const normalizedScore = Math.max(0, Math.min(100, score)) / 100
+  const scaledIndex = normalizedScore * (profile.colors.length - 1)
+  const lowerIndex = Math.floor(scaledIndex)
+  const upperIndex = Math.min(profile.colors.length - 1, lowerIndex + 1)
+  const lowerColor = profile.colors[lowerIndex] || profile.colors[0]
+  const upperColor = profile.colors[upperIndex] || lowerColor
+  return interpolateHexColor(lowerColor, upperColor, scaledIndex - lowerIndex)
 }
 
 export function encodeWeightsToParams(weights: ScoreMetricWeightMap): string {

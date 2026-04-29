@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, Menu, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
@@ -22,27 +23,57 @@ export function Navbar() {
   const { resolvedTheme, setTheme } = useTheme()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
   }
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false)
-  }, [location.pathname])
-
   // Close mobile menu on outside click
   useEffect(() => {
     if (!mobileMenuOpen) return
     const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        !menuButtonRef.current?.contains(target)
+      ) {
         setMobileMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [mobileMenuOpen])
+
+  const mobileMenu = mobileMenuOpen && typeof document !== 'undefined'
+    ? createPortal(
+        <div
+          ref={menuRef}
+          className="fixed inset-x-0 top-14 z-[1000] border-b border-border bg-background/95 shadow-lg backdrop-blur md:hidden"
+        >
+          <nav className="flex flex-col p-2">
+            {navLinks.map(({ path, label, icon: Icon }) => (
+              <Link
+                key={path}
+                to={path}
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
+                  location.pathname === path
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </div>,
+        document.body,
+      )
+    : null
 
   return (
     <header className="h-14 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -60,6 +91,7 @@ export function Navbar() {
               <Link
                 key={path}
                 to={path}
+                onClick={() => setMobileMenuOpen(false)}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
                   location.pathname === path
@@ -91,10 +123,12 @@ export function Navbar() {
           </Button>
 
           <Button
+            ref={menuButtonRef}
             variant="ghost"
             size="icon"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onClick={() => setMobileMenuOpen((open) => !open)}
             aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
             className="h-10 w-10 md:hidden"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -102,31 +136,7 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu dropdown */}
-      {mobileMenuOpen && (
-        <div
-          ref={menuRef}
-          className="absolute inset-x-0 top-14 z-50 border-b border-border bg-background/95 shadow-lg backdrop-blur md:hidden"
-        >
-          <nav className="flex flex-col p-2">
-            {navLinks.map(({ path, label, icon: Icon }) => (
-              <Link
-                key={path}
-                to={path}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
-                  location.pathname === path
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      )}
+      {mobileMenu}
     </header>
   )
 }

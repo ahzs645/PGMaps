@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -183,24 +184,9 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     return groups
   }, [results])
 
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className={cn(
-          'flex items-center gap-2 rounded-lg border border-input bg-background/80 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-          className,
-        )}
-      >
-        <Search className="h-4 w-4" />
-        <span className="hidden sm:inline">Search...</span>
-        <kbd className="ml-2 hidden rounded border border-input bg-muted px-1.5 py-0.5 text-[10px] font-mono sm:inline">
-          ⌘K
-        </kbd>
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[15vh] backdrop-blur-sm">
+  const searchOverlay = open && typeof document !== 'undefined'
+    ? createPortal(
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-3 pt-[15vh] backdrop-blur-sm">
           <div
             ref={panelRef}
             className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
@@ -217,7 +203,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                 className="flex-1 bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none"
               />
               {query && (
-                <button onClick={() => setQuery('')}>
+                <button onClick={() => setQuery('')} aria-label="Clear search">
                   <X className="h-4 w-4 text-muted-foreground" />
                 </button>
               )}
@@ -273,8 +259,29 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+    : null
+
+  return (
+    <>
+      <button
+        aria-label="Open search"
+        onClick={() => setOpen(true)}
+        className={cn(
+          'flex items-center gap-2 rounded-lg border border-input bg-background/80 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+          className,
+        )}
+      >
+        <Search className="h-4 w-4" />
+        <span className="hidden sm:inline">Search...</span>
+        <kbd className="ml-2 hidden rounded border border-input bg-muted px-1.5 py-0.5 text-[10px] font-mono sm:inline">
+          ⌘K
+        </kbd>
+      </button>
+
+      {searchOverlay}
     </>
   )
 }

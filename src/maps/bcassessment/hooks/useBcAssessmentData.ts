@@ -52,12 +52,18 @@ function parseFeatures(geojson: GeoJSON.FeatureCollection): Property[] {
     })
 }
 
-export function useBcAssessmentData() {
+export function useBcAssessmentData(enabled = true) {
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     const controller = new AbortController()
 
     async function load() {
@@ -80,7 +86,7 @@ export function useBcAssessmentData() {
 
     load()
     return () => controller.abort()
-  }, [])
+  }, [enabled])
 
   return { properties, loading, error }
 }

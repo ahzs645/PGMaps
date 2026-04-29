@@ -1,6 +1,6 @@
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 
-export type ScoreMetricCategory = 'airQuality' | 'parksRec' | 'foodSafety' | 'demographics'
+export type ScoreMetricCategory = 'airQuality' | 'parksRec' | 'foodSafety' | 'demographics' | 'property' | 'safety'
 
 export type ScoreMetricKey =
   // Air Quality
@@ -19,10 +19,25 @@ export type ScoreMetricKey =
   // Food Safety
   | 'restaurantDensity'
   | 'foodRiskScore'
+  | 'criticalViolationRate'
+  | 'followUpRate'
   // Demographics
   | 'populationDensity'
+  // Property
+  | 'parcelDensity'
+  | 'avgAssessedValue'
+  | 'valueGrowth10y'
+  | 'buildingAge'
+  | 'vacantParcelShare'
+  | 'multiFamilyShare'
+  | 'commercialShare'
+  | 'landValueShare'
+  // Safety
+  | 'crimeDensity'
+  | 'crimePerCapita'
+  | 'recentCrimeShare'
 
-export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent'
+export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
 
 export interface ScoreMetricDefinition {
   key: ScoreMetricKey
@@ -78,7 +93,23 @@ export interface RegionDataCounts {
   amenityCount: number
   restaurantCount: number
   restaurantHazardSum: number
+  inspectionCount: number
+  criticalViolationCount: number
+  followUpInspectionCount: number
   populationSum: number
+  parcelCount: number
+  assessedValueSum: number
+  landValueSum: number
+  buildingValueSum: number
+  propertyGrowthSum: number
+  propertyGrowthCount: number
+  yearBuiltSum: number
+  yearBuiltCount: number
+  vacantParcelCount: number
+  multiFamilyParcelCount: number
+  commercialParcelCount: number
+  crimeCount: number
+  recentCrimeCount: number
 }
 
 export interface ScoredBoundaryRegion {
@@ -92,18 +123,22 @@ export interface ScoredBoundaryRegion {
   rank: number
 }
 
-export type ScoreDataSource = 'airQuality' | 'parks' | 'restaurants' | 'census'
+export type ScoreDataSource = 'airQuality' | 'parks' | 'restaurants' | 'census' | 'bcAssessment' | 'crime'
 
 export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; description: string }> = [
   { id: 'airQuality', label: 'Air Quality', description: 'Sensor network coverage and diversity' },
   { id: 'parks', label: 'Parks & Trails', description: 'Parks, trails, and amenity infrastructure' },
   { id: 'restaurants', label: 'Food Safety', description: 'Restaurant inspection coverage' },
-  { id: 'census', label: 'Demographics', description: 'Census population data (PG area)' }
+  { id: 'census', label: 'Demographics', description: 'Census population data (PG area)' },
+  { id: 'bcAssessment', label: 'BC Assessment', description: 'Parcel values, housing mix, age, and growth' },
+  { id: 'crime', label: 'Crime', description: 'Prince George crime density, per-capita risk, and recency' }
 ]
 
 export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
   airQuality: 'Air Quality',
   parksRec: 'Parks & Recreation',
   foodSafety: 'Food Safety',
-  demographics: 'Demographics'
+  demographics: 'Demographics',
+  property: 'Property & Housing',
+  safety: 'Safety'
 }
