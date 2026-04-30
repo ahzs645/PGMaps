@@ -131,14 +131,42 @@ function computeValueGrowth(history: number[] | null | undefined): number | null
   return (last - first) / first
 }
 
-function metricToDataSource(category: string): ScoreDataSource | null {
-  if (category === 'airQuality') return 'airQuality'
-  if (category === 'parksRec') return 'parks'
-  if (category === 'foodSafety') return 'restaurants'
-  if (category === 'demographics') return 'census'
-  if (category === 'property') return 'bcAssessment'
-  if (category === 'safety') return 'crime'
+function metricToDataSource(metric: { category: string; dataSource?: ScoreDataSource }): ScoreDataSource | null {
+  if (metric.dataSource) return metric.dataSource
+  if (metric.category === 'airQuality') return 'airQuality'
+  if (metric.category === 'parksRec') return 'parks'
+  if (metric.category === 'foodSafety') return 'restaurants'
+  if (metric.category === 'demographics') return 'census'
+  if (metric.category === 'property') return 'bcAssessment'
+  if (metric.category === 'safety') return 'crime'
   return null
+}
+
+// Gaussian heat kernel sampled at a region's centroid. We approximate
+// distance with an equirectangular projection (cheap and accurate at
+// PG's scale). Points beyond ~3σ are skipped — they contribute < 1%.
+const HEAT_BANDWIDTH_KM = 1.5
+const HEAT_CUTOFF_KM = HEAT_BANDWIDTH_KM * 3
+const KM_PER_DEG_LAT = 110.574
+
+function gaussianHeat(
+  centroidLng: number,
+  centroidLat: number,
+  points: Array<{ lng: number; lat: number; weight?: number }>,
+): number {
+  if (!points.length || !Number.isFinite(centroidLng) || !Number.isFinite(centroidLat)) return 0
+  const cosLat = Math.cos((centroidLat * Math.PI) / 180)
+  const kmPerDegLng = KM_PER_DEG_LAT * cosLat
+  const twoSigmaSq = 2 * HEAT_BANDWIDTH_KM * HEAT_BANDWIDTH_KM
+  let sum = 0
+  for (const p of points) {
+    const dLng = (p.lng - centroidLng) * kmPerDegLng
+    const dLat = (p.lat - centroidLat) * KM_PER_DEG_LAT
+    const distSq = dLng * dLng + dLat * dLat
+    if (distSq > HEAT_CUTOFF_KM * HEAT_CUTOFF_KM) continue
+    sum += (p.weight ?? 1) * Math.exp(-distSq / twoSigmaSq)
+  }
+  return sum
 }
 
 function scoreDataSourcesEqual(a: ScoreDataSource[], b: ScoreDataSource[]): boolean {
@@ -465,6 +493,11 @@ export default function ScoreBuilderSection() {
         commercialParcelCount: 0,
         crimeCount: 0,
         recentCrimeCount: 0,
+        sensorHeatRaw: 0,
+        parkHeatRaw: 0,
+        restaurantHeatRaw: 0,
+        propertyValueHeatRaw: 0,
+        crimeHeatRaw: 0,
       }
       const networks = new Set<string>()
       const parameters = new Set<string>()
@@ -550,6 +583,47 @@ export default function ScoreBuilderSection() {
         if (rec.recent) counts.recentCrimeCount += 1
       })
 
+      // Heatmap influence — sample a Gaussian kernel at the region's bbox
+      // centroid for each point dataset that is currently enabled.
+      const [centroidLng, centroidLat] = [
+        (region.bounds[0] + region.bounds[2]) / 2,
+        (region.bounds[1] + region.bounds[3]) / 2,
+      ]
+      counts.sensorHeatRaw = gaussianHeat(centroidLng, centroidLat, monitorPointRecords.map((m) => ({
+        lng: m.monitor.longitude,
+        lat: m.monitor.latitude,
+      })))
+      counts.parkHeatRaw =
+        gaussianHeat(centroidLng, centroidLat, parkPointRecords.map((p) => ({
+          lng: p.lng,
+          lat: p.lat,
+          weight: 1 + Math.min(5, p.areaSqKm),
+        }))) +
+        gaussianHeat(centroidLng, centroidLat, amenityPointRecords.map((a) => ({
+          lng: a.lng,
+          lat: a.lat,
+          weight: 0.5,
+        })))
+      counts.restaurantHeatRaw = gaussianHeat(
+        centroidLng,
+        centroidLat,
+        restaurantPointRecords.map((r) => ({ lng: r.lng, lat: r.lat })),
+      )
+      counts.propertyValueHeatRaw = gaussianHeat(
+        centroidLng,
+        centroidLat,
+        propertyPointRecords.map((p) => ({
+          lng: p.lng,
+          lat: p.lat,
+          weight: p.assessedValue > 0 ? p.assessedValue / 1_000_000 : 0,
+        })),
+      )
+      counts.crimeHeatRaw = gaussianHeat(
+        centroidLng,
+        centroidLat,
+        crimePointRecords.map((c) => ({ lng: c.lng, lat: c.lat, weight: c.recent ? 1.5 : 1 })),
+      )
+
       const safeArea = region.areaKm2 > 0 ? region.areaKm2 : 1
       const metricValues = createMetricValueMap(0)
       metricValues.overallDensity = counts.monitorCount / safeArea
@@ -583,6 +657,11 @@ export default function ScoreBuilderSection() {
       metricValues.crimeDensity = counts.crimeCount / safeArea
       metricValues.crimePerCapita = counts.populationSum > 0 ? counts.crimeCount / counts.populationSum : 0
       metricValues.recentCrimeShare = counts.crimeCount > 0 ? counts.recentCrimeCount / counts.crimeCount : 0
+      metricValues.sensorHeat = counts.sensorHeatRaw
+      metricValues.parkHeat = counts.parkHeatRaw
+      metricValues.restaurantHeat = counts.restaurantHeatRaw
+      metricValues.propertyValueHeat = counts.propertyValueHeatRaw
+      metricValues.crimeHeat = counts.crimeHeatRaw
 
       return { region, metrics: metricValues, counts }
     })
@@ -800,7 +879,7 @@ export default function ScoreBuilderSection() {
     const needed = new Set<ScoreDataSource>()
     SCORE_METRICS.forEach((m) => {
       if (preset.weights[m.key] !== 0) {
-        const source = metricToDataSource(m.category)
+        const source = metricToDataSource(m)
         if (source) needed.add(source)
       }
     })

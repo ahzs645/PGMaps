@@ -235,6 +235,54 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     description: 'Share of incidents from the most recent 180 days in the loaded data.',
     format: 'percent',
     category: 'safety'
+  },
+  // Heatmap influence — kernel-weighted spatial intensity sampled at the
+  // region centroid. These spill across boundaries the way the on-map
+  // heatmaps do, so a region next to a hot cluster can still score high.
+  {
+    key: 'sensorHeat',
+    label: 'Air Sensor Heat',
+    shortLabel: 'Sensor heat',
+    description: 'Heatmap intensity of nearby air-quality sensors (~1.5 km bandwidth).',
+    format: 'count',
+    category: 'heatInfluence',
+    dataSource: 'airQuality'
+  },
+  {
+    key: 'parkHeat',
+    label: 'Park Access Heat',
+    shortLabel: 'Park heat',
+    description: 'Heatmap intensity of nearby parks weighted by area (~1.5 km bandwidth).',
+    format: 'count',
+    category: 'heatInfluence',
+    dataSource: 'parks'
+  },
+  {
+    key: 'restaurantHeat',
+    label: 'Restaurant Vibrancy Heat',
+    shortLabel: 'Restaurant heat',
+    description: 'Heatmap intensity of nearby restaurants — captures food vibrancy spillover (~1.5 km bandwidth).',
+    format: 'count',
+    category: 'heatInfluence',
+    dataSource: 'restaurants'
+  },
+  {
+    key: 'propertyValueHeat',
+    label: 'Property Value Heat',
+    shortLabel: 'Value heat',
+    description: 'Heatmap intensity of nearby parcels weighted by assessed value (~1.5 km bandwidth).',
+    format: 'count',
+    category: 'heatInfluence',
+    dataSource: 'bcAssessment'
+  },
+  {
+    key: 'crimeHeat',
+    label: 'Crime Hotspot Heat',
+    shortLabel: 'Crime heat',
+    description: 'Heatmap intensity of nearby crime incidents (~1.5 km bandwidth, recent incidents weighted higher).',
+    format: 'count',
+    category: 'heatInfluence',
+    dataSource: 'crime'
   }
 ]
 
@@ -271,7 +319,12 @@ const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   landValueShare: 0,
   crimeDensity: 0,
   crimePerCapita: 0,
-  recentCrimeShare: 0
+  recentCrimeShare: 0,
+  sensorHeat: 0,
+  parkHeat: 0,
+  restaurantHeat: 0,
+  propertyValueHeat: 0,
+  crimeHeat: 0
 }
 
 export const DEFAULT_SCORE_WEIGHTS: ScoreMetricWeightMap = {
@@ -700,6 +753,82 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
     }
   },
 
+  // ── Heatmap-influence examples ───────────────────────────────────────
+  // These score regions on spatial heat from neighbouring data points,
+  // not just what falls strictly inside the boundary, so a region next
+  // to a hotspot can still rank high.
+  {
+    key: 'crimeHotspotInfluenceDa',
+    label: 'Crime Hotspot Influence (DA)',
+    question: 'Which neighbourhoods sit inside or next to crime hotspots?',
+    description: 'Uses a heatmap kernel so areas adjacent to incident clusters still rank high. Combines crime heat with per-capita risk.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['crime', 'census'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      crimeHeat: 45,
+      crimePerCapita: 25,
+      recentCrimeShare: 15,
+      crimeDensity: 15
+    }
+  },
+  {
+    key: 'restaurantVibrancyDa',
+    label: 'Restaurant Vibrancy (DA)',
+    question: 'Which DAs feel like food districts — including spillover from busy streets next door?',
+    description: 'Uses restaurant heatmap influence so dining clusters benefit nearby blocks. Penalises elevated food risk.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['restaurants', 'parks', 'census'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      restaurantHeat: 38,
+      restaurantDensity: 14,
+      amenityDensity: 12,
+      parkHeat: 10,
+      populationDensity: 14,
+      foodRiskScore: -12
+    }
+  },
+  {
+    key: 'serviceSpilloverDa',
+    label: 'Service Spillover Index (DA)',
+    question: 'Which neighbourhoods benefit from nearby parks, sensors, and food access — even if they don\'t contain them?',
+    description: 'Pure heatmap-influence score blending park, sensor, and restaurant heat. Captures the ambient access a street-level visitor experiences.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['airQuality', 'parks', 'restaurants', 'census'],
+    networkFilter: 'all',
+    weights: {
+      ...ZERO_WEIGHTS,
+      parkHeat: 30,
+      restaurantHeat: 25,
+      sensorHeat: 20,
+      populationDensity: 15,
+      crimeHeat: -10
+    }
+  },
+  {
+    key: 'wealthHeatVsCrimeDa',
+    label: 'Wealth Heat vs Crime Heat (DA)',
+    question: 'Where do high property-value clusters and crime hotspots overlap?',
+    description: 'Two heatmaps, one score: areas with strong property-value heat but low crime heat rank highest. Useful for spotting safe-and-rising blocks.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['bcAssessment', 'crime', 'census'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      propertyValueHeat: 45,
+      crimeHeat: -35,
+      valueGrowth10y: 12,
+      populationDensity: 8
+    }
+  },
+
   // Census Subdivision (CSD) – 1 unit (city-wide), useful as a baseline
   {
     key: 'cityOverviewCsd',
@@ -968,7 +1097,12 @@ export function createMetricValueMap(initial = 0): Record<ScoreMetricKey, number
     landValueShare: initial,
     crimeDensity: initial,
     crimePerCapita: initial,
-    recentCrimeShare: initial
+    recentCrimeShare: initial,
+    sensorHeat: initial,
+    parkHeat: initial,
+    restaurantHeat: initial,
+    propertyValueHeat: initial,
+    crimeHeat: initial
   }
 }
 
@@ -1044,6 +1178,10 @@ const SCORE_EXAMPLE_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
   completeNeighbourhoodDa: 'benefit',
   foodInspectionRiskDa: 'riskPressure',
   crimePressureDa: 'riskPressure',
+  crimeHotspotInfluenceDa: 'riskPressure',
+  restaurantVibrancyDa: 'benefit',
+  serviceSpilloverDa: 'benefit',
+  wealthHeatVsCrimeDa: 'affordability',
   cityOverviewCsd: 'benefit',
   provincialAirQualityHa: 'airCoverage',
   hsdaSensorCoverage: 'airCoverage',
@@ -1099,10 +1237,15 @@ export function encodeWeightsToParams(weights: ScoreMetricWeightMap): string {
 
 export function decodeWeightsFromParams(param: string): ScoreMetricWeightMap | null {
   const parts = param.split(',').map(Number)
-  if (parts.length !== SCORE_METRICS.length || parts.some((v) => !Number.isFinite(v))) return null
+  // Reject empty/garbage payloads, but tolerate shorter (older) URLs by
+  // padding missing metrics with zero — keeps bookmarks working when new
+  // metrics are introduced.
+  if (!parts.length || parts.some((v) => !Number.isFinite(v))) return null
+  if (parts.length > SCORE_METRICS.length) return null
   const weights = createMetricValueMap(0) as ScoreMetricWeightMap
   SCORE_METRICS.forEach((m, i) => {
-    weights[m.key] = Math.max(-100, Math.min(100, Math.round(parts[i])))
+    const raw = i < parts.length ? parts[i] : 0
+    weights[m.key] = Math.max(-100, Math.min(100, Math.round(raw)))
   })
   return weights
 }

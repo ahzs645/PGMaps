@@ -1,6 +1,13 @@
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 
-export type ScoreMetricCategory = 'airQuality' | 'parksRec' | 'foodSafety' | 'demographics' | 'property' | 'safety'
+export type ScoreMetricCategory =
+  | 'airQuality'
+  | 'parksRec'
+  | 'foodSafety'
+  | 'demographics'
+  | 'property'
+  | 'safety'
+  | 'heatInfluence'
 
 export type ScoreMetricKey =
   // Air Quality
@@ -36,6 +43,12 @@ export type ScoreMetricKey =
   | 'crimeDensity'
   | 'crimePerCapita'
   | 'recentCrimeShare'
+  // Heatmap influence (kernel-weighted spatial heat from neighbouring points)
+  | 'sensorHeat'
+  | 'parkHeat'
+  | 'restaurantHeat'
+  | 'propertyValueHeat'
+  | 'crimeHeat'
 
 export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
 
@@ -46,6 +59,7 @@ export interface ScoreMetricDefinition {
   description: string
   format: ScoreMetricFormat
   category: ScoreMetricCategory
+  dataSource?: ScoreDataSource
 }
 
 export type ScoreMetricWeightMap = Record<ScoreMetricKey, number>
@@ -110,6 +124,11 @@ export interface RegionDataCounts {
   commercialParcelCount: number
   crimeCount: number
   recentCrimeCount: number
+  sensorHeatRaw: number
+  parkHeatRaw: number
+  restaurantHeatRaw: number
+  propertyValueHeatRaw: number
+  crimeHeatRaw: number
 }
 
 export interface ScoredBoundaryRegion {
@@ -140,5 +159,6 @@ export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
   foodSafety: 'Food Safety',
   demographics: 'Demographics',
   property: 'Property & Housing',
-  safety: 'Safety'
+  safety: 'Safety',
+  heatInfluence: 'Heatmap Influence'
 }
