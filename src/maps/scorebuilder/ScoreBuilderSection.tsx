@@ -33,6 +33,8 @@ import {
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import { ScoreBuilderRegionInsightDialog } from './components/ScoreBuilderRegionInsightDialog'
 import { ScoreBuilderSidebar } from './components/ScoreBuilderSidebar'
+import { ScoreBuilderLeftPanel } from './components/ScoreBuilderLeftPanel'
+import { ScoreBuilderRightPanel } from './components/ScoreBuilderRightPanel'
 import { useMediaQuery } from './hooks/useMediaQuery'
 import { useScoreBuilderRegions } from './hooks/useScoreBuilderRegions'
 import type {
@@ -165,6 +167,7 @@ export default function ScoreBuilderSection() {
   const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData()
 
   const [showSidebar, setShowSidebar] = useState(true)
+  const [showRightSidebar, setShowRightSidebar] = useState(true)
   const [boundarySource, setBoundarySource] = useState<BoundarySource>(
     () => (searchParams.get('src') as BoundarySource) || 'bcHealth'
   )
@@ -807,59 +810,118 @@ export default function ScoreBuilderSection() {
     return errors
   }, [monitorsError, regionsError, parksError, restaurantsError, censusError, propertiesError, crimeError])
 
+  const desktopLeftPanel = (
+    <ScoreBuilderLeftPanel
+      boundarySource={boundarySource}
+      onBoundarySourceChange={setBoundarySource}
+      selectedRegionLevel={selectedRegionLevel}
+      onRegionLevelChange={handleRegionLevelChange}
+      boundaryLevelOptions={boundaryLevelOptions}
+      enabledDataSources={enabledDataSources}
+      onToggleDataSource={toggleDataSource}
+      networkCounts={networkCounts}
+      selectedNetworks={selectedNetworks}
+      onToggleNetwork={toggleNetwork}
+      onSelectAllNetworks={selectAllNetworks}
+      onClearNetworks={clearNetworks}
+      showPoints={showPoints}
+      onTogglePoints={() => setShowPoints((current) => !current)}
+      regionCount={scoredRegions.length}
+    />
+  )
+
+  const desktopRightPanel = (
+    <ScoreBuilderRightPanel
+      loading={loading}
+      dataErrors={dataErrors}
+      weights={weights}
+      onWeightChange={handleWeightChange}
+      onApplyPreset={handleApplyPreset}
+      activePresetKey={activePresetKey}
+      equationPreview={equationPreview}
+      scoreSpread={scoreSpread}
+      densityMetric={densityMetric}
+      onDensityMetricChange={setDensityMetric}
+      densitySummary={densitySummary}
+      densityLeaders={densityLeaders}
+      regions={scoredRegions}
+      filteredRegions={filteredRegions}
+      selectedRegion={selectedRegion}
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+      onRegionSelect={setSelectedRegionId}
+      onClearRegionSelection={() => setSelectedRegionId(null)}
+      onOpenRegionInsight={handleOpenRegionInsight}
+      comparisonIds={comparisonIds}
+      comparisonRegions={comparisonRegions}
+      onToggleComparison={toggleComparison}
+      onClearComparison={clearComparison}
+      onExport={handleExport}
+      activeExampleKey={resolvedExampleKey}
+      onApplyExample={applyExample}
+      isDesktop={isDesktop}
+    />
+  )
+
+  const mobileSidebar = (
+    <ScoreBuilderSidebar
+      className="h-full w-full border-0 shadow-none"
+      loading={loading}
+      dataErrors={dataErrors}
+      boundarySource={boundarySource}
+      onBoundarySourceChange={setBoundarySource}
+      selectedRegionLevel={selectedRegionLevel}
+      onRegionLevelChange={handleRegionLevelChange}
+      boundaryLevelOptions={boundaryLevelOptions}
+      networkCounts={networkCounts}
+      selectedNetworks={selectedNetworks}
+      onToggleNetwork={toggleNetwork}
+      onSelectAllNetworks={selectAllNetworks}
+      onClearNetworks={clearNetworks}
+      showPoints={showPoints}
+      onTogglePoints={() => setShowPoints((current) => !current)}
+      enabledDataSources={enabledDataSources}
+      onToggleDataSource={toggleDataSource}
+      weights={weights}
+      onWeightChange={handleWeightChange}
+      onApplyPreset={handleApplyPreset}
+      activePresetKey={activePresetKey}
+      equationPreview={equationPreview}
+      scoreSpread={scoreSpread}
+      densityMetric={densityMetric}
+      onDensityMetricChange={setDensityMetric}
+      densitySummary={densitySummary}
+      densityLeaders={densityLeaders}
+      regions={scoredRegions}
+      filteredRegions={filteredRegions}
+      selectedRegion={selectedRegion}
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+      onRegionSelect={setSelectedRegionId}
+      onClearRegionSelection={() => setSelectedRegionId(null)}
+      onOpenRegionInsight={handleOpenRegionInsight}
+      comparisonIds={comparisonIds}
+      comparisonRegions={comparisonRegions}
+      onToggleComparison={toggleComparison}
+      onClearComparison={clearComparison}
+      onExport={handleExport}
+      activeExampleKey={resolvedExampleKey}
+      onApplyExample={applyExample}
+      isDesktop={isDesktop}
+    />
+  )
+
   return (
     <>
       <MapSectionLayout
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-        desktopSidebarWidth={360}
-        sidebar={(
-          <ScoreBuilderSidebar
-            className="h-full w-full border-0 shadow-none md:w-[360px] md:border-r md:shadow-xl"
-            loading={loading}
-            dataErrors={dataErrors}
-            boundarySource={boundarySource}
-            onBoundarySourceChange={setBoundarySource}
-            selectedRegionLevel={selectedRegionLevel}
-            onRegionLevelChange={handleRegionLevelChange}
-            boundaryLevelOptions={boundaryLevelOptions}
-            networkCounts={networkCounts}
-            selectedNetworks={selectedNetworks}
-            onToggleNetwork={toggleNetwork}
-            onSelectAllNetworks={selectAllNetworks}
-            onClearNetworks={clearNetworks}
-            showPoints={showPoints}
-            onTogglePoints={() => setShowPoints((current) => !current)}
-            enabledDataSources={enabledDataSources}
-            onToggleDataSource={toggleDataSource}
-            weights={weights}
-            onWeightChange={handleWeightChange}
-            onApplyPreset={handleApplyPreset}
-            activePresetKey={activePresetKey}
-            equationPreview={equationPreview}
-            scoreSpread={scoreSpread}
-            densityMetric={densityMetric}
-            onDensityMetricChange={setDensityMetric}
-            densitySummary={densitySummary}
-            densityLeaders={densityLeaders}
-            regions={scoredRegions}
-            filteredRegions={filteredRegions}
-            selectedRegion={selectedRegion}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            onRegionSelect={setSelectedRegionId}
-            onClearRegionSelection={() => setSelectedRegionId(null)}
-            onOpenRegionInsight={handleOpenRegionInsight}
-            comparisonIds={comparisonIds}
-            comparisonRegions={comparisonRegions}
-            onToggleComparison={toggleComparison}
-            onClearComparison={clearComparison}
-            onExport={handleExport}
-            activeExampleKey={resolvedExampleKey}
-            onApplyExample={applyExample}
-            isDesktop={isDesktop}
-          />
-        )}
+        desktopSidebarWidth={300}
+        sidebar={isDesktop ? desktopLeftPanel : mobileSidebar}
+        rightSidebar={isDesktop ? desktopRightPanel : undefined}
+        showDesktopRightSidebar={showRightSidebar}
+        onToggleDesktopRightSidebar={() => setShowRightSidebar((current) => !current)}
+        desktopRightSidebarWidth={380}
       >
         <div className="relative h-full">
           <ScoreBuilderMap

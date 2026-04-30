@@ -17,6 +17,10 @@ interface MapSectionLayoutProps {
   showDesktopSidebar: boolean
   onToggleDesktopSidebar: () => void
   desktopSidebarWidth?: number
+  rightSidebar?: ReactNode
+  showDesktopRightSidebar?: boolean
+  onToggleDesktopRightSidebar?: () => void
+  desktopRightSidebarWidth?: number
   children: ReactNode
   className?: string
 }
@@ -87,6 +91,10 @@ export function MapSectionLayout({
   showDesktopSidebar,
   onToggleDesktopSidebar,
   desktopSidebarWidth = 350,
+  rightSidebar,
+  showDesktopRightSidebar = true,
+  onToggleDesktopRightSidebar,
+  desktopRightSidebarWidth = 360,
   children,
   className,
 }: MapSectionLayoutProps) {
@@ -377,7 +385,7 @@ export function MapSectionLayout({
         </div>
       </div>
 
-      {/* Desktop sidebar toggle */}
+      {/* Desktop left-sidebar toggle */}
       <button
         type="button"
         onClick={onToggleDesktopSidebar}
@@ -394,6 +402,50 @@ export function MapSectionLayout({
 
       {/* Map content */}
       <div className="relative flex-1">{children}</div>
+
+      {/* Right sidebar (desktop only) */}
+      {rightSidebar && (
+        <>
+          <div
+            className={cn(
+              'hidden md:block md:relative md:h-full md:shrink-0',
+              showDesktopRightSidebar ? 'md:w-[var(--desktop-right-sidebar-width)]' : 'md:w-0',
+            )}
+            style={{ '--desktop-right-sidebar-width': `${desktopRightSidebarWidth}px` } as CSSProperties}
+          >
+            <div
+              className={cn(
+                'absolute inset-y-0 right-0 h-full overflow-hidden transition-[width] duration-200',
+                showDesktopRightSidebar ? 'w-[var(--desktop-right-sidebar-width)]' : 'w-0',
+              )}
+              style={{ '--desktop-right-sidebar-width': `${desktopRightSidebarWidth}px` } as CSSProperties}
+            >
+              <div
+                className="h-full"
+                style={{ width: `${desktopRightSidebarWidth}px` }}
+              >
+                {rightSidebar}
+              </div>
+            </div>
+          </div>
+
+          {onToggleDesktopRightSidebar && (
+            <button
+              type="button"
+              onClick={onToggleDesktopRightSidebar}
+              aria-label={showDesktopRightSidebar ? 'Hide right sidebar' : 'Show right sidebar'}
+              style={{ right: showDesktopRightSidebar ? desktopRightSidebarWidth : 0 }}
+              className="absolute top-6 z-20 hidden h-10 w-8 items-center justify-center rounded-l-lg border border-r-0 border-slate-300/80 bg-slate-50/95 text-slate-600 shadow-md backdrop-blur transition-[right,background-color,color,border-color] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800 md:flex"
+            >
+              {showDesktopRightSidebar ? (
+                <ChevronsRight className="h-4 w-4" />
+              ) : (
+                <ChevronsLeft className="h-4 w-4" />
+              )}
+            </button>
+          )}
+        </>
+      )}
     </div>
   )
 }
