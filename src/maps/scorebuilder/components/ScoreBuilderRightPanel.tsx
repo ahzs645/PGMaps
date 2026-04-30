@@ -10,12 +10,7 @@ import {
   SCORE_PRESETS,
 } from '../constants'
 import { METRIC_CATEGORY_LABELS } from '../types'
-import type {
-  ScoredBoundaryRegion,
-  ScoreDataSource,
-  ScoreMetricKey,
-  ScoreMetricWeightMap,
-} from '../types'
+import type { ScoredBoundaryRegion, ScoreDataSource, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
 import { RadarChart } from './RadarChart'
 
 type RightPanelTab = 'examples' | 'equation' | 'density' | 'regions'
@@ -107,7 +102,8 @@ function formatMetricValue(metric: ScoreMetricKey, value: number, compact = fals
   if (format === 'percent') return `${(value * 100).toFixed(1)}%`
   if (format === 'currency') {
     if (compact) {
-      if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
+      if (Math.abs(value) >= 1_000_000)
+        return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
       return `$${Math.round(value / 1000).toLocaleString()}k`
     }
     return value.toLocaleString(undefined, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
@@ -130,8 +126,7 @@ function getTopDrivers(
   weights: ScoreMetricWeightMap,
   limit = 2,
 ): Array<{ key: ScoreMetricKey; label: string; scoreDelta: number }> {
-  return SCORE_METRICS
-    .filter((metric) => weights[metric.key] !== 0)
+  return SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
     .map((metric) => ({
       key: metric.key,
       label: metric.shortLabel,
@@ -181,6 +176,7 @@ export function ScoreBuilderRightPanel({
 
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
   const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_ROWS), [filteredRegions])
+  const topRegions = useMemo(() => regions.slice(0, 3), [regions])
 
   const activeExample = useMemo(
     () => SCORE_EXAMPLES.find((example) => example.key === activeExampleKey) || null,
@@ -229,15 +225,11 @@ export function ScoreBuilderRightPanel({
             onClick={() => setActiveTab(tab)}
             className={cn(
               'relative flex-1 px-3 py-2.5 text-xs font-medium transition-colors',
-              activeTab === tab
-                ? 'text-cyan-700 dark:text-cyan-300'
-                : 'text-muted-foreground hover:text-foreground',
+              activeTab === tab ? 'text-cyan-700 dark:text-cyan-300' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {TAB_LABELS[tab]}
-            {activeTab === tab && (
-              <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-cyan-500" />
-            )}
+            {activeTab === tab && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-cyan-500" />}
           </button>
         ))}
       </div>
@@ -246,15 +238,14 @@ export function ScoreBuilderRightPanel({
         {dataErrors.length > 0 && (
           <div className="m-3 rounded border border-red-200 bg-red-50 p-3 text-xs text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
             <p className="font-medium">Unable to build scores</p>
-            {dataErrors.map((err, i) => <p key={i}>{err}</p>)}
+            {dataErrors.map((err, i) => (
+              <p key={i}>{err}</p>
+            ))}
           </div>
         )}
 
         {activeTab === 'examples' && (
-          <ExamplesTab
-            activeExampleKey={activeExampleKey}
-            onApplyExample={onApplyExample}
-          />
+          <ExamplesTab activeExampleKey={activeExampleKey} onApplyExample={onApplyExample} />
         )}
 
         {activeTab === 'equation' && (
@@ -268,6 +259,8 @@ export function ScoreBuilderRightPanel({
             activeExample={activeExample}
             equationPreview={equationPreview}
             totalAbsoluteWeight={totalAbsoluteWeight}
+            scoreSpread={scoreSpread}
+            topRegions={topRegions}
           />
         )}
 
@@ -321,10 +314,7 @@ function ExamplesTab({
   onApplyExample: (key: string) => void
 }) {
   return (
-    <div
-      className="space-y-3 p-4"
-      data-score-builder-section="examples"
-    >
+    <div className="space-y-3 p-4" data-score-builder-section="examples">
       <p className="text-[11px] text-muted-foreground">
         Pick a scenario to configure boundaries, data sources, and scoring weights together.
       </p>
@@ -343,9 +333,11 @@ function ExamplesTab({
             <div className="space-y-2">
               {group.map((example) => {
                 const active = activeExampleKey === example.key
-                const levelLabel = source === 'bcHealth'
-                  ? { healthAuthority: 'HA', hsda: 'HSDA', lha: 'LHA', chsa: 'CHSA' }[example.boundaryLevel] || example.boundaryLevel
-                  : { cd: 'CD', csd: 'CSD', ct: 'CT', da: 'DA' }[example.boundaryLevel] || example.boundaryLevel
+                const levelLabel =
+                  source === 'bcHealth'
+                    ? { healthAuthority: 'HA', hsda: 'HSDA', lha: 'LHA', chsa: 'CHSA' }[example.boundaryLevel] ||
+                      example.boundaryLevel
+                    : { cd: 'CD', csd: 'CSD', ct: 'CT', da: 'DA' }[example.boundaryLevel] || example.boundaryLevel
                 return (
                   <button
                     key={example.key}
@@ -363,12 +355,8 @@ function ExamplesTab({
                         {levelLabel}
                       </span>
                     </div>
-                    <div className="mt-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">
-                      {example.question}
-                    </div>
-                    <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
-                      {example.description}
-                    </div>
+                    <div className="mt-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">{example.question}</div>
+                    <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">{example.description}</div>
                     <div className="mt-2 flex flex-wrap gap-1">
                       {example.dataSources.map((ds) => (
                         <span
@@ -400,26 +388,74 @@ function EquationTab({
   activeExample,
   equationPreview,
   totalAbsoluteWeight,
+  scoreSpread,
+  topRegions,
 }: {
   isDesktop: boolean
   weights: ScoreMetricWeightMap
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
   activePresetKey: string | null
-  activePreset: typeof SCORE_PRESETS[number] | null
-  activeExample: typeof SCORE_EXAMPLES[number] | null
+  activePreset: (typeof SCORE_PRESETS)[number] | null
+  activeExample: (typeof SCORE_EXAMPLES)[number] | null
   equationPreview: string
   totalAbsoluteWeight: number
+  scoreSpread: { min: number; max: number; average: number }
+  topRegions: ScoredBoundaryRegion[]
 }) {
+  const activeWeightCount = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length
+  const metricGroups = Object.entries(SCORE_METRICS_BY_CATEGORY).sort(([, aMetrics], [, bMetrics]) => {
+    const aActive = aMetrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
+    const bActive = bMetrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
+    return bActive - aActive
+  })
+
   return (
-    <div
-      className="space-y-3 p-4"
-      data-score-builder-section="equation"
-    >
-      <div>
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Presets
+    <div className="space-y-3 p-4" data-score-builder-section="equation">
+      <div className="rounded-lg border border-border bg-background p-3" data-score-builder-results-preview="true">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Live Results</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">
+              {topRegions[0] ? `#1 ${topRegions[0].region.name}` : 'No ranked regions yet'}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold leading-none text-cyan-700 dark:text-cyan-300">
+              {topRegions[0] ? formatScore(topRegions[0].score) : '0.0'}
+            </div>
+            <div className="mt-1 text-[10px] text-muted-foreground">Avg {formatScore(scoreSpread.average)}</div>
+          </div>
         </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+          <div className="rounded border border-border bg-muted/20 p-2">
+            <div className="text-[10px] uppercase text-muted-foreground">Low</div>
+            <div className="font-semibold text-foreground">{formatScore(scoreSpread.min)}</div>
+          </div>
+          <div className="rounded border border-border bg-muted/20 p-2">
+            <div className="text-[10px] uppercase text-muted-foreground">High</div>
+            <div className="font-semibold text-foreground">{formatScore(scoreSpread.max)}</div>
+          </div>
+          <div className="rounded border border-border bg-muted/20 p-2">
+            <div className="text-[10px] uppercase text-muted-foreground">Active</div>
+            <div className="font-semibold text-foreground">{activeWeightCount} terms</div>
+          </div>
+        </div>
+        {topRegions.length > 1 && (
+          <div className="mt-3 space-y-1">
+            {topRegions.map((region) => (
+              <div key={region.region.id} className="flex items-center gap-2 text-[11px]">
+                <span className="w-6 shrink-0 font-semibold text-muted-foreground">#{region.rank}</span>
+                <span className="min-w-0 flex-1 truncate text-foreground">{region.region.name}</span>
+                <span className="font-semibold text-cyan-700 dark:text-cyan-300">{formatScore(region.score)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Presets</div>
         <div className="flex flex-wrap gap-2">
           {SCORE_PRESETS.map((preset) => (
             <button
@@ -452,55 +488,67 @@ function EquationTab({
           data-score-builder-mobile-note="true"
           className="rounded-md border border-cyan-200/70 bg-cyan-50 p-2 text-xs text-cyan-800 dark:border-cyan-900/70 dark:bg-cyan-950/30 dark:text-cyan-200"
         >
-          Custom metric weight editing is available on desktop. Mobile supports preset scoring and region insight review.
+          Custom metric weight editing is available on desktop. Mobile supports preset scoring and region insight
+          review.
         </div>
       )}
 
       {isDesktop && (
         <div className="space-y-4">
-          {Object.entries(SCORE_METRICS_BY_CATEGORY).map(([category, metrics]) => (
-            <div key={category}>
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
-              </div>
-              <div className="space-y-2">
-                {metrics.map((metric) => (
-                  <div key={metric.key} className="rounded-lg border border-border bg-muted/25 p-3">
-                    <div className="mb-2 flex items-start justify-between gap-2">
-                      <div>
-                        <div className="text-xs font-semibold text-foreground">{metric.label}</div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {metric.description}
+          {metricGroups.map(([category, metrics]) => {
+            const activeInGroup = metrics.filter((metric) => weights[metric.key] !== 0).length
+            return (
+              <div key={category} className={cn(activeInGroup === 0 && 'opacity-70')}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {activeInGroup > 0 ? `${activeInGroup} active` : 'Inactive'}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {metrics.map((metric) => (
+                    <div key={metric.key} className="rounded-lg border border-border bg-muted/25 p-3">
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-xs font-semibold text-foreground">{metric.label}</div>
+                          <div className="text-[10px] text-muted-foreground">{metric.description}</div>
                         </div>
+                        <input
+                          type="number"
+                          data-score-builder-equation-number={metric.key}
+                          min={-100}
+                          max={100}
+                          step={1}
+                          value={weights[metric.key]}
+                          onChange={(event) => {
+                            const parsed = Number.parseFloat(event.target.value)
+                            onWeightChange(metric.key, Number.isFinite(parsed) ? clampWeight(parsed) : 0)
+                          }}
+                          className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        />
                       </div>
-                      <input
-                        type="number"
-                        data-score-builder-equation-number={metric.key}
+                      <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>Prefer low</span>
+                        <span>0</span>
+                        <span>Prefer high</span>
+                      </div>
+                      <Slider
+                        data-score-builder-equation-slider={metric.key}
                         min={-100}
                         max={100}
                         step={1}
-                        value={weights[metric.key]}
-                        onChange={(event) => {
-                          const parsed = Number.parseFloat(event.target.value)
-                          onWeightChange(metric.key, Number.isFinite(parsed) ? clampWeight(parsed) : 0)
-                        }}
-                        className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        value={[weights[metric.key]]}
+                        onValueChange={(values) => onWeightChange(metric.key, clampWeight(values[0] ?? 0))}
+                        className="[&_[data-radix-slider-range]]:bg-cyan-500"
                       />
                     </div>
-                    <Slider
-                      data-score-builder-equation-slider={metric.key}
-                      min={-100}
-                      max={100}
-                      step={1}
-                      value={[weights[metric.key]]}
-                      onValueChange={(values) => onWeightChange(metric.key, clampWeight(values[0] ?? 0))}
-                      className="[&_[data-radix-slider-range]]:bg-cyan-500"
-                    />
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -531,15 +579,9 @@ function DensityTab({
   onRegionSelect: (regionId: string) => void
 }) {
   return (
-    <div
-      className="space-y-2 p-4"
-      data-score-builder-section="density"
-    >
+    <div className="space-y-2 p-4" data-score-builder-section="density">
       <div className="flex items-center justify-between gap-2">
-        <label
-          htmlFor="score-builder-density"
-          className="text-xs font-medium text-muted-foreground"
-        >
+        <label htmlFor="score-builder-density" className="text-xs font-medium text-muted-foreground">
           Density metric
         </label>
         <select
@@ -585,14 +627,10 @@ function DensityTab({
               </button>
             ))}
           </div>
-          <div className="text-[10px] text-muted-foreground">
-            {getMetricDescription(densityMetric)}
-          </div>
+          <div className="text-[10px] text-muted-foreground">{getMetricDescription(densityMetric)}</div>
         </>
       ) : (
-        <div className="text-xs text-muted-foreground">
-          No values available for this density lens.
-        </div>
+        <div className="text-xs text-muted-foreground">No values available for this density lens.</div>
       )}
     </div>
   )
@@ -638,10 +676,7 @@ function RegionsTab({
   onExport: (format: 'csv' | 'geojson') => void
 }) {
   return (
-    <div
-      className="space-y-3 p-4"
-      data-score-builder-section="regions"
-    >
+    <div className="space-y-3 p-4" data-score-builder-section="regions">
       {/* Search + export */}
       <div className="space-y-2 rounded-lg border border-border bg-muted/10 p-2 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
@@ -672,17 +707,16 @@ function RegionsTab({
             </button>
           </div>
         </div>
-        <div
-          className="flex items-center justify-between"
-          data-score-builder-region-stats="true"
-        >
-          <span>{filteredRegions.length} of {regions.length} regions</span>
-          {filteredRegions.length > MAX_VISIBLE_ROWS && (
-            <span>Showing {MAX_VISIBLE_ROWS}</span>
-          )}
+        <div className="flex items-center justify-between" data-score-builder-region-stats="true">
+          <span>
+            {filteredRegions.length} of {regions.length} regions
+          </span>
+          {filteredRegions.length > MAX_VISIBLE_ROWS && <span>Showing {MAX_VISIBLE_ROWS}</span>}
         </div>
         <div className="flex items-center justify-between text-[11px]">
-          <span>Score range {formatScore(scoreSpread.min)} - {formatScore(scoreSpread.max)}</span>
+          <span>
+            Score range {formatScore(scoreSpread.min)} - {formatScore(scoreSpread.max)}
+          </span>
           <span>Avg {formatScore(scoreSpread.average)}</span>
         </div>
       </div>
@@ -707,9 +741,7 @@ function RegionsTab({
                 <span className="truncate text-amber-900 dark:text-amber-100">
                   #{r.rank} {r.region.name}
                 </span>
-                <span className="font-semibold text-amber-700 dark:text-amber-300">
-                  {formatScore(r.score)}
-                </span>
+                <span className="font-semibold text-amber-700 dark:text-amber-300">{formatScore(r.score)}</span>
               </div>
             ))}
           </div>
@@ -729,16 +761,18 @@ function RegionsTab({
                     </tr>
                   </thead>
                   <tbody>
-                    {SCORE_METRICS.filter((m) => weights[m.key] !== 0).slice(0, 6).map((m) => (
-                      <tr key={m.key} className="text-amber-800 dark:text-amber-200">
-                        <td className="pr-2 text-left">{m.shortLabel}</td>
-                        {comparisonRegions.map((r) => (
-                          <td key={r.region.id} className="px-1 text-right font-mono">
-                            {formatMetricValue(m.key, r.metrics[m.key], true)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
+                    {SCORE_METRICS.filter((m) => weights[m.key] !== 0)
+                      .slice(0, 6)
+                      .map((m) => (
+                        <tr key={m.key} className="text-amber-800 dark:text-amber-200">
+                          <td className="pr-2 text-left">{m.shortLabel}</td>
+                          {comparisonRegions.map((r) => (
+                            <td key={r.region.id} className="px-1 text-right font-mono">
+                              {formatMetricValue(m.key, r.metrics[m.key], true)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -751,9 +785,7 @@ function RegionsTab({
       {selectedRegion && (
         <div className="rounded-lg border border-cyan-300/50 bg-cyan-50 p-3 dark:border-cyan-900/70 dark:bg-cyan-950/25">
           <div className="mb-2">
-            <div className="text-sm font-semibold text-cyan-900 dark:text-cyan-100">
-              {selectedRegion.region.name}
-            </div>
+            <div className="text-sm font-semibold text-cyan-900 dark:text-cyan-100">{selectedRegion.region.name}</div>
             <div className="text-xs text-cyan-700 dark:text-cyan-300">
               Rank #{selectedRegion.rank} | Score {formatScore(selectedRegion.score)}
             </div>
@@ -766,7 +798,11 @@ function RegionsTab({
           </div>
           {selectedRegionDrivers.length > 0 && (
             <div className="mt-2 text-[11px] text-cyan-800 dark:text-cyan-200">
-              Top drivers: {selectedRegionDrivers.map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`).join(', ')} pts
+              Top drivers:{' '}
+              {selectedRegionDrivers
+                .map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`)
+                .join(', ')}{' '}
+              pts
             </div>
           )}
           <div className="mt-2 flex items-center gap-2">
@@ -819,19 +855,21 @@ function RegionsTab({
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <button
-                    onClick={() => onRegionSelect(entry.region.id)}
-                    className="min-w-0 flex-1 text-left"
-                  >
+                  <button onClick={() => onRegionSelect(entry.region.id)} className="min-w-0 flex-1 text-left">
                     <div className="line-clamp-1 text-sm font-medium text-foreground">
                       #{entry.rank} {entry.region.name}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground">
-                      Code {entry.region.code} | Density {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
+                      Code {entry.region.code} | Density{' '}
+                      {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
                     </div>
                     {topDrivers.length > 0 && (
                       <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
-                        Top: {topDrivers.map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`).join(', ')} pts
+                        Top:{' '}
+                        {topDrivers
+                          .map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`)
+                          .join(', ')}{' '}
+                        pts
                       </div>
                     )}
                   </button>

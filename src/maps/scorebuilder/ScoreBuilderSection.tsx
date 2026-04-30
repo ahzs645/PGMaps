@@ -9,7 +9,7 @@ import {
   type BoundaryLevel,
   type BoundarySource,
   type CensusBoundaryLevel,
-  type RegionLevel
+  type RegionLevel,
 } from '@/maps/airquality'
 import { useCensusData } from '@/maps/census/hooks/useCensusData'
 import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
@@ -28,7 +28,7 @@ import {
   LOW_COST_NETWORKS,
   SCORE_PRESETS,
   encodeWeightsToParams,
-  decodeWeightsFromParams
+  decodeWeightsFromParams,
 } from './constants'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import { ScoreBuilderRegionInsightDialog } from './components/ScoreBuilderRegionInsightDialog'
@@ -42,7 +42,7 @@ import type {
   ScoredBoundaryRegion,
   ScoreDataSource,
   ScoreMetricKey,
-  ScoreMetricWeightMap
+  ScoreMetricWeightMap,
 } from './types'
 
 interface MonitorPointRecord {
@@ -91,7 +91,10 @@ function computeMedian(values: number[]): number {
 }
 
 function bboxCenter(geometry: GeoJSON.Geometry): [number, number] | null {
-  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+  let minLng = Infinity,
+    minLat = Infinity,
+    maxLng = -Infinity,
+    maxLat = -Infinity
   const scan = (coords: number[][]) => {
     coords.forEach(([lng, lat]) => {
       if (lng < minLng) minLng = lng
@@ -111,9 +114,12 @@ function bboxCenter(geometry: GeoJSON.Geometry): [number, number] | null {
 
 function hazardWeight(rating: string | null | undefined): number {
   switch ((rating || '').toLowerCase()) {
-    case 'moderate': return 0.7
-    case 'low': return 0.3
-    default: return 0.5
+    case 'moderate':
+      return 0.7
+    case 'low':
+      return 0.3
+    default:
+      return 0.5
   }
 }
 
@@ -146,9 +152,10 @@ function scoreWeightsEqual(a: ScoreMetricWeightMap, b: ScoreMetricWeightMap): bo
 }
 
 function isInRegion(
-  lng: number, lat: number,
+  lng: number,
+  lat: number,
   feature: GeoJSON.Feature<GeoJSON.Point>,
-  region: { bounds: [number, number, number, number]; feature: GeoJSON.Feature }
+  region: { bounds: [number, number, number, number]; feature: GeoJSON.Feature },
 ): boolean {
   const [west, south, east, north] = region.bounds
   if (lng < west || lng > east || lat < south || lat > north) return false
@@ -160,6 +167,8 @@ const CURRENT_YEAR = new Date().getFullYear()
 
 export default function ScoreBuilderSection() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const initialHasUrlWeights = Boolean(searchParams.get('w'))
+  const hasUrlWeightsOnMount = useRef(initialHasUrlWeights)
 
   const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData()
   const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData()
@@ -169,13 +178,13 @@ export default function ScoreBuilderSection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [showRightSidebar, setShowRightSidebar] = useState(true)
   const [boundarySource, setBoundarySource] = useState<BoundarySource>(
-    () => (searchParams.get('src') as BoundarySource) || 'bcHealth'
+    () => (searchParams.get('src') as BoundarySource) || 'bcHealth',
   )
   const [healthBoundaryLevel, setHealthBoundaryLevel] = useState<BoundaryLevel>(
-    () => (searchParams.get('level') as BoundaryLevel) || 'lha'
+    () => (searchParams.get('level') as BoundaryLevel) || 'lha',
   )
   const [censusBoundaryLevel, setCensusBoundaryLevel] = useState<CensusBoundaryLevel>(
-    () => (searchParams.get('level') as CensusBoundaryLevel) || 'csd'
+    () => (searchParams.get('level') as CensusBoundaryLevel) || 'csd',
   )
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
   const [regionInsightRegionId, setRegionInsightRegionId] = useState<string | null>(null)
@@ -192,20 +201,20 @@ export default function ScoreBuilderSection() {
   })
   const [densityMetric, setDensityMetric] = useState<ScoreMetricKey>('overallDensity')
   const [showPoints, setShowPoints] = useState(true)
-  const [enabledDataSources, setEnabledDataSources] = useState<ScoreDataSource[]>(
-    () => {
-      const fromUrl = searchParams.get('ds')
-      if (fromUrl) {
-        const parsed = fromUrl.split(',').filter((s) => ALL_DATA_SOURCES.includes(s as ScoreDataSource)) as ScoreDataSource[]
-        if (parsed.length) return parsed
-      }
-      return ['airQuality']
+  const [enabledDataSources, setEnabledDataSources] = useState<ScoreDataSource[]>(() => {
+    const fromUrl = searchParams.get('ds')
+    if (fromUrl) {
+      const parsed = fromUrl
+        .split(',')
+        .filter((s) => ALL_DATA_SOURCES.includes(s as ScoreDataSource)) as ScoreDataSource[]
+      if (parsed.length) return parsed
     }
-  )
+    return ['airQuality']
+  })
   const [comparisonIds, setComparisonIds] = useState<string[]>([])
   const [activeExampleKey, setActiveExampleKey] = useState<string | null>(() => {
     // If no URL params, auto-load first example
-    if (!searchParams.get('w')) return SCORE_EXAMPLES[0]?.key || null
+    if (!initialHasUrlWeights) return SCORE_EXAMPLES[0]?.key || null
     return null
   })
   const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -220,29 +229,33 @@ export default function ScoreBuilderSection() {
     setSearchParams(params, { replace: true })
   }, [boundarySource, healthBoundaryLevel, censusBoundaryLevel, weights, enabledDataSources, setSearchParams])
 
-  const selectedRegionLevel: RegionLevel = boundarySource === 'bcHealth'
-    ? healthBoundaryLevel
-    : censusBoundaryLevel
+  const selectedRegionLevel: RegionLevel = boundarySource === 'bcHealth' ? healthBoundaryLevel : censusBoundaryLevel
 
   const boundaryLevelOptions = useMemo<Array<{ value: RegionLevel; label: string }>>(() => {
     if (boundarySource === 'bcHealth') {
       return HEALTH_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
-        value: option.value, label: option.label
+        value: option.value,
+        label: option.label,
       }))
     }
     return CENSUS_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
-      value: option.value, label: option.label
+      value: option.value,
+      label: option.label,
     }))
   }, [boundarySource])
 
   const {
     regions,
     loading: loadingRegions,
-    error: regionsError
+    error: regionsError,
   } = useScoreBuilderRegions(boundarySource, selectedRegionLevel)
 
   const enabledSourceSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
-  const { properties, loading: loadingProperties, error: propertiesError } = useBcAssessmentData(enabledSourceSet.has('bcAssessment'))
+  const {
+    properties,
+    loading: loadingProperties,
+    error: propertiesError,
+  } = useBcAssessmentData(enabledSourceSet.has('bcAssessment'))
   const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData(enabledSourceSet.has('crime'))
 
   const networkCounts = useMemo(() => {
@@ -282,36 +295,42 @@ export default function ScoreBuilderSection() {
   const monitorPointRecords = useMemo<MonitorPointRecord[]>(() => {
     return filteredMonitors.map((monitor) => ({
       monitor,
-      feature: point([monitor.longitude, monitor.latitude])
+      feature: point([monitor.longitude, monitor.latitude]),
     }))
   }, [filteredMonitors])
 
   // Park centroid points
   const parkPointRecords = useMemo<Array<PointRecord & { areaSqKm: number }>>(() => {
     if (!enabledSourceSet.has('parks')) return []
-    return parks.map((park) => {
-      const center = bboxCenter(park.geometry)
-      if (!center) return null
-      return {
-        lng: center[0], lat: center[1],
-        feature: point(center),
-        areaSqKm: (park.area || 0) / 1_000_000
-      }
-    }).filter(Boolean) as Array<PointRecord & { areaSqKm: number }>
+    return parks
+      .map((park) => {
+        const center = bboxCenter(park.geometry)
+        if (!center) return null
+        return {
+          lng: center[0],
+          lat: center[1],
+          feature: point(center),
+          areaSqKm: (park.area || 0) / 1_000_000,
+        }
+      })
+      .filter(Boolean) as Array<PointRecord & { areaSqKm: number }>
   }, [enabledSourceSet, parks])
 
   // Trail midpoint points
   const trailPointRecords = useMemo<Array<PointRecord & { lengthKm: number }>>(() => {
     if (!enabledSourceSet.has('parks')) return []
-    return trails.filter((t) => t.coordinates.length >= 2).map((trail) => {
-      const mid = Math.floor(trail.coordinates.length / 2)
-      const [lng, lat] = trail.coordinates[mid]
-      return {
-        lng, lat,
-        feature: point([lng, lat]),
-        lengthKm: (trail.length || 0) / 1000
-      }
-    })
+    return trails
+      .filter((t) => t.coordinates.length >= 2)
+      .map((trail) => {
+        const mid = Math.floor(trail.coordinates.length / 2)
+        const [lng, lat] = trail.coordinates[mid]
+        return {
+          lng,
+          lat,
+          feature: point([lng, lat]),
+          lengthKm: (trail.length || 0) / 1000,
+        }
+      })
   }, [enabledSourceSet, trails])
 
   // Amenity points
@@ -320,18 +339,23 @@ export default function ScoreBuilderSection() {
     return amenities
       .filter((a) => Number.isFinite(a.latitude) && Number.isFinite(a.longitude))
       .map((a) => ({
-        lng: a.longitude, lat: a.latitude,
-        feature: point([a.longitude, a.latitude])
+        lng: a.longitude,
+        lat: a.latitude,
+        feature: point([a.longitude, a.latitude]),
       }))
   }, [amenities, enabledSourceSet])
 
   // Restaurant points
-  const restaurantPointRecords = useMemo<Array<PointRecord & {
-    hazard: number
-    inspectionCount: number
-    criticalViolations: number
-    followUps: number
-  }>>(() => {
+  const restaurantPointRecords = useMemo<
+    Array<
+      PointRecord & {
+        hazard: number
+        inspectionCount: number
+        criticalViolations: number
+        followUps: number
+      }
+    >
+  >(() => {
     if (!enabledSourceSet.has('restaurants')) return []
     return restaurants
       .filter((r) => r.latitude != null && r.longitude != null)
@@ -343,10 +367,14 @@ export default function ScoreBuilderSection() {
           feature: point([r.longitude as number, r.latitude as number]),
           hazard: hazardWeight(r.current_hazard_rating || r.hazard_rating),
           inspectionCount: inspections.length,
-          criticalViolations: inspections.reduce((sum, inspection) => sum + (inspection.critical_violations_count || 0), 0),
-          followUps: inspections.reduce((sum, inspection) => (
-            sum + (String(inspection.follow_up_required || '').toLowerCase() === 'yes' ? 1 : 0)
-          ), 0)
+          criticalViolations: inspections.reduce(
+            (sum, inspection) => sum + (inspection.critical_violations_count || 0),
+            0,
+          ),
+          followUps: inspections.reduce(
+            (sum, inspection) => sum + (String(inspection.follow_up_required || '').toLowerCase() === 'yes' ? 1 : 0),
+            0,
+          ),
         }
       })
   }, [enabledSourceSet, restaurants])
@@ -354,15 +382,18 @@ export default function ScoreBuilderSection() {
   // Census DA centroid points
   const censusPointRecords = useMemo<Array<PointRecord & { population: number }>>(() => {
     if (!enabledSourceSet.has('census')) return []
-    return unitsByLevel.da.map((unit) => {
-      const center = bboxCenter(unit.geometry)
-      if (!center) return null
-      return {
-        lng: center[0], lat: center[1],
-        feature: point(center),
-        population: unit.population || 0
-      }
-    }).filter(Boolean) as Array<PointRecord & { population: number }>
+    return unitsByLevel.da
+      .map((unit) => {
+        const center = bboxCenter(unit.geometry)
+        if (!center) return null
+        return {
+          lng: center[0],
+          lat: center[1],
+          feature: point(center),
+          population: unit.population || 0,
+        }
+      })
+      .filter(Boolean) as Array<PointRecord & { population: number }>
   }, [enabledSourceSet, unitsByLevel.da])
 
   const propertyPointRecords = useMemo<PropertyPointRecord[]>(() => {
@@ -380,15 +411,18 @@ export default function ScoreBuilderSection() {
         yearBuilt: property.yearBuilt,
         category: property.category,
         ct: property.ct,
-        da: property.da
+        da: property.da,
       }))
   }, [enabledSourceSet, properties])
 
   const crimePointRecords = useMemo<CrimePointRecord[]>(() => {
     if (!enabledSourceSet.has('crime')) return []
-    const validIncidents = incidents.filter((incident) => (
-      Number.isFinite(incident.latitude) && Number.isFinite(incident.longitude) && !Number.isNaN(incident.date.getTime())
-    ))
+    const validIncidents = incidents.filter(
+      (incident) =>
+        Number.isFinite(incident.latitude) &&
+        Number.isFinite(incident.longitude) &&
+        !Number.isNaN(incident.date.getTime()),
+    )
     const latestTime = validIncidents.reduce((latest, incident) => Math.max(latest, incident.date.getTime()), 0)
     const recentCutoff = latestTime > 0 ? latestTime - 180 * 24 * 60 * 60 * 1000 : 0
     return validIncidents.map((incident) => ({
@@ -396,22 +430,41 @@ export default function ScoreBuilderSection() {
       lat: incident.latitude,
       feature: point([incident.longitude, incident.latitude]),
       date: incident.date,
-      recent: recentCutoff > 0 && incident.date.getTime() >= recentCutoff
+      recent: recentCutoff > 0 && incident.date.getTime() >= recentCutoff,
     }))
   }, [enabledSourceSet, incidents])
 
   const regionMetricRows = useMemo(() => {
     return regions.map((region) => {
       const counts: RegionDataCounts = {
-        monitorCount: 0, lowCostCount: 0, referenceCount: 0, activeCount: 0,
-        parkCount: 0, parkAreaSqKm: 0, trailCount: 0, trailLengthKm: 0,
-        amenityCount: 0, restaurantCount: 0, restaurantHazardSum: 0,
-        inspectionCount: 0, criticalViolationCount: 0, followUpInspectionCount: 0,
+        monitorCount: 0,
+        lowCostCount: 0,
+        referenceCount: 0,
+        activeCount: 0,
+        parkCount: 0,
+        parkAreaSqKm: 0,
+        trailCount: 0,
+        trailLengthKm: 0,
+        amenityCount: 0,
+        restaurantCount: 0,
+        restaurantHazardSum: 0,
+        inspectionCount: 0,
+        criticalViolationCount: 0,
+        followUpInspectionCount: 0,
         populationSum: 0,
-        parcelCount: 0, assessedValueSum: 0, landValueSum: 0, buildingValueSum: 0,
-        propertyGrowthSum: 0, propertyGrowthCount: 0, yearBuiltSum: 0, yearBuiltCount: 0,
-        vacantParcelCount: 0, multiFamilyParcelCount: 0, commercialParcelCount: 0,
-        crimeCount: 0, recentCrimeCount: 0
+        parcelCount: 0,
+        assessedValueSum: 0,
+        landValueSum: 0,
+        buildingValueSum: 0,
+        propertyGrowthSum: 0,
+        propertyGrowthCount: 0,
+        yearBuiltSum: 0,
+        yearBuiltCount: 0,
+        vacantParcelCount: 0,
+        multiFamilyParcelCount: 0,
+        commercialParcelCount: 0,
+        crimeCount: 0,
+        recentCrimeCount: 0,
       }
       const networks = new Set<string>()
       const parameters = new Set<string>()
@@ -424,7 +477,10 @@ export default function ScoreBuilderSection() {
         else counts.referenceCount += 1
         if ((monitor.status || '').toLowerCase() === 'active') counts.activeCount += 1
         networks.add(monitor.network)
-        monitor.parameters.forEach((p) => { const n = p.trim(); if (n) parameters.add(n) })
+        monitor.parameters.forEach((p) => {
+          const n = p.trim()
+          if (n) parameters.add(n)
+        })
       })
 
       // Parks
@@ -465,9 +521,10 @@ export default function ScoreBuilderSection() {
 
       // BC Assessment
       propertyPointRecords.forEach((rec) => {
-        const directCensusMatch = region.source === 'census'
-          && (region.level === 'ct' || region.level === 'da')
-          && rec[region.level as 'ct' | 'da'] === region.code
+        const directCensusMatch =
+          region.source === 'census' &&
+          (region.level === 'ct' || region.level === 'da') &&
+          rec[region.level as 'ct' | 'da'] === region.code
         if (!directCensusMatch && !isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.parcelCount += 1
         counts.assessedValueSum += rec.assessedValue
@@ -508,13 +565,17 @@ export default function ScoreBuilderSection() {
       metricValues.amenityDensity = counts.amenityCount / safeArea
       metricValues.restaurantDensity = counts.restaurantCount / safeArea
       metricValues.foodRiskScore = counts.restaurantCount > 0 ? counts.restaurantHazardSum / counts.restaurantCount : 0
-      metricValues.criticalViolationRate = counts.inspectionCount > 0 ? counts.criticalViolationCount / counts.inspectionCount : 0
-      metricValues.followUpRate = counts.inspectionCount > 0 ? counts.followUpInspectionCount / counts.inspectionCount : 0
+      metricValues.criticalViolationRate =
+        counts.inspectionCount > 0 ? counts.criticalViolationCount / counts.inspectionCount : 0
+      metricValues.followUpRate =
+        counts.inspectionCount > 0 ? counts.followUpInspectionCount / counts.inspectionCount : 0
       metricValues.populationDensity = counts.populationSum / safeArea
       metricValues.parcelDensity = counts.parcelCount / safeArea
       metricValues.avgAssessedValue = counts.parcelCount > 0 ? counts.assessedValueSum / counts.parcelCount : 0
-      metricValues.valueGrowth10y = counts.propertyGrowthCount > 0 ? counts.propertyGrowthSum / counts.propertyGrowthCount : 0
-      metricValues.buildingAge = counts.yearBuiltCount > 0 ? Math.max(0, CURRENT_YEAR - (counts.yearBuiltSum / counts.yearBuiltCount)) : 0
+      metricValues.valueGrowth10y =
+        counts.propertyGrowthCount > 0 ? counts.propertyGrowthSum / counts.propertyGrowthCount : 0
+      metricValues.buildingAge =
+        counts.yearBuiltCount > 0 ? Math.max(0, CURRENT_YEAR - counts.yearBuiltSum / counts.yearBuiltCount) : 0
       metricValues.vacantParcelShare = counts.parcelCount > 0 ? counts.vacantParcelCount / counts.parcelCount : 0
       metricValues.multiFamilyShare = counts.parcelCount > 0 ? counts.multiFamilyParcelCount / counts.parcelCount : 0
       metricValues.commercialShare = counts.parcelCount > 0 ? counts.commercialParcelCount / counts.parcelCount : 0
@@ -525,17 +586,28 @@ export default function ScoreBuilderSection() {
 
       return { region, metrics: metricValues, counts }
     })
-  }, [monitorPointRecords, parkPointRecords, trailPointRecords, amenityPointRecords, restaurantPointRecords, censusPointRecords, propertyPointRecords, crimePointRecords, regions])
+  }, [
+    monitorPointRecords,
+    parkPointRecords,
+    trailPointRecords,
+    amenityPointRecords,
+    restaurantPointRecords,
+    censusPointRecords,
+    propertyPointRecords,
+    crimePointRecords,
+    regions,
+  ])
 
   const metricRanges = useMemo(() => {
-    return SCORE_METRICS.reduce((accumulator, metric) => {
-      const values = regionMetricRows
-        .map((row) => row.metrics[metric.key])
-        .filter((value) => Number.isFinite(value))
-      const min = values.length ? Math.min(...values) : 0
-      const max = values.length ? Math.max(...values) : 1
-      return { ...accumulator, [metric.key]: { min, max } }
-    }, {} as Record<ScoreMetricKey, { min: number; max: number }>)
+    return SCORE_METRICS.reduce(
+      (accumulator, metric) => {
+        const values = regionMetricRows.map((row) => row.metrics[metric.key]).filter((value) => Number.isFinite(value))
+        const min = values.length ? Math.min(...values) : 0
+        const max = values.length ? Math.max(...values) : 1
+        return { ...accumulator, [metric.key]: { min, max } }
+      },
+      {} as Record<ScoreMetricKey, { min: number; max: number }>,
+    )
   }, [regionMetricRows])
 
   const totalAbsoluteWeight = useMemo(() => {
@@ -548,12 +620,13 @@ export default function ScoreBuilderSection() {
   }, [weights])
 
   const inferredExampleKey = useMemo(() => {
-    const match = SCORE_EXAMPLES.find((example) => (
-      example.boundarySource === boundarySource
-      && example.boundaryLevel === selectedRegionLevel
-      && scoreDataSourcesEqual(example.dataSources, enabledDataSources)
-      && scoreWeightsEqual(example.weights, weights)
-    ))
+    const match = SCORE_EXAMPLES.find(
+      (example) =>
+        example.boundarySource === boundarySource &&
+        example.boundaryLevel === selectedRegionLevel &&
+        scoreDataSourcesEqual(example.dataSources, enabledDataSources) &&
+        scoreWeightsEqual(example.weights, weights),
+    )
     return match?.key || null
   }, [boundarySource, enabledDataSources, selectedRegionLevel, weights])
 
@@ -576,22 +649,27 @@ export default function ScoreBuilderSection() {
         const weight = weights[metric.key]
         const directionalValue = weight >= 0 ? normalizedValue : 1 - normalizedValue
         normalizedMetrics[metric.key] = normalizedValue
-        contributions[metric.key] = totalAbsoluteWeight > 0
-          ? (Math.abs(weight) * directionalValue) / totalAbsoluteWeight
-          : 0
+        contributions[metric.key] =
+          totalAbsoluteWeight > 0 ? (Math.abs(weight) * directionalValue) / totalAbsoluteWeight : 0
         rawScore += contributions[metric.key]
       })
 
-      const score = totalAbsoluteWeight > 0
-        ? clampScore(rawScore * 100)
-        : 50
+      const score = totalAbsoluteWeight > 0 ? clampScore(rawScore * 100) : 50
 
-      return { ...row, normalizedMetrics, contributions, score, scoreColor: getScorePaletteColor(score, scorePaletteProfile), rank: 0 }
+      return {
+        ...row,
+        normalizedMetrics,
+        contributions,
+        score,
+        scoreColor: getScorePaletteColor(score, scorePaletteProfile),
+        rank: 0,
+      }
     })
 
     ranked.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score
-      if (b.metrics.overallDensity !== a.metrics.overallDensity) return b.metrics.overallDensity - a.metrics.overallDensity
+      if (b.metrics.overallDensity !== a.metrics.overallDensity)
+        return b.metrics.overallDensity - a.metrics.overallDensity
       return a.region.name.localeCompare(b.region.name)
     })
 
@@ -601,9 +679,9 @@ export default function ScoreBuilderSection() {
   const filteredRegions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return scoredRegions
-    return scoredRegions.filter((entry) => (
-      entry.region.name.toLowerCase().includes(query) || entry.region.code.toLowerCase().includes(query)
-    ))
+    return scoredRegions.filter(
+      (entry) => entry.region.name.toLowerCase().includes(query) || entry.region.code.toLowerCase().includes(query),
+    )
   }, [scoredRegions, searchQuery])
 
   const selectedRegion = useMemo(() => {
@@ -641,23 +719,19 @@ export default function ScoreBuilderSection() {
   }, [scoredRegions])
 
   const densitySummary = useMemo(() => {
-    const values = scoredRegions
-      .map((entry) => entry.metrics[densityMetric])
-      .filter((value) => Number.isFinite(value))
+    const values = scoredRegions.map((entry) => entry.metrics[densityMetric]).filter((value) => Number.isFinite(value))
     if (!values.length) return null
     const sum = values.reduce((total, value) => total + value, 0)
     return {
       min: Math.min(...values),
       max: Math.max(...values),
       median: computeMedian(values),
-      average: sum / values.length
+      average: sum / values.length,
     }
   }, [densityMetric, scoredRegions])
 
   const densityLeaders = useMemo(() => {
-    return [...scoredRegions]
-      .sort((a, b) => b.metrics[densityMetric] - a.metrics[densityMetric])
-      .slice(0, 3)
+    return [...scoredRegions].sort((a, b) => b.metrics[densityMetric] - a.metrics[densityMetric]).slice(0, 3)
   }, [densityMetric, scoredRegions])
 
   const equationPreview = useMemo(() => {
@@ -675,30 +749,33 @@ export default function ScoreBuilderSection() {
     setWeights((current) => ({ ...current, [metric]: value }))
   }, [])
 
-  const applyExample = useCallback((exampleKey: string) => {
-    const example = SCORE_EXAMPLES.find((e) => e.key === exampleKey)
-    if (!example) return
-    setActiveExampleKey(exampleKey)
-    setBoundarySource(example.boundarySource)
-    if (example.boundarySource === 'bcHealth') {
-      setHealthBoundaryLevel(example.boundaryLevel as BoundaryLevel)
-    } else {
-      setCensusBoundaryLevel(example.boundaryLevel as CensusBoundaryLevel)
-    }
-    setEnabledDataSources([...example.dataSources])
-    setWeights({ ...example.weights })
-    if (example.networkFilter === 'all') {
-      // Will be applied once allNetworks is available
-      setSelectedNetworks(allNetworks.length > 0 ? allNetworks : [])
-    } else if (example.networkFilter === 'none') {
-      setSelectedNetworks([])
-    } else {
-      setSelectedNetworks([...example.networkFilter])
-    }
-    setSelectedRegionId(null)
-    setComparisonIds([])
-    setSearchQuery('')
-  }, [allNetworks])
+  const applyExample = useCallback(
+    (exampleKey: string) => {
+      const example = SCORE_EXAMPLES.find((e) => e.key === exampleKey)
+      if (!example) return
+      setActiveExampleKey(exampleKey)
+      setBoundarySource(example.boundarySource)
+      if (example.boundarySource === 'bcHealth') {
+        setHealthBoundaryLevel(example.boundaryLevel as BoundaryLevel)
+      } else {
+        setCensusBoundaryLevel(example.boundaryLevel as CensusBoundaryLevel)
+      }
+      setEnabledDataSources([...example.dataSources])
+      setWeights({ ...example.weights })
+      if (example.networkFilter === 'all') {
+        // Will be applied once allNetworks is available
+        setSelectedNetworks(allNetworks.length > 0 ? allNetworks : [])
+      } else if (example.networkFilter === 'none') {
+        setSelectedNetworks([])
+      } else {
+        setSelectedNetworks([...example.networkFilter])
+      }
+      setSelectedRegionId(null)
+      setComparisonIds([])
+      setSearchQuery('')
+    },
+    [allNetworks],
+  )
 
   // Auto-apply first example on mount (once networks are loaded)
   const appliedInitialExample = useRef(false)
@@ -706,10 +783,13 @@ export default function ScoreBuilderSection() {
     if (appliedInitialExample.current) return
     if (!activeExampleKey || allNetworks.length === 0) return
     // Only auto-apply if no URL weights were provided
-    if (searchParams.get('w')) { appliedInitialExample.current = true; return }
+    if (hasUrlWeightsOnMount.current) {
+      appliedInitialExample.current = true
+      return
+    }
     appliedInitialExample.current = true
     applyExample(activeExampleKey)
-  }, [activeExampleKey, allNetworks, applyExample, searchParams])
+  }, [activeExampleKey, allNetworks, applyExample])
 
   const handleApplyPreset = useCallback((presetKey: string) => {
     const preset = SCORE_PRESETS.find((entry) => entry.key === presetKey)
@@ -734,13 +814,20 @@ export default function ScoreBuilderSection() {
     })
   }, [])
 
-  const selectAllNetworks = useCallback(() => { setSelectedNetworks(allNetworks) }, [allNetworks])
-  const clearNetworks = useCallback(() => { setSelectedNetworks([]) }, [])
+  const selectAllNetworks = useCallback(() => {
+    setSelectedNetworks(allNetworks)
+  }, [allNetworks])
+  const clearNetworks = useCallback(() => {
+    setSelectedNetworks([])
+  }, [])
 
-  const handleRegionLevelChange = useCallback((level: RegionLevel) => {
-    if (boundarySource === 'bcHealth') setHealthBoundaryLevel(level as BoundaryLevel)
-    else setCensusBoundaryLevel(level as CensusBoundaryLevel)
-  }, [boundarySource])
+  const handleRegionLevelChange = useCallback(
+    (level: RegionLevel) => {
+      if (boundarySource === 'bcHealth') setHealthBoundaryLevel(level as BoundaryLevel)
+      else setCensusBoundaryLevel(level as CensusBoundaryLevel)
+    },
+    [boundarySource],
+  )
 
   const handleOpenRegionInsight = useCallback((regionId: string) => {
     setSelectedRegionId(regionId)
@@ -768,36 +855,55 @@ export default function ScoreBuilderSection() {
     })
   }, [])
 
-  const clearComparison = useCallback(() => { setComparisonIds([]) }, [])
+  const clearComparison = useCallback(() => {
+    setComparisonIds([])
+  }, [])
 
-  const handleExport = useCallback((format: 'csv' | 'geojson') => {
-    if (format === 'csv') {
-      const metricKeys = SCORE_METRICS.map((m) => m.key)
-      const header = ['Rank', 'Name', 'Code', 'Score', 'Area (km²)', ...SCORE_METRICS.map((m) => m.label)]
-      const rows = scoredRegions.map((r) => [
-        r.rank, r.region.name, r.region.code, r.score.toFixed(1), r.region.areaKm2.toFixed(1),
-        ...metricKeys.map((k) => r.metrics[k].toFixed(4))
-      ])
-      const csv = [header.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join('\n')
-      downloadBlob(csv, 'score-builder-regions.csv', 'text/csv')
-    } else {
-      const fc: GeoJSON.FeatureCollection = {
-        type: 'FeatureCollection',
-        features: scoredRegions.map((r) => ({
-          type: 'Feature',
-          geometry: r.region.feature.geometry,
-          properties: {
-            rank: r.rank, name: r.region.name, code: r.region.code,
-            score: r.score, areaKm2: r.region.areaKm2,
-            ...Object.fromEntries(SCORE_METRICS.map((m) => [m.key, r.metrics[m.key]]))
-          }
-        }))
+  const handleExport = useCallback(
+    (format: 'csv' | 'geojson') => {
+      if (format === 'csv') {
+        const metricKeys = SCORE_METRICS.map((m) => m.key)
+        const header = ['Rank', 'Name', 'Code', 'Score', 'Area (km²)', ...SCORE_METRICS.map((m) => m.label)]
+        const rows = scoredRegions.map((r) => [
+          r.rank,
+          r.region.name,
+          r.region.code,
+          r.score.toFixed(1),
+          r.region.areaKm2.toFixed(1),
+          ...metricKeys.map((k) => r.metrics[k].toFixed(4)),
+        ])
+        const csv = [header.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join('\n')
+        downloadBlob(csv, 'score-builder-regions.csv', 'text/csv')
+      } else {
+        const fc: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features: scoredRegions.map((r) => ({
+            type: 'Feature',
+            geometry: r.region.feature.geometry,
+            properties: {
+              rank: r.rank,
+              name: r.region.name,
+              code: r.region.code,
+              score: r.score,
+              areaKm2: r.region.areaKm2,
+              ...Object.fromEntries(SCORE_METRICS.map((m) => [m.key, r.metrics[m.key]])),
+            },
+          })),
+        }
+        downloadBlob(JSON.stringify(fc, null, 2), 'score-builder-regions.geojson', 'application/geo+json')
       }
-      downloadBlob(JSON.stringify(fc, null, 2), 'score-builder-regions.geojson', 'application/geo+json')
-    }
-  }, [scoredRegions])
+    },
+    [scoredRegions],
+  )
 
-  const loading = loadingMonitors || loadingRegions || loadingParks || loadingRestaurants || loadingCensus || loadingProperties || loadingCrime
+  const loading =
+    loadingMonitors ||
+    loadingRegions ||
+    loadingParks ||
+    loadingRestaurants ||
+    loadingCensus ||
+    loadingProperties ||
+    loadingCrime
   const dataErrors = useMemo(() => {
     const errors: string[] = []
     if (monitorsError) errors.push(monitorsError)
