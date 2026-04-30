@@ -93,6 +93,18 @@ button, a, [role="button"] {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Prevent iOS Safari from auto-zooming on input focus.
+   iOS only zooms when the focused field's font-size is < 16px,
+   so enforcing 16px on mobile disables that behavior without
+   touching the viewport (map pinch-zoom keeps working). */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* Enlarge map controls on mobile */
 @media (max-width: 767px) {
   .maplibregl-ctrl-group button {
