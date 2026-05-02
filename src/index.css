@@ -123,6 +123,13 @@ button, a, [role="button"] {
 }
 
 /* Themed map popup arrow tip (used by MapPopup) */
+.pg-map-popup .maplibregl-popup-content {
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
 .pg-map-popup .maplibregl-popup-tip {
   display: block !important;
 }
