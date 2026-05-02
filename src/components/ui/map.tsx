@@ -363,6 +363,7 @@ function MarkerPopup({
       offset: 16,
       ...popupOptions,
       closeButton: false,
+      className: "mapcn-popup",
     })
       .setMaxWidth("none")
       .setDOMContent(container);
@@ -444,6 +445,7 @@ function MarkerTooltip({
       ...popupOptions,
       closeOnClick: true,
       closeButton: false,
+      className: "mapcn-tooltip",
     }).setMaxWidth("none");
 
     return tooltipInstance;
@@ -773,7 +775,7 @@ function MapPopup({
       offset: 16,
       ...popupOptions,
       closeButton: false,
-      className: "pg-map-popup",
+      className: "mapcn-popup",
     })
       .setMaxWidth("none")
       .setLngLat([longitude, latitude]);

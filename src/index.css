@@ -57,12 +57,6 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
-  .maplibregl-popup-content {
-    @apply bg-transparent! shadow-none! p-0! rounded-none!;
-  }
-  .maplibregl-popup-tip {
-    display: none !important;
-  }
 }
 
 @layer base {
@@ -105,52 +99,40 @@ button, a, [role="button"] {
   }
 }
 
-.maplibregl-popup-content {
-  padding: 0;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.maplibregl-popup-close-button {
-  font-size: 18px;
-  padding: 4px 8px;
-  color: #666;
-}
-
-.maplibregl-popup-close-button:hover {
-  background-color: #f0f0f0;
-  color: #333;
-}
-
 /* Themed map popup arrow tip (used by MapPopup) */
-.pg-map-popup .maplibregl-popup-content {
+.mapcn-popup .maplibregl-popup-content,
+.mapcn-tooltip .maplibregl-popup-content {
   background: transparent !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   padding: 0 !important;
 }
 
-.pg-map-popup .maplibregl-popup-tip {
+.mapcn-popup .maplibregl-popup-tip {
   display: block !important;
 }
 
-.pg-map-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
-.pg-map-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
-.pg-map-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+.mapcn-tooltip .maplibregl-popup-tip {
+  display: none !important;
+}
+
+.mapcn-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.mapcn-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.mapcn-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
   border-bottom-color: hsl(var(--popover)) !important;
 }
 
-.pg-map-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
-.pg-map-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
-.pg-map-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+.mapcn-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.mapcn-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.mapcn-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
   border-top-color: hsl(var(--popover)) !important;
 }
 
-.pg-map-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+.mapcn-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
   border-right-color: hsl(var(--popover)) !important;
 }
 
-.pg-map-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+.mapcn-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
   border-left-color: hsl(var(--popover)) !important;
 }
 
