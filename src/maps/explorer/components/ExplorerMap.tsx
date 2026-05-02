@@ -173,7 +173,7 @@ export function ExplorerMap({
               data={collection.data}
               clusterRadius={42}
               clusterThresholds={[50, 180]}
-              clusterColors={['#38bdf8', '#22c55e', '#f59e0b']}
+              clusterColors={[collection.color, collection.color, collection.color]}
               pointColor={collection.color}
               onPointClick={(feature) => {
                 const itemId = feature.properties?.itemId

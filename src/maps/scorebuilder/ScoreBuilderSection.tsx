@@ -19,12 +19,13 @@ import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
 import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
+  SCORE_BUILDER_EXAMPLES,
   SCORE_METRICS,
-  SCORE_EXAMPLES,
   createDefaultWeights,
   createMetricValueMap,
   getScorePaletteColor,
   getScorePaletteProfile,
+  getScoreDataSourcesForWeights,
   LOW_COST_NETWORKS,
   SCORE_PRESETS,
   encodeWeightsToParams,
@@ -41,9 +42,15 @@ import type {
   RegionDataCounts,
   ScoredBoundaryRegion,
   ScoreDataSource,
+  ScoreBandSummary,
+  ScoreFilterKey,
+  ScoreFilterState,
+  ScoreMetricRangeMap,
   ScoreMetricKey,
   ScoreMetricWeightMap,
+  ScenarioComparison,
 } from './types'
+import { decodeScoreBuilderShareState, encodeScoreBuilderShareState } from './lib/shareState'
 
 interface MonitorPointRecord {
   monitor: AirMonitor
@@ -164,10 +171,62 @@ function isInRegion(
 
 const ALL_DATA_SOURCES: ScoreDataSource[] = ['airQuality', 'parks', 'restaurants', 'census', 'bcAssessment', 'crime']
 const CURRENT_YEAR = new Date().getFullYear()
+const DEFAULT_SCORE_FILTERS: ScoreFilterState = {
+  requirePopulation: false,
+  requireParks: false,
+  limitCrime: false,
+  limitFoodRisk: false,
+}
+const HEALTH_BOUNDARY_LEVEL_VALUES = new Set<BoundaryLevel>(
+  HEALTH_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
+const CENSUS_BOUNDARY_LEVEL_VALUES = new Set<CensusBoundaryLevel>(
+  CENSUS_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
+
+function parseBoundarySource(value: string | null): BoundarySource {
+  return value === 'bcHealth' || value === 'census' ? value : 'census'
+}
+
+function parseHealthBoundaryLevel(value: string | null): BoundaryLevel {
+  return HEALTH_BOUNDARY_LEVEL_VALUES.has(value as BoundaryLevel) ? (value as BoundaryLevel) : 'chsa'
+}
+
+function parseCensusBoundaryLevel(value: string | null): CensusBoundaryLevel {
+  return CENSUS_BOUNDARY_LEVEL_VALUES.has(value as CensusBoundaryLevel) ? (value as CensusBoundaryLevel) : 'ct'
+}
+
+function summarizeScores(regions: ScoredBoundaryRegion[]): { min: number; max: number; average: number } {
+  if (!regions.length) return { min: 0, max: 0, average: 0 }
+  const values = regions.map((entry) => entry.score)
+  const sum = values.reduce((total, value) => total + value, 0)
+  return { min: Math.min(...values), max: Math.max(...values), average: sum / values.length }
+}
+
+function buildScoreBandSummary(regions: ScoredBoundaryRegion[]): ScoreBandSummary[] {
+  const definitions: Array<Omit<ScoreBandSummary, 'count'>> = [
+    { key: 'high', label: 'High fit', description: 'Strongest matches for the active model.', min: 70, max: 100 },
+    { key: 'moderate', label: 'Moderate fit', description: 'Worth reviewing with local context.', min: 55, max: 70 },
+    { key: 'low', label: 'Low fit', description: 'Below the current model average target.', min: 40, max: 55 },
+    { key: 'watchlist', label: 'Watchlist', description: 'Lowest-scoring or constrained areas.', min: 0, max: 40 },
+  ]
+
+  return definitions.map((band) => ({
+    ...band,
+    count: regions.filter((region) =>
+      band.key === 'high'
+        ? region.score >= band.min
+        : band.key === 'watchlist'
+          ? region.score < band.max
+          : region.score >= band.min && region.score < band.max,
+    ).length,
+  }))
+}
 
 export default function ScoreBuilderSection() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialHasUrlWeights = Boolean(searchParams.get('w'))
+  const initialShareToken = useRef(searchParams.get('s'))
+  const initialHasUrlWeights = Boolean(searchParams.get('w') || initialShareToken.current)
   const hasUrlWeightsOnMount = useRef(initialHasUrlWeights)
 
   const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData()
@@ -178,13 +237,13 @@ export default function ScoreBuilderSection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [showRightSidebar, setShowRightSidebar] = useState(true)
   const [boundarySource, setBoundarySource] = useState<BoundarySource>(
-    () => (searchParams.get('src') as BoundarySource) || 'bcHealth',
+    () => parseBoundarySource(searchParams.get('src')),
   )
   const [healthBoundaryLevel, setHealthBoundaryLevel] = useState<BoundaryLevel>(
-    () => (searchParams.get('level') as BoundaryLevel) || 'lha',
+    () => parseHealthBoundaryLevel(searchParams.get('level')),
   )
   const [censusBoundaryLevel, setCensusBoundaryLevel] = useState<CensusBoundaryLevel>(
-    () => (searchParams.get('level') as CensusBoundaryLevel) || 'csd',
+    () => parseCensusBoundaryLevel(searchParams.get('level')),
   )
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
   const [regionInsightRegionId, setRegionInsightRegionId] = useState<string | null>(null)
@@ -212,9 +271,10 @@ export default function ScoreBuilderSection() {
     return ['airQuality']
   })
   const [comparisonIds, setComparisonIds] = useState<string[]>([])
+  const [scoreFilters, setScoreFilters] = useState<ScoreFilterState>(DEFAULT_SCORE_FILTERS)
   const [activeExampleKey, setActiveExampleKey] = useState<string | null>(() => {
     // If no URL params, auto-load first example
-    if (!initialHasUrlWeights) return SCORE_EXAMPLES[0]?.key || null
+    if (!initialHasUrlWeights) return SCORE_BUILDER_EXAMPLES[0]?.key || null
     return null
   })
   const isDesktop = useMediaQuery('(min-width: 768px)')
@@ -606,13 +666,9 @@ export default function ScoreBuilderSection() {
         const max = values.length ? Math.max(...values) : 1
         return { ...accumulator, [metric.key]: { min, max } }
       },
-      {} as Record<ScoreMetricKey, { min: number; max: number }>,
+      {} as ScoreMetricRangeMap,
     )
   }, [regionMetricRows])
-
-  const totalAbsoluteWeight = useMemo(() => {
-    return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
-  }, [weights])
 
   const activePresetKey = useMemo(() => {
     const match = SCORE_PRESETS.find((preset) => scoreWeightsEqual(preset.weights, weights))
@@ -620,7 +676,7 @@ export default function ScoreBuilderSection() {
   }, [weights])
 
   const inferredExampleKey = useMemo(() => {
-    const match = SCORE_EXAMPLES.find(
+    const match = SCORE_BUILDER_EXAMPLES.find(
       (example) =>
         example.boundarySource === boundarySource &&
         example.boundaryLevel === selectedRegionLevel &&
@@ -636,8 +692,10 @@ export default function ScoreBuilderSection() {
     return getScorePaletteProfile(activePresetKey, resolvedExampleKey)
   }, [activePresetKey, resolvedExampleKey])
 
-  const scoredRegions = useMemo<ScoredBoundaryRegion[]>(() => {
-    const ranked = regionMetricRows.map((row) => {
+  const scoreRows = useCallback(
+    (weightMap: ScoreMetricWeightMap): ScoredBoundaryRegion[] => {
+      const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weightMap[metric.key]), 0)
+      const ranked = regionMetricRows.map((row) => {
       const normalizedMetrics = createMetricValueMap(0)
       const contributions = createMetricValueMap(0)
       let rawScore = 0
@@ -646,15 +704,15 @@ export default function ScoreBuilderSection() {
         const value = row.metrics[metric.key]
         const range = metricRanges[metric.key]
         const normalizedValue = normalizeMetric(value, range.min, range.max)
-        const weight = weights[metric.key]
+        const weight = weightMap[metric.key]
         const directionalValue = weight >= 0 ? normalizedValue : 1 - normalizedValue
         normalizedMetrics[metric.key] = normalizedValue
         contributions[metric.key] =
-          totalAbsoluteWeight > 0 ? (Math.abs(weight) * directionalValue) / totalAbsoluteWeight : 0
+          totalWeight > 0 ? (Math.abs(weight) * directionalValue) / totalWeight : 0
         rawScore += contributions[metric.key]
       })
 
-      const score = totalAbsoluteWeight > 0 ? clampScore(rawScore * 100) : 50
+      const score = totalWeight > 0 ? clampScore(rawScore * 100) : 50
 
       return {
         ...row,
@@ -674,7 +732,41 @@ export default function ScoreBuilderSection() {
     })
 
     return ranked.map((row, index) => ({ ...row, rank: index + 1 }))
-  }, [metricRanges, regionMetricRows, scorePaletteProfile, totalAbsoluteWeight, weights])
+    },
+    [metricRanges, regionMetricRows, scorePaletteProfile],
+  )
+
+  const unfilteredScoredRegions = useMemo<ScoredBoundaryRegion[]>(() => scoreRows(weights), [scoreRows, weights])
+
+  const filterThresholds = useMemo(() => {
+    const crimeValues = unfilteredScoredRegions
+      .map((entry) => entry.metrics.crimePerCapita)
+      .filter((value) => Number.isFinite(value) && value > 0)
+    const foodRiskValues = unfilteredScoredRegions
+      .map((entry) => entry.metrics.foodRiskScore)
+      .filter((value) => Number.isFinite(value) && value > 0)
+    return {
+      crimePerCapita: crimeValues.length ? computeMedian(crimeValues) : Infinity,
+      foodRiskScore: foodRiskValues.length ? computeMedian(foodRiskValues) : Infinity,
+    }
+  }, [unfilteredScoredRegions])
+
+  const scoredRegions = useMemo<ScoredBoundaryRegion[]>(() => {
+    const filtered = unfilteredScoredRegions.filter((entry) => {
+      if (scoreFilters.requirePopulation && entry.counts.populationSum <= 0) return false
+      if (
+        scoreFilters.requireParks &&
+        entry.counts.parkCount + entry.counts.amenityCount <= 0 &&
+        entry.counts.trailLengthKm <= 0
+      ) {
+        return false
+      }
+      if (scoreFilters.limitCrime && entry.metrics.crimePerCapita > filterThresholds.crimePerCapita) return false
+      if (scoreFilters.limitFoodRisk && entry.metrics.foodRiskScore > filterThresholds.foodRiskScore) return false
+      return true
+    })
+    return filtered.map((row, index) => ({ ...row, rank: index + 1 }))
+  }, [filterThresholds, scoreFilters, unfilteredScoredRegions])
 
   const filteredRegions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -711,12 +803,29 @@ export default function ScoreBuilderSection() {
     }
   }, [regionInsightRegion, regionInsightRegionId])
 
-  const scoreSpread = useMemo(() => {
-    if (!scoredRegions.length) return { min: 0, max: 0, average: 0 }
-    const values = scoredRegions.map((entry) => entry.score)
-    const sum = values.reduce((total, value) => total + value, 0)
-    return { min: Math.min(...values), max: Math.max(...values), average: sum / values.length }
-  }, [scoredRegions])
+  const scoreSpread = useMemo(() => summarizeScores(scoredRegions), [scoredRegions])
+
+  const scoreBands = useMemo(() => buildScoreBandSummary(scoredRegions), [scoredRegions])
+
+  const scenarioComparison = useMemo<ScenarioComparison | null>(() => {
+    const referencePreset = SCORE_PRESETS.find((preset) => preset.key === 'balancedCoverage') || SCORE_PRESETS[0]
+    if (!referencePreset || !unfilteredScoredRegions.length) return null
+    const referenceRegionScores = scoreRows(referencePreset.weights)
+    const eligibleIds = new Set(scoredRegions.map((entry) => entry.region.id))
+    const referenceEligible = referenceRegionScores
+      .filter((entry) => eligibleIds.has(entry.region.id))
+      .map((entry, index) => ({ ...entry, rank: index + 1 }))
+    const referenceSpread = summarizeScores(referenceEligible)
+    return {
+      label: referencePreset.label,
+      currentTopName: scoredRegions[0]?.region.name || null,
+      currentTopScore: scoredRegions[0]?.score || 0,
+      referenceTopName: referenceEligible[0]?.region.name || null,
+      referenceTopScore: referenceEligible[0]?.score || 0,
+      averageDelta: scoreSpread.average - referenceSpread.average,
+      topChanged: (scoredRegions[0]?.region.id || null) !== (referenceEligible[0]?.region.id || null),
+    }
+  }, [scoreRows, scoreSpread.average, scoredRegions, unfilteredScoredRegions.length])
 
   const densitySummary = useMemo(() => {
     const values = scoredRegions.map((entry) => entry.metrics[densityMetric]).filter((value) => Number.isFinite(value))
@@ -751,7 +860,7 @@ export default function ScoreBuilderSection() {
 
   const applyExample = useCallback(
     (exampleKey: string) => {
-      const example = SCORE_EXAMPLES.find((e) => e.key === exampleKey)
+      const example = SCORE_BUILDER_EXAMPLES.find((e) => e.key === exampleKey)
       if (!example) return
       setActiveExampleKey(exampleKey)
       setBoundarySource(example.boundarySource)
@@ -777,6 +886,29 @@ export default function ScoreBuilderSection() {
     [allNetworks],
   )
 
+  useEffect(() => {
+    const token = initialShareToken.current
+    if (!token) return
+    let cancelled = false
+    decodeScoreBuilderShareState(token)
+      .then((state) => {
+        if (cancelled || state.version !== 1) return
+        setActiveExampleKey(null)
+        setBoundarySource(parseBoundarySource(state.boundarySource))
+        setHealthBoundaryLevel(parseHealthBoundaryLevel(state.healthBoundaryLevel))
+        setCensusBoundaryLevel(parseCensusBoundaryLevel(state.censusBoundaryLevel))
+        setEnabledDataSources([...state.enabledDataSources])
+        setSelectedNetworks([...state.selectedNetworks])
+        setWeights({ ...createDefaultWeights(), ...state.weights })
+      })
+      .catch(() => {
+        // Malformed share tokens should not block the regular score builder.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // Auto-apply first example on mount (once networks are loaded)
   const appliedInitialExample = useRef(false)
   useEffect(() => {
@@ -796,16 +928,47 @@ export default function ScoreBuilderSection() {
     if (!preset) return
     setActiveExampleKey(null)
     setWeights({ ...preset.weights })
-    // Auto-enable data sources used by preset
-    const needed = new Set<ScoreDataSource>()
-    SCORE_METRICS.forEach((m) => {
-      if (preset.weights[m.key] !== 0) {
-        const source = metricToDataSource(m.category)
-        if (source) needed.add(source)
+    const neededSources = getScoreDataSourcesForWeights(preset.weights)
+    setEnabledDataSources(neededSources)
+    setSelectedNetworks(neededSources.includes('airQuality') ? allNetworks : [])
+    setShowPoints(neededSources.includes('airQuality'))
+  }, [allNetworks])
+
+  const handleAddMetric = useCallback(
+    (metric: ScoreMetricKey, value: number) => {
+      handleWeightChange(metric, value)
+      const definition = SCORE_METRICS.find((entry) => entry.key === metric)
+      const source = definition ? metricToDataSource(definition.category) : null
+      if (!source) return
+      setEnabledDataSources((current) => (current.includes(source) ? current : [...current, source]))
+      if (source === 'airQuality') {
+        setSelectedNetworks((current) => (current.length ? current : allNetworks))
       }
+    },
+    [allNetworks, handleWeightChange],
+  )
+
+  const handleShareUrl = useCallback(async () => {
+    const token = await encodeScoreBuilderShareState({
+      version: 1,
+      boundarySource,
+      healthBoundaryLevel,
+      censusBoundaryLevel,
+      enabledDataSources,
+      selectedNetworks,
+      weights,
     })
-    setEnabledDataSources(Array.from(needed))
-  }, [])
+    const url = new URL(window.location.href)
+    url.search = ''
+    url.searchParams.set('s', token)
+    window.history.replaceState(null, '', url)
+    try {
+      await navigator.clipboard?.writeText(url.toString())
+    } catch {
+      // The URL is still visible in the address bar if clipboard permissions are unavailable.
+    }
+    return url.toString()
+  }, [boundarySource, censusBoundaryLevel, enabledDataSources, healthBoundaryLevel, selectedNetworks, weights])
 
   const toggleNetwork = useCallback((network: string) => {
     setSelectedNetworks((current) => {
@@ -823,8 +986,8 @@ export default function ScoreBuilderSection() {
 
   const handleRegionLevelChange = useCallback(
     (level: RegionLevel) => {
-      if (boundarySource === 'bcHealth') setHealthBoundaryLevel(level as BoundaryLevel)
-      else setCensusBoundaryLevel(level as CensusBoundaryLevel)
+      if (boundarySource === 'bcHealth') setHealthBoundaryLevel(parseHealthBoundaryLevel(level))
+      else setCensusBoundaryLevel(parseCensusBoundaryLevel(level))
     },
     [boundarySource],
   )
@@ -857,6 +1020,10 @@ export default function ScoreBuilderSection() {
 
   const clearComparison = useCallback(() => {
     setComparisonIds([])
+  }, [])
+
+  const toggleScoreFilter = useCallback((filter: ScoreFilterKey) => {
+    setScoreFilters((current) => ({ ...current, [filter]: !current[filter] }))
   }, [])
 
   const handleExport = useCallback(
@@ -942,15 +1109,24 @@ export default function ScoreBuilderSection() {
       dataErrors={dataErrors}
       weights={weights}
       onWeightChange={handleWeightChange}
+      onAddMetric={handleAddMetric}
       onApplyPreset={handleApplyPreset}
+      boundarySource={boundarySource}
       activePresetKey={activePresetKey}
       equationPreview={equationPreview}
+      metricRanges={metricRanges}
       scoreSpread={scoreSpread}
       densityMetric={densityMetric}
       onDensityMetricChange={setDensityMetric}
       densitySummary={densitySummary}
       densityLeaders={densityLeaders}
       regions={scoredRegions}
+      totalRegionCount={unfilteredScoredRegions.length}
+      excludedRegionCount={Math.max(0, unfilteredScoredRegions.length - scoredRegions.length)}
+      scoreFilters={scoreFilters}
+      onToggleScoreFilter={toggleScoreFilter}
+      scoreBands={scoreBands}
+      scenarioComparison={scenarioComparison}
       filteredRegions={filteredRegions}
       selectedRegion={selectedRegion}
       searchQuery={searchQuery}
@@ -963,6 +1139,7 @@ export default function ScoreBuilderSection() {
       onToggleComparison={toggleComparison}
       onClearComparison={clearComparison}
       onExport={handleExport}
+      onShareUrl={handleShareUrl}
       activeExampleKey={resolvedExampleKey}
       onApplyExample={applyExample}
       isDesktop={isDesktop}
@@ -999,6 +1176,12 @@ export default function ScoreBuilderSection() {
       densitySummary={densitySummary}
       densityLeaders={densityLeaders}
       regions={scoredRegions}
+      totalRegionCount={unfilteredScoredRegions.length}
+      excludedRegionCount={Math.max(0, unfilteredScoredRegions.length - scoredRegions.length)}
+      scoreFilters={scoreFilters}
+      onToggleScoreFilter={toggleScoreFilter}
+      scoreBands={scoreBands}
+      scenarioComparison={scenarioComparison}
       filteredRegions={filteredRegions}
       selectedRegion={selectedRegion}
       searchQuery={searchQuery}
@@ -1011,6 +1194,7 @@ export default function ScoreBuilderSection() {
       onToggleComparison={toggleComparison}
       onClearComparison={clearComparison}
       onExport={handleExport}
+      onShareUrl={handleShareUrl}
       activeExampleKey={resolvedExampleKey}
       onApplyExample={applyExample}
       isDesktop={isDesktop}
@@ -1023,6 +1207,7 @@ export default function ScoreBuilderSection() {
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
         desktopSidebarWidth={300}
+        mobileInitialSheetState="half"
         sidebar={isDesktop ? desktopLeftPanel : mobileSidebar}
         rightSidebar={isDesktop ? desktopRightPanel : undefined}
         showDesktopRightSidebar={showRightSidebar}

@@ -17,6 +17,7 @@ interface MapSectionLayoutProps {
   showDesktopSidebar: boolean
   onToggleDesktopSidebar: () => void
   desktopSidebarWidth?: number
+  mobileInitialSheetState?: MobileSheetState
   rightSidebar?: ReactNode
   showDesktopRightSidebar?: boolean
   onToggleDesktopRightSidebar?: () => void
@@ -91,6 +92,7 @@ export function MapSectionLayout({
   showDesktopSidebar,
   onToggleDesktopSidebar,
   desktopSidebarWidth = 350,
+  mobileInitialSheetState = 'collapsed',
   rightSidebar,
   showDesktopRightSidebar = true,
   onToggleDesktopRightSidebar,
@@ -98,7 +100,7 @@ export function MapSectionLayout({
   children,
   className,
 }: MapSectionLayoutProps) {
-  const [mobileSheetState, setMobileSheetState] = useState<MobileSheetState>('collapsed')
+  const [mobileSheetState, setMobileSheetState] = useState<MobileSheetState>(mobileInitialSheetState)
 
   // DOM refs
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -151,7 +153,7 @@ export function MapSectionLayout({
   // Position on first paint (before browser paints → no flash)
   useLayoutEffect(() => {
     if (window.innerWidth < 768) {
-      const y = getSnapPositions().collapsed
+      const y = getSnapPositions()[mobileInitialSheetState]
       if (sheetRef.current) {
         sheetRef.current.style.transform = `translateY(${y}px)`
         sheetRef.current.style.transition = 'none'

@@ -5,7 +5,8 @@ test.describe('Explorer Section', () => {
     await page.goto('/explorer', { waitUntil: 'domcontentloaded' })
 
     // Should show explorer sidebar with dataset options
-    await expect(page.getByText('Active Layers')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('heading', { name: 'Active Layers' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('button', { name: /Property Crime/ })).toBeVisible()
   })
 
   test('heatmap toggle button is present', async ({ page }) => {

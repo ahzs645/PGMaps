@@ -1,19 +1,51 @@
-import { useMemo, useState } from 'react'
-import { Download, Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  BookOpen,
+  Check,
+  Copy,
+  Download,
+  Filter,
+  FlipHorizontal,
+  GripVertical,
+  Plus,
+  Search,
+  X,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Slider } from '@/components/ui/slider'
+import type { BoundarySource } from '@/maps/airquality'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DENSITY_METRIC_OPTIONS,
-  SCORE_EXAMPLES,
+  SCORE_BUILDER_EXAMPLES,
   SCORE_METRICS,
   SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
+  getScoreDataSourcesForWeights,
 } from '../constants'
 import { METRIC_CATEGORY_LABELS } from '../types'
-import type { ScoredBoundaryRegion, ScoreDataSource, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
+import type {
+  ScoredBoundaryRegion,
+  ScoreDataSource,
+  ScoreBandSummary,
+  ScoreFilterKey,
+  ScoreFilterState,
+  ScoreMetricKey,
+  ScoreMetricRangeMap,
+  ScoreMetricWeightMap,
+  ScenarioComparison,
+} from '../types'
 import { RadarChart } from './RadarChart'
 
-type RightPanelTab = 'examples' | 'equation' | 'density' | 'regions'
+type RightPanelTab = 'examples' | 'equation' | 'model' | 'density' | 'regions'
 
 interface ScoreBuilderRightPanelProps {
   className?: string
@@ -21,15 +53,24 @@ interface ScoreBuilderRightPanelProps {
   dataErrors: string[]
   weights: ScoreMetricWeightMap
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
+  onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
+  boundarySource: BoundarySource
   activePresetKey: string | null
   equationPreview: string
+  metricRanges: ScoreMetricRangeMap
   scoreSpread: { min: number; max: number; average: number }
   densityMetric: ScoreMetricKey
   onDensityMetricChange: (metric: ScoreMetricKey) => void
   densitySummary: { min: number; max: number; median: number; average: number } | null
   densityLeaders: ScoredBoundaryRegion[]
   regions: ScoredBoundaryRegion[]
+  totalRegionCount: number
+  excludedRegionCount: number
+  scoreFilters: ScoreFilterState
+  onToggleScoreFilter: (filter: ScoreFilterKey) => void
+  scoreBands: ScoreBandSummary[]
+  scenarioComparison: ScenarioComparison | null
   filteredRegions: ScoredBoundaryRegion[]
   selectedRegion: ScoredBoundaryRegion | null
   searchQuery: string
@@ -42,6 +83,7 @@ interface ScoreBuilderRightPanelProps {
   onToggleComparison: (regionId: string) => void
   onClearComparison: () => void
   onExport: (format: 'csv' | 'geojson') => void
+  onShareUrl: () => Promise<string>
   activeExampleKey: string | null
   onApplyExample: (key: string) => void
   isDesktop: boolean
@@ -49,10 +91,11 @@ interface ScoreBuilderRightPanelProps {
 
 const MAX_VISIBLE_ROWS = 220
 
-const TAB_ORDER: RightPanelTab[] = ['examples', 'equation', 'density', 'regions']
+const TAB_ORDER: RightPanelTab[] = ['examples', 'equation', 'model', 'density', 'regions']
 const TAB_LABELS: Record<RightPanelTab, string> = {
   examples: 'Examples',
   equation: 'Equation',
+  model: 'Model',
   density: 'Density',
   regions: 'Regions',
 }
@@ -77,6 +120,15 @@ function getDataSourceLabel(source: ScoreDataSource): string {
   if (source === 'bcAssessment') return 'Property'
   if (source === 'crime') return 'Crime'
   return source
+}
+
+function presetAppliesToBoundary(
+  preset: (typeof SCORE_PRESETS)[number],
+  boundarySource: BoundarySource
+): boolean {
+  if (boundarySource !== 'bcHealth') return true
+  const sources = getScoreDataSourcesForWeights(preset.weights)
+  return sources.length === 1 && sources[0] === 'airQuality'
 }
 
 function formatMetricValue(metric: ScoreMetricKey, value: number, compact = false): string {
@@ -141,21 +193,60 @@ function formatDriverDelta(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`
 }
 
+function getDefaultMetricWeight(metric: ScoreMetricKey): number {
+  if (
+    metric === 'foodRiskScore' ||
+    metric === 'criticalViolationRate' ||
+    metric === 'followUpRate' ||
+    metric === 'buildingAge' ||
+    metric === 'crimeDensity' ||
+    metric === 'crimePerCapita' ||
+    metric === 'recentCrimeShare'
+  ) {
+    return -35
+  }
+  return 35
+}
+
+function getWeightIntent(value: number): string {
+  if (value === 0) return 'Disabled'
+  return value > 0 ? 'Prefer high' : 'Prefer low'
+}
+
+function getCategoryTone(category: string): string {
+  if (category === 'airQuality') return 'bg-sky-500'
+  if (category === 'parksRec') return 'bg-emerald-500'
+  if (category === 'foodSafety') return 'bg-orange-500'
+  if (category === 'demographics') return 'bg-amber-500'
+  if (category === 'property') return 'bg-violet-500'
+  if (category === 'safety') return 'bg-rose-500'
+  return 'bg-cyan-500'
+}
+
 export function ScoreBuilderRightPanel({
   className,
   loading,
   dataErrors,
   weights,
   onWeightChange,
+  onAddMetric,
   onApplyPreset,
+  boundarySource,
   activePresetKey,
   equationPreview,
+  metricRanges,
   scoreSpread,
   densityMetric,
   onDensityMetricChange,
   densitySummary,
   densityLeaders,
   regions,
+  totalRegionCount,
+  excludedRegionCount,
+  scoreFilters,
+  onToggleScoreFilter,
+  scoreBands,
+  scenarioComparison,
   filteredRegions,
   selectedRegion,
   searchQuery,
@@ -168,23 +259,29 @@ export function ScoreBuilderRightPanel({
   onToggleComparison,
   onClearComparison,
   onExport,
+  onShareUrl,
   activeExampleKey,
   onApplyExample,
   isDesktop,
 }: ScoreBuilderRightPanelProps) {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('equation')
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
 
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
   const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_ROWS), [filteredRegions])
   const topRegions = useMemo(() => regions.slice(0, 3), [regions])
 
   const activeExample = useMemo(
-    () => SCORE_EXAMPLES.find((example) => example.key === activeExampleKey) || null,
+    () => SCORE_BUILDER_EXAMPLES.find((example) => example.key === activeExampleKey) || null,
     [activeExampleKey],
   )
   const activePreset = useMemo(
     () => SCORE_PRESETS.find((preset) => preset.key === activePresetKey) || null,
     [activePresetKey],
+  )
+  const visiblePresets = useMemo(
+    () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, boundarySource)),
+    [boundarySource],
   )
   const selectedRegionDrivers = useMemo(
     () => (selectedRegion ? getTopDrivers(selectedRegion, weights, 2) : []),
@@ -193,6 +290,18 @@ export function ScoreBuilderRightPanel({
   const totalAbsoluteWeight = useMemo(() => {
     return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
   }, [weights])
+
+  const handleShare = async () => {
+    setShareStatus('copying')
+    try {
+      await onShareUrl()
+      setShareStatus('copied')
+      window.setTimeout(() => setShareStatus('idle'), 1800)
+    } catch {
+      setShareStatus('failed')
+      window.setTimeout(() => setShareStatus('idle'), 2400)
+    }
+  }
 
   return (
     <div
@@ -203,14 +312,29 @@ export function ScoreBuilderRightPanel({
       data-score-builder-right-panel="true"
     >
       <div className="border-b border-border px-4 py-3">
-        <h1 className="text-base font-bold text-foreground">Score Builder</h1>
-        <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
-          {activeExample
-            ? `${activeExample.label}: ${activeExample.question}`
-            : activePreset
-              ? `${activePreset.label}: ${activePreset.description}`
-              : 'Choose a scenario or build a custom scoring equation.'}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-foreground">
+              {activeExample?.label || activePreset?.label || 'Custom index'}
+            </h1>
+            <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+              {activeExample
+                ? activeExample.question
+                : activePreset
+                  ? activePreset.description
+                  : 'Custom weights saved in the URL.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            data-score-builder-share="true"
+            onClick={handleShare}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {shareStatus === 'copied' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {shareStatus === 'copying' ? 'Copying' : shareStatus === 'copied' ? 'Copied' : shareStatus === 'failed' ? 'Failed' : 'Share'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -253,13 +377,17 @@ export function ScoreBuilderRightPanel({
             isDesktop={isDesktop}
             weights={weights}
             onWeightChange={onWeightChange}
+            onAddMetric={onAddMetric}
             onApplyPreset={onApplyPreset}
+            visiblePresets={visiblePresets}
             activePresetKey={activePresetKey}
             activePreset={activePreset}
             activeExample={activeExample}
             equationPreview={equationPreview}
+            metricRanges={metricRanges}
             totalAbsoluteWeight={totalAbsoluteWeight}
             scoreSpread={scoreSpread}
+            regions={regions}
             topRegions={topRegions}
           />
         )}
@@ -272,6 +400,21 @@ export function ScoreBuilderRightPanel({
             densityLeaders={densityLeaders}
             selectedRegion={selectedRegion}
             onRegionSelect={onRegionSelect}
+          />
+        )}
+
+        {activeTab === 'model' && (
+          <ModelTab
+            weights={weights}
+            totalAbsoluteWeight={totalAbsoluteWeight}
+            scoreFilters={scoreFilters}
+            onToggleScoreFilter={onToggleScoreFilter}
+            scoreBands={scoreBands}
+            scenarioComparison={scenarioComparison}
+            regions={regions}
+            totalRegionCount={totalRegionCount}
+            excludedRegionCount={excludedRegionCount}
+            scoreSpread={scoreSpread}
           />
         )}
 
@@ -313,17 +456,57 @@ function ExamplesTab({
   activeExampleKey: string | null
   onApplyExample: (key: string) => void
 }) {
+  const [selectedExampleKey, setSelectedExampleKey] = useState(activeExampleKey || SCORE_BUILDER_EXAMPLES[0]?.key || null)
+  const selectedExample = SCORE_BUILDER_EXAMPLES.find((example) => example.key === selectedExampleKey) || null
+
   return (
     <div className="space-y-3 p-4" data-score-builder-section="examples">
-      <p className="text-[11px] text-muted-foreground">
-        Pick a scenario to configure boundaries, data sources, and scoring weights together.
-      </p>
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="mb-3 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+          {['Goal', 'Data', 'Tune', 'Results'].map((step, index) => (
+            <div key={step} className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'flex h-5 w-5 items-center justify-center rounded-full border text-[10px]',
+                  index === 0 ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-200' : 'border-border',
+                )}
+              >
+                {index + 1}
+              </span>
+              <span>{step}</span>
+              {index < 3 && <span className="h-px w-4 bg-border" />}
+            </div>
+          ))}
+        </div>
+        {selectedExample && (
+          <div className="space-y-2">
+            <div>
+              <div className="text-sm font-semibold text-foreground">{selectedExample.label}</div>
+              <div className="text-xs text-cyan-700 dark:text-cyan-300">{selectedExample.question}</div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {selectedExample.dataSources.map((ds) => (
+                <span key={ds} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {getDataSourceLabel(ds)}
+                </span>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => onApplyExample(selectedExample.key)}
+              className="w-full rounded-md bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-cyan-700"
+            >
+              Start tuning
+            </button>
+          </div>
+        )}
+      </div>
 
       {[
         { source: 'census' as const, title: 'Census Boundaries (Prince George)' },
-        { source: 'bcHealth' as const, title: 'Health Authority Boundaries (BC-wide)' },
+        { source: 'bcHealth' as const, title: 'Health Boundaries (CHSA)' },
       ].map(({ source, title }) => {
-        const group = SCORE_EXAMPLES.filter((e) => e.boundarySource === source)
+        const group = SCORE_BUILDER_EXAMPLES.filter((e) => e.boundarySource === source)
         if (!group.length) return null
         return (
           <div key={source}>
@@ -332,19 +515,16 @@ function ExamplesTab({
             </div>
             <div className="space-y-2">
               {group.map((example) => {
-                const active = activeExampleKey === example.key
-                const levelLabel =
-                  source === 'bcHealth'
-                    ? { healthAuthority: 'HA', hsda: 'HSDA', lha: 'LHA', chsa: 'CHSA' }[example.boundaryLevel] ||
-                      example.boundaryLevel
-                    : { cd: 'CD', csd: 'CSD', ct: 'CT', da: 'DA' }[example.boundaryLevel] || example.boundaryLevel
+                const levelLabel = { ct: 'CT', da: 'DA', chsa: 'CHSA' }[
+                  example.boundaryLevel as 'ct' | 'da' | 'chsa'
+                ] || example.boundaryLevel
                 return (
                   <button
                     key={example.key}
-                    onClick={() => onApplyExample(example.key)}
+                    onClick={() => setSelectedExampleKey(example.key)}
                     className={cn(
                       'w-full rounded-lg border p-3 text-left transition-colors',
-                      active
+                      selectedExampleKey === example.key
                         ? 'border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500/30 dark:bg-cyan-950/40 dark:ring-cyan-400/20'
                         : 'border-border bg-background hover:border-cyan-300 hover:bg-accent dark:hover:border-cyan-800',
                     )}
@@ -378,37 +558,112 @@ function ExamplesTab({
   )
 }
 
+function WeightTotalStatus({
+  totalAbsoluteWeight,
+  activeMetricCount,
+}: {
+  totalAbsoluteWeight: number
+  activeMetricCount: number
+}) {
+  const balanced = totalAbsoluteWeight >= 95 && totalAbsoluteWeight <= 105
+  const empty = activeMetricCount === 0
+  const label = empty ? 'No active model' : balanced ? 'Complete weight model' : 'Auto-normalized weights'
+
+  return (
+    <div
+      className={cn(
+        'mt-3 rounded-md border px-2 py-1.5 text-[11px]',
+        empty
+          ? 'border-amber-300/60 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200'
+          : balanced
+            ? 'border-emerald-300/60 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-200'
+            : 'border-cyan-300/60 bg-cyan-50 text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-200',
+      )}
+      data-score-builder-weight-status="true"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold">{label}</span>
+        <span className="font-mono">{totalAbsoluteWeight.toLocaleString()}</span>
+      </div>
+      <div className="mt-0.5 text-[10px] opacity-80">
+        PGMaps divides each active weight by total influence, so weights do not need to equal 100.
+      </div>
+    </div>
+  )
+}
+
 function EquationTab({
   isDesktop,
   weights,
   onWeightChange,
+  onAddMetric,
   onApplyPreset,
+  visiblePresets,
   activePresetKey,
   activePreset,
   activeExample,
   equationPreview,
+  metricRanges,
   totalAbsoluteWeight,
   scoreSpread,
+  regions,
   topRegions,
 }: {
   isDesktop: boolean
   weights: ScoreMetricWeightMap
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
+  onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
+  visiblePresets: typeof SCORE_PRESETS
   activePresetKey: string | null
   activePreset: (typeof SCORE_PRESETS)[number] | null
-  activeExample: (typeof SCORE_EXAMPLES)[number] | null
+  activeExample: (typeof SCORE_BUILDER_EXAMPLES)[number] | null
   equationPreview: string
+  metricRanges: ScoreMetricRangeMap
   totalAbsoluteWeight: number
   scoreSpread: { min: number; max: number; average: number }
+  regions: ScoredBoundaryRegion[]
   topRegions: ScoredBoundaryRegion[]
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [focusedMetric, setFocusedMetric] = useState<ScoreMetricKey | null>(null)
+  const [builderMode, setBuilderMode] = useState<'formula' | 'priority'>('formula')
+  const [priorityOrder, setPriorityOrder] = useState<ScoreMetricKey[]>([])
   const activeWeightCount = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length
-  const metricGroups = Object.entries(SCORE_METRICS_BY_CATEGORY).sort(([, aMetrics], [, bMetrics]) => {
-    const aActive = aMetrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
-    const bActive = bMetrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
-    return bActive - aActive
-  })
+  const activeTerms = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+  const activeTermKeySignature = activeTerms.map((metric) => metric.key).join('|')
+  const previewMetric = focusedMetric || activeTerms[0]?.key || null
+
+  useEffect(() => {
+    const activeTermKeys = activeTermKeySignature ? activeTermKeySignature.split('|') as ScoreMetricKey[] : []
+    setPriorityOrder((current) => {
+      const activeSet = new Set(activeTermKeys)
+      return [
+        ...current.filter((key) => activeSet.has(key)),
+        ...activeTermKeys.filter((key) => !current.includes(key)),
+      ]
+    })
+  }, [activeTermKeySignature])
+
+  const movePriority = (metricKey: ScoreMetricKey, direction: -1 | 1) => {
+    setPriorityOrder((current) => {
+      const index = current.indexOf(metricKey)
+      const nextIndex = index + direction
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return current
+      const next = [...current]
+      ;[next[index], next[nextIndex]] = [next[nextIndex], next[index]]
+      return next
+    })
+  }
+
+  const applyPriorityWeights = () => {
+    const rankedKeys = priorityOrder.filter((key) => weights[key] !== 0)
+    const count = rankedKeys.length
+    rankedKeys.forEach((key, index) => {
+      const magnitude = count <= 1 ? 70 : Math.round(80 - (index * 55) / (count - 1))
+      onWeightChange(key, weights[key] < 0 ? -magnitude : magnitude)
+    })
+  }
 
   return (
     <div className="space-y-3 p-4" data-score-builder-section="equation">
@@ -441,6 +696,7 @@ function EquationTab({
             <div className="font-semibold text-foreground">{activeWeightCount} terms</div>
           </div>
         </div>
+        <WeightTotalStatus totalAbsoluteWeight={totalAbsoluteWeight} activeMetricCount={activeWeightCount} />
         {topRegions.length > 1 && (
           <div className="mt-3 space-y-1">
             {topRegions.map((region) => (
@@ -457,7 +713,7 @@ function EquationTab({
       <div>
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Presets</div>
         <div className="flex flex-wrap gap-2">
-          {SCORE_PRESETS.map((preset) => (
+          {visiblePresets.map((preset) => (
             <button
               key={preset.key}
               onClick={() => onApplyPreset(preset.key)}
@@ -495,60 +751,110 @@ function EquationTab({
 
       {isDesktop && (
         <div className="space-y-4">
-          {metricGroups.map(([category, metrics]) => {
-            const activeInGroup = metrics.filter((metric) => weights[metric.key] !== 0).length
-            return (
-              <div key={category} className={cn(activeInGroup === 0 && 'opacity-70')}>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {activeInGroup > 0 ? `${activeInGroup} active` : 'Inactive'}
-                  </div>
+          <div className="rounded-lg border border-border bg-background p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Builder mode
+              </div>
+              <div className="inline-flex rounded-md border border-input bg-muted/20 p-0.5">
+                {[
+                  ['formula', 'Formula'],
+                  ['priority', 'Priority'],
+                ].map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setBuilderMode(mode as 'formula' | 'priority')}
+                    className={cn(
+                      'rounded px-2 py-1 text-[11px] font-medium transition-colors',
+                      builderMode === mode
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} />
+          </div>
+
+          <div className="rounded-lg border border-border bg-background p-3">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {builderMode === 'formula' ? 'Equation' : 'Priority ranking'}
                 </div>
-                <div className="space-y-2">
-                  {metrics.map((metric) => (
-                    <div key={metric.key} className="rounded-lg border border-border bg-muted/25 p-3">
-                      <div className="mb-2 flex items-start justify-between gap-2">
-                        <div>
-                          <div className="text-xs font-semibold text-foreground">{metric.label}</div>
-                          <div className="text-[10px] text-muted-foreground">{metric.description}</div>
-                        </div>
-                        <input
-                          type="number"
-                          data-score-builder-equation-number={metric.key}
-                          min={-100}
-                          max={100}
-                          step={1}
-                          value={weights[metric.key]}
-                          onChange={(event) => {
-                            const parsed = Number.parseFloat(event.target.value)
-                            onWeightChange(metric.key, Number.isFinite(parsed) ? clampWeight(parsed) : 0)
-                          }}
-                          className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                        />
-                      </div>
-                      <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span>Prefer low</span>
-                        <span>0</span>
-                        <span>Prefer high</span>
-                      </div>
-                      <Slider
-                        data-score-builder-equation-slider={metric.key}
-                        min={-100}
-                        max={100}
-                        step={1}
-                        value={[weights[metric.key]]}
-                        onValueChange={(values) => onWeightChange(metric.key, clampWeight(values[0] ?? 0))}
-                        className="[&_[data-radix-slider-range]]:bg-cyan-500"
-                      />
-                    </div>
-                  ))}
+                <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                  {builderMode === 'formula'
+                    ? `|weights| sum: ${totalAbsoluteWeight.toLocaleString()}`
+                    : 'Top metrics get stronger weights'}
                 </div>
               </div>
-            )
-          })}
+              <div className="flex items-center gap-1">
+                {builderMode === 'priority' && (
+                  <button
+                    type="button"
+                    onClick={applyPriorityWeights}
+                    disabled={priorityOrder.length === 0}
+                    className="rounded-md border border-cyan-500/50 bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-800 transition-colors hover:bg-cyan-100 disabled:opacity-50 dark:bg-cyan-950/30 dark:text-cyan-100"
+                  >
+                    Apply ranking
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add metric
+                </button>
+              </div>
+            </div>
+
+            {builderMode === 'formula' ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm font-semibold text-foreground">Score</span>
+                <span className="font-mono text-xs text-muted-foreground">=</span>
+                {activeTerms.length === 0 && (
+                  <span className="rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted-foreground">
+                    No active terms
+                  </span>
+                )}
+                {activeTerms.map((metric, index) => (
+                  <div key={metric.key} className="flex items-center gap-2">
+                    {index > 0 && <span className="text-xs text-muted-foreground">+</span>}
+                    <ScoreEquationTerm
+                      metric={metric}
+                      value={weights[metric.key]}
+                      totalAbsoluteWeight={totalAbsoluteWeight}
+                      active={focusedMetric === metric.key}
+                      onFocus={() => setFocusedMetric(metric.key)}
+                      onChange={(value) => onWeightChange(metric.key, value)}
+                      onRemove={() => onWeightChange(metric.key, 0)}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <PriorityMode
+                order={priorityOrder}
+                weights={weights}
+                onMove={movePriority}
+                onFocus={setFocusedMetric}
+                onRemove={(metric) => onWeightChange(metric, 0)}
+              />
+            )}
+          </div>
+
+          <NormalizationPreview
+            metricKey={previewMetric}
+            regions={regions}
+            metricRanges={metricRanges}
+          />
         </div>
       )}
 
@@ -558,6 +864,623 @@ function EquationTab({
         <div className="mt-1 text-[10px] text-muted-foreground">
           |weights| sum: {totalAbsoluteWeight.toLocaleString()}
         </div>
+      </div>
+
+      <MetricPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        weights={weights}
+        onPick={(metric) => {
+          const value = getDefaultMetricWeight(metric)
+          onAddMetric(metric, value)
+          setFocusedMetric(metric)
+          setPickerOpen(false)
+        }}
+      />
+    </div>
+  )
+}
+
+function ScoreEquationTerm({
+  metric,
+  value,
+  totalAbsoluteWeight,
+  active,
+  onFocus,
+  onChange,
+  onRemove,
+}: {
+  metric: (typeof SCORE_METRICS)[number]
+  value: number
+  totalAbsoluteWeight: number
+  active: boolean
+  onFocus: () => void
+  onChange: (value: number) => void
+  onRemove: () => void
+}) {
+  const share = totalAbsoluteWeight > 0 ? Math.round((Math.abs(value) / totalAbsoluteWeight) * 100) : 0
+  const positive = value > 0
+
+  return (
+    <div
+      className={cn(
+        'rounded-lg border bg-muted/20 p-2 transition-colors',
+        active ? 'border-cyan-500 bg-cyan-50/60 dark:bg-cyan-950/25' : 'border-border',
+      )}
+      onMouseEnter={onFocus}
+      onFocus={onFocus}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(clampWeight(value === 0 ? getDefaultMetricWeight(metric.key) : -value))}
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded border text-xs font-bold',
+            positive
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'
+              : 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300',
+          )}
+          title="Flip direction"
+        >
+          {positive ? '+' : '-'}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-xs font-semibold text-foreground">{metric.shortLabel}</div>
+          <div className="text-[10px] text-muted-foreground">{share}% of weight</div>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+          title="Remove metric"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <SignedWeightSlider metricKey={metric.key} value={value} onChange={onChange} />
+    </div>
+  )
+}
+
+function WeightDistribution({
+  weights,
+  totalAbsoluteWeight,
+}: {
+  weights: ScoreMetricWeightMap
+  totalAbsoluteWeight: number
+}) {
+  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+
+  return (
+    <div>
+      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+        {activeMetrics.length === 0 ? (
+          <div className="h-full w-full bg-muted-foreground/20" />
+        ) : (
+          activeMetrics.map((metric) => {
+            const value = weights[metric.key]
+            const width = totalAbsoluteWeight > 0 ? (Math.abs(value) / totalAbsoluteWeight) * 100 : 0
+            return (
+              <div
+                key={metric.key}
+                className={cn('h-full', getCategoryTone(metric.category), value < 0 && 'opacity-60')}
+                style={{ width: `${width}%` }}
+                title={`${metric.label}: ${value}`}
+              />
+            )
+          })
+        )}
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>{activeMetrics.length} active metrics</span>
+        <span>Total influence {totalAbsoluteWeight.toLocaleString()}</span>
+      </div>
+    </div>
+  )
+}
+
+function PriorityMode({
+  order,
+  weights,
+  onMove,
+  onFocus,
+  onRemove,
+}: {
+  order: ScoreMetricKey[]
+  weights: ScoreMetricWeightMap
+  onMove: (metric: ScoreMetricKey, direction: -1 | 1) => void
+  onFocus: (metric: ScoreMetricKey) => void
+  onRemove: (metric: ScoreMetricKey) => void
+}) {
+  if (order.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+        Add metrics, then rank them from most to least important.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {order.map((metricKey, index) => {
+        const metric = SCORE_METRICS.find((entry) => entry.key === metricKey)
+        if (!metric) return null
+        const value = weights[metricKey]
+        const projected = order.length <= 1 ? 70 : Math.round(80 - (index * 55) / (order.length - 1))
+        return (
+          <div
+            key={metricKey}
+            onMouseEnter={() => onFocus(metricKey)}
+            className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 p-2"
+          >
+            <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="w-5 shrink-0 text-right font-mono text-xs text-muted-foreground">{index + 1}</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-semibold text-foreground">{metric.label}</div>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-background">
+                <div className={cn('h-full', getCategoryTone(metric.category))} style={{ width: `${projected}%` }} />
+              </div>
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                {value < 0 ? 'Prefer low' : 'Prefer high'} · current {Math.abs(value)} · ranked {projected}
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => onMove(metricKey, -1)}
+                disabled={index === 0}
+                className="rounded border border-input p-1 text-muted-foreground disabled:opacity-35"
+                title="Move up"
+              >
+                <ArrowUp className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onMove(metricKey, 1)}
+                disabled={index === order.length - 1}
+                className="rounded border border-input p-1 text-muted-foreground disabled:opacity-35"
+                title="Move down"
+              >
+                <ArrowDown className="h-3 w-3" />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => onRemove(metricKey)}
+              className="rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+              title="Remove metric"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function SignedWeightSlider({
+  metricKey,
+  value,
+  onChange,
+}: {
+  metricKey: ScoreMetricKey
+  value: number
+  onChange: (value: number) => void
+}) {
+  const clamped = clampWeight(value)
+  const percent = ((clamped + 100) / 200) * 100
+  const fillStart = clamped < 0 ? percent : 50
+  const fillEnd = clamped < 0 ? 50 : percent
+  const fillColor = clamped < 0 ? 'rgb(225 29 72)' : 'rgb(5 150 105)'
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>Low</span>
+        <span>{getWeightIntent(clamped)}</span>
+        <span>High</span>
+      </div>
+      <div className="relative h-6">
+        <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-muted" />
+        <div
+          className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full"
+          style={{ left: `${Math.min(fillStart, fillEnd)}%`, right: `${100 - Math.max(fillStart, fillEnd)}%`, background: fillColor }}
+        />
+        <div className="absolute left-1/2 top-0 h-6 w-px bg-border" />
+        <input
+          type="range"
+          data-score-builder-equation-slider={metricKey}
+          min={-100}
+          max={100}
+          step={1}
+          value={clamped}
+          aria-valuetext={`${getWeightIntent(clamped)} ${Math.abs(clamped)}`}
+          onChange={(event) => {
+            const next = clampWeight(Number(event.target.value))
+            onChange(Math.abs(next) <= 4 ? 0 : next)
+          }}
+          className="absolute inset-0 h-6 w-full cursor-pointer appearance-none bg-transparent opacity-0"
+        />
+        <div
+          className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border bg-background shadow"
+          style={{ left: `${percent}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>-100</span>
+        <input
+          type="number"
+          data-score-builder-equation-number={metricKey}
+          min={-100}
+          max={100}
+          step={1}
+          value={clamped}
+          onChange={(event) => {
+            const parsed = Number.parseFloat(event.target.value)
+            onChange(Number.isFinite(parsed) ? clampWeight(parsed) : 0)
+          }}
+          className="w-14 rounded border border-input bg-background px-1 py-0.5 text-right text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+        />
+        <span>100</span>
+      </div>
+    </div>
+  )
+}
+
+function NormalizationPreview({
+  metricKey,
+  regions,
+  metricRanges,
+}: {
+  metricKey: ScoreMetricKey | null
+  regions: ScoredBoundaryRegion[]
+  metricRanges: ScoreMetricRangeMap
+}) {
+  if (!metricKey) {
+    return (
+      <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+        Select a metric to inspect normalization.
+      </div>
+    )
+  }
+
+  const metric = SCORE_METRICS.find((entry) => entry.key === metricKey)
+  const range = metricRanges[metricKey]
+  const values = regions.map((region) => region.metrics[metricKey]).filter((value) => Number.isFinite(value))
+  const buckets = new Array(8).fill(0)
+  values.forEach((value) => {
+    const denominator = range.max - range.min
+    const normalized = denominator > 0 ? (value - range.min) / denominator : 0.5
+    const index = Math.max(0, Math.min(buckets.length - 1, Math.floor(normalized * buckets.length)))
+    buckets[index] += 1
+  })
+  const maxBucket = Math.max(...buckets, 1)
+
+  return (
+    <div className="rounded-lg border border-border bg-background p-3">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Normalization</div>
+          <div className="mt-0.5 text-sm font-semibold text-foreground">{metric?.label || metricKey}</div>
+        </div>
+        <div className="text-right font-mono text-[10px] text-muted-foreground">
+          <div>{formatMetricValue(metricKey, range.min, true)}</div>
+          <div>{formatMetricValue(metricKey, range.max, true)}</div>
+        </div>
+      </div>
+      <div className="flex h-10 items-end gap-1">
+        {buckets.map((bucket, index) => (
+          <div
+            key={`${metricKey}-${index}`}
+            className="flex-1 rounded-t bg-cyan-500/70"
+            style={{ height: `${Math.max(8, (bucket / maxBucket) * 100)}%`, opacity: 0.35 + (bucket / maxBucket) * 0.55 }}
+            title={`${bucket} regions`}
+          />
+        ))}
+      </div>
+      <div className="mt-2 h-2 rounded-full bg-gradient-to-r from-rose-600 via-amber-100 to-emerald-700" />
+      <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>0</span>
+        <span>normalized score</span>
+        <span>100</span>
+      </div>
+      <div className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+        Raw values are scaled against the current region set before weights are applied.
+      </div>
+    </div>
+  )
+}
+
+function MetricPickerDialog({
+  open,
+  onOpenChange,
+  weights,
+  onPick,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  weights: ScoreMetricWeightMap
+  onPick: (metric: ScoreMetricKey) => void
+}) {
+  const [query, setQuery] = useState('')
+  const normalizedQuery = query.trim().toLowerCase()
+  const groupedMetrics = Object.entries(SCORE_METRICS_BY_CATEGORY).map(([category, metrics]) => ({
+    category,
+    metrics: metrics.filter((metric) => {
+      if (!normalizedQuery) return true
+      return `${metric.label} ${metric.shortLabel} ${metric.description}`.toLowerCase().includes(normalizedQuery)
+    }),
+  }))
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[86vh] overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
+          <DialogTitle>Add Metric</DialogTitle>
+          <DialogDescription>Choose one metric to add to the active score equation.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 overflow-y-auto px-6 pb-6">
+          <div className="relative pt-1">
+            <Search className="pointer-events-none absolute left-3 top-[1.05rem] h-4 w-4 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search metrics..."
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 pl-9 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+          </div>
+          {groupedMetrics.map(({ category, metrics }) => {
+            if (!metrics.length) return null
+            return (
+              <div key={category}>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {metrics.map((metric) => {
+                    const active = weights[metric.key] !== 0
+                    return (
+                      <button
+                        key={metric.key}
+                        type="button"
+                        disabled={active}
+                        onClick={() => onPick(metric.key)}
+                        className={cn(
+                          'rounded-lg border p-3 text-left transition-colors',
+                          active
+                            ? 'border-border bg-muted/40 text-muted-foreground opacity-70'
+                            : 'border-border bg-background hover:border-cyan-400 hover:bg-cyan-50/60 dark:hover:bg-cyan-950/25',
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-sm font-semibold text-foreground">{metric.label}</div>
+                          {active ? (
+                            <Check className="h-4 w-4 shrink-0 text-cyan-600" />
+                          ) : (
+                            <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{metric.description}</div>
+                        <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span>{metric.format}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <FlipHorizontal className="h-3 w-3" />
+                            {getWeightIntent(getDefaultMetricWeight(metric.key))}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const SCORE_FILTER_DEFINITIONS: Array<{
+  key: ScoreFilterKey
+  label: string
+  description: string
+}> = [
+  {
+    key: 'requirePopulation',
+    label: 'Require population data',
+    description: 'Exclude regions without census population assigned.',
+  },
+  {
+    key: 'requireParks',
+    label: 'Require parks or trails',
+    description: 'Exclude regions with no parks, trails, or park amenities.',
+  },
+  {
+    key: 'limitCrime',
+    label: 'Lower crime pressure',
+    description: 'Keep regions at or below the current median crime-per-capita value.',
+  },
+  {
+    key: 'limitFoodRisk',
+    label: 'Lower food-risk pressure',
+    description: 'Keep regions at or below the current median food risk score.',
+  },
+]
+
+function ModelTab({
+  weights,
+  totalAbsoluteWeight,
+  scoreFilters,
+  onToggleScoreFilter,
+  scoreBands,
+  scenarioComparison,
+  regions,
+  totalRegionCount,
+  excludedRegionCount,
+  scoreSpread,
+}: {
+  weights: ScoreMetricWeightMap
+  totalAbsoluteWeight: number
+  scoreFilters: ScoreFilterState
+  onToggleScoreFilter: (filter: ScoreFilterKey) => void
+  scoreBands: ScoreBandSummary[]
+  scenarioComparison: ScenarioComparison | null
+  regions: ScoredBoundaryRegion[]
+  totalRegionCount: number
+  excludedRegionCount: number
+  scoreSpread: { min: number; max: number; average: number }
+}) {
+  const activeFilters = SCORE_FILTER_DEFINITIONS.filter((filter) => scoreFilters[filter.key])
+  const maxBandCount = Math.max(...scoreBands.map((band) => band.count), 1)
+  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+
+  return (
+    <div className="space-y-3 p-4" data-score-builder-section="model">
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-cyan-600" />
+          <div className="text-sm font-semibold text-foreground">Methodology</div>
+        </div>
+        <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+          <p>
+            Each metric is normalized from 0 to 1 against the currently loaded regions. Positive weights prefer high
+            normalized values; negative weights prefer low values.
+          </p>
+          <p>
+            The final score is <span className="font-mono text-foreground">100 * sum(weight share * directional value)</span>.
+            Active weights are normalized by total influence, so a useful model can use any total.
+          </p>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+          <div className="rounded border border-border bg-muted/20 p-2">
+            <div className="text-[10px] uppercase text-muted-foreground">Influence</div>
+            <div className="font-semibold text-foreground">{totalAbsoluteWeight.toLocaleString()}</div>
+          </div>
+          <div className="rounded border border-border bg-muted/20 p-2">
+            <div className="text-[10px] uppercase text-muted-foreground">Metrics</div>
+            <div className="font-semibold text-foreground">{activeMetrics.length}</div>
+          </div>
+          <div className="rounded border border-border bg-muted/20 p-2">
+            <div className="text-[10px] uppercase text-muted-foreground">Average</div>
+            <div className="font-semibold text-foreground">{formatScore(scoreSpread.average)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <div className="text-sm font-semibold text-foreground">Hard filters</div>
+          </div>
+          <span className="text-[11px] text-muted-foreground">
+            {regions.length} of {totalRegionCount} eligible
+          </span>
+        </div>
+        <div className="space-y-2">
+          {SCORE_FILTER_DEFINITIONS.map((filter) => {
+            const active = scoreFilters[filter.key]
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                data-score-builder-hard-filter={filter.key}
+                onClick={() => onToggleScoreFilter(filter.key)}
+                className={cn(
+                  'flex w-full items-start justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors',
+                  active
+                    ? 'border-cyan-500/60 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/35 dark:text-cyan-100'
+                    : 'border-input bg-background text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <span>
+                  <span className="block text-xs font-semibold">{filter.label}</span>
+                  <span className="mt-0.5 block text-[10px] text-muted-foreground">{filter.description}</span>
+                </span>
+                <span className={cn('shrink-0 text-xs font-bold', active ? 'text-cyan-600' : 'text-muted-foreground')}>
+                  {active ? 'ON' : 'OFF'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="mt-2 text-[11px] text-muted-foreground">
+          {activeFilters.length
+            ? `${excludedRegionCount} region${excludedRegionCount === 1 ? '' : 's'} excluded before ranking.`
+            : 'No hard filters are active; all loaded regions remain eligible.'}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <div className="text-sm font-semibold text-foreground">Score bands</div>
+        </div>
+        <div className="space-y-2">
+          {scoreBands.map((band) => (
+            <div key={band.key}>
+              <div className="mb-1 flex items-center justify-between text-[11px]">
+                <span className="font-semibold text-foreground">{band.label}</span>
+                <span className="text-muted-foreground">{band.count} regions</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn(
+                    'h-full rounded-full',
+                    band.key === 'high'
+                      ? 'bg-emerald-500'
+                      : band.key === 'moderate'
+                        ? 'bg-cyan-500'
+                        : band.key === 'low'
+                          ? 'bg-amber-500'
+                          : 'bg-rose-500',
+                  )}
+                  style={{ width: `${Math.max(3, (band.count / maxBandCount) * 100)}%` }}
+                />
+              </div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                {band.min}-{band.max} · {band.description}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {scenarioComparison && (
+        <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
+          <div className="mb-2 text-sm font-semibold text-amber-950 dark:text-amber-100">
+            Scenario compare
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[11px] text-amber-900 dark:text-amber-100">
+            <div className="rounded border border-amber-200/70 bg-white/50 p-2 dark:border-amber-900 dark:bg-amber-950/20">
+              <div className="text-[10px] uppercase text-amber-700 dark:text-amber-300">Current top</div>
+              <div className="font-semibold">{scenarioComparison.currentTopName || 'None'}</div>
+              <div>{formatScore(scenarioComparison.currentTopScore)}</div>
+            </div>
+            <div className="rounded border border-amber-200/70 bg-white/50 p-2 dark:border-amber-900 dark:bg-amber-950/20">
+              <div className="text-[10px] uppercase text-amber-700 dark:text-amber-300">
+                {scenarioComparison.label}
+              </div>
+              <div className="font-semibold">{scenarioComparison.referenceTopName || 'None'}</div>
+              <div>{formatScore(scenarioComparison.referenceTopScore)}</div>
+            </div>
+          </div>
+          <div className="mt-2 text-[11px] text-amber-800 dark:text-amber-200">
+            Average delta vs {scenarioComparison.label}:{' '}
+            <span className="font-semibold">
+              {scenarioComparison.averageDelta >= 0 ? '+' : ''}
+              {formatScore(scenarioComparison.averageDelta)}
+            </span>
+            {scenarioComparison.topChanged ? ' · top region changed' : ' · top region unchanged'}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-xs text-muted-foreground">
+        Rubric mode is the next larger model change: metric values would be binned into named classes before weighting,
+        similar to GIS-MCDA scoring matrices.
       </div>
     </div>
   )

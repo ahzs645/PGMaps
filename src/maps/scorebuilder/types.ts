@@ -50,6 +50,7 @@ export interface ScoreMetricDefinition {
 
 export type ScoreMetricWeightMap = Record<ScoreMetricKey, number>
 export type ScoreMetricValueMap = Record<ScoreMetricKey, number>
+export type ScoreMetricRangeMap = Record<ScoreMetricKey, { min: number; max: number }>
 
 export interface ScoreBuilderRegion {
   id: string
@@ -124,6 +125,29 @@ export interface ScoredBoundaryRegion {
 }
 
 export type ScoreDataSource = 'airQuality' | 'parks' | 'restaurants' | 'census' | 'bcAssessment' | 'crime'
+
+export type ScoreFilterKey = 'requirePopulation' | 'requireParks' | 'limitCrime' | 'limitFoodRisk'
+
+export type ScoreFilterState = Record<ScoreFilterKey, boolean>
+
+export interface ScoreBandSummary {
+  key: 'high' | 'moderate' | 'low' | 'watchlist'
+  label: string
+  description: string
+  min: number
+  max: number
+  count: number
+}
+
+export interface ScenarioComparison {
+  label: string
+  currentTopName: string | null
+  currentTopScore: number
+  referenceTopName: string | null
+  referenceTopScore: number
+  averageDelta: number
+  topChanged: boolean
+}
 
 export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; description: string }> = [
   { id: 'airQuality', label: 'Air Quality', description: 'Sensor network coverage and diversity' },

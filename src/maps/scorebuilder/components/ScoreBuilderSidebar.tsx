@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Download } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Copy, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Slider } from '@/components/ui/slider'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
@@ -9,18 +9,23 @@ import {
   SCORE_METRICS,
   SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
-  SCORE_EXAMPLES
+  SCORE_BUILDER_EXAMPLES,
+  getScoreDataSourcesForWeights
 } from '../constants'
 import type {
   ScoredBoundaryRegion,
+  ScoreBandSummary,
   ScoreDataSource,
+  ScoreFilterKey,
+  ScoreFilterState,
   ScoreMetricKey,
-  ScoreMetricWeightMap
+  ScoreMetricWeightMap,
+  ScenarioComparison
 } from '../types'
 import { SCORE_DATA_SOURCES, METRIC_CATEGORY_LABELS } from '../types'
 import { RadarChart } from './RadarChart'
 
-type ScoreBuilderSectionId = 'examples' | 'setup' | 'dataSources' | 'equation' | 'density' | 'regions'
+type ScoreBuilderSectionId = 'examples' | 'setup' | 'dataSources' | 'equation' | 'model' | 'density' | 'regions'
 
 type ExpandedSectionsState = Record<ScoreBuilderSectionId, boolean>
 
@@ -53,6 +58,12 @@ interface ScoreBuilderSidebarProps {
   densitySummary: { min: number; max: number; median: number; average: number } | null
   densityLeaders: ScoredBoundaryRegion[]
   regions: ScoredBoundaryRegion[]
+  totalRegionCount: number
+  excludedRegionCount: number
+  scoreFilters: ScoreFilterState
+  onToggleScoreFilter: (filter: ScoreFilterKey) => void
+  scoreBands: ScoreBandSummary[]
+  scenarioComparison: ScenarioComparison | null
   filteredRegions: ScoredBoundaryRegion[]
   selectedRegion: ScoredBoundaryRegion | null
   searchQuery: string
@@ -65,27 +76,38 @@ interface ScoreBuilderSidebarProps {
   onToggleComparison: (regionId: string) => void
   onClearComparison: () => void
   onExport: (format: 'csv' | 'geojson') => void
+  onShareUrl?: () => Promise<string>
   activeExampleKey: string | null
   onApplyExample: (key: string) => void
   isDesktop: boolean
 }
 
 const MAX_VISIBLE_ROWS = 220
-const SECTION_ORDER: ScoreBuilderSectionId[] = ['examples', 'setup', 'dataSources', 'equation', 'density', 'regions']
+const SECTION_ORDER: ScoreBuilderSectionId[] = ['examples', 'setup', 'dataSources', 'equation', 'model', 'density', 'regions']
 const SECTION_LABELS: Record<ScoreBuilderSectionId, string> = {
   examples: 'Examples',
   setup: 'Setup',
   dataSources: 'Data Sources',
   equation: 'Equation',
+  model: 'Model',
   density: 'Density',
   regions: 'Regions'
 }
 
+function presetAppliesToBoundary(
+  preset: (typeof SCORE_PRESETS)[number],
+  boundarySource: BoundarySource
+): boolean {
+  if (boundarySource !== 'bcHealth') return true
+  const sources = getScoreDataSourcesForWeights(preset.weights)
+  return sources.length === 1 && sources[0] === 'airQuality'
+}
+
 function createExpandedSections(isDesktop: boolean): ExpandedSectionsState {
   if (isDesktop) {
-    return { examples: true, setup: false, dataSources: false, equation: false, density: false, regions: true }
+    return { examples: true, setup: false, dataSources: false, equation: false, model: false, density: false, regions: true }
   }
-  return { examples: true, setup: false, dataSources: false, equation: false, density: false, regions: true }
+  return { examples: true, setup: false, dataSources: false, equation: false, model: false, density: false, regions: true }
 }
 
 function getMetricLabel(key: ScoreMetricKey): string {
@@ -172,6 +194,13 @@ function formatDriverDelta(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`
 }
 
+const SCORE_FILTER_DEFINITIONS: Array<{ key: ScoreFilterKey; label: string; description: string }> = [
+  { key: 'requirePopulation', label: 'Require population data', description: 'Exclude regions without census population.' },
+  { key: 'requireParks', label: 'Require parks or trails', description: 'Exclude regions with no parks, trails, or amenities.' },
+  { key: 'limitCrime', label: 'Lower crime pressure', description: 'Keep regions at or below median crime per capita.' },
+  { key: 'limitFoodRisk', label: 'Lower food-risk pressure', description: 'Keep regions at or below median food risk.' }
+]
+
 export function ScoreBuilderSidebar({
   className,
   loading,
@@ -201,6 +230,12 @@ export function ScoreBuilderSidebar({
   densitySummary,
   densityLeaders,
   regions,
+  totalRegionCount,
+  excludedRegionCount,
+  scoreFilters,
+  onToggleScoreFilter,
+  scoreBands,
+  scenarioComparison,
   filteredRegions,
   selectedRegion,
   searchQuery,
@@ -213,22 +248,28 @@ export function ScoreBuilderSidebar({
   onToggleComparison,
   onClearComparison,
   onExport,
+  onShareUrl,
   activeExampleKey,
   onApplyExample,
   isDesktop
 }: ScoreBuilderSidebarProps) {
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
   const enabledSourceSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
 
   const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_ROWS), [filteredRegions])
   const activeExample = useMemo(
-    () => SCORE_EXAMPLES.find((example) => example.key === activeExampleKey) || null,
+    () => SCORE_BUILDER_EXAMPLES.find((example) => example.key === activeExampleKey) || null,
     [activeExampleKey]
   )
   const activePreset = useMemo(
     () => SCORE_PRESETS.find((preset) => preset.key === activePresetKey) || null,
     [activePresetKey]
+  )
+  const visiblePresets = useMemo(
+    () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, boundarySource)),
+    [boundarySource]
   )
   const selectedRegionDrivers = useMemo(
     () => selectedRegion ? getTopDrivers(selectedRegion, weights, 2) : [],
@@ -238,38 +279,36 @@ export function ScoreBuilderSidebar({
   const totalAbsoluteWeight = useMemo(() => {
     return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
   }, [weights])
+  const activeMetricCount = useMemo(
+    () => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length,
+    [weights]
+  )
 
   const [expandedSections, setExpandedSections] = useState<ExpandedSectionsState>(() => createExpandedSections(isDesktop))
-  const [activeSection, setActiveSection] = useState<ScoreBuilderSectionId>('setup')
+  const [activeSection, setActiveSection] = useState<ScoreBuilderSectionId>('examples')
+  const [showAllEquationMetrics, setShowAllEquationMetrics] = useState(false)
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const sectionRefs = useRef<Record<ScoreBuilderSectionId, HTMLElement | null>>({
-    examples: null, setup: null, dataSources: null, equation: null, density: null, regions: null
+    examples: null, setup: null, dataSources: null, equation: null, model: null, density: null, regions: null
   })
   const sectionRatios = useRef<Record<ScoreBuilderSectionId, number>>({
-    examples: 0, setup: 0, dataSources: 0, equation: 0, density: 0, regions: 0
+    examples: 0, setup: 0, dataSources: 0, equation: 0, model: 0, density: 0, regions: 0
   })
 
   useEffect(() => { setExpandedSections(createExpandedSections(isDesktop)) }, [isDesktop])
 
   const evaluateActiveSection = useCallback(() => {
-    let candidate: ScoreBuilderSectionId = SECTION_ORDER[0]
-    let highestRatio = -1
-    SECTION_ORDER.forEach((id) => {
-      const ratio = sectionRatios.current[id]
-      if (ratio > highestRatio) { highestRatio = ratio; candidate = id }
-    })
-    if (highestRatio > 0) { setActiveSection(candidate); return }
     const root = scrollContainerRef.current
     if (!root) return
     const referenceTop = root.scrollTop + 120
-    let fallback: ScoreBuilderSectionId = SECTION_ORDER[0]
+    let candidate: ScoreBuilderSectionId = SECTION_ORDER[0]
     SECTION_ORDER.forEach((id) => {
       const section = sectionRefs.current[id]
       if (!section) return
-      if (section.offsetTop <= referenceTop) fallback = id
+      if (section.offsetTop <= referenceTop) candidate = id
     })
-    setActiveSection(fallback)
+    setActiveSection(candidate)
   }, [])
 
   useEffect(() => {
@@ -306,14 +345,30 @@ export function ScoreBuilderSidebar({
 
   const scrollToSection = useCallback((sectionId: ScoreBuilderSectionId) => {
     const root = scrollContainerRef.current
-    const section = sectionRefs.current[sectionId]
-    if (!root || !section) return
-    const rootTop = root.getBoundingClientRect().top
-    const sectionTop = section.getBoundingClientRect().top
-    const targetTop = sectionTop - rootTop + root.scrollTop - 62
-    root.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' })
+    if (!root || !sectionRefs.current[sectionId]) return
+    setExpandedSections((current) => ({ ...current, [sectionId]: true }))
     setActiveSection(sectionId)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const nextSection = sectionRefs.current[sectionId]
+        if (!nextSection) return
+        root.scrollTo({ top: Math.max(0, nextSection.offsetTop - 62), behavior: 'smooth' })
+      })
+    })
   }, [])
+
+  const handleShare = useCallback(async () => {
+    if (!onShareUrl) return
+    setShareStatus('copying')
+    try {
+      await onShareUrl()
+      setShareStatus('copied')
+      window.setTimeout(() => setShareStatus('idle'), 1800)
+    } catch {
+      setShareStatus('failed')
+      window.setTimeout(() => setShareStatus('idle'), 2400)
+    }
+  }, [onShareUrl])
 
   const renderSectionHeader = (sectionId: ScoreBuilderSectionId) => {
     const sectionOpen = expandedSections[sectionId]
@@ -333,7 +388,20 @@ export function ScoreBuilderSidebar({
   return (
     <div className={cn('z-10 flex h-full min-h-0 w-[360px] flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       <div className="border-b border-border bg-background/95 p-4">
-        <h1 className="text-xl font-bold text-foreground">Score Builder</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-xl font-bold text-foreground">Score Builder</h1>
+          {onShareUrl && (
+            <button
+              type="button"
+              data-score-builder-share="true"
+              onClick={handleShare}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {shareStatus === 'copied' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {shareStatus === 'copying' ? 'Copying' : shareStatus === 'copied' ? 'Copied' : shareStatus === 'failed' ? 'Failed' : 'Share'}
+            </button>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           {activeExample
             ? `${activeExample.label}: ${activeExample.question}`
@@ -351,6 +419,7 @@ export function ScoreBuilderSidebar({
               <button
                 key={sectionId}
                 type="button"
+                data-score-builder-section-nav={sectionId}
                 onClick={() => scrollToSection(sectionId)}
                 className={cn(
                   'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
@@ -366,7 +435,7 @@ export function ScoreBuilderSidebar({
         </div>
 
         {/* EXAMPLES */}
-        <section ref={(el) => setSectionRef('examples', el)} data-score-builder-section-id="examples" className="border-b border-border">
+        <section ref={(el) => setSectionRef('examples', el)} data-score-builder-section-id="examples" data-score-builder-section="examples" className="border-b border-border">
           {renderSectionHeader('examples')}
           {expandedSections.examples && (
             <div className="space-y-3 px-4 pb-4">
@@ -379,9 +448,9 @@ export function ScoreBuilderSidebar({
               {/* Group examples by boundary source */}
               {[
                 { source: 'census' as const, title: 'Census Boundaries (Prince George)' },
-                { source: 'bcHealth' as const, title: 'Health Authority Boundaries (BC-wide)' }
+                { source: 'bcHealth' as const, title: 'Health Boundaries (CHSA)' },
               ].map(({ source, title }) => {
-                const group = SCORE_EXAMPLES.filter((e) => e.boundarySource === source)
+                const group = SCORE_BUILDER_EXAMPLES.filter((e) => e.boundarySource === source)
                 if (!group.length) return null
                 return (
                   <div key={source}>
@@ -389,9 +458,9 @@ export function ScoreBuilderSidebar({
                     <div className="space-y-2">
                       {group.map((example) => {
                         const active = activeExampleKey === example.key
-                        const levelLabel = source === 'bcHealth'
-                          ? { healthAuthority: 'HA', hsda: 'HSDA', lha: 'LHA', chsa: 'CHSA' }[example.boundaryLevel] || example.boundaryLevel
-                          : { cd: 'CD', csd: 'CSD', ct: 'CT', da: 'DA' }[example.boundaryLevel] || example.boundaryLevel
+                        const levelLabel = { ct: 'CT', da: 'DA', chsa: 'CHSA' }[
+                          example.boundaryLevel as 'ct' | 'da' | 'chsa'
+                        ] || example.boundaryLevel
                         return (
                           <button
                             key={example.key}
@@ -430,7 +499,7 @@ export function ScoreBuilderSidebar({
         </section>
 
         {/* SETUP */}
-        <section ref={(el) => setSectionRef('setup', el)} data-score-builder-section-id="setup" className="border-b border-border">
+        <section ref={(el) => setSectionRef('setup', el)} data-score-builder-section-id="setup" data-score-builder-section="setup" className="border-b border-border">
           {renderSectionHeader('setup')}
           {expandedSections.setup && (
             <div className="space-y-3 px-4 pb-4">
@@ -471,6 +540,7 @@ export function ScoreBuilderSidebar({
 
               <select
                 id="score-builder-level"
+                data-score-builder-level-select="true"
                 value={selectedRegionLevel}
                 onChange={(event) => onRegionLevelChange(event.target.value as RegionLevel)}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -499,7 +569,7 @@ export function ScoreBuilderSidebar({
         </section>
 
         {/* DATA SOURCES */}
-        <section ref={(el) => setSectionRef('dataSources', el)} data-score-builder-section-id="dataSources" className="border-b border-border">
+        <section ref={(el) => setSectionRef('dataSources', el)} data-score-builder-section-id="dataSources" data-score-builder-section="dataSources" className="border-b border-border">
           {renderSectionHeader('dataSources')}
           {expandedSections.dataSources && (
             <div className="space-y-2 px-4 pb-4">
@@ -508,6 +578,7 @@ export function ScoreBuilderSidebar({
                 return (
                   <div key={ds.id}>
                     <button
+                      aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
                       onClick={() => onToggleDataSource(ds.id)}
                       className={cn(
                         'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors',
@@ -562,12 +633,12 @@ export function ScoreBuilderSidebar({
         </section>
 
         {/* EQUATION */}
-        <section ref={(el) => setSectionRef('equation', el)} data-score-builder-section-id="equation" className="border-b border-border">
+        <section ref={(el) => setSectionRef('equation', el)} data-score-builder-section-id="equation" data-score-builder-section="equation" className="border-b border-border">
           {renderSectionHeader('equation')}
           {expandedSections.equation && (
             <div className="space-y-3 px-4 pb-4">
               <div className="flex flex-wrap gap-2">
-                {SCORE_PRESETS.map((preset) => (
+                {visiblePresets.map((preset) => (
                   <button
                     key={preset.key}
                     onClick={() => onApplyPreset(preset.key)}
@@ -591,55 +662,77 @@ export function ScoreBuilderSidebar({
                     : 'Preset buttons shift the score toward common planning questions; custom weights refine the equation.'}
               </div>
 
-              {!isDesktop && (
-                <div className="rounded-md border border-cyan-200/70 bg-cyan-50 p-2 text-xs text-cyan-800 dark:border-cyan-900/70 dark:bg-cyan-950/30 dark:text-cyan-200">
-                  Custom metric weight editing is available on desktop. Mobile supports preset scoring and region insight review.
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background p-2">
+                <div>
+                  <div className="text-xs font-semibold text-foreground">
+                    {showAllEquationMetrics ? 'All metrics' : 'Active terms'}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {activeMetricCount} active · {totalAbsoluteWeight.toLocaleString()} total influence
+                  </div>
                 </div>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setShowAllEquationMetrics((current) => !current)}
+                  className="rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {showAllEquationMetrics ? 'Show active' : 'All metrics'}
+                </button>
+              </div>
 
-              {isDesktop && (
-                <div className="space-y-4">
-                  {Object.entries(SCORE_METRICS_BY_CATEGORY).map(([category, metrics]) => (
-                    <div key={category}>
+              <div className="space-y-4">
+                {Object.entries(SCORE_METRICS_BY_CATEGORY).map(([category, metrics]) => (
+                  <div key={category}>
+                    {(showAllEquationMetrics || metrics.some((metric) => weights[metric.key] !== 0)) && (
                       <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                         {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
                       </div>
-                      <div className="space-y-2">
-                        {metrics.map((metric) => (
-                          <div key={metric.key} className="rounded-lg border border-border bg-muted/25 p-3">
-                            <div className="mb-2 flex items-start justify-between gap-2">
-                              <div>
-                                <div className="text-xs font-semibold text-foreground">{metric.label}</div>
-                                <div className="text-[10px] text-muted-foreground">{metric.description}</div>
-                              </div>
-                              <input
-                                type="number"
-                                min={-100}
-                                max={100}
-                                step={1}
-                                value={weights[metric.key]}
-                                onChange={(event) => {
-                                  const parsed = Number.parseFloat(event.target.value)
-                                  onWeightChange(metric.key, Number.isFinite(parsed) ? clampWeight(parsed) : 0)
-                                }}
-                                className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                              />
+                    )}
+                    <div className="space-y-2">
+                      {metrics
+                        .filter((metric) => showAllEquationMetrics || weights[metric.key] !== 0)
+                        .map((metric) => (
+                        <div key={metric.key} className={cn(
+                          'rounded-lg border p-3',
+                          weights[metric.key] !== 0 ? 'border-cyan-300/60 bg-cyan-50/50 dark:border-cyan-900/60 dark:bg-cyan-950/20' : 'border-border bg-muted/25'
+                        )}>
+                          <div className="mb-2 flex items-start justify-between gap-2">
+                            <div>
+                              <div className="text-xs font-semibold text-foreground">{metric.label}</div>
+                              <div className="text-[10px] text-muted-foreground">{metric.description}</div>
                             </div>
-                            <Slider
+                            <input
+                              type="number"
                               min={-100}
                               max={100}
                               step={1}
-                              value={[weights[metric.key]]}
-                              onValueChange={(values) => onWeightChange(metric.key, clampWeight(values[0] ?? 0))}
-                              className="[&_[data-radix-slider-range]]:bg-cyan-500"
+                              value={weights[metric.key]}
+                              onChange={(event) => {
+                                const parsed = Number.parseFloat(event.target.value)
+                                onWeightChange(metric.key, Number.isFinite(parsed) ? clampWeight(parsed) : 0)
+                              }}
+                              className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
                             />
                           </div>
-                        ))}
-                      </div>
+                          <Slider
+                            min={-100}
+                            max={100}
+                            step={1}
+                            value={[weights[metric.key]]}
+                            onValueChange={(values) => onWeightChange(metric.key, clampWeight(values[0] ?? 0))}
+                            className="[&_[data-radix-slider-range]]:bg-cyan-500"
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+                {!showAllEquationMetrics && activeMetricCount === 0 && (
+                  <div className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                    No active terms yet. Switch to all metrics or apply a preset.
+                  </div>
+                )}
+              </div>
 
               <div className="rounded-md border border-border bg-background p-2">
                 <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Equation</div>
@@ -650,8 +743,90 @@ export function ScoreBuilderSidebar({
           )}
         </section>
 
+        {/* MODEL */}
+        <section ref={(el) => setSectionRef('model', el)} data-score-builder-section-id="model" data-score-builder-section="model" className="border-b border-border">
+          {renderSectionHeader('model')}
+          {expandedSections.model && (
+            <div className="space-y-3 px-4 pb-4">
+              <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                <div className="mb-1 text-sm font-semibold text-foreground">Methodology</div>
+                <p>Metrics are normalized from 0 to 1 across the current region set. Positive weights prefer high values; negative weights prefer low values.</p>
+                <p className="mt-2 font-mono text-[11px] text-foreground">score = 100 * sum(weight share * directional value)</p>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded bg-muted/40 p-2">
+                    <div className="font-semibold text-foreground">{totalAbsoluteWeight.toLocaleString()}</div>
+                    <div className="text-[10px]">influence</div>
+                  </div>
+                  <div className="rounded bg-muted/40 p-2">
+                    <div className="font-semibold text-foreground">{activeMetricCount}</div>
+                    <div className="text-[10px]">metrics</div>
+                  </div>
+                  <div className="rounded bg-muted/40 p-2">
+                    <div className="font-semibold text-foreground">{regions.length}/{totalRegionCount}</div>
+                    <div className="text-[10px]">eligible</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 text-sm font-semibold text-foreground">Hard filters</div>
+                <div className="space-y-2">
+                  {SCORE_FILTER_DEFINITIONS.map((filter) => {
+                    const active = scoreFilters[filter.key]
+                    return (
+                      <button
+                        key={filter.key}
+                        type="button"
+                        data-score-builder-hard-filter={filter.key}
+                        onClick={() => onToggleScoreFilter(filter.key)}
+                        className={cn(
+                          'flex w-full items-start justify-between gap-2 rounded-md border px-3 py-2 text-left text-xs transition-colors',
+                          active ? 'border-cyan-500/60 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/35 dark:text-cyan-100' : 'border-input text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <span>
+                          <span className="block font-semibold">{filter.label}</span>
+                          <span className="block text-[10px] text-muted-foreground">{filter.description}</span>
+                        </span>
+                        <span className={cn('font-bold', active ? 'text-cyan-600' : 'text-muted-foreground')}>{active ? 'ON' : 'OFF'}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  {excludedRegionCount} region{excludedRegionCount === 1 ? '' : 's'} excluded before ranking.
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 text-sm font-semibold text-foreground">Score bands</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {scoreBands.map((band) => (
+                    <div key={band.key} className="rounded border border-border bg-muted/25 p-2">
+                      <div className="font-semibold text-foreground">{band.label}</div>
+                      <div className="text-lg font-bold text-cyan-700 dark:text-cyan-300">{band.count}</div>
+                      <div className="text-[10px] text-muted-foreground">{band.min}-{band.max}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {scenarioComparison && (
+                <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
+                  <div className="mb-1 text-sm font-semibold">Scenario compare</div>
+                  <div>Current: {scenarioComparison.currentTopName || 'None'} ({formatScore(scenarioComparison.currentTopScore)})</div>
+                  <div>{scenarioComparison.label}: {scenarioComparison.referenceTopName || 'None'} ({formatScore(scenarioComparison.referenceTopScore)})</div>
+                  <div className="mt-1">
+                    Avg delta {scenarioComparison.averageDelta >= 0 ? '+' : ''}{formatScore(scenarioComparison.averageDelta)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
         {/* DENSITY */}
-        <section ref={(el) => setSectionRef('density', el)} data-score-builder-section-id="density" className="border-b border-border">
+        <section ref={(el) => setSectionRef('density', el)} data-score-builder-section-id="density" data-score-builder-section="density" className="border-b border-border">
           {renderSectionHeader('density')}
           {expandedSections.density && (
             <div className="space-y-2 px-4 pb-4">
@@ -704,7 +879,7 @@ export function ScoreBuilderSidebar({
         </section>
 
         {/* REGIONS */}
-        <section ref={(el) => setSectionRef('regions', el)} data-score-builder-section-id="regions" className="pb-4">
+        <section ref={(el) => setSectionRef('regions', el)} data-score-builder-section-id="regions" data-score-builder-section="regions" className="pb-4">
           {renderSectionHeader('regions')}
           {expandedSections.regions && (
             <div className="space-y-3 px-4">

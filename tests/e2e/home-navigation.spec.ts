@@ -15,7 +15,8 @@ test.describe('Home Page Navigation', () => {
   test('navigates to food map section', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    await page.getByText('Food Safety').click()
+    const availableMaps = page.locator('section').filter({ hasText: 'Available Maps' })
+    await availableMaps.getByRole('link', { name: /^Food Safety/ }).click()
     await expect(page).toHaveURL(/foodmap/)
   })
 

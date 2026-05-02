@@ -129,7 +129,7 @@ export function ExplorerSidebar({
             <button onClick={onClearDatasets} className="text-muted-foreground hover:text-foreground">None</button>
           </div>
         </div>
-        <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
+        <div className="max-h-32 space-y-1 overflow-y-auto pr-1">
           {datasetStats.map((stat) => {
             const active = datasetSet.has(stat.dataset.id)
             return (
@@ -240,7 +240,7 @@ export function ExplorerSidebar({
 
       {/* Selected item panel */}
       {selectedItem && (
-        <div className="border-b border-cyan-300/50 bg-cyan-50 p-4 dark:border-cyan-900/70 dark:bg-cyan-950/25">
+        <div className="max-h-48 shrink-0 overflow-y-auto border-b border-cyan-300/50 bg-cyan-50 p-3 dark:border-cyan-900/70 dark:bg-cyan-950/25">
           <div className="mb-2 flex items-start justify-between gap-2">
             <div>
               <div className="text-sm font-semibold text-cyan-900 dark:text-cyan-100">{selectedItem.name}</div>

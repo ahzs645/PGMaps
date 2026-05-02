@@ -1,0 +1,31 @@
+import createWebShareEngine from '@firstform/json-url/web-share'
+import type {
+  BoundarySource,
+  CensusBoundaryLevel,
+  BoundaryLevel,
+} from '@/maps/airquality'
+import type { ScoreDataSource, ScoreMetricWeightMap } from '../types'
+
+export interface ScoreBuilderShareState {
+  version: 1
+  boundarySource: BoundarySource
+  healthBoundaryLevel: BoundaryLevel
+  censusBoundaryLevel: CensusBoundaryLevel
+  enabledDataSources: ScoreDataSource[]
+  selectedNetworks: string[]
+  weights: Partial<ScoreMetricWeightMap>
+}
+
+const shareEngine = createWebShareEngine<ScoreBuilderShareState>({
+  codecs: ['raw', 'lz'],
+  maxLength: 12000,
+  skipUnsupportedCodecs: true,
+})
+
+export function encodeScoreBuilderShareState(state: ScoreBuilderShareState): Promise<string> {
+  return shareEngine.compress(state)
+}
+
+export function decodeScoreBuilderShareState(token: string): Promise<ScoreBuilderShareState> {
+  return shareEngine.decompress(token, { deURI: true })
+}

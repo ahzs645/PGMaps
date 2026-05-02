@@ -2,6 +2,7 @@ export type ExplorerGeometryType = 'point' | 'line' | 'polygon'
 
 export type ExplorerDatasetId =
   | 'airMonitors'
+  | 'crime'
   | 'restaurants'
   | 'parkAmenities'
   | 'trails'

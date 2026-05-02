@@ -1,5 +1,12 @@
 import type { BoundaryIndex, BoundaryLevel, BoundarySource, CensusBoundaryLevel } from '@/maps/airquality'
-import type { ScoreExample, ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap, ScorePreset } from './types'
+import type {
+  ScoreDataSource,
+  ScoreExample,
+  ScoreMetricDefinition,
+  ScoreMetricKey,
+  ScoreMetricWeightMap,
+  ScorePreset
+} from './types'
 
 export type ScorePaletteKey = 'airCoverage' | 'benefit' | 'affordability' | 'riskPressure' | 'default'
 
@@ -438,6 +445,31 @@ export const SCORE_PRESETS: ScorePreset[] = [
   }
 ]
 
+const SCORE_DATA_SOURCE_ORDER: ScoreDataSource[] = ['airQuality', 'parks', 'restaurants', 'census', 'bcAssessment', 'crime']
+
+function metricCategoryToDataSource(category: string): ScoreDataSource | null {
+  if (category === 'airQuality') return 'airQuality'
+  if (category === 'parksRec') return 'parks'
+  if (category === 'foodSafety') return 'restaurants'
+  if (category === 'demographics') return 'census'
+  if (category === 'property') return 'bcAssessment'
+  if (category === 'safety') return 'crime'
+  return null
+}
+
+export function getScoreDataSourcesForWeights(weights: ScoreMetricWeightMap): ScoreDataSource[] {
+  const sources = new Set<ScoreDataSource>()
+
+  SCORE_METRICS.forEach((metric) => {
+    if (weights[metric.key] === 0) return
+    const source = metricCategoryToDataSource(metric.category)
+    if (source) sources.add(source)
+    if (metric.key === 'crimePerCapita') sources.add('census')
+  })
+
+  return SCORE_DATA_SOURCE_ORDER.filter((source) => sources.has(source))
+}
+
 export const SCORE_EXAMPLES: ScoreExample[] = [
   // ── Census boundaries ────────────────────────────────────────────────
 
@@ -854,6 +886,13 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
   }
 ]
 
+export const SCORE_BUILDER_EXAMPLES: ScoreExample[] = SCORE_EXAMPLES.filter(
+  (example) =>
+    (example.boundarySource === 'census' &&
+      (example.boundaryLevel === 'ct' || example.boundaryLevel === 'da')) ||
+    (example.boundarySource === 'bcHealth' && example.boundaryLevel === 'chsa')
+)
+
 export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
   'overallDensity',
   'lowCostDensity',
@@ -881,20 +920,17 @@ export const BOUNDARY_SOURCE_OPTIONS: Array<{
 }> = [
   {
     value: 'bcHealth',
-    label: 'Health Authority boundaries',
-    description: 'Health Authority -> HSDA -> LHA -> CHSA'
+    label: 'CHSA health boundaries',
+    description: 'Community Health Service Areas'
   },
   {
     value: 'census',
     label: 'Census boundaries',
-    description: 'Census Division -> CSD -> CT -> DA'
+    description: 'PG census tract -> dissemination area'
   }
 ]
 
 export const HEALTH_BOUNDARY_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }> = [
-  { value: 'healthAuthority', label: 'Health Authority' },
-  { value: 'hsda', label: 'HSDA' },
-  { value: 'lha', label: 'LHA' },
   { value: 'chsa', label: 'CHSA' }
 ]
 
@@ -902,8 +938,6 @@ export const HEALTH_BOUNDARY_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label:
 export const BOUNDARY_LEVEL_OPTIONS = HEALTH_BOUNDARY_LEVEL_OPTIONS
 
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: Array<{ value: CensusBoundaryLevel; label: string }> = [
-  { value: 'cd', label: 'Census Division' },
-  { value: 'csd', label: 'Census Subdivision' },
   { value: 'ct', label: 'Census Tract' },
   { value: 'da', label: 'Dissemination Area' }
 ]

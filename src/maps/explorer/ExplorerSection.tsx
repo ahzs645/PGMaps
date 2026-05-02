@@ -8,6 +8,8 @@ import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
 import type { HazardRating, Inspection } from '@/maps/foodmap/types'
 import { useParksData } from '@/maps/parks/hooks/useParksData'
 import type { ParkClassification, TrailUserClass } from '@/maps/parks/types'
+import { getCrimeCategory } from '@/maps/pgdata/constants'
+import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
 import {
   datasetById,
   EXPLORER_DATASETS,
@@ -147,10 +149,16 @@ export default function ExplorerSection() {
   const { restaurants, loading: loadingRestaurants, error: restaurantsError } = useRestaurantData()
   const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData()
   const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData()
+  const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData()
 
   // Date range parsing
   const dateFrom = useMemo(() => dateRange.from ? new Date(dateRange.from).getTime() : null, [dateRange.from])
-  const dateTo = useMemo(() => dateRange.to ? new Date(dateRange.to).getTime() : null, [dateRange.to])
+  const dateTo = useMemo(() => {
+    if (!dateRange.to) return null
+    const date = new Date(dateRange.to)
+    date.setHours(23, 59, 59, 999)
+    return date.getTime()
+  }, [dateRange.to])
 
   const monitorItems = useMemo<ExplorerItem[]>(() => {
     return monitors
@@ -248,6 +256,55 @@ export default function ExplorerSection() {
         }
       })
   }, [restaurants, dateFrom, dateTo])
+
+  const crimeItems = useMemo<ExplorerItem[]>(() => {
+    return incidents
+      .filter((incident) => Number.isFinite(incident.latitude) && Number.isFinite(incident.longitude))
+      .filter((incident) => {
+        const ts = incident.date.getTime()
+        if (dateFrom && ts < dateFrom) return false
+        if (dateTo && ts > dateTo) return false
+        return true
+      })
+      .map((incident) => {
+        const category = getCrimeCategory(incident.crimeType)
+        const ageDays = Math.max(0, (Date.now() - incident.date.getTime()) / 86_400_000)
+        const recencyPts = Math.round(Math.max(0, 34 - Math.min(ageDays / 14, 34)))
+        const locationPts = incident.address || incident.community ? 12 : 4
+        const filePts = incident.fileNumber ? 8 : 0
+        const relevance = clampScore(28 + recencyPts + locationPts + filePts)
+        const geometry: GeoJSON.Point = { type: 'Point', coordinates: [incident.longitude, incident.latitude] }
+        const dateLabel = incident.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+
+        return {
+          id: `crime:${incident.id}`,
+          datasetId: 'crime' as const,
+          geometryType: 'point' as const,
+          name: incident.crimeType,
+          subtitle: `${category} | ${formatNullableText(incident.community, 'Unknown community')}`,
+          relevance,
+          relevanceBreakdown: [
+            { label: 'Base', points: 28 },
+            { label: 'Recency', points: recencyPts },
+            { label: 'Location detail', points: locationPts },
+            { label: incident.fileNumber ? 'Has file number' : 'No file number', points: filePts }
+          ],
+          summary: `${category} incident reported ${dateLabel} near ${formatNullableText(incident.address, 'an unknown address').toLowerCase()}.`,
+          bounds: createPointBounds(incident.longitude, incident.latitude),
+          geometry,
+          details: [
+            { label: 'Category', value: category },
+            { label: 'Type', value: incident.crimeType },
+            { label: 'Date', value: dateLabel },
+            { label: 'Time', value: formatNullableText(incident.time, 'Unknown') },
+            { label: 'Address', value: formatNullableText(incident.address, 'Unknown') },
+            { label: 'Community', value: formatNullableText(incident.community, 'Unknown') },
+            { label: 'File', value: formatNullableText(incident.fileNumber, 'Unknown') }
+          ],
+          timestamp: incident.date.getTime()
+        }
+      })
+  }, [dateFrom, dateTo, incidents])
 
   const amenityItems = useMemo<ExplorerItem[]>(() => {
     return amenities
@@ -510,11 +567,11 @@ export default function ExplorerSection() {
 
   const allItems = useMemo(() => {
     return [
-      ...monitorItems, ...restaurantItems, ...amenityItems,
+      ...monitorItems, ...crimeItems, ...restaurantItems, ...amenityItems,
       ...trailItems, ...parkItems,
       ...censusDaItems, ...censusCtItems, ...censusCsdItems
     ]
-  }, [amenityItems, censusDaItems, censusCtItems, censusCsdItems, monitorItems, parkItems, restaurantItems, trailItems])
+  }, [amenityItems, censusDaItems, censusCtItems, censusCsdItems, crimeItems, monitorItems, parkItems, restaurantItems, trailItems])
 
   const datasetStats = useMemo<ExplorerDatasetStat[]>(() => {
     return EXPLORER_DATASETS.map((dataset) => {
@@ -621,10 +678,11 @@ export default function ExplorerSection() {
     if (restaurantsError) errors.push(`Food inspections: ${restaurantsError}`)
     if (parksError) errors.push(`Parks data: ${parksError}`)
     if (censusError) errors.push(`Census data: ${censusError}`)
+    if (crimeError) errors.push(`Property crime: ${crimeError}`)
     return errors
-  }, [censusError, monitorsError, parksError, restaurantsError])
+  }, [censusError, crimeError, monitorsError, parksError, restaurantsError])
 
-  const loading = loadingMonitors || loadingRestaurants || loadingParks || loadingCensus
+  const loading = loadingMonitors || loadingRestaurants || loadingParks || loadingCensus || loadingCrime
 
   const legendDatasets = useMemo(() => {
     return EXPLORER_DATASETS.filter((dataset) => (
@@ -674,6 +732,16 @@ export default function ExplorerSection() {
         color: ['#fed7aa', '#fb923c', '#ea580c', '#9a3412'],
       })
     }
+    if (datasetSet.has('crime')) {
+      datasets.push({
+        id: 'crime',
+        label: 'Property Crime',
+        points: incidents
+          .filter((incident) => Number.isFinite(incident.latitude) && Number.isFinite(incident.longitude))
+          .map((incident) => ({ lng: incident.longitude, lat: incident.latitude })),
+        color: ['#fecaca', '#f87171', '#dc2626', '#7f1d1d'],
+      })
+    }
     if (datasetSet.has('parkAmenities')) {
       datasets.push({
         id: 'amenities',
@@ -685,7 +753,7 @@ export default function ExplorerSection() {
       })
     }
     return datasets
-  }, [datasetSet, monitors, restaurants, amenities])
+  }, [datasetSet, monitors, restaurants, incidents, amenities])
 
   const handleExport = useCallback((format: 'csv' | 'geojson') => {
     if (format === 'csv') {
@@ -746,7 +814,7 @@ export default function ExplorerSection() {
     >
       <div className="relative h-full">
         <ExplorerMap
-          pointCollections={mapCollections.pointCollections}
+          pointCollections={showHeatmap ? [] : mapCollections.pointCollections}
           lineCollections={mapCollections.lineCollections}
           polygonCollections={mapCollections.polygonCollections}
           selectedItem={selectedItem}

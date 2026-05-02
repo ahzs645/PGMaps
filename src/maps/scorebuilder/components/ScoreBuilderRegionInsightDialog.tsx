@@ -107,6 +107,23 @@ export function ScoreBuilderRegionInsightDialog({
     return topDrivers.map((row) => `${row.label} ${formatDriverDelta(row.scoreDelta)}`).join(', ')
   }, [contributionRows])
 
+  const narrative = useMemo(() => {
+    if (!region || contributionRows.length === 0) return null
+    const strongest = contributionRows[0]
+    const weakest = [...contributionRows].sort((a, b) => a.scoreDelta - b.scoreDelta)[0]
+    const rankPhrase =
+      region.rank <= 3
+        ? 'near the top'
+        : region.score >= 65
+          ? 'above the pack'
+          : region.score >= 45
+            ? 'in the middle of the pack'
+            : 'below the pack'
+    const strongestIntent = strongest.weight < 0 ? `low ${strongest.label.toLowerCase()}` : `strong ${strongest.label.toLowerCase()}`
+    const weakestIntent = weakest.weight < 0 ? `not enough low ${weakest.label.toLowerCase()}` : `weaker ${weakest.label.toLowerCase()}`
+    return `${region.region.name} ranks ${rankPhrase} at #${region.rank} with a ${formatScore(region.score)} score. The result is lifted most by ${strongestIntent}; ${weakestIntent} contributes the least among the active terms.`
+  }, [contributionRows, region])
+
   // Group visible rows by category
   const groupedRows = useMemo(() => {
     const groups: Record<string, typeof visibleContributionRows> = {}
@@ -158,6 +175,13 @@ export function ScoreBuilderRegionInsightDialog({
                 <div className="text-sm font-semibold text-foreground">{region.counts.monitorCount.toLocaleString()}</div>
               </div>
             </div>
+
+            {/* Plain-English score summary */}
+            {narrative && (
+              <div className="rounded-lg border border-cyan-200/70 bg-cyan-50 p-3 text-sm leading-relaxed text-cyan-950 dark:border-cyan-900/70 dark:bg-cyan-950/25 dark:text-cyan-100">
+                {narrative}
+              </div>
+            )}
 
             {/* Coverage snapshot */}
             <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs">

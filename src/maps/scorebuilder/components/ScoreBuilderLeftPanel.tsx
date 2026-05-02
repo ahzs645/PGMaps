@@ -139,6 +139,7 @@ export function ScoreBuilderLeftPanel({
                 <div key={ds.id}>
                   <button
                     type="button"
+                    aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
                     onClick={() => onToggleDataSource(ds.id)}
                     className={cn(
                       'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors',

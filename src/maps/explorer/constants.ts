@@ -10,6 +10,14 @@ export const EXPLORER_DATASETS: ExplorerDatasetDefinition[] = [
     source: 'Air quality monitor feed'
   },
   {
+    id: 'crime',
+    label: 'Property Crime',
+    geometryType: 'point',
+    color: '#ef4444',
+    description: 'Prince George property crime incidents with type, date, and community attributes.',
+    source: 'City of Prince George / RCMP open data'
+  },
+  {
     id: 'restaurants',
     label: 'Food Inspections',
     geometryType: 'point',

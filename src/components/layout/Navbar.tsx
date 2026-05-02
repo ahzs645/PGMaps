@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
-import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, Menu, X } from 'lucide-react'
+import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, Menu, X, UtensilsCrossed } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 
 const navLinks = [
   { path: '/', label: 'Home', icon: Map },
+  { path: '/foodmap', label: 'Food Safety', icon: UtensilsCrossed },
   { path: '/airquality', label: 'Air Quality', icon: Wind },
   { path: '/parks', label: 'Parks & Trails', icon: Trees },
   { path: '/census', label: 'Census', icon: BarChart3 },
@@ -50,7 +51,7 @@ export function Navbar() {
     ? createPortal(
         <div
           ref={menuRef}
-          className="fixed inset-x-0 top-14 z-[1000] border-b border-border bg-background/95 shadow-lg backdrop-blur md:hidden"
+          className="fixed inset-x-0 top-14 z-[1000] border-b border-border bg-background/95 shadow-lg backdrop-blur lg:hidden"
         >
           <nav className="flex flex-col p-2">
             {navLinks.map(({ path, label, icon: Icon }) => (
@@ -77,30 +78,32 @@ export function Navbar() {
 
   return (
     <header className="h-14 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-full items-center justify-between px-3 md:px-4">
-        <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2">
+      <div className="flex h-full items-center justify-between gap-2 px-3 md:px-4">
+        <div className="flex min-w-0 items-center gap-3 xl:gap-6">
+          <Link to="/" className="flex shrink-0 items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <Map className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-semibold">PGMaps</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden min-w-0 items-center gap-1 lg:flex">
             {navLinks.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
                 to={path}
+                aria-label={label}
+                title={label}
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                  "flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors xl:px-3",
                   location.pathname === path
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {label}
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="hidden xl:inline">{label}</span>
               </Link>
             ))}
           </nav>
@@ -129,7 +132,7 @@ export function Navbar() {
             onClick={() => setMobileMenuOpen((open) => !open)}
             aria-label="Toggle menu"
             aria-expanded={mobileMenuOpen}
-            className="h-10 w-10 md:hidden"
+            className="h-10 w-10 lg:hidden"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
