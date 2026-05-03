@@ -112,8 +112,8 @@ const mapProjects: MapCardProps[] = [
     status: 'available',
   },
   {
-    title: 'Score Builder',
-    description: 'Create weighted equations that combine boundary regions and point sensors to rank areas and compare density profiles.',
+    title: 'Index Lab',
+    description: 'Build transparent civic and environmental-health indices with adjustable weights, methods, and explainable region scores.',
     icon: Calculator,
     href: '/score-builder',
     color: 'bg-cyan-600',
@@ -174,7 +174,7 @@ export default function Home() {
           <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
             <Link to="/score-builder">
               <BarChart3 className="h-5 w-5 mr-2" />
-              Build Score
+              Open Index Lab
             </Link>
           </Button>
         </div>

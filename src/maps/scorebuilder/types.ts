@@ -38,6 +38,31 @@ export type ScoreMetricKey =
   | 'recentCrimeShare'
 
 export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
+export type ScoreNormalizationMethod = 'minMax' | 'percentile' | 'zScore'
+export type ScoreAggregationMethod = 'additive' | 'geometric'
+export type ScoreMetricDirection = 'higherIsBetter' | 'higherIsWorse'
+export type ScoreMetricComponent =
+  | 'monitoringAdequacy'
+  | 'serviceAccess'
+  | 'environmentalBurden'
+  | 'sensitivity'
+  | 'adaptiveCapacity'
+  | 'housingPressure'
+  | 'safetyPressure'
+export type ScoreSpatialMethod =
+  | 'pointInPolygon'
+  | 'centroidInPolygon'
+  | 'midpointInPolygon'
+  | 'directBoundaryJoin'
+  | 'derivedRatio'
+export type ScoreUncertaintyLevel = 'low' | 'medium' | 'high'
+
+export interface ScoreMethodSettings {
+  normalization: ScoreNormalizationMethod
+  aggregation: ScoreAggregationMethod
+  missingData: 'zero' | 'neutral'
+  sensitivity: boolean
+}
 
 export interface ScoreMetricDefinition {
   key: ScoreMetricKey
@@ -46,6 +71,12 @@ export interface ScoreMetricDefinition {
   description: string
   format: ScoreMetricFormat
   category: ScoreMetricCategory
+  direction: ScoreMetricDirection
+  component: ScoreMetricComponent
+  dataSourceLabel: string
+  spatialMethod: ScoreSpatialMethod
+  uncertainty: ScoreUncertaintyLevel
+  caveat?: string
 }
 
 export type ScoreMetricWeightMap = Record<ScoreMetricKey, number>
@@ -122,6 +153,26 @@ export interface ScoredBoundaryRegion {
   score: number
   scoreColor: string
   rank: number
+  dataCoverageScore: number
+}
+
+export interface ScoreComponentSummary {
+  key: ScoreMetricCategory
+  label: string
+  score: number
+  weightShare: number
+  activeMetricCount: number
+}
+
+export interface RobustnessResult {
+  regionId: string
+  regionName: string
+  baseRank: number
+  medianRank: number
+  rankInterval: [number, number]
+  scoreInterval: [number, number]
+  stability: 'stable' | 'moderate' | 'sensitive'
+  topDrivers: ScoreMetricKey[]
 }
 
 export type ScoreDataSource = 'airQuality' | 'parks' | 'restaurants' | 'census' | 'bcAssessment' | 'crime'
@@ -147,6 +198,8 @@ export interface ScenarioComparison {
   referenceTopScore: number
   averageDelta: number
   topChanged: boolean
+  stableTopShare: number
+  averageRankShift: number
 }
 
 export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; description: string }> = [
@@ -155,7 +208,7 @@ export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; des
   { id: 'restaurants', label: 'Food Safety', description: 'Restaurant inspection coverage' },
   { id: 'census', label: 'Demographics', description: 'Census population data (PG area)' },
   { id: 'bcAssessment', label: 'BC Assessment', description: 'Parcel values, housing mix, age, and growth' },
-  { id: 'crime', label: 'Crime', description: 'Prince George crime density, per-capita risk, and recency' }
+  { id: 'crime', label: 'Crime', description: 'Prince George crime density, per-capita risk, and recency' },
 ]
 
 export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
@@ -164,5 +217,5 @@ export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
   foodSafety: 'Food Safety',
   demographics: 'Demographics',
   property: 'Property & Housing',
-  safety: 'Safety'
+  safety: 'Safety',
 }

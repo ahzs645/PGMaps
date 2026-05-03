@@ -12,10 +12,11 @@ export interface AirMonitor {
   dateObserved?: string | null
 }
 
-export type BoundarySource = 'bcHealth' | 'census'
+export type BoundarySource = 'bcHealth' | 'census' | 'cityPG'
 export type BoundaryLevel = 'healthAuthority' | 'hsda' | 'lha' | 'chsa'
 export type CensusBoundaryLevel = 'cd' | 'csd' | 'ct' | 'da'
-export type RegionLevel = BoundaryLevel | CensusBoundaryLevel
+export type CityBoundaryLevel = 'elementarySchoolCatchment' | 'secondarySchoolCatchment'
+export type RegionLevel = BoundaryLevel | CensusBoundaryLevel | CityBoundaryLevel
 
 export interface BoundaryRegionRecord {
   id: string

@@ -9,6 +9,7 @@ import {
   type BoundaryLevel,
   type BoundarySource,
   type CensusBoundaryLevel,
+  type CityBoundaryLevel,
   type RegionLevel,
 } from '@/maps/airquality'
 import { useCensusData } from '@/maps/census/hooks/useCensusData'
@@ -18,6 +19,7 @@ import { useBcAssessmentData } from '@/maps/bcassessment/hooks/useBcAssessmentDa
 import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
 import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
+  CITY_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
   SCORE_BUILDER_EXAMPLES,
   SCORE_METRICS,
@@ -40,7 +42,9 @@ import { useMediaQuery } from './hooks/useMediaQuery'
 import { useScoreBuilderRegions } from './hooks/useScoreBuilderRegions'
 import type {
   RegionDataCounts,
+  RobustnessResult,
   ScoredBoundaryRegion,
+  ScoreComponentSummary,
   ScoreDataSource,
   ScoreBandSummary,
   ScoreFilterKey,
@@ -48,8 +52,10 @@ import type {
   ScoreMetricRangeMap,
   ScoreMetricKey,
   ScoreMetricWeightMap,
+  ScoreMethodSettings,
   ScenarioComparison,
 } from './types'
+import { METRIC_CATEGORY_LABELS } from './types'
 import { decodeScoreBuilderShareState, encodeScoreBuilderShareState } from './lib/shareState'
 
 interface MonitorPointRecord {
@@ -83,6 +89,30 @@ function normalizeMetric(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return 0
   if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return 0.5
   return Math.max(0, Math.min(1, (value - min) / (max - min)))
+}
+
+function normalizeWithMethod(
+  value: number,
+  values: number[],
+  range: { min: number; max: number },
+  method: ScoreMethodSettings['normalization'],
+): number {
+  if (!Number.isFinite(value)) return 0
+  if (method === 'minMax') return normalizeMetric(value, range.min, range.max)
+  if (!values.length) return 0.5
+
+  if (method === 'percentile') {
+    const below = values.filter((candidate) => candidate < value).length
+    const equal = values.filter((candidate) => candidate === value).length
+    return Math.max(0, Math.min(1, (below + equal * 0.5) / values.length))
+  }
+
+  const mean = values.reduce((sum, candidate) => sum + candidate, 0) / values.length
+  const variance = values.reduce((sum, candidate) => sum + (candidate - mean) ** 2, 0) / values.length
+  const stdDev = Math.sqrt(variance)
+  if (!Number.isFinite(stdDev) || stdDev <= 0) return 0.5
+  const z = (value - mean) / stdDev
+  return Math.max(0, Math.min(1, 0.5 + z / 6))
 }
 
 function clampScore(value: number): number {
@@ -148,6 +178,25 @@ function metricToDataSource(category: string): ScoreDataSource | null {
   return null
 }
 
+function metricHasCoverage(metric: ScoreMetricKey, counts: RegionDataCounts): boolean {
+  const definition = SCORE_METRICS.find((entry) => entry.key === metric)
+  const source = definition ? metricToDataSource(definition.category) : null
+  if (source === 'airQuality') return counts.monitorCount > 0
+  if (source === 'parks') return counts.parkCount + counts.trailCount + counts.amenityCount > 0
+  if (source === 'restaurants') return counts.restaurantCount > 0
+  if (source === 'census') return counts.populationSum > 0
+  if (source === 'bcAssessment') return counts.parcelCount > 0
+  if (source === 'crime') return counts.crimeCount > 0
+  return true
+}
+
+function computeDataCoverageScore(counts: RegionDataCounts, weights: ScoreMetricWeightMap): number {
+  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+  if (!activeMetrics.length) return 1
+  const coveredMetrics = activeMetrics.filter((metric) => metricHasCoverage(metric.key, counts)).length
+  return coveredMetrics / activeMetrics.length
+}
+
 function scoreDataSourcesEqual(a: ScoreDataSource[], b: ScoreDataSource[]): boolean {
   if (a.length !== b.length) return false
   const bSet = new Set(b)
@@ -177,15 +226,14 @@ const DEFAULT_SCORE_FILTERS: ScoreFilterState = {
   limitCrime: false,
   limitFoodRisk: false,
 }
-const HEALTH_BOUNDARY_LEVEL_VALUES = new Set<BoundaryLevel>(
-  HEALTH_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
-)
+const HEALTH_BOUNDARY_LEVEL_VALUES = new Set<BoundaryLevel>(HEALTH_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value))
 const CENSUS_BOUNDARY_LEVEL_VALUES = new Set<CensusBoundaryLevel>(
   CENSUS_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
+const CITY_BOUNDARY_LEVEL_VALUES = new Set<CityBoundaryLevel>(CITY_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value))
 
 function parseBoundarySource(value: string | null): BoundarySource {
-  return value === 'bcHealth' || value === 'census' ? value : 'census'
+  return value === 'bcHealth' || value === 'census' || value === 'cityPG' ? value : 'census'
 }
 
 function parseHealthBoundaryLevel(value: string | null): BoundaryLevel {
@@ -194,6 +242,12 @@ function parseHealthBoundaryLevel(value: string | null): BoundaryLevel {
 
 function parseCensusBoundaryLevel(value: string | null): CensusBoundaryLevel {
   return CENSUS_BOUNDARY_LEVEL_VALUES.has(value as CensusBoundaryLevel) ? (value as CensusBoundaryLevel) : 'ct'
+}
+
+function parseCityBoundaryLevel(value: string | null): CityBoundaryLevel {
+  return CITY_BOUNDARY_LEVEL_VALUES.has(value as CityBoundaryLevel)
+    ? (value as CityBoundaryLevel)
+    : 'elementarySchoolCatchment'
 }
 
 function summarizeScores(regions: ScoredBoundaryRegion[]): { min: number; max: number; average: number } {
@@ -236,14 +290,17 @@ export default function ScoreBuilderSection() {
 
   const [showSidebar, setShowSidebar] = useState(true)
   const [showRightSidebar, setShowRightSidebar] = useState(true)
-  const [boundarySource, setBoundarySource] = useState<BoundarySource>(
-    () => parseBoundarySource(searchParams.get('src')),
+  const [boundarySource, setBoundarySource] = useState<BoundarySource>(() =>
+    parseBoundarySource(searchParams.get('src')),
   )
-  const [healthBoundaryLevel, setHealthBoundaryLevel] = useState<BoundaryLevel>(
-    () => parseHealthBoundaryLevel(searchParams.get('level')),
+  const [healthBoundaryLevel, setHealthBoundaryLevel] = useState<BoundaryLevel>(() =>
+    parseHealthBoundaryLevel(searchParams.get('level')),
   )
-  const [censusBoundaryLevel, setCensusBoundaryLevel] = useState<CensusBoundaryLevel>(
-    () => parseCensusBoundaryLevel(searchParams.get('level')),
+  const [censusBoundaryLevel, setCensusBoundaryLevel] = useState<CensusBoundaryLevel>(() =>
+    parseCensusBoundaryLevel(searchParams.get('level')),
+  )
+  const [cityBoundaryLevel, setCityBoundaryLevel] = useState<CityBoundaryLevel>(() =>
+    parseCityBoundaryLevel(searchParams.get('level')),
   )
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
   const [regionInsightRegionId, setRegionInsightRegionId] = useState<string | null>(null)
@@ -272,6 +329,12 @@ export default function ScoreBuilderSection() {
   })
   const [comparisonIds, setComparisonIds] = useState<string[]>([])
   const [scoreFilters, setScoreFilters] = useState<ScoreFilterState>(DEFAULT_SCORE_FILTERS)
+  const [methodSettings, setMethodSettings] = useState<ScoreMethodSettings>({
+    normalization: 'minMax',
+    aggregation: 'additive',
+    missingData: 'zero',
+    sensitivity: true,
+  })
   const [activeExampleKey, setActiveExampleKey] = useState<string | null>(() => {
     // If no URL params, auto-load first example
     if (!initialHasUrlWeights) return SCORE_BUILDER_EXAMPLES[0]?.key || null
@@ -283,17 +346,43 @@ export default function ScoreBuilderSection() {
   useEffect(() => {
     const params = new URLSearchParams()
     params.set('src', boundarySource)
-    params.set('level', boundarySource === 'bcHealth' ? healthBoundaryLevel : censusBoundaryLevel)
+    params.set(
+      'level',
+      boundarySource === 'bcHealth'
+        ? healthBoundaryLevel
+        : boundarySource === 'census'
+          ? censusBoundaryLevel
+          : cityBoundaryLevel,
+    )
     params.set('w', encodeWeightsToParams(weights))
     params.set('ds', enabledDataSources.join(','))
     setSearchParams(params, { replace: true })
-  }, [boundarySource, healthBoundaryLevel, censusBoundaryLevel, weights, enabledDataSources, setSearchParams])
+  }, [
+    boundarySource,
+    healthBoundaryLevel,
+    censusBoundaryLevel,
+    cityBoundaryLevel,
+    weights,
+    enabledDataSources,
+    setSearchParams,
+  ])
 
-  const selectedRegionLevel: RegionLevel = boundarySource === 'bcHealth' ? healthBoundaryLevel : censusBoundaryLevel
+  const selectedRegionLevel: RegionLevel =
+    boundarySource === 'bcHealth'
+      ? healthBoundaryLevel
+      : boundarySource === 'census'
+        ? censusBoundaryLevel
+        : cityBoundaryLevel
 
   const boundaryLevelOptions = useMemo<Array<{ value: RegionLevel; label: string }>>(() => {
     if (boundarySource === 'bcHealth') {
       return HEALTH_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+      }))
+    }
+    if (boundarySource === 'cityPG') {
+      return CITY_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
         value: option.value,
         label: option.label,
       }))
@@ -659,14 +748,24 @@ export default function ScoreBuilderSection() {
   ])
 
   const metricRanges = useMemo(() => {
+    return SCORE_METRICS.reduce((accumulator, metric) => {
+      const values = regionMetricRows.map((row) => row.metrics[metric.key]).filter((value) => Number.isFinite(value))
+      const min = values.length ? Math.min(...values) : 0
+      const max = values.length ? Math.max(...values) : 1
+      return { ...accumulator, [metric.key]: { min, max } }
+    }, {} as ScoreMetricRangeMap)
+  }, [regionMetricRows])
+
+  const metricValueLists = useMemo(() => {
     return SCORE_METRICS.reduce(
       (accumulator, metric) => {
-        const values = regionMetricRows.map((row) => row.metrics[metric.key]).filter((value) => Number.isFinite(value))
-        const min = values.length ? Math.min(...values) : 0
-        const max = values.length ? Math.max(...values) : 1
-        return { ...accumulator, [metric.key]: { min, max } }
+        accumulator[metric.key] = regionMetricRows
+          .map((row) => row.metrics[metric.key])
+          .filter((value) => Number.isFinite(value))
+          .sort((a, b) => a - b)
+        return accumulator
       },
-      {} as ScoreMetricRangeMap,
+      {} as Record<ScoreMetricKey, number[]>,
     )
   }, [regionMetricRows])
 
@@ -693,47 +792,56 @@ export default function ScoreBuilderSection() {
   }, [activePresetKey, resolvedExampleKey])
 
   const scoreRows = useCallback(
-    (weightMap: ScoreMetricWeightMap): ScoredBoundaryRegion[] => {
+    (weightMap: ScoreMetricWeightMap, settings: ScoreMethodSettings = methodSettings): ScoredBoundaryRegion[] => {
       const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weightMap[metric.key]), 0)
       const ranked = regionMetricRows.map((row) => {
-      const normalizedMetrics = createMetricValueMap(0)
-      const contributions = createMetricValueMap(0)
-      let rawScore = 0
+        const normalizedMetrics = createMetricValueMap(0)
+        const contributions = createMetricValueMap(0)
+        let rawScore = 0
+        let rawProduct = 1
 
-      SCORE_METRICS.forEach((metric) => {
-        const value = row.metrics[metric.key]
-        const range = metricRanges[metric.key]
-        const normalizedValue = normalizeMetric(value, range.min, range.max)
-        const weight = weightMap[metric.key]
-        const directionalValue = weight >= 0 ? normalizedValue : 1 - normalizedValue
-        normalizedMetrics[metric.key] = normalizedValue
-        contributions[metric.key] =
-          totalWeight > 0 ? (Math.abs(weight) * directionalValue) / totalWeight : 0
-        rawScore += contributions[metric.key]
+        SCORE_METRICS.forEach((metric) => {
+          const value = row.metrics[metric.key]
+          const range = metricRanges[metric.key]
+          const hasCoverage = metricHasCoverage(metric.key, row.counts)
+          const normalizedValue =
+            settings.missingData === 'neutral' && !hasCoverage
+              ? 0.5
+              : normalizeWithMethod(value, metricValueLists[metric.key] ?? [], range, settings.normalization)
+          const weight = weightMap[metric.key]
+          const directionalValue = weight >= 0 ? normalizedValue : 1 - normalizedValue
+          normalizedMetrics[metric.key] = normalizedValue
+          contributions[metric.key] = totalWeight > 0 ? (Math.abs(weight) * directionalValue) / totalWeight : 0
+          rawScore += contributions[metric.key]
+          if (weight !== 0 && totalWeight > 0) {
+            rawProduct *= Math.max(0.01, directionalValue) ** (Math.abs(weight) / totalWeight)
+          }
+        })
+
+        const aggregateValue = settings.aggregation === 'geometric' && totalWeight > 0 ? rawProduct : rawScore
+        const score = totalWeight > 0 ? clampScore(aggregateValue * 100) : 50
+
+        return {
+          ...row,
+          normalizedMetrics,
+          contributions,
+          score,
+          scoreColor: getScorePaletteColor(score, scorePaletteProfile),
+          rank: 0,
+          dataCoverageScore: computeDataCoverageScore(row.counts, weightMap),
+        }
       })
 
-      const score = totalWeight > 0 ? clampScore(rawScore * 100) : 50
+      ranked.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score
+        if (b.metrics.overallDensity !== a.metrics.overallDensity)
+          return b.metrics.overallDensity - a.metrics.overallDensity
+        return a.region.name.localeCompare(b.region.name)
+      })
 
-      return {
-        ...row,
-        normalizedMetrics,
-        contributions,
-        score,
-        scoreColor: getScorePaletteColor(score, scorePaletteProfile),
-        rank: 0,
-      }
-    })
-
-    ranked.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score
-      if (b.metrics.overallDensity !== a.metrics.overallDensity)
-        return b.metrics.overallDensity - a.metrics.overallDensity
-      return a.region.name.localeCompare(b.region.name)
-    })
-
-    return ranked.map((row, index) => ({ ...row, rank: index + 1 }))
+      return ranked.map((row, index) => ({ ...row, rank: index + 1 }))
     },
-    [metricRanges, regionMetricRows, scorePaletteProfile],
+    [methodSettings, metricRanges, metricValueLists, regionMetricRows, scorePaletteProfile],
   )
 
   const unfilteredScoredRegions = useMemo<ScoredBoundaryRegion[]>(() => scoreRows(weights), [scoreRows, weights])
@@ -807,6 +915,87 @@ export default function ScoreBuilderSection() {
 
   const scoreBands = useMemo(() => buildScoreBandSummary(scoredRegions), [scoredRegions])
 
+  const componentSummaries = useMemo<ScoreComponentSummary[]>(() => {
+    const referenceRegion = selectedRegion || scoredRegions[0]
+    const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
+    if (!referenceRegion || totalWeight <= 0) return []
+
+    return Object.entries(METRIC_CATEGORY_LABELS)
+      .map(([category, label]) => {
+        const metrics = SCORE_METRICS.filter((metric) => metric.category === category && weights[metric.key] !== 0)
+        const categoryWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
+        const categoryContribution = metrics.reduce((sum, metric) => sum + referenceRegion.contributions[metric.key], 0)
+        return {
+          key: category as ScoreComponentSummary['key'],
+          label,
+          score: categoryWeight > 0 ? clampScore((categoryContribution / (categoryWeight / totalWeight)) * 100) : 0,
+          weightShare: categoryWeight / totalWeight,
+          activeMetricCount: metrics.length,
+        }
+      })
+      .filter((summary) => summary.activeMetricCount > 0)
+  }, [scoredRegions, selectedRegion, weights])
+
+  const robustnessResults = useMemo<RobustnessResult[]>(() => {
+    if (!methodSettings.sensitivity || !scoredRegions.length) return []
+    const eligibleIds = new Set(scoredRegions.map((entry) => entry.region.id))
+    const trackedRegions = scoredRegions.slice(0, 12)
+    const rankSamples = new Map<string, number[]>()
+    const scoreSamples = new Map<string, number[]>()
+    trackedRegions.forEach((entry) => {
+      rankSamples.set(entry.region.id, [entry.rank])
+      scoreSamples.set(entry.region.id, [entry.score])
+    })
+
+    const sampleRows = (rows: ScoredBoundaryRegion[]) => {
+      rows
+        .filter((entry) => eligibleIds.has(entry.region.id))
+        .forEach((entry, index) => {
+          if (!rankSamples.has(entry.region.id)) return
+          rankSamples.get(entry.region.id)?.push(index + 1)
+          scoreSamples.get(entry.region.id)?.push(entry.score)
+        })
+    }
+
+    for (let trial = 0; trial < 24; trial += 1) {
+      const perturbedWeights = { ...weights }
+      SCORE_METRICS.forEach((metric, index) => {
+        const weight = weights[metric.key]
+        if (weight === 0) return
+        const wave = Math.sin((trial + 1) * (index + 3) * 1.618)
+        perturbedWeights[metric.key] = Math.round(weight * (1 + wave * 0.15))
+      })
+      sampleRows(scoreRows(perturbedWeights))
+    }
+
+    SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).forEach((metric) => {
+      sampleRows(scoreRows({ ...weights, [metric.key]: 0 }))
+    })
+    ;(['minMax', 'percentile', 'zScore'] as const).forEach((normalization) => {
+      if (normalization === methodSettings.normalization) return
+      sampleRows(scoreRows(weights, { ...methodSettings, normalization }))
+    })
+
+    return trackedRegions.map((entry) => {
+      const ranks = [...(rankSamples.get(entry.region.id) || [entry.rank])].sort((a, b) => a - b)
+      const scores = [...(scoreSamples.get(entry.region.id) || [entry.score])].sort((a, b) => a - b)
+      const rankSpread = ranks[ranks.length - 1] - ranks[0]
+      return {
+        regionId: entry.region.id,
+        regionName: entry.region.name,
+        baseRank: entry.rank,
+        medianRank: computeMedian(ranks),
+        rankInterval: [ranks[0], ranks[ranks.length - 1]],
+        scoreInterval: [scores[0], scores[scores.length - 1]],
+        stability: rankSpread <= 2 ? 'stable' : rankSpread <= 6 ? 'moderate' : 'sensitive',
+        topDrivers: SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+          .sort((a, b) => Math.abs(entry.contributions[b.key]) - Math.abs(entry.contributions[a.key]))
+          .slice(0, 3)
+          .map((metric) => metric.key),
+      }
+    })
+  }, [methodSettings, scoreRows, scoredRegions, weights])
+
   const scenarioComparison = useMemo<ScenarioComparison | null>(() => {
     const referencePreset = SCORE_PRESETS.find((preset) => preset.key === 'balancedCoverage') || SCORE_PRESETS[0]
     if (!referencePreset || !unfilteredScoredRegions.length) return null
@@ -816,6 +1005,34 @@ export default function ScoreBuilderSection() {
       .filter((entry) => eligibleIds.has(entry.region.id))
       .map((entry, index) => ({ ...entry, rank: index + 1 }))
     const referenceSpread = summarizeScores(referenceEligible)
+    const currentTopId = scoredRegions[0]?.region.id || null
+    const trials = methodSettings.sensitivity && currentTopId ? 24 : 0
+    let stableTopCount = 0
+    let averageRankShift = 0
+
+    if (trials > 0) {
+      const baseRankById = new Map(scoredRegions.map((entry) => [entry.region.id, entry.rank]))
+      for (let trial = 0; trial < trials; trial += 1) {
+        const perturbedWeights = { ...weights }
+        SCORE_METRICS.forEach((metric, index) => {
+          const weight = weights[metric.key]
+          if (weight === 0) return
+          const wave = Math.sin((trial + 1) * (index + 3) * 1.618)
+          perturbedWeights[metric.key] = Math.round(weight * (1 + wave * 0.15))
+        })
+        const trialRows = scoreRows(perturbedWeights).filter((entry) => eligibleIds.has(entry.region.id))
+        if ((trialRows[0]?.region.id || null) === currentTopId) stableTopCount += 1
+        const rankShift =
+          trialRows.reduce((sum, entry, index) => {
+            const baseRank = baseRankById.get(entry.region.id)
+            if (!baseRank) return sum
+            return sum + Math.abs(baseRank - (index + 1))
+          }, 0) / Math.max(1, trialRows.length)
+        averageRankShift += rankShift
+      }
+      averageRankShift /= trials
+    }
+
     return {
       label: referencePreset.label,
       currentTopName: scoredRegions[0]?.region.name || null,
@@ -824,8 +1041,17 @@ export default function ScoreBuilderSection() {
       referenceTopScore: referenceEligible[0]?.score || 0,
       averageDelta: scoreSpread.average - referenceSpread.average,
       topChanged: (scoredRegions[0]?.region.id || null) !== (referenceEligible[0]?.region.id || null),
+      stableTopShare: trials > 0 ? stableTopCount / trials : 1,
+      averageRankShift,
     }
-  }, [scoreRows, scoreSpread.average, scoredRegions, unfilteredScoredRegions.length])
+  }, [
+    methodSettings.sensitivity,
+    scoreRows,
+    scoreSpread.average,
+    scoredRegions,
+    unfilteredScoredRegions.length,
+    weights,
+  ])
 
   const densitySummary = useMemo(() => {
     const values = scoredRegions.map((entry) => entry.metrics[densityMetric]).filter((value) => Number.isFinite(value))
@@ -866,8 +1092,10 @@ export default function ScoreBuilderSection() {
       setBoundarySource(example.boundarySource)
       if (example.boundarySource === 'bcHealth') {
         setHealthBoundaryLevel(example.boundaryLevel as BoundaryLevel)
-      } else {
+      } else if (example.boundarySource === 'census') {
         setCensusBoundaryLevel(example.boundaryLevel as CensusBoundaryLevel)
+      } else {
+        setCityBoundaryLevel(example.boundaryLevel as CityBoundaryLevel)
       }
       setEnabledDataSources([...example.dataSources])
       setWeights({ ...example.weights })
@@ -897,6 +1125,7 @@ export default function ScoreBuilderSection() {
         setBoundarySource(parseBoundarySource(state.boundarySource))
         setHealthBoundaryLevel(parseHealthBoundaryLevel(state.healthBoundaryLevel))
         setCensusBoundaryLevel(parseCensusBoundaryLevel(state.censusBoundaryLevel))
+        setCityBoundaryLevel(parseCityBoundaryLevel(state.cityBoundaryLevel ?? null))
         setEnabledDataSources([...state.enabledDataSources])
         setSelectedNetworks([...state.selectedNetworks])
         setWeights({ ...createDefaultWeights(), ...state.weights })
@@ -923,16 +1152,19 @@ export default function ScoreBuilderSection() {
     applyExample(activeExampleKey)
   }, [activeExampleKey, allNetworks, applyExample])
 
-  const handleApplyPreset = useCallback((presetKey: string) => {
-    const preset = SCORE_PRESETS.find((entry) => entry.key === presetKey)
-    if (!preset) return
-    setActiveExampleKey(null)
-    setWeights({ ...preset.weights })
-    const neededSources = getScoreDataSourcesForWeights(preset.weights)
-    setEnabledDataSources(neededSources)
-    setSelectedNetworks(neededSources.includes('airQuality') ? allNetworks : [])
-    setShowPoints(neededSources.includes('airQuality'))
-  }, [allNetworks])
+  const handleApplyPreset = useCallback(
+    (presetKey: string) => {
+      const preset = SCORE_PRESETS.find((entry) => entry.key === presetKey)
+      if (!preset) return
+      setActiveExampleKey(null)
+      setWeights({ ...preset.weights })
+      const neededSources = getScoreDataSourcesForWeights(preset.weights)
+      setEnabledDataSources(neededSources)
+      setSelectedNetworks(neededSources.includes('airQuality') ? allNetworks : [])
+      setShowPoints(neededSources.includes('airQuality'))
+    },
+    [allNetworks],
+  )
 
   const handleAddMetric = useCallback(
     (metric: ScoreMetricKey, value: number) => {
@@ -954,6 +1186,7 @@ export default function ScoreBuilderSection() {
       boundarySource,
       healthBoundaryLevel,
       censusBoundaryLevel,
+      cityBoundaryLevel,
       enabledDataSources,
       selectedNetworks,
       weights,
@@ -968,7 +1201,15 @@ export default function ScoreBuilderSection() {
       // The URL is still visible in the address bar if clipboard permissions are unavailable.
     }
     return url.toString()
-  }, [boundarySource, censusBoundaryLevel, enabledDataSources, healthBoundaryLevel, selectedNetworks, weights])
+  }, [
+    boundarySource,
+    censusBoundaryLevel,
+    cityBoundaryLevel,
+    enabledDataSources,
+    healthBoundaryLevel,
+    selectedNetworks,
+    weights,
+  ])
 
   const toggleNetwork = useCallback((network: string) => {
     setSelectedNetworks((current) => {
@@ -987,7 +1228,8 @@ export default function ScoreBuilderSection() {
   const handleRegionLevelChange = useCallback(
     (level: RegionLevel) => {
       if (boundarySource === 'bcHealth') setHealthBoundaryLevel(parseHealthBoundaryLevel(level))
-      else setCensusBoundaryLevel(parseCensusBoundaryLevel(level))
+      else if (boundarySource === 'census') setCensusBoundaryLevel(parseCensusBoundaryLevel(level))
+      else setCityBoundaryLevel(parseCityBoundaryLevel(level))
     },
     [boundarySource],
   )
@@ -1125,6 +1367,10 @@ export default function ScoreBuilderSection() {
       excludedRegionCount={Math.max(0, unfilteredScoredRegions.length - scoredRegions.length)}
       scoreFilters={scoreFilters}
       onToggleScoreFilter={toggleScoreFilter}
+      methodSettings={methodSettings}
+      onMethodSettingsChange={setMethodSettings}
+      componentSummaries={componentSummaries}
+      robustnessResults={robustnessResults}
       scoreBands={scoreBands}
       scenarioComparison={scenarioComparison}
       filteredRegions={filteredRegions}
@@ -1180,6 +1426,10 @@ export default function ScoreBuilderSection() {
       excludedRegionCount={Math.max(0, unfilteredScoredRegions.length - scoredRegions.length)}
       scoreFilters={scoreFilters}
       onToggleScoreFilter={toggleScoreFilter}
+      methodSettings={methodSettings}
+      onMethodSettingsChange={setMethodSettings}
+      componentSummaries={componentSummaries}
+      robustnessResults={robustnessResults}
       scoreBands={scoreBands}
       scenarioComparison={scenarioComparison}
       filteredRegions={filteredRegions}

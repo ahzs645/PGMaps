@@ -14,7 +14,7 @@ const navLinks = [
   { path: '/parks', label: 'Parks & Trails', icon: Trees },
   { path: '/census', label: 'Census', icon: BarChart3 },
   { path: '/explorer', label: 'Explorer', icon: Layers },
-  { path: '/score-builder', label: 'Score Builder', icon: Calculator },
+  { path: '/score-builder', label: 'Index Lab', icon: Calculator },
   { path: '/bc-assessment', label: 'Assessment', icon: Building2 },
   { path: '/pgdata', label: 'PG Data', icon: ShieldAlert },
 ]

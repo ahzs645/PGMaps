@@ -81,7 +81,7 @@ async function buildIndex(): Promise<SearchItem[]> {
       { id: 'nav-parks', label: 'Parks & Trails', sublabel: 'Parks, trails, and amenities', section: 'Maps', sectionPath: '/parks', icon: Trees, iconColor: 'text-green-500' },
       { id: 'nav-census', label: 'Census Data', sublabel: 'Choropleth census patterns', section: 'Maps', sectionPath: '/census', icon: BarChart3, iconColor: 'text-amber-600' },
       { id: 'nav-pgdata', label: 'PG Data (Crime)', sublabel: 'Property crime incidents', section: 'Maps', sectionPath: '/pgdata', icon: ShieldAlert, iconColor: 'text-red-500' },
-      { id: 'nav-scorebuilder', label: 'Score Builder', sublabel: 'Weighted region ranking', section: 'Maps', sectionPath: '/score-builder', icon: MapPin, iconColor: 'text-cyan-600' },
+      { id: 'nav-scorebuilder', label: 'Index Lab', sublabel: 'Transparent weighted civic indices', section: 'Maps', sectionPath: '/score-builder', icon: MapPin, iconColor: 'text-cyan-600' },
     ]
     items.push(...sections)
 

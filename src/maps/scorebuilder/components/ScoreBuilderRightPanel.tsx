@@ -16,13 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   DENSITY_METRIC_OPTIONS,
   SCORE_BUILDER_EXAMPLES,
@@ -33,7 +27,9 @@ import {
 } from '../constants'
 import { METRIC_CATEGORY_LABELS } from '../types'
 import type {
+  RobustnessResult,
   ScoredBoundaryRegion,
+  ScoreComponentSummary,
   ScoreDataSource,
   ScoreBandSummary,
   ScoreFilterKey,
@@ -41,11 +37,12 @@ import type {
   ScoreMetricKey,
   ScoreMetricRangeMap,
   ScoreMetricWeightMap,
+  ScoreMethodSettings,
   ScenarioComparison,
 } from '../types'
 import { RadarChart } from './RadarChart'
 
-type RightPanelTab = 'examples' | 'equation' | 'model' | 'density' | 'regions'
+type RightPanelTab = 'examples' | 'equation' | 'methodology' | 'model' | 'robustness' | 'density' | 'regions'
 
 interface ScoreBuilderRightPanelProps {
   className?: string
@@ -69,6 +66,10 @@ interface ScoreBuilderRightPanelProps {
   excludedRegionCount: number
   scoreFilters: ScoreFilterState
   onToggleScoreFilter: (filter: ScoreFilterKey) => void
+  methodSettings: ScoreMethodSettings
+  onMethodSettingsChange: (settings: ScoreMethodSettings) => void
+  componentSummaries: ScoreComponentSummary[]
+  robustnessResults: RobustnessResult[]
   scoreBands: ScoreBandSummary[]
   scenarioComparison: ScenarioComparison | null
   filteredRegions: ScoredBoundaryRegion[]
@@ -91,11 +92,13 @@ interface ScoreBuilderRightPanelProps {
 
 const MAX_VISIBLE_ROWS = 220
 
-const TAB_ORDER: RightPanelTab[] = ['examples', 'equation', 'model', 'density', 'regions']
+const TAB_ORDER: RightPanelTab[] = ['examples', 'equation', 'methodology', 'model', 'robustness', 'density', 'regions']
 const TAB_LABELS: Record<RightPanelTab, string> = {
   examples: 'Examples',
   equation: 'Equation',
+  methodology: 'Method',
   model: 'Model',
+  robustness: 'Robust',
   density: 'Density',
   regions: 'Regions',
 }
@@ -122,10 +125,7 @@ function getDataSourceLabel(source: ScoreDataSource): string {
   return source
 }
 
-function presetAppliesToBoundary(
-  preset: (typeof SCORE_PRESETS)[number],
-  boundarySource: BoundarySource
-): boolean {
+function presetAppliesToBoundary(preset: (typeof SCORE_PRESETS)[number], boundarySource: BoundarySource): boolean {
   if (boundarySource !== 'bcHealth') return true
   const sources = getScoreDataSourcesForWeights(preset.weights)
   return sources.length === 1 && sources[0] === 'airQuality'
@@ -213,6 +213,12 @@ function getWeightIntent(value: number): string {
   return value > 0 ? 'Prefer high' : 'Prefer low'
 }
 
+function getMetricDirectionLabel(key: ScoreMetricKey): string {
+  const metric = SCORE_METRICS.find((entry) => entry.key === key)
+  if (!metric) return 'Direction not documented'
+  return metric.direction === 'higherIsBetter' ? 'Higher is generally beneficial' : 'Higher is generally a burden'
+}
+
 function getCategoryTone(category: string): string {
   if (category === 'airQuality') return 'bg-sky-500'
   if (category === 'parksRec') return 'bg-emerald-500'
@@ -245,6 +251,10 @@ export function ScoreBuilderRightPanel({
   excludedRegionCount,
   scoreFilters,
   onToggleScoreFilter,
+  methodSettings,
+  onMethodSettingsChange,
+  componentSummaries,
+  robustnessResults,
   scoreBands,
   scenarioComparison,
   filteredRegions,
@@ -332,7 +342,13 @@ export function ScoreBuilderRightPanel({
             className="inline-flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             {shareStatus === 'copied' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {shareStatus === 'copying' ? 'Copying' : shareStatus === 'copied' ? 'Copied' : shareStatus === 'failed' ? 'Failed' : 'Share'}
+            {shareStatus === 'copying'
+              ? 'Copying'
+              : shareStatus === 'copied'
+                ? 'Copied'
+                : shareStatus === 'failed'
+                  ? 'Failed'
+                  : 'Share'}
           </button>
         </div>
       </div>
@@ -403,12 +419,18 @@ export function ScoreBuilderRightPanel({
           />
         )}
 
+        {activeTab === 'methodology' && (
+          <MethodologyTab weights={weights} methodSettings={methodSettings} componentSummaries={componentSummaries} />
+        )}
+
         {activeTab === 'model' && (
           <ModelTab
             weights={weights}
             totalAbsoluteWeight={totalAbsoluteWeight}
             scoreFilters={scoreFilters}
             onToggleScoreFilter={onToggleScoreFilter}
+            methodSettings={methodSettings}
+            onMethodSettingsChange={onMethodSettingsChange}
             scoreBands={scoreBands}
             scenarioComparison={scenarioComparison}
             regions={regions}
@@ -416,6 +438,10 @@ export function ScoreBuilderRightPanel({
             excludedRegionCount={excludedRegionCount}
             scoreSpread={scoreSpread}
           />
+        )}
+
+        {activeTab === 'robustness' && (
+          <RobustnessTab robustnessResults={robustnessResults} scenarioComparison={scenarioComparison} />
         )}
 
         {activeTab === 'regions' && (
@@ -456,7 +482,9 @@ function ExamplesTab({
   activeExampleKey: string | null
   onApplyExample: (key: string) => void
 }) {
-  const [selectedExampleKey, setSelectedExampleKey] = useState(activeExampleKey || SCORE_BUILDER_EXAMPLES[0]?.key || null)
+  const [selectedExampleKey, setSelectedExampleKey] = useState(
+    activeExampleKey || SCORE_BUILDER_EXAMPLES[0]?.key || null,
+  )
   const selectedExample = SCORE_BUILDER_EXAMPLES.find((example) => example.key === selectedExampleKey) || null
 
   return (
@@ -468,7 +496,9 @@ function ExamplesTab({
               <span
                 className={cn(
                   'flex h-5 w-5 items-center justify-center rounded-full border text-[10px]',
-                  index === 0 ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-200' : 'border-border',
+                  index === 0
+                    ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-200'
+                    : 'border-border',
                 )}
               >
                 {index + 1}
@@ -486,7 +516,10 @@ function ExamplesTab({
             </div>
             <div className="flex flex-wrap gap-1">
               {selectedExample.dataSources.map((ds) => (
-                <span key={ds} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <span
+                  key={ds}
+                  className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                >
                   {getDataSourceLabel(ds)}
                 </span>
               ))}
@@ -515,9 +548,9 @@ function ExamplesTab({
             </div>
             <div className="space-y-2">
               {group.map((example) => {
-                const levelLabel = { ct: 'CT', da: 'DA', chsa: 'CHSA' }[
-                  example.boundaryLevel as 'ct' | 'da' | 'chsa'
-                ] || example.boundaryLevel
+                const levelLabel =
+                  { ct: 'CT', da: 'DA', chsa: 'CHSA' }[example.boundaryLevel as 'ct' | 'da' | 'chsa'] ||
+                  example.boundaryLevel
                 return (
                   <button
                     key={example.key}
@@ -635,13 +668,10 @@ function EquationTab({
   const previewMetric = focusedMetric || activeTerms[0]?.key || null
 
   useEffect(() => {
-    const activeTermKeys = activeTermKeySignature ? activeTermKeySignature.split('|') as ScoreMetricKey[] : []
+    const activeTermKeys = activeTermKeySignature ? (activeTermKeySignature.split('|') as ScoreMetricKey[]) : []
     setPriorityOrder((current) => {
       const activeSet = new Set(activeTermKeys)
-      return [
-        ...current.filter((key) => activeSet.has(key)),
-        ...activeTermKeys.filter((key) => !current.includes(key)),
-      ]
+      return [...current.filter((key) => activeSet.has(key)), ...activeTermKeys.filter((key) => !current.includes(key))]
     })
   }, [activeTermKeySignature])
 
@@ -850,11 +880,7 @@ function EquationTab({
             )}
           </div>
 
-          <NormalizationPreview
-            metricKey={previewMetric}
-            regions={regions}
-            metricRanges={metricRanges}
-          />
+          <NormalizationPreview metricKey={previewMetric} regions={regions} metricRanges={metricRanges} />
         </div>
       )}
 
@@ -1085,7 +1111,11 @@ function SignedWeightSlider({
         <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-muted" />
         <div
           className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full"
-          style={{ left: `${Math.min(fillStart, fillEnd)}%`, right: `${100 - Math.max(fillStart, fillEnd)}%`, background: fillColor }}
+          style={{
+            left: `${Math.min(fillStart, fillEnd)}%`,
+            right: `${100 - Math.max(fillStart, fillEnd)}%`,
+            background: fillColor,
+          }}
         />
         <div className="absolute left-1/2 top-0 h-6 w-px bg-border" />
         <input
@@ -1174,7 +1204,10 @@ function NormalizationPreview({
           <div
             key={`${metricKey}-${index}`}
             className="flex-1 rounded-t bg-cyan-500/70"
-            style={{ height: `${Math.max(8, (bucket / maxBucket) * 100)}%`, opacity: 0.35 + (bucket / maxBucket) * 0.55 }}
+            style={{
+              height: `${Math.max(8, (bucket / maxBucket) * 100)}%`,
+              opacity: 0.35 + (bucket / maxBucket) * 0.55,
+            }}
             title={`${bucket} regions`}
           />
         ))}
@@ -1309,11 +1342,165 @@ const SCORE_FILTER_DEFINITIONS: Array<{
   },
 ]
 
+function MethodologyTab({
+  weights,
+  methodSettings,
+  componentSummaries,
+}: {
+  weights: ScoreMetricWeightMap
+  methodSettings: ScoreMethodSettings
+  componentSummaries: ScoreComponentSummary[]
+}) {
+  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+
+  return (
+    <div className="space-y-3 p-4" data-score-builder-section="methodology">
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-cyan-600" />
+          <div className="text-sm font-semibold text-foreground">COINr-lite method</div>
+        </div>
+        <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+          <p>
+            PGMaps builds a transparent composite indicator from normalized boundary metrics, signed user weights, and
+            the selected aggregation method.
+          </p>
+          <p>
+            Current settings: {methodSettings.normalization} normalization, {methodSettings.aggregation} aggregation,
+            missing data set to {methodSettings.missingData}.
+          </p>
+        </div>
+      </div>
+
+      {componentSummaries.length > 0 && (
+        <div className="rounded-lg border border-border bg-background p-3">
+          <div className="mb-2 text-sm font-semibold text-foreground">Component sub-scores</div>
+          <div className="space-y-2">
+            {componentSummaries.map((component) => (
+              <div key={component.key}>
+                <div className="mb-1 flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-foreground">{component.label}</span>
+                  <span className="text-muted-foreground">
+                    {formatScore(component.score)} · {(component.weightShare * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-cyan-500" style={{ width: `${component.score}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="mb-2 text-sm font-semibold text-foreground">Active indicator metadata</div>
+        <div className="space-y-2">
+          {activeMetrics.map((metric) => (
+            <div key={metric.key} className="rounded border border-border bg-muted/15 p-2 text-xs">
+              <div className="flex items-start justify-between gap-2">
+                <div className="font-semibold text-foreground">{metric.label}</div>
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  {metric.uncertainty} uncertainty
+                </span>
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {getMetricDirectionLabel(metric.key)} · {metric.dataSourceLabel} · {metric.spatialMethod}
+              </div>
+              {metric.caveat && (
+                <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">{metric.caveat}</div>
+              )}
+            </div>
+          ))}
+          {activeMetrics.length === 0 && (
+            <div className="rounded border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+              Add metrics or apply a preset to see indicator metadata.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RobustnessTab({
+  robustnessResults,
+  scenarioComparison,
+}: {
+  robustnessResults: RobustnessResult[]
+  scenarioComparison: ScenarioComparison | null
+}) {
+  return (
+    <div className="space-y-3 p-4" data-score-builder-section="robustness">
+      <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+        <div className="mb-1 text-sm font-semibold text-foreground">Robustness-lite</div>
+        <p>
+          Runs deterministic stress checks against the active recipe: 15% weight perturbations, leave-one-indicator-out
+          tests, and alternate normalization methods.
+        </p>
+      </div>
+
+      {scenarioComparison && (
+        <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
+          <div className="font-semibold">Top-rank stability</div>
+          <div className="mt-1">
+            Top area held in {(scenarioComparison.stableTopShare * 100).toFixed(0)}% of perturbation trials; average
+            rank shift was {scenarioComparison.averageRankShift.toFixed(1)}.
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {robustnessResults.map((result) => (
+          <div key={result.regionId} className="rounded-lg border border-border bg-background p-3 text-xs">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="font-semibold text-foreground">
+                  #{result.baseRank} {result.regionName}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  median rank {result.medianRank.toFixed(1)} · interval #{result.rankInterval[0]}-#
+                  {result.rankInterval[1]}
+                </div>
+              </div>
+              <span
+                className={cn(
+                  'rounded px-2 py-0.5 text-[10px] font-semibold',
+                  result.stability === 'stable'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                    : result.stability === 'moderate'
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+                      : 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200',
+                )}
+              >
+                {result.stability}
+              </span>
+            </div>
+            <div className="mt-2 text-[11px] text-muted-foreground">
+              Score interval {formatScore(result.scoreInterval[0])}-{formatScore(result.scoreInterval[1])}
+            </div>
+            <div className="mt-1 text-[10px] text-muted-foreground">
+              Drivers: {result.topDrivers.map(getMetricLabel).join(', ')}
+            </div>
+          </div>
+        ))}
+        {robustnessResults.length === 0 && (
+          <div className="rounded border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+            Turn on sensitivity testing in the Model tab to generate robustness results.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function ModelTab({
   weights,
   totalAbsoluteWeight,
   scoreFilters,
   onToggleScoreFilter,
+  methodSettings,
+  onMethodSettingsChange,
   scoreBands,
   scenarioComparison,
   regions,
@@ -1325,6 +1512,8 @@ function ModelTab({
   totalAbsoluteWeight: number
   scoreFilters: ScoreFilterState
   onToggleScoreFilter: (filter: ScoreFilterKey) => void
+  methodSettings: ScoreMethodSettings
+  onMethodSettingsChange: (settings: ScoreMethodSettings) => void
   scoreBands: ScoreBandSummary[]
   scenarioComparison: ScenarioComparison | null
   regions: ScoredBoundaryRegion[]
@@ -1335,6 +1524,8 @@ function ModelTab({
   const activeFilters = SCORE_FILTER_DEFINITIONS.filter((filter) => scoreFilters[filter.key])
   const maxBandCount = Math.max(...scoreBands.map((band) => band.count), 1)
   const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+  const updateMethodSettings = <Key extends keyof ScoreMethodSettings>(key: Key, value: ScoreMethodSettings[Key]) =>
+    onMethodSettingsChange({ ...methodSettings, [key]: value })
 
   return (
     <div className="space-y-3 p-4" data-score-builder-section="model">
@@ -1345,11 +1536,11 @@ function ModelTab({
         </div>
         <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
           <p>
-            Each metric is normalized from 0 to 1 against the currently loaded regions. Positive weights prefer high
-            normalized values; negative weights prefer low values.
+            Each metric is normalized from 0 to 1 with the selected method against the currently loaded regions.
+            Positive weights prefer high normalized values; negative weights prefer low values.
           </p>
           <p>
-            The final score is <span className="font-mono text-foreground">100 * sum(weight share * directional value)</span>.
+            The final score uses the selected aggregation method after active weights are converted to weight shares.
             Active weights are normalized by total influence, so a useful model can use any total.
           </p>
         </div>
@@ -1366,6 +1557,70 @@ function ModelTab({
             <div className="text-[10px] uppercase text-muted-foreground">Average</div>
             <div className="font-semibold text-foreground">{formatScore(scoreSpread.average)}</div>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="mb-2 text-sm font-semibold text-foreground">Method controls</div>
+        <div className="grid gap-2 text-xs">
+          <label className="space-y-1">
+            <span className="block font-medium text-muted-foreground">Normalization</span>
+            <select
+              value={methodSettings.normalization}
+              onChange={(event) =>
+                updateMethodSettings('normalization', event.target.value as ScoreMethodSettings['normalization'])
+              }
+              className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            >
+              <option value="minMax">Min-max</option>
+              <option value="percentile">Percentile rank</option>
+              <option value="zScore">Z-score</option>
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="block font-medium text-muted-foreground">Aggregation</span>
+            <select
+              value={methodSettings.aggregation}
+              onChange={(event) =>
+                updateMethodSettings('aggregation', event.target.value as ScoreMethodSettings['aggregation'])
+              }
+              className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            >
+              <option value="additive">Weighted average</option>
+              <option value="geometric">Geometric mean</option>
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="block font-medium text-muted-foreground">Missing data</span>
+            <select
+              value={methodSettings.missingData}
+              onChange={(event) =>
+                updateMethodSettings('missingData', event.target.value as ScoreMethodSettings['missingData'])
+              }
+              className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            >
+              <option value="zero">Treat missing as zero</option>
+              <option value="neutral">Treat missing as neutral</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => updateMethodSettings('sensitivity', !methodSettings.sensitivity)}
+            className={cn(
+              'flex items-center justify-between rounded-md border px-3 py-2 text-left transition-colors',
+              methodSettings.sensitivity
+                ? 'border-cyan-500/60 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/35 dark:text-cyan-100'
+                : 'border-input text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <span>
+              <span className="block font-semibold">Sensitivity test</span>
+              <span className="block text-[10px] text-muted-foreground">
+                Perturb active weights by 15% across 24 trials.
+              </span>
+            </span>
+            <span className="font-bold">{methodSettings.sensitivity ? 'ON' : 'OFF'}</span>
+          </button>
         </div>
       </div>
 
@@ -1450,9 +1705,7 @@ function ModelTab({
 
       {scenarioComparison && (
         <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
-          <div className="mb-2 text-sm font-semibold text-amber-950 dark:text-amber-100">
-            Scenario compare
-          </div>
+          <div className="mb-2 text-sm font-semibold text-amber-950 dark:text-amber-100">Scenario compare</div>
           <div className="grid grid-cols-2 gap-2 text-[11px] text-amber-900 dark:text-amber-100">
             <div className="rounded border border-amber-200/70 bg-white/50 p-2 dark:border-amber-900 dark:bg-amber-950/20">
               <div className="text-[10px] uppercase text-amber-700 dark:text-amber-300">Current top</div>
@@ -1460,9 +1713,7 @@ function ModelTab({
               <div>{formatScore(scenarioComparison.currentTopScore)}</div>
             </div>
             <div className="rounded border border-amber-200/70 bg-white/50 p-2 dark:border-amber-900 dark:bg-amber-950/20">
-              <div className="text-[10px] uppercase text-amber-700 dark:text-amber-300">
-                {scenarioComparison.label}
-              </div>
+              <div className="text-[10px] uppercase text-amber-700 dark:text-amber-300">{scenarioComparison.label}</div>
               <div className="font-semibold">{scenarioComparison.referenceTopName || 'None'}</div>
               <div>{formatScore(scenarioComparison.referenceTopScore)}</div>
             </div>
@@ -1474,6 +1725,9 @@ function ModelTab({
               {formatScore(scenarioComparison.averageDelta)}
             </span>
             {scenarioComparison.topChanged ? ' · top region changed' : ' · top region unchanged'}
+            <br />
+            Sensitivity: top area held in {(scenarioComparison.stableTopShare * 100).toFixed(0)}% of trials · avg rank
+            shift {scenarioComparison.averageRankShift.toFixed(1)}
           </div>
         </div>
       )}
@@ -1718,6 +1972,7 @@ function RegionsTab({
             <div>Sensors: {selectedRegion.counts.monitorCount.toLocaleString()}</div>
             <div>Parks: {selectedRegion.counts.parkCount.toLocaleString()}</div>
             <div>Restaurants: {selectedRegion.counts.restaurantCount.toLocaleString()}</div>
+            <div>Coverage: {(selectedRegion.dataCoverageScore * 100).toFixed(0)}%</div>
           </div>
           {selectedRegionDrivers.length > 0 && (
             <div className="mt-2 text-[11px] text-cyan-800 dark:text-cyan-200">

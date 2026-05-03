@@ -8,6 +8,10 @@ const boundaryMatrix = {
   bcHealth: [
     { level: 'chsa', label: 'CHSA', count: 229 },
   ],
+  cityPG: [
+    { level: 'elementarySchoolCatchment', label: 'Elementary School Catchment', count: 20 },
+    { level: 'secondarySchoolCatchment', label: 'Secondary School Catchment', count: 5 },
+  ],
 } as const
 
 test.describe('Score Builder desktop interface', () => {

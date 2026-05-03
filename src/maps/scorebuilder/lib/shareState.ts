@@ -3,6 +3,7 @@ import type {
   BoundarySource,
   CensusBoundaryLevel,
   BoundaryLevel,
+  CityBoundaryLevel,
 } from '@/maps/airquality'
 import type { ScoreDataSource, ScoreMetricWeightMap } from '../types'
 
@@ -11,6 +12,7 @@ export interface ScoreBuilderShareState {
   boundarySource: BoundarySource
   healthBoundaryLevel: BoundaryLevel
   censusBoundaryLevel: CensusBoundaryLevel
+  cityBoundaryLevel?: CityBoundaryLevel
   enabledDataSources: ScoreDataSource[]
   selectedNetworks: string[]
   weights: Partial<ScoreMetricWeightMap>

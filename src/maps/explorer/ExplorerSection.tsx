@@ -32,6 +32,7 @@ import type {
 
 const ALL_GEOMETRY_TYPES: ExplorerGeometryType[] = ['point', 'line', 'polygon']
 const ALL_DATASET_IDS: ExplorerDatasetId[] = EXPLORER_DATASETS.map((dataset) => dataset.id)
+const EXPLORER_SESSION_NOW = Date.now()
 
 type SortMode = 'relevance' | 'name'
 
@@ -268,7 +269,7 @@ export default function ExplorerSection() {
       })
       .map((incident) => {
         const category = getCrimeCategory(incident.crimeType)
-        const ageDays = Math.max(0, (Date.now() - incident.date.getTime()) / 86_400_000)
+        const ageDays = Math.max(0, (EXPLORER_SESSION_NOW - incident.date.getTime()) / 86_400_000)
         const recencyPts = Math.round(Math.max(0, 34 - Math.min(ageDays / 14, 34)))
         const locationPts = incident.address || incident.community ? 12 : 4
         const filePts = incident.fileNumber ? 8 : 0

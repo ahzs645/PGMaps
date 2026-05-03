@@ -1,11 +1,21 @@
-import type { BoundaryIndex, BoundaryLevel, BoundarySource, CensusBoundaryLevel } from '@/maps/airquality'
+import type {
+  BoundaryIndex,
+  BoundaryLevel,
+  BoundarySource,
+  CensusBoundaryLevel,
+  CityBoundaryLevel,
+} from '@/maps/airquality'
 import type {
   ScoreDataSource,
   ScoreExample,
   ScoreMetricDefinition,
+  ScoreMetricDirection,
+  ScoreMetricComponent,
   ScoreMetricKey,
   ScoreMetricWeightMap,
-  ScorePreset
+  ScoreSpatialMethod,
+  ScoreUncertaintyLevel,
+  ScorePreset,
 } from './types'
 
 export type ScorePaletteKey = 'airCoverage' | 'benefit' | 'affordability' | 'riskPressure' | 'default'
@@ -20,7 +30,12 @@ export interface ScorePaletteProfile {
   }
 }
 
-export const SCORE_METRICS: ScoreMetricDefinition[] = [
+type ScoreMetricBaseDefinition = Omit<
+  ScoreMetricDefinition,
+  'direction' | 'component' | 'dataSourceLabel' | 'spatialMethod' | 'uncertainty' | 'caveat'
+>
+
+const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
   // Air Quality
   {
     key: 'overallDensity',
@@ -28,7 +43,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Overall density',
     description: 'Total sensors per km² inside each boundary.',
     format: 'density',
-    category: 'airQuality'
+    category: 'airQuality',
   },
   {
     key: 'lowCostDensity',
@@ -36,7 +51,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Low-cost density',
     description: 'Low-cost network sensors (PA + EGG) per km².',
     format: 'density',
-    category: 'airQuality'
+    category: 'airQuality',
   },
   {
     key: 'referenceDensity',
@@ -44,7 +59,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Reference density',
     description: 'Regulatory and non-low-cost sensors per km².',
     format: 'density',
-    category: 'airQuality'
+    category: 'airQuality',
   },
   {
     key: 'networkVariety',
@@ -52,7 +67,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Network variety',
     description: 'Unique monitoring networks represented in a boundary.',
     format: 'count',
-    category: 'airQuality'
+    category: 'airQuality',
   },
   {
     key: 'parameterVariety',
@@ -60,7 +75,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Parameter variety',
     description: 'Unique parameter labels observed among sensors.',
     format: 'count',
-    category: 'airQuality'
+    category: 'airQuality',
   },
   {
     key: 'activeShare',
@@ -68,7 +83,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Active share',
     description: 'Share of in-boundary sensors marked active.',
     format: 'ratio',
-    category: 'airQuality'
+    category: 'airQuality',
   },
   {
     key: 'monitorCount',
@@ -76,7 +91,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Sensor count',
     description: 'Absolute number of sensors in each boundary.',
     format: 'count',
-    category: 'airQuality'
+    category: 'airQuality',
   },
   // Parks & Recreation
   {
@@ -85,7 +100,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Park density',
     description: 'Number of parks per km² in each boundary.',
     format: 'density',
-    category: 'parksRec'
+    category: 'parksRec',
   },
   {
     key: 'parkAreaRatio',
@@ -93,7 +108,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Park area %',
     description: 'Percentage of boundary area covered by parks.',
     format: 'percent',
-    category: 'parksRec'
+    category: 'parksRec',
   },
   {
     key: 'trailDensity',
@@ -101,7 +116,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Trail density',
     description: 'Trail km per km² in each boundary.',
     format: 'density',
-    category: 'parksRec'
+    category: 'parksRec',
   },
   {
     key: 'amenityDensity',
@@ -109,7 +124,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Amenity density',
     description: 'Park amenities per km² in each boundary.',
     format: 'density',
-    category: 'parksRec'
+    category: 'parksRec',
   },
   // Food Safety
   {
@@ -118,7 +133,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Restaurant density',
     description: 'Restaurants per km² in each boundary.',
     format: 'density',
-    category: 'foodSafety'
+    category: 'foodSafety',
   },
   {
     key: 'foodRiskScore',
@@ -126,7 +141,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Food risk',
     description: 'Average hazard level of food facilities (0=Low, 1=High).',
     format: 'ratio',
-    category: 'foodSafety'
+    category: 'foodSafety',
   },
   {
     key: 'criticalViolationRate',
@@ -134,7 +149,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Critical rate',
     description: 'Critical violations per inspection for restaurants in each boundary.',
     format: 'ratio',
-    category: 'foodSafety'
+    category: 'foodSafety',
   },
   {
     key: 'followUpRate',
@@ -142,7 +157,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Follow-up rate',
     description: 'Share of inspections that required a follow-up.',
     format: 'ratio',
-    category: 'foodSafety'
+    category: 'foodSafety',
   },
   // Demographics
   {
@@ -151,7 +166,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Pop. density',
     description: 'Census population per km² from overlapping DAs.',
     format: 'density',
-    category: 'demographics'
+    category: 'demographics',
   },
   // Property & Housing
   {
@@ -160,7 +175,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Parcel density',
     description: 'BC Assessment parcels per km².',
     format: 'density',
-    category: 'property'
+    category: 'property',
   },
   {
     key: 'avgAssessedValue',
@@ -168,7 +183,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Avg. value',
     description: 'Average total assessed parcel value.',
     format: 'currency',
-    category: 'property'
+    category: 'property',
   },
   {
     key: 'valueGrowth10y',
@@ -176,7 +191,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: '10y growth',
     description: 'Average parcel value growth across available assessment history.',
     format: 'percent',
-    category: 'property'
+    category: 'property',
   },
   {
     key: 'buildingAge',
@@ -184,7 +199,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Building age',
     description: 'Average age of parcels with a known year built.',
     format: 'years',
-    category: 'property'
+    category: 'property',
   },
   {
     key: 'vacantParcelShare',
@@ -192,7 +207,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Vacant share',
     description: 'Share of parcels classified as vacant.',
     format: 'percent',
-    category: 'property'
+    category: 'property',
   },
   {
     key: 'multiFamilyShare',
@@ -200,7 +215,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Multi-family',
     description: 'Share of parcels classified as multi-family.',
     format: 'percent',
-    category: 'property'
+    category: 'property',
   },
   {
     key: 'commercialShare',
@@ -208,7 +223,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Commercial',
     description: 'Share of parcels classified as commercial.',
     format: 'percent',
-    category: 'property'
+    category: 'property',
   },
   {
     key: 'landValueShare',
@@ -216,7 +231,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Land value',
     description: 'Share of assessed value assigned to land rather than buildings.',
     format: 'percent',
-    category: 'property'
+    category: 'property',
   },
   // Safety
   {
@@ -225,7 +240,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Crime density',
     description: 'Crime incidents per km².',
     format: 'density',
-    category: 'safety'
+    category: 'safety',
   },
   {
     key: 'crimePerCapita',
@@ -233,7 +248,7 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Crime/capita',
     description: 'Crime incidents per resident based on census population.',
     format: 'ratio',
-    category: 'safety'
+    category: 'safety',
   },
   {
     key: 'recentCrimeShare',
@@ -241,15 +256,167 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = [
     shortLabel: 'Recent crime',
     description: 'Share of incidents from the most recent 180 days in the loaded data.',
     format: 'percent',
-    category: 'safety'
-  }
+    category: 'safety',
+  },
 ]
 
-export const SCORE_METRICS_BY_CATEGORY = SCORE_METRICS.reduce((acc, metric) => {
-  if (!acc[metric.category]) acc[metric.category] = []
-  acc[metric.category].push(metric)
-  return acc
-}, {} as Record<string, ScoreMetricDefinition[]>)
+const METRIC_DIRECTION: Record<ScoreMetricKey, ScoreMetricDirection> = {
+  overallDensity: 'higherIsBetter',
+  lowCostDensity: 'higherIsBetter',
+  referenceDensity: 'higherIsBetter',
+  networkVariety: 'higherIsBetter',
+  parameterVariety: 'higherIsBetter',
+  activeShare: 'higherIsBetter',
+  monitorCount: 'higherIsBetter',
+  parkDensity: 'higherIsBetter',
+  parkAreaRatio: 'higherIsBetter',
+  trailDensity: 'higherIsBetter',
+  amenityDensity: 'higherIsBetter',
+  restaurantDensity: 'higherIsBetter',
+  foodRiskScore: 'higherIsWorse',
+  criticalViolationRate: 'higherIsWorse',
+  followUpRate: 'higherIsWorse',
+  populationDensity: 'higherIsWorse',
+  parcelDensity: 'higherIsBetter',
+  avgAssessedValue: 'higherIsBetter',
+  valueGrowth10y: 'higherIsWorse',
+  buildingAge: 'higherIsWorse',
+  vacantParcelShare: 'higherIsWorse',
+  multiFamilyShare: 'higherIsBetter',
+  commercialShare: 'higherIsBetter',
+  landValueShare: 'higherIsWorse',
+  crimeDensity: 'higherIsWorse',
+  crimePerCapita: 'higherIsWorse',
+  recentCrimeShare: 'higherIsWorse',
+}
+
+const METRIC_COMPONENT: Record<ScoreMetricKey, ScoreMetricComponent> = {
+  overallDensity: 'monitoringAdequacy',
+  lowCostDensity: 'monitoringAdequacy',
+  referenceDensity: 'monitoringAdequacy',
+  networkVariety: 'monitoringAdequacy',
+  parameterVariety: 'monitoringAdequacy',
+  activeShare: 'monitoringAdequacy',
+  monitorCount: 'monitoringAdequacy',
+  parkDensity: 'adaptiveCapacity',
+  parkAreaRatio: 'adaptiveCapacity',
+  trailDensity: 'serviceAccess',
+  amenityDensity: 'serviceAccess',
+  restaurantDensity: 'serviceAccess',
+  foodRiskScore: 'environmentalBurden',
+  criticalViolationRate: 'environmentalBurden',
+  followUpRate: 'environmentalBurden',
+  populationDensity: 'sensitivity',
+  parcelDensity: 'housingPressure',
+  avgAssessedValue: 'housingPressure',
+  valueGrowth10y: 'housingPressure',
+  buildingAge: 'housingPressure',
+  vacantParcelShare: 'housingPressure',
+  multiFamilyShare: 'adaptiveCapacity',
+  commercialShare: 'serviceAccess',
+  landValueShare: 'housingPressure',
+  crimeDensity: 'safetyPressure',
+  crimePerCapita: 'safetyPressure',
+  recentCrimeShare: 'safetyPressure',
+}
+
+const METRIC_SPATIAL_METHOD: Record<ScoreMetricKey, ScoreSpatialMethod> = {
+  overallDensity: 'pointInPolygon',
+  lowCostDensity: 'pointInPolygon',
+  referenceDensity: 'pointInPolygon',
+  networkVariety: 'pointInPolygon',
+  parameterVariety: 'pointInPolygon',
+  activeShare: 'pointInPolygon',
+  monitorCount: 'pointInPolygon',
+  parkDensity: 'centroidInPolygon',
+  parkAreaRatio: 'centroidInPolygon',
+  trailDensity: 'midpointInPolygon',
+  amenityDensity: 'pointInPolygon',
+  restaurantDensity: 'pointInPolygon',
+  foodRiskScore: 'pointInPolygon',
+  criticalViolationRate: 'pointInPolygon',
+  followUpRate: 'pointInPolygon',
+  populationDensity: 'centroidInPolygon',
+  parcelDensity: 'directBoundaryJoin',
+  avgAssessedValue: 'directBoundaryJoin',
+  valueGrowth10y: 'directBoundaryJoin',
+  buildingAge: 'directBoundaryJoin',
+  vacantParcelShare: 'directBoundaryJoin',
+  multiFamilyShare: 'directBoundaryJoin',
+  commercialShare: 'directBoundaryJoin',
+  landValueShare: 'directBoundaryJoin',
+  crimeDensity: 'pointInPolygon',
+  crimePerCapita: 'pointInPolygon',
+  recentCrimeShare: 'pointInPolygon',
+}
+
+const METRIC_UNCERTAINTY: Record<ScoreMetricKey, ScoreUncertaintyLevel> = {
+  overallDensity: 'medium',
+  lowCostDensity: 'medium',
+  referenceDensity: 'low',
+  networkVariety: 'medium',
+  parameterVariety: 'medium',
+  activeShare: 'medium',
+  monitorCount: 'medium',
+  parkDensity: 'medium',
+  parkAreaRatio: 'high',
+  trailDensity: 'medium',
+  amenityDensity: 'medium',
+  restaurantDensity: 'medium',
+  foodRiskScore: 'medium',
+  criticalViolationRate: 'medium',
+  followUpRate: 'medium',
+  populationDensity: 'medium',
+  parcelDensity: 'low',
+  avgAssessedValue: 'low',
+  valueGrowth10y: 'medium',
+  buildingAge: 'medium',
+  vacantParcelShare: 'medium',
+  multiFamilyShare: 'medium',
+  commercialShare: 'medium',
+  landValueShare: 'medium',
+  crimeDensity: 'high',
+  crimePerCapita: 'high',
+  recentCrimeShare: 'high',
+}
+
+const METRIC_CAVEATS: Partial<Record<ScoreMetricKey, string>> = {
+  parkAreaRatio: 'Uses park centroid assignment, so parks crossing a boundary are not area-weighted yet.',
+  trailDensity: 'Uses trail midpoint assignment rather than network-length clipping by boundary.',
+  populationDensity: 'Uses census unit centroids; future versions should support area or population weighting.',
+  crimeDensity: 'Live point data can shift over time and should be interpreted as planning context, not official risk.',
+  crimePerCapita: 'Combines live incidents with census population, so temporal alignment is approximate.',
+  recentCrimeShare: 'Recent window is relative to the newest loaded incident date.',
+}
+
+function metricDataSourceLabel(category: ScoreMetricDefinition['category']): string {
+  if (category === 'airQuality') return 'Air quality monitor inventory'
+  if (category === 'parksRec') return 'City of Prince George parks, trails, and amenities'
+  if (category === 'foodSafety') return 'Northern Health food facility inspections'
+  if (category === 'demographics') return 'Statistics Canada census boundary data'
+  if (category === 'property') return 'BC Assessment parcel data'
+  if (category === 'safety') return 'City of Prince George crime incidents'
+  return 'PGMaps data source'
+}
+
+export const SCORE_METRICS: ScoreMetricDefinition[] = SCORE_METRIC_BASES.map((metric) => ({
+  ...metric,
+  direction: METRIC_DIRECTION[metric.key],
+  component: METRIC_COMPONENT[metric.key],
+  dataSourceLabel: metricDataSourceLabel(metric.category),
+  spatialMethod: METRIC_SPATIAL_METHOD[metric.key],
+  uncertainty: METRIC_UNCERTAINTY[metric.key],
+  caveat: METRIC_CAVEATS[metric.key],
+}))
+
+export const SCORE_METRICS_BY_CATEGORY = SCORE_METRICS.reduce(
+  (acc, metric) => {
+    if (!acc[metric.category]) acc[metric.category] = []
+    acc[metric.category].push(metric)
+    return acc
+  },
+  {} as Record<string, ScoreMetricDefinition[]>,
+)
 
 const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   overallDensity: 0,
@@ -278,7 +445,7 @@ const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   landValueShare: 0,
   crimeDensity: 0,
   crimePerCapita: 0,
-  recentCrimeShare: 0
+  recentCrimeShare: 0,
 }
 
 export const DEFAULT_SCORE_WEIGHTS: ScoreMetricWeightMap = {
@@ -288,7 +455,7 @@ export const DEFAULT_SCORE_WEIGHTS: ScoreMetricWeightMap = {
   referenceDensity: 25,
   networkVariety: 8,
   parameterVariety: 4,
-  activeShare: 3
+  activeShare: 3,
 }
 
 export const SCORE_PRESETS: ScorePreset[] = [
@@ -303,8 +470,8 @@ export const SCORE_PRESETS: ScorePreset[] = [
       referenceDensity: 24,
       networkVariety: 10,
       parameterVariety: 5,
-      activeShare: 3
-    }
+      activeShare: 3,
+    },
   },
   {
     key: 'lowCostExpansion',
@@ -317,8 +484,8 @@ export const SCORE_PRESETS: ScorePreset[] = [
       referenceDensity: 8,
       networkVariety: 12,
       parameterVariety: 7,
-      activeShare: 10
-    }
+      activeShare: 10,
+    },
   },
   {
     key: 'referenceNetwork',
@@ -332,8 +499,8 @@ export const SCORE_PRESETS: ScorePreset[] = [
       networkVariety: 8,
       parameterVariety: 5,
       activeShare: 12,
-      monitorCount: 5
-    }
+      monitorCount: 5,
+    },
   },
   {
     key: 'livabilityIndex',
@@ -349,8 +516,8 @@ export const SCORE_PRESETS: ScorePreset[] = [
       foodRiskScore: -15,
       populationDensity: 10,
       overallDensity: 8,
-      activeShare: 7
-    }
+      activeShare: 7,
+    },
   },
   {
     key: 'environmentalHealth',
@@ -366,8 +533,139 @@ export const SCORE_PRESETS: ScorePreset[] = [
       trailDensity: 10,
       amenityDensity: 5,
       populationDensity: 8,
-      networkVariety: 5
-    }
+      networkVariety: 5,
+    },
+  },
+  {
+    key: 'climateCommunityHealth',
+    label: 'Climate + Health Vulnerability',
+    description: 'Exposure, sensitivity, housing pressure, and adaptive capacity as explicit assumptions.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 18,
+      overallDensity: -14,
+      lowCostDensity: -8,
+      referenceDensity: -10,
+      parkAreaRatio: -16,
+      trailDensity: -8,
+      amenityDensity: -6,
+      avgAssessedValue: -10,
+      vacantParcelShare: 7,
+      buildingAge: 8,
+      crimePerCapita: 8,
+      foodRiskScore: 5,
+    },
+  },
+  {
+    key: 'sensorGapEquity',
+    label: 'Sensor Gap + Equity',
+    description: 'Finds populated areas with weak monitor coverage and low adaptive-capacity proxies.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 28,
+      overallDensity: -26,
+      lowCostDensity: -18,
+      referenceDensity: -16,
+      networkVariety: -6,
+      parkAreaRatio: -4,
+      activeShare: -2,
+    },
+  },
+  {
+    key: 'schoolExposureMobility',
+    label: 'School Exposure + Mobility',
+    description: 'Proxy model for child-serving areas: parks/trails help, food-risk and sparse monitoring hurt.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 18,
+      parkDensity: 14,
+      trailDensity: 16,
+      amenityDensity: 10,
+      overallDensity: -12,
+      referenceDensity: -8,
+      foodRiskScore: -8,
+      criticalViolationRate: -6,
+      crimePerCapita: -8,
+    },
+  },
+  {
+    key: 'monitoringGapProxy',
+    label: 'Monitoring Gap 2.0 Proxy',
+    description: 'Higher scores flag populated areas where additional air monitoring may add value.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 30,
+      overallDensity: -28,
+      referenceDensity: -18,
+      lowCostDensity: -14,
+      networkVariety: -5,
+      activeShare: -5,
+    },
+  },
+  {
+    key: 'heatShadeNeedProxy',
+    label: 'Heat + Shade Need Proxy',
+    description: 'Higher scores flag dense areas with older housing and weaker green-space capacity proxies.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 24,
+      buildingAge: 18,
+      parkAreaRatio: -22,
+      parkDensity: -12,
+      trailDensity: -8,
+      amenityDensity: -6,
+      avgAssessedValue: -10,
+    },
+  },
+  {
+    key: 'housingClimateRetrofitNeed',
+    label: 'Housing Climate Retrofit Need',
+    description: 'Higher scores flag older, lower-resource housing areas with weaker adaptive-capacity proxies.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      buildingAge: 26,
+      avgAssessedValue: -20,
+      multiFamilyShare: 12,
+      populationDensity: 12,
+      parkAreaRatio: -10,
+      overallDensity: -8,
+      valueGrowth10y: -6,
+      parcelDensity: 6,
+    },
+  },
+  {
+    key: 'foodSafetyAccess',
+    label: 'Food Safety + Access',
+    description: 'Higher scores flag areas with food access but lower inspection pressure and better context.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      restaurantDensity: 26,
+      foodRiskScore: -22,
+      criticalViolationRate: -18,
+      followUpRate: -10,
+      populationDensity: 12,
+      crimePerCapita: -7,
+      amenityDensity: 5,
+    },
+  },
+  {
+    key: 'communityResilienceProxy',
+    label: 'Community Resilience Proxy',
+    description: 'Higher scores combine monitoring, parks, services, housing mix, and lower safety/food pressure.',
+    weights: {
+      ...ZERO_WEIGHTS,
+      overallDensity: 10,
+      activeShare: 6,
+      parkAreaRatio: 16,
+      parkDensity: 10,
+      trailDensity: 10,
+      amenityDensity: 8,
+      restaurantDensity: 6,
+      foodRiskScore: -8,
+      multiFamilyShare: 8,
+      buildingAge: -8,
+      crimePerCapita: -10,
+    },
   },
   {
     key: 'housingAffordability',
@@ -381,8 +679,8 @@ export const SCORE_PRESETS: ScorePreset[] = [
       parcelDensity: 8,
       buildingAge: 8,
       vacantParcelShare: 6,
-      populationDensity: 6
-    }
+      populationDensity: 6,
+    },
   },
   {
     key: 'redevelopmentPressure',
@@ -396,8 +694,8 @@ export const SCORE_PRESETS: ScorePreset[] = [
       buildingAge: 14,
       commercialShare: 8,
       parcelDensity: 6,
-      populationDensity: 4
-    }
+      populationDensity: 4,
+    },
   },
   {
     key: 'completeNeighbourhood',
@@ -414,8 +712,8 @@ export const SCORE_PRESETS: ScorePreset[] = [
       multiFamilyShare: 8,
       foodRiskScore: -6,
       criticalViolationRate: -6,
-      crimePerCapita: -8
-    }
+      crimePerCapita: -8,
+    },
   },
   {
     key: 'foodInspectionRisk',
@@ -427,8 +725,8 @@ export const SCORE_PRESETS: ScorePreset[] = [
       followUpRate: 24,
       foodRiskScore: 22,
       restaurantDensity: 10,
-      populationDensity: 10
-    }
+      populationDensity: 10,
+    },
   },
   {
     key: 'safetyPressure',
@@ -440,12 +738,19 @@ export const SCORE_PRESETS: ScorePreset[] = [
       crimePerCapita: 35,
       recentCrimeShare: 15,
       populationDensity: 10,
-      parcelDensity: 5
-    }
-  }
+      parcelDensity: 5,
+    },
+  },
 ]
 
-const SCORE_DATA_SOURCE_ORDER: ScoreDataSource[] = ['airQuality', 'parks', 'restaurants', 'census', 'bcAssessment', 'crime']
+const SCORE_DATA_SOURCE_ORDER: ScoreDataSource[] = [
+  'airQuality',
+  'parks',
+  'restaurants',
+  'census',
+  'bcAssessment',
+  'crime',
+]
 
 function metricCategoryToDataSource(category: string): ScoreDataSource | null {
   if (category === 'airQuality') return 'airQuality'
@@ -478,7 +783,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
     key: 'greenestNeighbourhoods',
     label: 'Greenest Neighbourhoods',
     question: 'Which parts of PG have the best park and trail access?',
-    description: 'Scores each census tract by park coverage, trail density, and amenity access. High-scoring areas have more green space per resident.',
+    description:
+      'Scores each census tract by park coverage, trail density, and amenity access. High-scoring areas have more green space per resident.',
     boundarySource: 'census',
     boundaryLevel: 'ct',
     dataSources: ['parks', 'census'],
@@ -489,14 +795,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       parkAreaRatio: 28,
       trailDensity: 20,
       amenityDensity: 15,
-      populationDensity: 15
-    }
+      populationDensity: 15,
+    },
   },
   {
     key: 'airQualityGapsCt',
     label: 'Air Monitoring Gaps (Tract)',
     question: 'Which PG tracts are underserved by air quality sensors?',
-    description: 'Highlights census tracts where sensor density is low relative to population. Low-scoring tracts are monitoring blind spots.',
+    description:
+      'Highlights census tracts where sensor density is low relative to population. Low-scoring tracts are monitoring blind spots.',
     boundarySource: 'census',
     boundaryLevel: 'ct',
     dataSources: ['airQuality', 'census'],
@@ -508,14 +815,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       referenceDensity: 20,
       networkVariety: 8,
       activeShare: 7,
-      populationDensity: -20
-    }
+      populationDensity: -20,
+    },
   },
   {
     key: 'foodSafetyCt',
     label: 'Food Safety Landscape (Tract)',
     question: 'How does restaurant density and food safety risk vary across PG tracts?',
-    description: 'Scores each tract by restaurant access and inspection risk. Negative weight on food risk means safer areas score higher.',
+    description:
+      'Scores each tract by restaurant access and inspection risk. Negative weight on food risk means safer areas score higher.',
     boundarySource: 'census',
     boundaryLevel: 'ct',
     dataSources: ['restaurants', 'census'],
@@ -525,14 +833,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       restaurantDensity: 35,
       foodRiskScore: -30,
       populationDensity: 20,
-      amenityDensity: 15
-    }
+      amenityDensity: 15,
+    },
   },
   {
     key: 'communityLivabilityCt',
     label: 'Community Livability (Tract)',
     question: 'Which PG tracts score highest across parks, food, air quality, and population?',
-    description: 'A holistic index blending all available data at the tract level. Best-scoring areas have parks, food options, air monitoring, and population.',
+    description:
+      'A holistic index blending all available data at the tract level. Best-scoring areas have parks, food options, air monitoring, and population.',
     boundarySource: 'census',
     boundaryLevel: 'ct',
     dataSources: ['airQuality', 'parks', 'restaurants', 'census'],
@@ -550,8 +859,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       networkVariety: 3,
       populationDensity: 10,
       lowCostDensity: 5,
-      referenceDensity: 5
-    }
+      referenceDensity: 5,
+    },
   },
 
   // Dissemination Area (DA) – 135 areas, fine-grained analysis
@@ -559,7 +868,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
     key: 'lowCostSensorDeploymentDa',
     label: 'Community Sensor Gaps (DA)',
     question: 'Where should community air sensors be prioritized at the block level?',
-    description: 'Uses 135 dissemination areas to find fine-grained gaps. Areas with high population but few PA/EGG sensors score lowest.',
+    description:
+      'Uses 135 dissemination areas to find fine-grained gaps. Areas with high population but few PA/EGG sensors score lowest.',
     boundarySource: 'census',
     boundaryLevel: 'da',
     dataSources: ['airQuality', 'census'],
@@ -571,14 +881,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       activeShare: 10,
       populationDensity: -25,
       parameterVariety: 8,
-      networkVariety: 7
-    }
+      networkVariety: 7,
+    },
   },
   {
     key: 'parkAccessDa',
     label: 'Park Access (DA)',
     question: 'Which small neighbourhoods have the least green space access?',
-    description: 'Fine-grained view using 135 dissemination areas. Low-scoring areas lack nearby parks, trails, and amenities relative to their population.',
+    description:
+      'Fine-grained view using 135 dissemination areas. Low-scoring areas lack nearby parks, trails, and amenities relative to their population.',
     boundarySource: 'census',
     boundaryLevel: 'da',
     dataSources: ['parks', 'census'],
@@ -589,14 +900,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       parkAreaRatio: 30,
       trailDensity: 18,
       amenityDensity: 12,
-      populationDensity: -20
-    }
+      populationDensity: -20,
+    },
   },
   {
     key: 'foodAccessDa',
     label: 'Food Access (DA)',
     question: 'Which dissemination areas are food deserts or have high inspection risk?',
-    description: 'Fine-grained restaurant coverage across 135 areas. Highlights both under-served areas and areas with high food safety risk.',
+    description:
+      'Fine-grained restaurant coverage across 135 areas. Highlights both under-served areas and areas with high food safety risk.',
     boundarySource: 'census',
     boundaryLevel: 'da',
     dataSources: ['restaurants', 'census'],
@@ -606,8 +918,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       restaurantDensity: 40,
       foodRiskScore: -25,
       populationDensity: 20,
-      amenityDensity: 15
-    }
+      amenityDensity: 15,
+    },
   },
   {
     key: 'livabilityDa',
@@ -631,14 +943,85 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       networkVariety: 4,
       populationDensity: 12,
       lowCostDensity: 6,
-      referenceDensity: 7
-    }
+      referenceDensity: 7,
+    },
+  },
+  {
+    key: 'pgClimateHealthVulnerabilityDa',
+    label: 'PG Climate + Health Vulnerability (DA)',
+    question: 'Which small areas have higher cumulative climate and community-health vulnerability?',
+    description:
+      'Research-backed starter index that combines exposure proxies, population sensitivity, property vulnerability, and adaptive capacity. High scores mark areas needing closer review.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['airQuality', 'parks', 'restaurants', 'census', 'bcAssessment', 'crime'],
+    networkFilter: 'all',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 18,
+      overallDensity: -14,
+      lowCostDensity: -8,
+      referenceDensity: -10,
+      parkAreaRatio: -16,
+      trailDensity: -8,
+      amenityDensity: -6,
+      avgAssessedValue: -10,
+      vacantParcelShare: 7,
+      buildingAge: 8,
+      crimePerCapita: 8,
+      foodRiskScore: 5,
+    },
+  },
+  {
+    key: 'sensorGapEquityDa',
+    label: 'Sensor Gap + Equity Finder (DA)',
+    question: 'Where should PG prioritize new community air-quality monitors?',
+    description:
+      'Ranks populated areas with weaker monitor density, less network variety, and fewer nearby adaptive-capacity proxies.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['airQuality', 'parks', 'census'],
+    networkFilter: 'all',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 28,
+      overallDensity: -26,
+      lowCostDensity: -18,
+      referenceDensity: -16,
+      networkVariety: -6,
+      parkAreaRatio: -4,
+      activeShare: -2,
+    },
+  },
+  {
+    key: 'schoolExposureMobilityDa',
+    label: 'School Exposure + Active Mobility (DA)',
+    question: 'Which areas look stronger for child-serving mobility and lower exposure pressure?',
+    description:
+      'A near-term school proxy using population, trails, parks, amenities, monitor coverage, food-risk, and safety pressure until school points and catchments are fully wired in.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['airQuality', 'parks', 'restaurants', 'census', 'crime'],
+    networkFilter: 'all',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 18,
+      parkDensity: 14,
+      trailDensity: 16,
+      amenityDensity: 10,
+      overallDensity: -12,
+      referenceDensity: -8,
+      foodRiskScore: -8,
+      criticalViolationRate: -6,
+      crimePerCapita: -8,
+    },
   },
   {
     key: 'housingAffordabilityDa',
     label: 'Housing Affordability (DA)',
     question: 'Which small areas combine lower assessed values with more housing choice?',
-    description: 'Uses BC Assessment parcels to balance lower values, multi-family share, parcel density, and recent value growth.',
+    description:
+      'Uses BC Assessment parcels to balance lower values, multi-family share, parcel density, and recent value growth.',
     boundarySource: 'census',
     boundaryLevel: 'da',
     dataSources: ['bcAssessment', 'census'],
@@ -650,14 +1033,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       multiFamilyShare: 18,
       parcelDensity: 10,
       buildingAge: 8,
-      populationDensity: 8
-    }
+      populationDensity: 8,
+    },
   },
   {
     key: 'redevelopmentPressureDa',
     label: 'Redevelopment Pressure (DA)',
     question: 'Where does PG show the strongest property redevelopment pressure?',
-    description: 'Highlights DAs with older buildings, high land-value share, vacant parcels, and rapid assessment growth.',
+    description:
+      'Highlights DAs with older buildings, high land-value share, vacant parcels, and rapid assessment growth.',
     boundarySource: 'census',
     boundaryLevel: 'da',
     dataSources: ['bcAssessment', 'census'],
@@ -670,14 +1054,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       buildingAge: 14,
       commercialShare: 8,
       parcelDensity: 6,
-      populationDensity: 4
-    }
+      populationDensity: 4,
+    },
   },
   {
     key: 'completeNeighbourhoodDa',
     label: 'Complete Neighbourhood (DA)',
     question: 'Which small neighbourhoods have the best mix of services, parks, housing, and safety?',
-    description: 'Combines food, parks, trails, housing mix, density, and crime per capita into a neighbourhood completeness score.',
+    description:
+      'Combines food, parks, trails, housing mix, density, and crime per capita into a neighbourhood completeness score.',
     boundarySource: 'census',
     boundaryLevel: 'da',
     dataSources: ['restaurants', 'parks', 'bcAssessment', 'census', 'crime'],
@@ -693,8 +1078,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       multiFamilyShare: 8,
       foodRiskScore: -6,
       criticalViolationRate: -6,
-      crimePerCapita: -15
-    }
+      crimePerCapita: -15,
+    },
   },
   {
     key: 'foodInspectionRiskDa',
@@ -711,14 +1096,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       followUpRate: 24,
       foodRiskScore: 22,
       restaurantDensity: 10,
-      populationDensity: 10
-    }
+      populationDensity: 10,
+    },
   },
   {
     key: 'crimePressureDa',
     label: 'Crime Pressure (DA)',
     question: 'Where are incident counts high relative to area and population?',
-    description: 'Uses live PG crime points with census population to score density, per-capita risk, and recent activity.',
+    description:
+      'Uses live PG crime points with census population to score density, per-capita risk, and recent activity.',
     boundarySource: 'census',
     boundaryLevel: 'da',
     dataSources: ['crime', 'census'],
@@ -728,8 +1114,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       crimeDensity: 35,
       crimePerCapita: 35,
       recentCrimeShare: 15,
-      populationDensity: 15
-    }
+      populationDensity: 15,
+    },
   },
 
   // Census Subdivision (CSD) – 1 unit (city-wide), useful as a baseline
@@ -753,8 +1139,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       activeShare: 5,
       populationDensity: 10,
       amenityDensity: 8,
-      networkVariety: 7
-    }
+      networkVariety: 7,
+    },
   },
 
   // ── Health Authority boundaries ──────────────────────────────────────
@@ -763,8 +1149,9 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
   {
     key: 'provincialAirQualityHa',
     label: 'Provincial Air Quality (HA)',
-    question: 'Which of BC\'s 5 health authorities has the best sensor coverage?',
-    description: 'Compares the 5 health authorities across BC by overall sensor density, network variety, and reference station coverage.',
+    question: "Which of BC's 5 health authorities has the best sensor coverage?",
+    description:
+      'Compares the 5 health authorities across BC by overall sensor density, network variety, and reference station coverage.',
     boundarySource: 'bcHealth',
     boundaryLevel: 'healthAuthority',
     dataSources: ['airQuality'],
@@ -776,8 +1163,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       lowCostDensity: 15,
       networkVariety: 14,
       parameterVariety: 6,
-      activeShare: 10
-    }
+      activeShare: 10,
+    },
   },
 
   // HSDA – 16 regions, sub-regional comparison
@@ -798,8 +1185,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       networkVariety: 12,
       activeShare: 10,
       parameterVariety: 5,
-      monitorCount: 5
-    }
+      monitorCount: 5,
+    },
   },
 
   // LHA – ~89 regions, local area comparison
@@ -820,14 +1207,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       networkVariety: 12,
       parameterVariety: 6,
       activeShare: 8,
-      monitorCount: 4
-    }
+      monitorCount: 4,
+    },
   },
   {
     key: 'lhaLowCostExpansion',
     label: 'Low-Cost Expansion Targets (LHA)',
     question: 'Which LHAs would benefit most from more PurpleAir/EGG community sensors?',
-    description: 'Prioritizes local health areas with low community sensor density but existing reference coverage. Low scores = best expansion targets.',
+    description:
+      'Prioritizes local health areas with low community sensor density but existing reference coverage. Low scores = best expansion targets.',
     boundarySource: 'bcHealth',
     boundaryLevel: 'lha',
     dataSources: ['airQuality'],
@@ -840,8 +1228,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       networkVariety: 15,
       parameterVariety: 8,
       overallDensity: 10,
-      monitorCount: -5
-    }
+      monitorCount: -5,
+    },
   },
 
   // CHSA – ~200+ regions, community-level comparison
@@ -849,7 +1237,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
     key: 'chsaSensorCoverage',
     label: 'Community Health Sensor Coverage (CHSA)',
     question: 'Which community health service areas across BC have the worst sensor coverage?',
-    description: 'The most granular health boundary level with ~200+ areas. Shows fine-grained provincial monitoring gaps.',
+    description:
+      'The most granular health boundary level with ~200+ areas. Shows fine-grained provincial monitoring gaps.',
     boundarySource: 'bcHealth',
     boundaryLevel: 'chsa',
     dataSources: ['airQuality'],
@@ -862,14 +1251,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       networkVariety: 10,
       activeShare: 10,
       parameterVariety: 5,
-      monitorCount: 7
-    }
+      monitorCount: 7,
+    },
   },
   {
     key: 'chsaReferenceGaps',
     label: 'Reference Station Gaps (CHSA)',
     question: 'Which community areas lack government-grade reference monitoring?',
-    description: 'Highlights CHSAs that rely entirely on community sensors with no reference stations. Low scores = regulatory monitoring gaps.',
+    description:
+      'Highlights CHSAs that rely entirely on community sensors with no reference stations. Low scores = regulatory monitoring gaps.',
     boundarySource: 'bcHealth',
     boundaryLevel: 'chsa',
     dataSources: ['airQuality'],
@@ -881,16 +1271,15 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       activeShare: 15,
       parameterVariety: 10,
       networkVariety: 8,
-      monitorCount: 7
-    }
-  }
+      monitorCount: 7,
+    },
+  },
 ]
 
 export const SCORE_BUILDER_EXAMPLES: ScoreExample[] = SCORE_EXAMPLES.filter(
   (example) =>
-    (example.boundarySource === 'census' &&
-      (example.boundaryLevel === 'ct' || example.boundaryLevel === 'da')) ||
-    (example.boundarySource === 'bcHealth' && example.boundaryLevel === 'chsa')
+    (example.boundarySource === 'census' && (example.boundaryLevel === 'ct' || example.boundaryLevel === 'da')) ||
+    (example.boundarySource === 'bcHealth' && example.boundaryLevel === 'chsa'),
 )
 
 export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
@@ -908,7 +1297,7 @@ export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
   'valueGrowth10y',
   'buildingAge',
   'crimeDensity',
-  'crimePerCapita'
+  'crimePerCapita',
 ]
 
 export const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
@@ -921,17 +1310,22 @@ export const BOUNDARY_SOURCE_OPTIONS: Array<{
   {
     value: 'bcHealth',
     label: 'CHSA health boundaries',
-    description: 'Community Health Service Areas'
+    description: 'Community Health Service Areas',
   },
   {
     value: 'census',
     label: 'Census boundaries',
-    description: 'PG census tract -> dissemination area'
-  }
+    description: 'PG census tract -> dissemination area',
+  },
+  {
+    value: 'cityPG',
+    label: 'School catchments',
+    description: 'Elementary and secondary catchments',
+  },
 ]
 
 export const HEALTH_BOUNDARY_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }> = [
-  { value: 'chsa', label: 'CHSA' }
+  { value: 'chsa', label: 'CHSA' },
 ]
 
 // Backward-compatible alias used by existing imports.
@@ -939,35 +1333,40 @@ export const BOUNDARY_LEVEL_OPTIONS = HEALTH_BOUNDARY_LEVEL_OPTIONS
 
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: Array<{ value: CensusBoundaryLevel; label: string }> = [
   { value: 'ct', label: 'Census Tract' },
-  { value: 'da', label: 'Dissemination Area' }
+  { value: 'da', label: 'Dissemination Area' },
+]
+
+export const CITY_BOUNDARY_LEVEL_OPTIONS: Array<{ value: CityBoundaryLevel; label: string }> = [
+  { value: 'elementarySchoolCatchment', label: 'Elementary School Catchment' },
+  { value: 'secondarySchoolCatchment', label: 'Secondary School Catchment' },
 ]
 
 export const BOUNDARY_FILE_BY_LEVEL: Record<BoundaryLevel, string> = {
   healthAuthority: 'simplified/health_authorities.json',
   hsda: 'simplified/health_service_delivery_areas.json',
   lha: 'simplified/local_health_areas.json',
-  chsa: 'simplified/community_health_service_areas.json'
+  chsa: 'simplified/community_health_service_areas.json',
 }
 
 export const BOUNDARY_INDEX_KEY_BY_LEVEL: Record<BoundaryLevel, keyof BoundaryIndex> = {
   healthAuthority: 'healthAuthorities',
   hsda: 'healthServiceDeliveryAreas',
   lha: 'localHealthAreas',
-  chsa: 'communityHealthServiceAreas'
+  chsa: 'communityHealthServiceAreas',
 }
 
 export const BOUNDARY_CODE_PROPERTY_BY_LEVEL: Record<BoundaryLevel, string> = {
   healthAuthority: 'HLTH_AUTHORITY_CODE',
   hsda: 'HLTH_SERVICE_DLVR_AREA_CODE',
   lha: 'LOCAL_HLTH_AREA_CODE',
-  chsa: 'CMNTY_HLTH_SERV_AREA_CODE'
+  chsa: 'CMNTY_HLTH_SERV_AREA_CODE',
 }
 
 export const BOUNDARY_NAME_PROPERTY_BY_LEVEL: Record<BoundaryLevel, string> = {
   healthAuthority: 'HLTH_AUTHORITY_NAME',
   hsda: 'HLTH_SERVICE_DLVR_AREA_NAME',
   lha: 'LOCAL_HLTH_AREA_NAME',
-  chsa: 'CMNTY_HLTH_SERV_AREA_NAME'
+  chsa: 'CMNTY_HLTH_SERV_AREA_NAME',
 }
 
 export function createDefaultWeights(): ScoreMetricWeightMap {
@@ -1002,7 +1401,7 @@ export function createMetricValueMap(initial = 0): Record<ScoreMetricKey, number
     landValueShare: initial,
     crimeDensity: initial,
     crimePerCapita: initial,
-    recentCrimeShare: initial
+    recentCrimeShare: initial,
   }
 }
 
@@ -1023,32 +1422,32 @@ export const SCORE_PALETTE_PROFILES: Record<ScorePaletteKey, ScorePaletteProfile
     key: 'airCoverage',
     label: 'Coverage score',
     colors: ['#7f1d1d', '#c2410c', '#a16207', '#4d7c0f', '#166534'],
-    legend: { low: 'Lower coverage', high: 'Higher coverage' }
+    legend: { low: 'Lower coverage', high: 'Higher coverage' },
   },
   benefit: {
     key: 'benefit',
     label: 'Benefit score',
     colors: ['#fefce8', '#bef264', '#84cc16', '#22c55e', '#14532d'],
-    legend: { low: 'Lower benefit', high: 'Higher benefit' }
+    legend: { low: 'Lower benefit', high: 'Higher benefit' },
   },
   affordability: {
     key: 'affordability',
     label: 'Affordability score',
     colors: ['#eff6ff', '#bae6fd', '#67e8f9', '#14b8a6', '#0f766e'],
-    legend: { low: 'Less affordable', high: 'More affordable' }
+    legend: { low: 'Less affordable', high: 'More affordable' },
   },
   riskPressure: {
     key: 'riskPressure',
     label: 'Risk / pressure score',
     colors: ['#fef08a', '#fb923c', '#ef4444', '#be123c', '#581c87'],
-    legend: { low: 'Lower pressure', high: 'Higher pressure' }
+    legend: { low: 'Lower pressure', high: 'Higher pressure' },
   },
   default: {
     key: 'default',
     label: 'Composite score',
     colors: ['#7f1d1d', '#b91c1c', '#b45309', '#4d7c0f', '#166534'],
-    legend: { low: 'Lower priority', high: 'Higher priority' }
-  }
+    legend: { low: 'Lower priority', high: 'Higher priority' },
+  },
 }
 
 const SCORE_PRESET_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
@@ -1057,11 +1456,19 @@ const SCORE_PRESET_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
   referenceNetwork: 'airCoverage',
   livabilityIndex: 'benefit',
   environmentalHealth: 'benefit',
+  climateCommunityHealth: 'riskPressure',
+  sensorGapEquity: 'riskPressure',
+  schoolExposureMobility: 'benefit',
+  monitoringGapProxy: 'riskPressure',
+  heatShadeNeedProxy: 'riskPressure',
+  housingClimateRetrofitNeed: 'riskPressure',
+  foodSafetyAccess: 'benefit',
+  communityResilienceProxy: 'benefit',
   housingAffordability: 'affordability',
   redevelopmentPressure: 'riskPressure',
   completeNeighbourhood: 'benefit',
   foodInspectionRisk: 'riskPressure',
-  safetyPressure: 'riskPressure'
+  safetyPressure: 'riskPressure',
 }
 
 const SCORE_EXAMPLE_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
@@ -1073,6 +1480,9 @@ const SCORE_EXAMPLE_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
   parkAccessDa: 'benefit',
   foodAccessDa: 'benefit',
   livabilityDa: 'benefit',
+  pgClimateHealthVulnerabilityDa: 'riskPressure',
+  sensorGapEquityDa: 'riskPressure',
+  schoolExposureMobilityDa: 'benefit',
   housingAffordabilityDa: 'affordability',
   redevelopmentPressureDa: 'riskPressure',
   completeNeighbourhoodDa: 'benefit',
@@ -1084,7 +1494,7 @@ const SCORE_EXAMPLE_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
   lhaMonitoringComparison: 'airCoverage',
   lhaLowCostExpansion: 'airCoverage',
   chsaSensorCoverage: 'airCoverage',
-  chsaReferenceGaps: 'airCoverage'
+  chsaReferenceGaps: 'airCoverage',
 }
 
 function interpolateChannel(start: number, end: number, ratio: number): number {
@@ -1108,11 +1518,12 @@ function interpolateHexColor(start: string, end: string, ratio: number): string 
 
 export function getScorePaletteProfile(
   activePresetKey: string | null,
-  activeExampleKey: string | null
+  activeExampleKey: string | null,
 ): ScorePaletteProfile {
-  const paletteKey = (activeExampleKey ? SCORE_EXAMPLE_PALETTE_KEYS[activeExampleKey] : undefined)
-    || (activePresetKey ? SCORE_PRESET_PALETTE_KEYS[activePresetKey] : undefined)
-    || 'default'
+  const paletteKey =
+    (activeExampleKey ? SCORE_EXAMPLE_PALETTE_KEYS[activeExampleKey] : undefined) ||
+    (activePresetKey ? SCORE_PRESET_PALETTE_KEYS[activePresetKey] : undefined) ||
+    'default'
   return SCORE_PALETTE_PROFILES[paletteKey]
 }
 

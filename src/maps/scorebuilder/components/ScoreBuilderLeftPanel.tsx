@@ -56,7 +56,7 @@ export function ScoreBuilderLeftPanel({
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Layers className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">Layers</h2>
+        <h2 className="text-sm font-semibold text-foreground">Index Inputs</h2>
         <span className="ml-auto text-[11px] text-muted-foreground">{regionCount} regions</span>
       </div>
 
@@ -67,7 +67,7 @@ export function ScoreBuilderLeftPanel({
           data-score-builder-section="setup"
         >
           <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Boundaries
+            Study area
           </h3>
 
           <div className="space-y-1.5">

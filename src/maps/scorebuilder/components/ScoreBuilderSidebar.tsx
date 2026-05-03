@@ -10,22 +10,34 @@ import {
   SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
   SCORE_BUILDER_EXAMPLES,
-  getScoreDataSourcesForWeights
+  getScoreDataSourcesForWeights,
 } from '../constants'
 import type {
+  RobustnessResult,
   ScoredBoundaryRegion,
   ScoreBandSummary,
+  ScoreComponentSummary,
   ScoreDataSource,
   ScoreFilterKey,
   ScoreFilterState,
   ScoreMetricKey,
   ScoreMetricWeightMap,
-  ScenarioComparison
+  ScoreMethodSettings,
+  ScenarioComparison,
 } from '../types'
 import { SCORE_DATA_SOURCES, METRIC_CATEGORY_LABELS } from '../types'
 import { RadarChart } from './RadarChart'
 
-type ScoreBuilderSectionId = 'examples' | 'setup' | 'dataSources' | 'equation' | 'model' | 'density' | 'regions'
+type ScoreBuilderSectionId =
+  | 'examples'
+  | 'setup'
+  | 'dataSources'
+  | 'equation'
+  | 'methodology'
+  | 'model'
+  | 'robustness'
+  | 'density'
+  | 'regions'
 
 type ExpandedSectionsState = Record<ScoreBuilderSectionId, boolean>
 
@@ -62,6 +74,10 @@ interface ScoreBuilderSidebarProps {
   excludedRegionCount: number
   scoreFilters: ScoreFilterState
   onToggleScoreFilter: (filter: ScoreFilterKey) => void
+  methodSettings: ScoreMethodSettings
+  onMethodSettingsChange: (settings: ScoreMethodSettings) => void
+  componentSummaries: ScoreComponentSummary[]
+  robustnessResults: RobustnessResult[]
   scoreBands: ScoreBandSummary[]
   scenarioComparison: ScenarioComparison | null
   filteredRegions: ScoredBoundaryRegion[]
@@ -83,21 +99,30 @@ interface ScoreBuilderSidebarProps {
 }
 
 const MAX_VISIBLE_ROWS = 220
-const SECTION_ORDER: ScoreBuilderSectionId[] = ['examples', 'setup', 'dataSources', 'equation', 'model', 'density', 'regions']
+const SECTION_ORDER: ScoreBuilderSectionId[] = [
+  'examples',
+  'setup',
+  'dataSources',
+  'equation',
+  'methodology',
+  'model',
+  'robustness',
+  'density',
+  'regions',
+]
 const SECTION_LABELS: Record<ScoreBuilderSectionId, string> = {
   examples: 'Examples',
   setup: 'Setup',
   dataSources: 'Data Sources',
   equation: 'Equation',
+  methodology: 'Method',
   model: 'Model',
+  robustness: 'Robust',
   density: 'Density',
-  regions: 'Regions'
+  regions: 'Regions',
 }
 
-function presetAppliesToBoundary(
-  preset: (typeof SCORE_PRESETS)[number],
-  boundarySource: BoundarySource
-): boolean {
+function presetAppliesToBoundary(preset: (typeof SCORE_PRESETS)[number], boundarySource: BoundarySource): boolean {
   if (boundarySource !== 'bcHealth') return true
   const sources = getScoreDataSourcesForWeights(preset.weights)
   return sources.length === 1 && sources[0] === 'airQuality'
@@ -105,9 +130,29 @@ function presetAppliesToBoundary(
 
 function createExpandedSections(isDesktop: boolean): ExpandedSectionsState {
   if (isDesktop) {
-    return { examples: true, setup: false, dataSources: false, equation: false, model: false, density: false, regions: true }
+    return {
+      examples: true,
+      setup: false,
+      dataSources: false,
+      equation: false,
+      methodology: false,
+      model: false,
+      robustness: false,
+      density: false,
+      regions: true,
+    }
   }
-  return { examples: true, setup: false, dataSources: false, equation: false, model: false, density: false, regions: true }
+  return {
+    examples: true,
+    setup: false,
+    dataSources: false,
+    equation: false,
+    methodology: false,
+    model: false,
+    robustness: false,
+    density: false,
+    regions: true,
+  }
 }
 
 function getMetricLabel(key: ScoreMetricKey): string {
@@ -116,6 +161,12 @@ function getMetricLabel(key: ScoreMetricKey): string {
 
 function getMetricDescription(key: ScoreMetricKey): string {
   return SCORE_METRICS.find((metric) => metric.key === key)?.description || ''
+}
+
+function getMetricDirectionLabel(key: ScoreMetricKey): string {
+  const metric = SCORE_METRICS.find((entry) => entry.key === key)
+  if (!metric) return 'Direction not documented'
+  return metric.direction === 'higherIsBetter' ? 'Higher is generally beneficial' : 'Higher is generally a burden'
 }
 
 function getMetricFormat(key: ScoreMetricKey): string {
@@ -155,7 +206,8 @@ function formatMetricValue(metric: ScoreMetricKey, value: number, compact = fals
   if (format === 'percent') return `${(value * 100).toFixed(1)}%`
   if (format === 'currency') {
     if (compact) {
-      if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
+      if (Math.abs(value) >= 1_000_000)
+        return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
       return `$${Math.round(value / 1000).toLocaleString()}k`
     }
     return value.toLocaleString(undefined, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
@@ -176,14 +228,13 @@ function clampWeight(value: number): number {
 function getTopDrivers(
   region: ScoredBoundaryRegion,
   weights: ScoreMetricWeightMap,
-  limit = 2
+  limit = 2,
 ): Array<{ key: ScoreMetricKey; label: string; scoreDelta: number }> {
-  return SCORE_METRICS
-    .filter((metric) => weights[metric.key] !== 0)
+  return SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
     .map((metric) => ({
       key: metric.key,
       label: metric.shortLabel,
-      scoreDelta: region.contributions[metric.key] * 100
+      scoreDelta: region.contributions[metric.key] * 100,
     }))
     .filter((driver) => Math.abs(driver.scoreDelta) >= 0.005)
     .sort((a, b) => Math.abs(b.scoreDelta) - Math.abs(a.scoreDelta))
@@ -195,10 +246,26 @@ function formatDriverDelta(value: number): string {
 }
 
 const SCORE_FILTER_DEFINITIONS: Array<{ key: ScoreFilterKey; label: string; description: string }> = [
-  { key: 'requirePopulation', label: 'Require population data', description: 'Exclude regions without census population.' },
-  { key: 'requireParks', label: 'Require parks or trails', description: 'Exclude regions with no parks, trails, or amenities.' },
-  { key: 'limitCrime', label: 'Lower crime pressure', description: 'Keep regions at or below median crime per capita.' },
-  { key: 'limitFoodRisk', label: 'Lower food-risk pressure', description: 'Keep regions at or below median food risk.' }
+  {
+    key: 'requirePopulation',
+    label: 'Require population data',
+    description: 'Exclude regions without census population.',
+  },
+  {
+    key: 'requireParks',
+    label: 'Require parks or trails',
+    description: 'Exclude regions with no parks, trails, or amenities.',
+  },
+  {
+    key: 'limitCrime',
+    label: 'Lower crime pressure',
+    description: 'Keep regions at or below median crime per capita.',
+  },
+  {
+    key: 'limitFoodRisk',
+    label: 'Lower food-risk pressure',
+    description: 'Keep regions at or below median food risk.',
+  },
 ]
 
 export function ScoreBuilderSidebar({
@@ -234,6 +301,10 @@ export function ScoreBuilderSidebar({
   excludedRegionCount,
   scoreFilters,
   onToggleScoreFilter,
+  methodSettings,
+  onMethodSettingsChange,
+  componentSummaries,
+  robustnessResults,
   scoreBands,
   scenarioComparison,
   filteredRegions,
@@ -251,7 +322,7 @@ export function ScoreBuilderSidebar({
   onShareUrl,
   activeExampleKey,
   onApplyExample,
-  isDesktop
+  isDesktop,
 }: ScoreBuilderSidebarProps) {
   const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
@@ -261,42 +332,61 @@ export function ScoreBuilderSidebar({
   const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_ROWS), [filteredRegions])
   const activeExample = useMemo(
     () => SCORE_BUILDER_EXAMPLES.find((example) => example.key === activeExampleKey) || null,
-    [activeExampleKey]
+    [activeExampleKey],
   )
   const activePreset = useMemo(
     () => SCORE_PRESETS.find((preset) => preset.key === activePresetKey) || null,
-    [activePresetKey]
+    [activePresetKey],
   )
   const visiblePresets = useMemo(
     () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, boundarySource)),
-    [boundarySource]
+    [boundarySource],
   )
   const selectedRegionDrivers = useMemo(
-    () => selectedRegion ? getTopDrivers(selectedRegion, weights, 2) : [],
-    [selectedRegion, weights]
+    () => (selectedRegion ? getTopDrivers(selectedRegion, weights, 2) : []),
+    [selectedRegion, weights],
   )
 
   const totalAbsoluteWeight = useMemo(() => {
     return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
   }, [weights])
-  const activeMetricCount = useMemo(
-    () => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length,
-    [weights]
-  )
+  const activeMetricCount = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length, [weights])
+  const updateMethodSettings = <Key extends keyof ScoreMethodSettings>(key: Key, value: ScoreMethodSettings[Key]) =>
+    onMethodSettingsChange({ ...methodSettings, [key]: value })
 
-  const [expandedSections, setExpandedSections] = useState<ExpandedSectionsState>(() => createExpandedSections(isDesktop))
+  const [expandedSections, setExpandedSections] = useState<ExpandedSectionsState>(() =>
+    createExpandedSections(isDesktop),
+  )
   const [activeSection, setActiveSection] = useState<ScoreBuilderSectionId>('examples')
   const [showAllEquationMetrics, setShowAllEquationMetrics] = useState(false)
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const sectionRefs = useRef<Record<ScoreBuilderSectionId, HTMLElement | null>>({
-    examples: null, setup: null, dataSources: null, equation: null, model: null, density: null, regions: null
+    examples: null,
+    setup: null,
+    dataSources: null,
+    equation: null,
+    methodology: null,
+    model: null,
+    robustness: null,
+    density: null,
+    regions: null,
   })
   const sectionRatios = useRef<Record<ScoreBuilderSectionId, number>>({
-    examples: 0, setup: 0, dataSources: 0, equation: 0, model: 0, density: 0, regions: 0
+    examples: 0,
+    setup: 0,
+    dataSources: 0,
+    equation: 0,
+    methodology: 0,
+    model: 0,
+    robustness: 0,
+    density: 0,
+    regions: 0,
   })
 
-  useEffect(() => { setExpandedSections(createExpandedSections(isDesktop)) }, [isDesktop])
+  useEffect(() => {
+    setExpandedSections(createExpandedSections(isDesktop))
+  }, [isDesktop])
 
   const evaluateActiveSection = useCallback(() => {
     const root = scrollContainerRef.current
@@ -323,7 +413,7 @@ export function ScoreBuilderSidebar({
         })
         evaluateActiveSection()
       },
-      { root, threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] }
+      { root, threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] },
     )
     SECTION_ORDER.forEach((id) => {
       const section = sectionRefs.current[id]
@@ -332,7 +422,10 @@ export function ScoreBuilderSidebar({
     const handleScroll = () => evaluateActiveSection()
     root.addEventListener('scroll', handleScroll, { passive: true })
     evaluateActiveSection()
-    return () => { observer.disconnect(); root.removeEventListener('scroll', handleScroll) }
+    return () => {
+      observer.disconnect()
+      root.removeEventListener('scroll', handleScroll)
+    }
   }, [evaluateActiveSection])
 
   const setSectionRef = useCallback((sectionId: ScoreBuilderSectionId, element: HTMLElement | null) => {
@@ -380,16 +473,25 @@ export function ScoreBuilderSidebar({
         aria-expanded={sectionOpen}
       >
         <h2 className="text-sm font-semibold text-foreground">{SECTION_LABELS[sectionId]}</h2>
-        {sectionOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        {sectionOpen ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        )}
       </button>
     )
   }
 
   return (
-    <div className={cn('z-10 flex h-full min-h-0 w-[360px] flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
+    <div
+      className={cn(
+        'z-10 flex h-full min-h-0 w-[360px] flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur',
+        className,
+      )}
+    >
       <div className="border-b border-border bg-background/95 p-4">
         <div className="flex items-start justify-between gap-3">
-          <h1 className="text-xl font-bold text-foreground">Score Builder</h1>
+          <h1 className="text-xl font-bold text-foreground">Index Lab</h1>
           {onShareUrl && (
             <button
               type="button"
@@ -398,7 +500,13 @@ export function ScoreBuilderSidebar({
               className="inline-flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               {shareStatus === 'copied' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {shareStatus === 'copying' ? 'Copying' : shareStatus === 'copied' ? 'Copied' : shareStatus === 'failed' ? 'Failed' : 'Share'}
+              {shareStatus === 'copying'
+                ? 'Copying'
+                : shareStatus === 'copied'
+                  ? 'Copied'
+                  : shareStatus === 'failed'
+                    ? 'Failed'
+                    : 'Share'}
             </button>
           )}
         </div>
@@ -407,7 +515,7 @@ export function ScoreBuilderSidebar({
             ? `${activeExample.label}: ${activeExample.question}`
             : activePreset
               ? `${activePreset.label}: ${activePreset.description}`
-              : 'Choose a PG scenario or build a custom scoring equation.'}
+              : 'Choose a PG scenario or build a transparent scoring equation.'}
         </p>
       </div>
 
@@ -425,7 +533,7 @@ export function ScoreBuilderSidebar({
                   'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                   activeSection === sectionId
                     ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100'
-                    : 'border-input text-muted-foreground hover:text-foreground'
+                    : 'border-input text-muted-foreground hover:text-foreground',
                 )}
               >
                 {SECTION_LABELS[sectionId]}
@@ -435,7 +543,12 @@ export function ScoreBuilderSidebar({
         </div>
 
         {/* EXAMPLES */}
-        <section ref={(el) => setSectionRef('examples', el)} data-score-builder-section-id="examples" data-score-builder-section="examples" className="border-b border-border">
+        <section
+          ref={(el) => setSectionRef('examples', el)}
+          data-score-builder-section-id="examples"
+          data-score-builder-section="examples"
+          className="border-b border-border"
+        >
           {renderSectionHeader('examples')}
           {expandedSections.examples && (
             <div className="space-y-3 px-4 pb-4">
@@ -454,13 +567,15 @@ export function ScoreBuilderSidebar({
                 if (!group.length) return null
                 return (
                   <div key={source}>
-                    <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</div>
+                    <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {title}
+                    </div>
                     <div className="space-y-2">
                       {group.map((example) => {
                         const active = activeExampleKey === example.key
-                        const levelLabel = { ct: 'CT', da: 'DA', chsa: 'CHSA' }[
-                          example.boundaryLevel as 'ct' | 'da' | 'chsa'
-                        ] || example.boundaryLevel
+                        const levelLabel =
+                          { ct: 'CT', da: 'DA', chsa: 'CHSA' }[example.boundaryLevel as 'ct' | 'da' | 'chsa'] ||
+                          example.boundaryLevel
                         return (
                           <button
                             key={example.key}
@@ -469,7 +584,7 @@ export function ScoreBuilderSidebar({
                               'w-full rounded-lg border p-3 text-left transition-colors',
                               active
                                 ? 'border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500/30 dark:bg-cyan-950/40 dark:ring-cyan-400/20'
-                                : 'border-border bg-background hover:border-cyan-300 hover:bg-accent dark:hover:border-cyan-800'
+                                : 'border-border bg-background hover:border-cyan-300 hover:bg-accent dark:hover:border-cyan-800',
                             )}
                           >
                             <div className="flex items-start justify-between gap-2">
@@ -478,11 +593,18 @@ export function ScoreBuilderSidebar({
                                 {levelLabel}
                               </span>
                             </div>
-                            <div className="mt-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">{example.question}</div>
-                            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">{example.description}</div>
+                            <div className="mt-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">
+                              {example.question}
+                            </div>
+                            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
+                              {example.description}
+                            </div>
                             <div className="mt-2 flex flex-wrap gap-1">
                               {example.dataSources.map((ds) => (
-                                <span key={ds} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                <span
+                                  key={ds}
+                                  className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                >
                                   {getDataSourceLabel(ds)}
                                 </span>
                               ))}
@@ -499,7 +621,12 @@ export function ScoreBuilderSidebar({
         </section>
 
         {/* SETUP */}
-        <section ref={(el) => setSectionRef('setup', el)} data-score-builder-section-id="setup" data-score-builder-section="setup" className="border-b border-border">
+        <section
+          ref={(el) => setSectionRef('setup', el)}
+          data-score-builder-section-id="setup"
+          data-score-builder-section="setup"
+          className="border-b border-border"
+        >
           {renderSectionHeader('setup')}
           {expandedSections.setup && (
             <div className="space-y-3 px-4 pb-4">
@@ -515,7 +642,7 @@ export function ScoreBuilderSidebar({
                         'w-full rounded-md border px-3 py-2 text-left transition-colors',
                         boundarySource === option.value
                           ? 'border-cyan-500/70 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/35 dark:text-cyan-100'
-                          : 'border-input bg-background text-muted-foreground hover:text-foreground'
+                          : 'border-input bg-background text-muted-foreground hover:text-foreground',
                       )}
                     >
                       <div className="text-xs font-medium">{option.label}</div>
@@ -526,12 +653,16 @@ export function ScoreBuilderSidebar({
               </div>
 
               <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground" htmlFor="score-builder-level">Boundary level</label>
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="score-builder-level">
+                  Boundary level
+                </label>
                 <button
                   onClick={onTogglePoints}
                   className={cn(
                     'rounded border px-2 py-1 text-xs transition-colors',
-                    showPoints ? 'border-sky-500 text-sky-600 dark:text-sky-400' : 'border-input text-muted-foreground hover:text-foreground'
+                    showPoints
+                      ? 'border-sky-500 text-sky-600 dark:text-sky-400'
+                      : 'border-input text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {showPoints ? 'Hide points' : 'Show points'}
@@ -546,7 +677,9 @@ export function ScoreBuilderSidebar({
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
                 {boundaryLevelOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
 
@@ -569,7 +702,12 @@ export function ScoreBuilderSidebar({
         </section>
 
         {/* DATA SOURCES */}
-        <section ref={(el) => setSectionRef('dataSources', el)} data-score-builder-section-id="dataSources" data-score-builder-section="dataSources" className="border-b border-border">
+        <section
+          ref={(el) => setSectionRef('dataSources', el)}
+          data-score-builder-section-id="dataSources"
+          data-score-builder-section="dataSources"
+          className="border-b border-border"
+        >
           {renderSectionHeader('dataSources')}
           {expandedSections.dataSources && (
             <div className="space-y-2 px-4 pb-4">
@@ -584,7 +722,7 @@ export function ScoreBuilderSidebar({
                         'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors',
                         active
                           ? 'border-cyan-500/60 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-100'
-                          : 'border-input bg-background text-muted-foreground hover:text-foreground'
+                          : 'border-input bg-background text-muted-foreground hover:text-foreground',
                       )}
                     >
                       <div>
@@ -602,8 +740,15 @@ export function ScoreBuilderSidebar({
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-muted-foreground">{selectedNetworks.length} networks</span>
                           <div className="flex gap-2">
-                            <button onClick={onSelectAllNetworks} className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400">All</button>
-                            <button onClick={onClearNetworks} className="text-muted-foreground hover:text-foreground">None</button>
+                            <button
+                              onClick={onSelectAllNetworks}
+                              className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
+                            >
+                              All
+                            </button>
+                            <button onClick={onClearNetworks} className="text-muted-foreground hover:text-foreground">
+                              None
+                            </button>
                           </div>
                         </div>
                         <div className="max-h-28 space-y-0.5 overflow-y-auto">
@@ -615,7 +760,7 @@ export function ScoreBuilderSidebar({
                                 'flex w-full items-center justify-between rounded px-2 py-1 text-[11px] transition-colors',
                                 selectedNetworkSet.has(network)
                                   ? 'bg-cyan-50 text-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-100'
-                                  : 'text-muted-foreground hover:text-foreground'
+                                  : 'text-muted-foreground hover:text-foreground',
                               )}
                             >
                               <span className="truncate">{network}</span>
@@ -633,7 +778,12 @@ export function ScoreBuilderSidebar({
         </section>
 
         {/* EQUATION */}
-        <section ref={(el) => setSectionRef('equation', el)} data-score-builder-section-id="equation" data-score-builder-section="equation" className="border-b border-border">
+        <section
+          ref={(el) => setSectionRef('equation', el)}
+          data-score-builder-section-id="equation"
+          data-score-builder-section="equation"
+          className="border-b border-border"
+        >
           {renderSectionHeader('equation')}
           {expandedSections.equation && (
             <div className="space-y-3 px-4 pb-4">
@@ -646,7 +796,7 @@ export function ScoreBuilderSidebar({
                       'rounded-full border px-3 py-1 text-xs transition-colors',
                       activePresetKey === preset.key
                         ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100'
-                        : 'border-input text-muted-foreground hover:text-foreground'
+                        : 'border-input text-muted-foreground hover:text-foreground',
                     )}
                     title={preset.description}
                   >
@@ -692,38 +842,43 @@ export function ScoreBuilderSidebar({
                       {metrics
                         .filter((metric) => showAllEquationMetrics || weights[metric.key] !== 0)
                         .map((metric) => (
-                        <div key={metric.key} className={cn(
-                          'rounded-lg border p-3',
-                          weights[metric.key] !== 0 ? 'border-cyan-300/60 bg-cyan-50/50 dark:border-cyan-900/60 dark:bg-cyan-950/20' : 'border-border bg-muted/25'
-                        )}>
-                          <div className="mb-2 flex items-start justify-between gap-2">
-                            <div>
-                              <div className="text-xs font-semibold text-foreground">{metric.label}</div>
-                              <div className="text-[10px] text-muted-foreground">{metric.description}</div>
+                          <div
+                            key={metric.key}
+                            className={cn(
+                              'rounded-lg border p-3',
+                              weights[metric.key] !== 0
+                                ? 'border-cyan-300/60 bg-cyan-50/50 dark:border-cyan-900/60 dark:bg-cyan-950/20'
+                                : 'border-border bg-muted/25',
+                            )}
+                          >
+                            <div className="mb-2 flex items-start justify-between gap-2">
+                              <div>
+                                <div className="text-xs font-semibold text-foreground">{metric.label}</div>
+                                <div className="text-[10px] text-muted-foreground">{metric.description}</div>
+                              </div>
+                              <input
+                                type="number"
+                                min={-100}
+                                max={100}
+                                step={1}
+                                value={weights[metric.key]}
+                                onChange={(event) => {
+                                  const parsed = Number.parseFloat(event.target.value)
+                                  onWeightChange(metric.key, Number.isFinite(parsed) ? clampWeight(parsed) : 0)
+                                }}
+                                className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                              />
                             </div>
-                            <input
-                              type="number"
+                            <Slider
                               min={-100}
                               max={100}
                               step={1}
-                              value={weights[metric.key]}
-                              onChange={(event) => {
-                                const parsed = Number.parseFloat(event.target.value)
-                                onWeightChange(metric.key, Number.isFinite(parsed) ? clampWeight(parsed) : 0)
-                              }}
-                              className="w-16 rounded border border-input bg-background px-2 py-1 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                              value={[weights[metric.key]]}
+                              onValueChange={(values) => onWeightChange(metric.key, clampWeight(values[0] ?? 0))}
+                              className="[&_[data-radix-slider-range]]:bg-cyan-500"
                             />
                           </div>
-                          <Slider
-                            min={-100}
-                            max={100}
-                            step={1}
-                            value={[weights[metric.key]]}
-                            onValueChange={(values) => onWeightChange(metric.key, clampWeight(values[0] ?? 0))}
-                            className="[&_[data-radix-slider-range]]:bg-cyan-500"
-                          />
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 ))}
@@ -737,21 +892,101 @@ export function ScoreBuilderSidebar({
               <div className="rounded-md border border-border bg-background p-2">
                 <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Equation</div>
                 <div className="font-mono text-[11px] text-foreground">{equationPreview}</div>
-                <div className="mt-1 text-[10px] text-muted-foreground">|weights| sum: {totalAbsoluteWeight.toLocaleString()}</div>
+                <div className="mt-1 text-[10px] text-muted-foreground">
+                  |weights| sum: {totalAbsoluteWeight.toLocaleString()}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* METHODOLOGY */}
+        <section
+          ref={(el) => setSectionRef('methodology', el)}
+          data-score-builder-section-id="methodology"
+          data-score-builder-section="methodology"
+          className="border-b border-border"
+        >
+          {renderSectionHeader('methodology')}
+          {expandedSections.methodology && (
+            <div className="space-y-3 px-4 pb-4">
+              <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                <div className="mb-1 text-sm font-semibold text-foreground">COINr-lite method</div>
+                <p>
+                  Metrics are normalized across the current region set, directionalized by signed weights, then
+                  aggregated into a 0-100 composite score.
+                </p>
+                <p className="mt-2">
+                  Current settings: {methodSettings.normalization}, {methodSettings.aggregation}, missing data{' '}
+                  {methodSettings.missingData}.
+                </p>
+              </div>
+
+              {componentSummaries.length > 0 && (
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <div className="mb-2 text-sm font-semibold text-foreground">Component sub-scores</div>
+                  <div className="space-y-2">
+                    {componentSummaries.map((component) => (
+                      <div key={component.key}>
+                        <div className="mb-1 flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-foreground">{component.label}</span>
+                          <span className="text-muted-foreground">
+                            {formatScore(component.score)} · {(component.weightShare * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-cyan-500" style={{ width: `${component.score}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 text-sm font-semibold text-foreground">Active indicator metadata</div>
+                <div className="space-y-2">
+                  {SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).map((metric) => (
+                    <div key={metric.key} className="rounded border border-border bg-muted/15 p-2 text-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-semibold text-foreground">{metric.label}</div>
+                        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {metric.uncertainty}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-muted-foreground">
+                        {getMetricDirectionLabel(metric.key)} · {metric.dataSourceLabel} · {metric.spatialMethod}
+                      </div>
+                      {metric.caveat && (
+                        <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">{metric.caveat}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
         </section>
 
         {/* MODEL */}
-        <section ref={(el) => setSectionRef('model', el)} data-score-builder-section-id="model" data-score-builder-section="model" className="border-b border-border">
+        <section
+          ref={(el) => setSectionRef('model', el)}
+          data-score-builder-section-id="model"
+          data-score-builder-section="model"
+          className="border-b border-border"
+        >
           {renderSectionHeader('model')}
           {expandedSections.model && (
             <div className="space-y-3 px-4 pb-4">
               <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
                 <div className="mb-1 text-sm font-semibold text-foreground">Methodology</div>
-                <p>Metrics are normalized from 0 to 1 across the current region set. Positive weights prefer high values; negative weights prefer low values.</p>
-                <p className="mt-2 font-mono text-[11px] text-foreground">score = 100 * sum(weight share * directional value)</p>
+                <p>
+                  Metrics are normalized with the selected method across the current region set. Positive weights prefer
+                  high values; negative weights prefer low values.
+                </p>
+                <p className="mt-2 font-mono text-[11px] text-foreground">
+                  score = 100 * aggregate(weight share * directional value)
+                </p>
                 <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                   <div className="rounded bg-muted/40 p-2">
                     <div className="font-semibold text-foreground">{totalAbsoluteWeight.toLocaleString()}</div>
@@ -762,9 +997,78 @@ export function ScoreBuilderSidebar({
                     <div className="text-[10px]">metrics</div>
                   </div>
                   <div className="rounded bg-muted/40 p-2">
-                    <div className="font-semibold text-foreground">{regions.length}/{totalRegionCount}</div>
+                    <div className="font-semibold text-foreground">
+                      {regions.length}/{totalRegionCount}
+                    </div>
                     <div className="text-[10px]">eligible</div>
                   </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 text-sm font-semibold text-foreground">Method controls</div>
+                <div className="space-y-2 text-xs">
+                  <label className="space-y-1">
+                    <span className="block font-medium text-muted-foreground">Normalization</span>
+                    <select
+                      value={methodSettings.normalization}
+                      onChange={(event) =>
+                        updateMethodSettings(
+                          'normalization',
+                          event.target.value as ScoreMethodSettings['normalization'],
+                        )
+                      }
+                      className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    >
+                      <option value="minMax">Min-max</option>
+                      <option value="percentile">Percentile rank</option>
+                      <option value="zScore">Z-score</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block font-medium text-muted-foreground">Aggregation</span>
+                    <select
+                      value={methodSettings.aggregation}
+                      onChange={(event) =>
+                        updateMethodSettings('aggregation', event.target.value as ScoreMethodSettings['aggregation'])
+                      }
+                      className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    >
+                      <option value="additive">Weighted average</option>
+                      <option value="geometric">Geometric mean</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block font-medium text-muted-foreground">Missing data</span>
+                    <select
+                      value={methodSettings.missingData}
+                      onChange={(event) =>
+                        updateMethodSettings('missingData', event.target.value as ScoreMethodSettings['missingData'])
+                      }
+                      className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    >
+                      <option value="zero">Treat missing as zero</option>
+                      <option value="neutral">Treat missing as neutral</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => updateMethodSettings('sensitivity', !methodSettings.sensitivity)}
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition-colors',
+                      methodSettings.sensitivity
+                        ? 'border-cyan-500/60 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/35 dark:text-cyan-100'
+                        : 'border-input text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <span>
+                      <span className="block font-semibold">Sensitivity test</span>
+                      <span className="block text-[10px] text-muted-foreground">
+                        Perturb weights by 15% across 24 trials.
+                      </span>
+                    </span>
+                    <span className="font-bold">{methodSettings.sensitivity ? 'ON' : 'OFF'}</span>
+                  </button>
                 </div>
               </div>
 
@@ -781,14 +1085,18 @@ export function ScoreBuilderSidebar({
                         onClick={() => onToggleScoreFilter(filter.key)}
                         className={cn(
                           'flex w-full items-start justify-between gap-2 rounded-md border px-3 py-2 text-left text-xs transition-colors',
-                          active ? 'border-cyan-500/60 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/35 dark:text-cyan-100' : 'border-input text-muted-foreground hover:text-foreground'
+                          active
+                            ? 'border-cyan-500/60 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/35 dark:text-cyan-100'
+                            : 'border-input text-muted-foreground hover:text-foreground',
                         )}
                       >
                         <span>
                           <span className="block font-semibold">{filter.label}</span>
                           <span className="block text-[10px] text-muted-foreground">{filter.description}</span>
                         </span>
-                        <span className={cn('font-bold', active ? 'text-cyan-600' : 'text-muted-foreground')}>{active ? 'ON' : 'OFF'}</span>
+                        <span className={cn('font-bold', active ? 'text-cyan-600' : 'text-muted-foreground')}>
+                          {active ? 'ON' : 'OFF'}
+                        </span>
                       </button>
                     )
                   })}
@@ -805,7 +1113,9 @@ export function ScoreBuilderSidebar({
                     <div key={band.key} className="rounded border border-border bg-muted/25 p-2">
                       <div className="font-semibold text-foreground">{band.label}</div>
                       <div className="text-lg font-bold text-cyan-700 dark:text-cyan-300">{band.count}</div>
-                      <div className="text-[10px] text-muted-foreground">{band.min}-{band.max}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {band.min}-{band.max}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -814,10 +1124,21 @@ export function ScoreBuilderSidebar({
               {scenarioComparison && (
                 <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
                   <div className="mb-1 text-sm font-semibold">Scenario compare</div>
-                  <div>Current: {scenarioComparison.currentTopName || 'None'} ({formatScore(scenarioComparison.currentTopScore)})</div>
-                  <div>{scenarioComparison.label}: {scenarioComparison.referenceTopName || 'None'} ({formatScore(scenarioComparison.referenceTopScore)})</div>
+                  <div>
+                    Current: {scenarioComparison.currentTopName || 'None'} (
+                    {formatScore(scenarioComparison.currentTopScore)})
+                  </div>
+                  <div>
+                    {scenarioComparison.label}: {scenarioComparison.referenceTopName || 'None'} (
+                    {formatScore(scenarioComparison.referenceTopScore)})
+                  </div>
                   <div className="mt-1">
-                    Avg delta {scenarioComparison.averageDelta >= 0 ? '+' : ''}{formatScore(scenarioComparison.averageDelta)}
+                    Avg delta {scenarioComparison.averageDelta >= 0 ? '+' : ''}
+                    {formatScore(scenarioComparison.averageDelta)}
+                  </div>
+                  <div className="mt-1">
+                    Sensitivity {(scenarioComparison.stableTopShare * 100).toFixed(0)}% stable · avg rank shift{' '}
+                    {scenarioComparison.averageRankShift.toFixed(1)}
                   </div>
                 </div>
               )}
@@ -825,13 +1146,74 @@ export function ScoreBuilderSidebar({
           )}
         </section>
 
+        {/* ROBUSTNESS */}
+        <section
+          ref={(el) => setSectionRef('robustness', el)}
+          data-score-builder-section-id="robustness"
+          data-score-builder-section="robustness"
+          className="border-b border-border"
+        >
+          {renderSectionHeader('robustness')}
+          {expandedSections.robustness && (
+            <div className="space-y-3 px-4 pb-4">
+              <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                <div className="mb-1 text-sm font-semibold text-foreground">Robustness-lite</div>
+                <p>
+                  Checks 15% weight perturbations, leave-one-indicator-out runs, and alternate normalization methods.
+                </p>
+              </div>
+              {scenarioComparison && (
+                <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
+                  Top area held in {(scenarioComparison.stableTopShare * 100).toFixed(0)}% of perturbation trials;
+                  average rank shift was {scenarioComparison.averageRankShift.toFixed(1)}.
+                </div>
+              )}
+              <div className="space-y-2">
+                {robustnessResults.map((result) => (
+                  <div key={result.regionId} className="rounded-lg border border-border bg-background p-3 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-semibold text-foreground">
+                          #{result.baseRank} {result.regionName}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          median {result.medianRank.toFixed(1)} · rank #{result.rankInterval[0]}-#
+                          {result.rankInterval[1]}
+                        </div>
+                      </div>
+                      <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {result.stability}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      Score {formatScore(result.scoreInterval[0])}-{formatScore(result.scoreInterval[1])}
+                    </div>
+                  </div>
+                ))}
+                {robustnessResults.length === 0 && (
+                  <div className="rounded border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                    Turn on sensitivity testing in the Model section to generate results.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* DENSITY */}
-        <section ref={(el) => setSectionRef('density', el)} data-score-builder-section-id="density" data-score-builder-section="density" className="border-b border-border">
+        <section
+          ref={(el) => setSectionRef('density', el)}
+          data-score-builder-section-id="density"
+          data-score-builder-section="density"
+          className="border-b border-border"
+        >
           {renderSectionHeader('density')}
           {expandedSections.density && (
             <div className="space-y-2 px-4 pb-4">
               <div className="flex items-center justify-between gap-2">
-                <label htmlFor="score-builder-density" className="text-xs font-medium text-muted-foreground">Density metric</label>
+                <label htmlFor="score-builder-density" className="text-xs font-medium text-muted-foreground">
+                  Density metric
+                </label>
                 <select
                   id="score-builder-density"
                   value={densityMetric}
@@ -839,7 +1221,9 @@ export function ScoreBuilderSidebar({
                   className="rounded border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 >
                   {DENSITY_METRIC_OPTIONS.map((metric) => (
-                    <option key={metric} value={metric}>{getMetricLabel(metric)}</option>
+                    <option key={metric} value={metric}>
+                      {getMetricLabel(metric)}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -850,7 +1234,9 @@ export function ScoreBuilderSidebar({
                     {(['median', 'average', 'min', 'max'] as const).map((stat) => (
                       <div key={stat} className="rounded border border-border bg-muted/30 p-2">
                         <div className="text-[10px] capitalize text-muted-foreground">{stat}</div>
-                        <div className="font-semibold text-foreground">{formatMetricValue(densityMetric, densitySummary[stat], true)}</div>
+                        <div className="font-semibold text-foreground">
+                          {formatMetricValue(densityMetric, densitySummary[stat], true)}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -861,11 +1247,13 @@ export function ScoreBuilderSidebar({
                         onClick={() => onRegionSelect(entry.region.id)}
                         className={cn(
                           'flex w-full items-center justify-between rounded border border-border bg-background px-2 py-1.5 text-xs transition-colors hover:bg-accent',
-                          selectedRegion?.region.id === entry.region.id && 'bg-cyan-50 dark:bg-cyan-950/40'
+                          selectedRegion?.region.id === entry.region.id && 'bg-cyan-50 dark:bg-cyan-950/40',
                         )}
                       >
                         <span className="truncate text-left text-foreground">{entry.region.name}</span>
-                        <span className="font-medium text-cyan-700 dark:text-cyan-300">{formatMetricValue(densityMetric, entry.metrics[densityMetric], true)}</span>
+                        <span className="font-medium text-cyan-700 dark:text-cyan-300">
+                          {formatMetricValue(densityMetric, entry.metrics[densityMetric], true)}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -879,7 +1267,12 @@ export function ScoreBuilderSidebar({
         </section>
 
         {/* REGIONS */}
-        <section ref={(el) => setSectionRef('regions', el)} data-score-builder-section-id="regions" data-score-builder-section="regions" className="pb-4">
+        <section
+          ref={(el) => setSectionRef('regions', el)}
+          data-score-builder-section-id="regions"
+          data-score-builder-section="regions"
+          className="pb-4"
+        >
           {renderSectionHeader('regions')}
           {expandedSections.regions && (
             <div className="space-y-3 px-4">
@@ -887,45 +1280,54 @@ export function ScoreBuilderSidebar({
               {comparisonRegions.length > 0 && (
                 <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">Compare ({comparisonRegions.length}/3)</span>
-                    <button onClick={onClearComparison} className="text-[11px] text-amber-700 hover:text-amber-900 dark:text-amber-300">Clear</button>
+                    <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
+                      Compare ({comparisonRegions.length}/3)
+                    </span>
+                    <button
+                      onClick={onClearComparison}
+                      className="text-[11px] text-amber-700 hover:text-amber-900 dark:text-amber-300"
+                    >
+                      Clear
+                    </button>
                   </div>
                   <div className="space-y-1">
                     {comparisonRegions.map((r) => (
                       <div key={r.region.id} className="flex items-center justify-between text-[11px]">
-                        <span className="truncate text-amber-900 dark:text-amber-100">#{r.rank} {r.region.name}</span>
+                        <span className="truncate text-amber-900 dark:text-amber-100">
+                          #{r.rank} {r.region.name}
+                        </span>
                         <span className="font-semibold text-amber-700 dark:text-amber-300">{formatScore(r.score)}</span>
                       </div>
                     ))}
                   </div>
                   {comparisonRegions.length >= 2 && (
                     <>
-                      <RadarChart
-                        regions={comparisonRegions}
-                        weights={weights}
-                        className="mt-2"
-                      />
+                      <RadarChart regions={comparisonRegions} weights={weights} className="mt-2" />
                       <div className="mt-2 overflow-x-auto">
                         <table className="w-full text-[10px]">
                           <thead>
                             <tr className="text-amber-700 dark:text-amber-300">
                               <th className="pr-2 text-left font-medium">Metric</th>
                               {comparisonRegions.map((r) => (
-                                <th key={r.region.id} className="px-1 text-right font-medium">{r.region.name.slice(0, 12)}</th>
+                                <th key={r.region.id} className="px-1 text-right font-medium">
+                                  {r.region.name.slice(0, 12)}
+                                </th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
-                            {SCORE_METRICS.filter((m) => weights[m.key] !== 0).slice(0, 6).map((m) => (
-                              <tr key={m.key} className="text-amber-800 dark:text-amber-200">
-                                <td className="pr-2 text-left">{m.shortLabel}</td>
-                                {comparisonRegions.map((r) => (
-                                  <td key={r.region.id} className="px-1 text-right font-mono">
-                                    {formatMetricValue(m.key, r.metrics[m.key], true)}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
+                            {SCORE_METRICS.filter((m) => weights[m.key] !== 0)
+                              .slice(0, 6)
+                              .map((m) => (
+                                <tr key={m.key} className="text-amber-800 dark:text-amber-200">
+                                  <td className="pr-2 text-left">{m.shortLabel}</td>
+                                  {comparisonRegions.map((r) => (
+                                    <td key={r.region.id} className="px-1 text-right font-mono">
+                                      {formatMetricValue(m.key, r.metrics[m.key], true)}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
                           </tbody>
                         </table>
                       </div>
@@ -938,8 +1340,12 @@ export function ScoreBuilderSidebar({
               {selectedRegion && (
                 <div className="rounded-lg border border-cyan-300/50 bg-cyan-50 p-3 dark:border-cyan-900/70 dark:bg-cyan-950/25">
                   <div className="mb-2">
-                    <div className="text-sm font-semibold text-cyan-900 dark:text-cyan-100">{selectedRegion.region.name}</div>
-                    <div className="text-xs text-cyan-700 dark:text-cyan-300">Rank #{selectedRegion.rank} | Score {formatScore(selectedRegion.score)}</div>
+                    <div className="text-sm font-semibold text-cyan-900 dark:text-cyan-100">
+                      {selectedRegion.region.name}
+                    </div>
+                    <div className="text-xs text-cyan-700 dark:text-cyan-300">
+                      Rank #{selectedRegion.rank} | Score {formatScore(selectedRegion.score)}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-cyan-800 dark:text-cyan-200">
                     <div>Area: {selectedRegion.region.areaKm2.toFixed(1)} km²</div>
@@ -949,7 +1355,11 @@ export function ScoreBuilderSidebar({
                   </div>
                   {selectedRegionDrivers.length > 0 && (
                     <div className="mt-2 text-[11px] text-cyan-800 dark:text-cyan-200">
-                      Top drivers: {selectedRegionDrivers.map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`).join(', ')} pts
+                      Top drivers:{' '}
+                      {selectedRegionDrivers
+                        .map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`)
+                        .join(', ')}{' '}
+                      pts
                     </div>
                   )}
                   <div className="mt-2 flex items-center gap-2">
@@ -965,7 +1375,7 @@ export function ScoreBuilderSidebar({
                         'rounded border px-2 py-1 text-xs transition-colors',
                         comparisonSet.has(selectedRegion.region.id)
                           ? 'border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200'
-                          : 'border-cyan-300/70 text-cyan-800 hover:bg-cyan-100/70 dark:border-cyan-900 dark:text-cyan-300'
+                          : 'border-cyan-300/70 text-cyan-800 hover:bg-cyan-100/70 dark:border-cyan-900 dark:text-cyan-300',
                       )}
                     >
                       {comparisonSet.has(selectedRegion.region.id) ? 'Unpin' : 'Compare'}
@@ -1008,11 +1418,15 @@ export function ScoreBuilderSidebar({
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>{filteredRegions.length} of {regions.length} regions</span>
+                  <span>
+                    {filteredRegions.length} of {regions.length} regions
+                  </span>
                   {filteredRegions.length > MAX_VISIBLE_ROWS && <span>Showing {MAX_VISIBLE_ROWS}</span>}
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
-                  <span>Score range {formatScore(scoreSpread.min)} - {formatScore(scoreSpread.max)}</span>
+                  <span>
+                    Score range {formatScore(scoreSpread.min)} - {formatScore(scoreSpread.max)}
+                  </span>
                   <span>Avg {formatScore(scoreSpread.average)}</span>
                 </div>
               </div>
@@ -1021,7 +1435,9 @@ export function ScoreBuilderSidebar({
               {dataErrors.length > 0 && (
                 <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
                   <p className="font-medium">Data loading issues</p>
-                  {dataErrors.map((err, i) => <p key={i}>{err}</p>)}
+                  {dataErrors.map((err, i) => (
+                    <p key={i}>{err}</p>
+                  ))}
                 </div>
               )}
 
@@ -1042,23 +1458,32 @@ export function ScoreBuilderSidebar({
                         className={cn(
                           'rounded-lg border border-border bg-background p-2 transition-colors',
                           selected && 'border-cyan-300 bg-cyan-50 dark:border-cyan-900 dark:bg-cyan-950/35',
-                          pinned && !selected && 'border-amber-300/60 dark:border-amber-900/60'
+                          pinned && !selected && 'border-amber-300/60 dark:border-amber-900/60',
                         )}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <button onClick={() => onRegionSelect(entry.region.id)} className="min-w-0 flex-1 text-left">
-                            <div className="line-clamp-1 text-sm font-medium text-foreground">#{entry.rank} {entry.region.name}</div>
+                            <div className="line-clamp-1 text-sm font-medium text-foreground">
+                              #{entry.rank} {entry.region.name}
+                            </div>
                             <div className="mt-0.5 text-xs text-muted-foreground">
-                              Code {entry.region.code} | Density {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
+                              Code {entry.region.code} | Density{' '}
+                              {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
                             </div>
                             {topDrivers.length > 0 && (
                               <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
-                                Top: {topDrivers.map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`).join(', ')} pts
+                                Top:{' '}
+                                {topDrivers
+                                  .map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`)
+                                  .join(', ')}{' '}
+                                pts
                               </div>
                             )}
                           </button>
                           <div className="flex shrink-0 items-center gap-1">
-                            <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">{formatScore(entry.score)}</span>
+                            <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">
+                              {formatScore(entry.score)}
+                            </span>
                             <button
                               onClick={() => onOpenRegionInsight(entry.region.id)}
                               className="rounded border border-input px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"

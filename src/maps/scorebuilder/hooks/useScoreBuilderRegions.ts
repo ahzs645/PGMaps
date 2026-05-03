@@ -7,6 +7,7 @@ import type {
   BoundaryRegionRecord,
   BoundarySource,
   CensusBoundaryLevel,
+  CityBoundaryLevel,
   RegionLevel
 } from '@/maps/airquality'
 import {
@@ -32,9 +33,18 @@ const CENSUS_FILE_BY_LEVEL: Record<CensusBoundaryLevel, string> = {
   ct: '/data/census/prince_george_ct.geo.json',
   da: '/data/census/prince_george_da.geo.json'
 }
+const CITY_FILE_BY_LEVEL: Record<CityBoundaryLevel, string> = {
+  elementarySchoolCatchment: '/data/boundaries/CityPG/elementary_school_catchments.geojson',
+  secondarySchoolCatchment: '/data/boundaries/CityPG/secondary_school_catchments.geojson'
+}
+const CITY_NAME_PROPERTY_BY_LEVEL: Record<CityBoundaryLevel, string> = {
+  elementarySchoolCatchment: 'SchoolName',
+  secondarySchoolCatchment: 'SchoolNam'
+}
 
 const HEALTH_LEVEL_SET = new Set<BoundaryLevel>(['healthAuthority', 'hsda', 'lha', 'chsa'])
 const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'ct', 'da'])
+const CITY_LEVEL_SET = new Set<CityBoundaryLevel>(['elementarySchoolCatchment', 'secondarySchoolCatchment'])
 
 let boundaryIndexCache: BoundaryIndex | null = null
 const boundaryRegionCache = new Map<string, ScoreBuilderRegion[]>()
@@ -65,6 +75,10 @@ function isHealthBoundaryLevel(level: RegionLevel): level is BoundaryLevel {
 
 function isCensusBoundaryLevel(level: RegionLevel): level is CensusBoundaryLevel {
   return CENSUS_LEVEL_SET.has(level as CensusBoundaryLevel)
+}
+
+function isCityBoundaryLevel(level: RegionLevel): level is CityBoundaryLevel {
+  return CITY_LEVEL_SET.has(level as CityBoundaryLevel)
 }
 
 function toPolygonFeature(feature: RawBoundaryFeature): BoundaryFeature | null {
@@ -174,6 +188,46 @@ async function loadCensusRegions(level: CensusBoundaryLevel): Promise<ScoreBuild
   return sortedRegions
 }
 
+async function loadCityRegions(level: CityBoundaryLevel): Promise<ScoreBuilderRegion[]> {
+  const cacheKey = `cityPG:${level}`
+  const cached = boundaryRegionCache.get(cacheKey)
+  if (cached) return cached
+
+  const geometry = await fetchJson<BoundaryFeatureCollection>(CITY_FILE_BY_LEVEL[level])
+  const nameKey = CITY_NAME_PROPERTY_BY_LEVEL[level]
+
+  const regions = geometry.features
+    .map<ScoreBuilderRegion | null>((rawFeature) => {
+      const feature = toPolygonFeature(rawFeature)
+      if (!feature) return null
+
+      const properties = (feature.properties ?? {}) as Record<string, unknown>
+      const objectId = String(properties.OBJECTID ?? '').trim()
+      const displayName = String(properties[nameKey] ?? objectId).trim() || objectId
+      if (!objectId && !displayName) return null
+
+      const code = objectId || displayName
+      const areaKm2 = area(feature) / 1_000_000
+      const bounds = bbox(feature) as [number, number, number, number]
+
+      return {
+        id: `cityPG:${level}:${code}`,
+        code,
+        name: displayName,
+        source: 'cityPG',
+        level,
+        feature,
+        bounds,
+        areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0
+      } satisfies ScoreBuilderRegion
+    })
+    .filter((region): region is ScoreBuilderRegion => region !== null)
+
+  const sortedRegions = sortRegions(regions)
+  boundaryRegionCache.set(cacheKey, sortedRegions)
+  return sortedRegions
+}
+
 async function loadRegions(source: BoundarySource, level: RegionLevel): Promise<ScoreBuilderRegion[]> {
   if (source === 'bcHealth') {
     if (!isHealthBoundaryLevel(level)) {
@@ -183,11 +237,19 @@ async function loadRegions(source: BoundarySource, level: RegionLevel): Promise<
     return loadHealthRegions(level)
   }
 
-  if (!isCensusBoundaryLevel(level)) {
-    throw new Error(`Invalid census boundary level: ${level}`)
+  if (source === 'census') {
+    if (!isCensusBoundaryLevel(level)) {
+      throw new Error(`Invalid census boundary level: ${level}`)
+    }
+
+    return loadCensusRegions(level)
   }
 
-  return loadCensusRegions(level)
+  if (!isCityBoundaryLevel(level)) {
+    throw new Error(`Invalid City of Prince George boundary level: ${level}`)
+  }
+
+  return loadCityRegions(level)
 }
 
 export function useScoreBuilderRegions(source: BoundarySource, level: RegionLevel) {

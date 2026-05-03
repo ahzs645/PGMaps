@@ -7,7 +7,7 @@ test.describe('Home Page Navigation', () => {
     await expect(page.getByText('Prince George Data Platform')).toBeVisible()
 
     const availableMaps = page.locator('section').filter({ hasText: 'Available Maps' })
-    for (const name of ['Food Safety', 'Air Quality', 'Parks & Trails', 'Census Data', 'Score Builder', 'PG Data', 'Explorer']) {
+    for (const name of ['Food Safety', 'Air Quality', 'Parks & Trails', 'Census Data', 'Index Lab', 'PG Data', 'Explorer']) {
       await expect(availableMaps.getByRole('link', { name: new RegExp(`^${name}`) })).toBeVisible()
     }
   })
