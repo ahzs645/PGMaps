@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import {
-  Map as PgMap,
-  MapClusterLayer,
-  MapControls,
-  type MapRef
-} from '@/components/ui/map'
+import { Map as PgMap, MapClusterLayer, MapControls, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import type { AirMonitor } from '@/maps/airquality'
@@ -28,11 +23,13 @@ export function ScoreBuilderMap({
   monitors,
   showPoints,
   paletteProfile,
-  onRegionClick
+  onRegionClick,
 }: ScoreBuilderMapProps) {
   const mapRef = useRef<MapRef>(null)
 
-  const featureCollection = useMemo<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, GeoJSON.GeoJsonProperties>>(() => {
+  const featureCollection = useMemo<
+    GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, GeoJSON.GeoJsonProperties>
+  >(() => {
     return {
       type: 'FeatureCollection',
       features: regions.map((entry) => ({
@@ -45,9 +42,9 @@ export function ScoreBuilderMap({
           score: entry.score,
           scoreColor: getScorePaletteColor(entry.score, paletteProfile),
           monitorCount: entry.counts.monitorCount,
-          density: entry.metrics.overallDensity
-        }
-      }))
+          density: entry.metrics.overallDensity,
+        },
+      })),
     }
   }, [paletteProfile, regions])
 
@@ -58,14 +55,14 @@ export function ScoreBuilderMap({
         type: 'Feature',
         geometry: {
           type: 'Point',
-          coordinates: [monitor.longitude, monitor.latitude]
+          coordinates: [monitor.longitude, monitor.latitude],
         },
         properties: {
           id: monitor.id,
           network: monitor.network,
-          name: monitor.name
-        }
-      }))
+          name: monitor.name,
+        },
+      })),
     }
   }, [monitors])
 
@@ -80,24 +77,19 @@ export function ScoreBuilderMap({
     mapRef.current.fitBounds(
       [
         [selectedRegion.bounds[0], selectedRegion.bounds[1]],
-        [selectedRegion.bounds[2], selectedRegion.bounds[3]]
+        [selectedRegion.bounds[2], selectedRegion.bounds[3]],
       ],
       {
         padding: 80,
         duration: 500,
-        maxZoom: 10
-      }
+        maxZoom: 10,
+      },
     )
   }, [selectedRegion])
 
   return (
     <div className="h-full w-full">
-      <PgMap
-        ref={mapRef}
-        center={PG_CENTER}
-        zoom={ZOOM}
-        styles={MAP_STYLES}
-      >
+      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES}>
         <MapControls position="top-right" showZoom showCompass />
 
         <MapFillLayer

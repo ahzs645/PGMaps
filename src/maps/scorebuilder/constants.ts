@@ -5,6 +5,7 @@ import type {
   CensusBoundaryLevel,
   CityBoundaryLevel,
 } from '@/maps/airquality'
+import { METRIC_CATEGORY_LABELS } from './types'
 import type {
   ScoreDataSource,
   ScoreExample,
@@ -13,6 +14,8 @@ import type {
   ScoreMetricComponent,
   ScoreMetricKey,
   ScoreMetricWeightMap,
+  ScoreMethodSettings,
+  ScorePresetMethodology,
   ScoreSpatialMethod,
   ScoreUncertaintyLevel,
   ScorePreset,
@@ -34,6 +37,10 @@ type ScoreMetricBaseDefinition = Omit<
   ScoreMetricDefinition,
   'direction' | 'component' | 'dataSourceLabel' | 'spatialMethod' | 'uncertainty' | 'caveat'
 >
+
+const PERCENTILE_METHOD: Partial<ScoreMethodSettings> = { normalization: 'percentile', aggregation: 'additive' }
+const WINSORIZED_METHOD: Partial<ScoreMethodSettings> = { normalization: 'winsorizedMinMax', aggregation: 'additive' }
+const Z_SCORE_METHOD: Partial<ScoreMethodSettings> = { normalization: 'zScore', aggregation: 'additive' }
 
 const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
   // Air Quality
@@ -125,6 +132,47 @@ const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
     description: 'Park amenities per km² in each boundary.',
     format: 'density',
     category: 'parksRec',
+  },
+  // Heat & Shade
+  {
+    key: 'treeDensity',
+    label: 'Tree Density',
+    shortLabel: 'Tree density',
+    description: 'Tree points per km² inside each boundary, where available.',
+    format: 'density',
+    category: 'heatShade',
+  },
+  {
+    key: 'matureTreeDensity',
+    label: 'Mature Tree Density',
+    shortLabel: 'Mature trees',
+    description: 'Mature tree points per km² inside each boundary, where available.',
+    format: 'density',
+    category: 'heatShade',
+  },
+  {
+    key: 'forestAreaRatio',
+    label: 'Forest Area Ratio',
+    shortLabel: 'Forest area %',
+    description: 'Share of boundary area covered by forest/open-space canopy proxies, where available.',
+    format: 'percent',
+    category: 'heatShade',
+  },
+  {
+    key: 'coolingFacilityDensity',
+    label: 'Cooling Facility Density',
+    shortLabel: 'Cooling facilities',
+    description: 'Cooling or community facility points per km² inside each boundary, where available.',
+    format: 'density',
+    category: 'heatShade',
+  },
+  {
+    key: 'responseFacilityDensity',
+    label: 'Response Facility Density',
+    shortLabel: 'Response facilities',
+    description: 'Emergency response or support facility points per km² inside each boundary, where available.',
+    format: 'density',
+    category: 'heatShade',
   },
   // Food Safety
   {
@@ -258,6 +306,31 @@ const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
     format: 'percent',
     category: 'safety',
   },
+  // Transit
+  {
+    key: 'transitStopDensity',
+    label: 'Transit Stop Density',
+    shortLabel: 'Transit density',
+    description: 'Transit stops per km² inside each boundary.',
+    format: 'density',
+    category: 'transit',
+  },
+  {
+    key: 'accessibleTransitStopDensity',
+    label: 'Accessible Transit Stop Density',
+    shortLabel: 'Accessible transit',
+    description: 'Accessible transit stops per km² inside each boundary.',
+    format: 'density',
+    category: 'transit',
+  },
+  {
+    key: 'transitShelterDensity',
+    label: 'Transit Shelter/Exchange Density',
+    shortLabel: 'Shelter density',
+    description: 'Transit shelters and exchanges per km² inside each boundary.',
+    format: 'density',
+    category: 'transit',
+  },
 ]
 
 const METRIC_DIRECTION: Record<ScoreMetricKey, ScoreMetricDirection> = {
@@ -272,6 +345,11 @@ const METRIC_DIRECTION: Record<ScoreMetricKey, ScoreMetricDirection> = {
   parkAreaRatio: 'higherIsBetter',
   trailDensity: 'higherIsBetter',
   amenityDensity: 'higherIsBetter',
+  treeDensity: 'higherIsBetter',
+  matureTreeDensity: 'higherIsBetter',
+  forestAreaRatio: 'higherIsBetter',
+  coolingFacilityDensity: 'higherIsBetter',
+  responseFacilityDensity: 'higherIsBetter',
   restaurantDensity: 'higherIsBetter',
   foodRiskScore: 'higherIsWorse',
   criticalViolationRate: 'higherIsWorse',
@@ -288,6 +366,9 @@ const METRIC_DIRECTION: Record<ScoreMetricKey, ScoreMetricDirection> = {
   crimeDensity: 'higherIsWorse',
   crimePerCapita: 'higherIsWorse',
   recentCrimeShare: 'higherIsWorse',
+  transitStopDensity: 'higherIsBetter',
+  accessibleTransitStopDensity: 'higherIsBetter',
+  transitShelterDensity: 'higherIsBetter',
 }
 
 const METRIC_COMPONENT: Record<ScoreMetricKey, ScoreMetricComponent> = {
@@ -302,6 +383,11 @@ const METRIC_COMPONENT: Record<ScoreMetricKey, ScoreMetricComponent> = {
   parkAreaRatio: 'adaptiveCapacity',
   trailDensity: 'serviceAccess',
   amenityDensity: 'serviceAccess',
+  treeDensity: 'adaptiveCapacity',
+  matureTreeDensity: 'adaptiveCapacity',
+  forestAreaRatio: 'adaptiveCapacity',
+  coolingFacilityDensity: 'adaptiveCapacity',
+  responseFacilityDensity: 'adaptiveCapacity',
   restaurantDensity: 'serviceAccess',
   foodRiskScore: 'environmentalBurden',
   criticalViolationRate: 'environmentalBurden',
@@ -318,6 +404,9 @@ const METRIC_COMPONENT: Record<ScoreMetricKey, ScoreMetricComponent> = {
   crimeDensity: 'safetyPressure',
   crimePerCapita: 'safetyPressure',
   recentCrimeShare: 'safetyPressure',
+  transitStopDensity: 'serviceAccess',
+  accessibleTransitStopDensity: 'serviceAccess',
+  transitShelterDensity: 'adaptiveCapacity',
 }
 
 const METRIC_SPATIAL_METHOD: Record<ScoreMetricKey, ScoreSpatialMethod> = {
@@ -332,6 +421,11 @@ const METRIC_SPATIAL_METHOD: Record<ScoreMetricKey, ScoreSpatialMethod> = {
   parkAreaRatio: 'centroidInPolygon',
   trailDensity: 'midpointInPolygon',
   amenityDensity: 'pointInPolygon',
+  treeDensity: 'pointInPolygon',
+  matureTreeDensity: 'pointInPolygon',
+  forestAreaRatio: 'derivedRatio',
+  coolingFacilityDensity: 'pointInPolygon',
+  responseFacilityDensity: 'pointInPolygon',
   restaurantDensity: 'pointInPolygon',
   foodRiskScore: 'pointInPolygon',
   criticalViolationRate: 'pointInPolygon',
@@ -348,6 +442,9 @@ const METRIC_SPATIAL_METHOD: Record<ScoreMetricKey, ScoreSpatialMethod> = {
   crimeDensity: 'pointInPolygon',
   crimePerCapita: 'pointInPolygon',
   recentCrimeShare: 'pointInPolygon',
+  transitStopDensity: 'pointInPolygon',
+  accessibleTransitStopDensity: 'pointInPolygon',
+  transitShelterDensity: 'pointInPolygon',
 }
 
 const METRIC_UNCERTAINTY: Record<ScoreMetricKey, ScoreUncertaintyLevel> = {
@@ -362,6 +459,11 @@ const METRIC_UNCERTAINTY: Record<ScoreMetricKey, ScoreUncertaintyLevel> = {
   parkAreaRatio: 'high',
   trailDensity: 'medium',
   amenityDensity: 'medium',
+  treeDensity: 'high',
+  matureTreeDensity: 'high',
+  forestAreaRatio: 'high',
+  coolingFacilityDensity: 'high',
+  responseFacilityDensity: 'medium',
   restaurantDensity: 'medium',
   foodRiskScore: 'medium',
   criticalViolationRate: 'medium',
@@ -378,24 +480,38 @@ const METRIC_UNCERTAINTY: Record<ScoreMetricKey, ScoreUncertaintyLevel> = {
   crimeDensity: 'high',
   crimePerCapita: 'high',
   recentCrimeShare: 'high',
+  transitStopDensity: 'medium',
+  accessibleTransitStopDensity: 'medium',
+  transitShelterDensity: 'medium',
 }
 
 const METRIC_CAVEATS: Partial<Record<ScoreMetricKey, string>> = {
   parkAreaRatio: 'Uses park centroid assignment, so parks crossing a boundary are not area-weighted yet.',
   trailDensity: 'Uses trail midpoint assignment rather than network-length clipping by boundary.',
+  treeDensity: 'Tree inventory coverage varies by source and is not a full canopy model.',
+  matureTreeDensity: 'Maturity classification depends on source attributes and may be incomplete.',
+  forestAreaRatio: 'Forest/open-space proxy is not a remote-sensing canopy or shade-quality layer.',
+  coolingFacilityDensity: 'Cooling facility inventory is a proxy until verified public cooling-centre data is loaded.',
   populationDensity: 'Uses census unit centroids; future versions should support area or population weighting.',
   crimeDensity: 'Live point data can shift over time and should be interpreted as planning context, not official risk.',
   crimePerCapita: 'Combines live incidents with census population, so temporal alignment is approximate.',
   recentCrimeShare: 'Recent window is relative to the newest loaded incident date.',
+  transitStopDensity:
+    'Uses CityPG/BC Transit stop point inventory; route frequency and service span are not included yet.',
+  accessibleTransitStopDensity: 'Uses the stop inventory Accessible flag, where populated.',
+  transitShelterDensity:
+    'Counts shelter and exchange subtype points; benches, lighting, and sidewalk flags are separate attributes.',
 }
 
 function metricDataSourceLabel(category: ScoreMetricDefinition['category']): string {
   if (category === 'airQuality') return 'Air quality monitor inventory'
   if (category === 'parksRec') return 'City of Prince George parks, trails, and amenities'
+  if (category === 'heatShade') return 'City/open-data heat and shade proxy layers'
   if (category === 'foodSafety') return 'Northern Health food facility inspections'
   if (category === 'demographics') return 'Statistics Canada census boundary data'
   if (category === 'property') return 'BC Assessment parcel data'
   if (category === 'safety') return 'City of Prince George crime incidents'
+  if (category === 'transit') return 'City of Prince George transit stop inventory'
   return 'PGMaps data source'
 }
 
@@ -430,6 +546,11 @@ const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   parkAreaRatio: 0,
   trailDensity: 0,
   amenityDensity: 0,
+  treeDensity: 0,
+  matureTreeDensity: 0,
+  forestAreaRatio: 0,
+  coolingFacilityDensity: 0,
+  responseFacilityDensity: 0,
   restaurantDensity: 0,
   foodRiskScore: 0,
   criticalViolationRate: 0,
@@ -446,6 +567,9 @@ const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   crimeDensity: 0,
   crimePerCapita: 0,
   recentCrimeShare: 0,
+  transitStopDensity: 0,
+  accessibleTransitStopDensity: 0,
+  transitShelterDensity: 0,
 }
 
 export const DEFAULT_SCORE_WEIGHTS: ScoreMetricWeightMap = {
@@ -472,6 +596,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       parameterVariety: 5,
       activeShare: 3,
     },
+    methodSettings: WINSORIZED_METHOD,
   },
   {
     key: 'lowCostExpansion',
@@ -486,6 +611,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       parameterVariety: 7,
       activeShare: 10,
     },
+    methodSettings: WINSORIZED_METHOD,
   },
   {
     key: 'referenceNetwork',
@@ -501,11 +627,12 @@ export const SCORE_PRESETS: ScorePreset[] = [
       activeShare: 12,
       monitorCount: 5,
     },
+    methodSettings: WINSORIZED_METHOD,
   },
   {
     key: 'livabilityIndex',
     label: 'Livability Index',
-    description: 'Holistic livability: parks, food access, and population.',
+    description: 'Holistic livability: parks, food access, air coverage, and lower crowding pressure.',
     weights: {
       ...ZERO_WEIGHTS,
       parkDensity: 20,
@@ -514,15 +641,16 @@ export const SCORE_PRESETS: ScorePreset[] = [
       amenityDensity: 8,
       restaurantDensity: 12,
       foodRiskScore: -15,
-      populationDensity: 10,
+      populationDensity: -10,
       overallDensity: 8,
       activeShare: 7,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'environmentalHealth',
     label: 'Environmental Health',
-    description: 'Air quality coverage combined with green space access.',
+    description: 'Air quality coverage combined with green space access and lower population exposure.',
     weights: {
       ...ZERO_WEIGHTS,
       overallDensity: 18,
@@ -532,14 +660,16 @@ export const SCORE_PRESETS: ScorePreset[] = [
       parkDensity: 14,
       trailDensity: 10,
       amenityDensity: 5,
-      populationDensity: 8,
+      populationDensity: -8,
       networkVariety: 5,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'climateCommunityHealth',
-    label: 'Climate + Health Vulnerability',
-    description: 'Exposure, sensitivity, housing pressure, and adaptive capacity as explicit assumptions.',
+    label: 'Climate + Health Vulnerability Proxy',
+    description:
+      'Proxy vulnerability recipe using density, housing, parks, safety, food, monitoring gaps, and CityPG shade/cooling proxy layers.',
     weights: {
       ...ZERO_WEIGHTS,
       populationDensity: 18,
@@ -547,6 +677,9 @@ export const SCORE_PRESETS: ScorePreset[] = [
       lowCostDensity: -8,
       referenceDensity: -10,
       parkAreaRatio: -16,
+      treeDensity: -8,
+      forestAreaRatio: -8,
+      coolingFacilityDensity: -4,
       trailDensity: -8,
       amenityDensity: -6,
       avgAssessedValue: -10,
@@ -555,11 +688,12 @@ export const SCORE_PRESETS: ScorePreset[] = [
       crimePerCapita: 8,
       foodRiskScore: 5,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'sensorGapEquity',
-    label: 'Sensor Gap + Equity',
-    description: 'Finds populated areas with weak monitor coverage and low adaptive-capacity proxies.',
+    label: 'Sensor Gap + Equity Proxy',
+    description: 'Proxy recipe for populated areas with weak monitor coverage and low adaptive-capacity signals.',
     weights: {
       ...ZERO_WEIGHTS,
       populationDensity: 28,
@@ -570,23 +704,29 @@ export const SCORE_PRESETS: ScorePreset[] = [
       parkAreaRatio: -4,
       activeShare: -2,
     },
+    methodSettings: WINSORIZED_METHOD,
   },
   {
     key: 'schoolExposureMobility',
-    label: 'School Exposure + Mobility',
-    description: 'Proxy model for child-serving areas: parks/trails help, food-risk and sparse monitoring hurt.',
+    label: 'School Access + Safety Proxy',
+    description:
+      'Proxy recipe for child-serving areas: parks/trails, stronger monitoring, and lower food/safety pressure help.',
+    boundarySources: ['cityPG', 'census'],
+    recommendedBoundarySource: 'cityPG',
+    recommendedBoundaryLevel: 'elementarySchoolCatchment',
     weights: {
       ...ZERO_WEIGHTS,
       populationDensity: 18,
       parkDensity: 14,
       trailDensity: 16,
       amenityDensity: 10,
-      overallDensity: -12,
-      referenceDensity: -8,
+      overallDensity: 12,
+      referenceDensity: 8,
       foodRiskScore: -8,
       criticalViolationRate: -6,
       crimePerCapita: -8,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'monitoringGapProxy',
@@ -601,26 +741,29 @@ export const SCORE_PRESETS: ScorePreset[] = [
       networkVariety: -5,
       activeShare: -5,
     },
+    methodSettings: WINSORIZED_METHOD,
   },
   {
     key: 'heatShadeNeedProxy',
     label: 'Heat + Shade Need Proxy',
-    description: 'Higher scores flag dense areas with older housing and weaker green-space capacity proxies.',
+    description:
+      'Higher scores flag dense areas with older housing, weaker tree/forest cover, and fewer cooling proxies.',
     weights: {
       ...ZERO_WEIGHTS,
-      populationDensity: 24,
-      buildingAge: 18,
-      parkAreaRatio: -22,
-      parkDensity: -12,
-      trailDensity: -8,
-      amenityDensity: -6,
-      avgAssessedValue: -10,
+      populationDensity: 22,
+      buildingAge: 16,
+      avgAssessedValue: -8,
+      treeDensity: -16,
+      matureTreeDensity: -12,
+      forestAreaRatio: -18,
+      coolingFacilityDensity: -8,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'housingClimateRetrofitNeed',
-    label: 'Housing Climate Retrofit Need',
-    description: 'Higher scores flag older, lower-resource housing areas with weaker adaptive-capacity proxies.',
+    label: 'Housing Climate Retrofit Proxy',
+    description: 'Proxy recipe for older, lower-resource housing areas with weaker adaptive-capacity signals.',
     weights: {
       ...ZERO_WEIGHTS,
       buildingAge: 26,
@@ -632,6 +775,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       valueGrowth10y: -6,
       parcelDensity: 6,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'foodSafetyAccess',
@@ -646,6 +790,22 @@ export const SCORE_PRESETS: ScorePreset[] = [
       populationDensity: 12,
       crimePerCapita: -7,
       amenityDensity: 5,
+    },
+    methodSettings: PERCENTILE_METHOD,
+  },
+  {
+    key: 'transitAccess',
+    label: 'Transit Access',
+    description:
+      'Scores areas with stronger stop coverage, accessible-stop proxies, shelters/exchanges, and nearby demand.',
+    boundarySources: ['census', 'cityPG'],
+    weights: {
+      ...ZERO_WEIGHTS,
+      transitStopDensity: 30,
+      accessibleTransitStopDensity: 28,
+      transitShelterDensity: 22,
+      populationDensity: 12,
+      amenityDensity: 8,
     },
   },
   {
@@ -666,11 +826,12 @@ export const SCORE_PRESETS: ScorePreset[] = [
       buildingAge: -8,
       crimePerCapita: -10,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'housingAffordability',
     label: 'Housing Affordability',
-    description: 'Highlights areas with lower values, more multi-family parcels, and less recent price pressure.',
+    description: 'Highlights lower values, slower price pressure, older stock, multi-family mix, and vacant capacity.',
     weights: {
       ...ZERO_WEIGHTS,
       avgAssessedValue: -32,
@@ -681,6 +842,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       vacantParcelShare: 6,
       populationDensity: 6,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'redevelopmentPressure',
@@ -696,6 +858,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       parcelDensity: 6,
       populationDensity: 4,
     },
+    methodSettings: Z_SCORE_METHOD,
   },
   {
     key: 'completeNeighbourhood',
@@ -714,6 +877,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       criticalViolationRate: -6,
       crimePerCapita: -8,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'foodInspectionRisk',
@@ -727,6 +891,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       restaurantDensity: 10,
       populationDensity: 10,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'safetyPressure',
@@ -740,25 +905,94 @@ export const SCORE_PRESETS: ScorePreset[] = [
       populationDensity: 10,
       parcelDensity: 5,
     },
+    methodSettings: PERCENTILE_METHOD,
   },
 ]
+
+function formatPresetNormalization(method: Partial<ScoreMethodSettings> | undefined): string {
+  if (method?.normalization === 'winsorizedMinMax') return 'Winsorized min-max'
+  if (method?.normalization === 'zScore') return 'Z-score'
+  if (method?.normalization === 'minMax') return 'Min-max'
+  return 'Percentile rank'
+}
+
+function isProxyPreset(preset: ScorePreset): boolean {
+  return /proxy|climate|heat|shade|retrofit|school|equity/i.test(`${preset.key} ${preset.label} ${preset.description}`)
+}
+
+function getPresetDataNeeded(preset: ScorePreset): string[] {
+  const text = `${preset.key} ${preset.label} ${preset.description}`.toLowerCase()
+  const needed = new Set<string>()
+  if (/climate|heat|shade/.test(text)) {
+    needed.add('Observed heat days or land-surface temperature')
+    needed.add('Tree canopy, shade, impervious surface, and cooling/clean-air facilities')
+  }
+  if (/climate|smoke|monitor|sensor|air/.test(text)) {
+    needed.add('Pollutant-specific exposure surfaces, smoke days, and model uncertainty')
+  }
+  if (/equity|resilience|vulnerability|community/.test(text)) {
+    needed.add('Documented social-vulnerability policy variables and weighting rationale')
+  }
+  if (/school/.test(text)) {
+    needed.add('School locations, catchments, student counts, walking routes, and traffic exposure')
+  }
+  if (/retrofit|housing/.test(text)) {
+    needed.add('Energy-efficiency, indoor cooling/filtration, tenancy, and program eligibility data')
+  }
+  if (/food/.test(text)) {
+    needed.add('Grocery access, vehicle access, transit access, and food-service capacity data')
+  }
+  if (/redevelopment/.test(text)) {
+    needed.add('Development applications, zoning, tenure, displacement-risk, and parcel transaction data')
+  }
+  if (needed.size === 0) needed.add('No major extra data required for the current proxy recipe.')
+  return Array.from(needed)
+}
+
+export function getScorePresetMethodology(preset: ScorePreset): ScorePresetMethodology {
+  const activeMetrics = SCORE_METRICS.filter((metric) => preset.weights[metric.key] !== 0)
+  const components = Array.from(new Set(activeMetrics.map((metric) => METRIC_CATEGORY_LABELS[metric.category])))
+  const proxy = isProxyPreset(preset)
+
+  return {
+    purpose: preset.description,
+    components,
+    normalization: formatPresetNormalization(preset.methodSettings),
+    proxy,
+    knownLimits: proxy
+      ? [
+          'This is a proxy recipe, not a validated exposure, health, or environmental-justice index.',
+          'Scores are normalized within the selected boundary level, so CT/DA/CHSA maps should not be read as identical scales.',
+          'Point-in-polygon and centroid-style assignments can miss cross-boundary access, exposure, and service catchments.',
+        ]
+      : [
+          'Scores are normalized within the selected boundary level, so boundary changes can change ranks.',
+          'The recipe summarizes available indicators; it does not replace source-data review or field validation.',
+        ],
+    dataNeeded: getPresetDataNeeded(preset),
+  }
+}
 
 const SCORE_DATA_SOURCE_ORDER: ScoreDataSource[] = [
   'airQuality',
   'parks',
+  'heatShade',
   'restaurants',
   'census',
   'bcAssessment',
   'crime',
+  'transit',
 ]
 
 function metricCategoryToDataSource(category: string): ScoreDataSource | null {
   if (category === 'airQuality') return 'airQuality'
   if (category === 'parksRec') return 'parks'
+  if (category === 'heatShade') return 'heatShade'
   if (category === 'foodSafety') return 'restaurants'
   if (category === 'demographics') return 'census'
   if (category === 'property') return 'bcAssessment'
   if (category === 'safety') return 'crime'
+  if (category === 'transit') return 'transit'
   return null
 }
 
@@ -826,7 +1060,7 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       'Scores each tract by restaurant access and inspection risk. Negative weight on food risk means safer areas score higher.',
     boundarySource: 'census',
     boundaryLevel: 'ct',
-    dataSources: ['restaurants', 'census'],
+    dataSources: ['parks', 'restaurants', 'census'],
     networkFilter: 'none',
     weights: {
       ...ZERO_WEIGHTS,
@@ -911,7 +1145,7 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       'Fine-grained restaurant coverage across 135 areas. Highlights both under-served areas and areas with high food safety risk.',
     boundarySource: 'census',
     boundaryLevel: 'da',
-    dataSources: ['restaurants', 'census'],
+    dataSources: ['parks', 'restaurants', 'census'],
     networkFilter: 'none',
     weights: {
       ...ZERO_WEIGHTS,
@@ -948,13 +1182,13 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
   },
   {
     key: 'pgClimateHealthVulnerabilityDa',
-    label: 'PG Climate + Health Vulnerability (DA)',
+    label: 'PG Climate + Health Vulnerability Proxy (DA)',
     question: 'Which small areas have higher cumulative climate and community-health vulnerability?',
     description:
       'Research-backed starter index that combines exposure proxies, population sensitivity, property vulnerability, and adaptive capacity. High scores mark areas needing closer review.',
     boundarySource: 'census',
     boundaryLevel: 'da',
-    dataSources: ['airQuality', 'parks', 'restaurants', 'census', 'bcAssessment', 'crime'],
+    dataSources: ['airQuality', 'parks', 'heatShade', 'restaurants', 'census', 'bcAssessment', 'crime'],
     networkFilter: 'all',
     weights: {
       ...ZERO_WEIGHTS,
@@ -963,6 +1197,9 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       lowCostDensity: -8,
       referenceDensity: -10,
       parkAreaRatio: -16,
+      treeDensity: -8,
+      forestAreaRatio: -8,
+      coolingFacilityDensity: -4,
       trailDensity: -8,
       amenityDensity: -6,
       avgAssessedValue: -10,
@@ -973,8 +1210,30 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
     },
   },
   {
+    key: 'heatShadeNeedDa',
+    label: 'Heat + Shade Need Proxy (DA)',
+    question: 'Which small areas have higher heat adaptation need based on real shade and facility proxies?',
+    description:
+      'Uses the CityPG tree inventory, forest layers, community-facility proxies, building age, values, and population density. High scores mark areas needing closer heat/shade review.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['heatShade', 'census', 'bcAssessment'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 22,
+      buildingAge: 16,
+      avgAssessedValue: -8,
+      treeDensity: -16,
+      matureTreeDensity: -12,
+      forestAreaRatio: -18,
+      coolingFacilityDensity: -8,
+    },
+    methodSettings: PERCENTILE_METHOD,
+  },
+  {
     key: 'sensorGapEquityDa',
-    label: 'Sensor Gap + Equity Finder (DA)',
+    label: 'Sensor Gap + Equity Proxy (DA)',
     question: 'Where should PG prioritize new community air-quality monitors?',
     description:
       'Ranks populated areas with weaker monitor density, less network variety, and fewer nearby adaptive-capacity proxies.',
@@ -995,7 +1254,7 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
   },
   {
     key: 'schoolExposureMobilityDa',
-    label: 'School Exposure + Active Mobility (DA)',
+    label: 'School Exposure + Active Mobility Proxy (DA)',
     question: 'Which areas look stronger for child-serving mobility and lower exposure pressure?',
     description:
       'A near-term school proxy using population, trails, parks, amenities, monitor coverage, food-risk, and safety pressure until school points and catchments are fully wired in.',
@@ -1276,10 +1535,21 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
   },
 ]
 
-export const SCORE_BUILDER_EXAMPLES: ScoreExample[] = SCORE_EXAMPLES.filter(
+function getRecommendedExampleMethodSettings(example: ScoreExample): Partial<ScoreMethodSettings> {
+  if (example.key.toLowerCase().includes('redevelopment')) return Z_SCORE_METHOD
+  const airOnly = example.dataSources.length === 1 && example.dataSources[0] === 'airQuality'
+  const monitoringGap = /gap|sensor|monitor|air quality/i.test(`${example.label} ${example.question}`)
+  if (airOnly || monitoringGap) return WINSORIZED_METHOD
+  return PERCENTILE_METHOD
+}
+
+export const SCORE_BUILDER_EXAMPLES: ScoreExample[] = SCORE_EXAMPLES.map((example) => ({
+  ...example,
+  methodSettings: example.methodSettings ?? getRecommendedExampleMethodSettings(example),
+})).filter(
   (example) =>
     (example.boundarySource === 'census' && (example.boundaryLevel === 'ct' || example.boundaryLevel === 'da')) ||
-    (example.boundarySource === 'bcHealth' && example.boundaryLevel === 'chsa'),
+    example.boundarySource === 'bcHealth',
 )
 
 export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
@@ -1290,6 +1560,10 @@ export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
   'parkDensity',
   'trailDensity',
   'amenityDensity',
+  'treeDensity',
+  'matureTreeDensity',
+  'coolingFacilityDensity',
+  'responseFacilityDensity',
   'restaurantDensity',
   'populationDensity',
   'parcelDensity',
@@ -1298,6 +1572,9 @@ export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
   'buildingAge',
   'crimeDensity',
   'crimePerCapita',
+  'transitStopDensity',
+  'accessibleTransitStopDensity',
+  'transitShelterDensity',
 ]
 
 export const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
@@ -1325,6 +1602,9 @@ export const BOUNDARY_SOURCE_OPTIONS: Array<{
 ]
 
 export const HEALTH_BOUNDARY_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }> = [
+  { value: 'healthAuthority', label: 'Health Authority' },
+  { value: 'hsda', label: 'HSDA' },
+  { value: 'lha', label: 'LHA' },
   { value: 'chsa', label: 'CHSA' },
 ]
 
@@ -1386,6 +1666,11 @@ export function createMetricValueMap(initial = 0): Record<ScoreMetricKey, number
     parkAreaRatio: initial,
     trailDensity: initial,
     amenityDensity: initial,
+    treeDensity: initial,
+    matureTreeDensity: initial,
+    forestAreaRatio: initial,
+    coolingFacilityDensity: initial,
+    responseFacilityDensity: initial,
     restaurantDensity: initial,
     foodRiskScore: initial,
     criticalViolationRate: initial,
@@ -1402,6 +1687,9 @@ export function createMetricValueMap(initial = 0): Record<ScoreMetricKey, number
     crimeDensity: initial,
     crimePerCapita: initial,
     recentCrimeShare: initial,
+    transitStopDensity: initial,
+    accessibleTransitStopDensity: initial,
+    transitShelterDensity: initial,
   }
 }
 
@@ -1463,6 +1751,7 @@ const SCORE_PRESET_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
   heatShadeNeedProxy: 'riskPressure',
   housingClimateRetrofitNeed: 'riskPressure',
   foodSafetyAccess: 'benefit',
+  transitAccess: 'benefit',
   communityResilienceProxy: 'benefit',
   housingAffordability: 'affordability',
   redevelopmentPressure: 'riskPressure',
@@ -1481,6 +1770,7 @@ const SCORE_EXAMPLE_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
   foodAccessDa: 'benefit',
   livabilityDa: 'benefit',
   pgClimateHealthVulnerabilityDa: 'riskPressure',
+  heatShadeNeedDa: 'riskPressure',
   sensorGapEquityDa: 'riskPressure',
   schoolExposureMobilityDa: 'benefit',
   housingAffordabilityDa: 'affordability',
@@ -1544,10 +1834,10 @@ export function encodeWeightsToParams(weights: ScoreMetricWeightMap): string {
 
 export function decodeWeightsFromParams(param: string): ScoreMetricWeightMap | null {
   const parts = param.split(',').map(Number)
-  if (parts.length !== SCORE_METRICS.length || parts.some((v) => !Number.isFinite(v))) return null
+  if (parts.length > SCORE_METRICS.length || parts.some((v) => !Number.isFinite(v))) return null
   const weights = createMetricValueMap(0) as ScoreMetricWeightMap
   SCORE_METRICS.forEach((m, i) => {
-    weights[m.key] = Math.max(-100, Math.min(100, Math.round(parts[i])))
+    weights[m.key] = Math.max(-100, Math.min(100, Math.round(parts[i] ?? 0)))
   })
   return weights
 }

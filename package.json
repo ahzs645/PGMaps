@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "citypg:sync": "node scripts/sync-citypg-arcgis.mjs",
+    "heat-shade:sync": "node scripts/sync-heat-shade-data.mjs",
     "census:sync": "node scripts/build-census-hierarchy.mjs",
     "census:variables": "python3 scripts/build-census-variables.py",
     "lint": "eslint src/",

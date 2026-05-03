@@ -1,18 +1,10 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SCORE_METRICS } from '../constants'
-import type {
-  ScoredBoundaryRegion,
-  ScoreMetricKey,
-  ScoreMetricWeightMap
-} from '../types'
+import { formatMetricValue, formatScore, getMetricLabel } from '../lib/metrics'
+import { formatDriverDelta } from '../lib/scoreDrivers'
+import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
 import { METRIC_CATEGORY_LABELS } from '../types'
 
 interface ScoreBuilderRegionInsightDialogProps {
@@ -20,56 +12,46 @@ interface ScoreBuilderRegionInsightDialogProps {
   onOpenChange: (open: boolean) => void
   region: ScoredBoundaryRegion | null
   weights: ScoreMetricWeightMap
+  methodSettings: ScoreMethodSettings
   isMobile: boolean
 }
 
 const MOBILE_MAX_CONTRIBUTIONS = 4
 
-function getMetricLabel(key: ScoreMetricKey): string {
-  return SCORE_METRICS.find((metric) => metric.key === key)?.label || key
+function formatNormalizationMethod(method: ScoreMethodSettings['normalization']): string {
+  if (method === 'percentile') return 'percentile rank'
+  if (method === 'winsorizedMinMax') return 'winsorized min-max'
+  if (method === 'zScore') return 'z-score'
+  return 'min-max'
 }
 
-function getMetricFormat(key: ScoreMetricKey): string {
-  return SCORE_METRICS.find((metric) => metric.key === key)?.format || 'count'
+function getCoverageLabel(score: number): { label: string; tone: string } {
+  if (score >= 0.85) return { label: 'Strong coverage', tone: 'text-emerald-700 dark:text-emerald-300' }
+  if (score >= 0.6) return { label: 'Partial coverage', tone: 'text-amber-700 dark:text-amber-300' }
+  return { label: 'Thin coverage', tone: 'text-rose-700 dark:text-rose-300' }
 }
 
-function formatMetricValue(metric: ScoreMetricKey, value: number, compact = false): string {
-  const format = getMetricFormat(metric)
-  if (metric === 'foodRiskScore') {
-    const riskScore = value * 100
-    return compact ? `${riskScore.toFixed(0)}/100 risk` : `${riskScore.toFixed(1)} / 100 risk index`
-  }
-  if (metric === 'crimePerCapita') {
-    const perThousand = value * 1_000
-    return compact
-      ? `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k residents`
-      : `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 2 })} incidents / 1,000 residents`
-  }
-  if (format === 'density') {
-    const scaled = value * 1_000
-    return compact
-      ? `${scaled.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k km²`
-      : `${scaled.toLocaleString(undefined, { maximumFractionDigits: 2 })} / 1,000 km²`
-  }
-  if (format === 'ratio' || format === 'percent') return `${(value * 100).toFixed(1)}%`
-  if (format === 'currency') {
-    if (compact) {
-      if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
-      return `$${Math.round(value / 1000).toLocaleString()}k`
-    }
-    return value.toLocaleString(undefined, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
-  }
-  if (format === 'years') return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} yrs`
-  if (Number.isInteger(value)) return value.toLocaleString()
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
-}
-
-function formatScore(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
-}
-
-function formatDriverDelta(value: number): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`
+function metricHasRegionData(metric: ScoreMetricKey, region: ScoredBoundaryRegion): boolean {
+  const definition = SCORE_METRICS.find((entry) => entry.key === metric)
+  if (!definition) return true
+  if (definition.category === 'airQuality') return region.counts.monitorCount > 0
+  if (definition.category === 'parksRec')
+    return region.counts.parkCount + region.counts.trailCount + region.counts.amenityCount > 0
+  if (definition.category === 'heatShade')
+    return (
+      region.counts.treeCount +
+        region.counts.matureTreeCount +
+        region.counts.forestAreaSqKm +
+        region.counts.coolingFacilityCount +
+        region.counts.responseFacilityCount >
+      0
+    )
+  if (definition.category === 'foodSafety') return region.counts.restaurantCount > 0
+  if (definition.category === 'demographics') return region.counts.populationSum > 0
+  if (definition.category === 'property') return region.counts.parcelCount > 0
+  if (definition.category === 'safety') return region.counts.crimeCount > 0
+  if (definition.category === 'transit') return region.counts.transitStopCount > 0
+  return true
 }
 
 export function ScoreBuilderRegionInsightDialog({
@@ -77,12 +59,13 @@ export function ScoreBuilderRegionInsightDialog({
   onOpenChange,
   region,
   weights,
-  isMobile
+  methodSettings,
+  isMobile,
 }: ScoreBuilderRegionInsightDialogProps) {
   const contributionRows = useMemo(() => {
     if (!region) return []
-    return SCORE_METRICS
-      .filter((metric) => Math.abs(weights[metric.key]) > 0)
+    const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
+    return SCORE_METRICS.filter((metric) => Math.abs(weights[metric.key]) > 0)
       .map((metric) => ({
         key: metric.key,
         label: metric.shortLabel,
@@ -91,10 +74,50 @@ export function ScoreBuilderRegionInsightDialog({
         metricValue: region.metrics[metric.key],
         normalizedValue: region.normalizedMetrics[metric.key],
         weight: weights[metric.key],
-        scoreDelta: region.contributions[metric.key] * 100
+        intentLabel: weights[metric.key] < 0 ? `Low ${metric.shortLabel.toLowerCase()}` : metric.shortLabel,
+        scoreDelta: region.contributions[metric.key] * 100,
+        maxPoints: totalWeight > 0 ? (Math.abs(weights[metric.key]) / totalWeight) * 100 : 0,
+        hasData: metricHasRegionData(metric.key, region),
       }))
       .sort((a, b) => Math.abs(b.scoreDelta) - Math.abs(a.scoreDelta))
   }, [region, weights])
+
+  const topPositiveDrivers = useMemo(
+    () => [...contributionRows].sort((a, b) => b.scoreDelta - a.scoreDelta).slice(0, 4),
+    [contributionRows],
+  )
+
+  const topPressureDrivers = useMemo(
+    () =>
+      [...contributionRows]
+        .map((row) => ({ ...row, pressureDelta: Math.max(0, row.maxPoints - row.scoreDelta) }))
+        .sort((a, b) => b.pressureDelta - a.pressureDelta)
+        .slice(0, 4),
+    [contributionRows],
+  )
+
+  const weakDataRows = useMemo(() => contributionRows.filter((row) => !row.hasData), [contributionRows])
+
+  const componentRows = useMemo(() => {
+    if (!region) return []
+    const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
+    if (totalWeight <= 0) return []
+    const groups = new Map<string, { contribution: number; weight: number }>()
+    SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).forEach((metric) => {
+      const current = groups.get(metric.category) || { contribution: 0, weight: 0 }
+      current.contribution += region.contributions[metric.key]
+      current.weight += Math.abs(weights[metric.key]) / totalWeight
+      groups.set(metric.category, current)
+    })
+    return Array.from(groups.entries()).map(([category, group]) => ({
+      category,
+      label: METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category,
+      score: group.weight > 0 ? (group.contribution / group.weight) * 100 : 0,
+      points: group.contribution * 100,
+    }))
+  }, [region, weights])
+
+  const coverage = region ? getCoverageLabel(region.dataCoverageScore) : null
 
   const visibleContributionRows = useMemo(() => {
     if (!isMobile) return contributionRows
@@ -104,7 +127,7 @@ export function ScoreBuilderRegionInsightDialog({
   const topDriverSummary = useMemo(() => {
     const topDrivers = contributionRows.slice(0, 3)
     if (!topDrivers.length) return null
-    return topDrivers.map((row) => `${row.label} ${formatDriverDelta(row.scoreDelta)}`).join(', ')
+    return topDrivers.map((row) => `${row.intentLabel} ${formatDriverDelta(row.scoreDelta)}`).join(', ')
   }, [contributionRows])
 
   const narrative = useMemo(() => {
@@ -119,8 +142,10 @@ export function ScoreBuilderRegionInsightDialog({
           : region.score >= 45
             ? 'in the middle of the pack'
             : 'below the pack'
-    const strongestIntent = strongest.weight < 0 ? `low ${strongest.label.toLowerCase()}` : `strong ${strongest.label.toLowerCase()}`
-    const weakestIntent = weakest.weight < 0 ? `not enough low ${weakest.label.toLowerCase()}` : `weaker ${weakest.label.toLowerCase()}`
+    const strongestIntent =
+      strongest.weight < 0 ? `low ${strongest.label.toLowerCase()}` : `strong ${strongest.label.toLowerCase()}`
+    const weakestIntent =
+      weakest.weight < 0 ? `not enough low ${weakest.label.toLowerCase()}` : `weaker ${weakest.label.toLowerCase()}`
     return `${region.region.name} ranks ${rankPhrase} at #${region.rank} with a ${formatScore(region.score)} score. The result is lifted most by ${strongestIntent}; ${weakestIntent} contributes the least among the active terms.`
   }, [contributionRows, region])
 
@@ -157,7 +182,7 @@ export function ScoreBuilderRegionInsightDialog({
         ) : (
           <div className="space-y-4 overflow-y-auto px-6 pb-6">
             {/* Stats grid */}
-            <div className="grid grid-cols-2 gap-2 pt-2 text-xs sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 pt-2 text-xs sm:grid-cols-3">
               <div className="rounded-md border border-border bg-muted/30 p-2">
                 <div className="text-[10px] uppercase text-muted-foreground">Rank</div>
                 <div className="text-sm font-semibold text-foreground">#{region.rank}</div>
@@ -172,7 +197,21 @@ export function ScoreBuilderRegionInsightDialog({
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
                 <div className="text-[10px] uppercase text-muted-foreground">Sensors</div>
-                <div className="text-sm font-semibold text-foreground">{region.counts.monitorCount.toLocaleString()}</div>
+                <div className="text-sm font-semibold text-foreground">
+                  {region.counts.monitorCount.toLocaleString()}
+                </div>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 p-2">
+                <div className="text-[10px] uppercase text-muted-foreground">Data coverage</div>
+                <div className={cn('text-sm font-semibold', coverage?.tone)}>
+                  {(region.dataCoverageScore * 100).toFixed(0)}%
+                </div>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 p-2">
+                <div className="text-[10px] uppercase text-muted-foreground">Normalization</div>
+                <div className="text-sm font-semibold text-foreground">
+                  {formatNormalizationMethod(methodSettings.normalization)}
+                </div>
               </div>
             </div>
 
@@ -183,22 +222,128 @@ export function ScoreBuilderRegionInsightDialog({
               </div>
             )}
 
+            <div className="rounded-lg border border-border bg-background p-3 text-xs">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-foreground">Why this score?</div>
+                {coverage && <span className={cn('font-semibold', coverage.tone)}>{coverage.label}</span>}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Top positive drivers
+                  </div>
+                  <div className="space-y-1">
+                    {topPositiveDrivers.map((row) => (
+                      <div key={row.key} className="flex justify-between gap-2 rounded bg-muted/25 px-2 py-1">
+                        <span className="truncate text-foreground">{row.intentLabel}</span>
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          +{row.scoreDelta.toFixed(1)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Top pressure drivers
+                  </div>
+                  <div className="space-y-1">
+                    {topPressureDrivers.map((row) => (
+                      <div key={row.key} className="flex justify-between gap-2 rounded bg-muted/25 px-2 py-1">
+                        <span className="truncate text-foreground">{row.fullLabel}</span>
+                        <span className="font-semibold text-amber-700 dark:text-amber-300">
+                          -{row.pressureDelta.toFixed(1)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {weakDataRows.length > 0 && (
+                <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+                  Missing or weak active data: {weakDataRows.map((row) => row.fullLabel).join(', ')}.
+                </div>
+              )}
+            </div>
+
+            {componentRows.length > 0 && (
+              <div className="rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 text-sm font-semibold text-foreground">Component sub-scores</div>
+                <div className="space-y-2">
+                  {componentRows.map((component) => (
+                    <div key={component.category}>
+                      <div className="mb-1 flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-foreground">{component.label}</span>
+                        <span className="text-muted-foreground">
+                          {formatScore(component.score)} · {component.points.toFixed(1)} pts
+                        </span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-cyan-500" style={{ width: `${component.score}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Coverage snapshot */}
             <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs">
               <div className="mb-2 text-sm font-semibold text-foreground">Coverage Snapshot</div>
               <div className="grid grid-cols-2 gap-2 text-muted-foreground sm:grid-cols-4">
-                <div>Low-cost: <span className="font-medium text-foreground">{region.counts.lowCostCount.toLocaleString()}</span></div>
-                <div>Reference: <span className="font-medium text-foreground">{region.counts.referenceCount.toLocaleString()}</span></div>
-                <div>Active: <span className="font-medium text-foreground">{region.counts.activeCount.toLocaleString()}</span></div>
-                <div>Networks: <span className="font-medium text-foreground">{formatMetricValue('networkVariety', region.metrics.networkVariety, true)}</span></div>
-                <div>Parks: <span className="font-medium text-foreground">{region.counts.parkCount.toLocaleString()}</span></div>
-                <div>Trails: <span className="font-medium text-foreground">{region.counts.trailCount.toLocaleString()}</span></div>
-                <div>Restaurants: <span className="font-medium text-foreground">{region.counts.restaurantCount.toLocaleString()}</span></div>
-                <div>Population: <span className="font-medium text-foreground">{region.counts.populationSum.toLocaleString()}</span></div>
-                <div>Parcels: <span className="font-medium text-foreground">{region.counts.parcelCount.toLocaleString()}</span></div>
-                <div>Crime: <span className="font-medium text-foreground">{region.counts.crimeCount.toLocaleString()}</span></div>
-                <div>Critical violations: <span className="font-medium text-foreground">{region.counts.criticalViolationCount.toLocaleString()}</span></div>
-                <div>Follow-ups: <span className="font-medium text-foreground">{region.counts.followUpInspectionCount.toLocaleString()}</span></div>
+                <div>
+                  Low-cost:{' '}
+                  <span className="font-medium text-foreground">{region.counts.lowCostCount.toLocaleString()}</span>
+                </div>
+                <div>
+                  Reference:{' '}
+                  <span className="font-medium text-foreground">{region.counts.referenceCount.toLocaleString()}</span>
+                </div>
+                <div>
+                  Active:{' '}
+                  <span className="font-medium text-foreground">{region.counts.activeCount.toLocaleString()}</span>
+                </div>
+                <div>
+                  Networks:{' '}
+                  <span className="font-medium text-foreground">
+                    {formatMetricValue('networkVariety', region.metrics.networkVariety, true)}
+                  </span>
+                </div>
+                <div>
+                  Parks: <span className="font-medium text-foreground">{region.counts.parkCount.toLocaleString()}</span>
+                </div>
+                <div>
+                  Trails:{' '}
+                  <span className="font-medium text-foreground">{region.counts.trailCount.toLocaleString()}</span>
+                </div>
+                <div>
+                  Restaurants:{' '}
+                  <span className="font-medium text-foreground">{region.counts.restaurantCount.toLocaleString()}</span>
+                </div>
+                <div>
+                  Population:{' '}
+                  <span className="font-medium text-foreground">{region.counts.populationSum.toLocaleString()}</span>
+                </div>
+                <div>
+                  Parcels:{' '}
+                  <span className="font-medium text-foreground">{region.counts.parcelCount.toLocaleString()}</span>
+                </div>
+                <div>
+                  Crime:{' '}
+                  <span className="font-medium text-foreground">{region.counts.crimeCount.toLocaleString()}</span>
+                </div>
+                <div>
+                  Critical violations:{' '}
+                  <span className="font-medium text-foreground">
+                    {region.counts.criticalViolationCount.toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  Follow-ups:{' '}
+                  <span className="font-medium text-foreground">
+                    {region.counts.followUpInspectionCount.toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -212,7 +357,8 @@ export function ScoreBuilderRegionInsightDialog({
               </div>
               {topDriverSummary && (
                 <div className="mb-2 rounded border border-border bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground">
-                  Strongest drivers for this score: <span className="font-medium text-foreground">{topDriverSummary} pts</span>
+                  Strongest drivers for this score:{' '}
+                  <span className="font-medium text-foreground">{topDriverSummary} pts</span>
                 </div>
               )}
 
@@ -234,9 +380,17 @@ export function ScoreBuilderRegionInsightDialog({
                         return (
                           <div key={row.key} className="rounded border border-border bg-muted/15 px-2 py-1.5 text-xs">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium text-foreground">{row.label}</span>
-                              <span className={cn('font-semibold', positive ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300')}>
-                                {positive ? '+' : ''}{row.scoreDelta.toFixed(2)} pts
+                              <span className="font-medium text-foreground">{row.intentLabel}</span>
+                              <span
+                                className={cn(
+                                  'font-semibold',
+                                  positive
+                                    ? 'text-emerald-700 dark:text-emerald-300'
+                                    : 'text-rose-700 dark:text-rose-300',
+                                )}
+                              >
+                                {positive ? '+' : ''}
+                                {row.scoreDelta.toFixed(2)} pts
                               </span>
                             </div>
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">

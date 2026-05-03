@@ -1,13 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from 'react'
-import { ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type MobileSheetState = 'collapsed' | 'half' | 'full'
@@ -36,7 +28,7 @@ function getSnapPositions() {
   return {
     full: 16,
     half: Math.round(vh * 0.42),
-    collapsed: vh - 192,
+    collapsed: vh - 72,
   }
 }
 
@@ -338,7 +330,7 @@ export function MapSectionLayout({
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className={cn('relative flex h-full w-full bg-slate-100 dark:bg-slate-950', className)}>
+    <div className={cn('relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
       {/* Sidebar wrapper */}
       <div
         className={cn(
@@ -367,11 +359,26 @@ export function MapSectionLayout({
           {/* Drag handle */}
           <div
             ref={handleRef}
-            className="flex shrink-0 cursor-grab touch-none items-center justify-center py-3 select-none active:cursor-grabbing md:hidden"
+            className="relative flex shrink-0 cursor-grab touch-none items-center justify-center py-3 select-none active:cursor-grabbing md:hidden"
             role="separator"
             aria-label="Drag to resize sheet"
           >
             <div className="h-1 w-10 rounded-full bg-muted-foreground/40" />
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                snapTo(mobileSheetState === 'collapsed' ? 'half' : 'collapsed')
+              }}
+              className="absolute right-4 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-sm"
+              aria-label={mobileSheetState === 'collapsed' ? 'Show panel' : 'Hide panel'}
+            >
+              {mobileSheetState === 'collapsed' ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </button>
           </div>
 
           {/* Sidebar content */}
@@ -393,17 +400,13 @@ export function MapSectionLayout({
         onClick={onToggleDesktopSidebar}
         aria-label={showDesktopSidebar ? 'Hide sidebar' : 'Show sidebar'}
         style={{ left: showDesktopSidebar ? desktopSidebarWidth : 0 }}
-        className="absolute top-6 z-20 hidden h-10 w-8 items-center justify-center rounded-r-lg border border-l-0 border-slate-300/80 bg-slate-50/95 text-slate-600 shadow-md backdrop-blur transition-[left,background-color,color,border-color] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800 md:flex"
+        className="absolute top-1/2 z-20 hidden h-16 w-8 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-[left,background-color,color,border-color] hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
       >
-        {showDesktopSidebar ? (
-          <ChevronsLeft className="h-4 w-4" />
-        ) : (
-          <ChevronsRight className="h-4 w-4" />
-        )}
+        {showDesktopSidebar ? <ChevronsLeft className="h-4 w-4" /> : <ChevronsRight className="h-4 w-4" />}
       </button>
 
       {/* Map content */}
-      <div className="relative flex-1">{children}</div>
+      <div className="relative min-w-0 flex-1 overflow-hidden">{children}</div>
 
       {/* Right sidebar (desktop only) */}
       {rightSidebar && (
@@ -417,33 +420,36 @@ export function MapSectionLayout({
           >
             <div
               className={cn(
-                'absolute inset-y-0 right-0 h-full overflow-hidden transition-[width] duration-200',
+                'absolute inset-y-0 right-0 h-full overflow-visible transition-[width] duration-200',
                 showDesktopRightSidebar ? 'w-[var(--desktop-right-sidebar-width)]' : 'w-0',
               )}
               style={{ '--desktop-right-sidebar-width': `${desktopRightSidebarWidth}px` } as CSSProperties}
             >
-              <div
-                className="h-full"
-                style={{ width: `${desktopRightSidebarWidth}px` }}
-              >
+              {onToggleDesktopRightSidebar && showDesktopRightSidebar && (
+                <button
+                  type="button"
+                  onClick={onToggleDesktopRightSidebar}
+                  aria-label="Hide right sidebar"
+                  className="absolute left-0 top-0 z-20 hidden h-[4.35rem] w-8 -translate-x-full items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-colors hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </button>
+              )}
+              <div className="h-full" style={{ width: `${desktopRightSidebarWidth}px` }}>
                 {rightSidebar}
               </div>
             </div>
           </div>
 
-          {onToggleDesktopRightSidebar && (
+          {onToggleDesktopRightSidebar && !showDesktopRightSidebar && (
             <button
               type="button"
               onClick={onToggleDesktopRightSidebar}
-              aria-label={showDesktopRightSidebar ? 'Hide right sidebar' : 'Show right sidebar'}
-              style={{ right: showDesktopRightSidebar ? desktopRightSidebarWidth : 0 }}
-              className="absolute top-6 z-20 hidden h-10 w-8 items-center justify-center rounded-l-lg border border-r-0 border-slate-300/80 bg-slate-50/95 text-slate-600 shadow-md backdrop-blur transition-[right,background-color,color,border-color] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800 md:flex"
+              aria-label="Show right sidebar"
+              style={{ right: 0 }}
+              className="absolute top-0 z-20 hidden h-[4.35rem] w-8 items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-[right,background-color,color,border-color] hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
             >
-              {showDesktopRightSidebar ? (
-                <ChevronsRight className="h-4 w-4" />
-              ) : (
-                <ChevronsLeft className="h-4 w-4" />
-              )}
+              <ChevronsLeft className="h-4 w-4" />
             </button>
           )}
         </>

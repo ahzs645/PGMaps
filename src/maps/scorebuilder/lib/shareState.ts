@@ -1,11 +1,6 @@
 import createWebShareEngine from '@firstform/json-url/web-share'
-import type {
-  BoundarySource,
-  CensusBoundaryLevel,
-  BoundaryLevel,
-  CityBoundaryLevel,
-} from '@/maps/airquality'
-import type { ScoreDataSource, ScoreMetricWeightMap } from '../types'
+import type { BoundarySource, CensusBoundaryLevel, BoundaryLevel, CityBoundaryLevel } from '@/maps/airquality'
+import type { ScoreDataSource, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
 
 export interface ScoreBuilderShareState {
   version: 1
@@ -16,6 +11,7 @@ export interface ScoreBuilderShareState {
   enabledDataSources: ScoreDataSource[]
   selectedNetworks: string[]
   weights: Partial<ScoreMetricWeightMap>
+  methodSettings?: ScoreMethodSettings
 }
 
 const shareEngine = createWebShareEngine<ScoreBuilderShareState>({

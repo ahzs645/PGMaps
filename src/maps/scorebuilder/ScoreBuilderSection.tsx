@@ -25,7 +25,6 @@ import {
   SCORE_METRICS,
   createDefaultWeights,
   createMetricValueMap,
-  getScorePaletteColor,
   getScorePaletteProfile,
   getScoreDataSourcesForWeights,
   LOW_COST_NETWORKS,
@@ -38,8 +37,20 @@ import { ScoreBuilderRegionInsightDialog } from './components/ScoreBuilderRegion
 import { ScoreBuilderSidebar } from './components/ScoreBuilderSidebar'
 import { ScoreBuilderLeftPanel } from './components/ScoreBuilderLeftPanel'
 import { ScoreBuilderRightPanel } from './components/ScoreBuilderRightPanel'
+import { ScoreBuilderEquationBar } from './components/ScoreBuilderEquationBar'
 import { useMediaQuery } from './hooks/useMediaQuery'
 import { useScoreBuilderRegions } from './hooks/useScoreBuilderRegions'
+import { useHeatShadeData } from './hooks/useHeatShadeData'
+import { useTransitData } from './hooks/useTransitData'
+import { metricToDataSource } from './lib/metrics'
+import { getActivePresetKey, scoreDataSourcesEqual, scoreWeightsEqual } from './lib/presets'
+import {
+  buildMetricRanges,
+  buildMetricValueLists,
+  clampScore,
+  scoreRegionRows,
+  type RegionMetricRow,
+} from './lib/scoring'
 import type {
   RegionDataCounts,
   RobustnessResult,
@@ -49,7 +60,6 @@ import type {
   ScoreBandSummary,
   ScoreFilterKey,
   ScoreFilterState,
-  ScoreMetricRangeMap,
   ScoreMetricKey,
   ScoreMetricWeightMap,
   ScoreMethodSettings,
@@ -85,38 +95,28 @@ interface CrimePointRecord extends PointRecord {
   recent: boolean
 }
 
-function normalizeMetric(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) return 0
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return 0.5
-  return Math.max(0, Math.min(1, (value - min) / (max - min)))
+interface TransitPointRecord extends PointRecord {
+  accessible: boolean
+  hasShelter: boolean
 }
 
-function normalizeWithMethod(
-  value: number,
-  values: number[],
-  range: { min: number; max: number },
-  method: ScoreMethodSettings['normalization'],
-): number {
-  if (!Number.isFinite(value)) return 0
-  if (method === 'minMax') return normalizeMetric(value, range.min, range.max)
-  if (!values.length) return 0.5
-
-  if (method === 'percentile') {
-    const below = values.filter((candidate) => candidate < value).length
-    const equal = values.filter((candidate) => candidate === value).length
-    return Math.max(0, Math.min(1, (below + equal * 0.5) / values.length))
-  }
-
-  const mean = values.reduce((sum, candidate) => sum + candidate, 0) / values.length
-  const variance = values.reduce((sum, candidate) => sum + (candidate - mean) ** 2, 0) / values.length
-  const stdDev = Math.sqrt(variance)
-  if (!Number.isFinite(stdDev) || stdDev <= 0) return 0.5
-  const z = (value - mean) / stdDev
-  return Math.max(0, Math.min(1, 0.5 + z / 6))
+interface HeatShadeTreePointRecord extends PointRecord {
+  mature: boolean
 }
 
-function clampScore(value: number): number {
-  return Math.max(0, Math.min(100, value))
+interface HeatShadeForestRecord extends PointRecord {
+  areaSqKm: number
+}
+
+interface HeatShadeFacilityPointRecord extends PointRecord {
+  kind: 'communityFacility' | 'responseFacility'
+}
+
+function getNormalizationLegendText(method: ScoreMethodSettings['normalization']): string {
+  if (method === 'percentile') return 'Score uses percentile-normalized indicators within this boundary level.'
+  if (method === 'winsorizedMinMax') return 'Score uses winsorized min-max normalization within this boundary level.'
+  if (method === 'zScore') return 'Score uses z-score normalized indicators within this boundary level.'
+  return 'Score uses min-max normalized indicators within this boundary level.'
 }
 
 function computeMedian(values: number[]): number {
@@ -168,45 +168,6 @@ function computeValueGrowth(history: number[] | null | undefined): number | null
   return (last - first) / first
 }
 
-function metricToDataSource(category: string): ScoreDataSource | null {
-  if (category === 'airQuality') return 'airQuality'
-  if (category === 'parksRec') return 'parks'
-  if (category === 'foodSafety') return 'restaurants'
-  if (category === 'demographics') return 'census'
-  if (category === 'property') return 'bcAssessment'
-  if (category === 'safety') return 'crime'
-  return null
-}
-
-function metricHasCoverage(metric: ScoreMetricKey, counts: RegionDataCounts): boolean {
-  const definition = SCORE_METRICS.find((entry) => entry.key === metric)
-  const source = definition ? metricToDataSource(definition.category) : null
-  if (source === 'airQuality') return counts.monitorCount > 0
-  if (source === 'parks') return counts.parkCount + counts.trailCount + counts.amenityCount > 0
-  if (source === 'restaurants') return counts.restaurantCount > 0
-  if (source === 'census') return counts.populationSum > 0
-  if (source === 'bcAssessment') return counts.parcelCount > 0
-  if (source === 'crime') return counts.crimeCount > 0
-  return true
-}
-
-function computeDataCoverageScore(counts: RegionDataCounts, weights: ScoreMetricWeightMap): number {
-  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
-  if (!activeMetrics.length) return 1
-  const coveredMetrics = activeMetrics.filter((metric) => metricHasCoverage(metric.key, counts)).length
-  return coveredMetrics / activeMetrics.length
-}
-
-function scoreDataSourcesEqual(a: ScoreDataSource[], b: ScoreDataSource[]): boolean {
-  if (a.length !== b.length) return false
-  const bSet = new Set(b)
-  return a.every((source) => bSet.has(source))
-}
-
-function scoreWeightsEqual(a: ScoreMetricWeightMap, b: ScoreMetricWeightMap): boolean {
-  return SCORE_METRICS.every((metric) => a[metric.key] === b[metric.key])
-}
-
 function isInRegion(
   lng: number,
   lat: number,
@@ -218,7 +179,16 @@ function isInRegion(
   return booleanPointInPolygon(feature, region.feature as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>)
 }
 
-const ALL_DATA_SOURCES: ScoreDataSource[] = ['airQuality', 'parks', 'restaurants', 'census', 'bcAssessment', 'crime']
+const ALL_DATA_SOURCES: ScoreDataSource[] = [
+  'airQuality',
+  'parks',
+  'heatShade',
+  'restaurants',
+  'census',
+  'bcAssessment',
+  'crime',
+  'transit',
+]
 const CURRENT_YEAR = new Date().getFullYear()
 const DEFAULT_SCORE_FILTERS: ScoreFilterState = {
   requirePopulation: false,
@@ -248,6 +218,19 @@ function parseCityBoundaryLevel(value: string | null): CityBoundaryLevel {
   return CITY_BOUNDARY_LEVEL_VALUES.has(value as CityBoundaryLevel)
     ? (value as CityBoundaryLevel)
     : 'elementarySchoolCatchment'
+}
+
+function parseNormalizationMethod(value: string | null): ScoreMethodSettings['normalization'] {
+  if (value === 'minMax' || value === 'winsorizedMinMax' || value === 'percentile' || value === 'zScore') return value
+  return 'percentile'
+}
+
+function parseAggregationMethod(value: string | null): ScoreMethodSettings['aggregation'] {
+  return value === 'geometric' ? 'geometric' : 'additive'
+}
+
+function parseMissingDataMethod(value: string | null): ScoreMethodSettings['missingData'] {
+  return value === 'neutral' ? 'neutral' : 'zero'
 }
 
 function summarizeScores(regions: ScoredBoundaryRegion[]): { min: number; max: number; average: number } {
@@ -330,10 +313,10 @@ export default function ScoreBuilderSection() {
   const [comparisonIds, setComparisonIds] = useState<string[]>([])
   const [scoreFilters, setScoreFilters] = useState<ScoreFilterState>(DEFAULT_SCORE_FILTERS)
   const [methodSettings, setMethodSettings] = useState<ScoreMethodSettings>({
-    normalization: 'minMax',
-    aggregation: 'additive',
-    missingData: 'zero',
-    sensitivity: true,
+    normalization: parseNormalizationMethod(searchParams.get('norm')),
+    aggregation: parseAggregationMethod(searchParams.get('agg')),
+    missingData: parseMissingDataMethod(searchParams.get('missing')),
+    sensitivity: searchParams.get('sens') === 'off' ? false : true,
   })
   const [activeExampleKey, setActiveExampleKey] = useState<string | null>(() => {
     // If no URL params, auto-load first example
@@ -356,6 +339,10 @@ export default function ScoreBuilderSection() {
     )
     params.set('w', encodeWeightsToParams(weights))
     params.set('ds', enabledDataSources.join(','))
+    params.set('norm', methodSettings.normalization)
+    params.set('agg', methodSettings.aggregation)
+    params.set('missing', methodSettings.missingData)
+    params.set('sens', methodSettings.sensitivity ? 'on' : 'off')
     setSearchParams(params, { replace: true })
   }, [
     boundarySource,
@@ -364,6 +351,7 @@ export default function ScoreBuilderSection() {
     cityBoundaryLevel,
     weights,
     enabledDataSources,
+    methodSettings,
     setSearchParams,
   ])
 
@@ -406,6 +394,18 @@ export default function ScoreBuilderSection() {
     error: propertiesError,
   } = useBcAssessmentData(enabledSourceSet.has('bcAssessment'))
   const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData(enabledSourceSet.has('crime'))
+  const {
+    trees: heatShadeTrees,
+    forests: heatShadeForests,
+    facilities: heatShadeFacilities,
+    loading: loadingHeatShade,
+    error: heatShadeError,
+  } = useHeatShadeData(enabledSourceSet.has('heatShade'))
+  const {
+    stops: transitStops,
+    loading: loadingTransit,
+    error: transitError,
+  } = useTransitData(enabledSourceSet.has('transit'))
 
   const networkCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -583,7 +583,56 @@ export default function ScoreBuilderSection() {
     }))
   }, [enabledSourceSet, incidents])
 
-  const regionMetricRows = useMemo(() => {
+  const transitPointRecords = useMemo<TransitPointRecord[]>(() => {
+    if (!enabledSourceSet.has('transit')) return []
+    return transitStops
+      .filter((stop) => stop.status === 'ACT')
+      .map((stop) => ({
+        lng: stop.longitude,
+        lat: stop.latitude,
+        feature: point([stop.longitude, stop.latitude]),
+        accessible: stop.accessible,
+        hasShelter: stop.hasShelter,
+      }))
+  }, [enabledSourceSet, transitStops])
+
+  const heatShadeTreePointRecords = useMemo<HeatShadeTreePointRecord[]>(() => {
+    if (!enabledSourceSet.has('heatShade')) return []
+    return heatShadeTrees.map((tree) => ({
+      lng: tree.longitude,
+      lat: tree.latitude,
+      feature: point([tree.longitude, tree.latitude]),
+      mature: (tree.dbh ?? 0) >= 20 || (tree.treeAge ?? 0) >= 20,
+    }))
+  }, [enabledSourceSet, heatShadeTrees])
+
+  const heatShadeForestRecords = useMemo<HeatShadeForestRecord[]>(() => {
+    if (!enabledSourceSet.has('heatShade')) return []
+    return heatShadeForests
+      .map((forest) => {
+        const center = bboxCenter(forest.geometry)
+        if (!center) return null
+        return {
+          lng: center[0],
+          lat: center[1],
+          feature: point(center),
+          areaSqKm: forest.areaSqKm,
+        }
+      })
+      .filter((record): record is HeatShadeForestRecord => record !== null)
+  }, [enabledSourceSet, heatShadeForests])
+
+  const heatShadeFacilityPointRecords = useMemo<HeatShadeFacilityPointRecord[]>(() => {
+    if (!enabledSourceSet.has('heatShade')) return []
+    return heatShadeFacilities.map((facility) => ({
+      lng: facility.longitude,
+      lat: facility.latitude,
+      feature: point([facility.longitude, facility.latitude]),
+      kind: facility.kind,
+    }))
+  }, [enabledSourceSet, heatShadeFacilities])
+
+  const regionMetricRows = useMemo<RegionMetricRow[]>(() => {
     return regions.map((region) => {
       const counts: RegionDataCounts = {
         monitorCount: 0,
@@ -614,6 +663,14 @@ export default function ScoreBuilderSection() {
         commercialParcelCount: 0,
         crimeCount: 0,
         recentCrimeCount: 0,
+        transitStopCount: 0,
+        accessibleTransitStopCount: 0,
+        transitShelterCount: 0,
+        treeCount: 0,
+        matureTreeCount: 0,
+        forestAreaSqKm: 0,
+        coolingFacilityCount: 0,
+        responseFacilityCount: 0,
       }
       const networks = new Set<string>()
       const parameters = new Set<string>()
@@ -699,6 +756,32 @@ export default function ScoreBuilderSection() {
         if (rec.recent) counts.recentCrimeCount += 1
       })
 
+      // Transit
+      transitPointRecords.forEach((rec) => {
+        if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+        counts.transitStopCount += 1
+        if (rec.accessible) counts.accessibleTransitStopCount += 1
+        if (rec.hasShelter) counts.transitShelterCount += 1
+      })
+
+      // Heat and shade
+      heatShadeTreePointRecords.forEach((rec) => {
+        if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+        counts.treeCount += 1
+        if (rec.mature) counts.matureTreeCount += 1
+      })
+
+      heatShadeForestRecords.forEach((rec) => {
+        if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+        counts.forestAreaSqKm += rec.areaSqKm
+      })
+
+      heatShadeFacilityPointRecords.forEach((rec) => {
+        if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+        if (rec.kind === 'communityFacility') counts.coolingFacilityCount += 1
+        else counts.responseFacilityCount += 1
+      })
+
       const safeArea = region.areaKm2 > 0 ? region.areaKm2 : 1
       const metricValues = createMetricValueMap(0)
       metricValues.overallDensity = counts.monitorCount / safeArea
@@ -712,6 +795,11 @@ export default function ScoreBuilderSection() {
       metricValues.parkAreaRatio = region.areaKm2 > 0 ? Math.min(1, counts.parkAreaSqKm / region.areaKm2) : 0
       metricValues.trailDensity = counts.trailLengthKm / safeArea
       metricValues.amenityDensity = counts.amenityCount / safeArea
+      metricValues.treeDensity = counts.treeCount / safeArea
+      metricValues.matureTreeDensity = counts.matureTreeCount / safeArea
+      metricValues.forestAreaRatio = region.areaKm2 > 0 ? Math.min(1, counts.forestAreaSqKm / region.areaKm2) : 0
+      metricValues.coolingFacilityDensity = counts.coolingFacilityCount / safeArea
+      metricValues.responseFacilityDensity = counts.responseFacilityCount / safeArea
       metricValues.restaurantDensity = counts.restaurantCount / safeArea
       metricValues.foodRiskScore = counts.restaurantCount > 0 ? counts.restaurantHazardSum / counts.restaurantCount : 0
       metricValues.criticalViolationRate =
@@ -732,6 +820,9 @@ export default function ScoreBuilderSection() {
       metricValues.crimeDensity = counts.crimeCount / safeArea
       metricValues.crimePerCapita = counts.populationSum > 0 ? counts.crimeCount / counts.populationSum : 0
       metricValues.recentCrimeShare = counts.crimeCount > 0 ? counts.recentCrimeCount / counts.crimeCount : 0
+      metricValues.transitStopDensity = counts.transitStopCount / safeArea
+      metricValues.accessibleTransitStopDensity = counts.accessibleTransitStopCount / safeArea
+      metricValues.transitShelterDensity = counts.transitShelterCount / safeArea
 
       return { region, metrics: metricValues, counts }
     })
@@ -744,35 +835,22 @@ export default function ScoreBuilderSection() {
     censusPointRecords,
     propertyPointRecords,
     crimePointRecords,
+    transitPointRecords,
+    heatShadeTreePointRecords,
+    heatShadeForestRecords,
+    heatShadeFacilityPointRecords,
     regions,
   ])
 
-  const metricRanges = useMemo(() => {
-    return SCORE_METRICS.reduce((accumulator, metric) => {
-      const values = regionMetricRows.map((row) => row.metrics[metric.key]).filter((value) => Number.isFinite(value))
-      const min = values.length ? Math.min(...values) : 0
-      const max = values.length ? Math.max(...values) : 1
-      return { ...accumulator, [metric.key]: { min, max } }
-    }, {} as ScoreMetricRangeMap)
-  }, [regionMetricRows])
+  const metricRanges = useMemo(() => buildMetricRanges(regionMetricRows), [regionMetricRows])
 
   const metricValueLists = useMemo(() => {
-    return SCORE_METRICS.reduce(
-      (accumulator, metric) => {
-        accumulator[metric.key] = regionMetricRows
-          .map((row) => row.metrics[metric.key])
-          .filter((value) => Number.isFinite(value))
-          .sort((a, b) => a - b)
-        return accumulator
-      },
-      {} as Record<ScoreMetricKey, number[]>,
-    )
+    return buildMetricValueLists(regionMetricRows)
   }, [regionMetricRows])
 
   const activePresetKey = useMemo(() => {
-    const match = SCORE_PRESETS.find((preset) => scoreWeightsEqual(preset.weights, weights))
-    return match?.key || null
-  }, [weights])
+    return getActivePresetKey(weights, enabledDataSources, boundarySource)
+  }, [boundarySource, enabledDataSources, weights])
 
   const inferredExampleKey = useMemo(() => {
     const match = SCORE_BUILDER_EXAMPLES.find(
@@ -787,59 +865,39 @@ export default function ScoreBuilderSection() {
 
   const resolvedExampleKey = activeExampleKey || inferredExampleKey
 
+  const paletteExampleKey = useMemo(() => {
+    if (resolvedExampleKey) return resolvedExampleKey
+    const match = SCORE_BUILDER_EXAMPLES.find(
+      (example) =>
+        scoreDataSourcesEqual(example.dataSources, enabledDataSources) && scoreWeightsEqual(example.weights, weights),
+    )
+    return match?.key || null
+  }, [enabledDataSources, resolvedExampleKey, weights])
+
   const scorePaletteProfile = useMemo(() => {
-    return getScorePaletteProfile(activePresetKey, resolvedExampleKey)
-  }, [activePresetKey, resolvedExampleKey])
+    return getScorePaletteProfile(activePresetKey, paletteExampleKey)
+  }, [activePresetKey, paletteExampleKey])
+
+  const activePreset = useMemo(
+    () => SCORE_PRESETS.find((preset) => preset.key === activePresetKey) || null,
+    [activePresetKey],
+  )
+
+  const activeExample = useMemo(
+    () => SCORE_BUILDER_EXAMPLES.find((example) => example.key === resolvedExampleKey) || null,
+    [resolvedExampleKey],
+  )
 
   const scoreRows = useCallback(
     (weightMap: ScoreMetricWeightMap, settings: ScoreMethodSettings = methodSettings): ScoredBoundaryRegion[] => {
-      const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weightMap[metric.key]), 0)
-      const ranked = regionMetricRows.map((row) => {
-        const normalizedMetrics = createMetricValueMap(0)
-        const contributions = createMetricValueMap(0)
-        let rawScore = 0
-        let rawProduct = 1
-
-        SCORE_METRICS.forEach((metric) => {
-          const value = row.metrics[metric.key]
-          const range = metricRanges[metric.key]
-          const hasCoverage = metricHasCoverage(metric.key, row.counts)
-          const normalizedValue =
-            settings.missingData === 'neutral' && !hasCoverage
-              ? 0.5
-              : normalizeWithMethod(value, metricValueLists[metric.key] ?? [], range, settings.normalization)
-          const weight = weightMap[metric.key]
-          const directionalValue = weight >= 0 ? normalizedValue : 1 - normalizedValue
-          normalizedMetrics[metric.key] = normalizedValue
-          contributions[metric.key] = totalWeight > 0 ? (Math.abs(weight) * directionalValue) / totalWeight : 0
-          rawScore += contributions[metric.key]
-          if (weight !== 0 && totalWeight > 0) {
-            rawProduct *= Math.max(0.01, directionalValue) ** (Math.abs(weight) / totalWeight)
-          }
-        })
-
-        const aggregateValue = settings.aggregation === 'geometric' && totalWeight > 0 ? rawProduct : rawScore
-        const score = totalWeight > 0 ? clampScore(aggregateValue * 100) : 50
-
-        return {
-          ...row,
-          normalizedMetrics,
-          contributions,
-          score,
-          scoreColor: getScorePaletteColor(score, scorePaletteProfile),
-          rank: 0,
-          dataCoverageScore: computeDataCoverageScore(row.counts, weightMap),
-        }
+      return scoreRegionRows({
+        rows: regionMetricRows,
+        weights: weightMap,
+        settings,
+        metricRanges,
+        metricValueLists,
+        paletteProfile: scorePaletteProfile,
       })
-
-      ranked.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score
-        if (b.metrics.overallDensity !== a.metrics.overallDensity)
-          return b.metrics.overallDensity - a.metrics.overallDensity
-        return a.region.name.localeCompare(b.region.name)
-      })
-
-      return ranked.map((row, index) => ({ ...row, rank: index + 1 }))
     },
     [methodSettings, metricRanges, metricValueLists, regionMetricRows, scorePaletteProfile],
   )
@@ -912,6 +970,10 @@ export default function ScoreBuilderSection() {
   }, [regionInsightRegion, regionInsightRegionId])
 
   const scoreSpread = useMemo(() => summarizeScores(scoredRegions), [scoredRegions])
+  const thinCoverageCount = useMemo(
+    () => scoredRegions.filter((region) => region.dataCoverageScore < 0.6).length,
+    [scoredRegions],
+  )
 
   const scoreBands = useMemo(() => buildScoreBandSummary(scoredRegions), [scoredRegions])
 
@@ -971,7 +1033,7 @@ export default function ScoreBuilderSection() {
     SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).forEach((metric) => {
       sampleRows(scoreRows({ ...weights, [metric.key]: 0 }))
     })
-    ;(['minMax', 'percentile', 'zScore'] as const).forEach((normalization) => {
+    ;(['minMax', 'winsorizedMinMax', 'percentile', 'zScore'] as const).forEach((normalization) => {
       if (normalization === methodSettings.normalization) return
       sampleRows(scoreRows(weights, { ...methodSettings, normalization }))
     })
@@ -1079,6 +1141,11 @@ export default function ScoreBuilderSection() {
     return `score = weighted average(${terms.join(' + ')})`
   }, [weights])
 
+  const normalizationLegendText = useMemo(
+    () => getNormalizationLegendText(methodSettings.normalization),
+    [methodSettings.normalization],
+  )
+
   const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
     setActiveExampleKey(null)
     setWeights((current) => ({ ...current, [metric]: value }))
@@ -1099,6 +1166,7 @@ export default function ScoreBuilderSection() {
       }
       setEnabledDataSources([...example.dataSources])
       setWeights({ ...example.weights })
+      setMethodSettings((current) => ({ ...current, ...example.methodSettings }))
       if (example.networkFilter === 'all') {
         // Will be applied once allNetworks is available
         setSelectedNetworks(allNetworks.length > 0 ? allNetworks : [])
@@ -1129,6 +1197,9 @@ export default function ScoreBuilderSection() {
         setEnabledDataSources([...state.enabledDataSources])
         setSelectedNetworks([...state.selectedNetworks])
         setWeights({ ...createDefaultWeights(), ...state.weights })
+        if (state.methodSettings) {
+          setMethodSettings((current) => ({ ...current, ...state.methodSettings }))
+        }
       })
       .catch(() => {
         // Malformed share tokens should not block the regular score builder.
@@ -1158,6 +1229,19 @@ export default function ScoreBuilderSection() {
       if (!preset) return
       setActiveExampleKey(null)
       setWeights({ ...preset.weights })
+      setMethodSettings((current) => ({ ...current, ...preset.methodSettings }))
+      if (preset.recommendedBoundarySource) {
+        setBoundarySource(preset.recommendedBoundarySource)
+      }
+      if (preset.recommendedBoundaryLevel) {
+        if (preset.recommendedBoundarySource === 'bcHealth') {
+          setHealthBoundaryLevel(parseHealthBoundaryLevel(preset.recommendedBoundaryLevel))
+        } else if (preset.recommendedBoundarySource === 'census') {
+          setCensusBoundaryLevel(parseCensusBoundaryLevel(preset.recommendedBoundaryLevel))
+        } else if (preset.recommendedBoundarySource === 'cityPG') {
+          setCityBoundaryLevel(parseCityBoundaryLevel(preset.recommendedBoundaryLevel))
+        }
+      }
       const neededSources = getScoreDataSourcesForWeights(preset.weights)
       setEnabledDataSources(neededSources)
       setSelectedNetworks(neededSources.includes('airQuality') ? allNetworks : [])
@@ -1190,6 +1274,7 @@ export default function ScoreBuilderSection() {
       enabledDataSources,
       selectedNetworks,
       weights,
+      methodSettings,
     })
     const url = new URL(window.location.href)
     url.search = ''
@@ -1207,6 +1292,7 @@ export default function ScoreBuilderSection() {
     cityBoundaryLevel,
     enabledDataSources,
     healthBoundaryLevel,
+    methodSettings,
     selectedNetworks,
     weights,
   ])
@@ -1312,7 +1398,9 @@ export default function ScoreBuilderSection() {
     loadingRestaurants ||
     loadingCensus ||
     loadingProperties ||
-    loadingCrime
+    loadingCrime ||
+    loadingHeatShade ||
+    loadingTransit
   const dataErrors = useMemo(() => {
     const errors: string[] = []
     if (monitorsError) errors.push(monitorsError)
@@ -1322,8 +1410,20 @@ export default function ScoreBuilderSection() {
     if (censusError) errors.push(censusError)
     if (propertiesError) errors.push(propertiesError)
     if (crimeError) errors.push(crimeError)
+    if (heatShadeError) errors.push(heatShadeError)
+    if (transitError) errors.push(transitError)
     return errors
-  }, [monitorsError, regionsError, parksError, restaurantsError, censusError, propertiesError, crimeError])
+  }, [
+    monitorsError,
+    regionsError,
+    parksError,
+    restaurantsError,
+    censusError,
+    propertiesError,
+    crimeError,
+    heatShadeError,
+    transitError,
+  ])
 
   const desktopLeftPanel = (
     <ScoreBuilderLeftPanel
@@ -1464,42 +1564,74 @@ export default function ScoreBuilderSection() {
         onToggleDesktopRightSidebar={() => setShowRightSidebar((current) => !current)}
         desktopRightSidebarWidth={380}
       >
-        <div className="relative h-full">
-          <ScoreBuilderMap
-            regions={scoredRegions}
-            selectedRegionId={selectedRegionId}
-            monitors={filteredMonitors}
-            showPoints={showPoints}
-            paletteProfile={scorePaletteProfile}
-            onRegionClick={setSelectedRegionId}
-          />
-
-          <div className="absolute bottom-24 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
-            <h4 className="mb-2 text-xs font-semibold text-foreground">{scorePaletteProfile.label}</h4>
-            <div
-              className="h-2 w-44 rounded"
-              style={{ background: `linear-gradient(to right, ${scorePaletteProfile.colors.join(', ')})` }}
+        <div className="relative flex h-full min-h-0 flex-col">
+          {isDesktop && (
+            <ScoreBuilderEquationBar
+              weights={weights}
+              activePresetKey={activePresetKey}
+              activeRecipeLabel={activeExample?.label || activePreset?.label || 'Custom index'}
+              activeRecipeDescription={
+                activeExample
+                  ? activeExample.question
+                  : activePreset
+                    ? activePreset.description
+                    : 'Custom weights saved in the URL.'
+              }
+              boundarySource={boundarySource}
+              equationPreview={equationPreview}
+              scoreSpread={scoreSpread}
+              topRegions={scoredRegions.slice(0, 3)}
+              onWeightChange={handleWeightChange}
+              onAddMetric={handleAddMetric}
+              onApplyPreset={handleApplyPreset}
+              onExport={handleExport}
+              onShareUrl={handleShareUrl}
             />
-            <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>{scorePaletteProfile.legend.low}</span>
-              <span>{scorePaletteProfile.legend.high}</span>
-            </div>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
-              <div>
-                <div className="uppercase">Min</div>
-                <div className="font-medium text-foreground">{scoreSpread.min.toFixed(1)}</div>
+          )}
+
+          <div className="relative min-h-0 flex-1">
+            <ScoreBuilderMap
+              regions={scoredRegions}
+              selectedRegionId={selectedRegionId}
+              monitors={filteredMonitors}
+              showPoints={showPoints}
+              paletteProfile={scorePaletteProfile}
+              onRegionClick={setSelectedRegionId}
+            />
+
+            <div className="absolute bottom-24 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+              <h4 className="mb-2 text-xs font-semibold text-foreground">{scorePaletteProfile.label}</h4>
+              <div
+                className="h-2 w-44 rounded"
+                style={{ background: `linear-gradient(to right, ${scorePaletteProfile.colors.join(', ')})` }}
+              />
+              <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>{scorePaletteProfile.legend.low}</span>
+                <span>{scorePaletteProfile.legend.high}</span>
               </div>
-              <div>
-                <div className="uppercase">Avg</div>
-                <div className="font-medium text-foreground">{scoreSpread.average.toFixed(1)}</div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
+                <div>
+                  <div className="uppercase">Min</div>
+                  <div className="font-medium text-foreground">{scoreSpread.min.toFixed(1)}</div>
+                </div>
+                <div>
+                  <div className="uppercase">Avg</div>
+                  <div className="font-medium text-foreground">{scoreSpread.average.toFixed(1)}</div>
+                </div>
+                <div>
+                  <div className="uppercase">Max</div>
+                  <div className="font-medium text-foreground">{scoreSpread.max.toFixed(1)}</div>
+                </div>
               </div>
-              <div>
-                <div className="uppercase">Max</div>
-                <div className="font-medium text-foreground">{scoreSpread.max.toFixed(1)}</div>
+              <div className="mt-2 text-[10px] text-muted-foreground">
+                {enabledDataSources.length} data source(s) active across {regions.length} regions.
               </div>
-            </div>
-            <div className="mt-2 text-[10px] text-muted-foreground">
-              {enabledDataSources.length} data source(s) active across {regions.length} regions.
+              <div className="mt-1 text-[10px] leading-snug text-muted-foreground">{normalizationLegendText}</div>
+              {thinCoverageCount > 0 && (
+                <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'} have thin active-data coverage.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1510,6 +1642,7 @@ export default function ScoreBuilderSection() {
         onOpenChange={handleRegionInsightOpenChange}
         region={regionInsightRegion}
         weights={weights}
+        methodSettings={methodSettings}
         isMobile={!isDesktop}
       />
     </>

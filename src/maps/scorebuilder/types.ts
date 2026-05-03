@@ -1,6 +1,14 @@
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 
-export type ScoreMetricCategory = 'airQuality' | 'parksRec' | 'foodSafety' | 'demographics' | 'property' | 'safety'
+export type ScoreMetricCategory =
+  | 'airQuality'
+  | 'parksRec'
+  | 'heatShade'
+  | 'foodSafety'
+  | 'demographics'
+  | 'property'
+  | 'safety'
+  | 'transit'
 
 export type ScoreMetricKey =
   // Air Quality
@@ -16,6 +24,12 @@ export type ScoreMetricKey =
   | 'parkAreaRatio'
   | 'trailDensity'
   | 'amenityDensity'
+  // Heat & Shade
+  | 'treeDensity'
+  | 'matureTreeDensity'
+  | 'forestAreaRatio'
+  | 'coolingFacilityDensity'
+  | 'responseFacilityDensity'
   // Food Safety
   | 'restaurantDensity'
   | 'foodRiskScore'
@@ -36,9 +50,13 @@ export type ScoreMetricKey =
   | 'crimeDensity'
   | 'crimePerCapita'
   | 'recentCrimeShare'
+  // Transit
+  | 'transitStopDensity'
+  | 'accessibleTransitStopDensity'
+  | 'transitShelterDensity'
 
 export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
-export type ScoreNormalizationMethod = 'minMax' | 'percentile' | 'zScore'
+export type ScoreNormalizationMethod = 'minMax' | 'winsorizedMinMax' | 'percentile' | 'zScore'
 export type ScoreAggregationMethod = 'additive' | 'geometric'
 export type ScoreMetricDirection = 'higherIsBetter' | 'higherIsWorse'
 export type ScoreMetricComponent =
@@ -99,6 +117,19 @@ export interface ScorePreset {
   label: string
   description: string
   weights: ScoreMetricWeightMap
+  methodSettings?: Partial<ScoreMethodSettings>
+  boundarySources?: BoundarySource[]
+  recommendedBoundarySource?: BoundarySource
+  recommendedBoundaryLevel?: RegionLevel
+}
+
+export interface ScorePresetMethodology {
+  purpose: string
+  components: string[]
+  normalization: string
+  knownLimits: string[]
+  dataNeeded: string[]
+  proxy: boolean
 }
 
 export interface ScoreExample {
@@ -111,6 +142,7 @@ export interface ScoreExample {
   dataSources: ScoreDataSource[]
   networkFilter: 'all' | 'none' | string[]
   weights: ScoreMetricWeightMap
+  methodSettings?: Partial<ScoreMethodSettings>
 }
 
 export interface RegionDataCounts {
@@ -142,6 +174,14 @@ export interface RegionDataCounts {
   commercialParcelCount: number
   crimeCount: number
   recentCrimeCount: number
+  transitStopCount: number
+  accessibleTransitStopCount: number
+  transitShelterCount: number
+  treeCount: number
+  matureTreeCount: number
+  forestAreaSqKm: number
+  coolingFacilityCount: number
+  responseFacilityCount: number
 }
 
 export interface ScoredBoundaryRegion {
@@ -175,7 +215,15 @@ export interface RobustnessResult {
   topDrivers: ScoreMetricKey[]
 }
 
-export type ScoreDataSource = 'airQuality' | 'parks' | 'restaurants' | 'census' | 'bcAssessment' | 'crime'
+export type ScoreDataSource =
+  | 'airQuality'
+  | 'parks'
+  | 'heatShade'
+  | 'restaurants'
+  | 'census'
+  | 'bcAssessment'
+  | 'crime'
+  | 'transit'
 
 export type ScoreFilterKey = 'requirePopulation' | 'requireParks' | 'limitCrime' | 'limitFoodRisk'
 
@@ -205,17 +253,21 @@ export interface ScenarioComparison {
 export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; description: string }> = [
   { id: 'airQuality', label: 'Air Quality', description: 'Sensor network coverage and diversity' },
   { id: 'parks', label: 'Parks & Trails', description: 'Parks, trails, and amenity infrastructure' },
+  { id: 'heatShade', label: 'Heat & Shade', description: 'Tree inventory, forest cover, and cooling-access proxies' },
   { id: 'restaurants', label: 'Food Safety', description: 'Restaurant inspection coverage' },
   { id: 'census', label: 'Demographics', description: 'Census population data (PG area)' },
   { id: 'bcAssessment', label: 'BC Assessment', description: 'Parcel values, housing mix, age, and growth' },
   { id: 'crime', label: 'Crime', description: 'Prince George crime density, per-capita risk, and recency' },
+  { id: 'transit', label: 'Transit', description: 'City of Prince George transit stops and stop amenities' },
 ]
 
 export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
   airQuality: 'Air Quality',
   parksRec: 'Parks & Recreation',
+  heatShade: 'Heat & Shade',
   foodSafety: 'Food Safety',
   demographics: 'Demographics',
   property: 'Property & Housing',
   safety: 'Safety',
+  transit: 'Transit',
 }

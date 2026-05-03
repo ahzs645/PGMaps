@@ -23,7 +23,7 @@ import {
   SCORE_METRICS,
   SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
-  getScoreDataSourcesForWeights,
+  getScorePresetMethodology,
 } from '../constants'
 import { METRIC_CATEGORY_LABELS } from '../types'
 import type {
@@ -40,9 +40,20 @@ import type {
   ScoreMethodSettings,
   ScenarioComparison,
 } from '../types'
+import { formatMetricValue, formatScore, getMetricDescription, getMetricLabel } from '../lib/metrics'
+import { presetAppliesToBoundary } from '../lib/presets'
+import { formatDriverDelta, getScoreDrivers, type ScoreDriver } from '../lib/scoreDrivers'
 import { RadarChart } from './RadarChart'
+import { ScorePresetDialog } from './ScorePresetDialog'
 
 type RightPanelTab = 'examples' | 'equation' | 'methodology' | 'model' | 'robustness' | 'density' | 'regions'
+
+function formatNormalizationMethod(method: ScoreMethodSettings['normalization']): string {
+  if (method === 'percentile') return 'percentile rank'
+  if (method === 'winsorizedMinMax') return 'winsorized min-max'
+  if (method === 'zScore') return 'z-score'
+  return 'min-max'
+}
 
 interface ScoreBuilderRightPanelProps {
   className?: string
@@ -103,94 +114,20 @@ const TAB_LABELS: Record<RightPanelTab, string> = {
   regions: 'Regions',
 }
 
-function getMetricLabel(key: ScoreMetricKey): string {
-  return SCORE_METRICS.find((metric) => metric.key === key)?.label || key
-}
-
-function getMetricDescription(key: ScoreMetricKey): string {
-  return SCORE_METRICS.find((metric) => metric.key === key)?.description || ''
-}
-
-function getMetricFormat(key: ScoreMetricKey): string {
-  return SCORE_METRICS.find((metric) => metric.key === key)?.format || 'count'
-}
-
 function getDataSourceLabel(source: ScoreDataSource): string {
   if (source === 'airQuality') return 'Air'
   if (source === 'parks') return 'Parks'
+  if (source === 'heatShade') return 'Heat/Shade'
   if (source === 'restaurants') return 'Food'
   if (source === 'census') return 'Census'
   if (source === 'bcAssessment') return 'Property'
   if (source === 'crime') return 'Crime'
+  if (source === 'transit') return 'Transit'
   return source
-}
-
-function presetAppliesToBoundary(preset: (typeof SCORE_PRESETS)[number], boundarySource: BoundarySource): boolean {
-  if (boundarySource !== 'bcHealth') return true
-  const sources = getScoreDataSourcesForWeights(preset.weights)
-  return sources.length === 1 && sources[0] === 'airQuality'
-}
-
-function formatMetricValue(metric: ScoreMetricKey, value: number, compact = false): string {
-  const format = getMetricFormat(metric)
-
-  if (metric === 'foodRiskScore') {
-    const riskScore = value * 100
-    return compact ? `${riskScore.toFixed(0)}/100 risk` : `${riskScore.toFixed(1)} / 100 risk index`
-  }
-  if (metric === 'crimePerCapita') {
-    const perThousand = value * 1_000
-    return compact
-      ? `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k residents`
-      : `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 2 })} incidents / 1,000 residents`
-  }
-  if (format === 'density') {
-    const scaled = value * 1_000
-    return compact
-      ? `${scaled.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k km²`
-      : `${scaled.toLocaleString(undefined, { maximumFractionDigits: 2 })} / 1,000 km²`
-  }
-  if (format === 'ratio') return `${(value * 100).toFixed(1)}%`
-  if (format === 'percent') return `${(value * 100).toFixed(1)}%`
-  if (format === 'currency') {
-    if (compact) {
-      if (Math.abs(value) >= 1_000_000)
-        return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
-      return `$${Math.round(value / 1000).toLocaleString()}k`
-    }
-    return value.toLocaleString(undefined, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
-  }
-  if (format === 'years') return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} yrs`
-  if (Number.isInteger(value)) return value.toLocaleString()
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
-}
-
-function formatScore(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
 }
 
 function clampWeight(value: number): number {
   return Math.max(-100, Math.min(100, Math.round(value)))
-}
-
-function getTopDrivers(
-  region: ScoredBoundaryRegion,
-  weights: ScoreMetricWeightMap,
-  limit = 2,
-): Array<{ key: ScoreMetricKey; label: string; scoreDelta: number }> {
-  return SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
-    .map((metric) => ({
-      key: metric.key,
-      label: metric.shortLabel,
-      scoreDelta: region.contributions[metric.key] * 100,
-    }))
-    .filter((driver) => Math.abs(driver.scoreDelta) >= 0.005)
-    .sort((a, b) => Math.abs(b.scoreDelta) - Math.abs(a.scoreDelta))
-    .slice(0, limit)
-}
-
-function formatDriverDelta(value: number): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`
 }
 
 function getDefaultMetricWeight(metric: ScoreMetricKey): number {
@@ -222,10 +159,12 @@ function getMetricDirectionLabel(key: ScoreMetricKey): string {
 function getCategoryTone(category: string): string {
   if (category === 'airQuality') return 'bg-sky-500'
   if (category === 'parksRec') return 'bg-emerald-500'
+  if (category === 'heatShade') return 'bg-lime-600'
   if (category === 'foodSafety') return 'bg-orange-500'
   if (category === 'demographics') return 'bg-amber-500'
   if (category === 'property') return 'bg-violet-500'
   if (category === 'safety') return 'bg-rose-500'
+  if (category === 'transit') return 'bg-teal-500'
   return 'bg-cyan-500'
 }
 
@@ -274,7 +213,7 @@ export function ScoreBuilderRightPanel({
   onApplyExample,
   isDesktop,
 }: ScoreBuilderRightPanelProps) {
-  const [activeTab, setActiveTab] = useState<RightPanelTab>('equation')
+  const [activeTab, setActiveTab] = useState<RightPanelTab>('regions')
   const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
 
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
@@ -294,7 +233,7 @@ export function ScoreBuilderRightPanel({
     [boundarySource],
   )
   const selectedRegionDrivers = useMemo(
-    () => (selectedRegion ? getTopDrivers(selectedRegion, weights, 2) : []),
+    () => (selectedRegion ? getScoreDrivers(selectedRegion, weights, 2) : []),
     [selectedRegion, weights],
   )
   const totalAbsoluteWeight = useMemo(() => {
@@ -354,7 +293,11 @@ export function ScoreBuilderRightPanel({
       </div>
 
       {/* Tabs */}
-      <div role="tablist" className="flex shrink-0 border-b border-border bg-background/95">
+      <div
+        role="tablist"
+        className="flex shrink-0 overflow-x-auto border-b border-border bg-background/95"
+        data-score-builder-tablist="true"
+      >
         {TAB_ORDER.map((tab) => (
           <button
             key={tab}
@@ -364,7 +307,7 @@ export function ScoreBuilderRightPanel({
             data-score-builder-tab={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              'relative flex-1 px-3 py-2.5 text-xs font-medium transition-colors',
+              'relative min-w-[3.25rem] flex-1 whitespace-nowrap px-1.5 py-2.5 text-[11px] font-medium transition-colors',
               activeTab === tab ? 'text-cyan-700 dark:text-cyan-300' : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -420,7 +363,12 @@ export function ScoreBuilderRightPanel({
         )}
 
         {activeTab === 'methodology' && (
-          <MethodologyTab weights={weights} methodSettings={methodSettings} componentSummaries={componentSummaries} />
+          <MethodologyTab
+            weights={weights}
+            methodSettings={methodSettings}
+            componentSummaries={componentSummaries}
+            activePreset={activePreset}
+          />
         )}
 
         {activeTab === 'model' && (
@@ -661,6 +609,7 @@ function EquationTab({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [focusedMetric, setFocusedMetric] = useState<ScoreMetricKey | null>(null)
   const [builderMode, setBuilderMode] = useState<'formula' | 'priority'>('formula')
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [priorityOrder, setPriorityOrder] = useState<ScoreMetricKey[]>([])
   const activeWeightCount = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length
   const activeTerms = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
@@ -740,35 +689,66 @@ function EquationTab({
         )}
       </div>
 
-      <div>
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Presets</div>
-        <div className="flex flex-wrap gap-2">
-          {visiblePresets.map((preset) => (
-            <button
-              key={preset.key}
-              onClick={() => onApplyPreset(preset.key)}
-              className={cn(
-                'rounded-full border px-3 py-1 text-xs transition-colors',
-                activePresetKey === preset.key
-                  ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100'
-                  : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-              title={preset.description}
-            >
-              {preset.label}
-            </button>
-          ))}
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Preset</div>
+            <div className="mt-0.5 text-sm font-semibold text-foreground">
+              {activePreset?.label || activeExample?.label || 'Custom index'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPresetDialogOpen(true)}
+            className="shrink-0 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Browse presets
+          </button>
         </div>
+        <div className="text-xs text-muted-foreground">
+          {activePreset
+            ? activePreset.description
+            : activeExample
+              ? activeExample.description
+              : 'Custom weights saved in the URL.'}
+        </div>
+        {visiblePresets.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {visiblePresets.slice(0, 3).map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => onApplyPreset(preset.key)}
+                className={cn(
+                  'rounded-full border px-2 py-0.5 text-[10px] transition-colors',
+                  activePresetKey === preset.key
+                    ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100'
+                    : 'border-input text-muted-foreground hover:text-foreground',
+                )}
+                title={preset.description}
+              >
+                {preset.label}
+              </button>
+            ))}
+            {visiblePresets.length > 3 && (
+              <button
+                type="button"
+                onClick={() => setPresetDialogOpen(true)}
+                className="rounded-full border border-dashed border-input px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                +{visiblePresets.length - 3} more
+              </button>
+            )}
+          </div>
+        )}
+        <ScorePresetDialog
+          open={presetDialogOpen}
+          onOpenChange={setPresetDialogOpen}
+          presets={visiblePresets}
+          activePresetKey={activePresetKey}
+          onApplyPreset={onApplyPreset}
+        />
       </div>
-
-      <div className="rounded-md border border-border bg-muted/15 p-2 text-xs text-muted-foreground">
-        {activePreset
-          ? `${activePreset.label} intent: ${activePreset.description}`
-          : activeExample
-            ? `Scenario intent: ${activeExample.description}`
-            : 'Preset buttons shift the score toward common planning questions; custom weights refine the equation.'}
-      </div>
-
       {!isDesktop && (
         <div
           data-score-builder-mobile-note="true"
@@ -846,29 +826,14 @@ function EquationTab({
             </div>
 
             {builderMode === 'formula' ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm font-semibold text-foreground">Score</span>
-                <span className="font-mono text-xs text-muted-foreground">=</span>
-                {activeTerms.length === 0 && (
-                  <span className="rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted-foreground">
-                    No active terms
-                  </span>
-                )}
-                {activeTerms.map((metric, index) => (
-                  <div key={metric.key} className="flex items-center gap-2">
-                    {index > 0 && <span className="text-xs text-muted-foreground">+</span>}
-                    <ScoreEquationTerm
-                      metric={metric}
-                      value={weights[metric.key]}
-                      totalAbsoluteWeight={totalAbsoluteWeight}
-                      active={focusedMetric === metric.key}
-                      onFocus={() => setFocusedMetric(metric.key)}
-                      onChange={(value) => onWeightChange(metric.key, value)}
-                      onRemove={() => onWeightChange(metric.key, 0)}
-                    />
-                  </div>
-                ))}
-              </div>
+              <EquationComposer
+                activeTerms={activeTerms}
+                weights={weights}
+                totalAbsoluteWeight={totalAbsoluteWeight}
+                focusedMetric={focusedMetric}
+                onFocus={setFocusedMetric}
+                onWeightChange={onWeightChange}
+              />
             ) : (
               <PriorityMode
                 order={priorityOrder}
@@ -903,6 +868,61 @@ function EquationTab({
           setPickerOpen(false)
         }}
       />
+    </div>
+  )
+}
+
+function EquationComposer({
+  activeTerms,
+  weights,
+  totalAbsoluteWeight,
+  focusedMetric,
+  onFocus,
+  onWeightChange,
+}: {
+  activeTerms: Array<(typeof SCORE_METRICS)[number]>
+  weights: ScoreMetricWeightMap
+  totalAbsoluteWeight: number
+  focusedMetric: ScoreMetricKey | null
+  onFocus: (metric: ScoreMetricKey) => void
+  onWeightChange: (metric: ScoreMetricKey, value: number) => void
+}) {
+  return (
+    <div className="mt-3" data-score-builder-equation-composer="true">
+      <div className="mb-2 flex justify-end">
+        <span className="rounded bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+          {activeTerms.length} term{activeTerms.length === 1 ? '' : 's'}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-3">
+        <div className="pt-11 font-mono text-sm font-bold text-foreground">
+          Score <span className="text-muted-foreground">=</span>
+        </div>
+        <div className="space-y-2">
+          {activeTerms.length === 0 && (
+            <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+              No active terms. Add a metric or apply a preset.
+            </div>
+          )}
+          {activeTerms.map((metric, index) => (
+            <div key={metric.key} className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-2">
+              <div className="pt-11 text-center font-mono text-lg font-semibold text-muted-foreground">
+                {index > 0 ? '+' : ''}
+              </div>
+              <ScoreEquationTerm
+                metric={metric}
+                value={weights[metric.key]}
+                totalAbsoluteWeight={totalAbsoluteWeight}
+                active={focusedMetric === metric.key}
+                onFocus={() => onFocus(metric.key)}
+                onChange={(value) => onWeightChange(metric.key, value)}
+                onRemove={() => onWeightChange(metric.key, 0)}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1346,12 +1366,15 @@ function MethodologyTab({
   weights,
   methodSettings,
   componentSummaries,
+  activePreset,
 }: {
   weights: ScoreMetricWeightMap
   methodSettings: ScoreMethodSettings
   componentSummaries: ScoreComponentSummary[]
+  activePreset: (typeof SCORE_PRESETS)[number] | null
 }) {
   const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+  const presetMethodology = activePreset ? getScorePresetMethodology(activePreset) : null
 
   return (
     <div className="space-y-3 p-4" data-score-builder-section="methodology">
@@ -1366,11 +1389,51 @@ function MethodologyTab({
             the selected aggregation method.
           </p>
           <p>
-            Current settings: {methodSettings.normalization} normalization, {methodSettings.aggregation} aggregation,
-            missing data set to {methodSettings.missingData}.
+            Current settings: {formatNormalizationMethod(methodSettings.normalization)} normalization,{' '}
+            {methodSettings.aggregation} aggregation, missing data set to {methodSettings.missingData}.
           </p>
         </div>
       </div>
+
+      {presetMethodology && (
+        <div className="rounded-lg border border-border bg-background p-3">
+          <div className="mb-2 text-sm font-semibold text-foreground">Preset methodology notes</div>
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <div>
+              <span className="font-semibold text-foreground">Purpose:</span> {presetMethodology.purpose}
+            </div>
+            <div>
+              <span className="font-semibold text-foreground">Included components:</span>{' '}
+              {presetMethodology.components.join(', ') || 'Custom metric set'}
+            </div>
+            <div>
+              <span className="font-semibold text-foreground">Preset normalization:</span>{' '}
+              {presetMethodology.normalization}
+            </div>
+            {presetMethodology.proxy && (
+              <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+                Proxy recipe. Use it for screening and conversation, not as a validated health, exposure, or EJ index.
+              </div>
+            )}
+            <div>
+              <div className="font-semibold text-foreground">Known limits</div>
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                {presetMethodology.knownLimits.map((limit) => (
+                  <li key={limit}>{limit}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="font-semibold text-foreground">Data still needed</div>
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                {presetMethodology.dataNeeded.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {componentSummaries.length > 0 && (
         <div className="rounded-lg border border-border bg-background p-3">
@@ -1536,8 +1599,8 @@ function ModelTab({
         </div>
         <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
           <p>
-            Each metric is normalized from 0 to 1 with the selected method against the currently loaded regions.
-            Positive weights prefer high normalized values; negative weights prefer low values.
+            Each metric is automatically normalized from 0 to 1 with the selected method against the currently loaded
+            regions. Positive weights prefer high normalized values; negative weights prefer low values.
           </p>
           <p>
             The final score uses the selected aggregation method after active weights are converted to weight shares.
@@ -1572,8 +1635,9 @@ function ModelTab({
               }
               className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
             >
-              <option value="minMax">Min-max</option>
               <option value="percentile">Percentile rank</option>
+              <option value="winsorizedMinMax">Winsorized min-max</option>
+              <option value="minMax">Min-max</option>
               <option value="zScore">Z-score</option>
             </select>
           </label>
@@ -1838,7 +1902,7 @@ function RegionsTab({
   visibleRows: ScoredBoundaryRegion[]
   filteredRegions: ScoredBoundaryRegion[]
   selectedRegion: ScoredBoundaryRegion | null
-  selectedRegionDrivers: Array<{ key: ScoreMetricKey; label: string; scoreDelta: number }>
+  selectedRegionDrivers: ScoreDriver[]
   comparisonRegions: ScoredBoundaryRegion[]
   comparisonSet: Set<string>
   weights: ScoreMetricWeightMap
@@ -1978,7 +2042,7 @@ function RegionsTab({
             <div className="mt-2 text-[11px] text-cyan-800 dark:text-cyan-200">
               Top drivers:{' '}
               {selectedRegionDrivers
-                .map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`)
+                .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
                 .join(', ')}{' '}
               pts
             </div>
@@ -2022,7 +2086,7 @@ function RegionsTab({
           {visibleRows.map((entry) => {
             const selected = selectedRegion?.region.id === entry.region.id
             const pinned = comparisonSet.has(entry.region.id)
-            const topDrivers = getTopDrivers(entry, weights, 2)
+            const topDrivers = getScoreDrivers(entry, weights, 2)
             return (
               <div
                 key={entry.region.id}
@@ -2045,9 +2109,14 @@ function RegionsTab({
                       <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
                         Top:{' '}
                         {topDrivers
-                          .map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`)
+                          .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
                           .join(', ')}{' '}
                         pts
+                      </div>
+                    )}
+                    {entry.dataCoverageScore < 0.6 && (
+                      <div className="mt-1 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                        Thin data coverage
                       </div>
                     )}
                   </button>

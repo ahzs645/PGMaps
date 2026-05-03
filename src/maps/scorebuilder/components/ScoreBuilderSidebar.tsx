@@ -10,7 +10,7 @@ import {
   SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
   SCORE_BUILDER_EXAMPLES,
-  getScoreDataSourcesForWeights,
+  getScorePresetMethodology,
 } from '../constants'
 import type {
   RobustnessResult,
@@ -26,7 +26,11 @@ import type {
   ScenarioComparison,
 } from '../types'
 import { SCORE_DATA_SOURCES, METRIC_CATEGORY_LABELS } from '../types'
+import { formatMetricValue, formatScore, getMetricDescription, getMetricLabel } from '../lib/metrics'
+import { presetAppliesToBoundary } from '../lib/presets'
+import { formatDriverDelta, getScoreDrivers } from '../lib/scoreDrivers'
 import { RadarChart } from './RadarChart'
+import { ScorePresetDialog } from './ScorePresetDialog'
 
 type ScoreBuilderSectionId =
   | 'examples'
@@ -40,6 +44,13 @@ type ScoreBuilderSectionId =
   | 'regions'
 
 type ExpandedSectionsState = Record<ScoreBuilderSectionId, boolean>
+
+function formatNormalizationMethod(method: ScoreMethodSettings['normalization']): string {
+  if (method === 'percentile') return 'percentile rank'
+  if (method === 'winsorizedMinMax') return 'winsorized min-max'
+  if (method === 'zScore') return 'z-score'
+  return 'min-max'
+}
 
 interface ScoreBuilderSidebarProps {
   className?: string
@@ -122,12 +133,6 @@ const SECTION_LABELS: Record<ScoreBuilderSectionId, string> = {
   regions: 'Regions',
 }
 
-function presetAppliesToBoundary(preset: (typeof SCORE_PRESETS)[number], boundarySource: BoundarySource): boolean {
-  if (boundarySource !== 'bcHealth') return true
-  const sources = getScoreDataSourcesForWeights(preset.weights)
-  return sources.length === 1 && sources[0] === 'airQuality'
-}
-
 function createExpandedSections(isDesktop: boolean): ExpandedSectionsState {
   if (isDesktop) {
     return {
@@ -155,94 +160,26 @@ function createExpandedSections(isDesktop: boolean): ExpandedSectionsState {
   }
 }
 
-function getMetricLabel(key: ScoreMetricKey): string {
-  return SCORE_METRICS.find((metric) => metric.key === key)?.label || key
-}
-
-function getMetricDescription(key: ScoreMetricKey): string {
-  return SCORE_METRICS.find((metric) => metric.key === key)?.description || ''
-}
-
 function getMetricDirectionLabel(key: ScoreMetricKey): string {
   const metric = SCORE_METRICS.find((entry) => entry.key === key)
   if (!metric) return 'Direction not documented'
   return metric.direction === 'higherIsBetter' ? 'Higher is generally beneficial' : 'Higher is generally a burden'
 }
 
-function getMetricFormat(key: ScoreMetricKey): string {
-  return SCORE_METRICS.find((metric) => metric.key === key)?.format || 'count'
-}
-
 function getDataSourceLabel(source: ScoreDataSource): string {
   if (source === 'airQuality') return 'Air'
   if (source === 'parks') return 'Parks'
+  if (source === 'heatShade') return 'Heat/Shade'
   if (source === 'restaurants') return 'Food'
   if (source === 'census') return 'Census'
   if (source === 'bcAssessment') return 'Property'
   if (source === 'crime') return 'Crime'
+  if (source === 'transit') return 'Transit'
   return source
-}
-
-function formatMetricValue(metric: ScoreMetricKey, value: number, compact = false): string {
-  const format = getMetricFormat(metric)
-
-  if (metric === 'foodRiskScore') {
-    const riskScore = value * 100
-    return compact ? `${riskScore.toFixed(0)}/100 risk` : `${riskScore.toFixed(1)} / 100 risk index`
-  }
-  if (metric === 'crimePerCapita') {
-    const perThousand = value * 1_000
-    return compact
-      ? `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k residents`
-      : `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 2 })} incidents / 1,000 residents`
-  }
-  if (format === 'density') {
-    const scaled = value * 1_000
-    return compact
-      ? `${scaled.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k km²`
-      : `${scaled.toLocaleString(undefined, { maximumFractionDigits: 2 })} / 1,000 km²`
-  }
-  if (format === 'ratio') return `${(value * 100).toFixed(1)}%`
-  if (format === 'percent') return `${(value * 100).toFixed(1)}%`
-  if (format === 'currency') {
-    if (compact) {
-      if (Math.abs(value) >= 1_000_000)
-        return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
-      return `$${Math.round(value / 1000).toLocaleString()}k`
-    }
-    return value.toLocaleString(undefined, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
-  }
-  if (format === 'years') return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} yrs`
-  if (Number.isInteger(value)) return value.toLocaleString()
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
-}
-
-function formatScore(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
 }
 
 function clampWeight(value: number): number {
   return Math.max(-100, Math.min(100, Math.round(value)))
-}
-
-function getTopDrivers(
-  region: ScoredBoundaryRegion,
-  weights: ScoreMetricWeightMap,
-  limit = 2,
-): Array<{ key: ScoreMetricKey; label: string; scoreDelta: number }> {
-  return SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
-    .map((metric) => ({
-      key: metric.key,
-      label: metric.shortLabel,
-      scoreDelta: region.contributions[metric.key] * 100,
-    }))
-    .filter((driver) => Math.abs(driver.scoreDelta) >= 0.005)
-    .sort((a, b) => Math.abs(b.scoreDelta) - Math.abs(a.scoreDelta))
-    .slice(0, limit)
-}
-
-function formatDriverDelta(value: number): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`
 }
 
 const SCORE_FILTER_DEFINITIONS: Array<{ key: ScoreFilterKey; label: string; description: string }> = [
@@ -338,12 +275,16 @@ export function ScoreBuilderSidebar({
     () => SCORE_PRESETS.find((preset) => preset.key === activePresetKey) || null,
     [activePresetKey],
   )
+  const activePresetMethodology = useMemo(
+    () => (activePreset ? getScorePresetMethodology(activePreset) : null),
+    [activePreset],
+  )
   const visiblePresets = useMemo(
     () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, boundarySource)),
     [boundarySource],
   )
   const selectedRegionDrivers = useMemo(
-    () => (selectedRegion ? getTopDrivers(selectedRegion, weights, 2) : []),
+    () => (selectedRegion ? getScoreDrivers(selectedRegion, weights, 2) : []),
     [selectedRegion, weights],
   )
 
@@ -359,6 +300,7 @@ export function ScoreBuilderSidebar({
   )
   const [activeSection, setActiveSection] = useState<ScoreBuilderSectionId>('examples')
   const [showAllEquationMetrics, setShowAllEquationMetrics] = useState(false)
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false)
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const sectionRefs = useRef<Record<ScoreBuilderSectionId, HTMLElement | null>>({
@@ -787,29 +729,38 @@ export function ScoreBuilderSidebar({
           {renderSectionHeader('equation')}
           {expandedSections.equation && (
             <div className="space-y-3 px-4 pb-4">
-              <div className="flex flex-wrap gap-2">
-                {visiblePresets.map((preset) => (
+              <div className="rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Preset
+                    </div>
+                    <div className="mt-0.5 text-sm font-semibold text-foreground">
+                      {activePreset?.label || activeExample?.label || 'Custom index'}
+                    </div>
+                  </div>
                   <button
-                    key={preset.key}
-                    onClick={() => onApplyPreset(preset.key)}
-                    className={cn(
-                      'rounded-full border px-3 py-1 text-xs transition-colors',
-                      activePresetKey === preset.key
-                        ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100'
-                        : 'border-input text-muted-foreground hover:text-foreground',
-                    )}
-                    title={preset.description}
+                    type="button"
+                    onClick={() => setPresetDialogOpen(true)}
+                    className="shrink-0 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    {preset.label}
+                    Browse
                   </button>
-                ))}
-              </div>
-              <div className="rounded-md border border-border bg-muted/15 p-2 text-xs text-muted-foreground">
-                {activePreset
-                  ? `${activePreset.label} intent: ${activePreset.description}`
-                  : activeExample
-                    ? `Scenario intent: ${activeExample.description}`
-                    : 'Preset buttons shift the score toward common planning questions; custom weights refine the equation.'}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {activePreset
+                    ? activePreset.description
+                    : activeExample
+                      ? activeExample.description
+                      : 'Custom weights saved in the URL.'}
+                </div>
+                <ScorePresetDialog
+                  open={presetDialogOpen}
+                  onOpenChange={setPresetDialogOpen}
+                  presets={visiblePresets}
+                  activePresetKey={activePresetKey}
+                  onApplyPreset={onApplyPreset}
+                />
               </div>
 
               <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background p-2">
@@ -917,8 +868,8 @@ export function ScoreBuilderSidebar({
                   aggregated into a 0-100 composite score.
                 </p>
                 <p className="mt-2">
-                  Current settings: {methodSettings.normalization}, {methodSettings.aggregation}, missing data{' '}
-                  {methodSettings.missingData}.
+                  Current settings: {formatNormalizationMethod(methodSettings.normalization)},{' '}
+                  {methodSettings.aggregation}, missing data {methodSettings.missingData}.
                 </p>
               </div>
 
@@ -1005,6 +956,44 @@ export function ScoreBuilderSidebar({
                 </div>
               </div>
 
+              {activePresetMethodology && (
+                <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
+                  <div className="mb-2 text-sm font-semibold text-foreground">Preset methodology notes</div>
+                  <div>
+                    <span className="font-semibold text-foreground">Purpose:</span> {activePresetMethodology.purpose}
+                  </div>
+                  <div className="mt-1">
+                    <span className="font-semibold text-foreground">Components:</span>{' '}
+                    {activePresetMethodology.components.join(', ') || 'Custom metric set'}
+                  </div>
+                  <div className="mt-1">
+                    <span className="font-semibold text-foreground">Normalization:</span>{' '}
+                    {activePresetMethodology.normalization}
+                  </div>
+                  {activePresetMethodology.proxy && (
+                    <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+                      Proxy recipe. Use for screening, not as a validated exposure or health index.
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <div className="font-semibold text-foreground">Known limits</div>
+                    <ul className="mt-1 list-disc space-y-1 pl-4">
+                      {activePresetMethodology.knownLimits.map((limit) => (
+                        <li key={limit}>{limit}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="mt-2">
+                    <div className="font-semibold text-foreground">Data still needed</div>
+                    <ul className="mt-1 list-disc space-y-1 pl-4">
+                      {activePresetMethodology.dataNeeded.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-lg border border-border bg-background p-3">
                 <div className="mb-2 text-sm font-semibold text-foreground">Method controls</div>
                 <div className="space-y-2 text-xs">
@@ -1020,8 +1009,9 @@ export function ScoreBuilderSidebar({
                       }
                       className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
                     >
-                      <option value="minMax">Min-max</option>
                       <option value="percentile">Percentile rank</option>
+                      <option value="winsorizedMinMax">Winsorized min-max</option>
+                      <option value="minMax">Min-max</option>
                       <option value="zScore">Z-score</option>
                     </select>
                   </label>
@@ -1352,12 +1342,13 @@ export function ScoreBuilderSidebar({
                     <div>Sensors: {selectedRegion.counts.monitorCount.toLocaleString()}</div>
                     <div>Parks: {selectedRegion.counts.parkCount.toLocaleString()}</div>
                     <div>Restaurants: {selectedRegion.counts.restaurantCount.toLocaleString()}</div>
+                    <div>Coverage: {(selectedRegion.dataCoverageScore * 100).toFixed(0)}%</div>
                   </div>
                   {selectedRegionDrivers.length > 0 && (
                     <div className="mt-2 text-[11px] text-cyan-800 dark:text-cyan-200">
                       Top drivers:{' '}
                       {selectedRegionDrivers
-                        .map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`)
+                        .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
                         .join(', ')}{' '}
                       pts
                     </div>
@@ -1451,7 +1442,7 @@ export function ScoreBuilderSidebar({
                   {visibleRows.map((entry) => {
                     const selected = selectedRegion?.region.id === entry.region.id
                     const pinned = comparisonSet.has(entry.region.id)
-                    const topDrivers = getTopDrivers(entry, weights, 2)
+                    const topDrivers = getScoreDrivers(entry, weights, 2)
                     return (
                       <div
                         key={entry.region.id}
@@ -1474,9 +1465,14 @@ export function ScoreBuilderSidebar({
                               <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
                                 Top:{' '}
                                 {topDrivers
-                                  .map((driver) => `${driver.label} ${formatDriverDelta(driver.scoreDelta)}`)
+                                  .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
                                   .join(', ')}{' '}
                                 pts
+                              </div>
+                            )}
+                            {entry.dataCoverageScore < 0.6 && (
+                              <div className="mt-1 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                                Thin data coverage
                               </div>
                             )}
                           </button>
