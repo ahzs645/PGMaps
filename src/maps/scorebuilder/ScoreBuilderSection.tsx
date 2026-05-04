@@ -1147,7 +1147,6 @@ export default function ScoreBuilderSection() {
   )
 
   const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
-    setActiveExampleKey(null)
     setWeights((current) => ({ ...current, [metric]: value }))
   }, [])
 
@@ -1585,7 +1584,6 @@ export default function ScoreBuilderSection() {
               onAddMetric={handleAddMetric}
               onApplyPreset={handleApplyPreset}
               onExport={handleExport}
-              onShareUrl={handleShareUrl}
             />
           )}
 

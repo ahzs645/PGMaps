@@ -3,7 +3,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Copy,
   Download,
   FlipHorizontal,
   GripVertical,
@@ -35,7 +34,6 @@ interface ScoreBuilderEquationBarProps {
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
   onExport: (format: 'csv' | 'geojson') => void
-  onShareUrl: () => Promise<string>
 }
 
 function getDefaultMetricWeight(metric: ScoreMetricKey): number {
@@ -83,13 +81,11 @@ export function ScoreBuilderEquationBar({
   onAddMetric,
   onApplyPreset,
   onExport,
-  onShareUrl,
 }: ScoreBuilderEquationBarProps) {
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [metricDialogOpen, setMetricDialogOpen] = useState(false)
   const [formulaOpen, setFormulaOpen] = useState(false)
   const [equationOpen, setEquationOpen] = useState(true)
-  const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
 
   const visiblePresets = useMemo(
     () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, boundarySource)),
@@ -101,18 +97,6 @@ export function ScoreBuilderEquationBar({
     [activeTerms, weights],
   )
   const formulaText = `// for each region: ${equationPreview} // normalized to 0-100`
-
-  const handleShare = async () => {
-    setShareStatus('copying')
-    try {
-      await onShareUrl()
-      setShareStatus('copied')
-      window.setTimeout(() => setShareStatus('idle'), 1800)
-    } catch {
-      setShareStatus('failed')
-      window.setTimeout(() => setShareStatus('idle'), 2400)
-    }
-  }
 
   return (
     <div className="shrink-0 border-b border-border bg-background/96 px-4 py-3 shadow-sm backdrop-blur">
@@ -167,20 +151,6 @@ export function ScoreBuilderEquationBar({
               >
                 <Download className="h-3.5 w-3.5" />
                 Export
-              </button>
-              <button
-                type="button"
-                onClick={handleShare}
-                className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                {shareStatus === 'copying'
-                  ? 'Copying'
-                  : shareStatus === 'copied'
-                    ? 'Copied'
-                    : shareStatus === 'failed'
-                      ? 'Failed'
-                      : 'Share'}
               </button>
             </div>
           </div>

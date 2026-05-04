@@ -182,13 +182,35 @@ export function summarizeViolationRisk(inspections: Inspection[]): ViolationRisk
   return summary
 }
 
-export function getRiskBandColor(band: ViolationRiskBand, hasViolations = true): string {
-  if (!hasViolations) return '#22c55e'
-  if (band === 'Severe') return '#ef4444'
-  if (band === 'Elevated') return '#f97316'
-  if (band === 'Moderate') return '#eab308'
-  if (band === 'Administrative') return '#3b82f6'
-  return '#6b7280'
+export type RiskColorMode = 'light' | 'dark'
+
+const RISK_BAND_COLORS: Record<RiskColorMode, Record<ViolationRiskBand | 'None', string>> = {
+  light: {
+    Severe: '#e5484d',
+    Elevated: '#f76b15',
+    Moderate: '#ffe629',
+    Administrative: '#0090ff',
+    Unknown: '#8b8d98',
+    None: '#30a46c'
+  },
+  dark: {
+    Severe: '#ec5d5e',
+    Elevated: '#ff801f',
+    Moderate: '#ffff57',
+    Administrative: '#3b9eff',
+    Unknown: '#777b84',
+    None: '#33b074'
+  }
+}
+
+export function getRiskBandColor(
+  band: ViolationRiskBand,
+  hasViolations = true,
+  colorMode: RiskColorMode = 'light'
+): string {
+  const palette = RISK_BAND_COLORS[colorMode]
+  if (!hasViolations) return palette.None
+  return palette[band] || palette.Unknown
 }
 
 export function getRiskBandLabel(band: ViolationRiskBand, hasViolations = true): string {

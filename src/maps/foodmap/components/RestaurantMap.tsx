@@ -1,4 +1,5 @@
 import { useMemo, useRef, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import {
   Map,
   MapMarker,
@@ -22,24 +23,32 @@ interface RestaurantMapProps {
 
 const ZOOM = 12
 
-// Hazard rating colors
-const HAZARD_COLORS: Record<HazardRating, string> = {
-  Low: '#22c55e',
-  Moderate: '#f59e0b',
-  Unknown: '#6b7280'
+const HAZARD_COLORS: Record<'light' | 'dark', Record<HazardRating, string>> = {
+  light: {
+    Low: '#30a46c',
+    Moderate: '#ffc53d',
+    Unknown: '#8b8d98'
+  },
+  dark: {
+    Low: '#33b074',
+    Moderate: '#ffd60a',
+    Unknown: '#777b84'
+  }
 }
 
-function getMarkerColor(restaurant: RestaurantWithStats, visualizationMode: VisualizationMode): string {
+function getMarkerColor(restaurant: RestaurantWithStats, visualizationMode: VisualizationMode, isDarkMode: boolean): string {
+  const colorMode = isDarkMode ? 'dark' : 'light'
+
   if (visualizationMode === 'violations') {
     const stats = restaurant.violationStats || {
       total: 0,
       risk: createEmptyViolationRiskSummary()
     }
     const hasViolations = stats.total > 0
-    return getRiskBandColor(stats.risk.worstBand, hasViolations)
+    return getRiskBandColor(stats.risk.worstBand, hasViolations, colorMode)
   } else {
     const rating = restaurant.hazardRatingAtDate || restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown'
-    return HAZARD_COLORS[rating as HazardRating] || HAZARD_COLORS.Unknown
+    return HAZARD_COLORS[colorMode][rating as HazardRating] || HAZARD_COLORS[colorMode].Unknown
   }
 }
 
@@ -107,6 +116,8 @@ interface RestaurantMarkerProps {
 }
 
 function RestaurantMarker({ restaurant, visualizationMode, isSelected, onClick }: RestaurantMarkerProps) {
+  const { resolvedTheme } = useTheme()
+  const isDarkMode = resolvedTheme === 'dark'
   const stats = restaurant.violationStats || {
     total: 0,
     critical: 0,
@@ -114,7 +125,7 @@ function RestaurantMarker({ restaurant, visualizationMode, isSelected, onClick }
     risk: createEmptyViolationRiskSummary()
   }
   const hasViolations = stats.total > 0
-  const color = getMarkerColor(restaurant, visualizationMode)
+  const color = getMarkerColor(restaurant, visualizationMode, isDarkMode)
   const size = getMarkerSize(stats.total, visualizationMode)
   const rating = restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown'
   const riskLabel = getRiskBandLabel(stats.risk.worstBand, hasViolations)
@@ -139,8 +150,8 @@ function RestaurantMarker({ restaurant, visualizationMode, isSelected, onClick }
       <MarkerContent>
         <div
           className={cn(
-            'rounded-full border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-110',
-            isSelected && 'ring-2 ring-blue-500 ring-offset-2'
+            'rounded-full border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.95),0_8px_18px_rgba(0,0,0,0.6),0_0_12px_rgba(255,255,255,0.35)]',
+            isSelected && 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-sky-300 dark:ring-offset-slate-950'
           )}
           style={{
             width: size,

@@ -210,11 +210,18 @@ test.describe('Score Builder desktop interface', () => {
     await page.getByRole('button', { name: /Raw Sensor Count/i }).click()
 
     await expect(page.locator('[data-score-builder-equation-term="monitorCount"]')).toBeVisible()
-    await page
-      .locator('[data-score-builder-results-preview="true"]')
-      .getByRole('button', { name: 'Share' })
-      .click({ force: true })
+    await page.locator('[data-score-builder-share="true"]').click({ force: true })
     await expect(page).toHaveURL(/s=/)
+  })
+
+  test('equation edits keep the active example context', async ({ page }) => {
+    const preview = page.locator('[data-score-builder-results-preview="true"]').first()
+    await expect(preview).toContainText('Greenest Neighbourhoods')
+
+    await preview.locator('[data-score-builder-equation-term="parkDensity"] button').first().click()
+
+    await expect(preview).toContainText('Greenest Neighbourhoods')
+    await expect(preview).not.toContainText('Custom index')
   })
 
   test('priority mode can rank active metrics and apply weights', async ({ page }) => {

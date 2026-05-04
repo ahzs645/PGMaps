@@ -54,6 +54,14 @@ function metricHasRegionData(metric: ScoreMetricKey, region: ScoredBoundaryRegio
   return true
 }
 
+function formatLiftPhrase(row: { weight: number; label: string }): string {
+  return row.weight < 0 ? `lower ${row.label.toLowerCase()}` : `higher ${row.label.toLowerCase()}`
+}
+
+function formatDragPhrase(row: { weight: number; label: string }): string {
+  return row.weight < 0 ? `higher ${row.label.toLowerCase()}` : `lower ${row.label.toLowerCase()}`
+}
+
 export function ScoreBuilderRegionInsightDialog({
   open,
   onOpenChange,
@@ -142,11 +150,7 @@ export function ScoreBuilderRegionInsightDialog({
           : region.score >= 45
             ? 'in the middle of the pack'
             : 'below the pack'
-    const strongestIntent =
-      strongest.weight < 0 ? `low ${strongest.label.toLowerCase()}` : `strong ${strongest.label.toLowerCase()}`
-    const weakestIntent =
-      weakest.weight < 0 ? `not enough low ${weakest.label.toLowerCase()}` : `weaker ${weakest.label.toLowerCase()}`
-    return `${region.region.name} ranks ${rankPhrase} at #${region.rank} with a ${formatScore(region.score)} score. The result is lifted most by ${strongestIntent}; ${weakestIntent} contributes the least among the active terms.`
+    return `${region.region.name} ranks ${rankPhrase} at #${region.rank} with a ${formatScore(region.score)} score. The result is lifted most by ${formatLiftPhrase(strongest)}; the biggest drag is ${formatDragPhrase(weakest)}.`
   }, [contributionRows, region])
 
   // Group visible rows by category
