@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm --prefix vendor/json-url run build",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "citypg:sync": "node scripts/sync-citypg-arcgis.mjs",
@@ -20,7 +21,7 @@
     "e2e:headed": "playwright test --headed"
   },
   "dependencies": {
-    "@firstform/json-url": "file:../json-url",
+    "@firstform/json-url": "file:vendor/json-url",
     "@firstform/spinnerwheel": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-select": "^2.2.6",
