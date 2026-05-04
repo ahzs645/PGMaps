@@ -16,8 +16,7 @@ import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
 import { SCORE_METRICS, SCORE_METRICS_BY_CATEGORY, SCORE_PRESETS } from '../constants'
 import { METRIC_CATEGORY_LABELS } from '../types'
-import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
-import { formatScore } from '../lib/metrics'
+import type { ScoreMetricKey, ScoreMetricWeightMap } from '../types'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { ScorePresetDialog } from './ScorePresetDialog'
 
@@ -28,8 +27,6 @@ interface ScoreBuilderEquationBarProps {
   activeRecipeDescription: string
   boundarySource: BoundarySource
   equationPreview: string
-  scoreSpread: { min: number; max: number; average: number }
-  topRegions: ScoredBoundaryRegion[]
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
@@ -75,8 +72,6 @@ export function ScoreBuilderEquationBar({
   activeRecipeDescription,
   boundarySource,
   equationPreview,
-  scoreSpread,
-  topRegions,
   onWeightChange,
   onAddMetric,
   onApplyPreset,
@@ -107,15 +102,6 @@ export function ScoreBuilderEquationBar({
             <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{activeRecipeDescription}</p>
           </div>
           <div className="flex shrink-0 items-start gap-3">
-            <div className="hidden min-w-[9rem] rounded-lg border border-border bg-muted/30 px-3 py-2 text-right xl:block">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Live Results
-              </div>
-              <div className="mt-0.5 truncate text-xs font-semibold text-foreground">
-                {topRegions[0] ? `#1 ${topRegions[0].region.name}` : 'No ranked regions'}
-              </div>
-              <div className="mt-0.5 text-[10px] text-muted-foreground">Avg {formatScore(scoreSpread.average)}</div>
-            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"

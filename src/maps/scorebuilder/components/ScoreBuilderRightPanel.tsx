@@ -424,10 +424,12 @@ function ExamplesTab({
   activeExampleKey: string | null
   onApplyExample: (key: string) => void
 }) {
-  const [selectedExampleKey, setSelectedExampleKey] = useState(
-    activeExampleKey || SCORE_BUILDER_EXAMPLES[0]?.key || null,
-  )
+  const selectedExampleKey = activeExampleKey || SCORE_BUILDER_EXAMPLES[0]?.key || null
   const selectedExample = SCORE_BUILDER_EXAMPLES.find((example) => example.key === selectedExampleKey) || null
+
+  const handleExampleClick = (exampleKey: string) => {
+    onApplyExample(exampleKey)
+  }
 
   return (
     <div className="space-y-3 p-4" data-score-builder-section="examples">
@@ -496,7 +498,8 @@ function ExamplesTab({
                 return (
                   <button
                     key={example.key}
-                    onClick={() => setSelectedExampleKey(example.key)}
+                    type="button"
+                    onClick={() => handleExampleClick(example.key)}
                     className={cn(
                       'w-full rounded-lg border p-3 text-left transition-colors',
                       selectedExampleKey === example.key

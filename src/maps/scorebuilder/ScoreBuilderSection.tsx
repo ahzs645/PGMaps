@@ -1795,8 +1795,6 @@ export default function ScoreBuilderSection() {
               }
               boundarySource={boundarySource}
               equationPreview={equationPreview}
-              scoreSpread={scoreSpread}
-              topRegions={scoredRegions.slice(0, 3)}
               onWeightChange={handleWeightChange}
               onAddMetric={handleAddMetric}
               onApplyPreset={handleApplyPreset}

@@ -121,6 +121,21 @@ test.describe('Score Builder desktop interface', () => {
     await expect(page.locator('[data-score-builder-equation-term]')).toHaveCount(5)
   })
 
+  test('clicking an example card immediately applies it to the builder', async ({ page }) => {
+    await page.locator('[data-score-builder-tab="examples"]').click()
+    await page.getByRole('button', { name: /Air Monitoring Gaps \(Tract\)/ }).click()
+
+    await expect(page.getByRole('heading', { name: 'Air Monitoring Gaps (Tract)' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Air Quality/i })).toContainText('ON')
+    await expect(page.getByRole('button', { name: /Parks & Trails/i })).toContainText('OFF')
+    await expect(page.getByRole('button', { name: /Demographics/i })).toContainText('ON')
+    await expect(page.locator('[data-score-builder-level-select="true"]')).toHaveValue('ct')
+
+    await page.locator('[data-score-builder-tab="equation"]').click()
+    await expect(page.locator('[data-score-builder-equation-term="overallDensity"]')).toBeVisible()
+    await expect(page.locator('[data-score-builder-equation-term="populationDensity"]')).toBeVisible()
+  })
+
   test('boundary levels stay focused and keep region scores available', async ({ page }) => {
     const levelSelect = page.locator('[data-score-builder-level-select="true"]')
     const regionStats = page.locator('[data-score-builder-region-stats="true"]')
