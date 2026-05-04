@@ -10,6 +10,7 @@ export function metricToDataSource(category: string): ScoreDataSource | null {
   if (category === 'property') return 'bcAssessment'
   if (category === 'safety') return 'crime'
   if (category === 'transit') return 'transit'
+  if (category === 'deprivation') return 'deprivation'
   return null
 }
 
@@ -32,6 +33,7 @@ export function metricHasCoverage(metric: ScoreMetricKey, counts: RegionDataCoun
   if (source === 'bcAssessment') return counts.parcelCount > 0
   if (source === 'crime') return counts.crimeCount > 0
   if (source === 'transit') return counts.transitStopCount > 0
+  if (source === 'deprivation') return counts.cimdJoinedCount > 0
   return true
 }
 

@@ -134,7 +134,12 @@ export function scoreRegionRows({
       }
     })
 
-    const aggregateValue = settings.aggregation === 'geometric' && totalWeight > 0 ? rawProduct : rawScore
+    const aggregateValue =
+      settings.aggregation === 'cumulativeBurden'
+        ? calculateCumulativeBurden(normalizedMetrics, weights)
+        : settings.aggregation === 'geometric' && totalWeight > 0
+          ? rawProduct
+          : rawScore
     const score = totalWeight > 0 ? clampScore(aggregateValue * 100) : 50
 
     return {
@@ -145,6 +150,18 @@ export function scoreRegionRows({
       scoreColor: getScorePaletteColor(score, paletteProfile),
       rank: 0,
       dataCoverageScore: computeDataCoverageScore(row.counts, weights),
+      rankConfidence: 'Stable priority' as const,
+      rankInterval: [0, 0],
+      scoreInterval: [score, score] as [number, number],
+      comparisonUniverseLabel: getComparisonUniverseLabel(row.region.source, row.region.level),
+      equityAudit: {
+        referenceRank: null,
+        rankDelta: 0,
+        referenceScore: null,
+        deprivationQuintile: null,
+        burdenOverlap: 0,
+        cutoffWarning: null,
+      },
     }
   })
 
@@ -154,5 +171,51 @@ export function scoreRegionRows({
     return a.region.name.localeCompare(b.region.name)
   })
 
-  return ranked.map((row, index) => ({ ...row, rank: index + 1 }))
+  return ranked.map((row, index) => ({ ...row, rank: index + 1, rankInterval: [index + 1, index + 1] }))
+}
+
+function getComparisonUniverseLabel(source: ScoreBuilderRegion['source'], level: ScoreBuilderRegion['level']): string {
+  const sourceLabel = source === 'bcHealth' ? 'BC health regions' : source === 'cityPG' ? 'CityPG school catchments' : 'Prince George census regions'
+  return `Scores are relative to ${sourceLabel} at the currently loaded ${level} boundary level; filters do not redefine percentiles.`
+}
+
+function metricPressureValue(metric: (typeof SCORE_METRICS)[number], normalizedValue: number): number {
+  return metric.direction === 'higherIsWorse' ? normalizedValue : 1 - normalizedValue
+}
+
+function weightedAverage(values: Array<{ value: number; weight: number }>): number {
+  const totalWeight = values.reduce((sum, item) => sum + item.weight, 0)
+  if (totalWeight <= 0) return 0
+  return values.reduce((sum, item) => sum + item.value * item.weight, 0) / totalWeight
+}
+
+function calculateCumulativeBurden(normalizedMetrics: ScoreMetricValueMap, weights: ScoreMetricWeightMap): number {
+  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+  const groups = {
+    burden: [] as Array<{ value: number; weight: number }>,
+    vulnerability: [] as Array<{ value: number; weight: number }>,
+    adaptiveGap: [] as Array<{ value: number; weight: number }>,
+  }
+
+  activeMetrics.forEach((metric) => {
+    const normalizedValue = normalizedMetrics[metric.key]
+    const weight = Math.abs(weights[metric.key])
+    if (weight <= 0) return
+    if (
+      metric.component === 'environmentalBurden' ||
+      metric.component === 'safetyPressure' ||
+      metric.component === 'housingPressure'
+    ) {
+      groups.burden.push({ value: metricPressureValue(metric, normalizedValue), weight })
+    } else if (metric.component === 'sensitivity') {
+      groups.vulnerability.push({ value: metricPressureValue(metric, normalizedValue), weight })
+    } else if (metric.component === 'adaptiveCapacity' || metric.component === 'serviceAccess') {
+      groups.adaptiveGap.push({ value: metricPressureValue(metric, normalizedValue), weight })
+    }
+  })
+
+  const burden = weightedAverage(groups.burden)
+  const vulnerability = weightedAverage(groups.vulnerability)
+  const adaptiveGap = weightedAverage(groups.adaptiveGap)
+  return Math.max(0, Math.min(1, Math.sqrt(burden * Math.max(vulnerability, adaptiveGap))))
 }

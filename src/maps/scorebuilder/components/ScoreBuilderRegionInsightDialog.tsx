@@ -217,6 +217,14 @@ export function ScoreBuilderRegionInsightDialog({
                   {formatNormalizationMethod(methodSettings.normalization)}
                 </div>
               </div>
+              <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
+                <div className="text-[10px] uppercase text-muted-foreground">Rank confidence</div>
+                <div className="text-sm font-semibold text-foreground">{region.rankConfidence}</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                  Rank #{region.rankInterval[0]}-#{region.rankInterval[1]} · score{' '}
+                  {formatScore(region.scoreInterval[0])}-{formatScore(region.scoreInterval[1])}
+                </div>
+              </div>
             </div>
 
             {/* Plain-English score summary */}

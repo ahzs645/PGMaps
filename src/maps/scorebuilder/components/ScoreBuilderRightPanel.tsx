@@ -150,12 +150,6 @@ function getWeightIntent(value: number): string {
   return value > 0 ? 'Prefer high' : 'Prefer low'
 }
 
-function getMetricDirectionLabel(key: ScoreMetricKey): string {
-  const metric = SCORE_METRICS.find((entry) => entry.key === key)
-  if (!metric) return 'Direction not documented'
-  return metric.direction === 'higherIsBetter' ? 'Higher is generally beneficial' : 'Higher is generally a burden'
-}
-
 function getCategoryTone(category: string): string {
   if (category === 'airQuality') return 'bg-sky-500'
   if (category === 'parksRec') return 'bg-emerald-500'
@@ -1067,7 +1061,7 @@ function PriorityMode({
                 <div className={cn('h-full', getCategoryTone(metric.category))} style={{ width: `${projected}%` }} />
               </div>
               <div className="mt-1 text-[10px] text-muted-foreground">
-                {value < 0 ? 'Prefer low' : 'Prefer high'} · current {Math.abs(value)} · ranked {projected}
+                {metric.directionLabel} · current {Math.abs(value)} · ranked {projected}
               </div>
             </div>
             <div className="flex shrink-0 flex-col gap-1">
@@ -1392,6 +1386,10 @@ function MethodologyTab({
             Current settings: {formatNormalizationMethod(methodSettings.normalization)} normalization,{' '}
             {methodSettings.aggregation} aggregation, missing data set to {methodSettings.missingData}.
           </p>
+          <p>
+            Scores are relative to the currently loaded boundary level; filters do not redefine percentiles. Use for
+            planning triage, not validated exposure, health, or funding eligibility determination.
+          </p>
         </div>
       </div>
 
@@ -1468,7 +1466,11 @@ function MethodologyTab({
                 </span>
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground">
-                {getMetricDirectionLabel(metric.key)} · {metric.dataSourceLabel} · {metric.spatialMethod}
+                {metric.directionLabel} · weight {weights[metric.key]} · {metric.dataSourceLabel} ·{' '}
+                {metric.spatialMethod}
+              </div>
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                {metric.freshnessLabel} · {metric.comparisonBasis}
               </div>
               {metric.caveat && (
                 <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">{metric.caveat}</div>
@@ -1496,7 +1498,7 @@ function RobustnessTab({
   return (
     <div className="space-y-3 p-4" data-score-builder-section="robustness">
       <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
-        <div className="mb-1 text-sm font-semibold text-foreground">Robustness-lite</div>
+        <div className="mb-1 text-sm font-semibold text-foreground">Rank confidence</div>
         <p>
           Runs deterministic stress checks against the active recipe: 15% weight perturbations, leave-one-indicator-out
           tests, and alternate normalization methods.
@@ -1587,6 +1589,12 @@ function ModelTab({
   const activeFilters = SCORE_FILTER_DEFINITIONS.filter((filter) => scoreFilters[filter.key])
   const maxBandCount = Math.max(...scoreBands.map((band) => band.count), 1)
   const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+  const deprivationRegions = regions.filter((region) => region.equityAudit.deprivationQuintile !== null)
+  const deprivationWeightedAverage = deprivationRegions.length
+    ? deprivationRegions.reduce((sum, region) => sum + region.score * (region.equityAudit.deprivationQuintile || 1), 0) /
+      deprivationRegions.reduce((sum, region) => sum + (region.equityAudit.deprivationQuintile || 1), 0)
+    : null
+  const topBurdenOverlap = [...regions].sort((a, b) => b.equityAudit.burdenOverlap - a.equityAudit.burdenOverlap).slice(0, 3)
   const updateMethodSettings = <Key extends keyof ScoreMethodSettings>(key: Key, value: ScoreMethodSettings[Key]) =>
     onMethodSettingsChange({ ...methodSettings, [key]: value })
 
@@ -1601,6 +1609,10 @@ function ModelTab({
           <p>
             Each metric is automatically normalized from 0 to 1 with the selected method against the currently loaded
             regions. Positive weights prefer high normalized values; negative weights prefer low values.
+          </p>
+          <p>
+            Scores are relative to the currently loaded boundary level; filters do not redefine percentiles. Use for
+            planning triage, not validated exposure, health, or funding eligibility determination.
           </p>
           <p>
             The final score uses the selected aggregation method after active weights are converted to weight shares.
@@ -1620,6 +1632,31 @@ function ModelTab({
             <div className="text-[10px] uppercase text-muted-foreground">Average</div>
             <div className="font-semibold text-foreground">{formatScore(scoreSpread.average)}</div>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="mb-2 text-sm font-semibold text-foreground">Equity audit</div>
+        <div className="space-y-2 text-xs text-muted-foreground">
+          <div>
+            Deprivation-weighted average:{' '}
+            <span className="font-semibold text-foreground">
+              {deprivationWeightedAverage == null ? 'No CIMD data loaded' : formatScore(deprivationWeightedAverage)}
+            </span>
+          </div>
+          <div className="space-y-1">
+            {topBurdenOverlap.map((region) => (
+              <div key={region.region.id} className="flex items-center justify-between rounded bg-muted/25 px-2 py-1">
+                <span className="truncate">#{region.rank} {region.region.name}</span>
+                <span className="font-semibold text-foreground">{(region.equityAudit.burdenOverlap * 100).toFixed(0)} overlap</span>
+              </div>
+            ))}
+          </div>
+          {regions.some((region) => region.equityAudit.cutoffWarning) && (
+            <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+              Some regions sit near score-band cutoffs; treat hard thresholds as sensitive.
+            </div>
+          )}
         </div>
       </div>
 
@@ -1652,6 +1689,7 @@ function ModelTab({
             >
               <option value="additive">Weighted average</option>
               <option value="geometric">Geometric mean</option>
+              <option value="cumulativeBurden">Cumulative burden</option>
             </select>
           </label>
           <label className="space-y-1">
@@ -2030,6 +2068,11 @@ function RegionsTab({
             <div className="text-xs text-cyan-700 dark:text-cyan-300">
               Rank #{selectedRegion.rank} | Score {formatScore(selectedRegion.score)}
             </div>
+            <div className="mt-0.5 text-[11px] font-medium text-cyan-800 dark:text-cyan-200">
+              {selectedRegion.rankConfidence} · rank #{selectedRegion.rankInterval[0]}-#
+              {selectedRegion.rankInterval[1]} · score {formatScore(selectedRegion.scoreInterval[0])}-
+              {formatScore(selectedRegion.scoreInterval[1])}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-cyan-800 dark:text-cyan-200">
             <div>Area: {selectedRegion.region.areaKm2.toFixed(1)} km²</div>
@@ -2119,6 +2162,10 @@ function RegionsTab({
                         Thin data coverage
                       </div>
                     )}
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      {entry.rankConfidence} · rank #{entry.rankInterval[0]}-#{entry.rankInterval[1]} · score{' '}
+                      {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
+                    </div>
                   </button>
                   <div className="flex shrink-0 items-center gap-1">
                     <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">

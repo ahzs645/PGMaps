@@ -42,6 +42,7 @@ import { useMediaQuery } from './hooks/useMediaQuery'
 import { useScoreBuilderRegions } from './hooks/useScoreBuilderRegions'
 import { useHeatShadeData } from './hooks/useHeatShadeData'
 import { useTransitData } from './hooks/useTransitData'
+import { useCimdData, type CimdRecord } from './hooks/useCimdData'
 import { metricToDataSource } from './lib/metrics'
 import { getActivePresetKey, scoreDataSourcesEqual, scoreWeightsEqual } from './lib/presets'
 import {
@@ -55,6 +56,7 @@ import type {
   RegionDataCounts,
   RobustnessResult,
   ScoredBoundaryRegion,
+  ScoreBuilderRegion,
   ScoreComponentSummary,
   ScoreDataSource,
   ScoreBandSummary,
@@ -98,10 +100,14 @@ interface CrimePointRecord extends PointRecord {
 interface TransitPointRecord extends PointRecord {
   accessible: boolean
   hasShelter: boolean
+  frequent: boolean
+  weekdayTrips: number
+  serviceSpanHours: number
 }
 
 interface HeatShadeTreePointRecord extends PointRecord {
   mature: boolean
+  canopyAreaSqKm: number
 }
 
 interface HeatShadeForestRecord extends PointRecord {
@@ -110,6 +116,10 @@ interface HeatShadeForestRecord extends PointRecord {
 
 interface HeatShadeFacilityPointRecord extends PointRecord {
   kind: 'communityFacility' | 'responseFacility'
+}
+
+interface CimdPointRecord extends PointRecord {
+  cimd: CimdRecord
 }
 
 function getNormalizationLegendText(method: ScoreMethodSettings['normalization']): string {
@@ -147,6 +157,41 @@ function bboxCenter(geometry: GeoJSON.Geometry): [number, number] | null {
   else return null
   if (!Number.isFinite(minLng)) return null
   return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
+}
+
+function regionCenter(region: ScoreBuilderRegion): [number, number] {
+  return [(region.bounds[0] + region.bounds[2]) / 2, (region.bounds[1] + region.bounds[3]) / 2]
+}
+
+function distanceKm(a: [number, number], b: [number, number]): number {
+  const toRad = (value: number) => (value * Math.PI) / 180
+  const earthRadiusKm = 6371
+  const deltaLat = toRad(b[1] - a[1])
+  const deltaLng = toRad(b[0] - a[0])
+  const lat1 = toRad(a[1])
+  const lat2 = toRad(b[1])
+  const h =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2
+  return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
+function catchmentAccess(
+  origin: [number, number],
+  points: Array<{ lng: number; lat: number }>,
+  maxKm: number,
+): number {
+  if (!points.length) return 0
+  const best = points.reduce((minimum, pointRecord) => {
+    return Math.min(minimum, distanceKm(origin, [pointRecord.lng, pointRecord.lat]))
+  }, Infinity)
+  if (!Number.isFinite(best) || best > maxKm) return 0
+  return Math.max(0, Math.min(1, 1 - best / maxKm))
+}
+
+function estimateCanopyAreaSqKm(dbh: number | null, treeAge: number | null): number {
+  const radiusM = dbh && dbh > 60 ? 8 : dbh && dbh > 30 ? 6 : dbh && dbh > 15 ? 4 : treeAge && treeAge > 25 ? 5 : 2
+  return (Math.PI * radiusM * radiusM) / 1_000_000
 }
 
 function hazardWeight(rating: string | null | undefined): number {
@@ -188,6 +233,7 @@ const ALL_DATA_SOURCES: ScoreDataSource[] = [
   'bcAssessment',
   'crime',
   'transit',
+  'deprivation',
 ]
 const CURRENT_YEAR = new Date().getFullYear()
 const DEFAULT_SCORE_FILTERS: ScoreFilterState = {
@@ -226,7 +272,8 @@ function parseNormalizationMethod(value: string | null): ScoreMethodSettings['no
 }
 
 function parseAggregationMethod(value: string | null): ScoreMethodSettings['aggregation'] {
-  return value === 'geometric' ? 'geometric' : 'additive'
+  if (value === 'geometric' || value === 'cumulativeBurden') return value
+  return 'additive'
 }
 
 function parseMissingDataMethod(value: string | null): ScoreMethodSettings['missingData'] {
@@ -317,6 +364,7 @@ export default function ScoreBuilderSection() {
     aggregation: parseAggregationMethod(searchParams.get('agg')),
     missingData: parseMissingDataMethod(searchParams.get('missing')),
     sensitivity: searchParams.get('sens') === 'off' ? false : true,
+    normalizationScope: 'activeBoundaryLevel',
   })
   const [activeExampleKey, setActiveExampleKey] = useState<string | null>(() => {
     // If no URL params, auto-load first example
@@ -343,6 +391,7 @@ export default function ScoreBuilderSection() {
     params.set('agg', methodSettings.aggregation)
     params.set('missing', methodSettings.missingData)
     params.set('sens', methodSettings.sensitivity ? 'on' : 'off')
+    params.set('scope', methodSettings.normalizationScope)
     setSearchParams(params, { replace: true })
   }, [
     boundarySource,
@@ -406,6 +455,11 @@ export default function ScoreBuilderSection() {
     loading: loadingTransit,
     error: transitError,
   } = useTransitData(enabledSourceSet.has('transit'))
+  const {
+    records: cimdRecords,
+    loading: loadingCimd,
+    error: cimdError,
+  } = useCimdData(enabledSourceSet.has('deprivation'))
 
   const networkCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -593,6 +647,9 @@ export default function ScoreBuilderSection() {
         feature: point([stop.longitude, stop.latitude]),
         accessible: stop.accessible,
         hasShelter: stop.hasShelter,
+        frequent: stop.frequent,
+        weekdayTrips: stop.weekdayTrips,
+        serviceSpanHours: stop.serviceSpanHours,
       }))
   }, [enabledSourceSet, transitStops])
 
@@ -603,6 +660,7 @@ export default function ScoreBuilderSection() {
       lat: tree.latitude,
       feature: point([tree.longitude, tree.latitude]),
       mature: (tree.dbh ?? 0) >= 20 || (tree.treeAge ?? 0) >= 20,
+      canopyAreaSqKm: estimateCanopyAreaSqKm(tree.dbh, tree.treeAge),
     }))
   }, [enabledSourceSet, heatShadeTrees])
 
@@ -631,6 +689,25 @@ export default function ScoreBuilderSection() {
       kind: facility.kind,
     }))
   }, [enabledSourceSet, heatShadeFacilities])
+
+  const cimdPointRecords = useMemo<CimdPointRecord[]>(() => {
+    if (!enabledSourceSet.has('deprivation') || cimdRecords.length === 0) return []
+    const cimdByDa = new Map<string, CimdRecord>(cimdRecords.map((record) => [record.daCode, record]))
+    return unitsByLevel.da
+      .map((unit) => {
+        const cimd = cimdByDa.get(String(unit.id ?? '').trim())
+        if (!cimd) return null
+        const center = bboxCenter(unit.geometry)
+        if (!center) return null
+        return {
+          lng: center[0],
+          lat: center[1],
+          feature: point(center),
+          cimd,
+        }
+      })
+      .filter((record): record is CimdPointRecord => record !== null)
+  }, [cimdRecords, enabledSourceSet, unitsByLevel.da])
 
   const regionMetricRows = useMemo<RegionMetricRow[]>(() => {
     return regions.map((region) => {
@@ -666,11 +743,23 @@ export default function ScoreBuilderSection() {
         transitStopCount: 0,
         accessibleTransitStopCount: 0,
         transitShelterCount: 0,
+        frequentTransitStopCount: 0,
+        accessibleFrequentTransitStopCount: 0,
+        transitTripCount: 0,
+        transitServiceSpanSum: 0,
         treeCount: 0,
         matureTreeCount: 0,
         forestAreaSqKm: 0,
+        canopyProxyAreaSqKm: 0,
         coolingFacilityCount: 0,
         responseFacilityCount: 0,
+        cimdJoinedCount: 0,
+        cimdPopulationWeight: 0,
+        cimdCompositeSum: 0,
+        cimdResidentialInstabilitySum: 0,
+        cimdEconomicDependencySum: 0,
+        cimdSituationalVulnerabilitySum: 0,
+        cimdEthnoCulturalCompositionSum: 0,
       }
       const networks = new Set<string>()
       const parameters = new Set<string>()
@@ -762,6 +851,10 @@ export default function ScoreBuilderSection() {
         counts.transitStopCount += 1
         if (rec.accessible) counts.accessibleTransitStopCount += 1
         if (rec.hasShelter) counts.transitShelterCount += 1
+        if (rec.frequent) counts.frequentTransitStopCount += 1
+        if (rec.frequent && rec.accessible) counts.accessibleFrequentTransitStopCount += 1
+        counts.transitTripCount += rec.weekdayTrips
+        counts.transitServiceSpanSum += rec.serviceSpanHours
       })
 
       // Heat and shade
@@ -769,6 +862,7 @@ export default function ScoreBuilderSection() {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.treeCount += 1
         if (rec.mature) counts.matureTreeCount += 1
+        counts.canopyProxyAreaSqKm += rec.canopyAreaSqKm
       })
 
       heatShadeForestRecords.forEach((rec) => {
@@ -782,7 +876,49 @@ export default function ScoreBuilderSection() {
         else counts.responseFacilityCount += 1
       })
 
+      cimdPointRecords.forEach((rec) => {
+        const { cimd } = rec
+        if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+        const weight = cimd.population || 1
+        counts.cimdJoinedCount += 1
+        counts.cimdPopulationWeight += weight
+        counts.cimdCompositeSum += cimd.composite * weight
+        counts.cimdResidentialInstabilitySum += cimd.residentialInstability * weight
+        counts.cimdEconomicDependencySum += cimd.economicDependency * weight
+        counts.cimdSituationalVulnerabilitySum += cimd.situationalVulnerability * weight
+        counts.cimdEthnoCulturalCompositionSum += cimd.ethnoCulturalComposition * weight
+      })
+
       const safeArea = region.areaKm2 > 0 ? region.areaKm2 : 1
+      const center = regionCenter(region)
+      const parkWalk10Access = catchmentAccess(center, parkPointRecords, 0.8)
+      const parkWalk20Access = catchmentAccess(center, parkPointRecords, 1.6)
+      const coolingWalk15Access = catchmentAccess(
+        center,
+        heatShadeFacilityPointRecords.filter((record) => record.kind === 'communityFacility'),
+        1.2,
+      )
+      const frequentTransitAccess = catchmentAccess(
+        center,
+        transitPointRecords.filter((record) => record.frequent),
+        0.8,
+      )
+      const accessibleFrequentTransitAccess = catchmentAccess(
+        center,
+        transitPointRecords.filter((record) => record.frequent && record.accessible),
+        0.8,
+      )
+      const parkTransit20Access = Math.max(parkWalk20Access, Math.min(1, parkWalk20Access + frequentTransitAccess * 0.35))
+      const serviceAccessComposite =
+        (parkWalk10Access + parkWalk20Access + coolingWalk15Access + frequentTransitAccess) / 4
+      const cimdWeight = counts.cimdPopulationWeight || counts.cimdJoinedCount || 1
+      const cimdComposite = counts.cimdPopulationWeight > 0 ? counts.cimdCompositeSum / cimdWeight : 0
+      const canopyProxyRatio =
+        region.areaKm2 > 0 ? Math.min(1, (counts.canopyProxyAreaSqKm + counts.forestAreaSqKm) / region.areaKm2) : 0
+      const shadeGap = Math.max(
+        0,
+        Math.min(1, (1 - (canopyProxyRatio + coolingWalk15Access) / 2) * (0.5 + Math.min(0.5, cimdComposite / 2))),
+      )
       const metricValues = createMetricValueMap(0)
       metricValues.overallDensity = counts.monitorCount / safeArea
       metricValues.lowCostDensity = counts.lowCostCount / safeArea
@@ -823,6 +959,27 @@ export default function ScoreBuilderSection() {
       metricValues.transitStopDensity = counts.transitStopCount / safeArea
       metricValues.accessibleTransitStopDensity = counts.accessibleTransitStopCount / safeArea
       metricValues.transitShelterDensity = counts.transitShelterCount / safeArea
+      metricValues.frequentTransitStopAccess = frequentTransitAccess
+      metricValues.transitServiceSpan =
+        counts.transitStopCount > 0 ? counts.transitServiceSpanSum / counts.transitStopCount : 0
+      metricValues.transitTripsPerStop = counts.transitStopCount > 0 ? counts.transitTripCount / counts.transitStopCount : 0
+      metricValues.accessibleFrequentTransitAccess = accessibleFrequentTransitAccess
+      metricValues.parkWalk10Access = parkWalk10Access
+      metricValues.parkWalk20Access = parkWalk20Access
+      metricValues.coolingWalk15Access = coolingWalk15Access
+      metricValues.parkTransit20Access = parkTransit20Access
+      metricValues.serviceAccessComposite = serviceAccessComposite
+      metricValues.canopyProxyRatio = canopyProxyRatio
+      metricValues.shadeGap = shadeGap
+      metricValues.cimdComposite = cimdComposite
+      metricValues.cimdResidentialInstability =
+        counts.cimdPopulationWeight > 0 ? counts.cimdResidentialInstabilitySum / cimdWeight : 0
+      metricValues.cimdEconomicDependency =
+        counts.cimdPopulationWeight > 0 ? counts.cimdEconomicDependencySum / cimdWeight : 0
+      metricValues.cimdSituationalVulnerability =
+        counts.cimdPopulationWeight > 0 ? counts.cimdSituationalVulnerabilitySum / cimdWeight : 0
+      metricValues.cimdEthnoCulturalComposition =
+        counts.cimdPopulationWeight > 0 ? counts.cimdEthnoCulturalCompositionSum / cimdWeight : 0
 
       return { region, metrics: metricValues, counts }
     })
@@ -839,6 +996,7 @@ export default function ScoreBuilderSection() {
     heatShadeTreePointRecords,
     heatShadeForestRecords,
     heatShadeFacilityPointRecords,
+    cimdPointRecords,
     regions,
   ])
 
@@ -931,8 +1089,44 @@ export default function ScoreBuilderSection() {
       if (scoreFilters.limitFoodRisk && entry.metrics.foodRiskScore > filterThresholds.foodRiskScore) return false
       return true
     })
-    return filtered.map((row, index) => ({ ...row, rank: index + 1 }))
-  }, [filterThresholds, scoreFilters, unfilteredScoredRegions])
+    const ranked = filtered.map((row, index) => ({ ...row, rank: index + 1, rankInterval: [index + 1, index + 1] as [number, number] }))
+    const referencePreset = SCORE_PRESETS.find((preset) => preset.key === 'balancedCoverage') || SCORE_PRESETS[0]
+    const referenceById = new Map(
+      referencePreset
+        ? scoreRows(referencePreset.weights).map((entry, index) => [entry.region.id, { ...entry, rank: index + 1 }])
+        : [],
+    )
+    return ranked.map((row) => {
+      const reference = referenceById.get(row.region.id)
+      const nearestBandBoundary = [40, 55, 70].reduce(
+        (nearest, boundary) => Math.min(nearest, Math.abs(row.score - boundary)),
+        Infinity,
+      )
+      const deprivationQuintile =
+        row.metrics.cimdComposite > 0 ? Math.max(1, Math.min(5, Math.ceil(row.metrics.cimdComposite * 5))) : null
+      const burdenOverlap = Math.sqrt(
+        Math.max(row.normalizedMetrics.foodRiskScore, row.normalizedMetrics.crimePerCapita, row.normalizedMetrics.shadeGap) *
+          Math.max(row.normalizedMetrics.cimdComposite, row.normalizedMetrics.populationDensity),
+      )
+      return {
+        ...row,
+        rankConfidence:
+          row.dataCoverageScore < 0.6 || nearestBandBoundary <= 2
+            ? 'Borderline priority'
+            : row.rank <= 12
+              ? 'Stable priority'
+              : 'Sensitive result',
+        equityAudit: {
+          referenceRank: reference?.rank ?? null,
+          rankDelta: reference ? reference.rank - row.rank : 0,
+          referenceScore: reference?.score ?? null,
+          deprivationQuintile,
+          burdenOverlap: Number.isFinite(burdenOverlap) ? burdenOverlap : 0,
+          cutoffWarning: nearestBandBoundary <= 2 ? 'Near score-band cutoff; review rank confidence before using as a threshold.' : null,
+        },
+      }
+    })
+  }, [filterThresholds, scoreFilters, scoreRows, unfilteredScoredRegions])
 
   const filteredRegions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -1357,12 +1551,27 @@ export default function ScoreBuilderSection() {
     (format: 'csv' | 'geojson') => {
       if (format === 'csv') {
         const metricKeys = SCORE_METRICS.map((m) => m.key)
-        const header = ['Rank', 'Name', 'Code', 'Score', 'Area (km²)', ...SCORE_METRICS.map((m) => m.label)]
+        const header = [
+          'Rank',
+          'Rank confidence',
+          'Rank interval',
+          'Score',
+          'Score interval',
+          'Comparison universe',
+          'Name',
+          'Code',
+          'Area (km²)',
+          ...SCORE_METRICS.map((m) => m.label),
+        ]
         const rows = scoredRegions.map((r) => [
           r.rank,
+          r.rankConfidence,
+          `${r.rankInterval[0]}-${r.rankInterval[1]}`,
+          r.score.toFixed(1),
+          `${r.scoreInterval[0].toFixed(1)}-${r.scoreInterval[1].toFixed(1)}`,
+          r.comparisonUniverseLabel,
           r.region.name,
           r.region.code,
-          r.score.toFixed(1),
           r.region.areaKm2.toFixed(1),
           ...metricKeys.map((k) => r.metrics[k].toFixed(4)),
         ])
@@ -1379,6 +1588,11 @@ export default function ScoreBuilderSection() {
               name: r.region.name,
               code: r.region.code,
               score: r.score,
+              rankConfidence: r.rankConfidence,
+              rankInterval: r.rankInterval,
+              scoreInterval: r.scoreInterval,
+              comparisonUniverse: r.comparisonUniverseLabel,
+              equityAudit: r.equityAudit,
               areaKm2: r.region.areaKm2,
               ...Object.fromEntries(SCORE_METRICS.map((m) => [m.key, r.metrics[m.key]])),
             },
@@ -1399,7 +1613,8 @@ export default function ScoreBuilderSection() {
     loadingProperties ||
     loadingCrime ||
     loadingHeatShade ||
-    loadingTransit
+    loadingTransit ||
+    loadingCimd
   const dataErrors = useMemo(() => {
     const errors: string[] = []
     if (monitorsError) errors.push(monitorsError)
@@ -1411,6 +1626,7 @@ export default function ScoreBuilderSection() {
     if (crimeError) errors.push(crimeError)
     if (heatShadeError) errors.push(heatShadeError)
     if (transitError) errors.push(transitError)
+    if (cimdError) errors.push(cimdError)
     return errors
   }, [
     monitorsError,
@@ -1422,6 +1638,7 @@ export default function ScoreBuilderSection() {
     crimeError,
     heatShadeError,
     transitError,
+    cimdError,
   ])
 
   const desktopLeftPanel = (

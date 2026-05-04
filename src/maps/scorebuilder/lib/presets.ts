@@ -27,6 +27,7 @@ export function presetAppliesToBoundary(preset: ScorePreset, boundarySource: Bou
       'census',
       'crime',
       'transit',
+      'deprivation',
     ])
     return sources.every((source) => cityFriendlySources.has(source)) && !sourceSet.has('bcAssessment')
   }

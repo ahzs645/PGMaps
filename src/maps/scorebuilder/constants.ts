@@ -35,12 +35,25 @@ export interface ScorePaletteProfile {
 
 type ScoreMetricBaseDefinition = Omit<
   ScoreMetricDefinition,
-  'direction' | 'component' | 'dataSourceLabel' | 'spatialMethod' | 'uncertainty' | 'caveat'
+  | 'direction'
+  | 'component'
+  | 'dataSourceLabel'
+  | 'spatialMethod'
+  | 'uncertainty'
+  | 'caveat'
+  | 'directionLabel'
+  | 'sourceUrl'
+  | 'freshnessLabel'
+  | 'comparisonBasis'
 >
 
 const PERCENTILE_METHOD: Partial<ScoreMethodSettings> = { normalization: 'percentile', aggregation: 'additive' }
 const WINSORIZED_METHOD: Partial<ScoreMethodSettings> = { normalization: 'winsorizedMinMax', aggregation: 'additive' }
 const Z_SCORE_METHOD: Partial<ScoreMethodSettings> = { normalization: 'zScore', aggregation: 'additive' }
+const CUMULATIVE_BURDEN_METHOD: Partial<ScoreMethodSettings> = {
+  normalization: 'percentile',
+  aggregation: 'cumulativeBurden',
+}
 
 const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
   // Air Quality
@@ -331,6 +344,134 @@ const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
     format: 'density',
     category: 'transit',
   },
+  {
+    key: 'frequentTransitStopAccess',
+    label: 'Frequent Transit Stop Access',
+    shortLabel: 'Frequent transit',
+    description: 'Share of regional demand within an estimated 10-minute walk of stops with stronger weekday service.',
+    format: 'percent',
+    category: 'transit',
+  },
+  {
+    key: 'transitServiceSpan',
+    label: 'Transit Service Span',
+    shortLabel: 'Service span',
+    description: 'Average daily service span in hours for in-boundary or nearby GTFS stops.',
+    format: 'count',
+    category: 'transit',
+  },
+  {
+    key: 'transitTripsPerStop',
+    label: 'Transit Trips per Stop',
+    shortLabel: 'Trips/stop',
+    description: 'Average scheduled weekday stop events per in-boundary stop.',
+    format: 'count',
+    category: 'transit',
+  },
+  {
+    key: 'accessibleFrequentTransitAccess',
+    label: 'Accessible Frequent Transit Access',
+    shortLabel: 'Accessible frequent',
+    description: 'Share of regional demand within an estimated 10-minute walk of accessible frequent-service stops.',
+    format: 'percent',
+    category: 'transit',
+  },
+  {
+    key: 'parkWalk10Access',
+    label: '10-Minute Park Walk Access',
+    shortLabel: 'Park 10-min',
+    description: 'Distance-decay estimate of park access within a 10-minute walk catchment.',
+    format: 'percent',
+    category: 'parksRec',
+  },
+  {
+    key: 'parkWalk20Access',
+    label: '20-Minute Park Walk Access',
+    shortLabel: 'Park 20-min',
+    description: 'Distance-decay estimate of park access within a 20-minute walk catchment.',
+    format: 'percent',
+    category: 'parksRec',
+  },
+  {
+    key: 'coolingWalk15Access',
+    label: '15-Minute Cooling Access',
+    shortLabel: 'Cooling 15-min',
+    description: 'Distance-decay estimate of cooling/community facility access within a 15-minute walk catchment.',
+    format: 'percent',
+    category: 'heatShade',
+  },
+  {
+    key: 'parkTransit20Access',
+    label: '20-Minute Park Transit Access',
+    shortLabel: 'Park transit',
+    description: 'Catchment estimate for park access where nearby transit service improves reach.',
+    format: 'percent',
+    category: 'parksRec',
+  },
+  {
+    key: 'serviceAccessComposite',
+    label: 'Service Access Composite',
+    shortLabel: 'Service access',
+    description: 'Combined catchment estimate for parks, cooling facilities, amenities, and transit.',
+    format: 'percent',
+    category: 'transit',
+  },
+  {
+    key: 'canopyProxyRatio',
+    label: 'Canopy Proxy Ratio',
+    shortLabel: 'Canopy proxy',
+    description: 'Tree-inventory buffer and forest/open-space proxy area as a share of boundary area.',
+    format: 'percent',
+    category: 'heatShade',
+  },
+  {
+    key: 'shadeGap',
+    label: 'Shade Gap',
+    shortLabel: 'Shade gap',
+    description: 'Need proxy combining low canopy/cooling access with population and deprivation pressure.',
+    format: 'percent',
+    category: 'heatShade',
+  },
+  {
+    key: 'cimdComposite',
+    label: 'CIMD Composite Deprivation',
+    shortLabel: 'CIMD composite',
+    description: 'Statistics Canada Canadian Index of Multiple Deprivation composite context.',
+    format: 'percent',
+    category: 'deprivation',
+  },
+  {
+    key: 'cimdResidentialInstability',
+    label: 'CIMD Residential Instability',
+    shortLabel: 'Residential instability',
+    description: 'CIMD residential instability dimension.',
+    format: 'percent',
+    category: 'deprivation',
+  },
+  {
+    key: 'cimdEconomicDependency',
+    label: 'CIMD Economic Dependency',
+    shortLabel: 'Economic dependency',
+    description: 'CIMD economic dependency dimension.',
+    format: 'percent',
+    category: 'deprivation',
+  },
+  {
+    key: 'cimdSituationalVulnerability',
+    label: 'CIMD Situational Vulnerability',
+    shortLabel: 'Situational vulnerability',
+    description: 'CIMD situational vulnerability dimension.',
+    format: 'percent',
+    category: 'deprivation',
+  },
+  {
+    key: 'cimdEthnoCulturalComposition',
+    label: 'CIMD Ethno-Cultural Composition',
+    shortLabel: 'Ethno-cultural',
+    description: 'CIMD ethno-cultural composition dimension.',
+    format: 'percent',
+    category: 'deprivation',
+  },
 ]
 
 const METRIC_DIRECTION: Record<ScoreMetricKey, ScoreMetricDirection> = {
@@ -369,6 +510,22 @@ const METRIC_DIRECTION: Record<ScoreMetricKey, ScoreMetricDirection> = {
   transitStopDensity: 'higherIsBetter',
   accessibleTransitStopDensity: 'higherIsBetter',
   transitShelterDensity: 'higherIsBetter',
+  frequentTransitStopAccess: 'higherIsBetter',
+  transitServiceSpan: 'higherIsBetter',
+  transitTripsPerStop: 'higherIsBetter',
+  accessibleFrequentTransitAccess: 'higherIsBetter',
+  parkWalk10Access: 'higherIsBetter',
+  parkWalk20Access: 'higherIsBetter',
+  coolingWalk15Access: 'higherIsBetter',
+  parkTransit20Access: 'higherIsBetter',
+  serviceAccessComposite: 'higherIsBetter',
+  canopyProxyRatio: 'higherIsBetter',
+  shadeGap: 'higherIsWorse',
+  cimdComposite: 'higherIsWorse',
+  cimdResidentialInstability: 'higherIsWorse',
+  cimdEconomicDependency: 'higherIsWorse',
+  cimdSituationalVulnerability: 'higherIsWorse',
+  cimdEthnoCulturalComposition: 'higherIsWorse',
 }
 
 const METRIC_COMPONENT: Record<ScoreMetricKey, ScoreMetricComponent> = {
@@ -407,6 +564,22 @@ const METRIC_COMPONENT: Record<ScoreMetricKey, ScoreMetricComponent> = {
   transitStopDensity: 'serviceAccess',
   accessibleTransitStopDensity: 'serviceAccess',
   transitShelterDensity: 'adaptiveCapacity',
+  frequentTransitStopAccess: 'serviceAccess',
+  transitServiceSpan: 'serviceAccess',
+  transitTripsPerStop: 'serviceAccess',
+  accessibleFrequentTransitAccess: 'serviceAccess',
+  parkWalk10Access: 'serviceAccess',
+  parkWalk20Access: 'serviceAccess',
+  coolingWalk15Access: 'adaptiveCapacity',
+  parkTransit20Access: 'serviceAccess',
+  serviceAccessComposite: 'serviceAccess',
+  canopyProxyRatio: 'adaptiveCapacity',
+  shadeGap: 'environmentalBurden',
+  cimdComposite: 'sensitivity',
+  cimdResidentialInstability: 'sensitivity',
+  cimdEconomicDependency: 'sensitivity',
+  cimdSituationalVulnerability: 'sensitivity',
+  cimdEthnoCulturalComposition: 'sensitivity',
 }
 
 const METRIC_SPATIAL_METHOD: Record<ScoreMetricKey, ScoreSpatialMethod> = {
@@ -445,6 +618,22 @@ const METRIC_SPATIAL_METHOD: Record<ScoreMetricKey, ScoreSpatialMethod> = {
   transitStopDensity: 'pointInPolygon',
   accessibleTransitStopDensity: 'pointInPolygon',
   transitShelterDensity: 'pointInPolygon',
+  frequentTransitStopAccess: 'derivedRatio',
+  transitServiceSpan: 'pointInPolygon',
+  transitTripsPerStop: 'pointInPolygon',
+  accessibleFrequentTransitAccess: 'derivedRatio',
+  parkWalk10Access: 'derivedRatio',
+  parkWalk20Access: 'derivedRatio',
+  coolingWalk15Access: 'derivedRatio',
+  parkTransit20Access: 'derivedRatio',
+  serviceAccessComposite: 'derivedRatio',
+  canopyProxyRatio: 'derivedRatio',
+  shadeGap: 'derivedRatio',
+  cimdComposite: 'directBoundaryJoin',
+  cimdResidentialInstability: 'directBoundaryJoin',
+  cimdEconomicDependency: 'directBoundaryJoin',
+  cimdSituationalVulnerability: 'directBoundaryJoin',
+  cimdEthnoCulturalComposition: 'directBoundaryJoin',
 }
 
 const METRIC_UNCERTAINTY: Record<ScoreMetricKey, ScoreUncertaintyLevel> = {
@@ -483,6 +672,22 @@ const METRIC_UNCERTAINTY: Record<ScoreMetricKey, ScoreUncertaintyLevel> = {
   transitStopDensity: 'medium',
   accessibleTransitStopDensity: 'medium',
   transitShelterDensity: 'medium',
+  frequentTransitStopAccess: 'medium',
+  transitServiceSpan: 'medium',
+  transitTripsPerStop: 'medium',
+  accessibleFrequentTransitAccess: 'medium',
+  parkWalk10Access: 'high',
+  parkWalk20Access: 'high',
+  coolingWalk15Access: 'high',
+  parkTransit20Access: 'high',
+  serviceAccessComposite: 'high',
+  canopyProxyRatio: 'high',
+  shadeGap: 'high',
+  cimdComposite: 'medium',
+  cimdResidentialInstability: 'medium',
+  cimdEconomicDependency: 'medium',
+  cimdSituationalVulnerability: 'medium',
+  cimdEthnoCulturalComposition: 'medium',
 }
 
 const METRIC_CAVEATS: Partial<Record<ScoreMetricKey, string>> = {
@@ -501,6 +706,20 @@ const METRIC_CAVEATS: Partial<Record<ScoreMetricKey, string>> = {
   accessibleTransitStopDensity: 'Uses the stop inventory Accessible flag, where populated.',
   transitShelterDensity:
     'Counts shelter and exchange subtype points; benches, lighting, and sidewalk flags are separate attributes.',
+  frequentTransitStopAccess: 'Catchment accessibility estimate; not a network-certified travel-time model.',
+  accessibleFrequentTransitAccess: 'Catchment accessibility estimate; depends on stop accessibility flags/proxies.',
+  parkWalk10Access: 'Distance-decay catchment estimate; not a sidewalk-network travel-time model.',
+  parkWalk20Access: 'Distance-decay catchment estimate; not a sidewalk-network travel-time model.',
+  coolingWalk15Access: 'Cooling/community facility inventory is a proxy until verified public cooling-centre data is loaded.',
+  parkTransit20Access: 'Transit-assisted park access is estimated from nearby service, not full itinerary planning.',
+  serviceAccessComposite: 'Composite catchment estimate; review component metrics before making site decisions.',
+  canopyProxyRatio: 'Derived from tree inventory buffers and forest/open-space proxies, not remote-sensing canopy.',
+  shadeGap: 'Screening proxy for planning triage, not a validated heat exposure model.',
+  cimdComposite: 'Area-level deprivation context; do not infer individual deprivation.',
+  cimdResidentialInstability: 'Area-level deprivation context; do not infer individual deprivation.',
+  cimdEconomicDependency: 'Area-level deprivation context; do not infer individual deprivation.',
+  cimdSituationalVulnerability: 'Area-level deprivation context; do not infer individual deprivation.',
+  cimdEthnoCulturalComposition: 'Area-level deprivation context; do not infer individual deprivation.',
 }
 
 function metricDataSourceLabel(category: ScoreMetricDefinition['category']): string {
@@ -512,7 +731,15 @@ function metricDataSourceLabel(category: ScoreMetricDefinition['category']): str
   if (category === 'property') return 'BC Assessment parcel data'
   if (category === 'safety') return 'City of Prince George crime incidents'
   if (category === 'transit') return 'City of Prince George transit stop inventory'
+  if (category === 'deprivation') return 'Statistics Canada CIMD 2021'
   return 'PGMaps data source'
+}
+
+function metricSourceUrl(category: ScoreMetricDefinition['category']): string | undefined {
+  if (category === 'transit') return 'https://www.bctransit.com/open-data/'
+  if (category === 'deprivation') return 'https://www150.statcan.gc.ca/n1/pub/45-20-0001/452000012023001-eng.htm'
+  if (category === 'heatShade' || category === 'parksRec') return 'https://www.princegeorge.ca/city-hall/maps-information-requests/open-data'
+  return undefined
 }
 
 export const SCORE_METRICS: ScoreMetricDefinition[] = SCORE_METRIC_BASES.map((metric) => ({
@@ -523,6 +750,15 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = SCORE_METRIC_BASES.map((me
   spatialMethod: METRIC_SPATIAL_METHOD[metric.key],
   uncertainty: METRIC_UNCERTAINTY[metric.key],
   caveat: METRIC_CAVEATS[metric.key],
+  directionLabel: METRIC_DIRECTION[metric.key] === 'higherIsWorse' ? 'lower helps' : 'higher helps',
+  sourceUrl: metricSourceUrl(metric.category),
+  freshnessLabel:
+    metric.category === 'deprivation'
+      ? '2021 Census / CIMD correction 2024'
+      : metric.category === 'transit'
+        ? 'Latest synced CityPG/BC Transit data'
+        : 'Latest bundled PGMaps data',
+  comparisonBasis: 'Compared within the currently loaded boundary level',
 }))
 
 export const SCORE_METRICS_BY_CATEGORY = SCORE_METRICS.reduce(
@@ -570,6 +806,22 @@ const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   transitStopDensity: 0,
   accessibleTransitStopDensity: 0,
   transitShelterDensity: 0,
+  frequentTransitStopAccess: 0,
+  transitServiceSpan: 0,
+  transitTripsPerStop: 0,
+  accessibleFrequentTransitAccess: 0,
+  parkWalk10Access: 0,
+  parkWalk20Access: 0,
+  coolingWalk15Access: 0,
+  parkTransit20Access: 0,
+  serviceAccessComposite: 0,
+  canopyProxyRatio: 0,
+  shadeGap: 0,
+  cimdComposite: 0,
+  cimdResidentialInstability: 0,
+  cimdEconomicDependency: 0,
+  cimdSituationalVulnerability: 0,
+  cimdEthnoCulturalComposition: 0,
 }
 
 export const DEFAULT_SCORE_WEIGHTS: ScoreMetricWeightMap = {
@@ -809,6 +1061,107 @@ export const SCORE_PRESETS: ScorePreset[] = [
     },
   },
   {
+    key: 'cumulativeEquityBurden',
+    label: 'Cumulative Equity Burden',
+    description: 'CalEnviroScreen-style overlap of local burden, deprivation vulnerability, and adaptive-capacity gaps.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      foodRiskScore: 16,
+      criticalViolationRate: 10,
+      crimePerCapita: 18,
+      valueGrowth10y: 8,
+      buildingAge: 8,
+      shadeGap: 16,
+      cimdComposite: 20,
+      cimdEconomicDependency: 10,
+      populationDensity: 10,
+      parkWalk10Access: 12,
+      coolingWalk15Access: 10,
+      serviceAccessComposite: 8,
+    },
+    methodSettings: CUMULATIVE_BURDEN_METHOD,
+  },
+  {
+    key: 'heatReliefPriority',
+    label: 'Heat Relief Priority',
+    description: 'Prioritizes populated, deprivation-affected areas with shade/cooling gaps and older housing.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      shadeGap: 28,
+      canopyProxyRatio: 18,
+      coolingWalk15Access: 16,
+      buildingAge: 14,
+      cimdSituationalVulnerability: 14,
+      cimdComposite: 10,
+      populationDensity: 10,
+    },
+    methodSettings: CUMULATIVE_BURDEN_METHOD,
+  },
+  {
+    key: 'parkAccessEquity',
+    label: 'Park Access Equity',
+    description: 'Ranks park access gaps with deprivation and population context using catchment accessibility estimates.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      parkWalk10Access: 28,
+      parkWalk20Access: 18,
+      parkTransit20Access: 12,
+      parkAreaRatio: 10,
+      amenityDensity: 8,
+      cimdComposite: 14,
+      populationDensity: 10,
+    },
+    methodSettings: PERCENTILE_METHOD,
+  },
+  {
+    key: 'transitEquity',
+    label: 'Transit Equity',
+    description: 'Scores frequent, accessible, sheltered, longer-span transit service against population and deprivation need.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      frequentTransitStopAccess: 24,
+      accessibleFrequentTransitAccess: 20,
+      transitServiceSpan: 16,
+      transitTripsPerStop: 14,
+      transitShelterDensity: 8,
+      cimdEconomicDependency: 10,
+      populationDensity: 8,
+    },
+    methodSettings: PERCENTILE_METHOD,
+  },
+  {
+    key: 'investmentPriority',
+    label: 'Investment Priority',
+    description: 'Screening preset for stable high-burden, high-need areas with low adaptive capacity.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      cimdComposite: 18,
+      shadeGap: 18,
+      crimePerCapita: 14,
+      foodRiskScore: 10,
+      buildingAge: 10,
+      parkWalk10Access: 12,
+      accessibleFrequentTransitAccess: 10,
+      serviceAccessComposite: 8,
+    },
+    methodSettings: CUMULATIVE_BURDEN_METHOD,
+  },
+  {
     key: 'communityResilienceProxy',
     label: 'Community Resilience Proxy',
     description: 'Higher scores combine monitoring, parks, services, housing mix, and lower safety/food pressure.',
@@ -910,6 +1263,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
 ]
 
 function formatPresetNormalization(method: Partial<ScoreMethodSettings> | undefined): string {
+  if (method?.aggregation === 'cumulativeBurden') return 'Percentile + cumulative burden'
   if (method?.normalization === 'winsorizedMinMax') return 'Winsorized min-max'
   if (method?.normalization === 'zScore') return 'Z-score'
   if (method?.normalization === 'minMax') return 'Min-max'
@@ -982,6 +1336,7 @@ const SCORE_DATA_SOURCE_ORDER: ScoreDataSource[] = [
   'bcAssessment',
   'crime',
   'transit',
+  'deprivation',
 ]
 
 function metricCategoryToDataSource(category: string): ScoreDataSource | null {
@@ -993,6 +1348,7 @@ function metricCategoryToDataSource(category: string): ScoreDataSource | null {
   if (category === 'property') return 'bcAssessment'
   if (category === 'safety') return 'crime'
   if (category === 'transit') return 'transit'
+  if (category === 'deprivation') return 'deprivation'
   return null
 }
 
@@ -1575,6 +1931,22 @@ export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
   'transitStopDensity',
   'accessibleTransitStopDensity',
   'transitShelterDensity',
+  'frequentTransitStopAccess',
+  'transitServiceSpan',
+  'transitTripsPerStop',
+  'accessibleFrequentTransitAccess',
+  'parkWalk10Access',
+  'parkWalk20Access',
+  'coolingWalk15Access',
+  'parkTransit20Access',
+  'serviceAccessComposite',
+  'canopyProxyRatio',
+  'shadeGap',
+  'cimdComposite',
+  'cimdResidentialInstability',
+  'cimdEconomicDependency',
+  'cimdSituationalVulnerability',
+  'cimdEthnoCulturalComposition',
 ]
 
 export const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
@@ -1690,6 +2062,22 @@ export function createMetricValueMap(initial = 0): Record<ScoreMetricKey, number
     transitStopDensity: initial,
     accessibleTransitStopDensity: initial,
     transitShelterDensity: initial,
+    frequentTransitStopAccess: initial,
+    transitServiceSpan: initial,
+    transitTripsPerStop: initial,
+    accessibleFrequentTransitAccess: initial,
+    parkWalk10Access: initial,
+    parkWalk20Access: initial,
+    coolingWalk15Access: initial,
+    parkTransit20Access: initial,
+    serviceAccessComposite: initial,
+    canopyProxyRatio: initial,
+    shadeGap: initial,
+    cimdComposite: initial,
+    cimdResidentialInstability: initial,
+    cimdEconomicDependency: initial,
+    cimdSituationalVulnerability: initial,
+    cimdEthnoCulturalComposition: initial,
   }
 }
 

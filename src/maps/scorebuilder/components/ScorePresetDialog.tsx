@@ -89,6 +89,7 @@ function getDataSourceLabel(source: string): string {
   if (source === 'bcAssessment') return 'Property'
   if (source === 'crime') return 'Crime'
   if (source === 'transit') return 'Transit'
+  if (source === 'deprivation') return 'CIMD'
   return source
 }
 

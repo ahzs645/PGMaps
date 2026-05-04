@@ -205,7 +205,7 @@ export function ScoreBuilderEquationBar({
                     <div className="flex items-center gap-1.5 px-2 py-1.5">
                       <span className={cn('h-2 w-2 rounded-sm', getCategoryDot(metric.category))} />
                       <span className="max-w-[10rem] truncate font-medium text-foreground">{metric.shortLabel}</span>
-                      <span className="font-mono text-[10px] text-muted-foreground">·norm</span>
+                      <span className="text-[10px] text-muted-foreground">· {metric.directionLabel}</span>
                     </div>
                     <button
                       type="button"

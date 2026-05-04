@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "citypg:sync": "node scripts/sync-citypg-arcgis.mjs",
     "heat-shade:sync": "node scripts/sync-heat-shade-data.mjs",
+    "transit:gtfs:sync": "node scripts/sync-transit-gtfs.mjs",
+    "cimd:sync": "node scripts/sync-cimd.mjs",
     "census:sync": "node scripts/build-census-hierarchy.mjs",
     "census:variables": "python3 scripts/build-census-variables.py",
     "lint": "eslint src/",

@@ -9,6 +9,7 @@ export type ScoreMetricCategory =
   | 'property'
   | 'safety'
   | 'transit'
+  | 'deprivation'
 
 export type ScoreMetricKey =
   // Air Quality
@@ -54,10 +55,29 @@ export type ScoreMetricKey =
   | 'transitStopDensity'
   | 'accessibleTransitStopDensity'
   | 'transitShelterDensity'
+  | 'frequentTransitStopAccess'
+  | 'transitServiceSpan'
+  | 'transitTripsPerStop'
+  | 'accessibleFrequentTransitAccess'
+  // Accessibility
+  | 'parkWalk10Access'
+  | 'parkWalk20Access'
+  | 'coolingWalk15Access'
+  | 'parkTransit20Access'
+  | 'serviceAccessComposite'
+  // Shade and deprivation
+  | 'canopyProxyRatio'
+  | 'shadeGap'
+  | 'cimdComposite'
+  | 'cimdResidentialInstability'
+  | 'cimdEconomicDependency'
+  | 'cimdSituationalVulnerability'
+  | 'cimdEthnoCulturalComposition'
 
 export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
 export type ScoreNormalizationMethod = 'minMax' | 'winsorizedMinMax' | 'percentile' | 'zScore'
-export type ScoreAggregationMethod = 'additive' | 'geometric'
+export type ScoreAggregationMethod = 'additive' | 'geometric' | 'cumulativeBurden'
+export type ScoreNormalizationScope = 'activeBoundaryLevel'
 export type ScoreMetricDirection = 'higherIsBetter' | 'higherIsWorse'
 export type ScoreMetricComponent =
   | 'monitoringAdequacy'
@@ -80,6 +100,7 @@ export interface ScoreMethodSettings {
   aggregation: ScoreAggregationMethod
   missingData: 'zero' | 'neutral'
   sensitivity: boolean
+  normalizationScope: ScoreNormalizationScope
 }
 
 export interface ScoreMetricDefinition {
@@ -95,6 +116,10 @@ export interface ScoreMetricDefinition {
   spatialMethod: ScoreSpatialMethod
   uncertainty: ScoreUncertaintyLevel
   caveat?: string
+  directionLabel: string
+  sourceUrl?: string
+  freshnessLabel: string
+  comparisonBasis: string
 }
 
 export type ScoreMetricWeightMap = Record<ScoreMetricKey, number>
@@ -177,11 +202,32 @@ export interface RegionDataCounts {
   transitStopCount: number
   accessibleTransitStopCount: number
   transitShelterCount: number
+  frequentTransitStopCount: number
+  accessibleFrequentTransitStopCount: number
+  transitTripCount: number
+  transitServiceSpanSum: number
   treeCount: number
   matureTreeCount: number
   forestAreaSqKm: number
+  canopyProxyAreaSqKm: number
   coolingFacilityCount: number
   responseFacilityCount: number
+  cimdJoinedCount: number
+  cimdPopulationWeight: number
+  cimdCompositeSum: number
+  cimdResidentialInstabilitySum: number
+  cimdEconomicDependencySum: number
+  cimdSituationalVulnerabilitySum: number
+  cimdEthnoCulturalCompositionSum: number
+}
+
+export interface RegionEquityAudit {
+  referenceRank: number | null
+  rankDelta: number
+  referenceScore: number | null
+  deprivationQuintile: number | null
+  burdenOverlap: number
+  cutoffWarning: string | null
 }
 
 export interface ScoredBoundaryRegion {
@@ -194,6 +240,11 @@ export interface ScoredBoundaryRegion {
   scoreColor: string
   rank: number
   dataCoverageScore: number
+  rankConfidence: 'Stable priority' | 'Borderline priority' | 'Sensitive result'
+  rankInterval: [number, number]
+  scoreInterval: [number, number]
+  comparisonUniverseLabel: string
+  equityAudit: RegionEquityAudit
 }
 
 export interface ScoreComponentSummary {
@@ -224,6 +275,7 @@ export type ScoreDataSource =
   | 'bcAssessment'
   | 'crime'
   | 'transit'
+  | 'deprivation'
 
 export type ScoreFilterKey = 'requirePopulation' | 'requireParks' | 'limitCrime' | 'limitFoodRisk'
 
@@ -259,6 +311,7 @@ export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; des
   { id: 'bcAssessment', label: 'BC Assessment', description: 'Parcel values, housing mix, age, and growth' },
   { id: 'crime', label: 'Crime', description: 'Prince George crime density, per-capita risk, and recency' },
   { id: 'transit', label: 'Transit', description: 'City of Prince George transit stops and stop amenities' },
+  { id: 'deprivation', label: 'Deprivation', description: 'Statistics Canada CIMD deprivation context' },
 ]
 
 export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
@@ -270,4 +323,5 @@ export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
   property: 'Property & Housing',
   safety: 'Safety',
   transit: 'Transit',
+  deprivation: 'Deprivation',
 }

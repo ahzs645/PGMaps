@@ -160,12 +160,6 @@ function createExpandedSections(isDesktop: boolean): ExpandedSectionsState {
   }
 }
 
-function getMetricDirectionLabel(key: ScoreMetricKey): string {
-  const metric = SCORE_METRICS.find((entry) => entry.key === key)
-  if (!metric) return 'Direction not documented'
-  return metric.direction === 'higherIsBetter' ? 'Higher is generally beneficial' : 'Higher is generally a burden'
-}
-
 function getDataSourceLabel(source: ScoreDataSource): string {
   if (source === 'airQuality') return 'Air'
   if (source === 'parks') return 'Parks'
@@ -287,6 +281,20 @@ export function ScoreBuilderSidebar({
     () => (selectedRegion ? getScoreDrivers(selectedRegion, weights, 2) : []),
     [selectedRegion, weights],
   )
+  const equityAuditSummary = useMemo(() => {
+    const deprivationRegions = regions.filter((region) => region.equityAudit.deprivationQuintile !== null)
+    const deprivationWeightedAverage = deprivationRegions.length
+      ? deprivationRegions.reduce((sum, region) => sum + region.score * (region.equityAudit.deprivationQuintile || 1), 0) /
+        deprivationRegions.reduce((sum, region) => sum + (region.equityAudit.deprivationQuintile || 1), 0)
+      : null
+    return {
+      deprivationWeightedAverage,
+      topBurdenOverlap: [...regions]
+        .sort((a, b) => b.equityAudit.burdenOverlap - a.equityAudit.burdenOverlap)
+        .slice(0, 3),
+      hasCutoffWarnings: regions.some((region) => region.equityAudit.cutoffWarning),
+    }
+  }, [regions])
 
   const totalAbsoluteWeight = useMemo(() => {
     return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
@@ -868,6 +876,10 @@ export function ScoreBuilderSidebar({
                   aggregated into a 0-100 composite score.
                 </p>
                 <p className="mt-2">
+                  Scores are relative to the currently loaded boundary level; filters do not redefine percentiles. Use
+                  for planning triage, not validated exposure, health, or funding eligibility determination.
+                </p>
+                <p className="mt-2">
                   Current settings: {formatNormalizationMethod(methodSettings.normalization)},{' '}
                   {methodSettings.aggregation}, missing data {methodSettings.missingData}.
                 </p>
@@ -906,7 +918,11 @@ export function ScoreBuilderSidebar({
                         </span>
                       </div>
                       <div className="mt-1 text-[11px] text-muted-foreground">
-                        {getMetricDirectionLabel(metric.key)} · {metric.dataSourceLabel} · {metric.spatialMethod}
+                        {metric.directionLabel} · weight {weights[metric.key]} · {metric.dataSourceLabel} ·{' '}
+                        {metric.spatialMethod}
+                      </div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        {metric.freshnessLabel} · {metric.comparisonBasis}
                       </div>
                       {metric.caveat && (
                         <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">{metric.caveat}</div>
@@ -934,6 +950,10 @@ export function ScoreBuilderSidebar({
                 <p>
                   Metrics are normalized with the selected method across the current region set. Positive weights prefer
                   high values; negative weights prefer low values.
+                </p>
+                <p className="mt-2">
+                  Scores are relative to the currently loaded boundary level; filters do not redefine percentiles. Use
+                  for planning triage, not validated exposure, health, or funding eligibility determination.
                 </p>
                 <p className="mt-2 font-mono text-[11px] text-foreground">
                   score = 100 * aggregate(weight share * directional value)
@@ -995,6 +1015,40 @@ export function ScoreBuilderSidebar({
               )}
 
               <div className="rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 text-sm font-semibold text-foreground">Equity audit</div>
+                <div className="space-y-2 text-xs text-muted-foreground">
+                  <div>
+                    Deprivation-weighted average:{' '}
+                    <span className="font-semibold text-foreground">
+                      {equityAuditSummary.deprivationWeightedAverage == null
+                        ? 'No CIMD data loaded'
+                        : formatScore(equityAuditSummary.deprivationWeightedAverage)}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {equityAuditSummary.topBurdenOverlap.map((region) => (
+                      <div
+                        key={region.region.id}
+                        className="flex items-center justify-between rounded bg-muted/25 px-2 py-1"
+                      >
+                        <span className="truncate">
+                          #{region.rank} {region.region.name}
+                        </span>
+                        <span className="font-semibold text-foreground">
+                          {(region.equityAudit.burdenOverlap * 100).toFixed(0)} overlap
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {equityAuditSummary.hasCutoffWarnings && (
+                    <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+                      Some regions sit near score-band cutoffs; treat hard thresholds as sensitive.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-background p-3">
                 <div className="mb-2 text-sm font-semibold text-foreground">Method controls</div>
                 <div className="space-y-2 text-xs">
                   <label className="space-y-1">
@@ -1026,6 +1080,7 @@ export function ScoreBuilderSidebar({
                     >
                       <option value="additive">Weighted average</option>
                       <option value="geometric">Geometric mean</option>
+                      <option value="cumulativeBurden">Cumulative burden</option>
                     </select>
                   </label>
                   <label className="space-y-1">
@@ -1147,7 +1202,7 @@ export function ScoreBuilderSidebar({
           {expandedSections.robustness && (
             <div className="space-y-3 px-4 pb-4">
               <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
-                <div className="mb-1 text-sm font-semibold text-foreground">Robustness-lite</div>
+                <div className="mb-1 text-sm font-semibold text-foreground">Rank confidence</div>
                 <p>
                   Checks 15% weight perturbations, leave-one-indicator-out runs, and alternate normalization methods.
                 </p>
@@ -1336,6 +1391,11 @@ export function ScoreBuilderSidebar({
                     <div className="text-xs text-cyan-700 dark:text-cyan-300">
                       Rank #{selectedRegion.rank} | Score {formatScore(selectedRegion.score)}
                     </div>
+                    <div className="mt-0.5 text-[11px] font-medium text-cyan-800 dark:text-cyan-200">
+                      {selectedRegion.rankConfidence} · rank #{selectedRegion.rankInterval[0]}-#
+                      {selectedRegion.rankInterval[1]} · score {formatScore(selectedRegion.scoreInterval[0])}-
+                      {formatScore(selectedRegion.scoreInterval[1])}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-cyan-800 dark:text-cyan-200">
                     <div>Area: {selectedRegion.region.areaKm2.toFixed(1)} km²</div>
@@ -1475,6 +1535,10 @@ export function ScoreBuilderSidebar({
                                 Thin data coverage
                               </div>
                             )}
+                            <div className="mt-1 text-[10px] text-muted-foreground">
+                              {entry.rankConfidence} · rank #{entry.rankInterval[0]}-#{entry.rankInterval[1]} · score{' '}
+                              {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
+                            </div>
                           </button>
                           <div className="flex shrink-0 items-center gap-1">
                             <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">
