@@ -1,0 +1,3 @@
+[submodule "vendor/json-url"]
+	path = vendor/json-url
+	url = https://github.com/ahzs645/json-url.git
