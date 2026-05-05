@@ -1457,6 +1457,30 @@ export default function ScoreBuilderSection() {
     [allNetworks, handleWeightChange],
   )
 
+  const handleBuildDensityScore = useCallback(
+    (metric: ScoreMetricKey) => {
+      const definition = SCORE_METRICS.find((entry) => entry.key === metric)
+      const source = definition ? metricToDataSource(definition.category) : null
+      const nextWeights = createMetricValueMap(0) as ScoreMetricWeightMap
+      nextWeights[metric] = 100
+
+      setActiveExampleKey(null)
+      setWeights(nextWeights)
+      setMethodSettings((current) => ({ ...current, normalization: 'percentile', aggregation: 'additive' }))
+      if (source) {
+        setEnabledDataSources((current) => (current.includes(source) ? current : [...current, source]))
+        if (source === 'airQuality') {
+          setSelectedNetworks((current) => (current.length ? current : allNetworks))
+          setShowPoints(true)
+        }
+        if (metric === 'crimePerCapita') {
+          setEnabledDataSources((current) => (current.includes('census') ? current : [...current, 'census']))
+        }
+      }
+    },
+    [allNetworks],
+  )
+
   const handleShareUrl = useCallback(async () => {
     const token = await encodeScoreBuilderShareState({
       version: 1,
@@ -1676,6 +1700,7 @@ export default function ScoreBuilderSection() {
       scoreSpread={scoreSpread}
       densityMetric={densityMetric}
       onDensityMetricChange={setDensityMetric}
+      onBuildDensityScore={handleBuildDensityScore}
       densitySummary={densitySummary}
       densityLeaders={densityLeaders}
       regions={scoredRegions}
@@ -1735,6 +1760,7 @@ export default function ScoreBuilderSection() {
       scoreSpread={scoreSpread}
       densityMetric={densityMetric}
       onDensityMetricChange={setDensityMetric}
+      onBuildDensityScore={handleBuildDensityScore}
       densitySummary={densitySummary}
       densityLeaders={densityLeaders}
       regions={scoredRegions}

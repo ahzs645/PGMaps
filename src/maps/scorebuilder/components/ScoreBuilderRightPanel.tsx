@@ -70,6 +70,7 @@ interface ScoreBuilderRightPanelProps {
   scoreSpread: { min: number; max: number; average: number }
   densityMetric: ScoreMetricKey
   onDensityMetricChange: (metric: ScoreMetricKey) => void
+  onBuildDensityScore: (metric: ScoreMetricKey) => void
   densitySummary: { min: number; max: number; median: number; average: number } | null
   densityLeaders: ScoredBoundaryRegion[]
   regions: ScoredBoundaryRegion[]
@@ -177,6 +178,7 @@ export function ScoreBuilderRightPanel({
   scoreSpread,
   densityMetric,
   onDensityMetricChange,
+  onBuildDensityScore,
   densitySummary,
   densityLeaders,
   regions,
@@ -349,6 +351,7 @@ export function ScoreBuilderRightPanel({
           <DensityTab
             densityMetric={densityMetric}
             onDensityMetricChange={onDensityMetricChange}
+            onBuildDensityScore={onBuildDensityScore}
             densitySummary={densitySummary}
             densityLeaders={densityLeaders}
             selectedRegion={selectedRegion}
@@ -1848,6 +1851,7 @@ function ModelTab({
 function DensityTab({
   densityMetric,
   onDensityMetricChange,
+  onBuildDensityScore,
   densitySummary,
   densityLeaders,
   selectedRegion,
@@ -1855,6 +1859,7 @@ function DensityTab({
 }: {
   densityMetric: ScoreMetricKey
   onDensityMetricChange: (metric: ScoreMetricKey) => void
+  onBuildDensityScore: (metric: ScoreMetricKey) => void
   densitySummary: { min: number; max: number; median: number; average: number } | null
   densityLeaders: ScoredBoundaryRegion[]
   selectedRegion: ScoredBoundaryRegion | null
@@ -1864,10 +1869,11 @@ function DensityTab({
     <div className="space-y-2 p-4" data-score-builder-section="density">
       <div className="flex items-center justify-between gap-2">
         <label htmlFor="score-builder-density" className="text-xs font-medium text-muted-foreground">
-          Density metric
+          Heat-map metric
         </label>
         <select
           id="score-builder-density"
+          aria-label="Density metric"
           value={densityMetric}
           onChange={(event) => onDensityMetricChange(event.target.value as ScoreMetricKey)}
           className="rounded border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
@@ -1878,6 +1884,26 @@ function DensityTab({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="rounded-lg border border-border bg-muted/20 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-foreground">Build score from heat map</div>
+            <div className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+              Use the selected metric as a one-layer score so the map, rankings, exports, and share URL all follow this
+              dataset.
+            </div>
+          </div>
+          <button
+            type="button"
+            data-score-builder-build-density-score="true"
+            onClick={() => onBuildDensityScore(densityMetric)}
+            className="shrink-0 rounded-md border border-cyan-500/50 bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-800 transition-colors hover:bg-cyan-100 dark:bg-cyan-950/30 dark:text-cyan-100"
+          >
+            Build score
+          </button>
+        </div>
       </div>
 
       {densitySummary ? (

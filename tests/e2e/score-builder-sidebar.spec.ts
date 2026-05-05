@@ -108,8 +108,8 @@ test.describe('Score Builder desktop interface', () => {
     await expect(page.getByRole('button', { name: /Air Quality/i })).toContainText('OFF')
 
     const preview = page.locator('[data-score-builder-results-preview="true"]')
-    await expect(preview).toContainText('Live Results')
-    await expect(preview).toContainText('#1')
+    await expect(preview).toContainText('Greenest Neighbourhoods')
+    await expect(preview).toContainText('Score=')
     await expect(preview).not.toContainText('|weights|')
     await expect(page.locator('[data-score-builder-equation-term]')).toHaveCount(5)
 
@@ -125,10 +125,10 @@ test.describe('Score Builder desktop interface', () => {
     await page.locator('[data-score-builder-tab="examples"]').click()
     await page.getByRole('button', { name: /Air Monitoring Gaps \(Tract\)/ }).click()
 
-    await expect(page.getByRole('heading', { name: 'Air Monitoring Gaps (Tract)' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Air Quality/i })).toContainText('ON')
-    await expect(page.getByRole('button', { name: /Parks & Trails/i })).toContainText('OFF')
-    await expect(page.getByRole('button', { name: /Demographics/i })).toContainText('ON')
+    await expect(page.getByRole('heading', { level: 1, name: 'Air Monitoring Gaps (Tract)' })).toBeVisible()
+    await expect(dataSourceButton(page, 'Air Quality')).toContainText('ON')
+    await expect(dataSourceButton(page, 'Parks & Trails')).toContainText('OFF')
+    await expect(dataSourceButton(page, 'Demographics')).toContainText('ON')
     await expect(page.locator('[data-score-builder-level-select="true"]')).toHaveValue('ct')
 
     await page.locator('[data-score-builder-tab="equation"]').click()
@@ -210,10 +210,23 @@ test.describe('Score Builder desktop interface', () => {
     await page.locator('[data-score-builder-tab="density"]').click()
     await expect(page.locator('[data-score-builder-section="density"]')).toBeVisible()
     await expect(page.getByLabel('Density metric')).toBeVisible()
+    await expect(page.locator('[data-score-builder-build-density-score="true"]')).toBeVisible()
 
     await page.locator('[data-score-builder-tab="regions"]').click()
     await expect(page.locator('[data-score-builder-section="regions"]')).toBeVisible()
     await expect(page.locator('[data-score-builder-region-stats="true"]')).toBeVisible()
+  })
+
+  test('density heat-map lens can become a one-metric score', async ({ page }) => {
+    await page.locator('[data-score-builder-tab="density"]').click()
+    await page.getByLabel('Density metric').selectOption('shadeGap')
+    await page.locator('[data-score-builder-build-density-score="true"]').click()
+
+    await expect(page.getByRole('button', { name: /Heat & Shade/i })).toContainText('ON')
+    await page.locator('[data-score-builder-tab="equation"]').click()
+    await expect(page.locator('[data-score-builder-equation-term="shadeGap"]')).toBeVisible()
+    await expect(page.locator('[data-score-builder-equation-term]')).toHaveCount(1)
+    await expect(page.locator('[data-score-builder-equation-number="shadeGap"]')).toHaveValue('100')
   })
 
   test('equation builder can add a metric and generate a share URL', async ({ page }) => {
@@ -333,7 +346,7 @@ test.describe('Score Builder desktop interface', () => {
     const dialog = page.locator('[data-score-builder-region-insight-dialog="true"]')
     await expect(dialog).toBeVisible()
 
-    await page.keyboard.press('Escape')
+    await dialog.getByRole('button', { name: 'Close' }).click()
     await expect(dialog).toBeHidden()
   })
 })

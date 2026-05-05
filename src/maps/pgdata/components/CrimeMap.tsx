@@ -68,14 +68,19 @@ function formatTime(time: string): string {
 function CrimeHeatmapLayer({ incidents }: { incidents: CrimeIncident[] }) {
   const { map, isLoaded } = useMap()
 
+  const heatmapWeight = useMemo(() => {
+    if (incidents.length === 0) return 0
+    return Math.min(0.75, Math.max(0.12, 3600 / incidents.length))
+  }, [incidents.length])
+
   const geojson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
     type: 'FeatureCollection',
     features: incidents.map((inc) => ({
       type: 'Feature' as const,
       geometry: { type: 'Point' as const, coordinates: [inc.longitude, inc.latitude] },
-      properties: {},
+      properties: { weight: heatmapWeight },
     })),
-  }), [incidents])
+  }), [incidents, heatmapWeight])
 
   useEffect(() => {
     if (!isLoaded || !map) return
@@ -89,18 +94,18 @@ function CrimeHeatmapLayer({ incidents }: { incidents: CrimeIncident[] }) {
       type: 'heatmap',
       source: sourceId,
       paint: {
-        'heatmap-weight': 0.08,
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 8, 0.3, 12, 1, 15, 2],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 8, 3, 12, 8, 15, 14],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.8, 16, 0.4],
+        'heatmap-weight': ['coalesce', ['get', 'weight'], 1],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 8, 0.45, 12, 1, 15, 1.6],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 8, 8, 12, 18, 15, 28],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.76, 14, 0.68, 16, 0.45],
         'heatmap-color': [
           'interpolate', ['linear'], ['heatmap-density'],
           0, 'rgba(0,0,0,0)',
-          0.1, 'rgba(59,130,246,0.3)',
-          0.25, '#3b82f6',
-          0.4, '#22c55e',
-          0.55, '#eab308',
-          0.75, '#f97316',
+          0.08, 'rgba(59,130,246,0.28)',
+          0.22, 'rgba(59,130,246,0.7)',
+          0.42, '#22c55e',
+          0.62, '#eab308',
+          0.82, '#f97316',
           1, '#ef4444',
         ],
       },

@@ -31,7 +31,7 @@ export default function PGDataSection() {
   const [yearsInitialized, setYearsInitialized] = useState(false)
   const [selectedCommunity, setSelectedCommunity] = useState(() => searchParams.get('community') || '')
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
-  const [showHeatmap, setShowHeatmap] = useState(false)
+  const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
   const [selectedIncident, setSelectedIncident] = useState<CrimeIncident | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [timelineEnabled, setTimelineEnabled] = useState(false)
