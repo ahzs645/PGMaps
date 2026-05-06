@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, ChevronUp, Copy, Download } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { cn } from '@/lib/utils'
+import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import {
@@ -54,10 +55,27 @@ function formatNormalizationMethod(method: ScoreMethodSettings['normalization'])
 }
 
 function formatAggregationMethod(method: ScoreMethodSettings['aggregation']): string {
+  if (method === 'healthyPlanPairwisePriority') return 'HealthyPlan-style pairwise priority'
   if (method === 'modulePercentileRankedSum') return 'EJI-style module ranked sum'
   if (method === 'cumulativeBurden') return 'cumulative burden'
   if (method === 'geometric') return 'geometric mean'
   return 'weighted average'
+}
+
+function isHealthyPlanDemographicMetric(metric: (typeof SCORE_METRICS)[number]): boolean {
+  return metric.component === 'sensitivity' || metric.category === 'demographics' || metric.category === 'deprivation'
+}
+
+function isHealthyPlanEnvironmentMetric(metric: (typeof SCORE_METRICS)[number]): boolean {
+  return (
+    metric.component === 'environmentalBurden' ||
+    metric.component === 'serviceAccess' ||
+    metric.component === 'adaptiveCapacity' ||
+    metric.category === 'airQuality' ||
+    metric.category === 'parksRec' ||
+    metric.category === 'heatShade' ||
+    metric.category === 'transit'
+  )
 }
 
 interface ScoreBuilderSidebarProps {
@@ -294,8 +312,10 @@ export function ScoreBuilderSidebar({
   const equityAuditSummary = useMemo(() => {
     const deprivationRegions = regions.filter((region) => region.equityAudit.deprivationQuintile !== null)
     const deprivationWeightedAverage = deprivationRegions.length
-      ? deprivationRegions.reduce((sum, region) => sum + region.score * (region.equityAudit.deprivationQuintile || 1), 0) /
-        deprivationRegions.reduce((sum, region) => sum + (region.equityAudit.deprivationQuintile || 1), 0)
+      ? deprivationRegions.reduce(
+          (sum, region) => sum + region.score * (region.equityAudit.deprivationQuintile || 1),
+          0,
+        ) / deprivationRegions.reduce((sum, region) => sum + (region.equityAudit.deprivationQuintile || 1), 0)
       : null
     return {
       deprivationWeightedAverage,
@@ -310,6 +330,8 @@ export function ScoreBuilderSidebar({
     return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
   }, [weights])
   const activeMetricCount = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length, [weights])
+  const healthyPlanDemographicMetrics = useMemo(() => SCORE_METRICS.filter(isHealthyPlanDemographicMetric), [])
+  const healthyPlanEnvironmentMetrics = useMemo(() => SCORE_METRICS.filter(isHealthyPlanEnvironmentMetric), [])
   const updateMethodSettings = <Key extends keyof ScoreMethodSettings>(key: Key, value: ScoreMethodSettings[Key]) =>
     onMethodSettingsChange({ ...methodSettings, [key]: value })
 
@@ -1029,49 +1051,95 @@ export function ScoreBuilderSidebar({
                 <div className="space-y-2 text-xs">
                   <label className="space-y-1">
                     <span className="block font-medium text-muted-foreground">Normalization</span>
-                    <select
+                    <AppSelect
                       value={methodSettings.normalization}
-                      onChange={(event) =>
+                      onValueChange={(value) =>
                         updateMethodSettings(
                           'normalization',
-                          event.target.value as ScoreMethodSettings['normalization'],
+                          value as ScoreMethodSettings['normalization'],
                         )
                       }
-                      className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                    >
-                      <option value="percentile">Percentile rank</option>
-                      <option value="winsorizedMinMax">Winsorized min-max</option>
-                      <option value="minMax">Min-max</option>
-                      <option value="zScore">Z-score</option>
-                    </select>
+                      options={[
+                        { value: 'percentile', label: 'Percentile rank' },
+                        { value: 'winsorizedMinMax', label: 'Winsorized min-max' },
+                        { value: 'minMax', label: 'Min-max' },
+                        { value: 'zScore', label: 'Z-score' },
+                      ]}
+                      triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+                    />
                   </label>
                   <label className="space-y-1">
                     <span className="block font-medium text-muted-foreground">Aggregation</span>
-                    <select
+                    <AppSelect
                       value={methodSettings.aggregation}
-                      onChange={(event) =>
-                        updateMethodSettings('aggregation', event.target.value as ScoreMethodSettings['aggregation'])
+                      onValueChange={(value) =>
+                        updateMethodSettings('aggregation', value as ScoreMethodSettings['aggregation'])
                       }
-                      className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                    >
-                      <option value="additive">Weighted average</option>
-                      <option value="geometric">Geometric mean</option>
-                      <option value="cumulativeBurden">Cumulative burden</option>
-                      <option value="modulePercentileRankedSum">EJI-style module ranked sum</option>
-                    </select>
+                      options={[
+                        { value: 'additive', label: 'Weighted average' },
+                        { value: 'geometric', label: 'Geometric mean' },
+                        { value: 'cumulativeBurden', label: 'Cumulative burden' },
+                        { value: 'modulePercentileRankedSum', label: 'EJI-style module ranked sum' },
+                        { value: 'healthyPlanPairwisePriority', label: 'HealthyPlan-style pairwise priority' },
+                      ]}
+                      triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+                    />
                   </label>
+                  {methodSettings.aggregation === 'healthyPlanPairwisePriority' && (
+                    <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50/70 p-2 dark:border-amber-900/70 dark:bg-amber-950/25">
+                      <label className="space-y-1">
+                        <span className="block font-medium text-amber-950 dark:text-amber-100">
+                          Vulnerable population proxy
+                        </span>
+                        <AppSelect
+                          value={methodSettings.healthyPlanPriority.demographicMetric ?? ''}
+                          onValueChange={(value) =>
+                            updateMethodSettings('healthyPlanPriority', {
+                              ...methodSettings.healthyPlanPriority,
+                              demographicMetric: value as ScoreMetricKey,
+                            })
+                          }
+                          options={healthyPlanDemographicMetrics.map((metric) => ({
+                            value: metric.key,
+                            label: metric.label,
+                          }))}
+                          triggerClassName="h-8 rounded border-amber-300 text-xs focus:ring-1 focus:ring-amber-500 dark:border-amber-900"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block font-medium text-amber-950 dark:text-amber-100">
+                          Built environment proxy
+                        </span>
+                        <AppSelect
+                          value={methodSettings.healthyPlanPriority.environmentMetric ?? ''}
+                          onValueChange={(value) =>
+                            updateMethodSettings('healthyPlanPriority', {
+                              ...methodSettings.healthyPlanPriority,
+                              environmentMetric: value as ScoreMetricKey,
+                            })
+                          }
+                          options={healthyPlanEnvironmentMetrics.map((metric) => ({
+                            value: metric.key,
+                            label: metric.label,
+                          }))}
+                          triggerClassName="h-8 rounded border-amber-300 text-xs focus:ring-1 focus:ring-amber-500 dark:border-amber-900"
+                        />
+                      </label>
+                    </div>
+                  )}
                   <label className="space-y-1">
                     <span className="block font-medium text-muted-foreground">Missing data</span>
-                    <select
+                    <AppSelect
                       value={methodSettings.missingData}
-                      onChange={(event) =>
-                        updateMethodSettings('missingData', event.target.value as ScoreMethodSettings['missingData'])
+                      onValueChange={(value) =>
+                        updateMethodSettings('missingData', value as ScoreMethodSettings['missingData'])
                       }
-                      className="w-full rounded border border-input bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                    >
-                      <option value="zero">Treat missing as zero</option>
-                      <option value="neutral">Treat missing as neutral</option>
-                    </select>
+                      options={[
+                        { value: 'zero', label: 'Treat missing as zero' },
+                        { value: 'neutral', label: 'Treat missing as neutral' },
+                      ]}
+                      triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+                    />
                   </label>
                   <button
                     type="button"
@@ -1236,19 +1304,15 @@ export function ScoreBuilderSidebar({
                 <label htmlFor="score-builder-density" className="text-xs font-medium text-muted-foreground">
                   Heat-map metric
                 </label>
-                <select
+                <AppSelect
                   id="score-builder-density"
                   aria-label="Density metric"
                   value={densityMetric}
-                  onChange={(event) => onDensityMetricChange(event.target.value as ScoreMetricKey)}
-                  className="rounded border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                >
-                  {DENSITY_METRIC_OPTIONS.map((metric) => (
-                    <option key={metric} value={metric}>
-                      {getMetricLabel(metric)}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(value) => onDensityMetricChange(value as ScoreMetricKey)}
+                  options={DENSITY_METRIC_OPTIONS.map((metric) => ({ value: metric, label: getMetricLabel(metric) }))}
+                  className="w-44"
+                  triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+                />
               </div>
 
               <div className="rounded-lg border border-border bg-muted/20 p-3">

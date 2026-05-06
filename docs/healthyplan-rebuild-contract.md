@@ -342,6 +342,33 @@ The scoring functions are intentionally independent of React and MapLibre so the
 - tests around tie handling and color output,
 - server-side/vector-tile property generation.
 
+## Index Lab Implementation Gap
+
+PGMaps Index Lab already has several relevant primitives:
+
+- Percentile normalization at the active boundary level.
+- Direction-aware metrics, including `higherIsBetter` and `higherIsWorse`.
+- Weighted additive, geometric, cumulative-burden, and EJI-style module-percentile aggregation modes.
+- An equation bar that explains weighted formulas.
+- Region exports for CSV and GeoJSON.
+
+HealthyPlan does not fit that model directly because it is not a weighted or module-summed index. It is a pairwise median/decile screening mode. To implement HealthyPlan directly inside Index Lab, we still need:
+
+- A method mode such as `healthyPlanPairwisePriority`, separate from weighted aggregation.
+- Two explicit variable selectors: one vulnerable-population variable and one built-environment variable. Current Index Lab interaction is weight-based and can combine many variables at once.
+- A comparison universe fixed to city/CSD for HealthyPlan ranks. Current Index Lab ranks by active boundary level/source, which may be CT, DA, CHSA, or CityPG catchment.
+- Dissemination-block support or pre-aggregated HealthyPlan block data. Current Index Lab primarily scores larger local regions, so a faithful HealthyPlan map needs DB-level features or vector tiles.
+- Rank fields or runtime rank computation for `sd_city_{demo}_r` and `nbe_city_{environment}_r`.
+- A map palette that uses `priority_score = demo_rank - environment_rank` with transparent non-priority blocks. Current Index Lab palettes are continuous 0-100 score ramps.
+- A 10-by-10 equity-priority matrix legend. Current Index Lab shows a weighted equation, but not the HealthyPlan matrix threshold (`demo_rank > 5`, `env_rank < 6`).
+- A raw single-layer mode for built environment or demographic variables using HealthyPlan variable stops/color ramps.
+- Summary panels for HealthyPlan’s two views:
+  - Equity by the Numbers: affected vulnerable-population share and rank among same-size cities.
+  - Distribution: scatter of built-environment value vs vulnerable-population percentage, with selected map feature highlighted.
+- Neighbourhood mode that switches from DB dots/blocks to subzone boundaries and aggregates DB values into neighbourhood summaries.
+
+The practical approach is to treat HealthyPlan as a sibling mode inside Index Lab, not as another preset. Presets only change weights and method settings; HealthyPlan changes the data grain, selector model, map coloring, legend, and summary equations.
+
 ## Browser Interface Findings
 
 Observed through the live interface on 2026-05-06:

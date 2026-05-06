@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AppSelect } from '@/components/ui/select'
 import { GEOMETRY_TYPE_LABEL, RELEVANCE_DESCRIPTION } from '../constants'
 import type {
   ExplorerDatasetId,
@@ -170,14 +171,16 @@ export function ExplorerSidebar({
             placeholder="Search names, IDs, subtitles..."
             className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
-          <select
+          <AppSelect
             value={sortMode}
-            onChange={(event) => onSortModeChange(event.target.value as 'relevance' | 'name')}
-            className="rounded-lg border border-input bg-background px-2 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          >
-            <option value="relevance">Relevance</option>
-            <option value="name">Name</option>
-          </select>
+            onValueChange={(value) => onSortModeChange(value as 'relevance' | 'name')}
+            options={[
+              { value: 'relevance', label: 'Relevance' },
+              { value: 'name', label: 'Name' },
+            ]}
+            className="w-32"
+            triggerClassName="h-9 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500"
+          />
         </div>
 
         {/* Temporal filter */}

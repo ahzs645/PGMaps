@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
 import { SCORE_METRICS, SCORE_METRICS_BY_CATEGORY, SCORE_PRESETS } from '../constants'
 import { METRIC_CATEGORY_LABELS } from '../types'
-import type { ScoreMetricKey, ScoreMetricWeightMap } from '../types'
+import type { ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { ScorePresetDialog } from './ScorePresetDialog'
 
@@ -27,6 +27,7 @@ interface ScoreBuilderEquationBarProps {
   activeRecipeDescription: string
   boundarySource: BoundarySource
   equationPreview: string
+  methodSettings: ScoreMethodSettings
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
@@ -72,6 +73,7 @@ export function ScoreBuilderEquationBar({
   activeRecipeDescription,
   boundarySource,
   equationPreview,
+  methodSettings,
   onWeightChange,
   onAddMetric,
   onApplyPreset,
@@ -91,7 +93,18 @@ export function ScoreBuilderEquationBar({
     () => activeTerms.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0),
     [activeTerms, weights],
   )
-  const formulaText = `// for each region: ${equationPreview} // normalized to 0-100`
+  const isHealthyPlanMode = methodSettings.aggregation === 'healthyPlanPairwisePriority'
+  const healthyPlanDemographicMetric = useMemo(
+    () => SCORE_METRICS.find((metric) => metric.key === methodSettings.healthyPlanPriority.demographicMetric),
+    [methodSettings.healthyPlanPriority.demographicMetric],
+  )
+  const healthyPlanEnvironmentMetric = useMemo(
+    () => SCORE_METRICS.find((metric) => metric.key === methodSettings.healthyPlanPriority.environmentMetric),
+    [methodSettings.healthyPlanPriority.environmentMetric],
+  )
+  const formulaText = isHealthyPlanMode
+    ? `// for each region: ${equationPreview} // non-priority areas render transparent`
+    : `// for each region: ${equationPreview} // normalized to 0-100`
 
   return (
     <div className="shrink-0 border-b border-border bg-background/96 px-4 py-3 shadow-sm backdrop-blur">
@@ -114,8 +127,10 @@ export function ScoreBuilderEquationBar({
               </button>
               <button
                 type="button"
-                disabled={activeTerms.length === 0}
-                title={activeTerms.length > 0 ? formulaText : 'Add a metric before viewing the formula.'}
+                disabled={!isHealthyPlanMode && activeTerms.length === 0}
+                title={
+                  isHealthyPlanMode || activeTerms.length > 0 ? formulaText : 'Add a metric before viewing the formula.'
+                }
                 aria-expanded={formulaOpen}
                 onClick={() => setFormulaOpen((current) => !current)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
@@ -146,78 +161,92 @@ export function ScoreBuilderEquationBar({
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="font-mono text-base font-semibold italic text-foreground">Score</span>
             <span className="font-mono text-sm text-muted-foreground">=</span>
+            {isHealthyPlanMode && (
+              <>
+                <span className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950 dark:border-amber-900/70 dark:bg-amber-950/35 dark:text-amber-100">
+                  vulnerability decile &gt; 5 and environment benefit decile &lt; 6
+                </span>
+                <span className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                  {healthyPlanDemographicMetric?.shortLabel ?? 'Vulnerability metric'} vs{' '}
+                  {healthyPlanEnvironmentMetric?.shortLabel ?? 'environment metric'}
+                </span>
+              </>
+            )}
 
-            {activeTerms.length === 0 && (
+            {activeTerms.length === 0 && !isHealthyPlanMode && (
               <span className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
                 Add a metric to start scoring.
               </span>
             )}
 
-            {activeTerms.map((metric, index) => {
-              const weight = weights[metric.key]
-              const share = totalAbsoluteWeight > 0 ? Math.abs(weight) / totalAbsoluteWeight : 0
-              const isNegative = weight < 0
-              return (
-                <div key={metric.key} className="flex items-center gap-2">
-                  {index > 0 && <span className="text-muted-foreground">+</span>}
-                  <div
-                    data-score-builder-equation-term={metric.key}
-                    className={cn(
-                      'inline-flex items-stretch overflow-hidden rounded-lg border bg-background text-xs shadow-sm',
-                      isNegative
-                        ? 'border-orange-300 dark:border-orange-900/70'
-                        : 'border-emerald-300 dark:border-emerald-900/70',
-                    )}
-                  >
-                    <button
-                      type="button"
-                      title="Flip direction"
-                      onClick={() =>
-                        onWeightChange(metric.key, weight === 0 ? getDefaultMetricWeight(metric.key) : -weight)
-                      }
+            {!isHealthyPlanMode &&
+              activeTerms.map((metric, index) => {
+                const weight = weights[metric.key]
+                const share = totalAbsoluteWeight > 0 ? Math.abs(weight) / totalAbsoluteWeight : 0
+                const isNegative = weight < 0
+                return (
+                  <div key={metric.key} className="flex items-center gap-2">
+                    {index > 0 && <span className="text-muted-foreground">+</span>}
+                    <div
+                      data-score-builder-equation-term={metric.key}
                       className={cn(
-                        'flex w-7 items-center justify-center font-mono text-base font-bold transition-colors',
+                        'inline-flex items-stretch overflow-hidden rounded-lg border bg-background text-xs shadow-sm',
                         isNegative
-                          ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-950/40 dark:text-orange-200'
-                          : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200',
+                          ? 'border-orange-300 dark:border-orange-900/70'
+                          : 'border-emerald-300 dark:border-emerald-900/70',
                       )}
                     >
-                      {isNegative ? '-' : '+'}
-                    </button>
-                    <div className="flex items-center gap-2 border-l border-r border-border px-2 py-1.5">
-                      <span className="font-mono font-semibold text-foreground">{share.toFixed(2)}</span>
-                      <GripVertical className="h-3 w-3 text-muted-foreground" />
+                      <button
+                        type="button"
+                        title="Flip direction"
+                        onClick={() =>
+                          onWeightChange(metric.key, weight === 0 ? getDefaultMetricWeight(metric.key) : -weight)
+                        }
+                        className={cn(
+                          'flex w-7 items-center justify-center font-mono text-base font-bold transition-colors',
+                          isNegative
+                            ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-950/40 dark:text-orange-200'
+                            : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200',
+                        )}
+                      >
+                        {isNegative ? '-' : '+'}
+                      </button>
+                      <div className="flex items-center gap-2 border-l border-r border-border px-2 py-1.5">
+                        <span className="font-mono font-semibold text-foreground">{share.toFixed(2)}</span>
+                        <GripVertical className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2 py-1.5">
+                        <span className={cn('h-2 w-2 rounded-sm', getCategoryDot(metric.category))} />
+                        <span className="max-w-[10rem] truncate font-medium text-foreground">{metric.shortLabel}</span>
+                        <span className="text-[10px] text-muted-foreground">· {metric.directionLabel}</span>
+                      </div>
+                      <button
+                        type="button"
+                        title="Remove metric"
+                        onClick={() => onWeightChange(metric.key, 0)}
+                        className="border-l border-border px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1.5">
-                      <span className={cn('h-2 w-2 rounded-sm', getCategoryDot(metric.category))} />
-                      <span className="max-w-[10rem] truncate font-medium text-foreground">{metric.shortLabel}</span>
-                      <span className="text-[10px] text-muted-foreground">· {metric.directionLabel}</span>
-                    </div>
-                    <button
-                      type="button"
-                      title="Remove metric"
-                      onClick={() => onWeightChange(metric.key, 0)}
-                      className="border-l border-border px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
 
-            <button
-              type="button"
-              onClick={() => setMetricDialogOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-input bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add metric
-            </button>
+            {!isHealthyPlanMode && (
+              <button
+                type="button"
+                onClick={() => setMetricDialogOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-input bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add metric
+              </button>
+            )}
           </div>
         )}
 
-        {activeTerms.length > 0 && formulaOpen && equationOpen && (
+        {(isHealthyPlanMode || activeTerms.length > 0) && formulaOpen && equationOpen && (
           <div className="mt-3 overflow-x-auto rounded-md bg-muted px-3 py-2 font-mono text-[11px] text-muted-foreground">
             {formulaText}
           </div>

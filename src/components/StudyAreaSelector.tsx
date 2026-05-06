@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { AppSelect } from '@/components/ui/select'
 
 export interface StudyAreaSourceOption<TSource extends string = string> {
   value: TSource
@@ -100,19 +101,15 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
           </button>
         )}
       </div>
-      <select
+      <AppSelect
         id={levelSelectId}
         data-score-builder-level-select={dataPrefix === 'score-builder' ? 'true' : undefined}
         value={level}
-        onChange={(event) => onLevelChange(event.target.value as TLevel)}
-        className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-      >
-        {levelOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        onValueChange={(value) => onLevelChange(value as TLevel)}
+        options={levelOptions}
+        className="mt-2 w-full"
+        triggerClassName="h-10 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
+      />
     </section>
   )
 }

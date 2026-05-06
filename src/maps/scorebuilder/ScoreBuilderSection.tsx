@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import area from '@turf/area'
+import buffer from '@turf/buffer'
+import intersect from '@turf/intersect'
+import union from '@turf/union'
 import { point } from '@turf/helpers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { HEALTHYPLAN_EQUITY_PRIORITY_RAMP } from '@/lib/healthyplan'
 import {
   useAirQualityData,
   type AirMonitor,
@@ -53,6 +58,7 @@ import {
   type RegionMetricRow,
 } from './lib/scoring'
 import { scoreRegionRowsWithModulePercentiles } from './lib/modulePercentileScoring'
+import { scoreRegionRowsWithHealthyPlanPriority } from './lib/healthyPlanPriorityScoring'
 import type {
   RegionDataCounts,
   RobustnessResult,
@@ -80,6 +86,11 @@ interface PointRecord {
   lng: number
   lat: number
   feature: GeoJSON.Feature<GeoJSON.Point>
+}
+
+interface ParkBufferRecord {
+  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+  bounds: [number, number, number, number]
 }
 
 interface PropertyPointRecord extends PointRecord {
@@ -131,6 +142,9 @@ function getNormalizationLegendText(method: ScoreMethodSettings['normalization']
 }
 
 function getMethodLegendText(settings: ScoreMethodSettings): string {
+  if (settings.aggregation === 'healthyPlanPairwisePriority') {
+    return 'HealthyPlan-style mode uses one vulnerability metric and one built-environment metric, ranks both into deciles, and colors only areas with vulnerability rank > 5 and environment benefit rank < 6.'
+  }
   if (settings.aggregation === 'modulePercentileRankedSum') {
     return 'EJI-style mode ranks indicators, sums them within modules, ranks module sums, then ranks the combined module score.'
   }
@@ -145,7 +159,7 @@ function computeMedian(values: number[]): number {
   return (sorted[midpoint - 1] + sorted[midpoint]) / 2
 }
 
-function bboxCenter(geometry: GeoJSON.Geometry): [number, number] | null {
+function geometryBounds(geometry: GeoJSON.Geometry): [number, number, number, number] | null {
   let minLng = Infinity,
     minLat = Infinity,
     maxLng = -Infinity,
@@ -158,13 +172,22 @@ function bboxCenter(geometry: GeoJSON.Geometry): [number, number] | null {
       if (lat > maxLat) maxLat = lat
     })
   }
-  if (geometry.type === 'Point') return geometry.coordinates as [number, number]
+  if (geometry.type === 'Point') {
+    const [lng, lat] = geometry.coordinates
+    return [lng, lat, lng, lat]
+  }
   if (geometry.type === 'LineString') scan(geometry.coordinates)
   else if (geometry.type === 'Polygon') geometry.coordinates.forEach(scan)
   else if (geometry.type === 'MultiPolygon') geometry.coordinates.forEach((p) => p.forEach(scan))
   else return null
   if (!Number.isFinite(minLng)) return null
-  return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
+  return [minLng, minLat, maxLng, maxLat]
+}
+
+function bboxCenter(geometry: GeoJSON.Geometry): [number, number] | null {
+  const bounds = geometryBounds(geometry)
+  if (!bounds) return null
+  return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2]
 }
 
 function regionCenter(region: ScoreBuilderRegion): [number, number] {
@@ -178,23 +201,52 @@ function distanceKm(a: [number, number], b: [number, number]): number {
   const deltaLng = toRad(b[0] - a[0])
   const lat1 = toRad(a[1])
   const lat2 = toRad(b[1])
-  const h =
-    Math.sin(deltaLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2
+  const h = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2
   return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
-function catchmentAccess(
-  origin: [number, number],
-  points: Array<{ lng: number; lat: number }>,
-  maxKm: number,
-): number {
+function catchmentAccess(origin: [number, number], points: Array<{ lng: number; lat: number }>, maxKm: number): number {
   if (!points.length) return 0
   const best = points.reduce((minimum, pointRecord) => {
     return Math.min(minimum, distanceKm(origin, [pointRecord.lng, pointRecord.lat]))
   }, Infinity)
   if (!Number.isFinite(best) || best > maxKm) return 0
   return Math.max(0, Math.min(1, 1 - best / maxKm))
+}
+
+function boundsOverlap(a: [number, number, number, number], b: [number, number, number, number]): boolean {
+  return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1]
+}
+
+function bufferedAccessShare(region: ScoreBuilderRegion, bufferRecords: ParkBufferRecord[]): number {
+  if (region.areaKm2 <= 0 || bufferRecords.length === 0) return 0
+
+  const relevantBuffers = bufferRecords.filter((record) => boundsOverlap(region.bounds, record.bounds))
+  if (!relevantBuffers.length) return 0
+
+  let merged: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null = null
+  let fallbackAreaSqKm = 0
+
+  relevantBuffers.forEach((record) => {
+    try {
+      const clipped = intersect(
+        region.feature as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>,
+        record.feature,
+      ) as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
+      if (!clipped) return
+      fallbackAreaSqKm += area(clipped) / 1_000_000
+      if (!merged) {
+        merged = clipped
+        return
+      }
+      merged = (union(merged, clipped) as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null) ?? merged
+    } catch {
+      // Invalid source geometries should not break the whole scoring run.
+    }
+  })
+
+  const accessAreaSqKm = merged ? area(merged) / 1_000_000 : fallbackAreaSqKm
+  return Math.max(0, Math.min(1, accessAreaSqKm / region.areaKm2))
 }
 
 function estimateCanopyAreaSqKm(dbh: number | null, treeAge: number | null): number {
@@ -280,12 +332,23 @@ function parseNormalizationMethod(value: string | null): ScoreMethodSettings['no
 }
 
 function parseAggregationMethod(value: string | null): ScoreMethodSettings['aggregation'] {
-  if (value === 'geometric' || value === 'cumulativeBurden' || value === 'modulePercentileRankedSum') return value
+  if (
+    value === 'geometric' ||
+    value === 'cumulativeBurden' ||
+    value === 'modulePercentileRankedSum' ||
+    value === 'healthyPlanPairwisePriority'
+  ) {
+    return value
+  }
   return 'additive'
 }
 
 function parseMissingDataMethod(value: string | null): ScoreMethodSettings['missingData'] {
   return value === 'neutral' ? 'neutral' : 'zero'
+}
+
+function parseScoreMetricKey(value: string | null, fallback: ScoreMetricKey): ScoreMetricKey {
+  return SCORE_METRICS.some((metric) => metric.key === value) ? (value as ScoreMetricKey) : fallback
 }
 
 function summarizeScores(regions: ScoredBoundaryRegion[]): { min: number; max: number; average: number } {
@@ -318,7 +381,13 @@ function buildScoreBandSummary(regions: ScoredBoundaryRegion[]): ScoreBandSummar
 export default function ScoreBuilderSection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialShareToken = useRef(searchParams.get('s'))
-  const initialHasUrlWeights = Boolean(searchParams.get('w') || initialShareToken.current)
+  const initialHasUrlWeights = Boolean(
+    searchParams.get('w') ||
+    searchParams.get('agg') ||
+    searchParams.get('hpDemo') ||
+    searchParams.get('hpEnv') ||
+    initialShareToken.current,
+  )
   const hasUrlWeightsOnMount = useRef(initialHasUrlWeights)
 
   const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData()
@@ -373,6 +442,10 @@ export default function ScoreBuilderSection() {
     missingData: parseMissingDataMethod(searchParams.get('missing')),
     sensitivity: searchParams.get('sens') === 'off' ? false : true,
     normalizationScope: 'activeBoundaryLevel',
+    healthyPlanPriority: {
+      demographicMetric: parseScoreMetricKey(searchParams.get('hpDemo'), 'cimdComposite'),
+      environmentMetric: parseScoreMetricKey(searchParams.get('hpEnv'), 'canopyProxyRatio'),
+    },
   })
   const [activeExampleKey, setActiveExampleKey] = useState<string | null>(() => {
     // If no URL params, auto-load first example
@@ -400,6 +473,12 @@ export default function ScoreBuilderSection() {
     params.set('missing', methodSettings.missingData)
     params.set('sens', methodSettings.sensitivity ? 'on' : 'off')
     params.set('scope', methodSettings.normalizationScope)
+    if (methodSettings.healthyPlanPriority.demographicMetric) {
+      params.set('hpDemo', methodSettings.healthyPlanPriority.demographicMetric)
+    }
+    if (methodSettings.healthyPlanPriority.environmentMetric) {
+      params.set('hpEnv', methodSettings.healthyPlanPriority.environmentMetric)
+    }
     setSearchParams(params, { replace: true })
   }, [
     boundarySource,
@@ -525,6 +604,31 @@ export default function ScoreBuilderSection() {
         }
       })
       .filter(Boolean) as Array<PointRecord & { areaSqKm: number }>
+  }, [enabledSourceSet, parks])
+
+  const parkBufferRecords = useMemo<ParkBufferRecord[]>(() => {
+    if (!enabledSourceSet.has('parks')) return []
+    return parks
+      .map((park) => {
+        try {
+          const buffered = buffer(
+            {
+              type: 'Feature',
+              properties: {},
+              geometry: park.geometry,
+            },
+            1.6,
+            { units: 'kilometers' },
+          ) as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | undefined
+          if (!buffered?.geometry) return null
+          const bounds = geometryBounds(buffered.geometry)
+          if (!bounds) return null
+          return { feature: buffered, bounds }
+        } catch {
+          return null
+        }
+      })
+      .filter(Boolean) as ParkBufferRecord[]
   }, [enabledSourceSet, parks])
 
   // Trail midpoint points
@@ -743,6 +847,7 @@ export default function ScoreBuilderSection() {
         propertyGrowthCount: 0,
         yearBuiltSum: 0,
         yearBuiltCount: 0,
+        pre1980BuildingCount: 0,
         vacantParcelCount: 0,
         multiFamilyParcelCount: 0,
         commercialParcelCount: 0,
@@ -840,6 +945,7 @@ export default function ScoreBuilderSection() {
         if (rec.yearBuilt) {
           counts.yearBuiltSum += rec.yearBuilt
           counts.yearBuiltCount += 1
+          if (rec.yearBuilt < 1980) counts.pre1980BuildingCount += 1
         }
         if (rec.category === 'vacant') counts.vacantParcelCount += 1
         if (rec.category === 'multi-family') counts.multiFamilyParcelCount += 1
@@ -899,6 +1005,7 @@ export default function ScoreBuilderSection() {
 
       const safeArea = region.areaKm2 > 0 ? region.areaKm2 : 1
       const center = regionCenter(region)
+      const parkBufferAccessShare = bufferedAccessShare(region, parkBufferRecords)
       const parkWalk10Access = catchmentAccess(center, parkPointRecords, 0.8)
       const parkWalk20Access = catchmentAccess(center, parkPointRecords, 1.6)
       const coolingWalk15Access = catchmentAccess(
@@ -916,7 +1023,10 @@ export default function ScoreBuilderSection() {
         transitPointRecords.filter((record) => record.frequent && record.accessible),
         0.8,
       )
-      const parkTransit20Access = Math.max(parkWalk20Access, Math.min(1, parkWalk20Access + frequentTransitAccess * 0.35))
+      const parkTransit20Access = Math.max(
+        parkWalk20Access,
+        Math.min(1, parkWalk20Access + frequentTransitAccess * 0.35),
+      )
       const serviceAccessComposite =
         (parkWalk10Access + parkWalk20Access + coolingWalk15Access + frequentTransitAccess) / 4
       const cimdWeight = counts.cimdPopulationWeight || counts.cimdJoinedCount || 1
@@ -939,6 +1049,7 @@ export default function ScoreBuilderSection() {
       metricValues.parkAreaRatio = region.areaKm2 > 0 ? Math.min(1, counts.parkAreaSqKm / region.areaKm2) : 0
       metricValues.trailDensity = counts.trailLengthKm / safeArea
       metricValues.amenityDensity = counts.amenityCount / safeArea
+      metricValues.parkAccessGap1Mile = 1 - parkBufferAccessShare
       metricValues.treeDensity = counts.treeCount / safeArea
       metricValues.matureTreeDensity = counts.matureTreeCount / safeArea
       metricValues.forestAreaRatio = region.areaKm2 > 0 ? Math.min(1, counts.forestAreaSqKm / region.areaKm2) : 0
@@ -957,6 +1068,8 @@ export default function ScoreBuilderSection() {
         counts.propertyGrowthCount > 0 ? counts.propertyGrowthSum / counts.propertyGrowthCount : 0
       metricValues.buildingAge =
         counts.yearBuiltCount > 0 ? Math.max(0, CURRENT_YEAR - counts.yearBuiltSum / counts.yearBuiltCount) : 0
+      metricValues.pre1980HousingShare =
+        counts.yearBuiltCount > 0 ? counts.pre1980BuildingCount / counts.yearBuiltCount : 0
       metricValues.vacantParcelShare = counts.parcelCount > 0 ? counts.vacantParcelCount / counts.parcelCount : 0
       metricValues.multiFamilyShare = counts.parcelCount > 0 ? counts.multiFamilyParcelCount / counts.parcelCount : 0
       metricValues.commercialShare = counts.parcelCount > 0 ? counts.commercialParcelCount / counts.parcelCount : 0
@@ -970,7 +1083,8 @@ export default function ScoreBuilderSection() {
       metricValues.frequentTransitStopAccess = frequentTransitAccess
       metricValues.transitServiceSpan =
         counts.transitStopCount > 0 ? counts.transitServiceSpanSum / counts.transitStopCount : 0
-      metricValues.transitTripsPerStop = counts.transitStopCount > 0 ? counts.transitTripCount / counts.transitStopCount : 0
+      metricValues.transitTripsPerStop =
+        counts.transitStopCount > 0 ? counts.transitTripCount / counts.transitStopCount : 0
       metricValues.accessibleFrequentTransitAccess = accessibleFrequentTransitAccess
       metricValues.parkWalk10Access = parkWalk10Access
       metricValues.parkWalk20Access = parkWalk20Access
@@ -994,6 +1108,7 @@ export default function ScoreBuilderSection() {
   }, [
     monitorPointRecords,
     parkPointRecords,
+    parkBufferRecords,
     trailPointRecords,
     amenityPointRecords,
     restaurantPointRecords,
@@ -1056,6 +1171,18 @@ export default function ScoreBuilderSection() {
 
   const scoreRows = useCallback(
     (weightMap: ScoreMetricWeightMap, settings: ScoreMethodSettings = methodSettings): ScoredBoundaryRegion[] => {
+      if (settings.aggregation === 'healthyPlanPairwisePriority') {
+        return scoreRegionRowsWithHealthyPlanPriority({
+          rows: regionMetricRows,
+          weights: weightMap,
+          settings,
+          metricRanges,
+          metricValueLists,
+          paletteProfile: scorePaletteProfile,
+          demographicMetricKey: settings.healthyPlanPriority.demographicMetric,
+          environmentMetricKey: settings.healthyPlanPriority.environmentMetric,
+        })
+      }
       if (settings.aggregation === 'modulePercentileRankedSum') {
         return scoreRegionRowsWithModulePercentiles({
           rows: regionMetricRows,
@@ -1107,7 +1234,11 @@ export default function ScoreBuilderSection() {
       if (scoreFilters.limitFoodRisk && entry.metrics.foodRiskScore > filterThresholds.foodRiskScore) return false
       return true
     })
-    const ranked = filtered.map((row, index) => ({ ...row, rank: index + 1, rankInterval: [index + 1, index + 1] as [number, number] }))
+    const ranked = filtered.map((row, index) => ({
+      ...row,
+      rank: index + 1,
+      rankInterval: [index + 1, index + 1] as [number, number],
+    }))
     const referencePreset = SCORE_PRESETS.find((preset) => preset.key === 'balancedCoverage') || SCORE_PRESETS[0]
     const referenceById = new Map(
       referencePreset
@@ -1123,8 +1254,11 @@ export default function ScoreBuilderSection() {
       const deprivationQuintile =
         row.metrics.cimdComposite > 0 ? Math.max(1, Math.min(5, Math.ceil(row.metrics.cimdComposite * 5))) : null
       const burdenOverlap = Math.sqrt(
-        Math.max(row.normalizedMetrics.foodRiskScore, row.normalizedMetrics.crimePerCapita, row.normalizedMetrics.shadeGap) *
-          Math.max(row.normalizedMetrics.cimdComposite, row.normalizedMetrics.populationDensity),
+        Math.max(
+          row.normalizedMetrics.foodRiskScore,
+          row.normalizedMetrics.crimePerCapita,
+          row.normalizedMetrics.shadeGap,
+        ) * Math.max(row.normalizedMetrics.cimdComposite, row.normalizedMetrics.populationDensity),
       )
       return {
         ...row,
@@ -1140,7 +1274,10 @@ export default function ScoreBuilderSection() {
           referenceScore: reference?.score ?? null,
           deprivationQuintile,
           burdenOverlap: Number.isFinite(burdenOverlap) ? burdenOverlap : 0,
-          cutoffWarning: nearestBandBoundary <= 2 ? 'Near score-band cutoff; review rank confidence before using as a threshold.' : null,
+          cutoffWarning:
+            nearestBandBoundary <= 2
+              ? 'Near score-band cutoff; review rank confidence before using as a threshold.'
+              : null,
         },
       }
     })
@@ -1353,6 +1490,15 @@ export default function ScoreBuilderSection() {
   }, [densityMetric, scoredRegions])
 
   const equationPreview = useMemo(() => {
+    if (methodSettings.aggregation === 'healthyPlanPairwisePriority') {
+      const demographicMetric = SCORE_METRICS.find(
+        (metric) => metric.key === methodSettings.healthyPlanPriority.demographicMetric,
+      )
+      const environmentMetric = SCORE_METRICS.find(
+        (metric) => metric.key === methodSettings.healthyPlanPriority.environmentMetric,
+      )
+      return `priority_score = ${demographicMetric?.shortLabel ?? 'vulnerability'} decile - ${environmentMetric?.shortLabel ?? 'environment'} decile where vulnerability decile > 5 and environment benefit decile < 6`
+    }
     const activeTerms = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
     if (!activeTerms.length) return 'No active terms. Move any weight above or below zero.'
     if (methodSettings.aggregation === 'modulePercentileRankedSum') {
@@ -1364,12 +1510,9 @@ export default function ScoreBuilderSection() {
       return weight < 0 ? `${Math.abs(weight)}×low ${metric.shortLabel}` : `${weight}×${metric.shortLabel}`
     })
     return `score = weighted average(${terms.join(' + ')})`
-  }, [methodSettings.aggregation, weights])
+  }, [methodSettings.aggregation, methodSettings.healthyPlanPriority, weights])
 
-  const normalizationLegendText = useMemo(
-    () => getMethodLegendText(methodSettings),
-    [methodSettings],
-  )
+  const normalizationLegendText = useMemo(() => getMethodLegendText(methodSettings), [methodSettings])
 
   const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
     setWeights((current) => ({ ...current, [metric]: value }))
@@ -1606,7 +1749,7 @@ export default function ScoreBuilderSection() {
     (format: 'csv' | 'geojson') => {
       if (format === 'csv') {
         const metricKeys = SCORE_METRICS.map((m) => m.key)
-      const header = [
+        const header = [
           'Rank',
           'Rank confidence',
           'Rank interval',
@@ -1614,6 +1757,12 @@ export default function ScoreBuilderSection() {
           'Score interval',
           'Score method',
           'Comparison universe',
+          'HealthyPlan demographic metric',
+          'HealthyPlan environment metric',
+          'HealthyPlan demographic decile',
+          'HealthyPlan environment decile',
+          'HealthyPlan priority score',
+          'HealthyPlan priority',
           'Module scores',
           'Missing data flags',
           'Name',
@@ -1629,6 +1778,12 @@ export default function ScoreBuilderSection() {
           `${r.scoreInterval[0].toFixed(1)}-${r.scoreInterval[1].toFixed(1)}`,
           r.scoreMethodLabel || methodSettings.aggregation,
           r.comparisonUniverseLabel,
+          r.healthyPlanPriority?.demographicMetric ?? '',
+          r.healthyPlanPriority?.environmentMetric ?? '',
+          r.healthyPlanPriority?.demographicRank ?? '',
+          r.healthyPlanPriority?.environmentRank ?? '',
+          r.healthyPlanPriority?.priorityScore ?? '',
+          r.healthyPlanPriority?.equityPriority ? 'yes' : r.healthyPlanPriority ? 'no' : '',
           (r.moduleScores || []).map((module) => `${module.label}:${(module.rank * 100).toFixed(1)}`).join('; '),
           (r.missingDataFlags || []).join('; '),
           r.region.name,
@@ -1650,6 +1805,7 @@ export default function ScoreBuilderSection() {
               code: r.region.code,
               score: r.score,
               scoreMethod: r.scoreMethodLabel || methodSettings.aggregation,
+              healthyPlanPriority: r.healthyPlanPriority,
               moduleScores: r.moduleScores,
               domainScores: r.domainScores,
               missingDataFlags: r.missingDataFlags,
@@ -1851,6 +2007,7 @@ export default function ScoreBuilderSection() {
           {isDesktop && (
             <ScoreBuilderEquationBar
               weights={weights}
+              methodSettings={methodSettings}
               activePresetKey={activePresetKey}
               activeRecipeLabel={activeExample?.label || activePreset?.label || 'Custom index'}
               activeRecipeDescription={
@@ -1875,20 +2032,43 @@ export default function ScoreBuilderSection() {
               selectedRegionId={selectedRegionId}
               monitors={filteredMonitors}
               showPoints={showPoints}
-              paletteProfile={scorePaletteProfile}
               onRegionClick={setSelectedRegionId}
             />
 
             <div className="absolute bottom-24 right-4 z-10 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
-              <h4 className="mb-2 text-xs font-semibold text-foreground">{scorePaletteProfile.label}</h4>
-              <div
-                className="h-2 w-full rounded"
-                style={{ background: `linear-gradient(to right, ${scorePaletteProfile.colors.join(', ')})` }}
-              />
-              <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>{scorePaletteProfile.legend.low}</span>
-                <span>{scorePaletteProfile.legend.high}</span>
-              </div>
+              <h4 className="mb-2 text-xs font-semibold text-foreground">
+                {methodSettings.aggregation === 'healthyPlanPairwisePriority'
+                  ? 'HealthyPlan priority'
+                  : scorePaletteProfile.label}
+              </h4>
+              {methodSettings.aggregation === 'healthyPlanPairwisePriority' ? (
+                <>
+                  <div className="grid grid-cols-9 overflow-hidden rounded border border-border">
+                    {HEALTHYPLAN_EQUITY_PRIORITY_RAMP.map((color, index) => (
+                      <div key={`${color}-${index}`} className="h-3" style={{ backgroundColor: color }} />
+                    ))}
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Rank gap 1</span>
+                    <span>Rank gap 9</span>
+                  </div>
+                  <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                    Colored regions meet vulnerability decile &gt; 5 and environment benefit decile &lt; 6. Uncolored
+                    regions do not meet the HealthyPlan threshold.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    className="h-2 w-full rounded"
+                    style={{ background: `linear-gradient(to right, ${scorePaletteProfile.colors.join(', ')})` }}
+                  />
+                  <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>{scorePaletteProfile.legend.low}</span>
+                    <span>{scorePaletteProfile.legend.high}</span>
+                  </div>
+                </>
+              )}
               <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
                 <div>
                   <div className="uppercase">Min</div>

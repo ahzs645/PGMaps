@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
+import { AppSelect } from '@/components/ui/select'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
 import type { CensusCategory, CensusVariable } from '@/maps/census/types'
@@ -216,26 +217,21 @@ export function CrimeSidebar({
         {showCensusLayer && (
           <div className="border-b border-border bg-purple-50/50 p-4 dark:bg-purple-950/20">
             <h3 className="mb-2 text-xs font-semibold text-foreground">Census Variable</h3>
-            <select
+            <AppSelect
               value={selectedCensusCategoryId ?? ''}
-              onChange={(e) => onCensusCategoryChange(e.target.value)}
+              onValueChange={onCensusCategoryChange}
               disabled={censusLoading}
-              className="mb-2 w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {censusCategories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-            <select
+              options={censusCategories.map((cat) => ({ value: cat.id, label: cat.name }))}
+              className="mb-2"
+              triggerClassName="h-8 rounded-md text-xs focus:ring-2 focus:ring-ring"
+            />
+            <AppSelect
               value={selectedCensusVariableId ?? ''}
-              onChange={(e) => onCensusVariableChange(e.target.value)}
+              onValueChange={onCensusVariableChange}
               disabled={censusLoading || censusVariables.length === 0}
-              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {censusVariables.map((v) => (
-                <option key={v.id} value={v.id}>{v.label}</option>
-              ))}
-            </select>
+              options={censusVariables.map((v) => ({ value: v.id, label: v.label }))}
+              triggerClassName="h-8 rounded-md text-xs focus:ring-2 focus:ring-ring"
+            />
             {censusLoading && (
               <div className="mt-2 text-[10px] text-muted-foreground">Loading census data...</div>
             )}
@@ -379,18 +375,15 @@ export function CrimeSidebar({
             {/* Community Filter */}
             <div className="border-b border-border bg-background/95 p-4">
               <label className="mb-2 block text-xs font-medium text-foreground">Community</label>
-              <select
+              <AppSelect
                 value={selectedCommunity}
-                onChange={(e) => onCommunityChange(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">All communities</option>
-                {allCommunities.map((community) => (
-                  <option key={community} value={community}>
-                    {community}
-                  </option>
-                ))}
-              </select>
+                onValueChange={onCommunityChange}
+                options={[
+                  { value: '', label: 'All communities' },
+                  ...allCommunities.map((community) => ({ value: community, label: community })),
+                ]}
+                triggerClassName="h-8 rounded-md text-xs focus:ring-2 focus:ring-ring"
+              />
             </div>
           </>
         )}

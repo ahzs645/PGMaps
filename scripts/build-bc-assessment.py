@@ -18,7 +18,9 @@ import os
 import re
 import sys
 
-from shapely.geometry import Point, shape
+from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon, shape, mapping
+from shapely.validation import explain_validity
+from shapely import make_valid
 from shapely.strtree import STRtree
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -97,6 +99,98 @@ def centroid_of(geometry: dict) -> tuple[float, float]:
     geom = shape(geometry)
     c = geom.centroid
     return (c.x, c.y)
+
+
+def extract_polygonal(geom):
+    """Return only polygonal members from a repaired geometry."""
+    if isinstance(geom, (Polygon, MultiPolygon)):
+        return geom
+    if isinstance(geom, GeometryCollection):
+        polygons = []
+        for part in geom.geoms:
+            polygonal = extract_polygonal(part)
+            if isinstance(polygonal, Polygon):
+                polygons.append(polygonal)
+            elif isinstance(polygonal, MultiPolygon):
+                polygons.extend(polygonal.geoms)
+        if len(polygons) == 1:
+            return polygons[0]
+        if polygons:
+            return MultiPolygon(polygons)
+    return geom
+
+
+def group_polygon_rings(rings: list) -> Polygon | MultiPolygon:
+    """Convert disjoint ArcGIS-style rings that were serialized as holes."""
+    shells: list[dict] = []
+
+    for ring in rings:
+        ring_polygon = Polygon(ring)
+        if ring_polygon.is_empty:
+            continue
+
+        point = ring_polygon.representative_point()
+        containers = [
+            (shell["polygon"].area, idx)
+            for idx, shell in enumerate(shells)
+            if shell["polygon"].contains(point)
+        ]
+
+        if containers:
+            _, idx = min(containers)
+            shells[idx]["holes"].append(ring)
+        else:
+            shells.append({"polygon": ring_polygon, "holes": []})
+
+    polygons = [
+        Polygon(shell["polygon"].exterior.coords, shell["holes"])
+        for shell in shells
+    ]
+
+    if len(polygons) == 1:
+        return polygons[0]
+    return MultiPolygon(polygons)
+
+
+def normalize_geometry(geometry: dict):
+    """Repair BC Assessment parcel geometry while preserving polygonal shape."""
+    geom = shape(geometry)
+    reason = None
+    action = "unchanged"
+
+    if not geom.is_valid:
+        reason = explain_validity(geom)
+        if geometry.get("type") == "Polygon" and "Hole lies outside shell" in reason:
+            geom = group_polygon_rings(geometry["coordinates"])
+            action = "grouped_rings"
+
+        if not geom.is_valid:
+            geom = extract_polygonal(make_valid(geom))
+            action = "make_valid"
+
+    if geom.is_empty or not isinstance(geom, (Polygon, MultiPolygon)):
+        raise ValueError(f"Unable to repair parcel geometry: {reason or geom.geom_type}")
+
+    if not geom.is_valid:
+        raise ValueError(f"Geometry remains invalid after repair: {explain_validity(geom)}")
+
+    return mapping(geom), action, reason
+
+
+def normalize_feature_geometries(features: list[dict]) -> None:
+    """Normalize all parcel geometries in-place and print a compact report."""
+    grouped = 0
+    repaired = 0
+
+    for feature in features:
+        normalized, action, _reason = normalize_geometry(feature["geometry"])
+        feature["geometry"] = normalized
+        if action == "grouped_rings":
+            grouped += 1
+        elif action == "make_valid":
+            repaired += 1
+
+    print(f"  Geometry fixes: grouped rings={grouped}, make_valid={repaired}")
 
 
 def build_spatial_index(boundary_path: str) -> tuple[STRtree, list[dict]]:
@@ -193,7 +287,11 @@ def main():
     features = geojson["features"]
     print(f"  Loaded {len(features)} parcel features")
 
-    # 3. Enrich features
+    # 3. Normalize geometry before spatial joins and MapLibre rendering.
+    print("Normalizing parcel geometries...")
+    normalize_feature_geometries(features)
+
+    # 4. Enrich features
     print("Merging data...")
     matched = 0
     unmatched = 0
@@ -260,7 +358,7 @@ def main():
 
     print(f"  Matched: {matched}, Unmatched: {unmatched}")
 
-    # 4. Spatial join — assign census boundary IDs
+    # 5. Spatial join — assign census boundary IDs
     print("Running spatial joins...")
     for level_key, boundary_path in BOUNDARY_LEVELS.items():
         if os.path.exists(boundary_path):
@@ -268,7 +366,7 @@ def main():
         else:
             print(f"  Skipping {level_key}: {boundary_path} not found")
 
-    # 5. Write output
+    # 6. Write output
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     print(f"Writing enriched GeoJSON to {OUTPUT_PATH}...")
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:

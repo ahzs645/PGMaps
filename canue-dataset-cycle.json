@@ -1,0 +1,4 @@
+{
+  "error": "Dataset select not found",
+  "text": "PGMaps\nSearch...\n⌘K\nHeat & Shade\nCANUE\nMISC Data\nSTUDY AREA\nCHSA health boundaries\nCommunity Health Service Areas\nCensus boundaries\nPG census tract -> dissemination area\nSchool catchments\nElementary and secondary catchments\nBoundary level\nHide boundaries\nCommunity Health Service Area\nCANUE Boundary Map\nDataset\nBuilding Density (2019)\nMap variable\nBuilding Density measure 01 (nhbld19_01)\n229\nwith values\n0-0.4\nsample range\nBuilding Density measure 01 is aggregated in the browser from raw boundary-clipped CANUE records.\nSource Notes\n\nCANUE raw extracts updated May 6, 2026.\n\n© CARTO, © OpenStreetMap contributors\nCANUE Layer\nBuilding Density\n229 Community Health Service Area boundaries"
+}

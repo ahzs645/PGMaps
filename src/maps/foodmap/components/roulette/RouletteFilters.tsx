@@ -1,4 +1,6 @@
 import { RouletteLocationPicker } from './RouletteLocationPicker'
+import { AppSelect } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 import type { SourceLocation, HazardRating } from '../../types'
 
 interface RouletteFiltersProps {
@@ -114,13 +116,13 @@ export function RouletteFilters({
               <span className="text-muted-foreground">Distance</span>
               <span className="font-medium text-foreground">{maxDistance} km</span>
             </div>
-            <input
-              type="range"
-              min="1"
-              max="20"
-              value={maxDistance}
-              onChange={(e) => onMaxDistanceChange(parseInt(e.target.value))}
-              className="w-full h-2 bg-input rounded-lg appearance-none cursor-pointer accent-sky-500"
+            <Slider
+              min={1}
+              max={20}
+              step={1}
+              value={[maxDistance]}
+              onValueChange={([value]) => onMaxDistanceChange(value)}
+              className="py-2"
             />
             <div className="flex justify-between text-xs text-muted-foreground mt-1">
               <span>1 km</span>
@@ -148,17 +150,12 @@ export function RouletteFilters({
         <div className="space-y-3">
           <div>
             <label className="block text-xs text-muted-foreground mb-1">Time Period</label>
-            <select
-              value={violationTimePeriod}
-              onChange={(e) => onViolationTimePeriodChange(parseInt(e.target.value))}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              {timeOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <AppSelect
+              value={String(violationTimePeriod)}
+              onValueChange={(value) => onViolationTimePeriodChange(parseInt(value))}
+              options={timeOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
+              triggerClassName="h-10 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"
+            />
           </div>
 
           <div>

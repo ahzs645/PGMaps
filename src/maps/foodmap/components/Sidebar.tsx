@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { RestaurantCard } from './RestaurantCard'
 import { cn } from '@/lib/utils'
+import { AppSelect } from '@/components/ui/select'
 import type {
   RestaurantWithStats,
   RestaurantStats,
@@ -176,15 +177,13 @@ export function Sidebar({
           {geocodedRestaurants?.length || 0} of {restaurants?.length || 0} on map
         </span>
         {visualizationMode === 'violations' && (
-          <select
-            value={timelineMonths}
-            onChange={(e) => onTimelineMonthsChange(parseInt(e.target.value))}
-            className="rounded border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
-          >
-            {timelineOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          <AppSelect
+            value={String(timelineMonths)}
+            onValueChange={(value) => onTimelineMonthsChange(parseInt(value))}
+            options={timelineOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
+            className="w-32"
+            triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
+          />
         )}
       </div>
 

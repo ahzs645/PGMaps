@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Pause, Play, SkipBack } from 'lucide-react'
+import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 
 interface TimelineProps {
@@ -98,8 +99,7 @@ export function Timeline({ startDate, endDate, currentDate, onDateChange, onClos
   }, [startDate, onDateChange])
 
   const handleSliderChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const idx = parseInt(e.target.value, 10)
+    ([idx]: number[]) => {
       if (buckets[idx]) {
         onDateChange(buckets[idx].start)
       }
@@ -229,13 +229,13 @@ export function Timeline({ startDate, endDate, currentDate, onDateChange, onClos
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
 
-          <input
-            type="range"
+          <Slider
             min={0}
             max={maxPosition}
-            value={currentIndex}
-            onChange={handleSliderChange}
-            className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+            step={1}
+            value={[currentIndex]}
+            onValueChange={handleSliderChange}
+            className="flex-1 py-2"
           />
 
           <div className="hidden text-[10px] text-muted-foreground sm:block">

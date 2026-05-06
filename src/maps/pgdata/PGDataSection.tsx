@@ -1,12 +1,13 @@
 import { useEffect, useMemo } from 'react'
 import type { ElementType } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ShieldAlert, Trees } from 'lucide-react'
+import { Bus, ShieldAlert, Trees } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ParksSection from '@/maps/parks/ParksSection'
 import CrimeDataSection from './CrimeDataSection'
+import TransitDataSection from './TransitDataSection'
 
-type PGDataTab = 'crime' | 'parks'
+type PGDataTab = 'crime' | 'parks' | 'transit'
 
 const TABS: Array<{
   id: PGDataTab
@@ -15,10 +16,11 @@ const TABS: Array<{
 }> = [
   { id: 'crime', label: 'Crime', icon: ShieldAlert },
   { id: 'parks', label: 'Parks & Trails', icon: Trees },
+  { id: 'transit', label: 'Transit', icon: Bus },
 ]
 
 function normalizeTab(value: string | null): PGDataTab {
-  if (value === 'parks' || value === 'crime') return value
+  if (value === 'parks' || value === 'crime' || value === 'transit') return value
   return 'crime'
 }
 
@@ -36,6 +38,7 @@ export default function PGDataSection() {
 
   const activeContent = useMemo(() => {
     if (activeTab === 'parks') return <ParksSection />
+    if (activeTab === 'transit') return <TransitDataSection />
     return <CrimeDataSection />
   }, [activeTab])
 

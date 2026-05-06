@@ -51,6 +51,7 @@ export type ScoreMetricKey =
   | 'parkAreaRatio'
   | 'trailDensity'
   | 'amenityDensity'
+  | 'parkAccessGap1Mile'
   // Heat & Shade
   | 'treeDensity'
   | 'matureTreeDensity'
@@ -69,6 +70,7 @@ export type ScoreMetricKey =
   | 'avgAssessedValue'
   | 'valueGrowth10y'
   | 'buildingAge'
+  | 'pre1980HousingShare'
   | 'vacantParcelShare'
   | 'multiFamilyShare'
   | 'commercialShare'
@@ -102,7 +104,12 @@ export type ScoreMetricKey =
 
 export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
 export type ScoreNormalizationMethod = 'minMax' | 'winsorizedMinMax' | 'percentile' | 'zScore'
-export type ScoreAggregationMethod = 'additive' | 'geometric' | 'cumulativeBurden' | 'modulePercentileRankedSum'
+export type ScoreAggregationMethod =
+  | 'additive'
+  | 'geometric'
+  | 'cumulativeBurden'
+  | 'modulePercentileRankedSum'
+  | 'healthyPlanPairwisePriority'
 export type ScoreNormalizationScope = 'activeBoundaryLevel'
 export type ScoreMetricDirection = 'higherIsBetter' | 'higherIsWorse'
 export type ScoreMetricComponent =
@@ -119,6 +126,7 @@ export type ScoreSpatialMethod =
   | 'midpointInPolygon'
   | 'directBoundaryJoin'
   | 'derivedRatio'
+  | 'bufferAreaIntersection'
 export type ScoreUncertaintyLevel = 'low' | 'medium' | 'high'
 
 export interface ScoreMethodSettings {
@@ -127,6 +135,10 @@ export interface ScoreMethodSettings {
   missingData: 'zero' | 'neutral'
   sensitivity: boolean
   normalizationScope: ScoreNormalizationScope
+  healthyPlanPriority: {
+    demographicMetric: ScoreMetricKey | null
+    environmentMetric: ScoreMetricKey | null
+  }
 }
 
 export interface ScoreMetricDefinition {
@@ -225,6 +237,7 @@ export interface RegionDataCounts {
   propertyGrowthCount: number
   yearBuiltSum: number
   yearBuiltCount: number
+  pre1980BuildingCount: number
   vacantParcelCount: number
   multiFamilyParcelCount: number
   commercialParcelCount: number
@@ -261,6 +274,16 @@ export interface RegionEquityAudit {
   cutoffWarning: string | null
 }
 
+export interface HealthyPlanPriorityAudit {
+  demographicMetric: ScoreMetricKey
+  environmentMetric: ScoreMetricKey
+  demographicRank: number | null
+  environmentRank: number | null
+  priorityScore: number | null
+  priorityColor: string | null
+  equityPriority: boolean
+}
+
 export interface ScoreModuleResult {
   key: ScoreIndexModule
   label: string
@@ -294,6 +317,7 @@ export interface ScoredBoundaryRegion {
   comparisonUniverseLabel: string
   equityAudit: RegionEquityAudit
   scoreMethodLabel?: string
+  healthyPlanPriority?: HealthyPlanPriorityAudit
   moduleScores?: ScoreModuleResult[]
   domainScores?: ScoreDomainResult[]
   missingDataFlags?: string[]

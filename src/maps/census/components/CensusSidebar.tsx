@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from '../constants'
 import type {
@@ -227,26 +228,20 @@ export function CensusSidebar({
           {filteredUnits.length} of {units.length} units
         </div>
         <div className="space-y-2">
-          <select
+          <AppSelect
             value={isVariableMode ? '__variable__' : selectedMetric}
-            onChange={(event) => {
-              const val = event.target.value
+            onValueChange={(val) => {
               if (val === '__variable__') return
               onMetricChange(val as CensusMetricKey)
             }}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500"
-          >
-            {availableMetrics.map((metric) => (
-              <option key={metric.key} value={metric.key}>
-                {metric.label}
-              </option>
-            ))}
-            {isVariableMode && (
-              <option value="__variable__" disabled>
-                Variable: {activeVariableLabel}
-              </option>
-            )}
-          </select>
+            options={[
+              ...availableMetrics.map((metric) => ({ value: metric.key, label: metric.label })),
+              ...(isVariableMode
+                ? [{ value: '__variable__', label: `Variable: ${activeVariableLabel}`, disabled: true }]
+                : []),
+            ]}
+            triggerClassName="h-10 rounded-lg text-sm focus:ring-2 focus:ring-amber-500"
+          />
         </div>
       </div>
 

@@ -103,6 +103,31 @@ However, the current score builder is a flexible local proxy. It does not yet im
 | Airports | OSM/NTAD 1-mile buffer share | Missing but easy | Add airport/aerodrome polygons or points and calculate buffered share. |
 | Impaired surface water | EPA WSIO impaired watershed area share | Missing | Need BC/Canada water quality impairment layers; likely non-trivial. |
 
+#### What EJI actually does for lack of walkability
+
+EJI does not calculate walkability from sidewalks, routing, or park/service access. It uses EPA's 2021 National Walkability Index (NWI), then converts it into a burden indicator:
+
+```text
+block-group NWI = rank(intersection density) / 3
+                + rank(proximity to transit stops) / 3
+                + rank(employment mix) / 6
+                + rank(employment + household mix) / 6
+
+tract NWI = average(block-group NWI scores in the tract)
+lack_of_walkability = 1 - percentile_rank(tract NWI)
+```
+
+EPA first puts every U.S. block group into 20 ranked quantiles for each input variable, so each component rank runs from 1 to 20. The final NWI score is also on a 1-20 scale, categorized as least walkable through most walkable. ATSDR then aggregates block-group NWI to census tract, ranks tracts nationally, and subtracts the percentile rank from 1. A tract more walkable than 95% of tracts gets a lack-of-walkability value of 0.05.
+
+For PGMaps, the closest direct Canadian path is not our current park/transit access proxy. It is either:
+
+- load CANUE Active Living Environment (Can-ALE) and rank/invert it similarly, or
+- build a local NWI-style index from street intersection density, transit-stop proximity, employment/land-use mix, and household/employment mix.
+
+Current `parkWalk10Access`, `parkWalk20Access`, and `serviceAccessComposite` should stay labelled as service-access proxies, not walkability.
+
+Employment + household mix needs special care. PGMaps has the household side from Census, and it has resident labour/work variables including labour-force status, occupation, industry, class of worker, and commuting. Those Census variables describe residents, not necessarily jobs located in each DA/DB. EPA's employment + household mix is an entropy/mix measure of employment types located in the block group plus occupied households, so the local Census data is not a clean equivalent by itself. A closer local proxy would need located employment data, such as CityPG business licences joined to parcels by PID and then assigned to census areas.
+
 ### Health Vulnerability Module
 
 | EJI indicator | EJI source concept | PGMaps status | Best local path |
@@ -152,6 +177,88 @@ Health is the largest methodological gap because EJI intentionally avoids summin
 
 6. Health vulnerability
    - Find BC/Canada small-area chronic disease prevalence. If unavailable below CHSA/LHA, keep this as a coarse contextual layer, not a DA-level EJI module.
+
+## Canadian Dataset Crosswalk
+
+This is the practical Canada/BC equivalent list for building a Prince George EJI-inspired index. The labels below distinguish direct equivalents from proxies because several U.S. EJI inputs are tied to U.S.-specific programs such as ACS, EPA AirToxScreen, EPA FRS, FEMA NRI, and CDC PLACES.
+
+### Already present or close in the repo
+
+| EJI area | Local dataset path | Use |
+| --- | --- | --- |
+| PM2.5 exposure | `public/data/canue/bc/annual/pm25dale_a_2021_bc.csv` | Annual modeled PM2.5 exposure surface; better for small-area ranking than monitor proximity. |
+| Wildfire smoke exposure | `public/data/canue/bc/annual/aqsmk_avb_2022_bc.csv` | Retrospective smoke PM2.5 / smoky-day style burden proxy. |
+| Active living / walkability | `public/data/canue/bc/annual/ale_a_2016_bc.csv` | Canadian active living environment proxy. |
+| Road proximity | `public/data/canue/bc/annual/dtr_a_2018_bc.csv` | Traffic/road exposure proxy; can support high-volume road proximity if paired with traffic counts. |
+| Transit, accessibility, density, connectivity | `public/data/canue/bc/annual/nhtsp_ava_2019_bc.csv`, `nhacs_ava_2021_bc.csv`, `nhscn_ava_2019_bc.csv`, `nhbld_ava_2019_bc.csv` | Built-environment and access domains. |
+| Census social variables | `public/data/census/**` | Age, education, income, tenure, language, immigration, Indigenous identity, visible minority, household, dwelling, mobility, commute, and labour variables. |
+| Health boundaries | `public/data/boundaries/BCMoH/*.json` | CHSA/LHA/HSDA/HA geographies for joining coarser BC health data. |
+| Air monitoring stations | `public/data/bc/bc_air_monitoring_stations.csv` | Station context for PM2.5, ozone, NO2, and other pollutants; not yet an exposure surface. |
+
+### Strong Canadian equivalents to add
+
+| EJI indicator group | Canadian/BC source | Resolution | Fit |
+| --- | --- | --- | --- |
+| Census social vulnerability | Statistics Canada 2021 Census Profile and profile downloads | DA/CT/CSD and above | Strong. Use Canadian constructs such as LIM-AT low income, no diploma, unemployment, renter share, shelter cost burden, age, official-language knowledge, collective dwelling, and movable dwelling. |
+| Composite deprivation | Statistics Canada 2021 Canadian Index of Multiple Deprivation (CIMD) | DA | Strong Canadian analogue, but not one-for-one EJI. Useful as a reference or preset. |
+| PM2.5 / ozone observations | ECCC/NAPS and BC Air Data Archive | Stations | Strong official observations, but needs interpolation, nearest-monitor assignment, or modeled surfaces for DA ranking. |
+| Traffic pollution | CANUE NO2 / road proximity, BC Ministry of Transportation traffic counts, Digital Road Atlas | Modeled surface, count points, road segments | Good proxy for diesel/traffic burden. No public diesel PM raster equivalent was identified. |
+| TRI equivalent | National Pollutant Release Inventory (NPRI) | Facility records | Strong conceptual equivalent to EPA TRI. Use buffers, release totals, and pollutant class filters. |
+| Contaminated sites / NPL equivalent | BC Site Registry and Federal Contaminated Sites Inventory | Site records | Best Canadian analogue to Superfund/NPL, but no single national priority list matches NPL. |
+| Hazardous waste / TSD equivalent | BC hazardous waste registration and BC waste discharge authorizations | Facility/authorization records | Good regulatory proxy, but likely requires geocoding and filtering. |
+| RMP equivalent | ECCC Environmental Emergency Regulations / E2 Reporting System | Regulated facilities | Closest conceptual equivalent, but bulk public facility data is not clearly available. NPRI/permits may be needed as proxy. |
+| Mines | BC Major Mine permitted areas, mine notices, BC Mine Information | Points/polygons | Strong for current/permitted mining exposure near Prince George. |
+| Parks | City of Prince George open data, CPCAD, BC Parks | Municipal and protected-area polygons | Strong if municipal parks are included; CPCAD/BC Parks alone miss local urban parks. |
+| Pre-1980 housing | Census dwelling period of construction or BC Assessment building age | DA or parcel-derived | Strong. Census is official; BC Assessment can provide parcel-level precision where usable. |
+| Railways | NRCan National Railway Network / StatsCan infrastructure databases | Line features | Strong for rail proximity. Rail traffic volume is still missing. |
+| Airports | Transport Canada, BC certified airports, StatsCan infrastructure databases | Points/polygons | Strong for airport proximity; emissions/noise contours are the gap. |
+| Water impairment | BC EnMoDS/EMS results, BC Water Quality Objectives, ECCC freshwater quality monitoring | Monitoring stations/waterbodies | Usable, but must be derived. Canada/BC do not provide a clean CWA 303(d)-style impaired-waters layer. |
+| Extreme heat days | ECCC climate observations, ClimateData.ca, PCIC/gridded products | Station or gridded | Strong source family. Needs a local rule such as annual days over 30 C / humidex threshold by DA/CT. |
+| Wildfire perimeters | BC Wildfire historical/current fire perimeters and Canadian National Fire Database | Fire polygons/points | Strong. Compute distance, burned area in buffer, or recent-fire exposure. |
+| Drought | Canadian Drought Monitor and BC drought portal | Monthly raster/basin classes | Good. Convert to months/year in D0-D4 or max annual class. |
+| Riverine flooding | BC floodplain maps, Fraser/Nechako floodplain maps, Water Survey of Canada hydrometric data, FHIMP projects | Floodplain polygons and gauges | Strong local relevance for Prince George, but maps may be historical and not climate-adjusted. |
+
+### True gaps or proxy-only items
+
+| EJI item | Missing Canadian equivalent | Recommended treatment |
+| --- | --- | --- |
+| Lack of health insurance | Universal provincial insurance makes the U.S. construct non-applicable. | Omit from Canadian SVM, or replace with primary-care attachment / regular provider as a separate access-to-care proxy. |
+| Disability at DA scale | Canadian Survey on Disability is not a clean DA-level public layer. | Keep as missing unless a public small-area table is found; do not impute from coarse survey estimates. |
+| Household internet subscription at DA scale | Broadband availability exists, but household subscription/affordability is not a clean Census Profile equivalent. | Use ISED/CRTC broadband availability as infrastructure access, labelled separately from household internet access. |
+| Air toxics cancer risk | No Canadian AirToxScreen/NATA-style public cancer-risk surface. | Use NPRI toxic releases as a facility-emissions proxy, or build a separate toxicity-weighted dispersion model if the project needs this. |
+| Diesel particulate matter raster | No public Canadian diesel PM exposure surface equivalent identified. | Use CANUE NO2, road proximity, truck routes, and traffic counts as traffic-emissions proxies. |
+| RMP public bulk locations | E2 is the conceptual equivalent, but public bulk facility access is unclear. | Use NPRI, waste discharge authorizations, hazardous-waste registrations, and industrial permits as the practical facility-risk proxy. |
+| Impaired waters list | No direct CWA 303(d)-style impaired waters layer. | Derive exceedance/impairment from BC water monitoring and objectives; label as derived. |
+| CDC PLACES health prevalence at DA/tract scale | BC health data is available mainly at CHSA/LHA/HSDA/HA, not DA. | Join BC CDC/PHSA chronic disease rates at health boundaries, or keep health as contextual/coarse module with warnings. |
+| Poor mental health days | EJI's survey construct is not the same as diagnosed depression/anxiety administrative data. | Use BC CDC depression/mood-anxiety indicators as diagnosed-condition proxies, clearly renamed. |
+| Coastal flooding and hurricanes | Not geographically relevant to Prince George. | Omit or mark N/A for Prince George; handle riverine flooding, heat, wildfire, drought, and wind instead. |
+
+### Source Links For The Canadian Crosswalk
+
+- Statistics Canada Census Profile and downloads: https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E
+- Statistics Canada 2021 CIMD: https://www150.statcan.gc.ca/n1/en/catalogue/452000012023001
+- BC CDC Chronic Disease Dashboard: https://www.bccdc.ca/Our-Services-Site/Pages/Chronic-Disease-Dashboard-.aspx
+- PHSA Community Health Data: https://communityhealth.phsa.ca/
+- ECCC/NAPS air quality data: https://www.canada.ca/en/environment-climate-change/services/air-pollution/monitoring-networks-data/national-air-pollution-program/results.html
+- BC Air Data Archive: https://www2.gov.bc.ca/gov/content/environment/air-land-water/air/air-quality/current-air-quality-data/bc-air-data-archive
+- CANUE data availability: https://www.popdata.bc.ca/sites/default/files/documents/data/Checklists/CANUE_Data_Available_Sep_2024.pdf
+- NPRI data access: https://www.canada.ca/en/environment-climate-change/services/national-pollutant-release-inventory/tools-resources-data/access.html
+- BC Site Registry: https://www2.gov.bc.ca/gov/content/environment/air-land-water/site-remediation/site-information
+- Federal Contaminated Sites Inventory: https://www.tbs-sct.canada.ca/fcsi-rscf/home-accueil-eng.aspx
+- BC hazardous waste registration: https://www2.gov.bc.ca/gov/content/environment/waste-management/hazardous-waste/registration-of-hazardous-waste-generators-and-facilities
+- ECCC Environmental Emergency Regulations: https://www.canada.ca/en/environment-climate-change/services/environmental-emergencies-program/regulations.html
+- BC mining GIS data: https://www2.gov.bc.ca/gov/content/industry/mineral-exploration-mining/mineral-titles/data-gis/dataset-descriptions-download
+- CPCAD protected areas: https://www.canada.ca/en/environment-climate-change/services/national-wildlife-areas/protected-conserved-areas-database.html
+- Prince George Open Data: https://www.princegeorge.ca/city-hall/maps-information-requests/open-data
+- NRCan National Railway Network: https://open.canada.ca/data/en/dataset/ac26807e-a1e8-49fa-87bf-451175a859b8
+- ECCC GeoMet climate daily API: https://api.weather.gc.ca/collections/climate-daily?f=html
+- ClimateData.ca data: https://climatedata.ca/about/our-data/
+- BC wildfire historical perimeters: https://catalogue.data.gov.bc.ca/dataset/bc-wildfire-fire-perimeters-historical
+- Canadian National Fire Database: https://cwfis.cfs.nrcan.gc.ca/ha/nfdb?type=pnt
+- Canadian Drought Monitor service: https://agriculture.canada.ca/imagery-images/rest/services/canadian_drought_monitor/ImageServer
+- BC floodplain mapping: https://www2.gov.bc.ca/gov/content/environment/air-land-water/water/drought-flooding-dikes-dams/integrated-flood-hazard-management/governance/flood-hazard-land-use-management/floodplain-mapping
+- Water Survey of Canada hydrometric API: https://api.weather.gc.ca/collections/hydrometric-stations?f=html
+- BC EnMoDS water monitoring: https://www2.gov.bc.ca/gov/content/environment/research-monitoring-reporting/monitoring/environmental-monitoring-data-system
 
 ## Implementation Implications
 

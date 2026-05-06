@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Layers } from 'lucide-react'
+import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import { BOUNDARY_SOURCE_OPTIONS } from '../constants'
@@ -110,17 +111,15 @@ export function ScoreBuilderLeftPanel({
               {showPoints ? 'Hide points' : 'Show points'}
             </button>
           </div>
-          <select
+          <AppSelect
             id="score-builder-level"
             data-score-builder-level-select="true"
             value={selectedRegionLevel}
-            onChange={(event) => onRegionLevelChange(event.target.value as RegionLevel)}
-            className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          >
-            {boundaryLevelOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+            onValueChange={(value) => onRegionLevelChange(value as RegionLevel)}
+            options={boundaryLevelOptions}
+            className="mt-2 w-full"
+            triggerClassName="h-10 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
+          />
         </section>
 
         {/* Data sources */}

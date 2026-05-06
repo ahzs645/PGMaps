@@ -3,7 +3,6 @@ import { Map as PgMap, MapClusterLayer, MapControls, type MapRef } from '@/compo
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import type { AirMonitor } from '@/maps/airquality'
-import { getScorePaletteColor, type ScorePaletteProfile } from '../constants'
 import type { ScoredBoundaryRegion } from '../types'
 
 interface ScoreBuilderMapProps {
@@ -11,7 +10,6 @@ interface ScoreBuilderMapProps {
   selectedRegionId: string | null
   monitors: AirMonitor[]
   showPoints: boolean
-  paletteProfile: ScorePaletteProfile
   onRegionClick: (regionId: string) => void
 }
 
@@ -22,7 +20,6 @@ export function ScoreBuilderMap({
   selectedRegionId,
   monitors,
   showPoints,
-  paletteProfile,
   onRegionClick,
 }: ScoreBuilderMapProps) {
   const mapRef = useRef<MapRef>(null)
@@ -40,13 +37,13 @@ export function ScoreBuilderMap({
           code: entry.region.code,
           name: entry.region.name,
           score: entry.score,
-          scoreColor: getScorePaletteColor(entry.score, paletteProfile),
+          scoreColor: entry.scoreColor,
           monitorCount: entry.counts.monitorCount,
           density: entry.metrics.overallDensity,
         },
       })),
     }
-  }, [paletteProfile, regions])
+  }, [regions])
 
   const points = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>>(() => {
     return {

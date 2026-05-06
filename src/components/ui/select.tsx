@@ -145,7 +145,69 @@ const SelectSeparator = React.forwardRef<
 ))
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName
 
+type SelectOption = {
+  value: string
+  label: React.ReactNode
+  disabled?: boolean
+}
+
+type AppSelectProps = {
+  value: string
+  onValueChange: (value: string) => void
+  options: SelectOption[]
+  placeholder?: string
+  className?: string
+  triggerClassName?: string
+  contentClassName?: string
+  id?: string
+  disabled?: boolean
+}
+
+const EMPTY_SELECT_VALUE = '__app_select_empty__'
+
+function AppSelect({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  className,
+  triggerClassName,
+  contentClassName,
+  id,
+  disabled,
+  ...props
+}: AppSelectProps & React.HTMLAttributes<HTMLDivElement>) {
+  const hasEmptyOption = options.some((option) => option.value === '')
+  const radixValue = hasEmptyOption && value === '' ? EMPTY_SELECT_VALUE : value
+
+  return (
+    <div className={className} {...props}>
+      <Select
+        value={radixValue}
+        onValueChange={(nextValue) => onValueChange(nextValue === EMPTY_SELECT_VALUE ? '' : nextValue)}
+        disabled={disabled}
+      >
+        <SelectTrigger id={id} className={triggerClassName}>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent className={contentClassName}>
+          {options.map((option) => (
+            <SelectItem
+              key={option.value || EMPTY_SELECT_VALUE}
+              value={option.value === '' ? EMPTY_SELECT_VALUE : option.value}
+              disabled={option.disabled}
+            >
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 export {
+  AppSelect,
   Select,
   SelectGroup,
   SelectValue,

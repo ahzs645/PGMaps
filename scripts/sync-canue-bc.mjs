@@ -153,28 +153,35 @@ function toSlug(value) {
     .replace(/^-|-$/g, '')
 }
 
-async function loadBoundaryIndex() {
-  if (!BOUNDARY_PATH) return []
-  const geojson = JSON.parse(await readFile(BOUNDARY_PATH, 'utf8'))
+async function loadBoundaryIndex(boundaryPath, idField, nameField) {
+  if (!boundaryPath) return []
+  const geojson = JSON.parse(await readFile(boundaryPath, 'utf8'))
   const features = (geojson.features || []).filter((feature) => feature.geometry)
   return features.map((feature) => ({
     feature,
     bbox: bbox(feature),
+    id: idField ? String(feature.properties?.[idField] ?? feature.id ?? '') : '',
+    name: nameField ? String(feature.properties?.[nameField] ?? feature.properties?.name ?? feature.id ?? '') : '',
   }))
+}
+
+function findBoundary(index, longitude, latitude) {
+  if (!index.length) return null
+  const lng = Number(longitude)
+  const lat = Number(latitude)
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null
+  const pt = point([lng, lat])
+
+  return index.find((entry) => {
+    const [minLng, minLat, maxLng, maxLat] = entry.bbox
+    if (lng < minLng || lng > maxLng || lat < minLat || lat > maxLat) return false
+    return booleanPointInPolygon(pt, entry.feature)
+  }) ?? null
 }
 
 function isInsideBoundary(longitude, latitude) {
   if (!boundaryIndex.length) return true
-  const lng = Number(longitude)
-  const lat = Number(latitude)
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false
-  const pt = point([lng, lat])
-
-  return boundaryIndex.some((entry) => {
-    const [minLng, minLat, maxLng, maxLat] = entry.bbox
-    if (lng < minLng || lng > maxLng || lat < minLat || lat > maxLat) return false
-    return booleanPointInPolygon(pt, entry.feature)
-  })
+  return Boolean(findBoundary(boundaryIndex, longitude, latitude))
 }
 
 async function loadLocations(zipPath, year) {
@@ -290,7 +297,7 @@ function selectVariableMembers(members) {
 }
 
 async function main() {
-  boundaryIndex = await loadBoundaryIndex()
+  boundaryIndex = await loadBoundaryIndex(BOUNDARY_PATH)
   if (boundaryIndex.length) {
     console.log(`CANUE: clipping postal-code locations to ${path.relative(process.cwd(), BOUNDARY_PATH)}`)
   }

@@ -201,6 +201,8 @@ type MapLineLayerProps = {
   color: string | StyleExpression
   /** Line width (default: 2.2) */
   width?: number
+  /** Line offset in pixels, useful for parallel route lines (default: 0) */
+  offset?: number | StyleExpression
   /** Line opacity (default: 0.75) */
   opacity?: number
   /** Dash pattern [dash, gap] */
@@ -227,6 +229,7 @@ function MapLineLayer({
   data,
   color,
   width = 2.2,
+  offset = 0,
   opacity = 0.75,
   dashArray,
   lineJoin = 'round',
@@ -271,6 +274,7 @@ function MapLineLayer({
       paint: {
         'line-color': color as never,
         'line-width': width,
+        'line-offset': offset as never,
         'line-opacity': opacity,
         ...(dashArray && { 'line-dasharray': dashArray }),
       },
@@ -288,6 +292,7 @@ function MapLineLayer({
       paint: {
         'line-color': selectionColor,
         'line-width': resolvedSelectionWidth,
+        'line-offset': offset as never,
         'line-opacity': 1,
         ...(dashArray && { 'line-dasharray': dashArray }),
       },

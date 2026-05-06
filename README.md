@@ -9,6 +9,7 @@ and community fields, and writes derived CSVs plus a manifest to `public/data/ca
 
 ```bash
 npm run canue:bc:sync
+npm run canue:bc:membership
 npm run canue:bc:gzip
 ```
 
@@ -23,9 +24,30 @@ node scripts/sync-canue-bc.mjs --boundary-path none
 ```
 
 The uncompressed generated CSVs under `public/data/canue/bc/annual/` are local
-working files and are ignored by git. The gzip step writes app-ready compressed
-raw extracts to `public/data/canue/bc/annual-gzip/`; the app aggregates those
-records into the selected map boundaries in the browser.
+working files and are ignored by git. The membership step writes a reusable
+postal-code-to-boundary lookup for the study-area selector. The gzip step writes
+app-ready compressed raw extracts to `public/data/canue/bc/annual-gzip/`; the
+app joins through the membership lookup and aggregates records into the selected
+map boundaries in the browser.
+
+## BC Assessment Data
+
+BC Assessment parcel geometries can be rebuilt from the checked-in source files or
+refreshed from the current `bcassessment.ca` ArcGIS layer for Prince George
+jurisdiction `226`.
+
+```bash
+pip install -r scripts/bc-assessment-requirements.txt
+npm run bc-assessment:build
+npm run bc-assessment:refresh
+```
+
+The refresh command updates `scripts/bc-assessment-source/prince_george_parcels.geojson`
+and then rebuilds `public/data/bc-assessment/parcels.geojson`. It converts Esri
+polygon rings into valid GeoJSON `Polygon`/`MultiPolygon` geometries and applies
+a Shapely validity repair fallback for self-intersections. The detail CSV remains
+`scripts/bc-assessment-source/prince_george_full.csv`; the live map layer does not
+include every detail field used by the app.
 
 ## Food Safety Data
 

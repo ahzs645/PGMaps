@@ -6,6 +6,7 @@ import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { StudyAreaSelector, type StudyAreaLevelOption, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
+import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
 
@@ -28,8 +29,19 @@ type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | Geo
 
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
 type MiscDataTab = 'heatShade' | 'canue'
-type CanueBoundarySource = 'health' | 'census'
-type CanueBoundaryLevel = 'chsa'
+type CanueBoundarySource = 'bcHealth' | 'census' | 'cityPG'
+type CanueBoundaryLevel =
+  | 'healthAuthority'
+  | 'hsda'
+  | 'lha'
+  | 'chsa'
+  | 'cd'
+  | 'csd'
+  | 'ct'
+  | 'da'
+  | 'db'
+  | 'elementarySchoolCatchment'
+  | 'secondarySchoolCatchment'
 
 interface CanueFile {
   datasetId: string
@@ -68,6 +80,23 @@ interface BoundaryIndexEntry {
   name: string
 }
 
+interface BoundaryLevelConfig {
+  path: string
+  idField: string
+  nameField: string
+  label: string
+}
+
+interface CanuePostalMembershipRecord {
+  postalcode: string
+  boundaries: Partial<Record<CanueBoundaryLevel, string>>
+}
+
+interface CanuePostalMembership {
+  generatedAt: string
+  records: CanuePostalMembershipRecord[]
+}
+
 const MISC_LAYERS: Array<{ id: MiscLayerId; label: string; color: string }> = [
   { id: 'trees', label: 'Tree canopy proxy', color: '#16a34a' },
   { id: 'forests', label: 'Forests', color: '#15803d' },
@@ -81,21 +110,195 @@ const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = 
 
 const CANUE_BOUNDARY_SOURCE_OPTIONS: Array<StudyAreaSourceOption<CanueBoundarySource>> = [
   {
-    value: 'health',
-    label: 'Health boundaries',
-    description: 'Raw CANUE records grouped into CHSA polygons',
+    value: 'bcHealth',
+    label: 'CHSA health boundaries',
+    description: 'Community Health Service Areas',
   },
   {
     value: 'census',
     label: 'Census boundaries',
-    description: 'Not generated for CANUE yet',
-    disabled: true,
+    description: 'PG census tract -> dissemination area',
+  },
+  {
+    value: 'cityPG',
+    label: 'School catchments',
+    description: 'Elementary and secondary catchments',
   },
 ]
 
-const CANUE_BOUNDARY_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
-  { value: 'chsa', label: 'Community Health Service Areas' },
+const CANUE_HEALTH_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
+  { value: 'healthAuthority', label: 'Health Authority' },
+  { value: 'hsda', label: 'Health Service Delivery Area' },
+  { value: 'lha', label: 'Local Health Area' },
+  { value: 'chsa', label: 'Community Health Service Area' },
 ]
+
+const CANUE_CENSUS_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
+  { value: 'cd', label: 'Census Division' },
+  { value: 'csd', label: 'Census Subdivision' },
+  { value: 'ct', label: 'Census Tract' },
+  { value: 'da', label: 'Dissemination Area' },
+  { value: 'db', label: 'Dissemination Block' },
+]
+
+const CANUE_CITY_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
+  { value: 'elementarySchoolCatchment', label: 'Elementary School Catchment' },
+  { value: 'secondarySchoolCatchment', label: 'Secondary School Catchment' },
+]
+
+const CANUE_BOUNDARY_CONFIG: Record<CanueBoundaryLevel, BoundaryLevelConfig> = {
+  healthAuthority: {
+    path: '/data/boundaries/BCMoH/simplified/health_authorities.json',
+    idField: 'HLTH_AUTHORITY_CODE',
+    nameField: 'HLTH_AUTHORITY_NAME',
+    label: 'Health Authority',
+  },
+  hsda: {
+    path: '/data/boundaries/BCMoH/simplified/health_service_delivery_areas.json',
+    idField: 'HLTH_SERVICE_DLVR_AREA_CODE',
+    nameField: 'HLTH_SERVICE_DLVR_AREA_NAME',
+    label: 'Health Service Delivery Area',
+  },
+  lha: {
+    path: '/data/boundaries/BCMoH/simplified/local_health_areas.json',
+    idField: 'LOCAL_HLTH_AREA_CODE',
+    nameField: 'LOCAL_HLTH_AREA_NAME',
+    label: 'Local Health Area',
+  },
+  chsa: {
+    path: '/data/boundaries/BCMoH/simplified/community_health_service_areas.json',
+    idField: 'CMNTY_HLTH_SERV_AREA_CODE',
+    nameField: 'CMNTY_HLTH_SERV_AREA_NAME',
+    label: 'Community Health Service Area',
+  },
+  cd: {
+    path: '/data/census/prince_george_cd.geo.json',
+    idField: 'id',
+    nameField: 'name',
+    label: 'Census Division',
+  },
+  csd: {
+    path: '/data/census/prince_george_csd.geo.json',
+    idField: 'id',
+    nameField: 'name',
+    label: 'Census Subdivision',
+  },
+  ct: {
+    path: '/data/census/prince_george_ct.geo.json',
+    idField: 'id',
+    nameField: 'name',
+    label: 'Census Tract',
+  },
+  da: {
+    path: '/data/census/prince_george_da.geo.json',
+    idField: 'id',
+    nameField: 'name',
+    label: 'Dissemination Area',
+  },
+  db: {
+    path: '/data/census/prince_george_db.geo.json',
+    idField: 'id',
+    nameField: 'name',
+    label: 'Dissemination Block',
+  },
+  elementarySchoolCatchment: {
+    path: '/data/boundaries/CityPG/elementary_school_catchments.geojson',
+    idField: 'OBJECTID',
+    nameField: 'SchoolName',
+    label: 'Elementary School Catchment',
+  },
+  secondarySchoolCatchment: {
+    path: '/data/boundaries/CityPG/secondary_school_catchments.geojson',
+    idField: 'OBJECTID',
+    nameField: 'SchoolNam',
+    label: 'Secondary School Catchment',
+  },
+}
+
+const CANUE_DEFAULT_VARIABLE_BY_DATASET: Partial<Record<string, string>> = {
+  ale_a: 'ale16_06',
+  nhbic_ava: 'nhbic21_09',
+  nhpmd_ann: 'nhpmd19_03',
+}
+
+const CANUE_EXACT_VARIABLE_LABELS: Record<string, string> = {
+  pm25dal21_01: 'Annual mean PM2.5',
+  lgtnlt13_01: 'Night-time light intensity',
+  aqsmk22_01: 'Smoke PM2.5 mean',
+  aqsmk22_02: 'Smoke PM2.5 median',
+  aqsmk22_03: 'Smoke PM2.5 minimum',
+  aqsmk22_04: 'Smoke PM2.5 maximum',
+  aqsmk22_05: 'Smoke PM2.5 standard deviation',
+}
+
+const CANUE_SUFFIX_LABELS_BY_DATASET: Record<string, Record<string, string>> = {
+  ale_a: {
+    '01': 'Dissemination area ID',
+    '02': 'Intersection density',
+    '03': 'Dwelling density',
+    '04': 'Intersection density z-score',
+    '05': 'Dwelling density z-score',
+    '06': 'ALE index',
+    '07': 'ALE class',
+    '08': 'Points of interest',
+    '09': 'Points of interest z-score',
+    '10': 'Transit stops',
+    '11': 'Transit z-score',
+    '12': 'ALE transit index',
+    '13': 'ALE transit class',
+  },
+  dtr_a: {
+    '01': 'Distance to expressways',
+    '02': 'Distance to primary highways',
+    '03': 'Distance to secondary highways',
+    '04': 'Distance to major roads',
+    '05': 'Distance to local roads',
+  },
+  nhacs_ava: {
+    '01': 'Spatial accessibility measure 01',
+  },
+  nhbic_ava: {
+    '01': 'Dissemination area ID',
+    '02': 'ALE index',
+    '03': 'ALE class',
+    '04': 'Bike-to-work rate',
+    '05': 'Sustainable transportation to work rate',
+    '06': 'High-comfort bike infrastructure',
+    '07': 'Medium-comfort bike infrastructure',
+    '08': 'Low-comfort bike infrastructure',
+    '09': 'Can-BICS index',
+    '10': 'Can-BICS category',
+  },
+  nhspw_ava: {
+    '01': 'Sprawl score',
+    '02': 'Sprawl lower credible interval',
+    '03': 'Sprawl median',
+    '04': 'Sprawl upper credible interval',
+  },
+  nhpmd_ann: {
+    '01': 'Dissemination block ID',
+    '02': 'Employment in block',
+    '03': 'Proximity to employment',
+    '04': 'Pharmacy in block',
+    '05': 'Proximity to pharmacy',
+    '06': 'Childcare in block',
+    '07': 'Proximity to childcare',
+    '08': 'Health facility in block',
+    '09': 'Proximity to health facility',
+    '10': 'Grocery store in block',
+    '11': 'Proximity to grocery store',
+    '12': 'Primary education in block',
+    '13': 'Proximity to primary education',
+    '14': 'Secondary education in block',
+    '15': 'Proximity to secondary education',
+    '16': 'Library in block',
+    '17': 'Proximity to library',
+    '18': 'Park in block',
+    '19': 'Proximity to park',
+    '20': 'Transit stop in block',
+    '21': 'Proximity to transit trips',
+  },
+}
 
 const BC_CENTER: [number, number] = [-124.6, 54.4]
 
@@ -115,13 +318,31 @@ function formatNullableNumber(value: number | null | undefined): string {
 
 function getCanueVariableLabel(file: CanueFile | null, variable: string): string {
   if (!file) return variable
-  if (/^pm25dal\d{2}_01$/.test(variable)) return 'Annual mean PM2.5'
-  if (/^lgtnlt\d{2}_01$/.test(variable)) return 'Night-time light intensity'
-  if (/^aqsmk\d{2}_01$/.test(variable)) return 'Wildfire smoke exposure'
+  if (CANUE_EXACT_VARIABLE_LABELS[variable]) return CANUE_EXACT_VARIABLE_LABELS[variable]
 
   const match = variable.match(/_(\d+)$/)
-  const measure = match ? Number(match[1]).toLocaleString(undefined, { minimumIntegerDigits: 2 }) : variable
+  const suffix = match?.[1]
+  const datasetLabel = suffix ? CANUE_SUFFIX_LABELS_BY_DATASET[file.datasetId]?.[suffix] : null
+  if (datasetLabel) return datasetLabel
+
+  if ((file.datasetId === 'nhbld_ava' || file.datasetId === 'nhfac_ava' || file.datasetId === 'nhscn_ava' || file.datasetId === 'nhtsp_ava') && suffix) {
+    const buffers = ['100m', '250m', '300m', '500m', '750m', '1000m']
+    const buffer = buffers[Number(suffix) - 1]
+    if (file.datasetId === 'nhbld_ava' && buffer) return `Building density at ${buffer}`
+    if (file.datasetId === 'nhscn_ava' && buffer) return `Intersections within ${buffer}`
+    if (file.datasetId === 'nhtsp_ava' && buffer) return `Bus stops within ${buffer}`
+    if (file.datasetId === 'nhfac_ava' && buffer) return `Facility richness at ${buffer}`
+    if (file.datasetId === 'nhfac_ava' && Number(suffix) > 6) return `Facility density at ${buffers[Number(suffix) - 7]}`
+  }
+
+  const measure = suffix ? Number(suffix).toLocaleString(undefined, { minimumIntegerDigits: 2 }) : variable
   return `${file.label} measure ${measure}`
+}
+
+function getDefaultCanueVariable(file: CanueFile): string | null {
+  const preferred = CANUE_DEFAULT_VARIABLE_BY_DATASET[file.datasetId]
+  if (preferred && file.variables.includes(preferred)) return preferred
+  return file.variables[0] ?? null
 }
 
 function useJsonManifest<T>(path: string) {
@@ -133,12 +354,20 @@ function useJsonManifest<T>(path: string) {
 
     async function load() {
       try {
-        const response = await fetch(path, { signal: controller.signal })
+        setError(null)
+        const response = await fetch(path, { signal: controller.signal, cache: 'no-store' })
         if (!response.ok) throw new Error(`Failed to fetch ${path}: ${response.status}`)
-        setData(await response.json())
+        const contentType = response.headers.get('content-type') ?? ''
+        const text = await response.text()
+        if (!contentType.includes('json') && text.trimStart().startsWith('<')) {
+          throw new Error(`Expected JSON from ${path}, but received ${contentType || 'unknown content type'}`)
+        }
+        setData(JSON.parse(text) as T)
+        setError(null)
       } catch (err) {
         if ((err as Error).name === 'AbortError') return
-        setError((err as Error).message || 'Unable to load manifest')
+        setData(null)
+        setError((err as Error).message || `Unable to load ${path}`)
       }
     }
 
@@ -173,69 +402,13 @@ function splitCsvLine(line: string): string[] {
   return values
 }
 
-function geometryBbox(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon): [number, number, number, number] {
-  let minLng = Infinity
-  let minLat = Infinity
-  let maxLng = -Infinity
-  let maxLat = -Infinity
-
-  const visit = (coordinates: GeoJSON.Position[]) => {
-    for (const coordinate of coordinates) {
-      const [lng, lat] = coordinate
-      minLng = Math.min(minLng, lng)
-      minLat = Math.min(minLat, lat)
-      maxLng = Math.max(maxLng, lng)
-      maxLat = Math.max(maxLat, lat)
-    }
-  }
-
-  if (geometry.type === 'Polygon') {
-    geometry.coordinates.forEach(visit)
-  } else {
-    geometry.coordinates.forEach((polygon) => polygon.forEach(visit))
-  }
-
-  return [minLng, minLat, maxLng, maxLat]
-}
-
-function pointInRing(lng: number, lat: number, ring: GeoJSON.Position[]): boolean {
-  let inside = false
-  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
-    const [currentLng, currentLat] = ring[index]
-    const [previousLng, previousLat] = ring[previous]
-    const intersects = ((currentLat > lat) !== (previousLat > lat))
-      && (lng < ((previousLng - currentLng) * (lat - currentLat)) / (previousLat - currentLat) + currentLng)
-    if (intersects) inside = !inside
-  }
-  return inside
-}
-
-function pointInPolygonCoordinates(lng: number, lat: number, polygon: GeoJSON.Position[][]): boolean {
-  if (!pointInRing(lng, lat, polygon[0] ?? [])) return false
-  return !polygon.slice(1).some((ring) => pointInRing(lng, lat, ring))
-}
-
-function pointInGeometry(lng: number, lat: number, geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon): boolean {
-  if (geometry.type === 'Polygon') return pointInPolygonCoordinates(lng, lat, geometry.coordinates)
-  return geometry.coordinates.some((polygon) => pointInPolygonCoordinates(lng, lat, polygon))
-}
-
-function buildBoundaryIndex(boundaries: BoundaryFeatureCollection): BoundaryIndexEntry[] {
-  return boundaries.features.map((feature, index) => ({
+function buildBoundaryIndex(boundaries: BoundaryFeatureCollection, config: BoundaryLevelConfig): BoundaryIndexEntry[] {
+  return boundaries.features.filter((feature) => feature.geometry).map((feature, index) => ({
     feature,
-    bbox: geometryBbox(feature.geometry),
-    id: String(feature.properties?.CMNTY_HLTH_SERV_AREA_CODE ?? feature.id ?? index),
-    name: String(feature.properties?.CMNTY_HLTH_SERV_AREA_NAME ?? feature.properties?.name ?? feature.id ?? index),
+    bbox: [0, 0, 0, 0],
+    id: String(feature.properties?.[config.idField] ?? feature.id ?? index),
+    name: String(feature.properties?.[config.nameField] ?? feature.properties?.name ?? feature.id ?? index),
   }))
-}
-
-function findBoundary(boundaryIndex: BoundaryIndexEntry[], longitude: number, latitude: number): BoundaryIndexEntry | null {
-  for (const boundary of boundaryIndex) {
-    const [minLng, minLat, maxLng, maxLat] = boundary.bbox
-    if (longitude < minLng || longitude > maxLng || latitude < minLat || latitude > maxLat) continue
-    if (pointInGeometry(longitude, latitude, boundary.feature.geometry)) return boundary
-  }
-  return null
 }
 
 async function fetchGzipText(path: string, signal: AbortSignal): Promise<string> {
@@ -246,7 +419,7 @@ async function fetchGzipText(path: string, signal: AbortSignal): Promise<string>
     DecompressionStream?: new(format: 'gzip') => TransformStream<Uint8Array, Uint8Array>
   }).DecompressionStream
 
-  if (!path.endsWith('.gz') || !response.body || !DecompressionStreamCtor) {
+  if (response.headers.get('content-encoding') === 'gzip' || !path.endsWith('.gz') || !response.body || !DecompressionStreamCtor) {
     return response.text()
   }
 
@@ -258,6 +431,8 @@ function useCanueBoundaryData(
   file: CanueFile | null,
   variable: string | null,
   boundaries: BoundaryFeatureCollection | null,
+  boundaryLevel: CanueBoundaryLevel,
+  membership: CanuePostalMembership | null,
 ): CanueBoundaryResult {
   const [result, setResult] = useState<CanueBoundaryResult>({
     data: { type: 'FeatureCollection', features: [] },
@@ -270,7 +445,7 @@ function useCanueBoundaryData(
   })
 
   useEffect(() => {
-    if (!file?.output || !variable || !boundaries) {
+    if (!file?.output || !variable || !boundaries || !membership) {
       setResult({
         data: { type: 'FeatureCollection', features: [] },
         loading: false,
@@ -286,6 +461,9 @@ function useCanueBoundaryData(
     const controller = new AbortController()
     const activeFile = file
     const activeBoundaries = boundaries
+    const activeMembership = membership
+    const activeBoundaryLevel = boundaryLevel
+    const boundaryConfig = CANUE_BOUNDARY_CONFIG[boundaryLevel]
     const output = file.output
     const activeVariable = variable
 
@@ -294,32 +472,35 @@ function useCanueBoundaryData(
 
       try {
         const text = await fetchGzipText(output, controller.signal)
-        const boundaryIndex = buildBoundaryIndex(activeBoundaries)
+        const usableBoundaries: BoundaryFeatureCollection = {
+          type: 'FeatureCollection',
+          features: activeBoundaries.features.filter((feature) => feature.geometry),
+        }
+        const boundaryIndex = buildBoundaryIndex(usableBoundaries, boundaryConfig)
         const buckets = new Map(boundaryIndex.map((boundary) => [
           boundary.id,
           { boundary, rowCount: 0, sum: 0, count: 0, min: null as number | null, max: null as number | null },
         ]))
+        const membershipByPostalCode = new Map(
+          activeMembership.records.map((record) => [record.postalcode, record.boundaries[activeBoundaryLevel] ?? '']),
+        )
         const lines = text.split(/\r?\n/)
         const headers = splitCsvLine(lines[0] ?? '')
-        const latitudeIndex = headers.indexOf('latitude')
-        const longitudeIndex = headers.indexOf('longitude')
+        const postalIndex = headers.indexOf('postalcode')
         const variableIndex = headers.indexOf(activeVariable)
         let matchedRowCount = 0
 
-        if (latitudeIndex < 0 || longitudeIndex < 0 || variableIndex < 0) {
-          throw new Error(`CANUE file is missing latitude, longitude, or ${activeVariable}`)
+        if (postalIndex < 0 || variableIndex < 0) {
+          throw new Error(`CANUE file is missing postalcode or ${activeVariable}`)
         }
 
         for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
           const line = lines[lineIndex]
           if (!line) continue
           const values = splitCsvLine(line)
-          const latitude = Number(values[latitudeIndex])
-          const longitude = Number(values[longitudeIndex])
-          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue
-          const boundary = findBoundary(boundaryIndex, longitude, latitude)
-          if (!boundary) continue
-          const bucket = buckets.get(boundary.id)
+          const boundaryId = membershipByPostalCode.get(String(values[postalIndex] || '').replace(/\s+/g, '').toUpperCase())
+          if (!boundaryId) continue
+          const bucket = buckets.get(boundaryId)
           if (!bucket) continue
           bucket.rowCount += 1
           matchedRowCount += 1
@@ -336,7 +517,7 @@ function useCanueBoundaryData(
         let maxValue: number | null = null
         let validBoundaryCount = 0
 
-        const features = activeBoundaries.features.map((feature, index) => {
+        const features = usableBoundaries.features.map((feature, index) => {
           const boundary = boundaryIndex[index]
           const bucket = buckets.get(boundary.id)
           const value = bucket && bucket.count > 0 ? bucket.sum / bucket.count : null
@@ -399,7 +580,7 @@ function useCanueBoundaryData(
 
     void load()
     return () => controller.abort()
-  }, [boundaries, file, variable])
+  }, [boundaries, boundaryLevel, file, membership, variable])
 
   return result
 }
@@ -408,7 +589,7 @@ export default function MiscDataSection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [activeTab, setActiveTab] = useState<MiscDataTab>('canue')
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
-  const [canueBoundarySource, setCanueBoundarySource] = useState<CanueBoundarySource>('health')
+  const [canueBoundarySource, setCanueBoundarySource] = useState<CanueBoundarySource>('bcHealth')
   const [canueBoundaryLevel, setCanueBoundaryLevel] = useState<CanueBoundaryLevel>('chsa')
   const [showCanueBoundaries, setShowCanueBoundaries] = useState(true)
   const [selectedCanueFileKey, setSelectedCanueFileKey] = useState<string | null>(null)
@@ -417,7 +598,9 @@ export default function MiscDataSection() {
   const { trees, forests, facilities, loading, error } = useHeatShadeData(true)
   const heatShadeManifest = useJsonManifest<HeatShadeManifest>('/data/heat-shade/manifest.json')
   const canueManifest = useJsonManifest<CanueManifest>('/data/canue/bc/annual-gzip/manifest.json')
-  const chsaBoundaries = useJsonManifest<BoundaryFeatureCollection>('/data/boundaries/BCMoH/simplified/community_health_service_areas.json')
+  const canueMembership = useJsonManifest<CanuePostalMembership>('/data/canue/bc/postal-boundary-membership.json')
+  const canueBoundaryConfig = CANUE_BOUNDARY_CONFIG[canueBoundaryLevel]
+  const canueBoundaries = useJsonManifest<BoundaryFeatureCollection>(canueBoundaryConfig.path)
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -437,6 +620,11 @@ export default function MiscDataSection() {
   const visibleFacilities = useMemo(() => facilities.slice(0, 350), [facilities])
 
   const canueFiles = canueManifest.data?.files ?? []
+  const canueBoundaryLevelOptions = canueBoundarySource === 'bcHealth'
+    ? CANUE_HEALTH_LEVEL_OPTIONS
+    : canueBoundarySource === 'cityPG'
+      ? CANUE_CITY_LEVEL_OPTIONS
+      : CANUE_CENSUS_LEVEL_OPTIONS
   const selectedCanueFile = useMemo(() => {
     if (!canueFiles.length) return null
     if (selectedCanueFileKey) {
@@ -445,7 +633,13 @@ export default function MiscDataSection() {
     }
     return canueFiles.find((file) => file.datasetId === 'pm25dale_a') ?? canueFiles[0]
   }, [canueFiles, selectedCanueFileKey])
-  const canueBoundaryData = useCanueBoundaryData(selectedCanueFile, selectedCanueVariable, chsaBoundaries.data)
+  const canueBoundaryData = useCanueBoundaryData(
+    selectedCanueFile,
+    selectedCanueVariable,
+    canueBoundaries.data,
+    canueBoundaryLevel,
+    canueMembership.data,
+  )
   const selectedCanueBoundary = useMemo(() => {
     if (!selectedCanueBoundaryId) return null
     return canueBoundaryData.data.features.find((feature) => {
@@ -490,13 +684,19 @@ export default function MiscDataSection() {
     const fileKey = `${selectedCanueFile.datasetId}-${selectedCanueFile.year}`
     if (selectedCanueFileKey !== fileKey) setSelectedCanueFileKey(fileKey)
     if (!selectedCanueVariable || !selectedCanueFile.variables.includes(selectedCanueVariable)) {
-      setSelectedCanueVariable(selectedCanueFile.variables[0] ?? null)
+      setSelectedCanueVariable(getDefaultCanueVariable(selectedCanueFile))
     }
   }, [selectedCanueFile, selectedCanueFileKey, selectedCanueVariable])
 
   useEffect(() => {
     setSelectedCanueBoundaryId(null)
-  }, [selectedCanueFileKey, selectedCanueVariable])
+  }, [canueBoundaryLevel, selectedCanueFileKey, selectedCanueVariable])
+
+  const handleCanueBoundarySourceChange = (source: CanueBoundarySource) => {
+    setCanueBoundarySource(source)
+    setCanueBoundaryLevel(source === 'bcHealth' ? 'chsa' : source === 'cityPG' ? 'elementarySchoolCatchment' : 'da')
+    setSelectedCanueBoundaryId(null)
+  }
 
   const toggleLayer = (layer: MiscLayerId) => {
     setActiveLayers((current) =>
@@ -590,8 +790,8 @@ export default function MiscDataSection() {
           source={canueBoundarySource}
           sourceOptions={CANUE_BOUNDARY_SOURCE_OPTIONS}
           level={canueBoundaryLevel}
-          levelOptions={CANUE_BOUNDARY_LEVEL_OPTIONS}
-          onSourceChange={setCanueBoundarySource}
+          levelOptions={canueBoundaryLevelOptions}
+          onSourceChange={handleCanueBoundarySourceChange}
           onLevelChange={setCanueBoundaryLevel}
           showPoints={showCanueBoundaries}
           onTogglePoints={() => setShowCanueBoundaries((current) => !current)}
@@ -609,41 +809,38 @@ export default function MiscDataSection() {
             <div className="space-y-3">
               <label className="block text-xs font-medium text-foreground">
                 Dataset
-                <select
+                <AppSelect
                   value={`${selectedCanueFile.datasetId}-${selectedCanueFile.year}`}
-                  onChange={(event) => {
-                    const fileKey = event.target.value
+                  onValueChange={(fileKey) => {
                     const nextFile = canueFiles.find((file) => `${file.datasetId}-${file.year}` === fileKey)
                     setSelectedCanueFileKey(fileKey)
-                    setSelectedCanueVariable(nextFile?.variables[0] ?? null)
+                    setSelectedCanueVariable(nextFile ? getDefaultCanueVariable(nextFile) : null)
                   }}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-                >
-                  {canueFiles.map((file) => (
-                    <option key={`${file.datasetId}-${file.year}`} value={`${file.datasetId}-${file.year}`}>
-                      {file.label} ({file.year})
-                    </option>
-                  ))}
-                </select>
+                  options={canueFiles.map((file) => ({
+                    value: `${file.datasetId}-${file.year}`,
+                    label: `${file.label} (${file.year})`,
+                  }))}
+                  className="mt-1"
+                  triggerClassName="h-8 rounded-md text-xs"
+                />
               </label>
               <label className="block text-xs font-medium text-foreground">
                 Map variable
-                <select
+                <AppSelect
                   value={selectedCanueVariable ?? ''}
-                  onChange={(event) => setSelectedCanueVariable(event.target.value)}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-                >
-                  {selectedCanueFile.variables.map((variable) => (
-                    <option key={variable} value={variable}>
-                      {getCanueVariableLabel(selectedCanueFile, variable)} ({variable})
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setSelectedCanueVariable}
+                  options={selectedCanueFile.variables.map((variable) => ({
+                    value: variable,
+                    label: `${getCanueVariableLabel(selectedCanueFile, variable)} (${variable})`,
+                  }))}
+                  className="mt-1"
+                  triggerClassName="h-8 rounded-md text-xs"
+                />
               </label>
               <div className="grid grid-cols-2 gap-2 text-center">
                 <div className="rounded border border-border p-2">
                   <div className="text-sm font-bold text-foreground">{canueBoundaryData.validBoundaryCount.toLocaleString()}</div>
-                  <div className="text-[10px] text-muted-foreground">boundaries</div>
+                  <div className="text-[10px] text-muted-foreground">with values</div>
                 </div>
                 <div className="rounded border border-border p-2">
                   <div className="text-sm font-bold text-foreground">
@@ -676,7 +873,8 @@ export default function MiscDataSection() {
             </div>
           )}
           {canueManifest.error && <div className="mb-2 text-xs text-red-500">{canueManifest.error}</div>}
-          {chsaBoundaries.error && <div className="mb-2 text-xs text-red-500">{chsaBoundaries.error}</div>}
+          {canueMembership.error && <div className="mb-2 text-xs text-red-500">{canueMembership.error}</div>}
+          {canueBoundaries.error && <div className="mb-2 text-xs text-red-500">{canueBoundaries.error}</div>}
         </div>
         </>
         )}
@@ -795,7 +993,7 @@ export default function MiscDataSection() {
                   <Database className="h-3 w-3" />
                   <span>
                     {showCanueBoundaries
-                      ? `${canueBoundaryData.validBoundaryCount.toLocaleString()} CHSA boundaries`
+                      ? `${canueBoundaryData.validBoundaryCount.toLocaleString()} ${canueBoundaryConfig.label} boundaries`
                       : 'Boundaries hidden'}
                   </span>
                 </div>
