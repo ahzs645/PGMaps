@@ -1,0 +1,432 @@
+{
+  "generatedAt": "2026-05-06T14:16:24.466Z",
+  "source": "/Users/ahmadjalil/Library/CloudStorage/GoogleDrive-ahzs645@gmail.com/My Drive/University/Research/Grad/Data/Canue",
+  "province": "BC",
+  "mode": "latest-year-per-dataset",
+  "datasets": [
+    {
+      "id": "pm-2-5",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "sourceArchive": "Annual/Air Quality/Pm 2.5/pm25dale_a_2024-11-28_12-33-57_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/pm25dale_a_2021_bc.csv"
+      ]
+    },
+    {
+      "id": "smoke-exposure-v2",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "sourceArchive": "Annual/Air Quality/Smoke Exposure v2/aqsmk_avb_2024-11-28_13-33-25_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/aqsmk_avb_2022_bc.csv"
+      ]
+    },
+    {
+      "id": "active-living-environments",
+      "label": "Active Living Environments",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Active Living Environments/ale_a_2024-11-27_13-30-34_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/ale_a_2016_bc.csv"
+      ]
+    },
+    {
+      "id": "bike-comfort",
+      "label": "Bike comfort",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Bike comfort/nhbic_ava_2024-11-27_13-33-18_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/nhbic_ava_2021_bc.csv"
+      ]
+    },
+    {
+      "id": "building-density",
+      "label": "Building Density",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Building Density/nhbld_ava_2024-11-27_13-31-13_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/nhbld_ava_2019_bc.csv"
+      ]
+    },
+    {
+      "id": "facility-index",
+      "label": "Facility Index",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Facility Index/nhfac_ava_2024-11-27_13-34-59_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/nhfac_ava_2019_bc.csv"
+      ]
+    },
+    {
+      "id": "night-time-light",
+      "label": "Night time light",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Night time light/lgtnlt_a_2024-11-27_13-36-06_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/lgtnlt_a_2013_bc.csv"
+      ]
+    },
+    {
+      "id": "proximity-stat-can",
+      "label": "Proximity Stat Can",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Proximity Stat Can/nhpmd_ann_2024-11-27_13-37-52_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/nhpmd_ann_2019_bc.csv"
+      ]
+    },
+    {
+      "id": "proximity-to-roads",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Proximity to Roads/dtr_a_2024-11-27_13-44-18_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/dtr_a_2018_bc.csv"
+      ]
+    },
+    {
+      "id": "public-transport",
+      "label": "Public Transport",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Public Transport/nhtsp_ava_2024-11-27_13-53-10_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/nhtsp_ava_2019_bc.csv"
+      ]
+    },
+    {
+      "id": "spatial-accessibility",
+      "label": "Spatial Accessibility",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Spatial Accessibility/nhacs_ava_2024-11-27_13-54-21_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/nhacs_ava_2021_bc.csv"
+      ]
+    },
+    {
+      "id": "street-connectivity",
+      "label": "Street Connectivity",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Street Connectivity/nhscn_ava_2024-11-27_13-55-17_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/nhscn_ava_2019_bc.csv"
+      ]
+    },
+    {
+      "id": "urban-sprawl",
+      "label": "Urban Sprawl",
+      "category": "Neighbourhood",
+      "sourceArchive": "Annual/Neighbourhood/Urban Sprawl/nhspw_ava_2024-11-27_13-56-31_annual.zip",
+      "files": [
+        "/data/canue/bc/annual/nhspw_ava_2016_bc.csv"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2021,
+      "sourceMember": "pm25dale_a_21.csv",
+      "output": "/data/canue/bc/annual/pm25dale_a_2021_bc.csv",
+      "rowCount": 120412,
+      "coordinateCount": 120412,
+      "variables": [
+        "pm25dal21_01"
+      ]
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2022,
+      "sourceMember": "aqsmk_avb_22.csv",
+      "output": "/data/canue/bc/annual/aqsmk_avb_2022_bc.csv",
+      "rowCount": 120776,
+      "coordinateCount": 120776,
+      "variables": [
+        "aqsmk22_01",
+        "aqsmk22_02",
+        "aqsmk22_03",
+        "aqsmk22_04",
+        "aqsmk22_05"
+      ]
+    },
+    {
+      "datasetId": "ale_a",
+      "label": "Active Living Environments",
+      "category": "Neighbourhood",
+      "year": 2016,
+      "sourceMember": "ale_a_16.csv",
+      "output": "/data/canue/bc/annual/ale_a_2016_bc.csv",
+      "rowCount": 117649,
+      "coordinateCount": 117649,
+      "variables": [
+        "ale16_01",
+        "ale16_02",
+        "ale16_03",
+        "ale16_04",
+        "ale16_05",
+        "ale16_06",
+        "ale16_07",
+        "ale16_08",
+        "ale16_09",
+        "ale16_10",
+        "ale16_11",
+        "ale16_12",
+        "ale16_13"
+      ]
+    },
+    {
+      "datasetId": "nhbic_ava",
+      "label": "Bike comfort",
+      "category": "Neighbourhood",
+      "year": 2021,
+      "sourceMember": "nhbic_ava_21.csv",
+      "output": "/data/canue/bc/annual/nhbic_ava_2021_bc.csv",
+      "rowCount": 120452,
+      "coordinateCount": 120412,
+      "variables": [
+        "nhbic21_01",
+        "nhbic21_02",
+        "nhbic21_03",
+        "nhbic21_04",
+        "nhbic21_05",
+        "nhbic21_06",
+        "nhbic21_07",
+        "nhbic21_08",
+        "nhbic21_09",
+        "nhbic21_10"
+      ]
+    },
+    {
+      "datasetId": "nhbld_ava",
+      "label": "Building Density",
+      "category": "Neighbourhood",
+      "year": 2019,
+      "sourceMember": "nhbld_ava_19.csv",
+      "output": "/data/canue/bc/annual/nhbld_ava_2019_bc.csv",
+      "rowCount": 119578,
+      "coordinateCount": 119578,
+      "variables": [
+        "nhbld19_01",
+        "nhbld19_02",
+        "nhbld19_03",
+        "nhbld19_04",
+        "nhbld19_05",
+        "nhbld19_06"
+      ]
+    },
+    {
+      "datasetId": "nhfac_ava",
+      "label": "Facility Index",
+      "category": "Neighbourhood",
+      "year": 2019,
+      "sourceMember": "nhfac_ava_19.csv",
+      "output": "/data/canue/bc/annual/nhfac_ava_2019_bc.csv",
+      "rowCount": 119578,
+      "coordinateCount": 119578,
+      "variables": [
+        "nhfac19_01",
+        "nhfac19_02",
+        "nhfac19_03",
+        "nhfac19_04",
+        "nhfac19_05",
+        "nhfac19_06",
+        "nhfac19_07",
+        "nhfac19_08",
+        "nhfac19_09",
+        "nhfac19_10",
+        "nhfac19_11",
+        "nhfac19_12"
+      ]
+    },
+    {
+      "datasetId": "lgtnlt_a",
+      "label": "Night time light",
+      "category": "Neighbourhood",
+      "year": 2013,
+      "sourceMember": "lgtnlt_a_13.csv",
+      "output": "/data/canue/bc/annual/lgtnlt_a_2013_bc.csv",
+      "rowCount": 116734,
+      "coordinateCount": 116734,
+      "variables": [
+        "lgtnlt13_01"
+      ]
+    },
+    {
+      "datasetId": "nhpmd_ann",
+      "label": "Proximity Stat Can",
+      "category": "Neighbourhood",
+      "year": 2019,
+      "sourceMember": "nhpmd_ann_19.csv",
+      "output": "/data/canue/bc/annual/nhpmd_ann_2019_bc.csv",
+      "rowCount": 119578,
+      "coordinateCount": 119578,
+      "variables": [
+        "nhpmd19_01",
+        "nhpmd19_02",
+        "nhpmd19_03",
+        "nhpmd19_04",
+        "nhpmd19_05",
+        "nhpmd19_06",
+        "nhpmd19_07",
+        "nhpmd19_08",
+        "nhpmd19_09",
+        "nhpmd19_10",
+        "nhpmd19_11",
+        "nhpmd19_12",
+        "nhpmd19_13",
+        "nhpmd19_14",
+        "nhpmd19_15",
+        "nhpmd19_16",
+        "nhpmd19_17",
+        "nhpmd19_18",
+        "nhpmd19_19",
+        "nhpmd19_20",
+        "nhpmd19_21",
+        "nhpmd19_22",
+        "nhpmd19_23",
+        "nhpmd19_24"
+      ]
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2018,
+      "sourceMember": "dtr_a_18.csv",
+      "output": "/data/canue/bc/annual/dtr_a_2018_bc.csv",
+      "rowCount": 118971,
+      "coordinateCount": 118971,
+      "variables": [
+        "dtr18_01",
+        "dtr18_02",
+        "dtr18_03",
+        "dtr18_04",
+        "dtr18_05"
+      ]
+    },
+    {
+      "datasetId": "nhtsp_ava",
+      "label": "Public Transport",
+      "category": "Neighbourhood",
+      "year": 2019,
+      "sourceMember": "nhtsp_ava_19.csv",
+      "output": "/data/canue/bc/annual/nhtsp_ava_2019_bc.csv",
+      "rowCount": 119578,
+      "coordinateCount": 119578,
+      "variables": [
+        "nhtsp19_01",
+        "nhtsp19_02",
+        "nhtsp19_03",
+        "nhtsp19_04",
+        "nhtsp19_05",
+        "nhtsp19_06"
+      ]
+    },
+    {
+      "datasetId": "nhacs_ava",
+      "label": "Spatial Accessibility",
+      "category": "Neighbourhood",
+      "year": 2021,
+      "sourceMember": "nhacs_ava_21.csv",
+      "output": "/data/canue/bc/annual/nhacs_ava_2021_bc.csv",
+      "rowCount": 120412,
+      "coordinateCount": 120412,
+      "variables": [
+        "nhacs21_01",
+        "nhacs21_02",
+        "nhacs21_03",
+        "nhacs21_04",
+        "nhacs21_05",
+        "nhacs21_06",
+        "nhacs21_07",
+        "nhacs21_08",
+        "nhacs21_09",
+        "nhacs21_10",
+        "nhacs21_11",
+        "nhacs21_12",
+        "nhacs21_13",
+        "nhacs21_14",
+        "nhacs21_15",
+        "nhacs21_16",
+        "nhacs21_17",
+        "nhacs21_18",
+        "nhacs21_19",
+        "nhacs21_20",
+        "nhacs21_21",
+        "nhacs21_22",
+        "nhacs21_23",
+        "nhacs21_24",
+        "nhacs21_25",
+        "nhacs21_26",
+        "nhacs21_27",
+        "nhacs21_28",
+        "nhacs21_29",
+        "nhacs21_30",
+        "nhacs21_31",
+        "nhacs21_32",
+        "nhacs21_33",
+        "nhacs21_34",
+        "nhacs21_35",
+        "nhacs21_36",
+        "nhacs21_37",
+        "nhacs21_38",
+        "nhacs21_39",
+        "nhacs21_40",
+        "nhacs21_41",
+        "nhacs21_42",
+        "nhacs21_43",
+        "nhacs21_44",
+        "nhacs21_45",
+        "nhacs21_46",
+        "nhacs21_47",
+        "nhacs21_48",
+        "nhacs21_49",
+        "nhacs21_50",
+        "nhacs21_51",
+        "nhacs21_52",
+        "nhacs21_53",
+        "nhacs21_54",
+        "nhacs21_55",
+        "nhacs21_56"
+      ]
+    },
+    {
+      "datasetId": "nhscn_ava",
+      "label": "Street Connectivity",
+      "category": "Neighbourhood",
+      "year": 2019,
+      "sourceMember": "nhscn_ava_19.csv",
+      "output": "/data/canue/bc/annual/nhscn_ava_2019_bc.csv",
+      "rowCount": 119578,
+      "coordinateCount": 119578,
+      "variables": [
+        "nhscn19_01",
+        "nhscn19_02",
+        "nhscn19_03",
+        "nhscn19_04",
+        "nhscn19_05",
+        "nhscn19_06"
+      ]
+    },
+    {
+      "datasetId": "nhspw_ava",
+      "label": "Urban Sprawl",
+      "category": "Neighbourhood",
+      "year": 2016,
+      "sourceMember": "nhspw_ava_16.csv",
+      "output": "/data/canue/bc/annual/nhspw_ava_2016_bc.csv",
+      "rowCount": 117649,
+      "coordinateCount": 117649,
+      "variables": [
+        "nhspw16_01",
+        "nhspw16_02",
+        "nhspw16_03",
+        "nhspw16_04"
+      ]
+    }
+  ]
+}

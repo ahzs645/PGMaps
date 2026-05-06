@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin } from 'lucide-react'
+import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin, Database } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SearchItem {
@@ -65,10 +65,10 @@ async function buildIndex(): Promise<SearchItem[]> {
             label: name,
             sublabel: f.properties?.CLASSIFICATION || 'Park',
             section: 'Parks & Trails',
-            sectionPath: '/parks',
+            sectionPath: '/pgdata',
             icon: Trees,
             iconColor: 'text-green-500',
-            params: { q: name },
+            params: { tab: 'parks', q: name },
           })
         }
       }
@@ -78,9 +78,10 @@ async function buildIndex(): Promise<SearchItem[]> {
     const sections: SearchItem[] = [
       { id: 'nav-foodmap', label: 'Food Safety Map', sublabel: 'Restaurant health inspections', section: 'Maps', sectionPath: '/foodmap', icon: UtensilsCrossed, iconColor: 'text-orange-500' },
       { id: 'nav-airquality', label: 'Air Quality Map', sublabel: 'Air monitoring stations', section: 'Maps', sectionPath: '/airquality', icon: Wind, iconColor: 'text-sky-500' },
-      { id: 'nav-parks', label: 'Parks & Trails', sublabel: 'Parks, trails, and amenities', section: 'Maps', sectionPath: '/parks', icon: Trees, iconColor: 'text-green-500' },
+      { id: 'nav-parks', label: 'Parks & Trails', sublabel: 'Parks, trails, and amenities', section: 'Maps', sectionPath: '/pgdata', icon: Trees, iconColor: 'text-green-500', params: { tab: 'parks' } },
       { id: 'nav-census', label: 'Census Data', sublabel: 'Choropleth census patterns', section: 'Maps', sectionPath: '/census', icon: BarChart3, iconColor: 'text-amber-600' },
-      { id: 'nav-pgdata', label: 'PG Data (Crime)', sublabel: 'Property crime incidents', section: 'Maps', sectionPath: '/pgdata', icon: ShieldAlert, iconColor: 'text-red-500' },
+      { id: 'nav-pgdata', label: 'PG Data', sublabel: 'City PG crime, parks, trails, and amenities', section: 'Maps', sectionPath: '/pgdata', icon: ShieldAlert, iconColor: 'text-red-500' },
+      { id: 'nav-misc', label: 'MISC Data', sublabel: 'Canopy, heat-shade, CANUE, and other non-City PG datasets', section: 'Maps', sectionPath: '/misc', icon: Database, iconColor: 'text-violet-600' },
       { id: 'nav-scorebuilder', label: 'Index Lab', sublabel: 'Transparent weighted civic indices', section: 'Maps', sectionPath: '/score-builder', icon: MapPin, iconColor: 'text-cyan-600' },
     ]
     items.push(...sections)

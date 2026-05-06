@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, ChevronUp, Copy, Download } from 'lucide-react'
+import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { cn } from '@/lib/utils'
 import { Slider } from '@/components/ui/slider'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
@@ -581,61 +582,27 @@ export function ScoreBuilderSidebar({
         >
           {renderSectionHeader('setup')}
           {expandedSections.setup && (
-            <div className="space-y-3 px-4 pb-4">
-              <div>
-                <label className="mb-2 block text-xs font-medium text-muted-foreground">Boundary source</label>
-                <div className="space-y-1.5">
-                  {BOUNDARY_SOURCE_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => onBoundarySourceChange(option.value)}
-                      className={cn(
-                        'w-full rounded-md border px-3 py-2 text-left transition-colors',
-                        boundarySource === option.value
-                          ? 'border-cyan-500/70 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/35 dark:text-cyan-100'
-                          : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      <div className="text-xs font-medium">{option.label}</div>
-                      <div className="text-[10px] text-muted-foreground">{option.description}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div className="pb-4">
+              <StudyAreaSelector<BoundarySource, RegionLevel>
+                source={boundarySource}
+                sourceOptions={BOUNDARY_SOURCE_OPTIONS}
+                level={selectedRegionLevel}
+                levelOptions={boundaryLevelOptions}
+                onSourceChange={(source) => {
+                  onBoundarySourceChange(source)
+                  onClearRegionSelection()
+                }}
+                onLevelChange={(level) => {
+                  onRegionLevelChange(level)
+                  onClearRegionSelection()
+                }}
+                showPoints={showPoints}
+                onTogglePoints={onTogglePoints}
+                levelSelectId="score-builder-level"
+                dataPrefix="score-builder"
+              />
 
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground" htmlFor="score-builder-level">
-                  Boundary level
-                </label>
-                <button
-                  onClick={onTogglePoints}
-                  className={cn(
-                    'rounded border px-2 py-1 text-xs transition-colors',
-                    showPoints
-                      ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                      : 'border-input text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {showPoints ? 'Hide points' : 'Show points'}
-                </button>
-              </div>
-
-              <select
-                id="score-builder-level"
-                data-score-builder-level-select="true"
-                value={selectedRegionLevel}
-                onChange={(event) => onRegionLevelChange(event.target.value as RegionLevel)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              >
-                {boundaryLevelOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="mx-4 mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-md bg-muted/40 p-2">
                   <div className="text-base font-semibold text-foreground">{regions.length}</div>
                   <div className="text-[10px] text-muted-foreground">regions</div>

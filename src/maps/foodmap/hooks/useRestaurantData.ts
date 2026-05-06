@@ -11,9 +11,10 @@ export function useRestaurantData() {
     setError(null)
 
     try {
-      const [response, clsResponse] = await Promise.all([
+      const [response, clsResponse, locationResponse] = await Promise.all([
         fetch(`${import.meta.env.BASE_URL}data/restaurants.json`),
-        fetch(`${import.meta.env.BASE_URL}data/restaurant-classifications.json`)
+        fetch(`${import.meta.env.BASE_URL}data/restaurant-classifications.json`),
+        fetch(`${import.meta.env.BASE_URL}data/restaurant-location-overrides.json`)
       ])
       if (!response.ok) {
         throw new Error(`Failed to load data: ${response.status}`)
@@ -22,11 +23,19 @@ export function useRestaurantData() {
       const classifications: Record<string, EstablishmentType> = clsResponse.ok
         ? await clsResponse.json()
         : {}
+      const locationOverrides: Record<string, { latitude: number; longitude: number }> = locationResponse.ok
+        ? await locationResponse.json()
+        : {}
 
-      const merged = data.map((r: Restaurant) => ({
-        ...r,
-        establishment_type: classifications[r.name] || r.facility_type || 'Restaurant'
-      }))
+      const merged = data.map((r: Restaurant) => {
+        const locationOverride = locationOverrides[r.name]
+        return {
+          ...r,
+          latitude: locationOverride?.latitude ?? r.latitude,
+          longitude: locationOverride?.longitude ?? r.longitude,
+          establishment_type: classifications[r.name] || r.facility_type || 'Restaurant'
+        }
+      })
       setRestaurants(merged)
     } catch (err) {
       setError((err as Error).message)

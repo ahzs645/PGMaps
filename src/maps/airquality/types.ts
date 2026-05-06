@@ -10,7 +10,30 @@ export interface AirMonitor {
   parameters: string[]
   source?: string | null
   dateObserved?: string | null
+  pm25Recent?: number | null
+  metadata?: {
+    temperature?: number | null
+    humidity?: number | null
+    pressure?: number | null
+    [key: string]: number | string | null | undefined
+  } | null
 }
+
+export type AirQualityBasemap = 'light' | 'topographic' | 'dark'
+
+export type AirQualityCorrectionModel =
+  | 'rawPurpleAir'
+  | 'epaBarkjohn'
+  | 'nilsonLocal'
+  | 'wildfireSmoke'
+  | 'siteSpecific'
+
+export type AirQualityObservationLayer =
+  | 'rawPA'
+  | 'correctedPA'
+  | 'rawEGG'
+  | 'correctedEGG'
+  | 'agencyFEM'
 
 export type BoundarySource = 'bcHealth' | 'census' | 'cityPG'
 export type BoundaryLevel = 'healthAuthority' | 'hsda' | 'lha' | 'chsa'

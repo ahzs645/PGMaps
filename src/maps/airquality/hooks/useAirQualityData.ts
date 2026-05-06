@@ -19,6 +19,13 @@ interface RawMonitor {
   source?: string
   dateObserved?: string
   date?: string
+  pm25Recent?: number | string | null
+  metadata?: {
+    temperature?: number | string | null
+    humidity?: number | string | null
+    pressure?: number | string | null
+    [key: string]: number | string | null | undefined
+  } | null
 }
 
 function normalizeParameters(value: RawMonitor['parameters']): string[] {
@@ -78,8 +85,23 @@ function normalizeMonitor(row: RawMonitor): AirMonitor | null {
     status: row.status || null,
     parameters: normalizeParameters(row.parameters),
     source: row.source || null,
-    dateObserved: row.dateObserved || row.date || null
+    dateObserved: row.dateObserved || row.date || null,
+    pm25Recent: normalizeNumericValue(row.pm25Recent),
+    metadata: row.metadata
+      ? {
+          ...row.metadata,
+          temperature: normalizeNumericValue(row.metadata.temperature),
+          humidity: normalizeNumericValue(row.metadata.humidity),
+          pressure: normalizeNumericValue(row.metadata.pressure)
+        }
+      : null
   }
+}
+
+function normalizeNumericValue(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const numeric = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(numeric) ? numeric : null
 }
 
 export function useAirQualityData() {

@@ -2,13 +2,13 @@ import { Link } from 'react-router-dom'
 import {
   UtensilsCrossed,
   Wind,
-  Trees,
   BarChart3,
   Calculator,
   Calendar,
   Layers,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Database
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -96,14 +96,6 @@ const mapProjects: MapCardProps[] = [
     status: 'available',
   },
   {
-    title: 'Parks & Trails',
-    description: 'Discover parks, trails, and recreational areas. Find amenities, trail difficulty, and accessibility info.',
-    icon: Trees,
-    href: '/parks',
-    color: 'bg-green-500',
-    status: 'available',
-  },
-  {
     title: 'Census Data',
     description: 'Explore dissemination-area census patterns in Prince George with a choropleth map and sortable neighborhood metrics.',
     icon: BarChart3,
@@ -121,10 +113,18 @@ const mapProjects: MapCardProps[] = [
   },
   {
     title: 'PG Data',
-    description: 'Explore City of Prince George open datasets. View property crime incidents with filters by type, year, and community.',
+    description: 'Explore City of Prince George open datasets, including property crime, parks, trails, and recreation amenities.',
     icon: ShieldAlert,
     href: '/pgdata',
     color: 'bg-red-500',
+    status: 'available',
+  },
+  {
+    title: 'MISC Data',
+    description: 'Explore datasets that do not come from the City PG data site, including canopy proxies, heat-shade layers, CANUE, and remote sensing metadata.',
+    icon: Database,
+    href: '/misc',
+    color: 'bg-violet-600',
     status: 'available',
   },
   {

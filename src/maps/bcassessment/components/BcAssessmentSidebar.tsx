@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { cn } from '@/lib/utils'
 import {
   ALL_CATEGORIES,
@@ -35,6 +36,24 @@ interface BcAssessmentSidebarProps {
   onPropertyClick: (property: Property) => void
   onClearSelection: () => void
 }
+
+const REGION_SOURCE_OPTIONS: Array<{
+  value: 'census'
+  label: string
+  description: string
+}> = [
+  {
+    value: 'census',
+    label: 'Census Boundaries',
+    description: 'CT -> DA -> DB'
+  }
+]
+
+const REGION_LEVEL_OPTIONS: Array<{ value: Exclude<BoundaryLevel, 'none'>; label: string }> = [
+  { value: 'ct', label: 'Census Tracts' },
+  { value: 'da', label: 'Dissemination Areas' },
+  { value: 'db', label: 'Dissemination Blocks' },
+]
 
 function formatNumber(n: number): string {
   return n.toLocaleString()
@@ -163,6 +182,7 @@ export function BcAssessmentSidebar({
   }, [totalValue, filteredProperties.length])
 
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const activeRegionLevel: Exclude<BoundaryLevel, 'none'> = boundaryLevel === 'none' ? 'ct' : boundaryLevel
 
   const colorMetricLabel =
     COLOR_METRICS.find((m) => m.value === colorMetric)?.label ?? ''
@@ -186,6 +206,20 @@ export function BcAssessmentSidebar({
         <h1 className="text-xl font-bold text-foreground">BC Assessment</h1>
         <p className="text-sm text-muted-foreground">Prince George Property Data</p>
       </div>
+
+      <StudyAreaSelector<'census', Exclude<BoundaryLevel, 'none'>>
+        source="census"
+        sourceOptions={REGION_SOURCE_OPTIONS}
+        level={activeRegionLevel}
+        levelOptions={REGION_LEVEL_OPTIONS}
+        onSourceChange={() => undefined}
+        onLevelChange={(level) => onBoundaryLevelChange(level)}
+        showPoints={boundaryLevel !== 'none'}
+        onTogglePoints={() => onBoundaryLevelChange(boundaryLevel === 'none' ? activeRegionLevel : 'none')}
+        toggleOnLabel="Hide boundaries"
+        toggleOffLabel="Show boundaries"
+        levelSelectId="bc-assessment-study-area-level"
+      />
 
       {/* Stats & Search */}
       <div className="border-b border-border bg-background/95 p-4">

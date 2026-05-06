@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SCORE_METRICS } from '../constants'
@@ -60,6 +61,75 @@ function formatLiftPhrase(row: { weight: number; label: string }): string {
 
 function formatDragPhrase(row: { weight: number; label: string }): string {
   return row.weight < 0 ? `higher ${row.label.toLowerCase()}` : `lower ${row.label.toLowerCase()}`
+}
+
+function csvEscape(value: string | number | null | undefined): string {
+  const text = value == null ? '' : String(value)
+  return `"${text.split('"').join('""')}"`
+}
+
+function downloadTextFile(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
+function createRegionReportCsv({
+  region,
+  weights,
+  methodSettings,
+  contributionRows,
+  componentRows,
+}: {
+  region: ScoredBoundaryRegion
+  weights: ScoreMetricWeightMap
+  methodSettings: ScoreMethodSettings
+  contributionRows: Array<{
+    key: ScoreMetricKey
+    fullLabel: string
+    category: string
+    metricValue: number
+    normalizedValue: number
+    weight: number
+    scoreDelta: number
+    hasData: boolean
+  }>
+  componentRows: Array<{ label: string; score: number; points: number }>
+}): string {
+  const lines = [
+    ['Report', 'PGMaps score-builder region report'],
+    ['Generated', new Date().toLocaleString()],
+    ['Region', region.region.name],
+    ['Code', region.region.code],
+    ['Boundary level', region.region.level],
+    ['Rank', region.rank],
+    ['Score', formatScore(region.score)],
+    ['Data coverage', `${(region.dataCoverageScore * 100).toFixed(0)}%`],
+    ['Normalization', formatNormalizationMethod(methodSettings.normalization)],
+    ['Aggregation', methodSettings.aggregation],
+    ['Disclaimer', 'User-generated local proxy report. This is not the official CDC/ATSDR Environmental Justice Index.'],
+    [],
+    ['Component', 'Sub-score', 'Points'],
+    ...componentRows.map((row) => [row.label, formatScore(row.score), row.points.toFixed(2)]),
+    [],
+    ['Metric', 'Category', 'Weight', 'Value', 'Normalized percentile', 'Score points', 'Has active data'],
+    ...contributionRows.map((row) => [
+      row.fullLabel,
+      METRIC_CATEGORY_LABELS[row.category as keyof typeof METRIC_CATEGORY_LABELS] || row.category,
+      weights[row.key],
+      formatMetricValue(row.key, row.metricValue, true),
+      `${(row.normalizedValue * 100).toFixed(1)}%`,
+      row.scoreDelta.toFixed(2),
+      row.hasData ? 'yes' : 'no',
+    ]),
+  ]
+  return lines.map((line) => line.map(csvEscape).join(',')).join('\n')
 }
 
 export function ScoreBuilderRegionInsightDialog({
@@ -164,6 +234,13 @@ export function ScoreBuilderRegionInsightDialog({
     return groups
   }, [visibleContributionRows])
 
+  const handleDownloadReport = () => {
+    if (!region) return
+    const csv = createRegionReportCsv({ region, weights, methodSettings, contributionRows, componentRows })
+    const slug = region.region.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'region'
+    downloadTextFile(csv, `pgmaps-${slug}-score-report.csv`, 'text/csv')
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -226,6 +303,15 @@ export function ScoreBuilderRegionInsightDialog({
                 </div>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleDownloadReport}
+              className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download region report
+            </button>
 
             {/* Plain-English score summary */}
             {narrative && (

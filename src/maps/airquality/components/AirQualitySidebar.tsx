@@ -1,13 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, House, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { cn } from '@/lib/utils'
 import { getNetworkColor } from '../constants'
+import {
+  calculateCorrectedPm25,
+  formatNumber,
+  formatPm25
+} from '../lib/corrections'
 import type {
   AirMonitor,
+  AirQualityBasemap,
+  AirQualityCorrectionModel,
+  AirQualityObservationLayer,
   BoundarySource,
-  BoundaryRegionRecord,
   RegionLevel,
-  SelectedBoundaryRegion,
   SensorDensityStats
 } from '../types'
 
@@ -19,48 +26,48 @@ interface AirQualitySidebarProps {
   selectedMonitor: AirMonitor | null
   selectedNetworks: string[]
   boundarySource: BoundarySource
-  selectedRegion: SelectedBoundaryRegion | null
   selectedRegionLevel: RegionLevel
   regionLevelOptions: Array<{ value: RegionLevel; label: string }>
-  regionOptions: BoundaryRegionRecord[]
   boundaryLoading: boolean
   boundaryError: string | null
   densityStats: SensorDensityStats | null
   densityScopeLabel: string
   searchQuery: string
   showHeatmap: boolean
+  basemap: AirQualityBasemap
+  correctionModel: AirQualityCorrectionModel
+  observationLayers: AirQualityObservationLayer[]
   loading: boolean
   error: string | null
+  onBasemapChange: (basemap: AirQualityBasemap) => void
+  onCorrectionModelChange: (model: AirQualityCorrectionModel) => void
+  onToggleObservationLayer: (layer: AirQualityObservationLayer) => void
   onBoundarySourceChange: (source: BoundarySource) => void
   onRegionLevelChange: (level: RegionLevel) => void
-  onRegionSelect: (level: RegionLevel, code: string) => void
-  onRegionClear: () => void
   onSearchQueryChange: (query: string) => void
   onToggleHeatmap: () => void
   onToggleNetwork: (network: string) => void
   onSelectAllNetworks: () => void
   onClearNetworks: () => void
-  mapBoundaryPickerEnabled: boolean
-  onMapBoundaryPickerChange: (enabled: boolean) => void
   onMonitorClick: (monitor: AirMonitor) => void
   onClearSelection: () => void
 }
 
 const MAX_VISIBLE_ROWS = 250
-const BOUNDARY_SOURCE_OPTIONS: Array<{
+const REGION_SOURCE_OPTIONS: Array<{
   value: BoundarySource
   label: string
   description: string
 }> = [
   {
     value: 'bcHealth',
-    label: 'Health Authority Boundaries',
-    description: 'Health Authority -> HSDA -> LHA -> CHSA'
+    label: 'CHSA health boundaries',
+    description: 'Community Health Service Areas'
   },
   {
     value: 'census',
-    label: 'Census Subdivision Boundaries',
-    description: 'Census Division -> CSD -> CT -> DA'
+    label: 'Census boundaries',
+    description: 'PG census tract -> dissemination area'
   }
 ]
 
@@ -73,12 +80,6 @@ function formatDensityValue(value: number, count: number): string {
   return `1 per ${(1 / value).toFixed(1)} km²`
 }
 
-function getBoundarySourceLabel(source: BoundarySource): string {
-  return source === 'bcHealth'
-    ? 'Health Authority boundaries'
-    : 'Census Subdivision boundaries'
-}
-
 export function AirQualitySidebar({
   className,
   monitors,
@@ -87,29 +88,24 @@ export function AirQualitySidebar({
   selectedMonitor,
   selectedNetworks,
   boundarySource,
-  selectedRegion,
   selectedRegionLevel,
   regionLevelOptions,
-  regionOptions,
   boundaryLoading,
   boundaryError,
   densityStats,
   densityScopeLabel,
   searchQuery,
   showHeatmap,
+  correctionModel,
   loading,
   error,
   onBoundarySourceChange,
   onRegionLevelChange,
-  onRegionSelect,
-  onRegionClear,
   onSearchQueryChange,
   onToggleHeatmap,
   onToggleNetwork,
   onSelectAllNetworks,
   onClearNetworks,
-  mapBoundaryPickerEnabled,
-  onMapBoundaryPickerChange,
   onMonitorClick,
   onClearSelection
 }: AirQualitySidebarProps) {
@@ -130,36 +126,12 @@ export function AirQualitySidebar({
     return uniqueParameters(selectedMonitor.parameters)
   }, [selectedMonitor])
 
-  const [showRegionBrowser, setShowRegionBrowser] = useState(false)
-  const [regionSearchQuery, setRegionSearchQuery] = useState('')
+  const selectedMonitorCorrection = useMemo(() => {
+    if (!selectedMonitor) return null
+    return calculateCorrectedPm25(selectedMonitor, correctionModel)
+  }, [correctionModel, selectedMonitor])
+
   const [showExpandedNetworks, setShowExpandedNetworks] = useState(false)
-
-  useEffect(() => {
-    if (!showRegionBrowser) {
-      setRegionSearchQuery('')
-      return
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setShowRegionBrowser(false)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [showRegionBrowser])
-
-  const filteredRegionOptions = useMemo(() => {
-    const normalizedQuery = regionSearchQuery.trim().toLowerCase()
-    if (!normalizedQuery) return regionOptions
-    return regionOptions.filter((region) => (
-      region.name.toLowerCase().includes(normalizedQuery) ||
-      String(region.code).toLowerCase().includes(normalizedQuery)
-    ))
-  }, [regionOptions, regionSearchQuery])
 
   return (
     <div
@@ -310,74 +282,24 @@ export function AirQualitySidebar({
           </div>
         </div>
 
-        <div className="border-b border-border bg-background/95 p-4">
-          <div className="mb-3 space-y-1">
-            <p className="text-sm font-medium text-foreground">Select a Region</p>
-            <p className="text-xs text-muted-foreground">Choose an administrative boundary to analyze</p>
+        <StudyAreaSelector<BoundarySource, RegionLevel>
+          source={boundarySource}
+          sourceOptions={REGION_SOURCE_OPTIONS}
+          level={selectedRegionLevel}
+          levelOptions={regionLevelOptions}
+          onSourceChange={onBoundarySourceChange}
+          onLevelChange={onRegionLevelChange}
+          showPoints={!showHeatmap}
+          onTogglePoints={onToggleHeatmap}
+          levelSelectId="air-quality-study-area-level"
+        />
+
+        {(boundaryLoading || boundaryError) && (
+          <div className="border-b border-border bg-background/95 px-4 pb-4 text-xs">
+            {boundaryLoading && <p className="text-muted-foreground">Loading boundaries...</p>}
+            {boundaryError && <p className="text-red-600 dark:text-red-400">{boundaryError}</p>}
           </div>
-
-          <button
-            onClick={() => {
-              setShowRegionBrowser(true)
-              onMapBoundaryPickerChange(false)
-            }}
-            disabled={boundaryLoading}
-            className={cn(
-              'inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors',
-              selectedRegion
-                ? 'border border-input bg-background text-foreground hover:bg-accent'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90',
-              boundaryLoading && 'opacity-60'
-            )}
-          >
-            <House className="mr-2 h-4 w-4" />
-            {boundaryLoading ? 'Loading boundaries...' : selectedRegion ? 'Change Region' : 'Browse Regions'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowRegionBrowser(false)
-              onMapBoundaryPickerChange(!mapBoundaryPickerEnabled)
-            }}
-            className={cn(
-              'mt-2 inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition-colors',
-              mapBoundaryPickerEnabled
-                ? 'border-sky-500 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300'
-                : 'border-input bg-background text-foreground hover:bg-accent'
-            )}
-          >
-            {mapBoundaryPickerEnabled ? 'Stop Map Selection' : 'Choose on Map'}
-          </button>
-
-          {mapBoundaryPickerEnabled && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Boundaries are visible on the map. Click a polygon to select it.
-            </p>
-          )}
-
-          {selectedRegion && (
-            <div className="mt-3 rounded-md bg-muted/50 p-3">
-              <div className="text-xs font-medium text-muted-foreground">Selected Region</div>
-              <div className="mt-1 text-sm font-semibold text-foreground">{selectedRegion.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {selectedRegion.levelLabel} (Code {selectedRegion.code})
-              </div>
-              <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                {getBoundarySourceLabel(selectedRegion.source)}
-              </div>
-              <button
-                onClick={onRegionClear}
-                className="mt-2 text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-              >
-                Clear region
-              </button>
-            </div>
-          )}
-
-          {boundaryError && (
-            <div className="mt-2 text-xs text-red-600 dark:text-red-400">{boundaryError}</div>
-          )}
-        </div>
+        )}
 
         {selectedMonitor && (
           <div className="border-b border-sky-300/60 bg-sky-50 p-4 dark:border-sky-800/60 dark:bg-sky-950/30">
@@ -420,6 +342,36 @@ export function AirQualitySidebar({
                     {parameter}
                   </span>
                 ))}
+              </div>
+            )}
+            {selectedMonitorCorrection && (
+              <div className="mt-3 rounded-md border border-sky-300/70 bg-background/70 p-3 text-xs dark:border-sky-800/70">
+                <div className="mb-2 font-semibold text-sky-900 dark:text-sky-100">
+                  {selectedMonitorCorrection.label}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Raw PM2.5</div>
+                    <div className="font-medium text-foreground">{formatPm25(selectedMonitorCorrection.rawPm25)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Corrected</div>
+                    <div className="font-medium text-foreground">{formatPm25(selectedMonitorCorrection.correctedPm25)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">RH</div>
+                    <div className="font-medium text-foreground">{formatNumber(selectedMonitorCorrection.humidity, '%')}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Uncertainty</div>
+                    <div className="font-medium text-foreground">
+                      {selectedMonitorCorrection.uncertainty === null
+                        ? 'No data'
+                        : `+/- ${selectedMonitorCorrection.uncertainty.toFixed(1)} ug/m3`}
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-2 text-[10px] leading-snug text-muted-foreground">{selectedMonitorCorrection.note}</p>
               </div>
             )}
           </div>
@@ -497,132 +449,6 @@ export function AirQualitySidebar({
           </div>
         )}
       </div>
-
-      {showRegionBrowser && (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowRegionBrowser(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-xl border border-border bg-background shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="border-b border-border px-4 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Select a Region</p>
-                  <p className="text-xs text-muted-foreground">Choose an administrative boundary to analyze</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowRegionBrowser(false)}
-                  className="rounded border border-input p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  aria-label="Close region selector"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div className="space-y-3 p-4">
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-foreground">Boundary Source</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {BOUNDARY_SOURCE_OPTIONS.map((option) => {
-                    const selected = boundarySource === option.value
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => onBoundarySourceChange(option.value)}
-                        className={cn(
-                          'rounded-md border px-3 py-2 text-left transition-colors',
-                          selected
-                            ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
-                            : 'border-input bg-background text-foreground hover:bg-accent'
-                        )}
-                      >
-                        <div className="text-xs font-semibold">{option.label}</div>
-                        <div className="mt-0.5 text-[10px] text-muted-foreground">{option.description}</div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-foreground">Hierarchy Level</p>
-                <select
-                  value={selectedRegionLevel}
-                  onChange={(event) => onRegionLevelChange(event.target.value as RegionLevel)}
-                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  {regionLevelOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <input
-                type="text"
-                value={regionSearchQuery}
-                onChange={(event) => setRegionSearchQuery(event.target.value)}
-                placeholder="Search regions..."
-                className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-
-              <div className="max-h-72 overflow-y-auto rounded-md border border-border">
-                {filteredRegionOptions.slice(0, 400).map((region) => {
-                  const isSelected = (
-                    selectedRegion?.source === boundarySource &&
-                    selectedRegion?.code === String(region.code) &&
-                    selectedRegion?.level === selectedRegionLevel
-                  )
-                  return (
-                    <button
-                      key={`${selectedRegionLevel}:${region.code}`}
-                      onClick={() => {
-                        onRegionSelect(selectedRegionLevel, String(region.code))
-                        setShowRegionBrowser(false)
-                      }}
-                      className={cn(
-                        'w-full border-b border-border px-3 py-2 text-left text-xs last:border-b-0',
-                        isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60 hover:text-foreground'
-                      )}
-                    >
-                      <div className="font-medium">{region.name}</div>
-                      <div className="text-[10px] text-muted-foreground">Code: {region.code}</div>
-                    </button>
-                  )
-                })}
-                {filteredRegionOptions.length === 0 && (
-                  <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                    No matching regions
-                  </div>
-                )}
-              </div>
-
-              {boundaryLoading && (
-                <div className="text-xs text-muted-foreground">Loading boundaries...</div>
-              )}
-
-              {boundaryError && (
-                <div className="text-xs text-red-600 dark:text-red-400">{boundaryError}</div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  onMapBoundaryPickerChange(true)
-                  setShowRegionBrowser(false)
-                }}
-                className="inline-flex w-full items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-              >
-                Choose on map
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

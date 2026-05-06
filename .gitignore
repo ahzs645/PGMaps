@@ -56,3 +56,11 @@ public/data/census/variables/
 
 # Generated BC Assessment data (built from scripts/build-bc-assessment.py)
 public/data/bc-assessment/
+
+# Generated CANUE source extracts stay local; commit compressed app-ready outputs instead.
+public/data/canue/bc/annual/*.csv
+public/data/canue/bc/parquet-experiment/
+
+# HealthSpace scraper debug output
+healthspace_response.html
+healthspace_debug.html

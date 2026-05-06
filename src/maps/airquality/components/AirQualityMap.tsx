@@ -12,8 +12,9 @@ import {
 import bbox from '@turf/bbox'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { getNetworkColor } from '../constants'
+import { calculateCorrectedPm25, formatNumber, formatPm25 } from '../lib/corrections'
 import { AirQualityHeatmapLayer } from './AirQualityHeatmapLayer'
-import type { AirMonitor } from '../types'
+import type { AirMonitor, AirQualityBasemap, AirQualityCorrectionModel } from '../types'
 import type maplibregl from 'maplibre-gl'
 
 interface AirQualityMapProps {
@@ -27,6 +28,8 @@ interface AirQualityMapProps {
   browseBoundariesVisible?: boolean
   selectedBrowseBoundaryCode?: string | null
   showHeatmap: boolean
+  basemap: AirQualityBasemap
+  correctionModel: AirQualityCorrectionModel
   onBoundsChange?: (bounds: AirQualityMapBounds) => void
   onMonitorClick: (monitor: AirMonitor) => void
   onBrowseBoundaryClick?: (feature: { code: string; name: string }) => void
@@ -78,8 +81,27 @@ function isSameLocation(a: AirMonitor, b: AirMonitor): boolean {
   return monitorLocationKey(a) === monitorLocationKey(b)
 }
 
-function SelectedMonitorDetails({ monitor }: { monitor: AirMonitor }) {
+const AIR_QUALITY_MAP_STYLES: Record<AirQualityBasemap, { light: string; dark: string }> = {
+  light: MAP_STYLES,
+  topographic: {
+    light: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+    dark: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
+  },
+  dark: {
+    light: MAP_STYLES.dark,
+    dark: MAP_STYLES.dark
+  }
+}
+
+function SelectedMonitorDetails({
+  monitor,
+  correctionModel
+}: {
+  monitor: AirMonitor
+  correctionModel: AirQualityCorrectionModel
+}) {
   const parameters = uniqueParameters(monitor.parameters)
+  const correction = calculateCorrectedPm25(monitor, correctionModel)
 
   return (
     <div>
@@ -111,6 +133,21 @@ function SelectedMonitorDetails({ monitor }: { monitor: AirMonitor }) {
           ))}
         </div>
       )}
+      <div className="mt-3 rounded-md border border-border bg-background/80 p-2 text-xs">
+        <div className="mb-1 font-semibold text-foreground">{correction.label}</div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+          <span className="text-muted-foreground">Raw PM2.5</span>
+          <span className="text-right font-medium text-foreground">{formatPm25(correction.rawPm25)}</span>
+          <span className="text-muted-foreground">Corrected</span>
+          <span className="text-right font-medium text-foreground">{formatPm25(correction.correctedPm25)}</span>
+          <span className="text-muted-foreground">RH</span>
+          <span className="text-right font-medium text-foreground">{formatNumber(correction.humidity, '%')}</span>
+          <span className="text-muted-foreground">Uncertainty</span>
+          <span className="text-right font-medium text-foreground">
+            {correction.uncertainty === null ? 'No data' : `+/- ${correction.uncertainty.toFixed(1)} ug/m3`}
+          </span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -373,6 +410,8 @@ export function AirQualityMap({
   browseBoundariesVisible = false,
   selectedBrowseBoundaryCode,
   showHeatmap,
+  basemap,
+  correctionModel,
   onBoundsChange,
   onMonitorClick,
   onBrowseBoundaryClick,
@@ -437,6 +476,8 @@ export function AirQualityMap({
       ...uniqueMatches.filter((monitor) => monitorEntryKey(monitor) !== selectedKey)
     ]
   }, [monitors, selectedMonitor])
+
+  const mapStyles = useMemo(() => AIR_QUALITY_MAP_STYLES[basemap], [basemap])
 
   useEffect(() => {
     if (!selectedMonitor || !mapRef.current) return
@@ -509,10 +550,11 @@ export function AirQualityMap({
   return (
     <div className="h-full w-full">
       <PgMap
+        key={basemap}
         ref={mapRef}
         center={PG_CENTER}
         zoom={ZOOM}
-        styles={MAP_STYLES}
+        styles={mapStyles}
       >
         <MapControls position="top-right" showZoom showCompass />
         <BoundaryBrowseLayer
@@ -584,7 +626,7 @@ export function AirQualityMap({
                       key={monitorEntryKey(monitor)}
                       className={index === 0 ? '' : 'border-t border-border pt-2'}
                     >
-                      <SelectedMonitorDetails monitor={monitor} />
+                      <SelectedMonitorDetails monitor={monitor} correctionModel={correctionModel} />
                     </div>
                   ))}
                 </div>

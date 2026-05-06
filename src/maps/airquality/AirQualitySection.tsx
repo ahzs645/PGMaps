@@ -14,6 +14,9 @@ import { useBoundaryData } from './hooks/useBoundaryData'
 import { useCensusBoundaryData } from './hooks/useCensusBoundaryData'
 import type {
   AirMonitor,
+  AirQualityBasemap,
+  AirQualityCorrectionModel,
+  AirQualityObservationLayer,
   BoundaryLevel,
   BoundarySource,
   CensusBoundaryLevel,
@@ -43,6 +46,13 @@ function isMonitorInBounds(monitor: AirMonitor, bounds: AirQualityMapBounds | nu
 }
 
 const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
+const DEFAULT_OBSERVATION_LAYERS: AirQualityObservationLayer[] = [
+  'rawPA',
+  'correctedPA',
+  'rawEGG',
+  'correctedEGG',
+  'agencyFEM'
+]
 const HEALTH_REGION_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }> = [
   { value: 'healthAuthority', label: 'Health Authority' },
   { value: 'hsda', label: 'HSDA' },
@@ -68,6 +78,25 @@ function getMonitorSearchText(monitor: AirMonitor): string {
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
+}
+
+function monitorMatchesObservationLayers(
+  monitor: AirMonitor,
+  observationLayers: AirQualityObservationLayer[]
+): boolean {
+  if (monitor.network === 'PA') {
+    return observationLayers.includes('rawPA') || observationLayers.includes('correctedPA')
+  }
+
+  if (monitor.network === 'EGG') {
+    return observationLayers.includes('rawEGG') || observationLayers.includes('correctedEGG')
+  }
+
+  if (monitor.network === 'FEM' || monitor.network === 'BC ENV') {
+    return observationLayers.includes('agencyFEM')
+  }
+
+  return true
 }
 
 function calculateDensityStats(monitors: AirMonitor[], areaKm2: number): SensorDensityStats | null {
@@ -113,13 +142,11 @@ export default function AirQualitySection() {
   const censusBoundary = useCensusBoundaryData()
   const {
     selectRegion: selectHealthRegion,
-    getFeaturesForLevel: getHealthFeaturesForLevel,
-    clearSelection: clearHealthSelection
+    getFeaturesForLevel: getHealthFeaturesForLevel
   } = healthBoundary
   const {
     selectRegion: selectCensusRegion,
-    getFeaturesForLevel: getCensusFeaturesForLevel,
-    clearSelection: clearCensusSelection
+    getFeaturesForLevel: getCensusFeaturesForLevel
   } = censusBoundary
 
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
@@ -129,10 +156,13 @@ export default function AirQualitySection() {
   const [censusRegionLevel, setCensusRegionLevel] = useState<CensusBoundaryLevel>('csd')
   const [searchQuery, setSearchQuery] = useState('')
   const [showHeatmap, setShowHeatmap] = useState(false)
+  const [basemap, setBasemap] = useState<AirQualityBasemap>('light')
+  const [correctionModel, setCorrectionModel] = useState<AirQualityCorrectionModel>('epaBarkjohn')
+  const [observationLayers, setObservationLayers] = useState<AirQualityObservationLayer[]>(DEFAULT_OBSERVATION_LAYERS)
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [mapBounds, setMapBounds] = useState<AirQualityMapBounds | null>(null)
-  const [mapBoundaryPickerEnabled, setMapBoundaryPickerEnabled] = useState(false)
+  const [mapBoundaryPickerEnabled, setMapBoundaryPickerEnabled] = useState(true)
   const [mapBoundaryFeatures, setMapBoundaryFeatures] = useState<BoundaryPickerFeature[]>([])
 
   const boundaryLoading = boundarySource === 'bcHealth'
@@ -165,19 +195,6 @@ export default function AirQualitySection() {
       label: option.label
     }))
   }, [boundarySource, censusBoundary.levelOptions])
-
-  const regionOptions = useMemo(() => {
-    if (boundarySource === 'bcHealth') {
-      return healthBoundary.regionsByLevel[healthRegionLevel]
-    }
-    return censusBoundary.regionsByLevel[censusRegionLevel]
-  }, [
-    boundarySource,
-    censusBoundary.regionsByLevel,
-    censusRegionLevel,
-    healthBoundary.regionsByLevel,
-    healthRegionLevel
-  ])
 
   const mapBoundaryFeatureCollection = useMemo(() => {
     return {
@@ -223,10 +240,11 @@ export default function AirQualitySection() {
     const normalizedQuery = searchQuery.trim().toLowerCase()
     return monitorsInRegionScope.filter((monitor) => {
       const matchesNetwork = selectedNetworks.includes(monitor.network)
+      const matchesObservationLayer = monitorMatchesObservationLayers(monitor, observationLayers)
       const matchesSearch = !normalizedQuery || getMonitorSearchText(monitor).includes(normalizedQuery)
-      return matchesNetwork && matchesSearch
+      return matchesNetwork && matchesObservationLayer && matchesSearch
     })
-  }, [monitorsInRegionScope, searchQuery, selectedNetworks])
+  }, [monitorsInRegionScope, observationLayers, searchQuery, selectedNetworks])
 
   const visibleMonitorsInView = useMemo(() => {
     return filteredMonitors.filter((monitor) => isMonitorInBounds(monitor, mapBounds))
@@ -324,6 +342,15 @@ export default function AirQualitySection() {
     })
   }, [])
 
+  const toggleObservationLayer = useCallback((layer: AirQualityObservationLayer) => {
+    setObservationLayers((current) => {
+      if (current.includes(layer)) {
+        return current.filter((item) => item !== layer)
+      }
+      return [...current, layer]
+    })
+  }, [])
+
   const selectedLegendNetworks = useMemo(() => {
     return allNetworks.filter((network) => selectedNetworks.includes(network)).slice(0, 8)
   }, [allNetworks, selectedNetworks])
@@ -335,22 +362,18 @@ export default function AirQualitySection() {
   const handleRegionLevelChange = useCallback((level: RegionLevel) => {
     if (boundarySource === 'bcHealth') {
       setHealthRegionLevel(level as BoundaryLevel)
+      setMapBoundaryPickerEnabled(true)
       return
     }
 
     setCensusRegionLevel(level as CensusBoundaryLevel)
+    setMapBoundaryPickerEnabled(true)
   }, [boundarySource])
 
-  const handleRegionSelect = useCallback((level: RegionLevel, code: string) => {
-    if (boundarySource === 'bcHealth') {
-      void selectHealthRegion(level as BoundaryLevel, code)
-      setMapBoundaryPickerEnabled(false)
-      return
-    }
-
-    void selectCensusRegion(level as CensusBoundaryLevel, code)
-    setMapBoundaryPickerEnabled(false)
-  }, [boundarySource, selectCensusRegion, selectHealthRegion])
+  const handleBoundarySourceChange = useCallback((source: BoundarySource) => {
+    setBoundarySource(source)
+    setMapBoundaryPickerEnabled(true)
+  }, [])
 
   const handleMapBoundarySelect = useCallback((code: string) => {
     if (boundarySource === 'bcHealth') {
@@ -362,15 +385,6 @@ export default function AirQualitySection() {
     void selectCensusRegion(censusRegionLevel, code)
     setMapBoundaryPickerEnabled(false)
   }, [boundarySource, censusRegionLevel, healthRegionLevel, selectCensusRegion, selectHealthRegion])
-
-  const handleRegionClear = useCallback(() => {
-    if (boundarySource === 'bcHealth') {
-      clearHealthSelection()
-      return
-    }
-
-    clearCensusSelection()
-  }, [boundarySource, clearCensusSelection, clearHealthSelection])
 
   return (
     <MapSectionLayout
@@ -385,29 +399,29 @@ export default function AirQualitySection() {
           selectedMonitor={selectedMonitor}
           selectedNetworks={selectedNetworks}
           boundarySource={boundarySource}
-          selectedRegion={selectedRegion}
           selectedRegionLevel={selectedRegionLevel}
           regionLevelOptions={regionLevelOptions}
-          regionOptions={regionOptions}
           boundaryLoading={boundaryLoading}
           boundaryError={boundaryError}
           densityStats={densityStats}
           densityScopeLabel={densityScopeLabel}
           searchQuery={searchQuery}
           showHeatmap={showHeatmap}
+          basemap={basemap}
+          correctionModel={correctionModel}
+          observationLayers={observationLayers}
           loading={loading}
           error={error}
-          onBoundarySourceChange={setBoundarySource}
+          onBasemapChange={setBasemap}
+          onCorrectionModelChange={setCorrectionModel}
+          onToggleObservationLayer={toggleObservationLayer}
+          onBoundarySourceChange={handleBoundarySourceChange}
           onRegionLevelChange={handleRegionLevelChange}
-          onRegionSelect={handleRegionSelect}
-          onRegionClear={handleRegionClear}
           onSearchQueryChange={setSearchQuery}
           onToggleHeatmap={() => setShowHeatmap((prev) => !prev)}
           onToggleNetwork={toggleNetwork}
           onSelectAllNetworks={() => setSelectedNetworks(allNetworks)}
           onClearNetworks={() => setSelectedNetworks([])}
-          mapBoundaryPickerEnabled={mapBoundaryPickerEnabled}
-          onMapBoundaryPickerChange={setMapBoundaryPickerEnabled}
           onMonitorClick={setSelectedMonitor}
           onClearSelection={() => setSelectedMonitor(null)}
         />
@@ -426,6 +440,8 @@ export default function AirQualitySection() {
               : null
           }
           showHeatmap={showHeatmap}
+          basemap={basemap}
+          correctionModel={correctionModel}
           onBoundsChange={handleBoundsChange}
           onMonitorClick={setSelectedMonitor}
           onBrowseBoundaryClick={(feature) => handleMapBoundarySelect(feature.code)}

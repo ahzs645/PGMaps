@@ -1112,6 +1112,33 @@ export const SCORE_PRESETS: ScorePreset[] = [
     methodSettings: CUMULATIVE_BURDEN_METHOD,
   },
   {
+    key: 'pgEnvironmentalJusticeProxy',
+    label: 'PG Environmental Justice Proxy',
+    description:
+      'EJI-inspired local screen combining social vulnerability context, environmental burden proxies, and adaptive-capacity gaps.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      cimdComposite: 18,
+      cimdResidentialInstability: 8,
+      cimdEconomicDependency: 10,
+      cimdSituationalVulnerability: 12,
+      populationDensity: 10,
+      shadeGap: 18,
+      crimePerCapita: 12,
+      foodRiskScore: 8,
+      criticalViolationRate: 6,
+      buildingAge: 8,
+      parkWalk10Access: 10,
+      coolingWalk15Access: 10,
+      accessibleFrequentTransitAccess: 8,
+      serviceAccessComposite: 8,
+    },
+    methodSettings: CUMULATIVE_BURDEN_METHOD,
+  },
+  {
     key: 'heatReliefPriority',
     label: 'Heat Relief Priority',
     description: 'Prioritizes populated, deprivation-affected areas with shade/cooling gaps and older housing.',
@@ -1298,7 +1325,9 @@ function formatPresetNormalization(method: Partial<ScoreMethodSettings> | undefi
 }
 
 function isProxyPreset(preset: ScorePreset): boolean {
-  return /proxy|climate|heat|shade|retrofit|school|equity/i.test(`${preset.key} ${preset.label} ${preset.description}`)
+  return /proxy|climate|heat|shade|retrofit|school|equity|justice/i.test(
+    `${preset.key} ${preset.label} ${preset.description}`,
+  )
 }
 
 function getPresetDataNeeded(preset: ScorePreset): string[] {
@@ -1311,7 +1340,7 @@ function getPresetDataNeeded(preset: ScorePreset): string[] {
   if (/climate|smoke|monitor|sensor|air/.test(text)) {
     needed.add('Pollutant-specific exposure surfaces, smoke days, and model uncertainty')
   }
-  if (/equity|resilience|vulnerability|community/.test(text)) {
+  if (/equity|justice|resilience|vulnerability|community/.test(text)) {
     needed.add('Documented social-vulnerability policy variables and weighting rationale')
   }
   if (/school/.test(text)) {
@@ -1343,6 +1372,7 @@ export function getScorePresetMethodology(preset: ScorePreset): ScorePresetMetho
     knownLimits: proxy
       ? [
           'This is a proxy recipe, not a validated exposure, health, or environmental-justice index.',
+          'It is inspired by cumulative-burden screening methods, but it is not the CDC/ATSDR EJI and should not be compared to national EJI percentiles.',
           'Scores are normalized within the selected boundary level, so CT/DA/CHSA maps should not be read as identical scales.',
           'Point-in-polygon and centroid-style assignments can miss cross-boundary access, exposure, and service catchments.',
         ]
@@ -1591,6 +1621,35 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       crimePerCapita: 8,
       foodRiskScore: 5,
     },
+  },
+  {
+    key: 'pgEnvironmentalJusticeProxyDa',
+    label: 'PG Environmental Justice Proxy (DA)',
+    question: 'Which small areas show overlapping local burden, deprivation context, and adaptive-capacity gaps?',
+    description:
+      'CDC EJI-inspired local screen using percentile ranks and a cumulative-burden aggregation. This is a local proxy, not the official ATSDR Environmental Justice Index.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['heatShade', 'restaurants', 'census', 'bcAssessment', 'crime', 'transit', 'deprivation'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      cimdComposite: 18,
+      cimdResidentialInstability: 8,
+      cimdEconomicDependency: 10,
+      cimdSituationalVulnerability: 12,
+      populationDensity: 10,
+      shadeGap: 18,
+      crimePerCapita: 12,
+      foodRiskScore: 8,
+      criticalViolationRate: 6,
+      buildingAge: 8,
+      parkWalk10Access: 10,
+      coolingWalk15Access: 10,
+      accessibleFrequentTransitAccess: 8,
+      serviceAccessComposite: 8,
+    },
+    methodSettings: CUMULATIVE_BURDEN_METHOD,
   },
   {
     key: 'heatShadeNeedDa',

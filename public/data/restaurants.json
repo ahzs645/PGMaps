@@ -920,7 +920,10 @@
     ],
     "details_fetched_at": "2025-12-16T21:03:11.256588",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "3040 Recplace Drive, Prince George, BC, Canada",
+    "latitude": 53.8902046,
+    "longitude": -122.7683679,
+    "geocoded_address": "Marble Slab Creamery, 3040, Recplace Drive, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 0B2, Canada"
   },
   {
     "name": "Adria Deli",
@@ -2203,7 +2206,10 @@
     ],
     "details_fetched_at": "2025-12-16T21:04:41.038700",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "3040 Recplace Drive, Prince George, BC, Canada",
+    "latitude": 53.8902046,
+    "longitude": -122.7683679,
+    "geocoded_address": "Marble Slab Creamery, 3040, Recplace Drive, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 0B2, Canada"
   },
   {
     "name": "BC Cancer Agency-Centre for the North",
@@ -2813,7 +2819,10 @@
     ],
     "details_fetched_at": "2025-12-16T21:09:51.881039",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "3328 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9106821,
+    "longitude": -122.7837946,
+    "geocoded_address": "Panago, 3328, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V5N 1P6, Canada"
   },
   {
     "name": "Birchview Residences",
@@ -3233,7 +3242,10 @@
     ],
     "details_fetched_at": "2025-12-16T21:10:47.398835",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "4366 Highway 16 West, Prince George, V2N 5N7",
+    "latitude": 53.8366539,
+    "longitude": -122.8383225,
+    "geocoded_address": "Highway 16 Frontage West, Beaverley, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 5M4, Canada"
   },
   {
     "name": "Bonnet Eatery",
@@ -3311,7 +3323,10 @@
     ],
     "details_fetched_at": "2025-12-16T21:11:07.053847",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "Booster Juice-Domano",
@@ -3380,7 +3395,10 @@
     ],
     "details_fetched_at": "2025-12-16T21:11:17.392970",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "5212 Domano Boulevard, Prince George, BC, Canada",
+    "latitude": 53.8679881,
+    "longitude": -122.7748276,
+    "geocoded_address": "Edo Japan, 5212, Domano Boulevard, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 4A1, Canada"
   },
   {
     "name": "Booster Juice -Pine Cenre",
@@ -3561,7 +3579,10 @@
     ],
     "details_fetched_at": "2025-12-16T21:11:49.781659",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "841 Central Street West, Prince George, BC, Canada",
+    "latitude": 53.9166909,
+    "longitude": -122.7830902,
+    "geocoded_address": "Boston Pizza, 841, Central Street West, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 3C8, Canada"
   },
   {
     "name": "Boston Pizza on Vance Road",
@@ -4352,7 +4373,10 @@
     ],
     "details_fetched_at": "2025-12-16T21:13:45.064835",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "BX Neighbourhood Pub",
@@ -5958,7 +5982,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:29:45.086401",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "3034 Recplace Drive, Prince George, BC, Canada",
+    "latitude": 53.8929148,
+    "longitude": -122.7710612,
+    "geocoded_address": "Recplace Drive, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 0B2, Canada"
   },
   {
     "name": "Children's Residence",
@@ -6310,7 +6337,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:30:15.421049",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "China Taste",
@@ -9021,7 +9051,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:38:02.893718",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1733 Nicholson Street South, Prince George, V2N 1V7",
+    "latitude": 53.9221466,
+    "longitude": -122.7872551,
+    "geocoded_address": "South Nicholson Street, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 3C6, Canada"
   },
   {
     "name": "Deb's Cafe",
@@ -9381,7 +9414,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:39:29.460915",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "6333 Southridge Avenue, Prince George, BC, Canada",
+    "latitude": 53.8642248,
+    "longitude": -122.7886051,
+    "geocoded_address": "Domino's, 6333, Southridge Avenue, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 7A1, Canada"
   },
   {
     "name": "Domino's Pizza on Ospika",
@@ -9940,7 +9976,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:41:42.048402",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "5212 Domano Boulevard, Prince George, BC, Canada",
+    "latitude": 53.8679881,
+    "longitude": -122.7748276,
+    "geocoded_address": "Edo Japan, 5212, Domano Boulevard, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 4A1, Canada"
   },
   {
     "name": "Elder Citizens Recreation Association",
@@ -10146,7 +10185,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:42:51.153785",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "Famous Wok",
@@ -10683,7 +10725,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:43:27.958277",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "3167 Massey Drive, Prince George, BC, Canada",
+    "latitude": 53.8991697,
+    "longitude": -122.7804491,
+    "geocoded_address": "Browns Socialhouse Prince George, 3167, Massey Drive, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 2S9, Canada"
   },
   {
     "name": "Fatburger Ricky's All Day Grill",
@@ -12006,7 +12051,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:46:19.516553",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "3040 Recplace Drive, Prince George, BC, Canada",
+    "latitude": 53.8902046,
+    "longitude": -122.7683679,
+    "geocoded_address": "Marble Slab Creamery, 3040, Recplace Drive, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 0B2, Canada"
   },
   {
     "name": "Friendship Home",
@@ -12628,7 +12676,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:47:51.845381",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "4299 1st Avenue, Prince George, BC, Canada",
+    "latitude": 53.9245529,
+    "longitude": -122.7722889,
+    "geocoded_address": "1st Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 1K3, Canada"
   },
   {
     "name": "Grama's Kitchen",
@@ -13525,7 +13576,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:50:05.958586",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "4488 Highway 16 West, Prince George, V2N 6X6",
+    "latitude": 53.8366539,
+    "longitude": -122.8383225,
+    "geocoded_address": "Highway 16 Frontage West, Beaverley, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 5M4, Canada"
   },
   {
     "name": "Homespun Refillery",
@@ -13883,7 +13937,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:51:48.705369",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1798 Nicholson Street South, Prince George, Canada",
+    "latitude": 53.9221466,
+    "longitude": -122.7872551,
+    "geocoded_address": "South Nicholson Street, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 3C6, Canada"
   },
   {
     "name": "Industrial Forestry Service Camp #1",
@@ -15518,7 +15575,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:57:08.998809",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "3701 Rainbow Drive, Prince George, BC, Canada",
+    "latitude": 53.9159409,
+    "longitude": -122.7891836,
+    "geocoded_address": "3701, Rainbow Drive, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 3X8, Canada"
   },
   {
     "name": "Lemon Heaven",
@@ -15841,7 +15901,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:58:00.803117",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "140-556 North Nechako Road, Prince George, V2K 1A1",
+    "latitude": 53.961659,
+    "longitude": -122.8244302,
+    "geocoded_address": "North Nechako Road, Prince George, Regional District of Fraser-Fort George, British Columbia, V2K 4W9, Canada"
   },
   {
     "name": "Little Caesars",
@@ -16275,7 +16338,10 @@
     ],
     "details_fetched_at": "2025-12-16T22:58:45.735664",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1669 Victoria Street, Prince George, BC, Canada",
+    "latitude": 53.9086236,
+    "longitude": -122.7553726,
+    "geocoded_address": "1669, Victoria Street, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 2L6, Canada"
   },
   {
     "name": "Madras Maple Cafe",
@@ -17693,7 +17759,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:02:25.664346",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "2155 10th Avenue, Prince George, BC, Canada",
+    "latitude": 53.914887,
+    "longitude": -122.7657294,
+    "geocoded_address": "2155, 10th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 2L3, Canada"
   },
   {
     "name": "Mild Chili Indian Cuisine",
@@ -17994,7 +18063,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:02:43.730229",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "Minor Girls Stadium",
@@ -18777,7 +18849,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:04:57.371970",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "Mulino Kitchen and craft cocktails",
@@ -20159,7 +20234,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:08:40.646472",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "2626 Vance Road, Prince George, BC, Canada",
+    "latitude": 53.8809469,
+    "longitude": -122.775019,
+    "geocoded_address": "Vance Road, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 1N4, Canada"
   },
   {
     "name": "Northstar Catering",
@@ -20204,7 +20282,10 @@
     "inspections": [],
     "details_fetched_at": "2025-12-16T23:09:02.101176",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "556 North Nechako Road, Prince George, BC, Canada",
+    "latitude": 53.9794066,
+    "longitude": -122.8899599,
+    "geocoded_address": "North Nechako Road, Prince George, Regional District of Fraser-Fort George, British Columbia, Canada"
   },
   {
     "name": "Oakroom Grill",
@@ -22156,7 +22237,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:15:22.664443",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "PixelPlay Cafe",
@@ -22402,7 +22486,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:16:22.641038",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "Pomeroy Inn & Suites, Prince George",
@@ -23714,7 +23801,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:19:39.026985",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "Quizno's Classic Subs on Central",
@@ -24406,7 +24496,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:21:27.742856",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "Red Tomato Pies",
@@ -25195,7 +25288,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:23:49.612195",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "4488 Highway 16 West, Prince George, BC, Canada",
+    "latitude": 53.8345739,
+    "longitude": -122.8403216,
+    "geocoded_address": "Highway 16 Frontage West, Beaverley, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 5M4, Canada"
   },
   {
     "name": "Royal Canadian Legion #43",
@@ -25859,7 +25955,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:26:04.767010",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1600 15th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9100981,
+    "longitude": -122.758265,
+    "geocoded_address": "Work BC, 1600, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3X2, Canada"
   },
   {
     "name": "Set Free Recovery",
@@ -27509,7 +27608,10 @@
     "inspections": [],
     "details_fetched_at": "2025-12-16T23:29:21.685144",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "3701 Rainbow Drive, Prince George, BC, Canada",
+    "latitude": 53.9159409,
+    "longitude": -122.7891836,
+    "geocoded_address": "3701, Rainbow Drive, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 3X8, Canada"
   },
   {
     "name": "Spruce City Stadium",
@@ -27643,8 +27745,28 @@
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=61D06C33760C1EBA88256B5D007B6338",
     "address": "1125 Freeman Street",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:07.233105",
+    "scraped_at": "2026-05-06T06:44:02.593511",
+    "facility_type": "Restaurant",
+    "full_address": "1125 Freeman Street, Prince George, V2M 2R6",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Routine Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=6F61EB52C6A4204588258736007BE885&Count=1000",
+        "date": "19-Aug-2021",
+        "hazard_rating": "Low",
+        "inspection_date": "August 19, 2021",
+        "inspection_type": "Routine",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:45:05.567807",
     "city": "Prince George",
+    "geocoded_query": "1125 Freeman Street, Prince George, V2M 2R6",
     "latitude": 53.9109128,
     "longitude": -122.7737403,
     "geocoded_address": "Freeman Street, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 1T1, Canada"
@@ -27654,30 +27776,51 @@
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=11132414890E3A28882575D1006D45B7",
     "address": "1505 5th Avenue",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:07.233153",
+    "scraped_at": "2026-05-06T06:44:02.593532",
+    "facility_type": "Restaurant",
+    "full_address": "1505 5th Avenue, Prince George, V2L 3L9",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [],
+    "details_fetched_at": "2026-05-06T06:45:10.695917",
     "city": "Prince George",
-    "latitude": 50.6746901,
-    "longitude": -120.3295803,
-    "geocoded_address": "5th Avenue, Downtown Kamloops, Sagebrush, Kamloops, Thompson-Nicola Regional District, British Columbia, V2C 2M7, Canada"
+    "geocoded_query": "1505 5th Avenue, Prince George, V2L 3L9",
+    "latitude": 53.9205658,
+    "longitude": -122.8150576,
+    "geocoded_address": "5th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 4Y5, Canada"
   },
   {
     "name": "St Michaels Ukrainian Orthodox Church Hall",
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=6D9BE4C820FA391688256F5700737A5A",
     "address": "2793 Range Road",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:07.233228",
+    "scraped_at": "2026-05-06T06:44:02.593554",
+    "facility_type": "Restaurant",
+    "full_address": "2793 Range Road, Prince George",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [],
+    "details_fetched_at": "2026-05-06T06:45:15.815011",
     "city": "Prince George",
+    "geocoded_query": "2793 Range Road, Prince George",
     "latitude": 53.8844817,
     "longitude": -122.7792373,
-    "geocoded_address": "2793, Range Road, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 4G8, Canada"
+    "geocoded_address": "2793, Range Road, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 4G8, Canada"
   },
   {
     "name": "St Patricks House",
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=36A611DFAF3ADA22882569E60074B91B",
     "address": "1735 Yew Street",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:07.233347",
+    "scraped_at": "2026-05-06T06:44:02.593575",
+    "facility_type": "Restaurant",
+    "full_address": "1735 Yew Street, Prince George, V2L 2X3",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [],
+    "details_fetched_at": "2026-05-06T06:45:20.935660",
     "city": "Prince George",
+    "geocoded_query": "1735 Yew Street, Prince George, V2L 2X3",
     "latitude": 53.9076555,
     "longitude": -122.7648767,
     "geocoded_address": "1735, Yew Street, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 4B8, Canada"
@@ -27685,13 +27828,48 @@
   {
     "name": "St Vincent De Paul Society",
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=0AA52EC16B85461D882569CB00131D24",
-    "address": "Box 1617",
+    "address": "1645 3rd Avenue",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:07.233400",
+    "scraped_at": "2026-05-06T06:44:02.593595",
+    "facility_type": "Restaurant",
+    "full_address": "1645 3rd Avenue, Prince George, V2L 3G5",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Routine Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=DC00CD25CB22CE1088258ABA0069A129&Count=1000",
+        "date": "5-Feb-2024",
+        "hazard_rating": "Low",
+        "inspection_date": "February 05, 2024",
+        "inspection_type": "Routine",
+        "critical_violations_count": 2,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": [
+          {
+            "code": "306",
+            "corrected_during_inspection": false,
+            "description": "Food premises not maintained in a sanitary condition [s. 17(1)]",
+            "observation": "Significant amount of dust buildup on metal wire rack containing pots and other dish ware.",
+            "corrective_action": "Clean and maintain rack. Ensure that all food contact surfaces are kept clean and maintained on a regular basis."
+          },
+          {
+            "code": "308",
+            "corrected_during_inspection": false,
+            "description": "Equipment/utensils/food contact surfaces are not in good working order [s. 16(b)]",
+            "observation": "Mechanical dish washer was missing detergent at time of inspection. Detergent is required to achieve adequate cleaning of food from dishware prior to sanitizing rinse cycle. Staff are manually cleaning dish ware prior to sanitizing.",
+            "corrective_action": "Ensure that dish washer is provided with cleaning detergent."
+          }
+        ]
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:45:27.161086",
     "city": "Prince George",
-    "latitude": 50.2198599,
-    "longitude": -117.7268045,
-    "geocoded_address": "Box Lake, Area K (The Arrow Lakes), Regional District of Central Kootenay, British Columbia, Canada"
+    "geocoded_query": "1645 3rd Avenue, Prince George, BC, Canada",
+    "latitude": 53.9183135,
+    "longitude": -122.7512175,
+    "geocoded_address": "1645, 3rd Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 2J7, Canada"
   },
   {
     "name": "Starbucks-#4452 College Heights",
@@ -27768,7 +27946,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:31:08.839185",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "5212 Domano Boulevard, Prince George, BC, Canada",
+    "latitude": 53.8679881,
+    "longitude": -122.7748276,
+    "geocoded_address": "Edo Japan, 5212, Domano Boulevard, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 4A1, Canada"
   },
   {
     "name": "Starbucks - Massey Drive",
@@ -27856,7 +28037,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:31:23.426554",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "3161 Massey Drive, Prince George, BC, Canada",
+    "latitude": 53.8990935,
+    "longitude": -122.7789825,
+    "geocoded_address": "TD Canada Trust, 3161, Massey Drive, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 4G4, Canada"
   },
   {
     "name": "Starbucks at Ramada",
@@ -28335,7 +28519,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:32:46.453712",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "2216 Ferry Avenue, Prince George, BC, Canada",
+    "latitude": 53.8891811,
+    "longitude": -122.7682831,
+    "geocoded_address": "Mr Mikes, 2216, Ferry Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 5E8, Canada"
   },
   {
     "name": "Subway on Massey",
@@ -28854,9 +29041,271 @@
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=6925D5BA3021095D88257F68005E5A9B",
     "address": "104 - 892 Central Street East",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:07.234245",
+    "scraped_at": "2026-05-06T06:44:02.594031",
+    "facility_type": "Restaurant",
+    "full_address": "104 - 892 Central Street East, Prince George, V2M 3B8",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Complaint Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=8D267218EB4C0DF288258D3A000008E7&Count=1000",
+        "date": "5-Nov-2025",
+        "hazard_rating": "Low",
+        "inspection_date": "November 05, 2025",
+        "inspection_type": "Complaint",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": [
+          {
+            "code": "205",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Potentially hazardous cold foods are stored at above 4°C. Cut vegetables stored in a refrigerator measured at 8.5°C. All potentially hazardous foods must be stored at below 4°C or above 60°C.",
+            "corrective_action": "Operator moved cut vegetables to working refrigeration units that maintain a temperature of 4°C or less. Monitor and adjust the refrigerator temperatures as required. Maintain a temperature log for all your refrigerator."
+          },
+          {
+            "code": "206",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Potentially hazardous hot foods are stored at below 60°C. Shrimp tempura was observed being stored at room temperature. Surface temperature of tempura was measured at approximately 24°C. All potentially hazardous foods must be stored at below 4°C or above 60°C",
+            "corrective_action": "Potentially hazardous food, such as tempura must maintain a temperature of above 60°C or under 4°C."
+          },
+          {
+            "code": "302",
+            "corrected_during_inspection": true,
+            "description": "Critical",
+            "observation": "Wiping cloths left on the counters between use. Cloths once used can harbour and grow pathogen if left as used at room temperature.",
+            "corrective_action": "Operator set up a wiping cloths bucket with a sanitizing solution of 100 ppm chlorine and put wiping towels into bucket. Have test strip in place to check your sanitizer solution concentration."
+          }
+        ]
+      },
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=7A730839E5D1DC2888258B000064EBA3&Count=1000",
+        "date": "15-Apr-2024",
+        "hazard_rating": "Low",
+        "inspection_date": "April 15, 2024",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      },
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=3FFCE26C06C75CCA88258AFA0072B421&Count=1000",
+        "date": "9-Apr-2024",
+        "hazard_rating": "Moderate",
+        "inspection_date": "April 09, 2024",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 2,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": [
+          {
+            "code": "104",
+            "corrected_during_inspection": false,
+            "description": "Repeat",
+            "observation": "Permit was not present in the facility. Operator brought in the permit when requested.",
+            "corrective_action": "Operator to post the valid permit in a conspicuous location in the facility at all times."
+          },
+          {
+            "code": "205",
+            "corrected_during_inspection": false,
+            "description": "Critical Repeat",
+            "observation": "Two of the refrigeration units (front kitchen and one in the back kitchen) were noted to be at a temperature more that 4°C. \n Public Health significance - All potentially hazardous foods must be stored at below 4°C or above 60°C - out of the temperature danger zone to prevent bacterial growth and possibly food borne illness. Temperature abused potentially hazardous food promotes the growth of unwanted pathogens, increasing the risk of foodborne illnesses.",
+            "corrective_action": "Operator to ensure that refrigeration units maintain the regulated temperature of 4°C and colder. Ensure that the refrigeration units are inspected/serviced by a technician."
+          },
+          {
+            "code": "209",
+            "corrected_during_inspection": false,
+            "description": "Food not protected from contamination [s. 12(a)]",
+            "observation": "Various implements used a scoops (bowls in the flour conatiners) are left in product for ongoing use allowing significant hand-food contact and probable contamination. \n(Public Health Significance) Improper scoops and scoop storage exposes items to bare hand contact and potential contamination.",
+            "corrective_action": "Store scoops so that foods are not exposed to the handles or bare hand contact. Store food scoops in a sanitary manner and clean and sanitize them regularly."
+          },
+          {
+            "code": "302",
+            "corrected_during_inspection": true,
+            "description": "Critical Repeat",
+            "observation": "No active sanitizer detected in one of the sanitizer buckets. (Public Health Significance) Sanitizing solutions must be strong enough to destroy bacteria on surfaces to prevent the contamination of staff, clients or food on contact with the improperly cleaned surface.",
+            "corrective_action": "Operator immediately added more bleach to the solution and it was then tested to be at an adequate concentration. Ensure an adequate sanitizing solution is used to sanitize the food contact surface at a frequency of once every 4 hours or as an when needed to prevent cross-contamination. Bleach solution at 100 ppm can be achieved by mixing half a teaspoon to 1 litre of water. Ensure that the sanitizer concentrations are tested frequently using the test strips."
+          }
+        ]
+      },
+      {
+        "type": "Routine Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=E05127FC83E24D5088258AEE006F67E3&Count=1000",
+        "date": "27-Mar-2024",
+        "hazard_rating": "High",
+        "inspection_date": "March 27, 2024",
+        "inspection_type": "Routine",
+        "critical_violations_count": 4,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": [
+          {
+            "code": "104",
+            "corrected_during_inspection": false,
+            "description": "Permit not posted in a conspicuous location [s. 8(7)]",
+            "observation": "Operator was not able to present the permit to operate. A decal sticker was displayed on the business license from the city.",
+            "corrective_action": "Operator to obtain a copy of the operating permit for the resturant and have the valid decal posted on the permit."
+          },
+          {
+            "code": "205",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Deep fried tempura was seen to be stored at room temperature. Surface temperature noted to be at 22°C. Public Health significance - All potentially hazardous foods must be stored at below 4°C or above 60°C - out of the danger zone to prevent bacterial growth and possibly food borne illness.",
+            "corrective_action": "Ensure no food items are stored at room temperature. Operator to ensure all potentially hazardous foods are stored between 4-60°C."
+          },
+          {
+            "code": "205",
+            "corrected_during_inspection": true,
+            "description": "Critical",
+            "observation": "Two of the refrigeration units were noted to be at a temperature more that 4°C. Internal temperature of sliced cucumber noted at 9.3°C in one of the units. Public Health significance - All potentially hazardous foods must be stored at below 4°C or above 60°C - out of the danger zone to prevent bacterial growth and possibly food borne illness. Temperature abused potentially hazardous food promotes the growth of unwanted microbials, increasing the risk of foodborne illnesses.",
+            "corrective_action": "Operator moved all the potentially hazardous food items from the two non-working units to another refrigerator that was able to maintain temperature under 4°C. Operator to repair or replace refrigeration unit as soon as possible."
+          },
+          {
+            "code": "209",
+            "corrected_during_inspection": false,
+            "description": "Repeat",
+            "observation": "Raw meats were stored above produce in various coolers. Public Health Significance - Prepared ready to eat foods and raw vegetables in refrigerated storage must not be stored below raw meat and fish products as ready to eat foods can get contaminated from the drips from the raw meats and ware intended to be served without any further cooking.",
+            "corrective_action": "Ensure raw meats are stored on the bottom shelves in all the refrigerators."
+          },
+          {
+            "code": "209",
+            "corrected_during_inspection": true,
+            "description": "Food not protected from contamination [s. 12(a)]",
+            "observation": "Food items (bottles of mayo) in the kitchen area were stored on the ground (Public Health significance) - Storage areas should have adequate shelving such that all materials, including food and food items, are maintained at a minimum of 15 cm (6 in.) off the floor on racks, shelves or pallets. Contamination of food from contact with objects, people, pests or chemicals can cause serious illness.",
+            "corrective_action": "Ensure all food items are placed on racks and shelves which are at least 15 cm (6 in.) off the ground to prevent contamination of food as well as to allow for cleaning."
+          },
+          {
+            "code": "302",
+            "corrected_during_inspection": false,
+            "description": "Critical Repeat",
+            "observation": "No sanitizer being used for sanitizing food contact surfaces. (Public Health Significance) Sanitizing solutions at an adequate concentration must be used to destroy bacteria on surfaces to prevent the contamination of staff, clients or food on contact with the improperly cleaned surface.",
+            "corrective_action": "Ensure an adequate sanitizing solution is used to sanitize the food contact surface at a frequency of once every 4 hours or as an when needed to prevent cross-contamination. Bleach solution at 100 ppm can be achieved by mixing half a teaspoon to 1 litre of water. Acquire test strips to test the sanitizer concentrations frequently."
+          },
+          {
+            "code": "315",
+            "corrected_during_inspection": false,
+            "description": "Refrigeration units and hot holding equipment lack accurate thermometers [s. 19(2)]",
+            "observation": "The facility did not have working thermometers in the refrigeration units. It is important to have working thermometers in the refrigeration units to ensure that the refrigeration units are  meeting the regulatory requirement of maintaining temperature under 4°C at all times.",
+            "corrective_action": "Every operator of food premises must ensure that all refrigeration and hot holding equipment is equipped with a thermometer that is accurate within 1°C. These thermometers should be used to note the temperature readings when maintaining temperature logs."
+          },
+          {
+            "code": "401",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Handwashing sinks were seen obstructed by garbage cans. (Public Health Significance) Hand washing sinks should always be available for use and be free of any obstructions as handwashing is an important practice to ensure food is protected from cross contamination.",
+            "corrective_action": "Ensure the hand wash station is accessible at all times and used only as a hand wash station whenever food is being prepared. Soap and paper towel in dispensers and hot and cold running water must be provided to facilitate proper hand washing."
+          },
+          {
+            "code": "501",
+            "corrected_during_inspection": false,
+            "description": "Operator does not have FOODSAFE Level 1 or Equivalent [s. 10(1)]",
+            "observation": "Operator or the staff failed to have valid food safety training during operation. A person in charge who has Level 1 FOODSAFE training must be on at all times the establishment is in operation.",
+            "corrective_action": "Ensure staffing schedules provide for FoodSafe trained personnel to be present at all times."
+          }
+        ]
+      },
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=ABE1C72DA6D5F512882588F6007BCFEF&Count=1000",
+        "date": "10-Nov-2022",
+        "hazard_rating": "Low",
+        "inspection_date": "November 10, 2022",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 1,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": [
+          {
+            "code": "302",
+            "corrected_during_inspection": false,
+            "description": "Critical Repeat",
+            "observation": "Observed staff washing knives with water only. Public Health Significance - Utensils and food contact surfaces must be cleaned and sanitized on a regular basis to prevent contamination and foodborne illnesses.",
+            "corrective_action": "Ensure that all utensils are cleaned and sanitized after each use."
+          },
+          {
+            "code": "309",
+            "corrected_during_inspection": false,
+            "description": "Repeat",
+            "observation": "Cleaning chemical bottle was not labelled. (Public Health significance) - Accidental use of the wrong chemical can lead to contamination of food, as well as unsafe chemical reactions that produce toxic gas.",
+            "corrective_action": "Ensure that all containers are labelled with the chemicals stored within them."
+          },
+          {
+            "code": "402",
+            "corrected_during_inspection": false,
+            "description": "Critical Repeat",
+            "observation": "Observed staff switching gloves but not washing their hands. Public Health significance - use of gloves are not a substitute for handwashing, and improper hand hygiene can lead to contamination of food and foodborne illness.",
+            "corrective_action": "Hands should be washed with warm water and soap everytime staff put on or take off gloves. Hands should also be washed after anything that could dirty their hands (e.g., using the toilet, eating, handling raw fish, touching their face, etc.)"
+          }
+        ]
+      },
+      {
+        "type": "Routine Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=6896081C9B086A3B882588E8007519CD&Count=1000",
+        "date": "27-Oct-2022",
+        "hazard_rating": "High",
+        "inspection_date": "October 27, 2022",
+        "inspection_type": "Routine",
+        "critical_violations_count": 4,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": [
+          {
+            "code": "209",
+            "corrected_during_inspection": false,
+            "description": "Food not protected from contamination [s. 12(a)]",
+            "observation": "Various implements used as scoops are left in product for ongoing use including ingredient bins and ready to eat products. Raw fish was stored above produce in one cooler.\n(Public Health Significance) Improper scoops and scoop storage exposes items to bare hand contact and potential contamination. Storing raw fish above produce can lead to contamination.",
+            "corrective_action": "Store scoops so that foods are not exposed to the handles or bare hand contact. Store food scoops in a sanitary manner and clean and sanitize them regularly. Ensure that all ready-to-eat items and produce are stored above, or separately from raw fish."
+          },
+          {
+            "code": "210",
+            "corrected_during_inspection": true,
+            "description": "Food not thawed in an acceptable manner [s. 14(2)]",
+            "observation": "Improper thawing procedure, foods thawed sitting at room temperature.\n(Public Health Significance) Thawing at room temperature is uncontrolled and over the required time, portions of the product can be in the danger zone for extended periods of time.",
+            "corrective_action": "Thaw foods under running cold water, in the fridge or in the microwave oven."
+          },
+          {
+            "code": "302",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Staff only clean and sanitize tabletops at the end of the night. Observed staff washing knives and cutting board with water only. Public Health Significance - Utensils and food contact surfaces must be cleaned and sanitized on a regular basis to prevent contamination and foodborne illnesses.",
+            "corrective_action": "Ensure that all food contact surfaces, utensils, and equipment are cleaned with warm water and detergent as well as sanitized after each use. Tabletops should also be cleaned and sanitized on a more regular basis."
+          },
+          {
+            "code": "306",
+            "corrected_during_inspection": false,
+            "description": "Food premises not maintained in a sanitary condition [s. 17(1)]",
+            "observation": "General sanitation needs improvement. Build-up of food material and grime in hard to reach areas, some coolers, and a few containers stored on top of fridge. Public health significance - improper sanitation can lead to contamination of food or attract pests.",
+            "corrective_action": "Increase cleaning frequency of non-food contact surfaces, as well as containers and coolers."
+          },
+          {
+            "code": "309",
+            "corrected_during_inspection": false,
+            "description": "Chemicals, cleansers, & similar agents stored or labeled improperly [s. 27]",
+            "observation": "Cleaning chemicals bottles were not labelled. (Public Health significance) - Accidental use of the wrong chemical can lead to contamination of food, as well as unsafe chemical reactions that produce toxic gas.",
+            "corrective_action": "Ensure that all containers are labelled with the chemicals stored within them."
+          },
+          {
+            "code": "402",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Observed staff switching gloves but not washing their hands. Public Health significance - use of gloves are not a substitute for handwashing, and improper hand hygiene can lead to contamination of food and foodborne illness.",
+            "corrective_action": "Hands should be washed with warm water and soap everytime staff put on or take off gloves. Hands should also be washed after anything that could dirty their hands (e.g., using the toilet, eating, handling raw fish, touching their face, etc.)"
+          }
+        ]
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:45:38.930004",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "892 Central Street East, Prince George, BC, Canada",
+    "latitude": 53.916663,
+    "longitude": -122.7810045,
+    "geocoded_address": "892, Central Street East, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 3B8, Canada"
   },
   {
     "name": "Sushi Yori",
@@ -28942,17 +29391,103 @@
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=96BEF595D38F31A588258CAC0065CEB0",
     "address": "20090 Highway 16 West",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:07.234339",
+    "scraped_at": "2026-05-06T06:44:02.594073",
+    "facility_type": "Unknown",
+    "full_address": "20090 Highway 16 West, Prince George, V2N 6K4",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=107E2D06E235948588258CC100755031&Count=1000",
+        "date": "8-Jul-2025",
+        "hazard_rating": "Low",
+        "inspection_date": "July 08, 2025",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": []
+      },
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=2445BCE9573E1C2288258CB60063D67C&Count=1000",
+        "date": "24-Jun-2025",
+        "hazard_rating": "Low",
+        "inspection_date": "June 24, 2025",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:45:46.274568",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "20090 Highway 16 West, Prince George, V2N 6K4",
+    "latitude": 53.8345739,
+    "longitude": -122.8403216,
+    "geocoded_address": "Highway 16 Frontage West, Beaverley, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 5M4, Canada"
   },
   {
     "name": "Sweets n Treats",
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=73581061A654617888258A00007D815D",
     "address": "1205 3rd Avenue",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:07.234392",
+    "scraped_at": "2026-05-06T06:44:02.594092",
+    "facility_type": "Unknown",
+    "full_address": "1205 3rd Avenue, Prince George, V2L 3E6",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Routine Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=AE7D2D489219222F88258CCE006053F3&Count=1000",
+        "date": "19-Jul-2025",
+        "hazard_rating": "Low",
+        "inspection_date": "July 19, 2025",
+        "inspection_type": "Routine",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      },
+      {
+        "type": "Routine Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=DB1649A734B2EF7588258B550064CFDE&Count=1000",
+        "date": "1-Jul-2024",
+        "hazard_rating": "Low",
+        "inspection_date": "July 01, 2024",
+        "inspection_type": "Routine",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      },
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=F429479CC5CDDD5488258A16005ECA9A&Count=1000",
+        "date": "24-Aug-2023",
+        "hazard_rating": "Low",
+        "inspection_date": "August 24, 2023",
+        "inspection_type": "Initial",
+        "critical_violations_count": 1,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": [
+          {
+            "code": "306",
+            "corrected_during_inspection": false,
+            "description": "Food premises not maintained in a sanitary condition [s. 17(1)]",
+            "observation": "Vent hood still has grease residue left from prior operation with previous owner. Corner freezer has food debris and left over detritus from prior operation. These should be currently addressed before operation of this mobile begins so as to limit issues with sanitation and potential cross-contamination from the previous owner.",
+            "corrective_action": "The observed two pieces of equipment are to be further cleaned prior to operation."
+          }
+        ]
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:45:54.719176",
     "city": "Prince George",
+    "geocoded_query": "1205 3rd Avenue, Prince George, BC, Canada",
     "latitude": 53.9165103,
     "longitude": -122.7448531,
     "geocoded_address": "1205, 3rd Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3E8, Canada"
@@ -28962,8 +29497,89 @@
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=B6A7341CFF1A4BD9882589C00053BF30",
     "address": "777 Ospika Boulevard",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:09.503859",
+    "scraped_at": "2026-05-06T06:44:02.594112",
+    "facility_type": "Other",
+    "full_address": "777 Ospika Boulevard, Prince George, V2M 3R5",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=78444112E8B9040988258B2000670F61&Count=1000",
+        "date": "11-May-2024",
+        "hazard_rating": "Low",
+        "inspection_date": "May 11, 2024",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      },
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=23C3AFBAB0764D1288258B07006EB1EA&Count=1000",
+        "date": "22-Apr-2024",
+        "hazard_rating": "Low",
+        "inspection_date": "April 22, 2024",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 1,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": [
+          {
+            "code": "205",
+            "corrected_during_inspection": true,
+            "description": "Critical Repeat",
+            "observation": "Fridge temperatures are elevated, and were measured at 16 °C. Pastries containing cheese and processed vegetables were stored within the fridge for less than one hour at the time of the inspection. Public Health Significance - Refrigeration temperatures for perishable foods must be less than 4 °C to prevent the growth of disease causing bacteria and toxin production.",
+            "corrective_action": "Moved potentially hazardous foods to working freezer during the inspection. Monitor and log temperatures regularly, adjust and have the unit repaired or replaced if needed to provide a temperature of 4 °C or less at all times."
+          },
+          {
+            "code": "315",
+            "corrected_during_inspection": false,
+            "description": "Refrigeration units and hot holding equipment lack accurate thermometers [s. 19(2)]",
+            "observation": "Refrrigeration units used at the PG Farmer Markets, as well as storage at the Operator's home, do not have accurate thermometers. Provided photos to Operator that show the correct type of thermometers he needs. Public Health significance -  Accurate thermometers are required to ensure that all potentially hazardous foods are not temperature abused (e.g., kept above 4 degrees Celsius for more than 2 hours).",
+            "corrective_action": "Ensure that all fridges and freezers have accurate thermometers inside them to monitor their temperature."
+          }
+        ]
+      },
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=ECFB935C0A05ADB188258ABE0081CA8C&Count=1000",
+        "date": "9-Feb-2024",
+        "hazard_rating": "Low",
+        "inspection_date": "February 09, 2024",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": [
+          {
+            "code": "202",
+            "corrected_during_inspection": true,
+            "description": "Critical",
+            "observation": "Operator claimed that he prepared the dough for one of his food products at home. Public Health significance - Private kitchens are typically not built to meet Northern Health's requirements for the preparation of food, or for the protection of food from contamination.",
+            "corrective_action": "All food preparation of food products sold to the public must be done at an approved facility, in this case the Salvation Army Community Church kitchen."
+          },
+          {
+            "code": "205",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Potentially hazardous cold foods are stored above 4°C; Operator claims that he stores cooked pastries containing dairy and/or vegetables at room temperature for 4 hours during the PG Farmers Market, and then refrigerates these products for re-use. Public Health significance - Pastries containing dairy and vegetables are considered potentially hazardous foods, and must must be stored at below 4°C or above 60°C - out of the danger zone to prevent bacterial growth and possibly food borne illness",
+            "corrective_action": "Ensure that potentially hazardous cold foods are stored in a working refrigeration units that can maintain a temperature of 4°C or less."
+          },
+          {
+            "code": "302",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Operator was only cleaning, and not sanitizing, dishware and utensils. Furthermore, dishwasher on-site had an inadequate sanitizing rinse temperature; rinse cycle temperature was less than 71°C measured at the plate. After a few cycles the rinse temperature was rising, but was still inadequate at the time of the inspection. The dishwasher also wasn't dispensing detergent until the lines were adjusted. Public Health significance - High Temperature automatic dish washers must provide a sanitizing rinse at 71°C or more to sanitize dishware. Items and surfaces that come into contact with food must be cleaned to remove any food debris and grease, and then sanitized to kill dangerous bacteria that may be present.",
+            "corrective_action": "Have the dishwasher repaired by a qualified technician and monitor that detergent is dispensing, as well as the rinse temperature is reaching 82°C at the manifold regularly so you know when the unit needs adjustment or repair. Ensure that all food contact surfaces, equipment, and utensils are cleaned and sanitized before use, and/or after contamination. Recommend that the Facility Manager start dishwasher at least 30-60 minutes before you need to use it to ensure the dishwasher has preheated enough to sanitize."
+          }
+        ]
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:46:03.187574",
     "city": "Prince George",
+    "geocoded_query": "777 Ospika Boulevard, Prince George, V2M 3R5",
     "latitude": 53.9176885,
     "longitude": -122.795765,
     "geocoded_address": "The Salvation Army Church, 777, South Ospika Boulevard, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 1V8, Canada"
@@ -29085,7 +29701,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:40:30.706164",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "5750 Southridge Avenue, Prince George, BC, Canada",
+    "latitude": 53.866609,
+    "longitude": -122.7819214,
+    "geocoded_address": "5750, Southridge Avenue, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 7A1, Canada"
   },
   {
     "name": "Taco Delhi",
@@ -29100,7 +29719,10 @@
     "inspections": [],
     "details_fetched_at": "2025-12-16T23:40:40.838465",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "5212 Domano Boulevard, Prince George, BC, Canada",
+    "latitude": 53.8679881,
+    "longitude": -122.7748276,
+    "geocoded_address": "Edo Japan, 5212, Domano Boulevard, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 4A1, Canada"
   },
   {
     "name": "Tee Box Golf Simulators & Lounge Ltd",
@@ -29155,7 +29777,10 @@
     ],
     "details_fetched_at": "2025-12-16T23:40:58.107075",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "401 3rd Avenue, Prince George, BC, Canada",
+    "latitude": 53.9129507,
+    "longitude": -122.7320804,
+    "geocoded_address": "401, 3rd Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 2Z4, Canada"
   },
   {
     "name": "Terry's Fresh Hot Bannock",
@@ -29270,8 +29895,192 @@
     "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=DDAC9558D0F9ACE888257F470069B54B",
     "address": "1165 5th Avenue",
     "hazard_rating": "Low",
-    "scraped_at": "2025-12-16T22:28:09.504221",
+    "scraped_at": "2026-05-06T06:44:04.843462",
+    "facility_type": "Restaurant",
+    "full_address": "1165 5th Avenue, Prince George, V2L 3L1",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Routine Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=9337EDBF269E5D6A88258B1D00564CBD&Count=1000",
+        "date": "13-May-2024",
+        "hazard_rating": "Low",
+        "inspection_date": "May 13, 2024",
+        "inspection_type": "Routine",
+        "critical_violations_count": 1,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": [
+          {
+            "code": "302",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Meat slicer was not cleaned and sanitized properly and it contained the meat residuals attached to it under the hard to clean surfaces. The meat residuals left on the slicer are exposed to room temperature which may lead to growth of pathogens and toxin formation and may cross contaminate the other food products when the slicer is reused.",
+            "corrective_action": "The operator was told to dissemble the meat slicer and clean and sanitize the equipment as per the manufacturer’s guidelines."
+          },
+          {
+            "code": "309",
+            "corrected_during_inspection": false,
+            "description": "Chemicals, cleansers, & similar agents stored or labeled improperly [s. 27]",
+            "observation": "There was unlabelled spray bottles in the kitchen area.",
+            "corrective_action": "Ensure all chemicals (spray bottles) used in the premises are appropriately labelled to identify the contents."
+          },
+          {
+            "code": "401",
+            "corrected_during_inspection": true,
+            "description": "Critical Repeat",
+            "observation": "Inadequate facilities provided for hand washing in the bar area. Paper towels were not being used and employee mentioned they are using handtowels for wiping hands. (Public Health Significance) Hand washing is an important practice to ensure food are protected from cross contamination from other previously handled foods or contact surfaces.",
+            "corrective_action": "Ensure all the handwashing stations are equipped with paper towels dispensers to facilitate proper hand drying."
+          }
+        ]
+      },
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=ABF4BFEFFD11A2218825895F0004F0C1&Count=1000",
+        "date": "22-Feb-2023",
+        "hazard_rating": "Low",
+        "inspection_date": "February 22, 2023",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      },
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=B695A62C0548237B8825895600015613&Count=1000",
+        "date": "13-Feb-2023",
+        "hazard_rating": "Moderate",
+        "inspection_date": "February 13, 2023",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 3,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": [
+          {
+            "code": "104",
+            "corrected_during_inspection": false,
+            "description": "Permit not posted in a conspicuous location [s. 8(7)]",
+            "observation": "A valid permit was not posted at the time of the inspection. Valid permit must be available and posted in a conspicuous location.",
+            "corrective_action": "Ensure that the facility has a valid permit and is posted in a conspicuous place fro the public to see."
+          },
+          {
+            "code": "209",
+            "corrected_during_inspection": false,
+            "description": "Food not protected from contamination [s. 12(a)]",
+            "observation": "Inappropriate equipment is used as scoops (a plastic bowl) used  to obtain corn meal and left inside the cornmeal container. (Public Health significance) - Improper scoop without handles may expose food to contamination and scoops must be kept free from the product to prevent hand contact - food contamination.",
+            "corrective_action": "Use food safe scoops in place of bowls or other containers to transfer ingredients."
+          },
+          {
+            "code": "209",
+            "corrected_during_inspection": false,
+            "description": "Repeat",
+            "observation": "Foods in the fridge were left uncovered and open to contamination. (Public Health significance) - Contamination of food from contact with objects, people, pests or chemicals can cause serious illness.",
+            "corrective_action": "Cover or otherwise protect all foods from airborne contaminants, drips from raw foods, and contact with objects and staff"
+          },
+          {
+            "code": "210",
+            "corrected_during_inspection": false,
+            "description": "Food not thawed in an acceptable manner [s. 14(2)]",
+            "observation": "Observed chicken on top of the washing machine in the kitchen, operator confirmed that the chicken has been there for 2-3 hours. (Public Health Significance) Thawing at room temperature is uncontrolled and over the required time, portions of the product can be in the danger zone for extended periods of time.",
+            "corrective_action": "Thaw foods under running cold water, in the fridge or in the microwave oven."
+          },
+          {
+            "code": "301",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Observed re-usable wiping cloths kept on surfaces between use, no sanitizing solution was made. Wiping cloths must be stored in sanitizer solution between uses to prevent contamination.",
+            "corrective_action": "Ensure a sanitizer solution is made and changed after two hours or when needed to store re-usable wiping cloths between uses."
+          },
+          {
+            "code": "401",
+            "corrected_during_inspection": false,
+            "description": "Critical Repeat",
+            "observation": "Observed employees washroom was inadequate provided, missing paper towel for hand washing at the time of the inspection. (Public Health Significance) Hand washing is an important practice to ensure food are protected from cross contamination from other previously handled foods or contact surfaces.",
+            "corrective_action": "Ensure the hand wash station is accessible at all times, fully stocked with soap and paper towel in dispensers and hot and cold running water must be provided for proper hand washing."
+          }
+        ]
+      },
+      {
+        "type": "Routine Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=3B90171E480078AB882589510060C3BB&Count=1000",
+        "date": "8-Feb-2023",
+        "hazard_rating": "Moderate",
+        "inspection_date": "February 08, 2023",
+        "inspection_type": "Routine",
+        "critical_violations_count": 2,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": [
+          {
+            "code": "209",
+            "corrected_during_inspection": false,
+            "description": "Food not protected from contamination [s. 12(a)]",
+            "observation": "Observed fries and chips left uncovered in the kitchen and open to contamination. (Public Health significance) - Contamination of food from contact with objects, people, pests or chemicals can cause serious illness.",
+            "corrective_action": "Cover or otherwise protect all foods from airborne contaminants, drips from raw foods, and contact with objects and staff"
+          },
+          {
+            "code": "302",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Inadequate sanitizing rinse solution. No chlorine sanitizer detected at the time of the inspection. (Public Health significance) - Automatic dish washers must provide a minimum concentration of 50 parts per million (ppm) as required to effectively sanitize dishware, 100 ppm recommended. Operator used one of the two compartmented sink to hand sanitize the dishes, requires 200 ppm unscented bleach solution.",
+            "corrective_action": "Immediately initiate hand sanitizing providing a 200 ppm soak for 2 minutes for all dish ware. Operator to have the dishwasher repaired by a qualified technician and monitor and log sanitizer concentration regularly so you know when the unit needs adjustment or repair."
+          },
+          {
+            "code": "307",
+            "corrected_during_inspection": false,
+            "description": "Equipment/utensils/food contact surfaces are not of suitable design/material [s. 16; s. 19]",
+            "observation": "The floors are not sufficiently sealed or durable to facilitate regular cleaning and sanitizing. (Public Health significance) Materials like rubber/plastic finishing as floor covering must be easy to clean and sanitize and not allow disease causing bacteria to grow.",
+            "corrective_action": "Refinish surfaces to provide a durable, smooth and easy to clean surface."
+          },
+          {
+            "code": "401",
+            "corrected_during_inspection": true,
+            "description": "Critical",
+            "observation": "Soap for handwashing was really low not coming out, had to pump it several times to dispense soap for hand washing. (Public Health Significance) Hand washing is an important practice to ensure food are protected from cross contamination.",
+            "corrective_action": "Ensure that all hand wash station are equipped with soap and paper towel in dispensers and hot and cold running water must be provided at all times to facilitate proper hand washing."
+          }
+        ]
+      },
+      {
+        "type": "Routine Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=7EC23984EF6076D3882586D3007A02DD&Count=1000",
+        "date": "12-May-2021",
+        "hazard_rating": "Low",
+        "inspection_date": "May 12, 2021",
+        "inspection_type": "Routine",
+        "critical_violations_count": 2,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": [
+          {
+            "code": "302",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "Meat slicer had build-up of debris on the back of the guard. This can support potential bacteria growth which may contaminate any foods that are being cut.",
+            "corrective_action": "Disassemble and thoroughly clean and sanitize the meat slicer before storing it away."
+          },
+          {
+            "code": "305",
+            "corrected_during_inspection": false,
+            "description": "Conditions observed that may allow entrance/harbouring/breeding of pests [s. 26(b),(c)]",
+            "observation": "A small gap is present at the back door by the walk in refrigeration units and the hole is still present by the backdoor next to the dry storage room.",
+            "corrective_action": "Adjust the door sweep to block gaps which pests may enter through and repair the hole by the storage room."
+          },
+          {
+            "code": "306",
+            "corrected_during_inspection": false,
+            "description": "Food premises not maintained in a sanitary condition [s. 17(1)]",
+            "observation": "Area surrounding deep fryer and underneath the deep fryer has food debris and spilled oil on the ground.",
+            "corrective_action": "Ensure this area is cleaned frequently and at the end of the shift even though the main kitchen is under-used."
+          }
+        ]
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:46:13.925895",
     "city": "Prince George",
+    "geocoded_query": "1165 5th Avenue, Prince George, V2L 3L1",
     "latitude": 53.9145827,
     "longitude": -122.7453346,
     "geocoded_address": "Black Clover Pub, 1165, 5th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3L1, Canada"
@@ -29677,7 +30486,10 @@
     ],
     "details_fetched_at": "2025-12-17T00:17:22.902566",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "1157 5th Avenue, Prince George, BC, Canada",
+    "latitude": 53.9146396,
+    "longitude": -122.7450342,
+    "geocoded_address": "Twisted Cork, 1157, 5th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 1T7, Canada"
   },
   {
     "name": "The Underground Show Lounge and Bar",
@@ -29938,7 +30750,10 @@
     ],
     "details_fetched_at": "2025-12-17T00:22:02.486220",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "7393 Boundary Road, Prince George, BC, Canada",
+    "latitude": 53.8589617,
+    "longitude": -122.720065,
+    "geocoded_address": "7393, Boundary Road, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 6C9, Canada"
   },
   {
     "name": "Tim Hortons at Pine Centre",
@@ -32806,7 +33621,10 @@
     "inspections": [],
     "details_fetched_at": "2025-12-17T00:29:42.049318",
     "city": "Prince George",
-    "geocode_error": "Address not found"
+    "geocoded_query": "6007 Southridge Avenue, Prince George, BC, Canada",
+    "latitude": 53.8652056,
+    "longitude": -122.7839272,
+    "geocoded_address": "6007, Southridge Avenue, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 7A1, Canada"
   },
   {
     "name": "WilderNess Camp",
@@ -33273,5 +34091,478 @@
     "latitude": 53.9159371,
     "longitude": -122.7461328,
     "geocoded_address": "1259, 4th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2L 3L5, Canada"
+  },
+  {
+    "name": "Apna Bazaar",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=5779029D0EDD0D3F88258D2B0067DE7D",
+    "address": "3695 Massey Dr.",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:43:35.850815",
+    "facility_type": "Restaurant",
+    "full_address": "3695 Massey Dr., Prince George, V2N 4E6",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=F99F1BD08EF1ADE888258DC0007B5B90&Count=1000",
+        "date": "5-Feb-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "February 05, 2026",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      },
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=2B06DE711971FC7A88258D330057FE88&Count=1000",
+        "date": "28-Oct-2025",
+        "hazard_rating": "Low",
+        "inspection_date": "October 28, 2025",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:44:09.397378",
+    "city": "Prince George",
+    "geocoded_query": "3695 Massey Dr., Prince George, V2N 4E6",
+    "latitude": 53.8989868,
+    "longitude": -122.7904143,
+    "geocoded_address": "3695, Massey Drive, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 1V9, Canada"
+  },
+  {
+    "name": "Boston Pizza",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=45B8A560B06F6FDD88258D6900668103",
+    "address": "2500 Vance Road",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:43:38.074004",
+    "facility_type": "Restaurant",
+    "full_address": "2500 Vance Road, Prince George, V2N 6Z3",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=C27FBD1F1D6D2DB388258D7F00685D19&Count=1000",
+        "date": "9-Jan-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "January 09, 2026",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:44:15.636225",
+    "city": "Prince George",
+    "geocoded_query": "2500 Vance Road, Prince George, V2N 6Z3",
+    "latitude": 53.8810393,
+    "longitude": -122.7715529,
+    "geocoded_address": "2500, Vance Road, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 1N4, Canada"
+  },
+  {
+    "name": "Boston Pizza Spruceland",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=209CB62C62CFE1D488258D680074D3A1",
+    "address": "102 - 841 Central Street West",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:43:38.074024",
+    "facility_type": "Restaurant",
+    "full_address": "102 - 841 Central Street West, Prince George, V2M 3C8",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=E4A65782DE0EDAFA88258D78005FA9FB&Count=1000",
+        "date": "6-Jan-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "January 06, 2026",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:44:21.880710",
+    "city": "Prince George",
+    "geocoded_query": "841 Central Street West, Prince George, BC, Canada",
+    "latitude": 53.9166909,
+    "longitude": -122.7830902,
+    "geocoded_address": "Boston Pizza, 841, Central Street West, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 3C8, Canada"
+  },
+  {
+    "name": "Brew & Bloom Cafe",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=14B06515E94BBC0C88258D87007D7D9C",
+    "address": "4411 Kimball Road",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:43:38.074061",
+    "facility_type": "Restaurant",
+    "full_address": "4411 Kimball Road, Prince George, V2N5N7",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=E80A574C2289A17488258D9E0003A1A8&Count=1000",
+        "date": "13-Feb-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "February 13, 2026",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:44:28.114443",
+    "city": "Prince George",
+    "geocoded_query": "4411 Kimball Road, Prince George, V2N5N7",
+    "latitude": 53.858749,
+    "longitude": -122.8169186,
+    "geocoded_address": "Art Knapp Plantland Home & Garden, 4411, Kimball Road, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 5N7, Canada"
+  },
+  {
+    "name": "Dairy Queen on Domano",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=BD13C2C20541770988258BB3006C596C",
+    "address": "5090 Domano Boulevard",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:43:42.502361",
+    "facility_type": "Restaurant",
+    "full_address": "5090 Domano Boulevard, Prince George, V2N 4V8",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=94BE1040EF59FC7788258D1F007D8E82&Count=1000",
+        "date": "10-Oct-2025",
+        "hazard_rating": "Low",
+        "inspection_date": "October 10, 2025",
+        "inspection_type": "Initial",
+        "critical_violations_count": 2,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": [
+          {
+            "code": "308",
+            "corrected_during_inspection": false,
+            "description": "Equipment/utensils/food contact surfaces are not in good working order [s. 16(b)]",
+            "observation": "Walk-in freezer door is not sealing properly. Warm air is continuously entering and is causing significant frost & ice build up inside and on the products.",
+            "corrective_action": "Please find a temporary solution to better seal the door. Discard any open food that has been negatively affected. Manager has discussed a plan properly and permanently fix this issue."
+          },
+          {
+            "code": "312",
+            "corrected_during_inspection": true,
+            "description": "Items not required for food premises operation being stored on the premises [s. 18]",
+            "observation": "Staff drinking mug was found in the food processing area. Staff should not be consuming food or drinks while handling food (as this is a concern for cross contamination).",
+            "corrective_action": "Move drinking mug away and consume food or drinks outside the food processing area."
+          },
+          {
+            "code": "401",
+            "corrected_during_inspection": false,
+            "description": "Critical",
+            "observation": "There is one handwashing station available for use that is shared between the front service and back kitchen staff. Its location is not conveniently located for kitchen staff. One kitchen staff was observed changing gloves, but not washing their hands. (Public Health Significance) Handwashing is an important practice to ensure food is protected from cross contamination from other previously handled foods or contact surfaces.",
+            "corrective_action": "Please ensure staff are reminded to following proper handwashing frequency. Install a secondary handwashing station conveniently located for staff to use."
+          }
+        ]
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:44:34.361547",
+    "city": "Prince George",
+    "geocoded_query": "5090 Domano Boulevard, Prince George, V2N 4V8",
+    "latitude": 53.8683973,
+    "longitude": -122.7783972,
+    "geocoded_address": "Dairy Queen, 5090, Domano Boulevard, College Heights, Prince George, Regional District of Fraser-Fort George, British Columbia, V2N 4V8, Canada"
+  },
+  {
+    "name": "Dastaan - A Culinary Tale",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=08234A270C85D16288258D4D007B037B",
+    "address": "2418 Ospika Boulevard, South",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:43:42.502413",
+    "facility_type": "Restaurant",
+    "full_address": "2418 Ospika Boulevard, South, Prince George, V2N 3T2",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=CB7647675640E8BA88258D7A00623C74&Count=1000",
+        "date": "8-Jan-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "January 08, 2026",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:44:40.622080",
+    "city": "Prince George",
+    "geocode_error": "Address not found"
+  },
+  {
+    "name": "Edo Japan (Spruceland)",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=5D3D94551ED39D3288258D420077556F",
+    "address": "643 - 795 Central Street West",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:43:44.719226",
+    "facility_type": "Restaurant",
+    "full_address": "643 - 795 Central Street West, Prince George, V2M 6Z6",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=FBCF1507161EE3F988258D5A008296EE&Count=1000",
+        "date": "8-Dec-2025",
+        "hazard_rating": "Low",
+        "inspection_date": "December 08, 2025",
+        "inspection_type": "Initial",
+        "critical_violations_count": 1,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": [
+          {
+            "code": "103",
+            "corrected_during_inspection": true,
+            "description": "Failure to hold a valid permit while operating a food service establishment [s. 8(1)]",
+            "observation": "Operator operating without a permit. Permit is required for all food service establishment operation under the BC food premise regulations.",
+            "corrective_action": "Operator must obtain health permit prior to operating. Permit had been granted at time of inspection."
+          }
+        ]
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:44:46.853808",
+    "city": "Prince George",
+    "geocoded_query": "795 Central Street West, Prince George, BC, Canada",
+    "latitude": 53.9169979,
+    "longitude": -122.7821922,
+    "geocoded_address": "Central Street West, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 3C8, Canada"
+  },
+  {
+    "name": "Papa Murphy's Pizza",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=618FAA65DFAD9C0907258D7A006ABA53",
+    "address": "444 Douglas Street",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:43:55.792855",
+    "facility_type": "Restaurant",
+    "full_address": "444 Douglas Street, Prince George, V2M 2M2",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=D5B5C2D001564DF288258D8B005C9511&Count=1000",
+        "date": "23-Jan-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "January 23, 2026",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:44:53.086124",
+    "city": "Prince George",
+    "geocoded_query": "444 Douglas Street, Prince George, V2M 2M2",
+    "latitude": 53.9155009,
+    "longitude": -122.7707475,
+    "geocoded_address": "Douglas Street, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 2L3, Canada"
+  },
+  {
+    "name": "Pizza Craft And Cafe",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=D585631A3D8C71C188258D63006226A9",
+    "address": "3100 15th Avenue",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:43:55.793875",
+    "facility_type": "Restaurant",
+    "full_address": "3100 15th Avenue, Prince George, V2M 1T7",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=2C2058038B740AD388258DAE007DB7B7&Count=1000",
+        "date": "2-Mar-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "March 02, 2026",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:44:59.319868",
+    "city": "Prince George",
+    "geocoded_query": "3100 15th Avenue, Prince George, V2M 1T7",
+    "latitude": 53.9105556,
+    "longitude": -122.7799177,
+    "geocoded_address": "3100, 15th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 1T1, Canada"
+  },
+  {
+    "name": "The Velvet Grill Cuisine Ltd",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=8291545CCB3E979907258D7A0063FF81",
+    "address": "2095 5 Avenue",
+    "hazard_rating": "Moderate",
+    "scraped_at": "2026-05-06T06:44:04.843608",
+    "facility_type": "Restaurant",
+    "full_address": "2095 5 Avenue, Prince George, V2M 1J8",
+    "current_hazard_rating": "Moderate",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=0298CECEB3009C3888258DDA007A0FE2&Count=1000",
+        "date": "15-Apr-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "April 15, 2026",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 3,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": [
+          {
+            "code": "305",
+            "corrected_during_inspection": false,
+            "description": "Repeat",
+            "observation": "Gap opening observed at the rear door by the dry storage area. Public health significance: Such opening may provide a point of entry for pests which may potentially lead to the contamination of food and food contact surfaces.)",
+            "corrective_action": "A commercial food operator must ensure that the weather stripping is repaired or replaced as per the approved plans."
+          },
+          {
+            "code": "306",
+            "corrected_during_inspection": false,
+            "description": "Repeat",
+            "observation": "Food preparation area in the kitchen and storage areas are not in good sanitary condition. Observed dirt build-up and grime around the edges of the walls, grease build-up underneath and sides of the fryer. Public health significance: Dirt build-up in a kitchen environment may serve as breeding site for pathogens, pest attractants and unsafe for food preparation, as food may be contaminated/cross-contaminated in such areas which may lead to foodborne illness.",
+            "corrective_action": "A commercial food operator must ensure that the food preparation area and storage areas are maintained in good sanitary condition and as per the sanitation plan."
+          },
+          {
+            "code": "315",
+            "corrected_during_inspection": false,
+            "description": "Repeat",
+            "observation": "Internal thermometer not present in refrigeration units. Public health significance: The absence of an internal thermometer may lead to the inability to ascertain that foods are being stored and displayed within safe temperatures.",
+            "corrective_action": "Operator noted that an order has been place for the thermometers. Operator must ensure that accurate thermometers are kept inside the coolers as per the approved food safety plans."
+          }
+        ]
+      },
+      {
+        "type": "Follow-Up Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=F140D5F9C70EF86288258D940082E652&Count=1000",
+        "date": "4-Feb-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "February 04, 2026",
+        "inspection_type": "Follow-Up",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "No",
+        "violations": []
+      },
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=561A4EF03E97030B88258D8B00757EBA&Count=1000",
+        "date": "23-Jan-2026",
+        "hazard_rating": "Moderate",
+        "inspection_date": "January 23, 2026",
+        "inspection_type": "Initial",
+        "critical_violations_count": 4,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": [
+          {
+            "code": "103",
+            "corrected_during_inspection": false,
+            "description": "Failure to hold a valid permit while operating a food service establishment [s. 8(1)]",
+            "observation": "Facility has started operating without health approval and valid permit. All food premises must hold a valid food permit for monitoring and supporting food premises’ to ensure food being served to the public is prepared and served in a safe manner, and in compliance with the Food Premises Regulation.",
+            "corrective_action": "A commercial food establishment must ensure that they have a valid food permit before commencing operations."
+          },
+          {
+            "code": "305",
+            "corrected_during_inspection": false,
+            "description": "Conditions observed that may allow entrance/harbouring/breeding of pests [s. 26(b),(c)]",
+            "observation": "Weather stripping at the rear section by the dishwashing area was not in good condition. This may allow entrance of pests into the kitchen which may further contaminate food and food contact surfaces.",
+            "corrective_action": "Repair or replace the weather stripping to prevent potential entry of pests."
+          },
+          {
+            "code": "306",
+            "corrected_during_inspection": false,
+            "description": "Food premises not maintained in a sanitary condition [s. 17(1)]",
+            "observation": "Observed dirt/grime build-up in hard to reach areas around the dishwashing area, pantry and behind the freezers. Accumulation of dirt in a food preparation and storage areas may be a pest attractant which may lead to contamination of food and food contact surfaces.",
+            "corrective_action": "Operator must ensure that the facility is cleaned and sanitized."
+          },
+          {
+            "code": "311",
+            "corrected_during_inspection": false,
+            "description": "Premises not maintained as per approved plans [s. 6(1)(b)]",
+            "observation": "Flooring by the pantry/dry storage area is not in good repair. A piece of waferboard has been exposed and is chipping away. During the inspection, the area was covered with floor mat/carpet which is also not easily cleanable and is non-absorbent. Such a condition may render cleaning and sanitation ineffective leading to unsanitary conditions.",
+            "corrective_action": "Repair or replace the flooring by the pantry area and maintain it in a clean and sanitary condition"
+          }
+        ]
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:46:22.385093",
+    "city": "Prince George",
+    "geocoded_query": "2095 5 Avenue, Prince George, BC, Canada",
+    "latitude": 53.9196299,
+    "longitude": -122.7671698,
+    "geocoded_address": "6th Avenue, Prince George, Regional District of Fraser-Fort George, British Columbia, V2M 2K6, Canada"
+  },
+  {
+    "name": "Walker Camp",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=9203D5CE84DA515C88258BA90072983A",
+    "address": "",
+    "hazard_rating": "Unknown",
+    "scraped_at": "2026-05-06T06:44:07.074079",
+    "facility_type": "Unknown",
+    "full_address": "Prince George",
+    "current_hazard_rating": "Unknown",
+    "non_smoking": "Yes",
+    "inspections": [],
+    "details_fetched_at": "2026-05-06T06:46:27.512974",
+    "city": "Prince George",
+    "geocoded_query": "Prince George, BC, Canada",
+    "latitude": 53.9128645,
+    "longitude": -122.7453699,
+    "geocoded_address": "Prince George, Regional District of Fraser-Fort George, British Columbia, Canada"
+  },
+  {
+    "name": "Wendy's HART",
+    "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=1A2B98B4FEC744BC88258DA3006B49E6",
+    "address": "6577 Hart Highway",
+    "hazard_rating": "Low",
+    "scraped_at": "2026-05-06T06:44:07.074134",
+    "facility_type": "Restaurant",
+    "full_address": "6577 Hart Highway, Prince George, V2K3A4",
+    "current_hazard_rating": "Low",
+    "non_smoking": "Yes",
+    "inspections": [
+      {
+        "type": "Initial Inspection",
+        "details_url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-InspectionDetails?OpenView&RestrictToCategory=387CEF4FD1B7F9AC88258DB70057EC47&Count=1000",
+        "date": "10-Mar-2026",
+        "hazard_rating": "Low",
+        "inspection_date": "March 10, 2026",
+        "inspection_type": "Initial",
+        "critical_violations_count": 0,
+        "non_critical_violations_count": 0,
+        "follow_up_required": "Yes",
+        "violations": []
+      }
+    ],
+    "details_fetched_at": "2026-05-06T06:46:33.739701",
+    "city": "Prince George",
+    "geocoded_query": "6577 Hart Highway, Prince George, V2K3A4",
+    "latitude": 53.9830363,
+    "longitude": -122.7826399,
+    "geocoded_address": "Hart Highway, The Hart, Prince George, Regional District of Fraser-Fort George, British Columbia, V2K 1W2, Canada"
   }
 ]

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
-import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, Menu, X, UtensilsCrossed } from 'lucide-react'
+import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, Menu, X, UtensilsCrossed, Database } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -11,12 +11,13 @@ const navLinks = [
   { path: '/', label: 'Home', icon: Map },
   { path: '/foodmap', label: 'Food Safety', icon: UtensilsCrossed },
   { path: '/airquality', label: 'Air Quality', icon: Wind },
-  { path: '/parks', label: 'Parks & Trails', icon: Trees },
+  { path: '/pgdata?tab=parks', label: 'Parks & Trails', icon: Trees },
   { path: '/census', label: 'Census', icon: BarChart3 },
   { path: '/explorer', label: 'Explorer', icon: Layers },
   { path: '/score-builder', label: 'Index Lab', icon: Calculator },
   { path: '/bc-assessment', label: 'Assessment', icon: Building2 },
   { path: '/pgdata', label: 'PG Data', icon: ShieldAlert },
+  { path: '/misc', label: 'MISC', icon: Database },
 ]
 
 export function Navbar() {
@@ -25,9 +26,21 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const locationParams = new URLSearchParams(location.search)
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+  }
+
+  const isNavActive = (path: string) => {
+    if (path === '/') return location.pathname === '/'
+    if (path === '/pgdata?tab=parks') {
+      return location.pathname === '/pgdata' && locationParams.get('tab') === 'parks'
+    }
+    if (path === '/pgdata') {
+      return location.pathname === '/pgdata' && locationParams.get('tab') !== 'parks'
+    }
+    return location.pathname === path
   }
 
   // Close mobile menu on outside click
@@ -61,7 +74,7 @@ export function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
-                  location.pathname === path
+                  isNavActive(path)
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
@@ -97,7 +110,7 @@ export function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors xl:px-3",
-                  location.pathname === path
+                  isNavActive(path)
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}

@@ -40,7 +40,6 @@ export default function BcAssessmentSection() {
   }, [properties, selectedCategories, searchQuery])
 
   const boundaryAggregates = useBoundaryAggregates(filteredProperties, boundaryLevel)
-
   // Clear selection if it's no longer visible
   useEffect(() => {
     if (selectedProperty && !filteredProperties.some((p) => p.id === selectedProperty.id)) {

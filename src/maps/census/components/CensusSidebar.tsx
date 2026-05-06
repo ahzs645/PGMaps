@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { cn } from '@/lib/utils'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from '../constants'
 import type {
@@ -35,6 +36,17 @@ interface CensusSidebarProps {
 }
 
 const MAX_ROWS = 140
+const CENSUS_REGION_SOURCE_OPTIONS: Array<{
+  value: 'census'
+  label: string
+  description: string
+}> = [
+  {
+    value: 'census',
+    label: 'Census Boundaries',
+    description: 'CD -> CSD -> CT -> DA -> DB'
+  }
+]
 
 function formatUnitLabel(unit: CensusUnit): string {
   switch (unit.level) {
@@ -196,24 +208,25 @@ export function CensusSidebar({
         </p>
       </div>
 
+      <StudyAreaSelector<'census', CensusHierarchyLevel>
+        source="census"
+        sourceOptions={CENSUS_REGION_SOURCE_OPTIONS}
+        level={selectedHierarchy}
+        levelOptions={CENSUS_HIERARCHIES.map((level) => ({ value: level.key, label: level.label }))}
+        onSourceChange={() => undefined}
+        onLevelChange={(level) => {
+          onHierarchyChange(level)
+          onClearSelection()
+        }}
+        levelSelectId="census-study-area-level"
+      />
+
       {/* Level & Metric selectors */}
       <div className="border-b border-border bg-background/95 px-4 py-3">
         <div className="mb-2 text-xs text-muted-foreground">
           {filteredUnits.length} of {units.length} units
         </div>
         <div className="space-y-2">
-          <select
-            value={selectedHierarchy}
-            onChange={(event) => onHierarchyChange(event.target.value as CensusHierarchyLevel)}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500"
-          >
-            {CENSUS_HIERARCHIES.map((level) => (
-              <option key={level.key} value={level.key}>
-                {level.label}
-              </option>
-            ))}
-          </select>
-
           <select
             value={isVariableMode ? '__variable__' : selectedMetric}
             onChange={(event) => {

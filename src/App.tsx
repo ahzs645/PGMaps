@@ -11,6 +11,7 @@ const ParksSection = lazy(() => import('@/maps/parks').then(m => ({ default: m.P
 const ScoreBuilderSection = lazy(() => import('@/maps/scorebuilder').then(m => ({ default: m.ScoreBuilderSection })))
 const ExplorerSection = lazy(() => import('@/maps/explorer').then(m => ({ default: m.ExplorerSection })))
 const PGDataSection = lazy(() => import('@/maps/pgdata').then(m => ({ default: m.PGDataSection })))
+const MiscDataSection = lazy(() => import('@/maps/pgdata/MiscDataSection'))
 const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then(m => ({ default: m.BcAssessmentSection })))
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
           <Route path="/parks" element={<ParksSection />} />
           <Route path="/score-builder" element={<ScoreBuilderSection />} />
           <Route path="/pgdata" element={<PGDataSection />} />
+          <Route path="/misc" element={<MiscDataSection />} />
           <Route path="/bc-assessment" element={<BcAssessmentSection />} />
         </Routes>
       </Suspense>
