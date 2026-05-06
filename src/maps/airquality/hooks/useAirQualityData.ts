@@ -104,12 +104,18 @@ function normalizeNumericValue(value: number | string | null | undefined): numbe
   return Number.isFinite(numeric) ? numeric : null
 }
 
-export function useAirQualityData() {
+export function useAirQualityData(enabled = true) {
   const [monitors, setMonitors] = useState<AirMonitor[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     const controller = new AbortController()
 
     async function loadData() {
@@ -145,7 +151,7 @@ export function useAirQualityData() {
     loadData()
 
     return () => controller.abort()
-  }, [])
+  }, [enabled])
 
   return { monitors, loading, error }
 }

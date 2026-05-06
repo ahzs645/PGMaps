@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
+import { DATASETS } from '@/lib/dataCatalog'
 import { cn } from '@/lib/utils'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from '../constants'
 import type {
@@ -208,6 +210,8 @@ export function CensusSidebar({
           {' across '}5 geographic levels
         </p>
       </div>
+
+      <DatasetInfo dataset={DATASETS.census} />
 
       <StudyAreaSelector<'census', CensusHierarchyLevel>
         source="census"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import {
   Map as PgMap,
   MapControls,
+  MapClusterLayer,
   MapMarker,
   MarkerContent,
   type MapRef,
@@ -9,12 +10,13 @@ import {
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { getClassificationColor, getTrailColor } from '../constants'
-import type { Park, Trail, ParkAmenity, ActiveLayer } from '../types'
+import type { Park, Trail, ParkAmenity, ActiveLayer, CityPgOverlayData } from '../types'
 
 interface ParksMapProps {
   parks: Park[]
   trails: Trail[]
   amenities: ParkAmenity[]
+  cityOverlays: CityPgOverlayData
   activeLayers: ActiveLayer[]
   selectedPark: Park | null
   selectedTrail: Trail | null
@@ -28,6 +30,7 @@ export function ParksMap({
   parks,
   trails,
   amenities,
+  cityOverlays,
   activeLayers,
   selectedPark,
   selectedTrail,
@@ -41,6 +44,12 @@ export function ParksMap({
   const showParks = activeLayers.includes('parks')
   const showTrails = activeLayers.includes('trails')
   const showAmenities = activeLayers.includes('amenities')
+  const showParkAssets = activeLayers.includes('parkAssets')
+  const showMobility = activeLayers.includes('mobility')
+  const showEcology = activeLayers.includes('ecology')
+  const showCommunity = activeLayers.includes('community')
+  const showServices = activeLayers.includes('services')
+  const showPlanning = activeLayers.includes('planning')
 
   const parkGeojson = useMemo<GeoJSON.FeatureCollection>(() => {
     const parksById = new globalThis.Map<number, Park>()
@@ -155,6 +164,135 @@ export function ParksMap({
             if (trail) onTrailClick(trail)
           }}
         />
+
+        {showEcology && (
+          <MapFillLayer
+            data={cityOverlays.ecologyAreas}
+            fillColor={['get', 'color']}
+            fillOpacity={0.16}
+            lineColor={['get', 'color']}
+            lineWidth={0.8}
+            lineOpacity={0.55}
+            visible
+          />
+        )}
+
+        {showCommunity && (
+          <>
+            <MapFillLayer
+              data={cityOverlays.communityAreas}
+              fillColor="#6366f1"
+              fillOpacity={0.04}
+              lineColor="#6366f1"
+              lineWidth={1.2}
+              lineOpacity={0.8}
+              visible
+            />
+            <MapFillLayer
+              data={cityOverlays.civicAreas}
+              fillColor="#0ea5e9"
+              fillOpacity={0.35}
+              lineColor="#0369a1"
+              lineWidth={0.8}
+              lineOpacity={0.6}
+              visible
+            />
+          </>
+        )}
+
+        {showServices && (
+          <>
+            <MapLineLayer
+              data={cityOverlays.serviceLines}
+              color="#38bdf8"
+              width={2}
+              opacity={0.55}
+              visible
+            />
+            <MapFillLayer
+              data={cityOverlays.serviceAreas}
+              fillColor={['get', 'color']}
+              fillOpacity={0.12}
+              lineColor={['get', 'color']}
+              lineWidth={1}
+              lineOpacity={0.55}
+              visible
+            />
+          </>
+        )}
+
+        {showPlanning && (
+          <>
+            <MapLineLayer
+              data={cityOverlays.planningLines}
+              color="#f97316"
+              width={2.8}
+              opacity={0.78}
+              dashArray={[2, 1.4]}
+              visible
+            />
+            <MapFillLayer
+              data={cityOverlays.planningAreas}
+              fillColor={['get', 'color']}
+              fillOpacity={0.18}
+              lineColor={['get', 'color']}
+              lineWidth={1}
+              lineOpacity={0.65}
+              visible
+            />
+            <MapClusterLayer
+              data={cityOverlays.planningPoints}
+              pointColor="#f97316"
+              clusterColors={['#fdba74', '#fb923c', '#ea580c']}
+              clusterThresholds={[20, 80]}
+            />
+          </>
+        )}
+
+        {showParkAssets && (
+          <>
+            <MapFillLayer
+              data={cityOverlays.parkAreas}
+              fillColor={['get', 'color']}
+              fillOpacity={0.3}
+              lineColor={['get', 'color']}
+              lineWidth={0.9}
+              lineOpacity={0.55}
+              visible
+            />
+            <MapLineLayer
+              data={cityOverlays.parkLines}
+              color={['get', 'color']}
+              width={2.4}
+              opacity={0.75}
+              visible
+            />
+            <MapClusterLayer
+              data={cityOverlays.parkAssets}
+              pointColor="#16a34a"
+              clusterColors={['#86efac', '#22c55e', '#15803d']}
+              clusterThresholds={[80, 400]}
+            />
+          </>
+        )}
+
+        {showMobility && (
+          <>
+            <MapLineLayer
+              data={cityOverlays.mobilityLines}
+              color={['get', 'color']}
+              width={2.4}
+              opacity={0.78}
+              visible
+            />
+            <MapClusterLayer
+              data={cityOverlays.mobilityPoints}
+              pointColor="#ef4444"
+              clusterColors={['#fca5a5', '#ef4444', '#b91c1c']}
+              clusterThresholds={[20, 100]}
+            />
+          </>
+        )}
 
         {visibleAmenities.map((amenity) => (
           <MapMarker

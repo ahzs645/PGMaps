@@ -120,12 +120,18 @@ function getPrimaryBounds(
   return boundsByLevel.csd || boundsByLevel.da || boundsByLevel.ct || boundsByLevel.db || boundsByLevel.cd || null
 }
 
-export function useCensusData() {
+export function useCensusData(enabled = true) {
   const [unitsByLevel, setUnitsByLevel] = useState<Record<CensusHierarchyLevel, CensusUnit[]>>(emptyUnitsByLevel)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     const controller = new AbortController()
 
     async function load() {
@@ -165,7 +171,7 @@ export function useCensusData() {
 
     load()
     return () => controller.abort()
-  }, [])
+  }, [enabled])
 
   const boundsByLevel = useMemo(() => {
     return {

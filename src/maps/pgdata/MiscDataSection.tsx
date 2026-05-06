@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ElementType } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Database, Flame, Satellite, Trees } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector, type StudyAreaLevelOption, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { DATASETS } from '@/lib/dataCatalog'
 import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
 
 interface HeatShadeManifestSource {
@@ -29,6 +32,7 @@ type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | Geo
 
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
 type MiscDataTab = 'heatShade' | 'canue'
+type CanueYearMode = 'single' | 'all' | 'range'
 type CanueBoundarySource = 'bcHealth' | 'census' | 'cityPG'
 type CanueBoundaryLevel =
   | 'healthAuthority'
@@ -71,6 +75,14 @@ interface CanueBoundaryResult {
   maxValue: number | null
   validBoundaryCount: number
   matchedRowCount: number
+}
+
+interface CanueDatasetGroup {
+  datasetId: string
+  label: string
+  category: string
+  files: CanueFile[]
+  years: number[]
 }
 
 interface BoundaryIndexEntry {
@@ -221,6 +233,8 @@ const CANUE_DEFAULT_VARIABLE_BY_DATASET: Partial<Record<string, string>> = {
   nhpmd_ann: 'nhpmd19_03',
 }
 
+const CANUE_INVALID_NUMERIC_VALUES = new Set([-9999, -1111])
+
 const CANUE_EXACT_VARIABLE_LABELS: Record<string, string> = {
   pm25dal21_01: 'Annual mean PM2.5',
   lgtnlt13_01: 'Night-time light intensity',
@@ -232,6 +246,16 @@ const CANUE_EXACT_VARIABLE_LABELS: Record<string, string> = {
 }
 
 const CANUE_SUFFIX_LABELS_BY_DATASET: Record<string, Record<string, string>> = {
+  pm25dale_a: {
+    '01': 'Annual mean PM2.5',
+  },
+  aqsmk_avb: {
+    '01': 'Smoke PM2.5 mean',
+    '02': 'Smoke PM2.5 median',
+    '03': 'Smoke PM2.5 minimum',
+    '04': 'Smoke PM2.5 maximum',
+    '05': 'Smoke PM2.5 standard deviation',
+  },
   ale_a: {
     '01': 'Dissemination area ID',
     '02': 'Intersection density',
@@ -345,29 +369,55 @@ function getDefaultCanueVariable(file: CanueFile): string | null {
   return file.variables[0] ?? null
 }
 
-function useJsonManifest<T>(path: string) {
+function getCanueVariableSuffix(variable: string | null): string | null {
+  return variable?.match(/_(\d+)$/)?.[1] ?? null
+}
+
+function findCanueVariableForFile(file: CanueFile, selectedVariable: string): string | null {
+  if (file.variables.includes(selectedVariable)) return selectedVariable
+  const suffix = getCanueVariableSuffix(selectedVariable)
+  if (!suffix) return null
+  return file.variables.find((variable) => getCanueVariableSuffix(variable) === suffix) ?? null
+}
+
+function getCanuePeriodLabel(files: CanueFile[], mode: CanueYearMode): string {
+  if (!files.length) return 'No years'
+  if (files.length === 1) return String(files[0].year)
+  const years = files.map((file) => file.year).sort((a, b) => a - b)
+  const range = `${years[0]}-${years[years.length - 1]}`
+  return mode === 'single' ? String(files[0].year) : `${range} average`
+}
+
+function useJsonManifest<T>(path: string | null) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!path) {
+      setData(null)
+      setError(null)
+      return
+    }
+
     const controller = new AbortController()
+    const resolvedPath = path
 
     async function load() {
       try {
         setError(null)
-        const response = await fetch(path, { signal: controller.signal, cache: 'no-store' })
-        if (!response.ok) throw new Error(`Failed to fetch ${path}: ${response.status}`)
+        const response = await fetch(resolvedPath, { signal: controller.signal, cache: 'no-store' })
+        if (!response.ok) throw new Error(`Failed to fetch ${resolvedPath}: ${response.status}`)
         const contentType = response.headers.get('content-type') ?? ''
         const text = await response.text()
         if (!contentType.includes('json') && text.trimStart().startsWith('<')) {
-          throw new Error(`Expected JSON from ${path}, but received ${contentType || 'unknown content type'}`)
+          throw new Error(`Expected JSON from ${resolvedPath}, but received ${contentType || 'unknown content type'}`)
         }
         setData(JSON.parse(text) as T)
         setError(null)
       } catch (err) {
         if ((err as Error).name === 'AbortError') return
         setData(null)
-        setError((err as Error).message || `Unable to load ${path}`)
+        setError((err as Error).message || `Unable to load ${resolvedPath}`)
       }
     }
 
@@ -428,11 +478,12 @@ async function fetchGzipText(path: string, signal: AbortSignal): Promise<string>
 }
 
 function useCanueBoundaryData(
-  file: CanueFile | null,
+  files: CanueFile[],
   variable: string | null,
   boundaries: BoundaryFeatureCollection | null,
   boundaryLevel: CanueBoundaryLevel,
   membership: CanuePostalMembership | null,
+  yearMode: CanueYearMode,
 ): CanueBoundaryResult {
   const [result, setResult] = useState<CanueBoundaryResult>({
     data: { type: 'FeatureCollection', features: [] },
@@ -445,7 +496,7 @@ function useCanueBoundaryData(
   })
 
   useEffect(() => {
-    if (!file?.output || !variable || !boundaries || !membership) {
+    if (!files.length || !variable || !boundaries || !membership) {
       setResult({
         data: { type: 'FeatureCollection', features: [] },
         loading: false,
@@ -459,19 +510,17 @@ function useCanueBoundaryData(
     }
 
     const controller = new AbortController()
-    const activeFile = file
+    const activeFiles = files
     const activeBoundaries = boundaries
     const activeMembership = membership
     const activeBoundaryLevel = boundaryLevel
     const boundaryConfig = CANUE_BOUNDARY_CONFIG[boundaryLevel]
-    const output = file.output
     const activeVariable = variable
 
     async function load() {
       setResult((current) => ({ ...current, loading: true, error: null }))
 
       try {
-        const text = await fetchGzipText(output, controller.signal)
         const usableBoundaries: BoundaryFeatureCollection = {
           type: 'FeatureCollection',
           features: activeBoundaries.features.filter((feature) => feature.geometry),
@@ -479,38 +528,57 @@ function useCanueBoundaryData(
         const boundaryIndex = buildBoundaryIndex(usableBoundaries, boundaryConfig)
         const buckets = new Map(boundaryIndex.map((boundary) => [
           boundary.id,
-          { boundary, rowCount: 0, sum: 0, count: 0, min: null as number | null, max: null as number | null },
+          {
+            boundary,
+            rowCount: 0,
+            sum: 0,
+            count: 0,
+            min: null as number | null,
+            max: null as number | null,
+            years: new Map<number, { sum: number; count: number }>(),
+          },
         ]))
         const membershipByPostalCode = new Map(
           activeMembership.records.map((record) => [record.postalcode, record.boundaries[activeBoundaryLevel] ?? '']),
         )
-        const lines = text.split(/\r?\n/)
-        const headers = splitCsvLine(lines[0] ?? '')
-        const postalIndex = headers.indexOf('postalcode')
-        const variableIndex = headers.indexOf(activeVariable)
         let matchedRowCount = 0
 
-        if (postalIndex < 0 || variableIndex < 0) {
-          throw new Error(`CANUE file is missing postalcode or ${activeVariable}`)
-        }
+        for (const activeFile of activeFiles) {
+          const fileVariable = findCanueVariableForFile(activeFile, activeVariable)
+          if (!fileVariable) throw new Error(`${activeFile.label} ${activeFile.year} is missing ${activeVariable}`)
 
-        for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
-          const line = lines[lineIndex]
-          if (!line) continue
-          const values = splitCsvLine(line)
-          const boundaryId = membershipByPostalCode.get(String(values[postalIndex] || '').replace(/\s+/g, '').toUpperCase())
-          if (!boundaryId) continue
-          const bucket = buckets.get(boundaryId)
-          if (!bucket) continue
-          bucket.rowCount += 1
-          matchedRowCount += 1
+          const text = await fetchGzipText(activeFile.output, controller.signal)
+          const lines = text.split(/\r?\n/)
+          const headers = splitCsvLine(lines[0] ?? '')
+          const postalIndex = headers.indexOf('postalcode')
+          const variableIndex = headers.indexOf(fileVariable)
 
-          const value = Number(values[variableIndex])
-          if (!Number.isFinite(value) || value === -9999) continue
-          bucket.sum += value
-          bucket.count += 1
-          bucket.min = bucket.min == null ? value : Math.min(bucket.min, value)
-          bucket.max = bucket.max == null ? value : Math.max(bucket.max, value)
+          if (postalIndex < 0 || variableIndex < 0) {
+            throw new Error(`CANUE file is missing postalcode or ${fileVariable}`)
+          }
+
+          for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
+            const line = lines[lineIndex]
+            if (!line) continue
+            const values = splitCsvLine(line)
+            const boundaryId = membershipByPostalCode.get(String(values[postalIndex] || '').replace(/\s+/g, '').toUpperCase())
+            if (!boundaryId) continue
+            const bucket = buckets.get(boundaryId)
+            if (!bucket) continue
+            bucket.rowCount += 1
+            matchedRowCount += 1
+
+            const value = Number(values[variableIndex])
+            if (!Number.isFinite(value) || CANUE_INVALID_NUMERIC_VALUES.has(value)) continue
+            bucket.sum += value
+            bucket.count += 1
+            bucket.min = bucket.min == null ? value : Math.min(bucket.min, value)
+            bucket.max = bucket.max == null ? value : Math.max(bucket.max, value)
+            const yearBucket = bucket.years.get(activeFile.year) ?? { sum: 0, count: 0 }
+            yearBucket.sum += value
+            yearBucket.count += 1
+            bucket.years.set(activeFile.year, yearBucket)
+          }
         }
 
         let minValue: number | null = null
@@ -520,7 +588,14 @@ function useCanueBoundaryData(
         const features = usableBoundaries.features.map((feature, index) => {
           const boundary = boundaryIndex[index]
           const bucket = buckets.get(boundary.id)
-          const value = bucket && bucket.count > 0 ? bucket.sum / bucket.count : null
+          const yearlyMeans = bucket
+            ? Array.from(bucket.years.values()).filter((yearBucket) => yearBucket.count > 0).map((yearBucket) => yearBucket.sum / yearBucket.count)
+            : []
+          const value = bucket && bucket.count > 0
+            ? activeFiles.length > 1 && yearlyMeans.length > 0
+              ? yearlyMeans.reduce((sum, yearMean) => sum + yearMean, 0) / yearlyMeans.length
+              : bucket.sum / bucket.count
+            : null
 
           return {
             ...feature,
@@ -529,10 +604,12 @@ function useCanueBoundaryData(
               ...feature.properties,
               boundaryId: boundary.id,
               boundaryName: boundary.name,
-              datasetId: activeFile.datasetId,
-              datasetLabel: activeFile.label,
-              category: activeFile.category,
-              year: activeFile.year,
+              datasetId: activeFiles[0]?.datasetId,
+              datasetLabel: activeFiles[0]?.label,
+              category: activeFiles[0]?.category,
+              year: activeFiles.length === 1 ? activeFiles[0].year : null,
+              yearMode,
+              yearLabel: getCanuePeriodLabel(activeFiles, yearMode),
               rowCount: bucket?.rowCount ?? 0,
               [activeVariable]: value,
               [`${activeVariable}_count`]: bucket?.count ?? 0,
@@ -580,27 +657,58 @@ function useCanueBoundaryData(
 
     void load()
     return () => controller.abort()
-  }, [boundaries, boundaryLevel, file, membership, variable])
+  }, [boundaries, boundaryLevel, files, membership, variable, yearMode])
 
   return result
 }
 
 export default function MiscDataSection() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showSidebar, setShowSidebar] = useState(true)
-  const [activeTab, setActiveTab] = useState<MiscDataTab>('canue')
+  const [activeTab, setActiveTab] = useState<MiscDataTab>(() => searchParams.get('tab') === 'heatShade' ? 'heatShade' : 'canue')
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
   const [canueBoundarySource, setCanueBoundarySource] = useState<CanueBoundarySource>('bcHealth')
   const [canueBoundaryLevel, setCanueBoundaryLevel] = useState<CanueBoundaryLevel>('chsa')
   const [showCanueBoundaries, setShowCanueBoundaries] = useState(true)
-  const [selectedCanueFileKey, setSelectedCanueFileKey] = useState<string | null>(null)
+  const [selectedCanueDatasetId, setSelectedCanueDatasetId] = useState<string | null>(() => searchParams.get('dataset'))
+  const [selectedCanueYear, setSelectedCanueYear] = useState<number | null>(() => {
+    const year = Number(searchParams.get('year'))
+    return Number.isFinite(year) ? year : null
+  })
+  const [canueYearMode, setCanueYearMode] = useState<CanueYearMode>(() => (searchParams.get('years') as CanueYearMode) || 'single')
+  const [canueRangeStartYear, setCanueRangeStartYear] = useState<number | null>(null)
+  const [canueRangeEndYear, setCanueRangeEndYear] = useState<number | null>(null)
   const [selectedCanueVariable, setSelectedCanueVariable] = useState<string | null>(null)
   const [selectedCanueBoundaryId, setSelectedCanueBoundaryId] = useState<string | null>(null)
-  const { trees, forests, facilities, loading, error } = useHeatShadeData(true)
-  const heatShadeManifest = useJsonManifest<HeatShadeManifest>('/data/heat-shade/manifest.json')
+  const { trees, forests, facilities, loading, error } = useHeatShadeData(activeTab === 'heatShade')
+  const heatShadeManifest = useJsonManifest<HeatShadeManifest>(activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null)
   const canueManifest = useJsonManifest<CanueManifest>('/data/canue/bc/annual-gzip/manifest.json')
   const canueMembership = useJsonManifest<CanuePostalMembership>('/data/canue/bc/postal-boundary-membership.json')
   const canueBoundaryConfig = CANUE_BOUNDARY_CONFIG[canueBoundaryLevel]
   const canueBoundaries = useJsonManifest<BoundaryFeatureCollection>(canueBoundaryConfig.path)
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams)
+    if (activeTab !== 'canue') params.set('tab', activeTab)
+    else params.delete('tab')
+    if (activeTab === 'canue') {
+      if (selectedCanueDatasetId) params.set('dataset', selectedCanueDatasetId)
+      else params.delete('dataset')
+      if (selectedCanueYear != null) params.set('year', String(selectedCanueYear))
+      else params.delete('year')
+      if (canueYearMode !== 'single') params.set('years', canueYearMode)
+      else params.delete('years')
+      params.set('boundary', canueBoundaryLevel)
+    } else {
+      params.delete('dataset')
+      params.delete('year')
+      params.delete('years')
+      params.delete('boundary')
+    }
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true })
+    }
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueYear, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -620,25 +728,74 @@ export default function MiscDataSection() {
   const visibleFacilities = useMemo(() => facilities.slice(0, 350), [facilities])
 
   const canueFiles = canueManifest.data?.files ?? []
+  const canueDatasetGroups = useMemo<CanueDatasetGroup[]>(() => {
+    const groups = new Map<string, CanueDatasetGroup>()
+    for (const file of canueFiles) {
+      const group = groups.get(file.datasetId)
+      if (group) {
+        group.files.push(file)
+        group.years.push(file.year)
+      } else {
+        groups.set(file.datasetId, {
+          datasetId: file.datasetId,
+          label: file.label,
+          category: file.category,
+          files: [file],
+          years: [file.year],
+        })
+      }
+    }
+
+    return Array.from(groups.values()).map((group) => ({
+      ...group,
+      files: group.files.slice().sort((left, right) => left.year - right.year),
+      years: Array.from(new Set(group.years)).sort((left, right) => left - right),
+    })).sort((left, right) => {
+      if (left.datasetId === 'pm25dale_a') return -1
+      if (right.datasetId === 'pm25dale_a') return 1
+      return left.label.localeCompare(right.label)
+    })
+  }, [canueFiles])
   const canueBoundaryLevelOptions = canueBoundarySource === 'bcHealth'
     ? CANUE_HEALTH_LEVEL_OPTIONS
     : canueBoundarySource === 'cityPG'
       ? CANUE_CITY_LEVEL_OPTIONS
       : CANUE_CENSUS_LEVEL_OPTIONS
-  const selectedCanueFile = useMemo(() => {
-    if (!canueFiles.length) return null
-    if (selectedCanueFileKey) {
-      const selected = canueFiles.find((file) => `${file.datasetId}-${file.year}` === selectedCanueFileKey)
+  const selectedCanueDataset = useMemo(() => {
+    if (!canueDatasetGroups.length) return null
+    if (selectedCanueDatasetId) {
+      const selected = canueDatasetGroups.find((dataset) => dataset.datasetId === selectedCanueDatasetId)
       if (selected) return selected
     }
-    return canueFiles.find((file) => file.datasetId === 'pm25dale_a') ?? canueFiles[0]
-  }, [canueFiles, selectedCanueFileKey])
+    return canueDatasetGroups.find((dataset) => dataset.datasetId === 'pm25dale_a') ?? canueDatasetGroups[0]
+  }, [canueDatasetGroups, selectedCanueDatasetId])
+  const selectedCanueFile = useMemo(() => {
+    if (!selectedCanueDataset) return null
+    if (selectedCanueYear != null) {
+      const selected = selectedCanueDataset.files.find((file) => file.year === selectedCanueYear)
+      if (selected) return selected
+    }
+    return selectedCanueDataset.files[selectedCanueDataset.files.length - 1] ?? null
+  }, [selectedCanueDataset, selectedCanueYear])
+  const selectedCanueFiles = useMemo(() => {
+    if (!selectedCanueDataset) return []
+    if (canueYearMode === 'all') return selectedCanueDataset.files
+    if (canueYearMode === 'range') {
+      const start = canueRangeStartYear ?? selectedCanueDataset.years[0]
+      const end = canueRangeEndYear ?? selectedCanueDataset.years[selectedCanueDataset.years.length - 1]
+      const [minYear, maxYear] = start <= end ? [start, end] : [end, start]
+      return selectedCanueDataset.files.filter((file) => file.year >= minYear && file.year <= maxYear)
+    }
+    return selectedCanueFile ? [selectedCanueFile] : []
+  }, [canueRangeEndYear, canueRangeStartYear, canueYearMode, selectedCanueDataset, selectedCanueFile])
+  const canuePeriodLabel = getCanuePeriodLabel(selectedCanueFiles, canueYearMode)
   const canueBoundaryData = useCanueBoundaryData(
-    selectedCanueFile,
+    selectedCanueFiles,
     selectedCanueVariable,
     canueBoundaries.data,
     canueBoundaryLevel,
     canueMembership.data,
+    canueYearMode,
   )
   const selectedCanueBoundary = useMemo(() => {
     if (!selectedCanueBoundaryId) return null
@@ -676,21 +833,36 @@ export default function MiscDataSection() {
   }, [canueBoundaryData.maxValue, canueBoundaryData.minValue, selectedCanueVariable])
   const heatShadeSources = heatShadeManifest.data?.sources ?? []
   const landsatSource = heatShadeSources.find((source) => source.kind === 'historicalNdviLst')
-  const mapCenter = activeTab === 'canue' ? BC_CENTER : PG_CENTER
-  const mapZoom = activeTab === 'canue' ? 4.4 : 11
+  const canueMapCenter = canueBoundarySource === 'bcHealth' ? BC_CENTER : PG_CENTER
+  const canueMapZoom = canueBoundarySource === 'bcHealth' ? 4.4 : canueBoundarySource === 'cityPG' ? 10.2 : 9.4
+  const mapCenter = activeTab === 'canue' ? canueMapCenter : PG_CENTER
+  const mapZoom = activeTab === 'canue' ? canueMapZoom : 11
+  const mapKey = activeTab === 'canue' ? `${activeTab}-${canueBoundarySource}` : activeTab
 
   useEffect(() => {
-    if (!selectedCanueFile) return
-    const fileKey = `${selectedCanueFile.datasetId}-${selectedCanueFile.year}`
-    if (selectedCanueFileKey !== fileKey) setSelectedCanueFileKey(fileKey)
+    if (!selectedCanueDataset || !selectedCanueFile) return
+    if (selectedCanueDatasetId !== selectedCanueDataset.datasetId) setSelectedCanueDatasetId(selectedCanueDataset.datasetId)
+    if (selectedCanueYear !== selectedCanueFile.year) setSelectedCanueYear(selectedCanueFile.year)
+    if (selectedCanueDataset.years.length <= 1 && canueYearMode !== 'single') setCanueYearMode('single')
+    if (canueRangeStartYear == null) setCanueRangeStartYear(selectedCanueDataset.years[0])
+    if (canueRangeEndYear == null) setCanueRangeEndYear(selectedCanueDataset.years[selectedCanueDataset.years.length - 1])
     if (!selectedCanueVariable || !selectedCanueFile.variables.includes(selectedCanueVariable)) {
       setSelectedCanueVariable(getDefaultCanueVariable(selectedCanueFile))
     }
-  }, [selectedCanueFile, selectedCanueFileKey, selectedCanueVariable])
+  }, [
+    canueRangeEndYear,
+    canueRangeStartYear,
+    canueYearMode,
+    selectedCanueDataset,
+    selectedCanueDatasetId,
+    selectedCanueFile,
+    selectedCanueVariable,
+    selectedCanueYear,
+  ])
 
   useEffect(() => {
     setSelectedCanueBoundaryId(null)
-  }, [canueBoundaryLevel, selectedCanueFileKey, selectedCanueVariable])
+  }, [canueBoundaryLevel, canuePeriodLabel, selectedCanueDatasetId, selectedCanueVariable])
 
   const handleCanueBoundarySourceChange = (source: CanueBoundarySource) => {
     setCanueBoundarySource(source)
@@ -711,6 +883,13 @@ export default function MiscDataSection() {
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">MISC Data</h1>
       </div>
+
+      <DatasetInfo
+        dataset={{
+          ...(activeTab === 'heatShade' ? DATASETS.heatShade : DATASETS.canue),
+          updated: activeTab === 'heatShade' ? heatShadeManifest.data?.generatedAt : canueManifest.data?.generatedAt,
+        }}
+      />
 
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'heatShade' && (
@@ -810,20 +989,95 @@ export default function MiscDataSection() {
               <label className="block text-xs font-medium text-foreground">
                 Dataset
                 <AppSelect
-                  value={`${selectedCanueFile.datasetId}-${selectedCanueFile.year}`}
-                  onValueChange={(fileKey) => {
-                    const nextFile = canueFiles.find((file) => `${file.datasetId}-${file.year}` === fileKey)
-                    setSelectedCanueFileKey(fileKey)
+                  value={selectedCanueDataset?.datasetId ?? ''}
+                  onValueChange={(datasetId) => {
+                    const nextDataset = canueDatasetGroups.find((dataset) => dataset.datasetId === datasetId)
+                    const nextFile = nextDataset?.files[nextDataset.files.length - 1] ?? null
+                    setSelectedCanueDatasetId(datasetId)
+                    setSelectedCanueYear(nextFile?.year ?? null)
+                    setCanueYearMode('single')
+                    setCanueRangeStartYear(nextDataset?.years[0] ?? null)
+                    setCanueRangeEndYear(nextDataset?.years[nextDataset.years.length - 1] ?? null)
                     setSelectedCanueVariable(nextFile ? getDefaultCanueVariable(nextFile) : null)
                   }}
-                  options={canueFiles.map((file) => ({
-                    value: `${file.datasetId}-${file.year}`,
-                    label: `${file.label} (${file.year})`,
+                  options={canueDatasetGroups.map((dataset) => ({
+                    value: dataset.datasetId,
+                    label: dataset.years.length > 1
+                      ? `${dataset.label} (${dataset.years[0]}-${dataset.years[dataset.years.length - 1]})`
+                      : `${dataset.label} (${dataset.years[0]})`,
                   }))}
                   className="mt-1"
                   triggerClassName="h-8 rounded-md text-xs"
                 />
               </label>
+              {selectedCanueDataset && selectedCanueDataset.years.length > 1 && (
+                <div className="space-y-2 rounded-md border border-border bg-muted/15 p-2">
+                  <label className="block text-xs font-medium text-foreground">
+                    Years
+                    <AppSelect
+                      value={canueYearMode}
+                      onValueChange={(value) => setCanueYearMode(value as CanueYearMode)}
+                      options={[
+                        { value: 'single', label: 'Single year' },
+                        { value: 'all', label: 'All years average' },
+                        { value: 'range', label: 'Year range average' },
+                      ]}
+                      className="mt-1"
+                      triggerClassName="h-8 rounded-md text-xs"
+                    />
+                  </label>
+                  {canueYearMode === 'single' && (
+                    <label className="block text-xs font-medium text-foreground">
+                      Year
+                      <AppSelect
+                        value={String(selectedCanueFile.year)}
+                        onValueChange={(year) => {
+                          const nextYear = Number(year)
+                          const nextFile = selectedCanueDataset.files.find((file) => file.year === nextYear)
+                          setSelectedCanueYear(nextYear)
+                          setSelectedCanueVariable(nextFile ? getDefaultCanueVariable(nextFile) : selectedCanueVariable)
+                        }}
+                        options={selectedCanueDataset.years.map((year) => ({
+                          value: String(year),
+                          label: String(year),
+                        }))}
+                        className="mt-1"
+                        triggerClassName="h-8 rounded-md text-xs"
+                      />
+                    </label>
+                  )}
+                  {canueYearMode === 'range' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="block text-xs font-medium text-foreground">
+                        Start
+                        <AppSelect
+                          value={String(canueRangeStartYear ?? selectedCanueDataset.years[0])}
+                          onValueChange={(year) => setCanueRangeStartYear(Number(year))}
+                          options={selectedCanueDataset.years.map((year) => ({
+                            value: String(year),
+                            label: String(year),
+                          }))}
+                          className="mt-1"
+                          triggerClassName="h-8 rounded-md text-xs"
+                        />
+                      </label>
+                      <label className="block text-xs font-medium text-foreground">
+                        End
+                        <AppSelect
+                          value={String(canueRangeEndYear ?? selectedCanueDataset.years[selectedCanueDataset.years.length - 1])}
+                          onValueChange={(year) => setCanueRangeEndYear(Number(year))}
+                          options={selectedCanueDataset.years.map((year) => ({
+                            value: String(year),
+                            label: String(year),
+                          }))}
+                          className="mt-1"
+                          triggerClassName="h-8 rounded-md text-xs"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
               <label className="block text-xs font-medium text-foreground">
                 Map variable
                 <AppSelect
@@ -852,7 +1106,7 @@ export default function MiscDataSection() {
               {canueBoundaryData.loading && <div className="text-xs text-muted-foreground">Aggregating CANUE records...</div>}
               {canueBoundaryData.error && <div className="text-xs text-red-500">{canueBoundaryData.error}</div>}
               <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
-                {getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '')} is aggregated in the browser from raw boundary-clipped CANUE records.
+                {getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '')} is aggregated in the browser from raw boundary-clipped CANUE records for {canuePeriodLabel}.
               </div>
               {selectedCanueBoundary && selectedCanueVariable && (
                 <div className="rounded-md border border-border bg-background p-3 text-xs">
@@ -923,10 +1177,22 @@ export default function MiscDataSection() {
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+      mobilePeek={(
+        <div className="min-w-0 text-left">
+          <div className="truncate text-xs font-semibold text-foreground">
+            MISC Data | {activeTab === 'canue' ? 'CANUE' : 'Heat/shade'}
+          </div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {activeTab === 'canue'
+              ? `${selectedCanueDataset?.label || 'Dataset'} | ${canuePeriodLabel}`
+              : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
+          </div>
+        </div>
+      )}
       sidebar={sidebar}
     >
       <div className="relative h-full">
-        <PgMap key={activeTab} center={mapCenter} zoom={mapZoom} styles={MAP_STYLES}>
+        <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} styles={MAP_STYLES}>
           <MapControls position="top-right" showZoom showCompass />
 
           <MapFillLayer
@@ -939,16 +1205,16 @@ export default function MiscDataSection() {
             visible={activeTab === 'heatShade' && activeLayers.includes('forests')}
           />
 
-          {activeTab === 'heatShade' && activeLayers.includes('trees') && visibleTrees.map((tree) => (
-            <MapMarker key={tree.id} longitude={tree.longitude} latitude={tree.latitude}>
+          {activeTab === 'heatShade' && activeLayers.includes('trees') && visibleTrees.map((tree, index) => (
+            <MapMarker key={`${tree.id}-${index}`} longitude={tree.longitude} latitude={tree.latitude}>
               <MarkerContent>
                 <div className="h-2 w-2 rounded-full border border-white bg-green-600 shadow-sm" />
               </MarkerContent>
             </MapMarker>
           ))}
 
-          {activeTab === 'heatShade' && activeLayers.includes('facilities') && visibleFacilities.map((facility) => (
-            <MapMarker key={facility.id} longitude={facility.longitude} latitude={facility.latitude}>
+          {activeTab === 'heatShade' && activeLayers.includes('facilities') && visibleFacilities.map((facility, index) => (
+            <MapMarker key={`${facility.id}-${index}`} longitude={facility.longitude} latitude={facility.latitude}>
               <MarkerContent>
                 <div className="h-3 w-3 rounded-full border border-white bg-sky-500 shadow-sm" />
               </MarkerContent>
@@ -984,18 +1250,22 @@ export default function MiscDataSection() {
               </div>
             ))}
             {activeTab === 'canue' && (
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm bg-gradient-to-r from-cyan-300 via-yellow-300 to-red-500" />
-                  <span>{selectedCanueFile?.label ?? 'CANUE boundary layer'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Database className="h-3 w-3" />
-                  <span>
-                    {showCanueBoundaries
-                      ? `${canueBoundaryData.validBoundaryCount.toLocaleString()} ${canueBoundaryConfig.label} boundaries`
-                      : 'Boundaries hidden'}
-                  </span>
+              <div className="w-56 space-y-2 text-xs text-muted-foreground">
+                <div>
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate font-medium text-foreground">
+                      {selectedCanueFile ? getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '') : 'CANUE boundary layer'}
+                    </span>
+                    {canueBoundaryData.loading && <span className="shrink-0 text-[10px]">Loading</span>}
+                  </div>
+                  <div
+                    className="h-3 w-full rounded-sm border border-border bg-gradient-to-r from-cyan-300 via-yellow-300 to-red-500"
+                    aria-hidden="true"
+                  />
+                  <div className="mt-1 flex items-center justify-between gap-2 text-[10px] tabular-nums">
+                    <span>{formatNullableNumber(canueBoundaryData.minValue)}</span>
+                    <span>{formatNullableNumber(canueBoundaryData.maxValue)}</span>
+                  </div>
                 </div>
               </div>
             )}

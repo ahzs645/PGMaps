@@ -10,6 +10,7 @@ interface MapSectionLayoutProps {
   onToggleDesktopSidebar: () => void
   desktopSidebarWidth?: number
   mobileInitialSheetState?: MobileSheetState
+  mobilePeek?: ReactNode
   rightSidebar?: ReactNode
   showDesktopRightSidebar?: boolean
   onToggleDesktopRightSidebar?: () => void
@@ -85,6 +86,7 @@ export function MapSectionLayout({
   onToggleDesktopSidebar,
   desktopSidebarWidth = 350,
   mobileInitialSheetState = 'collapsed',
+  mobilePeek,
   rightSidebar,
   showDesktopRightSidebar = true,
   onToggleDesktopRightSidebar,
@@ -359,11 +361,16 @@ export function MapSectionLayout({
           {/* Drag handle */}
           <div
             ref={handleRef}
-            className="relative flex shrink-0 cursor-grab touch-none items-center justify-center py-3 select-none active:cursor-grabbing md:hidden"
+            className="relative flex shrink-0 cursor-grab touch-none flex-col items-center justify-center gap-2 px-4 py-3 select-none active:cursor-grabbing md:hidden"
             role="separator"
             aria-label="Drag to resize sheet"
           >
             <div className="h-1 w-10 rounded-full bg-muted-foreground/40" />
+            {mobilePeek && (
+              <div className="w-full pr-10">
+                {mobilePeek}
+              </div>
+            )}
             <button
               type="button"
               onClick={(event) => {

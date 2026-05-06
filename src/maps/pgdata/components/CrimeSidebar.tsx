@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
+import { DATASETS } from '@/lib/dataCatalog'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
 import type { CensusCategory, CensusVariable } from '@/maps/census/types'
@@ -164,6 +166,8 @@ export function CrimeSidebar({
           </div>
         </div>
       </div>
+
+      <DatasetInfo dataset={DATASETS.crime} />
 
       <div className="flex-1 overflow-y-auto">
         {/* Data Layers */}

@@ -1,12 +1,18 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { Restaurant, RestaurantStats, HazardRating, EstablishmentType } from '../types'
 
-export function useRestaurantData() {
+export function useRestaurantData(enabled = true) {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     setLoading(true)
     setError(null)
 
@@ -42,7 +48,7 @@ export function useRestaurantData() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [enabled])
 
   useEffect(() => {
     loadData()

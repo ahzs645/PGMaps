@@ -69,8 +69,10 @@ export default function FoodMap() {
     if (searchQuery) params.set('q', searchQuery)
     if (visualizationMode !== 'violations') params.set('mode', visualizationMode)
     if (timelineMonths !== 12) params.set('months', String(timelineMonths))
+    if (selectedRestaurant) params.set('restaurant', selectedRestaurant.name)
+    else if (searchParams.get('restaurant')) params.set('restaurant', searchParams.get('restaurant') as string)
     setSearchParams(params, { replace: true })
-  }, [searchQuery, visualizationMode, timelineMonths, setSearchParams])
+  }, [searchParams, searchQuery, selectedRestaurant, visualizationMode, timelineMonths, setSearchParams])
   const cutoffDate = useMemo(() => {
     if (timelineMonths === 0) return null // All time
     const date = new Date()
@@ -199,6 +201,13 @@ export default function FoodMap() {
     return filteredRestaurants.filter(r => r.latitude && r.longitude)
   }, [filteredRestaurants])
 
+  useEffect(() => {
+    const restaurantName = searchParams.get('restaurant')
+    if (!restaurantName || selectedRestaurant) return
+    const restaurant = restaurantsWithStats.find((item) => item.name === restaurantName)
+    if (restaurant) setSelectedRestaurant(restaurant)
+  }, [restaurantsWithStats, searchParams, selectedRestaurant])
+
   // Stats for the current timeline
   const timelineStats = useMemo(() => {
     const all = restaurantsWithStats
@@ -250,6 +259,16 @@ export default function FoodMap() {
       <MapSectionLayout
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+        mobilePeek={(
+          <div className="min-w-0 text-left">
+            <div className="truncate text-xs font-semibold text-foreground">
+              Food Safety | {geocodedRestaurants.length.toLocaleString()} on map
+            </div>
+            <div className="truncate text-[11px] text-muted-foreground">
+              {selectedRestaurant?.name || `${visualizationMode} | ${timelineMonths || 'all'} months`}
+            </div>
+          </div>
+        )}
         sidebar={(
           <Sidebar
             className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"

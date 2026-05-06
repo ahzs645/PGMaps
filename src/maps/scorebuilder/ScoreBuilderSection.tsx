@@ -390,11 +390,6 @@ export default function ScoreBuilderSection() {
   )
   const hasUrlWeightsOnMount = useRef(initialHasUrlWeights)
 
-  const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData()
-  const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData()
-  const { restaurants, loading: loadingRestaurants, error: restaurantsError } = useRestaurantData()
-  const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData()
-
   const [showSidebar, setShowSidebar] = useState(true)
   const [showRightSidebar, setShowRightSidebar] = useState(true)
   const [boundarySource, setBoundarySource] = useState<BoundarySource>(() =>
@@ -432,6 +427,7 @@ export default function ScoreBuilderSection() {
         .filter((s) => ALL_DATA_SOURCES.includes(s as ScoreDataSource)) as ScoreDataSource[]
       if (parsed.length) return parsed
     }
+    if (!initialHasUrlWeights) return [...(SCORE_BUILDER_EXAMPLES[0]?.dataSources ?? ['airQuality'])]
     return ['airQuality']
   })
   const [comparisonIds, setComparisonIds] = useState<string[]>([])
@@ -453,6 +449,20 @@ export default function ScoreBuilderSection() {
     return null
   })
   const isDesktop = useMediaQuery('(min-width: 768px)')
+  const enabledSourceSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
+  const censusDataEnabled = enabledSourceSet.has('census') || enabledSourceSet.has('deprivation')
+
+  const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData(
+    enabledSourceSet.has('airQuality'),
+  )
+  const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData(
+    [],
+    enabledSourceSet.has('parks'),
+  )
+  const { restaurants, loading: loadingRestaurants, error: restaurantsError } = useRestaurantData(
+    enabledSourceSet.has('restaurants'),
+  )
+  const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(censusDataEnabled)
 
   // URL persistence
   useEffect(() => {
@@ -523,7 +533,6 @@ export default function ScoreBuilderSection() {
     error: regionsError,
   } = useScoreBuilderRegions(boundarySource, selectedRegionLevel)
 
-  const enabledSourceSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
   const {
     properties,
     loading: loadingProperties,
@@ -606,8 +615,10 @@ export default function ScoreBuilderSection() {
       .filter(Boolean) as Array<PointRecord & { areaSqKm: number }>
   }, [enabledSourceSet, parks])
 
+  const shouldComputeParkBufferAccess = enabledSourceSet.has('parks') && weights.parkAccessGap1Mile !== 0
+
   const parkBufferRecords = useMemo<ParkBufferRecord[]>(() => {
-    if (!enabledSourceSet.has('parks')) return []
+    if (!shouldComputeParkBufferAccess) return []
     return parks
       .map((park) => {
         try {
@@ -629,7 +640,7 @@ export default function ScoreBuilderSection() {
         }
       })
       .filter(Boolean) as ParkBufferRecord[]
-  }, [enabledSourceSet, parks])
+  }, [parks, shouldComputeParkBufferAccess])
 
   // Trail midpoint points
   const trailPointRecords = useMemo<Array<PointRecord & { lengthKm: number }>>(() => {
@@ -1005,7 +1016,9 @@ export default function ScoreBuilderSection() {
 
       const safeArea = region.areaKm2 > 0 ? region.areaKm2 : 1
       const center = regionCenter(region)
-      const parkBufferAccessShare = bufferedAccessShare(region, parkBufferRecords)
+      const parkBufferAccessShare = shouldComputeParkBufferAccess
+        ? bufferedAccessShare(region, parkBufferRecords)
+        : null
       const parkWalk10Access = catchmentAccess(center, parkPointRecords, 0.8)
       const parkWalk20Access = catchmentAccess(center, parkPointRecords, 1.6)
       const coolingWalk15Access = catchmentAccess(
@@ -1049,7 +1062,7 @@ export default function ScoreBuilderSection() {
       metricValues.parkAreaRatio = region.areaKm2 > 0 ? Math.min(1, counts.parkAreaSqKm / region.areaKm2) : 0
       metricValues.trailDensity = counts.trailLengthKm / safeArea
       metricValues.amenityDensity = counts.amenityCount / safeArea
-      metricValues.parkAccessGap1Mile = 1 - parkBufferAccessShare
+      metricValues.parkAccessGap1Mile = parkBufferAccessShare == null ? 0 : 1 - parkBufferAccessShare
       metricValues.treeDensity = counts.treeCount / safeArea
       metricValues.matureTreeDensity = counts.matureTreeCount / safeArea
       metricValues.forestAreaRatio = region.areaKm2 > 0 ? Math.min(1, counts.forestAreaSqKm / region.areaKm2) : 0
@@ -1109,6 +1122,7 @@ export default function ScoreBuilderSection() {
     monitorPointRecords,
     parkPointRecords,
     parkBufferRecords,
+    shouldComputeParkBufferAccess,
     trailPointRecords,
     amenityPointRecords,
     restaurantPointRecords,
@@ -1580,7 +1594,10 @@ export default function ScoreBuilderSection() {
   const appliedInitialExample = useRef(false)
   useEffect(() => {
     if (appliedInitialExample.current) return
-    if (!activeExampleKey || allNetworks.length === 0) return
+    if (!activeExampleKey) return
+    const example = SCORE_BUILDER_EXAMPLES.find((entry) => entry.key === activeExampleKey)
+    if (!example) return
+    if (example.networkFilter === 'all' && allNetworks.length === 0) return
     // Only auto-apply if no URL weights were provided
     if (hasUrlWeightsOnMount.current) {
       appliedInitialExample.current = true
@@ -1997,6 +2014,16 @@ export default function ScoreBuilderSection() {
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
         desktopSidebarWidth={300}
         mobileInitialSheetState="half"
+        mobilePeek={(
+          <div className="min-w-0 text-left">
+            <div className="truncate text-xs font-semibold text-foreground">
+              Index Lab | {scoredRegions.length.toLocaleString()} regions
+            </div>
+            <div className="truncate text-[11px] text-muted-foreground">
+              {selectedRegion?.region.name || activeExample?.label || activePreset?.label || 'Custom index'}
+            </div>
+          </div>
+        )}
         sidebar={isDesktop ? desktopLeftPanel : mobileSidebar}
         rightSidebar={isDesktop ? desktopRightPanel : undefined}
         showDesktopRightSidebar={showRightSidebar}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { CensusMap } from './components/CensusMap'
 import { CensusSidebar } from './components/CensusSidebar'
@@ -11,14 +12,19 @@ import type { CensusHierarchyLevel, CensusMetricKey, CensusVariableSelection } f
 const LEGEND_SWATCHES = ['#fef3c7', '#fde68a', '#fbbf24', '#f59e0b', '#b45309']
 
 export default function CensusSection() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { unitsByLevel, boundsByLevel, bounds, loading, error } = useCensusData()
   const { catalog } = useCensusCatalog()
   const [showSidebar, setShowSidebar] = useState(true)
-  const [selectedHierarchy, setSelectedHierarchy] = useState<CensusHierarchyLevel>('da')
-  const [selectedMetric, setSelectedMetric] = useState<CensusMetricKey>('populationDensity')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null)
-  const [variableSelection, setVariableSelection] = useState<CensusVariableSelection | null>(null)
+  const [selectedHierarchy, setSelectedHierarchy] = useState<CensusHierarchyLevel>(() => (searchParams.get('level') as CensusHierarchyLevel) || 'da')
+  const [selectedMetric, setSelectedMetric] = useState<CensusMetricKey>(() => (searchParams.get('metric') as CensusMetricKey) || 'populationDensity')
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(() => searchParams.get('unit'))
+  const [variableSelection, setVariableSelection] = useState<CensusVariableSelection | null>(() => {
+    const categoryId = searchParams.get('category')
+    const variableId = searchParams.get('variable')
+    return categoryId && variableId ? { categoryId, variableId } : null
+  })
 
   const { data: variableData, loading: variableLoading } = useCensusVariableData(
     selectedHierarchy,
@@ -90,6 +96,27 @@ export default function CensusSection() {
     }
   }, [selectedHierarchy])
 
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams)
+    params.set('level', selectedHierarchy)
+    if (selectedMetric !== 'populationDensity') params.set('metric', selectedMetric)
+    else params.delete('metric')
+    if (searchQuery.trim()) params.set('q', searchQuery.trim())
+    else params.delete('q')
+    if (selectedUnitId) params.set('unit', selectedUnitId)
+    else params.delete('unit')
+    if (variableSelection) {
+      params.set('category', variableSelection.categoryId)
+      params.set('variable', variableSelection.variableId)
+    } else {
+      params.delete('category')
+      params.delete('variable')
+    }
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true })
+    }
+  }, [searchParams, searchQuery, selectedHierarchy, selectedMetric, selectedUnitId, setSearchParams, variableSelection])
+
   function handleMetricChange(metric: CensusMetricKey) {
     setSelectedMetric(metric)
     setVariableSelection(null)
@@ -107,6 +134,16 @@ export default function CensusSection() {
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+      mobilePeek={(
+        <div className="min-w-0 text-left">
+          <div className="truncate text-xs font-semibold text-foreground">
+            Census | {filteredUnits.length.toLocaleString()} units
+          </div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {selectedHierarchyLabel} | {selectedUnit?.name || selectedMetricLabel}
+          </div>
+        </div>
+      )}
       sidebar={(
         <CensusSidebar
           className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"

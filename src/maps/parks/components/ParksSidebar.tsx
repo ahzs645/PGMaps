@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, MapPin, Route, TreePine } from 'lucide-react'
+import { ChevronDown, ChevronUp, Layers, MapPin, Route, TreePine } from 'lucide-react'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
+import { DATASETS } from '@/lib/dataCatalog'
 import { getClassificationColor, getTrailColor } from '../constants'
-import type { Park, Trail, ParkAmenity, ParkClassification, TrailUserClass, ActiveLayer } from '../types'
+import type { Park, Trail, ParkAmenity, ParkClassification, TrailUserClass, ActiveLayer, CityPgOverlaySummary } from '../types'
 
 interface ParksSidebarProps {
   className?: string
   parks: Park[]
   trails: Trail[]
   amenities: ParkAmenity[]
+  overlaySummary: CityPgOverlaySummary
   filteredParks: Park[]
   filteredTrails: Trail[]
   activeLayers: ActiveLayer[]
@@ -47,10 +50,43 @@ function formatLength(m: number | null): string {
   return `${Math.round(m)} m`
 }
 
+function OverlayToggle({
+  label,
+  count,
+  active,
+  colorClass,
+  onClick,
+}: {
+  label: string
+  count: number
+  active: boolean
+  colorClass: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex min-w-0 items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors',
+        active ? colorClass : 'border-input text-muted-foreground hover:bg-accent'
+      )}
+    >
+      <span className="flex min-w-0 items-center gap-1.5">
+        <Layers className="h-3 w-3 shrink-0" />
+        <span className="truncate">{label}</span>
+      </span>
+      <span className="shrink-0 tabular-nums opacity-70">{count.toLocaleString()}</span>
+    </button>
+  )
+}
+
 export function ParksSidebar({
   className,
   parks,
   trails,
+  amenities,
+  overlaySummary,
   filteredParks,
   filteredTrails,
   activeLayers,
@@ -74,6 +110,12 @@ export function ParksSidebar({
   const showParks = activeLayers.includes('parks')
   const showTrails = activeLayers.includes('trails')
   const showAmenities = activeLayers.includes('amenities')
+  const showParkAssets = activeLayers.includes('parkAssets')
+  const showMobility = activeLayers.includes('mobility')
+  const showEcology = activeLayers.includes('ecology')
+  const showCommunity = activeLayers.includes('community')
+  const showServices = activeLayers.includes('services')
+  const showPlanning = activeLayers.includes('planning')
 
   const classificationCounts = useMemo(() => {
     const counts = new globalThis.Map<ParkClassification, number>()
@@ -120,6 +162,8 @@ export function ParksSidebar({
         <p className="text-sm text-muted-foreground">Prince George Open Data</p>
       </div>
 
+      <DatasetInfo dataset={DATASETS.parks} />
+
       {/* Stats & Search */}
       <div className="border-b border-border bg-background/95 p-4">
         <div className="mb-3 flex items-end justify-between">
@@ -132,8 +176,19 @@ export function ParksSidebar({
             <div className="text-xl font-bold text-foreground">{uniqueTrails.length}</div>
           </div>
           <div className="text-right">
-            <div className="text-xs text-muted-foreground">Total</div>
-            <div className="text-sm font-medium text-foreground">{parks.length} parks</div>
+            <div className="text-xs text-muted-foreground">City layers</div>
+            <div className="text-sm font-medium text-foreground">
+              {(
+                overlaySummary.parkAssets +
+                overlaySummary.parkLines +
+                overlaySummary.parkAreas +
+                overlaySummary.mobility +
+                overlaySummary.ecology +
+                overlaySummary.community +
+                overlaySummary.services +
+                overlaySummary.planning
+              ).toLocaleString()}
+            </div>
           </div>
         </div>
 
@@ -149,11 +204,11 @@ export function ParksSidebar({
       {/* Layer Toggles */}
       <div className="border-b border-border bg-background/95 p-4">
         <h2 className="mb-2 text-sm font-medium text-foreground">Layers</h2>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => onToggleLayer('parks')}
             className={cn(
-              'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors',
+              'flex min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-colors',
               showParks
                 ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
                 : 'border-input text-muted-foreground hover:bg-accent'
@@ -165,7 +220,7 @@ export function ParksSidebar({
           <button
             onClick={() => onToggleLayer('trails')}
             className={cn(
-              'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors',
+              'flex min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-colors',
               showTrails
                 ? 'border-red-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
                 : 'border-input text-muted-foreground hover:bg-accent'
@@ -177,7 +232,7 @@ export function ParksSidebar({
           <button
             onClick={() => onToggleLayer('amenities')}
             className={cn(
-              'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors',
+              'flex min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs transition-colors',
               showAmenities
                 ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
                 : 'border-input text-muted-foreground hover:bg-accent'
@@ -186,6 +241,50 @@ export function ParksSidebar({
             <MapPin className="h-3 w-3" />
             Amenities
           </button>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <OverlayToggle
+            label="Park assets"
+            count={overlaySummary.parkAssets + overlaySummary.parkLines + overlaySummary.parkAreas}
+            active={showParkAssets}
+            colorClass="border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+            onClick={() => onToggleLayer('parkAssets')}
+          />
+          <OverlayToggle
+            label="Mobility"
+            count={overlaySummary.mobility}
+            active={showMobility}
+            colorClass="border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300"
+            onClick={() => onToggleLayer('mobility')}
+          />
+          <OverlayToggle
+            label="Ecology"
+            count={overlaySummary.ecology}
+            active={showEcology}
+            colorClass="border-lime-500 bg-lime-50 text-lime-700 dark:bg-lime-950/30 dark:text-lime-300"
+            onClick={() => onToggleLayer('ecology')}
+          />
+          <OverlayToggle
+            label="Community"
+            count={overlaySummary.community}
+            active={showCommunity}
+            colorClass="border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300"
+            onClick={() => onToggleLayer('community')}
+          />
+          <OverlayToggle
+            label="Services"
+            count={overlaySummary.services}
+            active={showServices}
+            colorClass="border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300"
+            onClick={() => onToggleLayer('services')}
+          />
+          <OverlayToggle
+            label="OCP 2025"
+            count={overlaySummary.planning}
+            active={showPlanning}
+            colorClass="border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300"
+            onClick={() => onToggleLayer('planning')}
+          />
         </div>
       </div>
 
@@ -327,6 +426,7 @@ export function ParksSidebar({
             <>
               <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur">
                 <span>Parks ({filteredParks.length})</span>
+                <span>{amenities.length.toLocaleString()} amenities loaded</span>
               </div>
               <div className="divide-y divide-border">
                 {filteredParks.slice(0, 200).map((park) => {

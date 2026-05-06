@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-05-06T16:13:14.489Z",
+  "generatedAt": "2026-05-06T16:46:18.450Z",
   "source": "/Users/ahmadjalil/Library/CloudStorage/GoogleDrive-ahzs645@gmail.com/My Drive/University/Research/Grad/Data/Canue",
   "province": "BC",
   "boundaryClip": "public/data/boundaries/BCMoH/simplified/health_authorities.json",
-  "mode": "latest-year-per-dataset",
+  "mode": "selected-years",
   "datasets": [
     {
       "id": "pm-2-5",
@@ -11,7 +11,30 @@
       "category": "Air Quality",
       "sourceArchive": "Annual/Air Quality/Pm 2.5/pm25dale_a_2024-11-28_12-33-57_annual.zip",
       "files": [
-        "/data/canue/bc/annual-gzip/pm25dale_a_2021_bc.csv.gz"
+        "/data/canue/bc/annual-gzip/pm25dale_a_2000_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2001_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2002_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2003_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2004_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2005_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2006_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2007_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2008_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2009_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2010_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2011_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2012_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2013_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2014_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2015_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2016_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2017_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2018_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2019_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2020_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_2021_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_1998_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/pm25dale_a_1999_bc.csv.gz"
       ]
     },
     {
@@ -20,6 +43,18 @@
       "category": "Air Quality",
       "sourceArchive": "Annual/Air Quality/Smoke Exposure v2/aqsmk_avb_2024-11-28_13-33-25_annual.zip",
       "files": [
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2010_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2011_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2012_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2013_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2014_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2015_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2016_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2017_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2018_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2019_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2020_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/aqsmk_avb_2021_bc.csv.gz",
         "/data/canue/bc/annual-gzip/aqsmk_avb_2022_bc.csv.gz"
       ]
     },
@@ -83,7 +118,31 @@
       "category": "Neighbourhood",
       "sourceArchive": "Annual/Neighbourhood/Proximity to Roads/dtr_a_2024-11-27_13-44-18_annual.zip",
       "files": [
-        "/data/canue/bc/annual-gzip/dtr_a_2018_bc.csv.gz"
+        "/data/canue/bc/annual-gzip/dtr_a_2000_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2001_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2002_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2003_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2004_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2005_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2006_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2007_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2008_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2009_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2010_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2011_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2012_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2013_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2014_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2015_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2016_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2017_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_2018_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_1994_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_1995_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_1996_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_1997_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_1998_bc.csv.gz",
+        "/data/canue/bc/annual-gzip/dtr_a_1999_bc.csv.gz"
       ]
     },
     {
@@ -158,6 +217,270 @@
       "datasetId": "aqsmk_avb",
       "label": "Smoke Exposure v2",
       "category": "Air Quality",
+      "year": 2010,
+      "sourceMember": "aqsmk_avb_10.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2010_bc.csv.gz",
+      "rowCount": 114641,
+      "coordinateCount": 114641,
+      "variables": [
+        "aqsmk10_01",
+        "aqsmk10_02",
+        "aqsmk10_03",
+        "aqsmk10_04",
+        "aqsmk10_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2010_bc.csv",
+      "sourceSize": 8777490,
+      "gzipSize": 1184434,
+      "compressionRatio": 0.1349
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2011,
+      "sourceMember": "aqsmk_avb_11.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2011_bc.csv.gz",
+      "rowCount": 114969,
+      "coordinateCount": 114969,
+      "variables": [
+        "aqsmk11_01",
+        "aqsmk11_02",
+        "aqsmk11_03",
+        "aqsmk11_04",
+        "aqsmk11_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2011_bc.csv",
+      "sourceSize": 8802745,
+      "gzipSize": 1187316,
+      "compressionRatio": 0.1349
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2012,
+      "sourceMember": "aqsmk_avb_12.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2012_bc.csv.gz",
+      "rowCount": 115232,
+      "coordinateCount": 115232,
+      "variables": [
+        "aqsmk12_01",
+        "aqsmk12_02",
+        "aqsmk12_03",
+        "aqsmk12_04",
+        "aqsmk12_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2012_bc.csv",
+      "sourceSize": 8826146,
+      "gzipSize": 1190767,
+      "compressionRatio": 0.1349
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2013,
+      "sourceMember": "aqsmk_avb_13.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2013_bc.csv.gz",
+      "rowCount": 115949,
+      "coordinateCount": 115949,
+      "variables": [
+        "aqsmk13_01",
+        "aqsmk13_02",
+        "aqsmk13_03",
+        "aqsmk13_04",
+        "aqsmk13_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2013_bc.csv",
+      "sourceSize": 8877855,
+      "gzipSize": 1195981,
+      "compressionRatio": 0.1347
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2014,
+      "sourceMember": "aqsmk_avb_14.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2014_bc.csv.gz",
+      "rowCount": 116400,
+      "coordinateCount": 116400,
+      "variables": [
+        "aqsmk14_01",
+        "aqsmk14_02",
+        "aqsmk14_03",
+        "aqsmk14_04",
+        "aqsmk14_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2014_bc.csv",
+      "sourceSize": 8912349,
+      "gzipSize": 1202236,
+      "compressionRatio": 0.1349
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2015,
+      "sourceMember": "aqsmk_avb_15.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2015_bc.csv.gz",
+      "rowCount": 116557,
+      "coordinateCount": 116557,
+      "variables": [
+        "aqsmk15_01",
+        "aqsmk15_02",
+        "aqsmk15_03",
+        "aqsmk15_04",
+        "aqsmk15_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2015_bc.csv",
+      "sourceSize": 8924953,
+      "gzipSize": 1203909,
+      "compressionRatio": 0.1349
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2016,
+      "sourceMember": "aqsmk_avb_16.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2016_bc.csv.gz",
+      "rowCount": 116863,
+      "coordinateCount": 116863,
+      "variables": [
+        "aqsmk16_01",
+        "aqsmk16_02",
+        "aqsmk16_03",
+        "aqsmk16_04",
+        "aqsmk16_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2016_bc.csv",
+      "sourceSize": 8851634,
+      "gzipSize": 1189496,
+      "compressionRatio": 0.1344
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2017,
+      "sourceMember": "aqsmk_avb_17.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2017_bc.csv.gz",
+      "rowCount": 117318,
+      "coordinateCount": 117318,
+      "variables": [
+        "aqsmk17_01",
+        "aqsmk17_02",
+        "aqsmk17_03",
+        "aqsmk17_04",
+        "aqsmk17_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2017_bc.csv",
+      "sourceSize": 8908390,
+      "gzipSize": 1197252,
+      "compressionRatio": 0.1344
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2018,
+      "sourceMember": "aqsmk_avb_18.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2018_bc.csv.gz",
+      "rowCount": 118184,
+      "coordinateCount": 118184,
+      "variables": [
+        "aqsmk18_01",
+        "aqsmk18_02",
+        "aqsmk18_03",
+        "aqsmk18_04",
+        "aqsmk18_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2018_bc.csv",
+      "sourceSize": 8973756,
+      "gzipSize": 1206213,
+      "compressionRatio": 0.1344
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2019,
+      "sourceMember": "aqsmk_avb_19.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2019_bc.csv.gz",
+      "rowCount": 118791,
+      "coordinateCount": 118791,
+      "variables": [
+        "aqsmk19_01",
+        "aqsmk19_02",
+        "aqsmk19_03",
+        "aqsmk19_04",
+        "aqsmk19_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2019_bc.csv",
+      "sourceSize": 8997162,
+      "gzipSize": 1209095,
+      "compressionRatio": 0.1344
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2020,
+      "sourceMember": "aqsmk_avb_20.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2020_bc.csv.gz",
+      "rowCount": 119043,
+      "coordinateCount": 119043,
+      "variables": [
+        "aqsmk20_01",
+        "aqsmk20_02",
+        "aqsmk20_03",
+        "aqsmk20_04",
+        "aqsmk20_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2020_bc.csv",
+      "sourceSize": 8580328,
+      "gzipSize": 1223260,
+      "compressionRatio": 0.1426
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
+      "year": 2021,
+      "sourceMember": "aqsmk_avb_21.csv",
+      "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2021_bc.csv.gz",
+      "rowCount": 119614,
+      "coordinateCount": 119614,
+      "variables": [
+        "aqsmk21_01",
+        "aqsmk21_02",
+        "aqsmk21_03",
+        "aqsmk21_04",
+        "aqsmk21_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2021_bc.csv",
+      "sourceSize": 8623998,
+      "gzipSize": 1230375,
+      "compressionRatio": 0.1427
+    },
+    {
+      "datasetId": "aqsmk_avb",
+      "label": "Smoke Exposure v2",
+      "category": "Air Quality",
       "year": 2022,
       "sourceMember": "aqsmk_avb_22.csv",
       "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2022_bc.csv.gz",
@@ -175,6 +498,534 @@
       "sourceSize": 8667310,
       "gzipSize": 1234561,
       "compressionRatio": 0.1424
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 1994,
+      "sourceMember": "dtr_a_94.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_1994_bc.csv.gz",
+      "rowCount": 101567,
+      "coordinateCount": 101567,
+      "variables": [
+        "dtr94_01",
+        "dtr94_02",
+        "dtr94_03",
+        "dtr94_04",
+        "dtr94_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_1994_bc.csv",
+      "sourceSize": 8531827,
+      "gzipSize": 2770934,
+      "compressionRatio": 0.3248
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 1995,
+      "sourceMember": "dtr_a_95.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_1995_bc.csv.gz",
+      "rowCount": 103517,
+      "coordinateCount": 103517,
+      "variables": [
+        "dtr95_01",
+        "dtr95_02",
+        "dtr95_03",
+        "dtr95_04",
+        "dtr95_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_1995_bc.csv",
+      "sourceSize": 8695324,
+      "gzipSize": 2827145,
+      "compressionRatio": 0.3251
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 1996,
+      "sourceMember": "dtr_a_96.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_1996_bc.csv.gz",
+      "rowCount": 104406,
+      "coordinateCount": 104406,
+      "variables": [
+        "dtr96_01",
+        "dtr96_02",
+        "dtr96_03",
+        "dtr96_04",
+        "dtr96_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_1996_bc.csv",
+      "sourceSize": 8770559,
+      "gzipSize": 2858069,
+      "compressionRatio": 0.3259
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 1997,
+      "sourceMember": "dtr_a_97.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_1997_bc.csv.gz",
+      "rowCount": 105369,
+      "coordinateCount": 105369,
+      "variables": [
+        "dtr97_01",
+        "dtr97_02",
+        "dtr97_03",
+        "dtr97_04",
+        "dtr97_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_1997_bc.csv",
+      "sourceSize": 8852482,
+      "gzipSize": 2887620,
+      "compressionRatio": 0.3262
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 1998,
+      "sourceMember": "dtr_a_98.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_1998_bc.csv.gz",
+      "rowCount": 106195,
+      "coordinateCount": 106195,
+      "variables": [
+        "dtr98_01",
+        "dtr98_02",
+        "dtr98_03",
+        "dtr98_04",
+        "dtr98_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_1998_bc.csv",
+      "sourceSize": 8921715,
+      "gzipSize": 2914403,
+      "compressionRatio": 0.3267
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 1999,
+      "sourceMember": "dtr_a_99.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_1999_bc.csv.gz",
+      "rowCount": 106842,
+      "coordinateCount": 106842,
+      "variables": [
+        "dtr99_01",
+        "dtr99_02",
+        "dtr99_03",
+        "dtr99_04",
+        "dtr99_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_1999_bc.csv",
+      "sourceSize": 8975575,
+      "gzipSize": 2932253,
+      "compressionRatio": 0.3267
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2000,
+      "sourceMember": "dtr_a_00.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2000_bc.csv.gz",
+      "rowCount": 107667,
+      "coordinateCount": 107667,
+      "variables": [
+        "dtr00_01",
+        "dtr00_02",
+        "dtr00_03",
+        "dtr00_04",
+        "dtr00_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2000_bc.csv",
+      "sourceSize": 9045974,
+      "gzipSize": 2960917,
+      "compressionRatio": 0.3273
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2001,
+      "sourceMember": "dtr_a_01.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2001_bc.csv.gz",
+      "rowCount": 108317,
+      "coordinateCount": 108317,
+      "variables": [
+        "dtr01_01",
+        "dtr01_02",
+        "dtr01_03",
+        "dtr01_04",
+        "dtr01_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2001_bc.csv",
+      "sourceSize": 9100979,
+      "gzipSize": 2980862,
+      "compressionRatio": 0.3275
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2002,
+      "sourceMember": "dtr_a_02.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2002_bc.csv.gz",
+      "rowCount": 108842,
+      "coordinateCount": 108842,
+      "variables": [
+        "dtr02_01",
+        "dtr02_02",
+        "dtr02_03",
+        "dtr02_04",
+        "dtr02_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2002_bc.csv",
+      "sourceSize": 9145545,
+      "gzipSize": 2996462,
+      "compressionRatio": 0.3276
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2003,
+      "sourceMember": "dtr_a_03.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2003_bc.csv.gz",
+      "rowCount": 109481,
+      "coordinateCount": 109481,
+      "variables": [
+        "dtr03_01",
+        "dtr03_02",
+        "dtr03_03",
+        "dtr03_04",
+        "dtr03_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2003_bc.csv",
+      "sourceSize": 9189247,
+      "gzipSize": 3000309,
+      "compressionRatio": 0.3265
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2004,
+      "sourceMember": "dtr_a_04.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2004_bc.csv.gz",
+      "rowCount": 110159,
+      "coordinateCount": 110159,
+      "variables": [
+        "dtr04_01",
+        "dtr04_02",
+        "dtr04_03",
+        "dtr04_04",
+        "dtr04_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2004_bc.csv",
+      "sourceSize": 9246901,
+      "gzipSize": 3019917,
+      "compressionRatio": 0.3266
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2005,
+      "sourceMember": "dtr_a_05.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2005_bc.csv.gz",
+      "rowCount": 110516,
+      "coordinateCount": 110516,
+      "variables": [
+        "dtr05_01",
+        "dtr05_02",
+        "dtr05_03",
+        "dtr05_04",
+        "dtr05_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2005_bc.csv",
+      "sourceSize": 9278007,
+      "gzipSize": 3031005,
+      "compressionRatio": 0.3267
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2006,
+      "sourceMember": "dtr_a_06.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2006_bc.csv.gz",
+      "rowCount": 112496,
+      "coordinateCount": 112496,
+      "variables": [
+        "dtr06_01",
+        "dtr06_02",
+        "dtr06_03",
+        "dtr06_04",
+        "dtr06_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2006_bc.csv",
+      "sourceSize": 9444321,
+      "gzipSize": 3072369,
+      "compressionRatio": 0.3253
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2007,
+      "sourceMember": "dtr_a_07.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2007_bc.csv.gz",
+      "rowCount": 113418,
+      "coordinateCount": 113418,
+      "variables": [
+        "dtr07_01",
+        "dtr07_02",
+        "dtr07_03",
+        "dtr07_04",
+        "dtr07_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2007_bc.csv",
+      "sourceSize": 9522087,
+      "gzipSize": 3098388,
+      "compressionRatio": 0.3254
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2008,
+      "sourceMember": "dtr_a_08.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2008_bc.csv.gz",
+      "rowCount": 113982,
+      "coordinateCount": 113982,
+      "variables": [
+        "dtr08_01",
+        "dtr08_02",
+        "dtr08_03",
+        "dtr08_04",
+        "dtr08_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2008_bc.csv",
+      "sourceSize": 9569992,
+      "gzipSize": 3114163,
+      "compressionRatio": 0.3254
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2009,
+      "sourceMember": "dtr_a_09.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2009_bc.csv.gz",
+      "rowCount": 114353,
+      "coordinateCount": 114353,
+      "variables": [
+        "dtr09_01",
+        "dtr09_02",
+        "dtr09_03",
+        "dtr09_04",
+        "dtr09_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2009_bc.csv",
+      "sourceSize": 9610212,
+      "gzipSize": 3015816,
+      "compressionRatio": 0.3138
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2010,
+      "sourceMember": "dtr_a_10.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2010_bc.csv.gz",
+      "rowCount": 114641,
+      "coordinateCount": 114641,
+      "variables": [
+        "dtr10_01",
+        "dtr10_02",
+        "dtr10_03",
+        "dtr10_04",
+        "dtr10_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2010_bc.csv",
+      "sourceSize": 9634569,
+      "gzipSize": 3022951,
+      "compressionRatio": 0.3138
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2011,
+      "sourceMember": "dtr_a_11.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2011_bc.csv.gz",
+      "rowCount": 114969,
+      "coordinateCount": 114969,
+      "variables": [
+        "dtr11_01",
+        "dtr11_02",
+        "dtr11_03",
+        "dtr11_04",
+        "dtr11_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2011_bc.csv",
+      "sourceSize": 9662828,
+      "gzipSize": 3032450,
+      "compressionRatio": 0.3138
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2012,
+      "sourceMember": "dtr_a_12.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2012_bc.csv.gz",
+      "rowCount": 115232,
+      "coordinateCount": 115232,
+      "variables": [
+        "dtr12_01",
+        "dtr12_02",
+        "dtr12_03",
+        "dtr12_04",
+        "dtr12_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2012_bc.csv",
+      "sourceSize": 9684868,
+      "gzipSize": 3039551,
+      "compressionRatio": 0.3138
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2013,
+      "sourceMember": "dtr_a_13.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2013_bc.csv.gz",
+      "rowCount": 115949,
+      "coordinateCount": 115949,
+      "variables": [
+        "dtr13_01",
+        "dtr13_02",
+        "dtr13_03",
+        "dtr13_04",
+        "dtr13_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2013_bc.csv",
+      "sourceSize": 9745679,
+      "gzipSize": 3056369,
+      "compressionRatio": 0.3136
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2014,
+      "sourceMember": "dtr_a_14.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2014_bc.csv.gz",
+      "rowCount": 116400,
+      "coordinateCount": 116400,
+      "variables": [
+        "dtr14_01",
+        "dtr14_02",
+        "dtr14_03",
+        "dtr14_04",
+        "dtr14_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2014_bc.csv",
+      "sourceSize": 9783679,
+      "gzipSize": 3067732,
+      "compressionRatio": 0.3136
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2015,
+      "sourceMember": "dtr_a_15.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2015_bc.csv.gz",
+      "rowCount": 116557,
+      "coordinateCount": 116557,
+      "variables": [
+        "dtr15_01",
+        "dtr15_02",
+        "dtr15_03",
+        "dtr15_04",
+        "dtr15_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2015_bc.csv",
+      "sourceSize": 9796874,
+      "gzipSize": 3071785,
+      "compressionRatio": 0.3135
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2016,
+      "sourceMember": "dtr_a_16.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2016_bc.csv.gz",
+      "rowCount": 116863,
+      "coordinateCount": 116863,
+      "variables": [
+        "dtr16_01",
+        "dtr16_02",
+        "dtr16_03",
+        "dtr16_04",
+        "dtr16_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2016_bc.csv",
+      "sourceSize": 9726787,
+      "gzipSize": 3060595,
+      "compressionRatio": 0.3147
+    },
+    {
+      "datasetId": "dtr_a",
+      "label": "Proximity to Roads",
+      "category": "Neighbourhood",
+      "year": 2017,
+      "sourceMember": "dtr_a_17.csv",
+      "output": "/data/canue/bc/annual-gzip/dtr_a_2017_bc.csv.gz",
+      "rowCount": 117318,
+      "coordinateCount": 117318,
+      "variables": [
+        "dtr17_01",
+        "dtr17_02",
+        "dtr17_03",
+        "dtr17_04",
+        "dtr17_05"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/dtr_a_2017_bc.csv",
+      "sourceSize": 9764972,
+      "gzipSize": 3073597,
+      "compressionRatio": 0.3148
     },
     {
       "datasetId": "dtr_a",
@@ -480,6 +1331,420 @@
       "datasetId": "pm25dale_a",
       "label": "Pm 2.5",
       "category": "Air Quality",
+      "year": 1998,
+      "sourceMember": "pm25dale_a_98.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_1998_bc.csv.gz",
+      "rowCount": 106195,
+      "coordinateCount": 106195,
+      "variables": [
+        "pm25dal98_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_1998_bc.csv",
+      "sourceSize": 5585617,
+      "gzipSize": 1065664,
+      "compressionRatio": 0.1908
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 1999,
+      "sourceMember": "pm25dale_a_99.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_1999_bc.csv.gz",
+      "rowCount": 106842,
+      "coordinateCount": 106842,
+      "variables": [
+        "pm25dal99_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_1999_bc.csv",
+      "sourceSize": 5618212,
+      "gzipSize": 1071311,
+      "compressionRatio": 0.1907
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2000,
+      "sourceMember": "pm25dale_a_00.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2000_bc.csv.gz",
+      "rowCount": 107667,
+      "coordinateCount": 107667,
+      "variables": [
+        "pm25dal00_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2000_bc.csv",
+      "sourceSize": 5662109,
+      "gzipSize": 1084531,
+      "compressionRatio": 0.1915
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2001,
+      "sourceMember": "pm25dale_a_01.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2001_bc.csv.gz",
+      "rowCount": 108317,
+      "coordinateCount": 108317,
+      "variables": [
+        "pm25dal01_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2001_bc.csv",
+      "sourceSize": 5696586,
+      "gzipSize": 1089198,
+      "compressionRatio": 0.1912
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2002,
+      "sourceMember": "pm25dale_a_02.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2002_bc.csv.gz",
+      "rowCount": 108842,
+      "coordinateCount": 108842,
+      "variables": [
+        "pm25dal02_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2002_bc.csv",
+      "sourceSize": 5724141,
+      "gzipSize": 1094491,
+      "compressionRatio": 0.1912
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2003,
+      "sourceMember": "pm25dale_a_03.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2003_bc.csv.gz",
+      "rowCount": 109481,
+      "coordinateCount": 109481,
+      "variables": [
+        "pm25dal03_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2003_bc.csv",
+      "sourceSize": 5765305,
+      "gzipSize": 1102137,
+      "compressionRatio": 0.1912
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2004,
+      "sourceMember": "pm25dale_a_04.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2004_bc.csv.gz",
+      "rowCount": 110159,
+      "coordinateCount": 110159,
+      "variables": [
+        "pm25dal04_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2004_bc.csv",
+      "sourceSize": 5794338,
+      "gzipSize": 1110276,
+      "compressionRatio": 0.1916
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2005,
+      "sourceMember": "pm25dale_a_05.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2005_bc.csv.gz",
+      "rowCount": 110516,
+      "coordinateCount": 110516,
+      "variables": [
+        "pm25dal05_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2005_bc.csv",
+      "sourceSize": 5813523,
+      "gzipSize": 1112671,
+      "compressionRatio": 0.1914
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2006,
+      "sourceMember": "pm25dale_a_06.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2006_bc.csv.gz",
+      "rowCount": 112496,
+      "coordinateCount": 112496,
+      "variables": [
+        "pm25dal06_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2006_bc.csv",
+      "sourceSize": 5914761,
+      "gzipSize": 1132766,
+      "compressionRatio": 0.1915
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2007,
+      "sourceMember": "pm25dale_a_07.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2007_bc.csv.gz",
+      "rowCount": 113418,
+      "coordinateCount": 113418,
+      "variables": [
+        "pm25dal07_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2007_bc.csv",
+      "sourceSize": 5961773,
+      "gzipSize": 1141182,
+      "compressionRatio": 0.1914
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2008,
+      "sourceMember": "pm25dale_a_08.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2008_bc.csv.gz",
+      "rowCount": 113982,
+      "coordinateCount": 113982,
+      "variables": [
+        "pm25dal08_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2008_bc.csv",
+      "sourceSize": 5991546,
+      "gzipSize": 1147146,
+      "compressionRatio": 0.1915
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2009,
+      "sourceMember": "pm25dale_a_09.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2009_bc.csv.gz",
+      "rowCount": 114353,
+      "coordinateCount": 114353,
+      "variables": [
+        "pm25dal09_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2009_bc.csv",
+      "sourceSize": 6011156,
+      "gzipSize": 1153566,
+      "compressionRatio": 0.1919
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2010,
+      "sourceMember": "pm25dale_a_10.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2010_bc.csv.gz",
+      "rowCount": 114641,
+      "coordinateCount": 114641,
+      "variables": [
+        "pm25dal10_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2010_bc.csv",
+      "sourceSize": 6026224,
+      "gzipSize": 1157196,
+      "compressionRatio": 0.192
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2011,
+      "sourceMember": "pm25dale_a_11.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2011_bc.csv.gz",
+      "rowCount": 114969,
+      "coordinateCount": 114969,
+      "variables": [
+        "pm25dal11_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2011_bc.csv",
+      "sourceSize": 6043630,
+      "gzipSize": 1156781,
+      "compressionRatio": 0.1914
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2012,
+      "sourceMember": "pm25dale_a_12.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2012_bc.csv.gz",
+      "rowCount": 115232,
+      "coordinateCount": 115232,
+      "variables": [
+        "pm25dal12_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2012_bc.csv",
+      "sourceSize": 6057266,
+      "gzipSize": 1158816,
+      "compressionRatio": 0.1913
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2013,
+      "sourceMember": "pm25dale_a_13.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2013_bc.csv.gz",
+      "rowCount": 115949,
+      "coordinateCount": 115949,
+      "variables": [
+        "pm25dal13_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2013_bc.csv",
+      "sourceSize": 6095245,
+      "gzipSize": 1165626,
+      "compressionRatio": 0.1912
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2014,
+      "sourceMember": "pm25dale_a_14.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2014_bc.csv.gz",
+      "rowCount": 116400,
+      "coordinateCount": 116400,
+      "variables": [
+        "pm25dal14_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2014_bc.csv",
+      "sourceSize": 6118944,
+      "gzipSize": 1170999,
+      "compressionRatio": 0.1914
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2015,
+      "sourceMember": "pm25dale_a_15.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2015_bc.csv.gz",
+      "rowCount": 116557,
+      "coordinateCount": 116557,
+      "variables": [
+        "pm25dal15_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2015_bc.csv",
+      "sourceSize": 6127043,
+      "gzipSize": 1173295,
+      "compressionRatio": 0.1915
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2016,
+      "sourceMember": "pm25dale_a_16.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2016_bc.csv.gz",
+      "rowCount": 116863,
+      "coordinateCount": 116863,
+      "variables": [
+        "pm25dal16_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2016_bc.csv",
+      "sourceSize": 6047106,
+      "gzipSize": 1157410,
+      "compressionRatio": 0.1914
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2017,
+      "sourceMember": "pm25dale_a_17.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2017_bc.csv.gz",
+      "rowCount": 117318,
+      "coordinateCount": 117318,
+      "variables": [
+        "pm25dal17_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2017_bc.csv",
+      "sourceSize": 6076393,
+      "gzipSize": 1169922,
+      "compressionRatio": 0.1925
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2018,
+      "sourceMember": "pm25dale_a_18.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2018_bc.csv.gz",
+      "rowCount": 118184,
+      "coordinateCount": 118184,
+      "variables": [
+        "pm25dal18_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2018_bc.csv",
+      "sourceSize": 6122771,
+      "gzipSize": 1181336,
+      "compressionRatio": 0.1929
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2019,
+      "sourceMember": "pm25dale_a_19.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2019_bc.csv.gz",
+      "rowCount": 118791,
+      "coordinateCount": 118791,
+      "variables": [
+        "pm25dal19_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2019_bc.csv",
+      "sourceSize": 6146378,
+      "gzipSize": 1180265,
+      "compressionRatio": 0.192
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
+      "year": 2020,
+      "sourceMember": "pm25dale_a_20.csv",
+      "output": "/data/canue/bc/annual-gzip/pm25dale_a_2020_bc.csv.gz",
+      "rowCount": 119043,
+      "coordinateCount": 119043,
+      "variables": [
+        "pm25dal20_01"
+      ],
+      "compression": "gzip",
+      "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2020_bc.csv",
+      "sourceSize": 6159461,
+      "gzipSize": 1185268,
+      "compressionRatio": 0.1924
+    },
+    {
+      "datasetId": "pm25dale_a",
+      "label": "Pm 2.5",
+      "category": "Air Quality",
       "year": 2021,
       "sourceMember": "pm25dale_a_21.csv",
       "output": "/data/canue/bc/annual-gzip/pm25dale_a_2021_bc.csv.gz",
@@ -498,8 +1763,8 @@
   "compression": {
     "format": "gzip",
     "level": 9,
-    "sourceBytes": 175890491,
-    "gzipBytes": 27748231,
-    "compressionRatio": 0.1578
+    "sourceBytes": 642207828,
+    "gzipBytes": 140236080,
+    "compressionRatio": 0.2184
   }
 }

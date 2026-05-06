@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { cn } from '@/lib/utils'
+import { DATASETS } from '@/lib/dataCatalog'
 import {
   ALL_CATEGORIES,
   CATEGORY_LABELS,
@@ -206,6 +208,8 @@ export function BcAssessmentSidebar({
         <h1 className="text-xl font-bold text-foreground">BC Assessment</h1>
         <p className="text-sm text-muted-foreground">Prince George Property Data</p>
       </div>
+
+      <DatasetInfo dataset={DATASETS.bcAssessment} />
 
       <StudyAreaSelector<'census', Exclude<BoundaryLevel, 'none'>>
         source="census"

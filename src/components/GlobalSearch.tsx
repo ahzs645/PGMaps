@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin, Database } from 'lucide-react'
+import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin, Database, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { DATASETS } from '@/lib/dataCatalog'
 
 interface SearchItem {
   id: string
@@ -30,6 +31,37 @@ async function buildIndex(): Promise<SearchItem[]> {
   indexPromise = (async () => {
     const base = import.meta.env.BASE_URL
     const items: SearchItem[] = []
+
+    const addDatasetItem = (
+      id: string,
+      label: string,
+      datasetKey: keyof typeof DATASETS,
+      sectionPath: string,
+      icon: React.ElementType,
+      iconColor: string,
+      params?: Record<string, string>,
+    ) => {
+      const dataset = DATASETS[datasetKey]
+      items.push({
+        id,
+        label,
+        sublabel: `${dataset.source} | ${dataset.coverage} | ${dataset.formats.join(', ')}`,
+        section: 'Open Data',
+        sectionPath,
+        icon,
+        iconColor,
+        params,
+      })
+    }
+
+    addDatasetItem('dataset-food', 'Food safety inspections dataset', 'foodSafety', '/foodmap', UtensilsCrossed, 'text-orange-500')
+    addDatasetItem('dataset-air', 'Air monitoring stations dataset', 'airQuality', '/airquality', Wind, 'text-sky-500')
+    addDatasetItem('dataset-census', '2021 Census variables catalogue', 'census', '/census', BarChart3, 'text-amber-600')
+    addDatasetItem('dataset-parks', 'Parks, trails, and amenities datasets', 'parks', '/pgdata', Trees, 'text-green-500', { tab: 'parks' })
+    addDatasetItem('dataset-crime', 'Property crime incidents API', 'crime', '/pgdata', ShieldAlert, 'text-red-500', { tab: 'crime' })
+    addDatasetItem('dataset-canue', 'CANUE BC annual extracts', 'canue', '/misc', Database, 'text-violet-600')
+    addDatasetItem('dataset-heat-shade', 'Heat and shade proxy layers', 'heatShade', '/misc', Database, 'text-violet-600')
+    addDatasetItem('dataset-assessment', 'BC Assessment parcels dataset', 'bcAssessment', '/bc-assessment', Building2, 'text-slate-500')
 
     // Load restaurants
     try {
@@ -69,6 +101,108 @@ async function buildIndex(): Promise<SearchItem[]> {
             icon: Trees,
             iconColor: 'text-green-500',
             params: { tab: 'parks', q: name },
+          })
+        }
+      }
+    } catch { /* skip */ }
+
+    // Load census variables
+    try {
+      const res = await fetch(`${base}data/census/variables/catalog.json`)
+      if (res.ok) {
+        const catalog = await res.json()
+        for (const category of (catalog.categories || []).slice(0, 80)) {
+          items.push({
+            id: `census-category-${category.id}`,
+            label: category.name,
+            sublabel: `${category.group || 'Census'} | ${category.variables?.length || 0} variables`,
+            section: 'Census Variables',
+            sectionPath: '/census',
+            icon: BarChart3,
+            iconColor: 'text-amber-600',
+          })
+          for (const variable of (category.variables || []).slice(0, 30)) {
+            items.push({
+              id: `census-var-${category.id}-${variable.id}`,
+              label: variable.label,
+              sublabel: `${category.name} | ${variable.id} | ${variable.type || 'Variable'}`,
+              section: 'Census Variables',
+              sectionPath: '/census',
+              icon: BarChart3,
+              iconColor: 'text-amber-600',
+              params: { category: category.id, variable: variable.id },
+            })
+          }
+        }
+      }
+    } catch { /* skip */ }
+
+    // Load CANUE datasets from the annual manifest
+    try {
+      const res = await fetch(`${base}data/canue/bc/annual-gzip/manifest.json`)
+      if (res.ok) {
+        const manifest = await res.json()
+        for (const dataset of (manifest.datasets || [])) {
+          items.push({
+            id: `canue-${dataset.id}`,
+            label: dataset.label,
+            sublabel: `CANUE | ${dataset.category || 'Dataset'} | ${(dataset.files || []).length} file(s) | Updated ${manifest.generatedAt || 'unknown'}`,
+            section: 'Open Data',
+            sectionPath: '/misc',
+            icon: Database,
+            iconColor: 'text-violet-600',
+            params: { tab: 'canue', dataset: dataset.id },
+          })
+        }
+      }
+    } catch { /* skip */ }
+
+    // Load BC Assessment addresses, capped to keep the command palette responsive.
+    try {
+      const res = await fetch(`${base}data/bc-assessment/parcels.geojson`)
+      if (res.ok) {
+        const fc = await res.json()
+        for (const feature of (fc.features || []).slice(0, 800)) {
+          const p = feature.properties || {}
+          const address = p.address || p.ADDRESS
+          if (!address) continue
+          items.push({
+            id: `assessment-${p.oid_evbc || p.roll || address}`,
+            label: address,
+            sublabel: `BC Assessment | ${p.desc || p.cat || 'Property'} | ${p.val ? `$${Number(p.val).toLocaleString()}` : 'value unavailable'}`,
+            section: 'Properties',
+            sectionPath: '/bc-assessment',
+            icon: Building2,
+            iconColor: 'text-slate-500',
+            params: { q: address },
+          })
+        }
+      }
+    } catch { /* skip */ }
+
+    // Load a small sample of live property crime incidents from the public ArcGIS API.
+    try {
+      const params = new URLSearchParams({
+        where: '1=1',
+        outFields: '*',
+        resultRecordCount: '200',
+        outSR: '4326',
+        f: 'geojson',
+      })
+      const res = await fetch(`https://services2.arcgis.com/CnkB6jCzAsyli34z/arcgis/rest/services/PGCrime/FeatureServer/0/query?${params}`)
+      if (res.ok) {
+        const fc = await res.json()
+        for (const feature of (fc.features || [])) {
+          const p = feature.properties || {}
+          items.push({
+            id: `crime-${p.OBJECTID}`,
+            label: p.CrimeType || 'Property crime incident',
+            sublabel: `${p.CommunityName || 'Prince George'} | ${p.Address || 'No address'} | ${p.File_Number || ''}`,
+            section: 'Crime Incidents',
+            sectionPath: '/pgdata',
+            icon: ShieldAlert,
+            iconColor: 'text-red-500',
+            params: { tab: 'crime', q: p.Address || p.CrimeType || '' },
           })
         }
       }

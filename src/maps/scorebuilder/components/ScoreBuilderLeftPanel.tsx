@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { Layers } from 'lucide-react'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { DATASETS } from '@/lib/dataCatalog'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import { BOUNDARY_SOURCE_OPTIONS } from '../constants'
 import type { ScoreDataSource } from '../types'
@@ -62,6 +64,8 @@ export function ScoreBuilderLeftPanel({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
+        <DatasetInfo dataset={DATASETS.scoreBuilder} />
+
         {/* Boundary section */}
         <section
           className="border-b border-border p-4"

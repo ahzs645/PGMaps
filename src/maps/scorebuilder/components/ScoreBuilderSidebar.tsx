@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, ChevronUp, Copy, Download } from 'lucide-react'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { cn } from '@/lib/utils'
+import { DATASETS } from '@/lib/dataCatalog'
 import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
@@ -502,6 +504,8 @@ export function ScoreBuilderSidebar({
       </div>
 
       <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
+        <DatasetInfo dataset={DATASETS.scoreBuilder} />
+
         {/* Section nav ribbon */}
         <div className="sticky top-0 z-20 border-b border-border bg-background/95 px-3 py-2 backdrop-blur">
           <div className="flex flex-wrap gap-1.5">
@@ -534,6 +538,15 @@ export function ScoreBuilderSidebar({
           {renderSectionHeader('examples')}
           {expandedSections.examples && (
             <div className="space-y-3 px-4 pb-4">
+              <div className="rounded-lg border border-cyan-200 bg-cyan-50/70 p-3 text-xs dark:border-cyan-900/60 dark:bg-cyan-950/25">
+                <div className="mb-2 font-semibold text-cyan-900 dark:text-cyan-100">Guided index workflow</div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-cyan-900/80 dark:text-cyan-100/80">
+                  <div><span className="font-semibold">1.</span> Choose scenario</div>
+                  <div><span className="font-semibold">2.</span> Review data</div>
+                  <div><span className="font-semibold">3.</span> Tune weights</div>
+                  <div><span className="font-semibold">4.</span> Inspect regions</div>
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground">
                 {activeExample
                   ? `Active scenario configures ${activeExample.boundaryLevel.toUpperCase()} boundaries, ${activeExample.dataSources.map(getDataSourceLabel).join(', ')}, and the matching weights.`

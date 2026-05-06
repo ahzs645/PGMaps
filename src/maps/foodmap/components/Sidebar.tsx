@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react'
 import { RestaurantCard } from './RestaurantCard'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
+import { DatasetInfo } from '@/components/DatasetInfo'
+import { DATASETS } from '@/lib/dataCatalog'
 import type {
   RestaurantWithStats,
   RestaurantStats,
@@ -142,6 +144,8 @@ export function Sidebar({
           </div>
         </div>
       </div>
+
+      <DatasetInfo dataset={DATASETS.foodSafety} />
 
       {/* Visualization Mode Toggle */}
       <div className="border-b border-border bg-background/95 p-3">

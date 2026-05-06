@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { DATASETS } from '@/lib/dataCatalog'
 import { cn } from '@/lib/utils'
 import { getNetworkColor } from '../constants'
 import {
@@ -159,6 +161,8 @@ export function AirQualitySidebar({
           </button>
         </div>
       </div>
+
+      <DatasetInfo dataset={DATASETS.airQuality} />
 
       <div className="flex-1 overflow-y-auto">
         {densityStats && (

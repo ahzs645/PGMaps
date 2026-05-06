@@ -1,8 +1,10 @@
 import { useRef, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Download } from 'lucide-react'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
+import { DATASETS } from '@/lib/dataCatalog'
 import { GEOMETRY_TYPE_LABEL, RELEVANCE_DESCRIPTION } from '../constants'
 import type {
   ExplorerDatasetId,
@@ -91,6 +93,8 @@ export function ExplorerSidebar({
         <h1 className="text-xl font-bold text-foreground">Explorer</h1>
         <p className="text-sm text-muted-foreground">Showcase all point, line, and polygon datasets in one map.</p>
       </div>
+
+      <DatasetInfo dataset={DATASETS.explorer} />
 
       {/* Geometry filters */}
       <div className="border-b border-border bg-background/95 p-4">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import area from '@turf/area'
 import bbox from '@turf/bbox'
 import bboxPolygon from '@turf/bbox-polygon'
@@ -137,6 +138,7 @@ function calculateDensityStats(monitors: AirMonitor[], areaKm2: number): SensorD
 }
 
 export default function AirQualitySection() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { monitors, loading, error } = useAirQualityData()
   const healthBoundary = useBoundaryData()
   const censusBoundary = useCensusBoundaryData()
@@ -151,13 +153,13 @@ export default function AirQualitySection() {
 
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
   const [networksInitialized, setNetworksInitialized] = useState(false)
-  const [boundarySource, setBoundarySource] = useState<BoundarySource>('bcHealth')
-  const [healthRegionLevel, setHealthRegionLevel] = useState<BoundaryLevel>('lha')
-  const [censusRegionLevel, setCensusRegionLevel] = useState<CensusBoundaryLevel>('csd')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showHeatmap, setShowHeatmap] = useState(false)
-  const [basemap, setBasemap] = useState<AirQualityBasemap>('light')
-  const [correctionModel, setCorrectionModel] = useState<AirQualityCorrectionModel>('epaBarkjohn')
+  const [boundarySource, setBoundarySource] = useState<BoundarySource>(() => (searchParams.get('src') as BoundarySource) || 'bcHealth')
+  const [healthRegionLevel, setHealthRegionLevel] = useState<BoundaryLevel>(() => (searchParams.get('level') as BoundaryLevel) || 'lha')
+  const [censusRegionLevel, setCensusRegionLevel] = useState<CensusBoundaryLevel>(() => (searchParams.get('level') as CensusBoundaryLevel) || 'csd')
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
+  const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
+  const [basemap, setBasemap] = useState<AirQualityBasemap>(() => (searchParams.get('basemap') as AirQualityBasemap) || 'light')
+  const [correctionModel, setCorrectionModel] = useState<AirQualityCorrectionModel>(() => (searchParams.get('model') as AirQualityCorrectionModel) || 'epaBarkjohn')
   const [observationLayers, setObservationLayers] = useState<AirQualityObservationLayer[]>(DEFAULT_OBSERVATION_LAYERS)
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
@@ -184,6 +186,26 @@ export default function AirQualitySection() {
   const selectedRegionLevel: RegionLevel = boundarySource === 'bcHealth'
     ? healthRegionLevel
     : censusRegionLevel
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams)
+    if (boundarySource !== 'bcHealth') params.set('src', boundarySource)
+    else params.delete('src')
+    params.set('level', selectedRegionLevel)
+    if (searchQuery.trim()) params.set('q', searchQuery.trim())
+    else params.delete('q')
+    if (showHeatmap) params.set('heatmap', '1')
+    else params.delete('heatmap')
+    if (basemap !== 'light') params.set('basemap', basemap)
+    else params.delete('basemap')
+    if (correctionModel !== 'epaBarkjohn') params.set('model', correctionModel)
+    else params.delete('model')
+    if (selectedMonitor) params.set('monitor', selectedMonitor.id)
+    else params.delete('monitor')
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true })
+    }
+  }, [basemap, boundarySource, correctionModel, searchParams, searchQuery, selectedMonitor, selectedRegionLevel, setSearchParams, showHeatmap])
 
   const regionLevelOptions = useMemo(() => {
     if (boundarySource === 'bcHealth') {
@@ -333,6 +355,13 @@ export default function AirQualitySection() {
     }
   }, [filteredMonitors, selectedMonitor])
 
+  useEffect(() => {
+    const monitorId = searchParams.get('monitor')
+    if (!monitorId || selectedMonitor) return
+    const monitor = monitors.find((item) => item.id === monitorId)
+    if (monitor) setSelectedMonitor(monitor)
+  }, [monitors, searchParams, selectedMonitor])
+
   const toggleNetwork = useCallback((network: string) => {
     setSelectedNetworks((current) => {
       if (current.includes(network)) {
@@ -390,6 +419,16 @@ export default function AirQualitySection() {
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+      mobilePeek={(
+        <div className="min-w-0 text-left">
+          <div className="truncate text-xs font-semibold text-foreground">
+            Air Quality | {visibleMonitorsInView.length.toLocaleString()} visible
+          </div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {selectedMonitor?.name || selectedRegion?.name || `${selectedNetworks.length} networks`}
+          </div>
+        </div>
+      )}
       sidebar={(
         <AirQualitySidebar
           className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"

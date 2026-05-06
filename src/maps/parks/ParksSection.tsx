@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { ParksMap } from './components/ParksMap'
 import { ParksSidebar } from './components/ParksSidebar'
@@ -14,17 +15,35 @@ const ALL_CLASSIFICATIONS: ParkClassification[] = [
 const ALL_TRAIL_TYPES: TrailUserClass[] = ['Walking', 'Multiuse', 'Equine']
 
 export default function ParksSection() {
-  const { parks, trails, amenities, loading, error } = useParksData()
-
-  const [activeLayers, setActiveLayers] = useState<ActiveLayer[]>(['parks', 'trails'])
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [activeLayers, setActiveLayers] = useState<ActiveLayer[]>(() => {
+    const layers = (searchParams.get('layers') || '').split(',').filter(Boolean) as ActiveLayer[]
+    return layers.length ? layers : ['parks', 'trails']
+  })
+  const { parks, trails, amenities, cityOverlays, overlaySummary, loading, error } = useParksData(activeLayers)
   const [selectedClassifications, setSelectedClassifications] = useState<ParkClassification[]>([])
   const [classificationsInitialized, setClassificationsInitialized] = useState(false)
   const [selectedTrailTypes, setSelectedTrailTypes] = useState<TrailUserClass[]>([])
   const [trailTypesInitialized, setTrailTypesInitialized] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [selectedPark, setSelectedPark] = useState<Park | null>(null)
   const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams)
+    if (activeLayers.join(',') !== 'parks,trails') params.set('layers', activeLayers.join(','))
+    else params.delete('layers')
+    if (searchQuery.trim()) params.set('q', searchQuery.trim())
+    else params.delete('q')
+    if (selectedPark) params.set('park', String(selectedPark.id))
+    else params.delete('park')
+    if (selectedTrail) params.set('trail', String(selectedTrail.id))
+    else params.delete('trail')
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true })
+    }
+  }, [activeLayers, searchParams, searchQuery, selectedPark, selectedTrail, setSearchParams])
 
   // Initialize filters with all available classifications/types
   useEffect(() => {
@@ -40,6 +59,18 @@ export default function ParksSection() {
       setTrailTypesInitialized(true)
     }
   }, [trails, trailTypesInitialized])
+
+  useEffect(() => {
+    const parkId = searchParams.get('park')
+    const trailId = searchParams.get('trail')
+    if (parkId && !selectedPark) {
+      const park = parks.find((item) => String(item.id) === parkId)
+      if (park) setSelectedPark(park)
+    } else if (trailId && !selectedTrail) {
+      const trail = trails.find((item) => String(item.id) === trailId)
+      if (trail) setSelectedTrail(trail)
+    }
+  }, [parks, searchParams, selectedPark, selectedTrail, trails])
 
   const filteredParks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -131,6 +162,24 @@ export default function ParksSection() {
     if (activeLayers.includes('amenities')) {
       items.push({ label: 'Amenities', color: '#f59e0b' })
     }
+    if (activeLayers.includes('parkAssets')) {
+      items.push({ label: 'Park assets', color: '#16a34a' })
+    }
+    if (activeLayers.includes('mobility')) {
+      items.push({ label: 'Mobility', color: '#0891b2' })
+    }
+    if (activeLayers.includes('ecology')) {
+      items.push({ label: 'Ecology', color: '#16a34a' })
+    }
+    if (activeLayers.includes('community')) {
+      items.push({ label: 'Community', color: '#6366f1' })
+    }
+    if (activeLayers.includes('services')) {
+      items.push({ label: 'Services', color: '#38bdf8' })
+    }
+    if (activeLayers.includes('planning')) {
+      items.push({ label: 'OCP 2025', color: '#f97316' })
+    }
     return items
   }, [activeLayers, selectedClassifications, selectedTrailTypes])
 
@@ -138,12 +187,23 @@ export default function ParksSection() {
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+      mobilePeek={(
+        <div className="min-w-0 text-left">
+          <div className="truncate text-xs font-semibold text-foreground">
+            Parks & Trails | {filteredParks.length + filteredTrails.length} visible
+          </div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {selectedPark?.name || selectedTrail?.name || `${activeLayers.length} layers active`}
+          </div>
+        </div>
+      )}
       sidebar={(
         <ParksSidebar
           className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
           parks={parks}
           trails={trails}
           amenities={amenities}
+          overlaySummary={overlaySummary}
           filteredParks={filteredParks}
           filteredTrails={filteredTrails}
           activeLayers={activeLayers}
@@ -169,6 +229,7 @@ export default function ParksSection() {
           parks={filteredParks}
           trails={filteredTrails}
           amenities={amenities}
+          cityOverlays={cityOverlays}
           activeLayers={activeLayers}
           selectedPark={selectedPark}
           selectedTrail={selectedTrail}

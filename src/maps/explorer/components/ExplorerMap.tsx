@@ -45,6 +45,7 @@ export function ExplorerMap({
 }: ExplorerMapProps) {
   const mapRef = useRef<MapRef>(null)
   const [drawMode, setDrawMode] = useState(false)
+  const [reportMode, setReportMode] = useState(false)
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null)
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -86,6 +87,15 @@ export function ExplorerMap({
     setDrawStart({ x: e.clientX - rect.left, y: e.clientY - rect.top })
     setDrawCurrent({ x: e.clientX - rect.left, y: e.clientY - rect.top })
   }, [drawMode])
+
+  const handleReportClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!reportMode || !mapRef.current || !onMapRightClick) return
+    const rect = overlayRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const point = mapRef.current.unproject([e.clientX - rect.left, e.clientY - rect.top])
+    onMapRightClick(point.lng, point.lat)
+    setReportMode(false)
+  }, [onMapRightClick, reportMode])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!drawMode || !drawStart) return
@@ -192,7 +202,7 @@ export function ExplorerMap({
       </PgMap>
 
       {/* Draw overlay for spatial filtering */}
-      {drawMode && (
+      {(drawMode || reportMode) && (
         <div
           ref={overlayRef}
           className="absolute inset-0 z-20 cursor-crosshair"
@@ -200,6 +210,7 @@ export function ExplorerMap({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onClick={handleReportClick}
         >
           {drawRect && (
             <div
@@ -235,6 +246,22 @@ export function ExplorerMap({
           )}
         >
           {drawMode ? 'Drawing...' : 'Draw Area'}
+        </button>
+        <button
+          onClick={() => {
+            setReportMode((current) => !current)
+            setDrawMode(false)
+            setDrawStart(null)
+            setDrawCurrent(null)
+          }}
+          className={cn(
+            'rounded-lg border px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors',
+            reportMode
+              ? 'border-emerald-500 bg-emerald-500 text-white'
+              : 'border-border bg-background/95 text-foreground hover:bg-accent'
+          )}
+        >
+          {reportMode ? 'Tap map...' : 'Report Point'}
         </button>
         {spatialFilter && (
           <button

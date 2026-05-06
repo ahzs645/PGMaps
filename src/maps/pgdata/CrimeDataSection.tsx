@@ -147,6 +147,16 @@ export default function CrimeDataSection() {
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((s) => !s)}
+      mobilePeek={(
+        <div className="min-w-0 text-left">
+          <div className="truncate text-xs font-semibold text-foreground">
+            PG Data | {filteredIncidents.length.toLocaleString()} incidents
+          </div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {selectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}
+          </div>
+        </div>
+      )}
       sidebar={
         <CrimeSidebar
           className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"

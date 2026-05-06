@@ -13,6 +13,10 @@ npm run canue:bc:membership
 npm run canue:bc:gzip
 ```
 
+Use `npm run canue:bc:sync:all-years` instead of `npm run canue:bc:sync`
+when the app should expose CANUE timeline controls for datasets that ship
+multiple annual files.
+
 By default, the script uses the local CANUE path under Google Drive and extracts the latest
 available year from each annual archive. Override the source or year selection when needed:
 

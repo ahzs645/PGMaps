@@ -3,27 +3,37 @@ import { Bus, MapPin, Route } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { DatasetInfo } from '@/components/DatasetInfo'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { DATASETS } from '@/lib/dataCatalog'
 import { useTransitData, type TransitStop } from '@/maps/scorebuilder/hooks/useTransitData'
 
 type TransitLayerId = 'stops' | 'routes'
 
 interface RouteFeatureProperties {
+  segmentKey?: string
   routeId: string
   routeShortName: string
   routeLongName: string
   routeColor: string
   routeTextColor: string
-  shapeId: string
+  shapeId?: string
+  shapeIds?: string[]
   headsigns: string[]
   directions: string[]
+  sharedRouteCount?: number
+  segmentOffset?: number
+  snappedToRoad?: boolean
+  snappedPointCount?: number
+  pointCount?: number
+  bundledSegmentCount?: number
 }
 
 type RouteFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.LineString, RouteFeatureProperties>
 
-const ROUTES_PATH = '/data/transit/prince_george_gtfs_routes.geojson'
+const ROUTES_PATH = '/data/transit/prince_george_gtfs_route_bundles.geojson?v=edge-bundle-2'
 const LAYER_OPTIONS: Array<{ id: TransitLayerId; label: string }> = [
   { id: 'stops', label: 'Stops' },
   { id: 'routes', label: 'Routes' },
@@ -47,11 +57,10 @@ const ROUTE_PALETTE: Record<string, string> = {
   '96': '#A7C539',
   '97': '#4F7F2A',
   '161': '#00843D',
-  '162': '#00843D',
 }
 
-const ROUTE_ORDER = ['1', '11', '10', '5', '55', '12', '15', '16', '19', '46', '47', '88', '89', '91', '96', '97', '161', '162']
-const OFFSET_STEP = 4
+const ROUTE_ORDER = ['1', '11', '10', '5', '55', '12', '15', '16', '19', '46', '47', '88', '89', '91', '96', '97', '161']
+const DISPLAYED_ROUTES = new Set(ROUTE_ORDER)
 
 function routeSortValue(routeShortName: string): number {
   const index = ROUTE_ORDER.indexOf(routeShortName)
@@ -62,12 +71,6 @@ function routeSortValue(routeShortName: string): number {
 
 function routeColor(routeShortName: string, fallback: string): string {
   return ROUTE_PALETTE[routeShortName] ?? fallback
-}
-
-function routeOffset(routeShortName: string): number {
-  const index = ROUTE_ORDER.indexOf(routeShortName)
-  const normalizedIndex = index >= 0 ? index : ROUTE_ORDER.length
-  return (normalizedIndex - (ROUTE_ORDER.length - 1) / 2) * OFFSET_STEP
 }
 
 function subtypeLabel(subtype: number | null): string {
@@ -139,7 +142,7 @@ function nearestStop(origin: [number, number], stops: TransitStop[]): { stop: Tr
 export default function TransitDataSection() {
   const { stops, loading: stopsLoading, error: stopsError } = useTransitData(true)
   const { routes, loading: routesLoading, error: routesError } = useRouteData()
-  const [activeLayers, setActiveLayers] = useState<TransitLayerId[]>(['stops', 'routes'])
+  const [activeLayers, setActiveLayers] = useState<TransitLayerId[]>(['routes'])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'shelter' | 'accessible'>('all')
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
@@ -163,38 +166,49 @@ export default function TransitDataSection() {
 
   const routeCounts = useMemo(() => {
     const routeIds = new Set<string>()
-    routes?.features.forEach((feature) => routeIds.add(feature.properties.routeShortName))
-    return { routes: routeIds.size, shapes: routes?.features.length ?? 0 }
+    let shapes = 0
+    routes?.features.forEach((feature) => {
+      if (!DISPLAYED_ROUTES.has(feature.properties.routeShortName)) return
+      routeIds.add(feature.properties.routeShortName)
+      shapes += 1
+    })
+    return { routes: routeIds.size, shapes }
   }, [routes])
 
-  const routesByNumber = useMemo(() => {
-    const grouped = new Map<string, RouteFeatureCollection>()
-    routes?.features.forEach((feature) => {
-      const routeShortName = feature.properties.routeShortName
-      if (!grouped.has(routeShortName)) {
-        grouped.set(routeShortName, { type: 'FeatureCollection', features: [] })
-      }
-      grouped.get(routeShortName)!.features.push({
+  const routeLayerData = useMemo<RouteFeatureCollection | null>(() => {
+    if (!routes) return null
+    const features = routes.features
+      .filter((feature) => DISPLAYED_ROUTES.has(feature.properties.routeShortName))
+      .map((feature) => ({
         ...feature,
         properties: {
           ...feature.properties,
-          routeColor: routeColor(routeShortName, feature.properties.routeColor),
+          segmentKey: String(feature.id ?? `${feature.properties.routeId}:${feature.properties.segmentOffset ?? 0}`),
+          routeColor: routeColor(feature.properties.routeShortName, feature.properties.routeColor),
         },
-      })
-    })
-    return Array.from(grouped.entries()).sort(([a], [b]) => routeSortValue(a) - routeSortValue(b))
+      }))
+    return {
+      type: 'FeatureCollection',
+      features,
+    }
   }, [routes])
 
-  const routeLegendItems = useMemo(() => (
-    routesByNumber.map(([routeShortName, collection]) => {
-      const properties = collection.features[0]?.properties
-      return {
-        id: routeShortName,
-        label: `${routeShortName} ${properties?.routeLongName ?? ''}`.trim(),
-        color: routeColor(routeShortName, properties?.routeColor ?? '#64748b'),
-      }
+  const routeLegendItems = useMemo(() => {
+    const grouped = new Map<string, RouteFeatureProperties>()
+    routes?.features.forEach((feature) => {
+      const routeShortName = feature.properties.routeShortName
+      if (!DISPLAYED_ROUTES.has(routeShortName)) return
+      if (!grouped.has(routeShortName)) grouped.set(routeShortName, feature.properties)
     })
-  ), [routesByNumber])
+
+    return Array.from(grouped.entries())
+      .sort(([a], [b]) => routeSortValue(a) - routeSortValue(b))
+      .map(([routeShortName, properties]) => ({
+        id: routeShortName,
+        label: `${routeShortName} ${properties.routeLongName}`.trim(),
+        color: routeColor(routeShortName, properties.routeColor),
+      }))
+  }, [routes])
 
   const pgCenterNearestStop = useMemo(() => nearestStop(PG_CENTER, stops), [stops])
   const accessibleCount = useMemo(() => stops.filter((stop) => stop.accessible).length, [stops])
@@ -208,6 +222,16 @@ export default function TransitDataSection() {
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((value) => !value)}
+      mobilePeek={(
+        <div className="min-w-0 text-left">
+          <div className="truncate text-xs font-semibold text-foreground">
+            Transit | {stops.length.toLocaleString()} stops
+          </div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {activeLayers.join(', ')} | {routeCounts.routes.toLocaleString()} routes
+          </div>
+        </div>
+      )}
       sidebar={
         <aside className="flex h-full w-full flex-col border-0 bg-background shadow-none md:w-[350px] md:border-r md:shadow-xl">
           <div className="border-b border-border p-4">
@@ -217,10 +241,12 @@ export default function TransitDataSection() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Transit Access</h2>
-                <p className="text-xs text-muted-foreground">CityPG stops and OCP transit system routes</p>
+                <p className="text-xs text-muted-foreground">CityPG stops and BC Transit route geometry</p>
               </div>
             </div>
           </div>
+
+          <DatasetInfo dataset={DATASETS.transit} />
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {(stopsError || routesError) && (
@@ -296,7 +322,7 @@ export default function TransitDataSection() {
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{filteredStops.length.toLocaleString()} visible stops</span>
-                <span>{routeCounts.shapes} route shapes</span>
+                <span>{routeCounts.shapes.toLocaleString()} bundled corridors</span>
               </div>
               <div className="max-h-[42vh] space-y-1 overflow-y-auto pr-1">
                 {filteredStops.slice(0, 120).map((stop) => (
@@ -335,18 +361,28 @@ export default function TransitDataSection() {
           styles={MAP_STYLES}
         >
           <MapControls position="top-right" />
-          {routesByNumber.map(([routeShortName, collection]) => (
-            <MapLineLayer
-              key={routeShortName}
-              data={collection}
-              idProperty="shapeId"
-              color={routeColor(routeShortName, collection.features[0]?.properties.routeColor ?? '#64748b')}
-              width={4}
-              offset={routeOffset(routeShortName)}
-              opacity={0.9}
-              visible={activeLayers.includes('routes')}
-            />
-          ))}
+          {routeLayerData && (
+            <>
+              <MapLineLayer
+                data={routeLayerData}
+                idProperty="segmentKey"
+                color="#ffffff"
+                width={6}
+                offset={['get', 'segmentOffset']}
+                opacity={0.95}
+                visible={activeLayers.includes('routes')}
+              />
+              <MapLineLayer
+                data={routeLayerData}
+                idProperty="segmentKey"
+                color={['get', 'routeColor']}
+                width={3.2}
+                offset={['get', 'segmentOffset']}
+                opacity={0.92}
+                visible={activeLayers.includes('routes')}
+              />
+            </>
+          )}
           {activeLayers.includes('stops') &&
             filteredStops.map((stop) => (
               <MapMarker
@@ -358,9 +394,13 @@ export default function TransitDataSection() {
                 <MarkerContent>
                   <span
                     className={cn(
-                      'block rounded-full border-2 border-white shadow-md',
-                      stop.id === selectedStopId ? 'h-4 w-4 bg-teal-300 ring-4 ring-teal-500/30' : 'h-3 w-3',
-                      stop.hasShelter ? 'bg-cyan-600' : stop.accessible ? 'bg-teal-600' : 'bg-slate-500',
+                      'block rounded-full border-2 shadow-sm',
+                      stop.id === selectedStopId ? 'h-4 w-4 bg-teal-200 ring-4 ring-teal-500/30' : 'h-2.5 w-2.5 bg-background',
+                      stop.hasShelter
+                        ? 'border-cyan-700'
+                        : stop.accessible
+                          ? 'border-teal-700'
+                          : 'border-slate-500',
                     )}
                   />
                 </MarkerContent>

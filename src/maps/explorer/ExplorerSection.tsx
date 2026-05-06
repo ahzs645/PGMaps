@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { HeatmapMashupLayer, type HeatmapDataset } from '@/components/HeatmapMashupLayer'
 import { NeighborhoodReport } from '@/components/NeighborhoodReport'
@@ -135,15 +136,26 @@ function downloadBlob(content: string, filename: string, mimeType: string) {
 }
 
 export default function ExplorerSection() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showSidebar, setShowSidebar] = useState(true)
-  const [geometryFilters, setGeometryFilters] = useState<ExplorerGeometryType[]>(ALL_GEOMETRY_TYPES)
-  const [activeDatasetIds, setActiveDatasetIds] = useState<ExplorerDatasetId[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortMode, setSortMode] = useState<SortMode>('relevance')
+  const [geometryFilters, setGeometryFilters] = useState<ExplorerGeometryType[]>(() => {
+    const values = (searchParams.get('geom') || '').split(',').filter(Boolean) as ExplorerGeometryType[]
+    return values.length ? values.filter((value) => ALL_GEOMETRY_TYPES.includes(value)) : ALL_GEOMETRY_TYPES
+  })
+  const [activeDatasetIds, setActiveDatasetIds] = useState<ExplorerDatasetId[]>(() => {
+    const values = (searchParams.get('datasets') || '').split(',').filter(Boolean) as ExplorerDatasetId[]
+    const valid = values.filter((value) => ALL_DATASET_IDS.includes(value))
+    return valid.length ? valid : ALL_DATASET_IDS
+  })
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
+  const [sortMode, setSortMode] = useState<SortMode>(() => searchParams.get('sort') === 'name' ? 'name' : 'relevance')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [spatialFilter, setSpatialFilter] = useState<SpatialFilter | null>(null)
-  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' })
-  const [showHeatmap, setShowHeatmap] = useState(false)
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>(() => ({
+    from: searchParams.get('from') || '',
+    to: searchParams.get('to') || '',
+  }))
+  const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
   const [neighborhoodPoint, setNeighborhoodPoint] = useState<{ lat: number; lng: number } | null>(null)
 
   const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData()
@@ -151,6 +163,29 @@ export default function ExplorerSection() {
   const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData()
   const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData()
   const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData()
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams)
+    const datasetValue = activeDatasetIds.length === ALL_DATASET_IDS.length ? '' : activeDatasetIds.join(',')
+    const geomValue = geometryFilters.length === ALL_GEOMETRY_TYPES.length ? '' : geometryFilters.join(',')
+    if (datasetValue) params.set('datasets', datasetValue)
+    else params.delete('datasets')
+    if (geomValue) params.set('geom', geomValue)
+    else params.delete('geom')
+    if (searchQuery.trim()) params.set('q', searchQuery.trim())
+    else params.delete('q')
+    if (sortMode !== 'relevance') params.set('sort', sortMode)
+    else params.delete('sort')
+    if (dateRange.from) params.set('from', dateRange.from)
+    else params.delete('from')
+    if (dateRange.to) params.set('to', dateRange.to)
+    else params.delete('to')
+    if (showHeatmap) params.set('heatmap', '1')
+    else params.delete('heatmap')
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true })
+    }
+  }, [activeDatasetIds, dateRange, geometryFilters, searchParams, searchQuery, setSearchParams, showHeatmap, sortMode])
 
   // Date range parsing
   const dateFrom = useMemo(() => dateRange.from ? new Date(dateRange.from).getTime() : null, [dateRange.from])
@@ -785,6 +820,17 @@ export default function ExplorerSection() {
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={370}
+      mobilePeek={(
+        <div className="min-w-0 text-left">
+          <div className="truncate text-xs font-semibold text-foreground">
+            Explorer | {filteredItems.length.toLocaleString()} visible
+          </div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {activeDatasetIds.length === ALL_DATASET_IDS.length ? 'All datasets' : `${activeDatasetIds.length} datasets`}
+            {selectedItem ? ` | ${selectedItem.name}` : searchQuery ? ` | "${searchQuery}"` : ''}
+          </div>
+        </div>
+      )}
       sidebar={(
         <ExplorerSidebar
           className="h-full w-full border-0 shadow-none md:w-[370px] md:border-r md:shadow-xl"

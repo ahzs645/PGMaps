@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Shell } from '@/components/layout/Shell'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import Home from '@/pages/Home'
@@ -7,7 +7,6 @@ import Home from '@/pages/Home'
 const FoodMap = lazy(() => import('@/maps/foodmap').then(m => ({ default: m.FoodMap })))
 const AirQualitySection = lazy(() => import('@/maps/airquality').then(m => ({ default: m.AirQualitySection })))
 const CensusSection = lazy(() => import('@/maps/census').then(m => ({ default: m.CensusSection })))
-const ParksSection = lazy(() => import('@/maps/parks').then(m => ({ default: m.ParksSection })))
 const ScoreBuilderSection = lazy(() => import('@/maps/scorebuilder').then(m => ({ default: m.ScoreBuilderSection })))
 const ExplorerSection = lazy(() => import('@/maps/explorer').then(m => ({ default: m.ExplorerSection })))
 const PGDataSection = lazy(() => import('@/maps/pgdata').then(m => ({ default: m.PGDataSection })))
@@ -26,7 +25,7 @@ function App() {
           <Route path="/airquality" element={<AirQualitySection />} />
           <Route path="/census" element={<CensusSection />} />
           <Route path="/socioeconomic" element={<CensusSection />} />
-          <Route path="/parks" element={<ParksSection />} />
+          <Route path="/parks" element={<Navigate to="/pgdata?tab=parks" replace />} />
           <Route path="/score-builder" element={<ScoreBuilderSection />} />
           <Route path="/pgdata" element={<PGDataSection />} />
           <Route path="/misc" element={<MiscDataSection />} />
