@@ -113,7 +113,25 @@ function createRegionReportCsv({
     ['Data coverage', `${(region.dataCoverageScore * 100).toFixed(0)}%`],
     ['Normalization', formatNormalizationMethod(methodSettings.normalization)],
     ['Aggregation', methodSettings.aggregation],
+    ['Score method', region.scoreMethodLabel || methodSettings.aggregation],
     ['Disclaimer', 'User-generated local proxy report. This is not the official CDC/ATSDR Environmental Justice Index.'],
+    [],
+    ['Module', 'Module rank', 'Raw module sum', 'Active indicators', 'Missing indicators'],
+    ...(region.moduleScores || []).map((row) => [
+      row.label,
+      `${(row.rank * 100).toFixed(1)}%`,
+      row.rawScore.toFixed(3),
+      row.activeMetricCount,
+      row.missingMetricCount,
+    ]),
+    [],
+    ['Domain', 'Module', 'Domain score', 'Active indicators'],
+    ...(region.domainScores || []).map((row) => [
+      row.label,
+      row.module,
+      formatScore(row.score),
+      row.activeMetricCount,
+    ]),
     [],
     ['Component', 'Sub-score', 'Points'],
     ...componentRows.map((row) => [row.label, formatScore(row.score), row.points.toFixed(2)]),
@@ -302,6 +320,12 @@ export function ScoreBuilderRegionInsightDialog({
                   {formatScore(region.scoreInterval[0])}-{formatScore(region.scoreInterval[1])}
                 </div>
               </div>
+              {region.scoreMethodLabel && (
+                <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
+                  <div className="text-[10px] uppercase text-muted-foreground">Score method</div>
+                  <div className="text-sm font-semibold text-foreground">{region.scoreMethodLabel}</div>
+                </div>
+              )}
             </div>
 
             <button
@@ -366,7 +390,9 @@ export function ScoreBuilderRegionInsightDialog({
 
             {componentRows.length > 0 && (
               <div className="rounded-lg border border-border bg-background p-3">
-                <div className="mb-2 text-sm font-semibold text-foreground">Component sub-scores</div>
+                <div className="mb-2 text-sm font-semibold text-foreground">
+                  {region.moduleScores?.length ? 'Module ranks' : 'Component sub-scores'}
+                </div>
                 <div className="space-y-2">
                   {componentRows.map((component) => (
                     <div key={component.category}>
@@ -382,6 +408,38 @@ export function ScoreBuilderRegionInsightDialog({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {region.domainScores && region.domainScores.length > 0 && (
+              <div className="rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 text-sm font-semibold text-foreground">Domain summaries</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {region.domainScores.map((domain) => (
+                    <div key={domain.key} className="rounded border border-border bg-muted/15 px-2 py-1.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-foreground">{domain.label}</span>
+                        <span className="font-semibold text-cyan-700 dark:text-cyan-300">
+                          {formatScore(domain.score)}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-muted-foreground">
+                        {domain.activeMetricCount} indicator{domain.activeMetricCount === 1 ? '' : 's'} · {domain.module}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {region.missingDataFlags && region.missingDataFlags.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+                <div className="mb-1 text-sm font-semibold">Missing-data flags</div>
+                <ul className="space-y-1">
+                  {region.missingDataFlags.map((flag) => (
+                    <li key={flag}>{flag}</li>
+                  ))}
+                </ul>
               </div>
             )}
 

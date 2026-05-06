@@ -3,9 +3,9 @@
 ## CANUE BC Extracts
 
 CANUE archives should stay outside the repo. The sync script reads the local Google Drive
-CANUE folder, filters annual postal-code records to BC, joins DMTI postal-code latitude,
-longitude, and community fields, and writes derived CSVs plus a manifest to
-`public/data/canue/bc/`.
+CANUE folder, filters annual postal-code records to BC, clips postal-code locations to
+the bundled BC health-authority boundary, joins DMTI postal-code latitude, longitude,
+and community fields, and writes derived CSVs plus a manifest to `public/data/canue/bc/`.
 
 ```bash
 npm run canue:bc:sync
@@ -19,11 +19,13 @@ available year from each annual archive. Override the source or year selection w
 PG_CANUE_DIR="/path/to/Canue" npm run canue:bc:sync
 node scripts/sync-canue-bc.mjs --years 2016,2019,2021
 node scripts/sync-canue-bc.mjs --all-years
+node scripts/sync-canue-bc.mjs --boundary-path none
 ```
 
 The uncompressed generated CSVs under `public/data/canue/bc/annual/` are local
 working files and are ignored by git. The gzip step writes app-ready compressed
-files to `public/data/canue/bc/annual-gzip/`.
+raw extracts to `public/data/canue/bc/annual-gzip/`; the app aggregates those
+records into the selected map boundaries in the browser.
 
 ## Food Safety Data
 

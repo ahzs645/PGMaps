@@ -300,5 +300,133 @@
       "https://www.skipthedishes.com/fr/dastaan-a-culinary-tale-prince",
       "https://www.ubereats.com/ca-fr/store/dastaan-a-culinary-tale-2418-ospika-blvd-s/BYJowBOgSpSBXE-6YqK2cQ"
     ]
+  },
+  "Barbeque Shack": {
+    "latitude": 53.8364874,
+    "longitude": -122.6343467,
+    "address": "6355 Bendixon Road, Prince George, BC V2N 5V5",
+    "confidence": "medium",
+    "sources": [
+      "https://tt.maptons.com/p/2210214091"
+    ]
+  },
+  "Huble Homestead Historic Site": {
+    "latitude": 54.210375,
+    "longitude": -122.5387517,
+    "address": "13333 Mitchell Road, Prince George, BC",
+    "confidence": "medium",
+    "sources": [
+      "https://bw.maptons.com/p/2095070731",
+      "https://hublehomestead.ca/"
+    ]
+  },
+  "Hunniford's Meats": {
+    "latitude": 54.0258674,
+    "longitude": -123.1185989,
+    "address": "10695 Lakeside Drive, Prince George, BC V2K 5M6",
+    "confidence": "high",
+    "sources": [
+      "https://www.hunnifordmeats.com/",
+      "https://my.maptons.com/p/1947921032"
+    ]
+  },
+  "Madras Maple Cafe": {
+    "latitude": 53.9099814,
+    "longitude": -122.7893189,
+    "address": "1535 Ogilvie Street South, Prince George, BC V2N 1W7",
+    "confidence": "high",
+    "sources": [
+      "https://fk.maptons.com/p/1918894441"
+    ]
+  },
+  "Malcolm McLeod Community Centre": {
+    "latitude": 53.8364874,
+    "longitude": -122.6343467,
+    "address": "6355 Bendixon Road, Prince George, BC V2N 5V5",
+    "confidence": "high",
+    "sources": [
+      "https://tt.maptons.com/p/2210214091"
+    ]
+  },
+  "Minor Girls Stadium": {
+    "latitude": 53.9055307,
+    "longitude": -122.7675597,
+    "address": "Carrie Jane Gray Park, Massey Drive, Prince George, BC",
+    "confidence": "medium",
+    "sources": [
+      "https://bw.maptons.com/p/2018682035"
+    ]
+  },
+  "Pineview Hall": {
+    "latitude": 53.8370957,
+    "longitude": -122.6325618,
+    "address": "6470 Bendixon Road, Prince George, BC V2N 5V5",
+    "confidence": "high",
+    "sources": [
+      "https://ca.maptons.com/p/2018677785"
+    ]
+  },
+  "Rubi's Little Bakery": {
+    "latitude": 53.8370957,
+    "longitude": -122.6325618,
+    "address": "6470 Bendixon Road, Prince George, BC V2N 5V5",
+    "confidence": "medium",
+    "sources": [
+      "https://ca.maptons.com/p/2018677785"
+    ]
+  },
+  "7-Eleven Store #37260": {
+    "latitude": 53.913051,
+    "longitude": -122.745285,
+    "address": "2945 Highway 16 East, Prince George, BC V2K 5C4",
+    "confidence": "medium",
+    "sources": [
+      "https://www.7-eleven.ca/locations/bc/prince-george/2945-highway-16-e-37260",
+      "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=B7C731F7EF02642A88257ECF0053B6CC"
+    ]
+  },
+  "Ness Lake Community Hall": {
+    "latitude": 54.018967911738805,
+    "longitude": -123.11340076998505,
+    "address": "10370 Lakeside Drive, Prince George, BC V2K 5M4",
+    "confidence": "user-provided",
+    "sources": []
+  },
+  "JD's Kitchen & Catering": {
+    "latitude": 53.90118724786981,
+    "longitude": -122.78785193525366,
+    "address": "2290 Nicholson Street South, Prince George, BC V2N 1V8",
+    "confidence": "user-provided",
+    "sources": []
+  },
+  "Ignite Night Club": {
+    "latitude": 53.91696733436244,
+    "longitude": -122.74482340359921,
+    "address": "1232 3 Avenue, Prince George, BC V2L 3E7",
+    "confidence": "user-provided",
+    "sources": []
+  },
+  "Bydand Creek Farm": {
+    "latitude": 54.091125,
+    "longitude": -122.630583,
+    "address": "6580 Salmon Valley Road, Prince George, BC V2K 5W2",
+    "confidence": "user-provided",
+    "sources": []
+  },
+  "Miworth Community Hall": {
+    "latitude": 53.94241399730952,
+    "longitude": -122.94501740000993,
+    "address": "13510 Flint Road, Prince George, BC V2M 7C1",
+    "confidence": "user-provided",
+    "sources": []
+  },
+  "Friendship Lodge": {
+    "latitude": 53.90890242077904,
+    "longitude": -122.74194261342653,
+    "address": "1656 Queensway Street, Prince George, BC V2L 1L7",
+    "confidence": "user-provided",
+    "sources": [
+      "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Food-FacilityHistory?OpenView&RestrictToCategory=543997ED51B249D2882575D000637CC5"
+    ]
   }
 }

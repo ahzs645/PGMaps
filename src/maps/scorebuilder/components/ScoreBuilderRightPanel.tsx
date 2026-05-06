@@ -55,6 +55,13 @@ function formatNormalizationMethod(method: ScoreMethodSettings['normalization'])
   return 'min-max'
 }
 
+function formatAggregationMethod(method: ScoreMethodSettings['aggregation']): string {
+  if (method === 'modulePercentileRankedSum') return 'EJI-style module ranked sum'
+  if (method === 'cumulativeBurden') return 'cumulative burden'
+  if (method === 'geometric') return 'geometric mean'
+  return 'weighted average'
+}
+
 interface ScoreBuilderRightPanelProps {
   className?: string
   loading: boolean
@@ -1390,7 +1397,8 @@ function MethodologyTab({
           </p>
           <p>
             Current settings: {formatNormalizationMethod(methodSettings.normalization)} normalization,{' '}
-            {methodSettings.aggregation} aggregation, missing data set to {methodSettings.missingData}.
+            {formatAggregationMethod(methodSettings.aggregation)} aggregation, missing data set to{' '}
+            {methodSettings.missingData}.
           </p>
           <p>
             Scores are relative to the currently loaded boundary level; filters do not redefine percentiles. Use for
@@ -1622,6 +1630,7 @@ function ModelTab({
           </p>
           <p>
             The final score uses the selected aggregation method after active weights are converted to weight shares.
+            EJI-style mode uses active metric weights only to select indicators; module ranks are weighted equally.
             Active weights are normalized by total influence, so a useful model can use any total.
           </p>
         </div>
@@ -1696,6 +1705,7 @@ function ModelTab({
               <option value="additive">Weighted average</option>
               <option value="geometric">Geometric mean</option>
               <option value="cumulativeBurden">Cumulative burden</option>
+              <option value="modulePercentileRankedSum">EJI-style module ranked sum</option>
             </select>
           </label>
           <label className="space-y-1">

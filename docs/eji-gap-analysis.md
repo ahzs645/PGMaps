@@ -167,6 +167,124 @@ Health is the largest methodological gap because EJI intentionally avoids summin
 - Add domain scores for interpretation only, not final scoring.
 - Add missing-data policy controls because EJI exclusion behavior differs from our current neutral/zero handling.
 
+## Index Lab Changes Needed
+
+The current Index Lab / Score Builder can approximate EJI-like ideas, but it cannot yet reproduce EJI-style equations cleanly. The main changes are architectural rather than visual.
+
+### 1. Add module-aware scoring
+
+Today, metrics are grouped by local categories such as `airQuality`, `parksRec`, `heatShade`, `property`, and `deprivation`. EJI needs a separate conceptual grouping:
+
+- Social Vulnerability Module
+- Environmental Burden Module
+- Health Vulnerability Module
+- Climate Burden Module
+
+A metric should be able to belong to an EJI module and optionally a display domain. Example:
+
+```text
+metric: pre1980HousingShare
+module: environmentalBurden
+domain: builtEnvironment
+```
+
+This matters because EJI sums indicator percentile ranks inside modules first, then percentile-ranks the module sums.
+
+### 2. Add a true EJI-style aggregation mode
+
+The existing weighted-additive and cumulative-burden paths are useful, but EJI uses this sequence:
+
+```text
+raw indicator -> percentile rank
+indicator percentile ranks -> module sum
+module sum -> module percentile rank
+module percentile ranks -> combined score
+combined score -> final percentile rank
+```
+
+Index Lab should add an aggregation mode like `modulePercentileRankedSum`, separate from the current weighted score. This mode should use equal module weighting by default and support SER, base EJI, and EJI + Climate Burden variants.
+
+### 3. Treat health as flags, not normal metrics
+
+EJI health vulnerability is intentionally not a weighted sum of health prevalence values. It flags top-tertile prevalence indicators:
+
+```text
+HVM = 0.2 * count(top-tertile health flags)
+```
+
+Index Lab needs metric types beyond continuous numeric metrics:
+
+- continuous percentile-ranked indicators
+- inverse percentile-ranked indicators
+- binary top-tertile flags
+- null-to-zero flagged indicators
+
+Until health data exists, the lab should allow the health module to be disabled and label the resulting score as SER-style rather than full EJI-style.
+
+### 4. Separate domains from equations
+
+EJI domains are interpretive summaries. They help explain what is driving a score, but they are not additional weights in the final equation.
+
+Index Lab should show domain sub-scores in reports and side panels, but avoid treating domain scores as another aggregation layer unless a recipe explicitly asks for that.
+
+### 5. Add explicit missing-data policy
+
+The current score builder supports `zero` and `neutral` missing-data handling. EJI is stricter:
+
+- most missing raw indicators exclude a tract from final ranking,
+- some climate and impaired-water nulls are converted to zero,
+- those null-to-zero conversions are flagged.
+
+Index Lab needs per-metric missing-data behavior:
+
+```text
+excludeRegion
+neutral
+zeroWithFlag
+zeroMeansTrueZero
+```
+
+This should surface in UI/reporting because score comparability changes materially.
+
+### 6. Add comparison universe controls
+
+EJI percentile ranks are only meaningful relative to the universe being ranked. For PGMaps, the selected universe might be:
+
+- Prince George DAs
+- Prince George CTs
+- CityPG school catchments
+- CHSAs/LHAs
+- a broader regional or provincial comparison set
+
+Index Lab should make the comparison universe explicit in the equation bar and exports. Same raw data can rank differently under different universes.
+
+### 7. Add source/fitness metadata to each metric
+
+EJI documentation is unusually careful about what a metric represents, source year, calculation method, and limitations. To support an EJI-style lab, each metric needs metadata:
+
+- source dataset and year,
+- raw calculation method,
+- module/domain assignment,
+- whether higher values mean more burden or more capacity,
+- spatial method such as point buffer share, area intersection, direct census join, or model raster aggregation,
+- whether it is official, proxy, or experimental.
+
+This would let Index Lab prevent accidental “official-looking” scores built from weak proxies.
+
+### 8. Add EJI-style report output
+
+The CDC explorer emphasizes per-place reports: overall rank, module ranks, domains, top drivers, and caveats. Index Lab should support a report view/export with:
+
+- final index rank,
+- module ranks,
+- domain summaries,
+- indicator percentile ranks,
+- missing-data flags,
+- comparison universe,
+- proxy disclaimer.
+
+This is more important than adding more presets, because the method is only defensible if people can see exactly how the score was assembled.
+
 ## Open Questions
 
 - Should PGMaps prioritize a Canadian-equivalent EJI framework over exact EJI replication? Exact replication is impossible without U.S.-specific data like ACS, EPA AirToxScreen, EPA FRS, FEMA NRI, and CDC PLACES.

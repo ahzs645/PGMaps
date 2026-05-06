@@ -1,7 +1,8 @@
 {
-  "generatedAt": "2026-05-06T14:46:11.687Z",
+  "generatedAt": "2026-05-06T15:35:31.281Z",
   "source": "/Users/ahmadjalil/Library/CloudStorage/GoogleDrive-ahzs645@gmail.com/My Drive/University/Research/Grad/Data/Canue",
   "province": "BC",
+  "boundaryClip": "public/data/boundaries/BCMoH/simplified/health_authorities.json",
   "mode": "latest-year-per-dataset",
   "datasets": [
     {
@@ -130,8 +131,8 @@
       "year": 2016,
       "sourceMember": "ale_a_16.csv",
       "output": "/data/canue/bc/annual-gzip/ale_a_2016_bc.csv.gz",
-      "rowCount": 117649,
-      "coordinateCount": 117649,
+      "rowCount": 116863,
+      "coordinateCount": 116863,
       "variables": [
         "ale16_01",
         "ale16_02",
@@ -149,9 +150,9 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/ale_a_2016_bc.csv",
-      "sourceSize": 14656211,
-      "gzipSize": 1599282,
-      "compressionRatio": 0.1091
+      "sourceSize": 14556910,
+      "gzipSize": 1589548,
+      "compressionRatio": 0.1092
     },
     {
       "datasetId": "aqsmk_avb",
@@ -160,8 +161,8 @@
       "year": 2022,
       "sourceMember": "aqsmk_avb_22.csv",
       "output": "/data/canue/bc/annual-gzip/aqsmk_avb_2022_bc.csv.gz",
-      "rowCount": 120776,
-      "coordinateCount": 120776,
+      "rowCount": 119975,
+      "coordinateCount": 119975,
       "variables": [
         "aqsmk22_01",
         "aqsmk22_02",
@@ -171,8 +172,8 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/aqsmk_avb_2022_bc.csv",
-      "sourceSize": 8726114,
-      "gzipSize": 1242968,
+      "sourceSize": 8667310,
+      "gzipSize": 1234561,
       "compressionRatio": 0.1424
     },
     {
@@ -182,8 +183,8 @@
       "year": 2018,
       "sourceMember": "dtr_a_18.csv",
       "output": "/data/canue/bc/annual-gzip/dtr_a_2018_bc.csv.gz",
-      "rowCount": 118971,
-      "coordinateCount": 118971,
+      "rowCount": 118184,
+      "coordinateCount": 118184,
       "variables": [
         "dtr18_01",
         "dtr18_02",
@@ -193,8 +194,8 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/dtr_a_2018_bc.csv",
-      "sourceSize": 9905169,
-      "gzipSize": 3119362,
+      "sourceSize": 9837730,
+      "gzipSize": 3097971,
       "compressionRatio": 0.3149
     },
     {
@@ -204,15 +205,15 @@
       "year": 2013,
       "sourceMember": "lgtnlt_a_13.csv",
       "output": "/data/canue/bc/annual-gzip/lgtnlt_a_2013_bc.csv.gz",
-      "rowCount": 116734,
-      "coordinateCount": 116734,
+      "rowCount": 115949,
+      "coordinateCount": 115949,
       "variables": [
         "lgtnlt13_01"
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/lgtnlt_a_2013_bc.csv",
-      "sourceSize": 6252399,
-      "gzipSize": 1190201,
+      "sourceSize": 6209218,
+      "gzipSize": 1182035,
       "compressionRatio": 0.1904
     },
     {
@@ -222,8 +223,8 @@
       "year": 2021,
       "sourceMember": "nhacs_ava_21.csv",
       "output": "/data/canue/bc/annual-gzip/nhacs_ava_2021_bc.csv.gz",
-      "rowCount": 120412,
-      "coordinateCount": 120412,
+      "rowCount": 119614,
+      "coordinateCount": 119614,
       "variables": [
         "nhacs21_01",
         "nhacs21_02",
@@ -284,9 +285,9 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/nhacs_ava_2021_bc.csv",
-      "sourceSize": 44885372,
-      "gzipSize": 5503322,
-      "compressionRatio": 0.1226
+      "sourceSize": 44591172,
+      "gzipSize": 5471355,
+      "compressionRatio": 0.1227
     },
     {
       "datasetId": "nhbic_ava",
@@ -295,8 +296,8 @@
       "year": 2021,
       "sourceMember": "nhbic_ava_21.csv",
       "output": "/data/canue/bc/annual-gzip/nhbic_ava_2021_bc.csv.gz",
-      "rowCount": 120452,
-      "coordinateCount": 120412,
+      "rowCount": 119614,
+      "coordinateCount": 119614,
       "variables": [
         "nhbic21_01",
         "nhbic21_02",
@@ -311,8 +312,8 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/nhbic_ava_2021_bc.csv",
-      "sourceSize": 12210134,
-      "gzipSize": 1486898,
+      "sourceSize": 12125064,
+      "gzipSize": 1476963,
       "compressionRatio": 0.1218
     },
     {
@@ -322,8 +323,8 @@
       "year": 2019,
       "sourceMember": "nhbld_ava_19.csv",
       "output": "/data/canue/bc/annual-gzip/nhbld_ava_2019_bc.csv.gz",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhbld19_01",
         "nhbld19_02",
@@ -334,8 +335,8 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/nhbld_ava_2019_bc.csv",
-      "sourceSize": 10584808,
-      "gzipSize": 2803117,
+      "sourceSize": 10514853,
+      "gzipSize": 2784620,
       "compressionRatio": 0.2648
     },
     {
@@ -345,8 +346,8 @@
       "year": 2019,
       "sourceMember": "nhfac_ava_19.csv",
       "output": "/data/canue/bc/annual-gzip/nhfac_ava_2019_bc.csv.gz",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhfac19_01",
         "nhfac19_02",
@@ -363,8 +364,8 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/nhfac_ava_2019_bc.csv",
-      "sourceSize": 18504827,
-      "gzipSize": 2470456,
+      "sourceSize": 18381920,
+      "gzipSize": 2454126,
       "compressionRatio": 0.1335
     },
     {
@@ -374,8 +375,8 @@
       "year": 2019,
       "sourceMember": "nhpmd_ann_19.csv",
       "output": "/data/canue/bc/annual-gzip/nhpmd_ann_2019_bc.csv.gz",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhpmd19_01",
         "nhpmd19_02",
@@ -404,9 +405,9 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/nhpmd_ann_2019_bc.csv",
-      "sourceSize": 18099492,
-      "gzipSize": 2368264,
-      "compressionRatio": 0.1308
+      "sourceSize": 17979998,
+      "gzipSize": 2353620,
+      "compressionRatio": 0.1309
     },
     {
       "datasetId": "nhscn_ava",
@@ -415,8 +416,8 @@
       "year": 2019,
       "sourceMember": "nhscn_ava_19.csv",
       "output": "/data/canue/bc/annual-gzip/nhscn_ava_2019_bc.csv.gz",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhscn19_01",
         "nhscn19_02",
@@ -427,9 +428,9 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/nhscn_ava_2019_bc.csv",
-      "sourceSize": 7847400,
-      "gzipSize": 2126623,
-      "compressionRatio": 0.271
+      "sourceSize": 7795629,
+      "gzipSize": 2113232,
+      "compressionRatio": 0.2711
     },
     {
       "datasetId": "nhspw_ava",
@@ -438,8 +439,8 @@
       "year": 2016,
       "sourceMember": "nhspw_ava_16.csv",
       "output": "/data/canue/bc/annual-gzip/nhspw_ava_2016_bc.csv.gz",
-      "rowCount": 117649,
-      "coordinateCount": 117649,
+      "rowCount": 116863,
+      "coordinateCount": 116863,
       "variables": [
         "nhspw16_01",
         "nhspw16_02",
@@ -448,9 +449,9 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/nhspw_ava_2016_bc.csv",
-      "sourceSize": 11940560,
-      "gzipSize": 1257310,
-      "compressionRatio": 0.1053
+      "sourceSize": 11859250,
+      "gzipSize": 1249554,
+      "compressionRatio": 0.1054
     },
     {
       "datasetId": "nhtsp_ava",
@@ -459,8 +460,8 @@
       "year": 2019,
       "sourceMember": "nhtsp_ava_19.csv",
       "output": "/data/canue/bc/annual-gzip/nhtsp_ava_2019_bc.csv.gz",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhtsp19_01",
         "nhtsp19_02",
@@ -471,9 +472,9 @@
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/nhtsp_ava_2019_bc.csv",
-      "sourceSize": 7212372,
-      "gzipSize": 1558403,
-      "compressionRatio": 0.2161
+      "sourceSize": 7164305,
+      "gzipSize": 1548594,
+      "compressionRatio": 0.2162
     },
     {
       "datasetId": "pm25dale_a",
@@ -482,23 +483,23 @@
       "year": 2021,
       "sourceMember": "pm25dale_a_21.csv",
       "output": "/data/canue/bc/annual-gzip/pm25dale_a_2021_bc.csv.gz",
-      "rowCount": 120412,
-      "coordinateCount": 120412,
+      "rowCount": 119614,
+      "coordinateCount": 119614,
       "variables": [
         "pm25dal21_01"
       ],
       "compression": "gzip",
       "sourceCsv": "/data/canue/bc/annual/pm25dale_a_2021_bc.csv",
-      "sourceSize": 6249573,
-      "gzipSize": 1199792,
+      "sourceSize": 6207132,
+      "gzipSize": 1192052,
       "compressionRatio": 0.192
     }
   ],
   "compression": {
     "format": "gzip",
     "level": 9,
-    "sourceBytes": 177074431,
-    "gzipBytes": 27925998,
-    "compressionRatio": 0.1577
+    "sourceBytes": 175890491,
+    "gzipBytes": 27748231,
+    "compressionRatio": 0.1578
   }
 }

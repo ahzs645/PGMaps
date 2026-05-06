@@ -52,6 +52,7 @@ import {
   scoreRegionRows,
   type RegionMetricRow,
 } from './lib/scoring'
+import { scoreRegionRowsWithModulePercentiles } from './lib/modulePercentileScoring'
 import type {
   RegionDataCounts,
   RobustnessResult,
@@ -127,6 +128,13 @@ function getNormalizationLegendText(method: ScoreMethodSettings['normalization']
   if (method === 'winsorizedMinMax') return 'Score uses winsorized min-max normalization within this boundary level.'
   if (method === 'zScore') return 'Score uses z-score normalized indicators within this boundary level.'
   return 'Score uses min-max normalized indicators within this boundary level.'
+}
+
+function getMethodLegendText(settings: ScoreMethodSettings): string {
+  if (settings.aggregation === 'modulePercentileRankedSum') {
+    return 'EJI-style mode ranks indicators, sums them within modules, ranks module sums, then ranks the combined module score.'
+  }
+  return getNormalizationLegendText(settings.normalization)
 }
 
 function computeMedian(values: number[]): number {
@@ -272,7 +280,7 @@ function parseNormalizationMethod(value: string | null): ScoreMethodSettings['no
 }
 
 function parseAggregationMethod(value: string | null): ScoreMethodSettings['aggregation'] {
-  if (value === 'geometric' || value === 'cumulativeBurden') return value
+  if (value === 'geometric' || value === 'cumulativeBurden' || value === 'modulePercentileRankedSum') return value
   return 'additive'
 }
 
@@ -1048,6 +1056,16 @@ export default function ScoreBuilderSection() {
 
   const scoreRows = useCallback(
     (weightMap: ScoreMetricWeightMap, settings: ScoreMethodSettings = methodSettings): ScoredBoundaryRegion[] => {
+      if (settings.aggregation === 'modulePercentileRankedSum') {
+        return scoreRegionRowsWithModulePercentiles({
+          rows: regionMetricRows,
+          weights: weightMap,
+          settings,
+          metricRanges,
+          metricValueLists,
+          paletteProfile: scorePaletteProfile,
+        })
+      }
       return scoreRegionRows({
         rows: regionMetricRows,
         weights: weightMap,
@@ -1173,6 +1191,15 @@ export default function ScoreBuilderSection() {
 
   const componentSummaries = useMemo<ScoreComponentSummary[]>(() => {
     const referenceRegion = selectedRegion || scoredRegions[0]
+    if (referenceRegion?.moduleScores?.length) {
+      return referenceRegion.moduleScores.map((module) => ({
+        key: 'deprivation',
+        label: module.label,
+        score: module.rank * 100,
+        weightShare: referenceRegion.moduleScores?.length ? 1 / referenceRegion.moduleScores.length : 0,
+        activeMetricCount: module.activeMetricCount,
+      }))
+    }
     const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
     if (!referenceRegion || totalWeight <= 0) return []
 
@@ -1328,16 +1355,20 @@ export default function ScoreBuilderSection() {
   const equationPreview = useMemo(() => {
     const activeTerms = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
     if (!activeTerms.length) return 'No active terms. Move any weight above or below zero.'
+    if (methodSettings.aggregation === 'modulePercentileRankedSum') {
+      const moduleNames = Array.from(new Set(activeTerms.map((metric) => metric.indexModule || 'localContext')))
+      return `score = percentile_rank(sum(module ranks: ${moduleNames.join(' + ')}))`
+    }
     const terms = activeTerms.map((metric) => {
       const weight = weights[metric.key]
       return weight < 0 ? `${Math.abs(weight)}×low ${metric.shortLabel}` : `${weight}×${metric.shortLabel}`
     })
     return `score = weighted average(${terms.join(' + ')})`
-  }, [weights])
+  }, [methodSettings.aggregation, weights])
 
   const normalizationLegendText = useMemo(
-    () => getNormalizationLegendText(methodSettings.normalization),
-    [methodSettings.normalization],
+    () => getMethodLegendText(methodSettings),
+    [methodSettings],
   )
 
   const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
@@ -1575,13 +1606,16 @@ export default function ScoreBuilderSection() {
     (format: 'csv' | 'geojson') => {
       if (format === 'csv') {
         const metricKeys = SCORE_METRICS.map((m) => m.key)
-        const header = [
+      const header = [
           'Rank',
           'Rank confidence',
           'Rank interval',
           'Score',
           'Score interval',
+          'Score method',
           'Comparison universe',
+          'Module scores',
+          'Missing data flags',
           'Name',
           'Code',
           'Area (km²)',
@@ -1593,7 +1627,10 @@ export default function ScoreBuilderSection() {
           `${r.rankInterval[0]}-${r.rankInterval[1]}`,
           r.score.toFixed(1),
           `${r.scoreInterval[0].toFixed(1)}-${r.scoreInterval[1].toFixed(1)}`,
+          r.scoreMethodLabel || methodSettings.aggregation,
           r.comparisonUniverseLabel,
+          (r.moduleScores || []).map((module) => `${module.label}:${(module.rank * 100).toFixed(1)}`).join('; '),
+          (r.missingDataFlags || []).join('; '),
           r.region.name,
           r.region.code,
           r.region.areaKm2.toFixed(1),
@@ -1612,6 +1649,10 @@ export default function ScoreBuilderSection() {
               name: r.region.name,
               code: r.region.code,
               score: r.score,
+              scoreMethod: r.scoreMethodLabel || methodSettings.aggregation,
+              moduleScores: r.moduleScores,
+              domainScores: r.domainScores,
+              missingDataFlags: r.missingDataFlags,
               rankConfidence: r.rankConfidence,
               rankInterval: r.rankInterval,
               scoreInterval: r.scoreInterval,
@@ -1625,7 +1666,7 @@ export default function ScoreBuilderSection() {
         downloadBlob(JSON.stringify(fc, null, 2), 'score-builder-regions.geojson', 'application/geo+json')
       }
     },
-    [scoredRegions],
+    [methodSettings.aggregation, scoredRegions],
   )
 
   const loading =
@@ -1838,10 +1879,10 @@ export default function ScoreBuilderSection() {
               onRegionClick={setSelectedRegionId}
             />
 
-            <div className="absolute bottom-24 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+            <div className="absolute bottom-24 right-4 z-10 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
               <h4 className="mb-2 text-xs font-semibold text-foreground">{scorePaletteProfile.label}</h4>
               <div
-                className="h-2 w-44 rounded"
+                className="h-2 w-full rounded"
                 style={{ background: `linear-gradient(to right, ${scorePaletteProfile.colors.join(', ')})` }}
               />
               <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">

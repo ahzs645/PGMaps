@@ -14,6 +14,7 @@
     "cimd:sync": "node scripts/sync-cimd.mjs",
     "canue:bc:sync": "node scripts/sync-canue-bc.mjs",
     "canue:bc:gzip": "node scripts/gzip-canue-csv.mjs",
+    "canue:bc:boundaries": "node scripts/build-canue-boundary-aggregates.mjs",
     "census:sync": "node scripts/build-census-hierarchy.mjs",
     "census:variables": "python3 scripts/build-census-variables.py",
     "food-health:refresh": "python3 scripts/food-health/fetch_incremental.py --city \"Prince George\" --output public/data/restaurants.json --delay 5",

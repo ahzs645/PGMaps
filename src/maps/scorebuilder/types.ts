@@ -11,6 +11,32 @@ export type ScoreMetricCategory =
   | 'transit'
   | 'deprivation'
 
+export type ScoreIndexModule =
+  | 'socialVulnerability'
+  | 'environmentalBurden'
+  | 'healthVulnerability'
+  | 'climateBurden'
+  | 'localContext'
+
+export type ScoreIndexDomain =
+  | 'demographics'
+  | 'socioeconomic'
+  | 'housing'
+  | 'airPollution'
+  | 'builtEnvironment'
+  | 'transportationInfrastructure'
+  | 'foodSafety'
+  | 'publicSafety'
+  | 'heat'
+  | 'wildfire'
+  | 'extremeEvents'
+  | 'healthConditions'
+  | 'monitoring'
+  | 'services'
+
+export type ScoreMetricValueBehavior = 'continuous' | 'inverseContinuous' | 'topTertileFlag'
+export type ScoreMissingDataPolicy = 'neutral' | 'zero' | 'excludeRegion' | 'zeroWithFlag'
+
 export type ScoreMetricKey =
   // Air Quality
   | 'overallDensity'
@@ -76,7 +102,7 @@ export type ScoreMetricKey =
 
 export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
 export type ScoreNormalizationMethod = 'minMax' | 'winsorizedMinMax' | 'percentile' | 'zScore'
-export type ScoreAggregationMethod = 'additive' | 'geometric' | 'cumulativeBurden'
+export type ScoreAggregationMethod = 'additive' | 'geometric' | 'cumulativeBurden' | 'modulePercentileRankedSum'
 export type ScoreNormalizationScope = 'activeBoundaryLevel'
 export type ScoreMetricDirection = 'higherIsBetter' | 'higherIsWorse'
 export type ScoreMetricComponent =
@@ -120,6 +146,11 @@ export interface ScoreMetricDefinition {
   sourceUrl?: string
   freshnessLabel: string
   comparisonBasis: string
+  indexModule?: ScoreIndexModule
+  indexDomain?: ScoreIndexDomain
+  valueBehavior?: ScoreMetricValueBehavior
+  missingDataPolicy?: ScoreMissingDataPolicy
+  proxyLevel?: 'official' | 'proxy' | 'experimental'
 }
 
 export type ScoreMetricWeightMap = Record<ScoreMetricKey, number>
@@ -230,6 +261,23 @@ export interface RegionEquityAudit {
   cutoffWarning: string | null
 }
 
+export interface ScoreModuleResult {
+  key: ScoreIndexModule
+  label: string
+  rawScore: number
+  rank: number
+  activeMetricCount: number
+  missingMetricCount: number
+}
+
+export interface ScoreDomainResult {
+  key: ScoreIndexDomain
+  label: string
+  module: ScoreIndexModule
+  score: number
+  activeMetricCount: number
+}
+
 export interface ScoredBoundaryRegion {
   region: ScoreBuilderRegion
   metrics: ScoreMetricValueMap
@@ -245,6 +293,10 @@ export interface ScoredBoundaryRegion {
   scoreInterval: [number, number]
   comparisonUniverseLabel: string
   equityAudit: RegionEquityAudit
+  scoreMethodLabel?: string
+  moduleScores?: ScoreModuleResult[]
+  domainScores?: ScoreDomainResult[]
+  missingDataFlags?: string[]
 }
 
 export interface ScoreComponentSummary {

@@ -9,6 +9,10 @@ import { METRIC_CATEGORY_LABELS } from './types'
 import type {
   ScoreDataSource,
   ScoreExample,
+  ScoreIndexDomain,
+  ScoreIndexModule,
+  ScoreMetricValueBehavior,
+  ScoreMissingDataPolicy,
   ScoreMetricDefinition,
   ScoreMetricDirection,
   ScoreMetricComponent,
@@ -45,6 +49,11 @@ type ScoreMetricBaseDefinition = Omit<
   | 'sourceUrl'
   | 'freshnessLabel'
   | 'comparisonBasis'
+  | 'indexModule'
+  | 'indexDomain'
+  | 'valueBehavior'
+  | 'missingDataPolicy'
+  | 'proxyLevel'
 >
 
 const PERCENTILE_METHOD: Partial<ScoreMethodSettings> = { normalization: 'percentile', aggregation: 'additive' }
@@ -53,6 +62,35 @@ const Z_SCORE_METHOD: Partial<ScoreMethodSettings> = { normalization: 'zScore', 
 const CUMULATIVE_BURDEN_METHOD: Partial<ScoreMethodSettings> = {
   normalization: 'percentile',
   aggregation: 'cumulativeBurden',
+}
+const MODULE_PERCENTILE_METHOD: Partial<ScoreMethodSettings> = {
+  normalization: 'percentile',
+  aggregation: 'modulePercentileRankedSum',
+}
+
+export const SCORE_INDEX_MODULE_LABELS: Record<ScoreIndexModule, string> = {
+  socialVulnerability: 'Social Vulnerability',
+  environmentalBurden: 'Environmental Burden',
+  healthVulnerability: 'Health Vulnerability',
+  climateBurden: 'Climate Burden',
+  localContext: 'Local Context',
+}
+
+export const SCORE_INDEX_DOMAIN_LABELS: Record<ScoreIndexDomain, string> = {
+  demographics: 'Demographics',
+  socioeconomic: 'Socioeconomic Status',
+  housing: 'Housing',
+  airPollution: 'Air Pollution',
+  builtEnvironment: 'Built Environment',
+  transportationInfrastructure: 'Transportation Infrastructure',
+  foodSafety: 'Food Safety',
+  publicSafety: 'Public Safety',
+  heat: 'Heat',
+  wildfire: 'Wildfire',
+  extremeEvents: 'Extreme Events',
+  healthConditions: 'Health Conditions',
+  monitoring: 'Monitoring',
+  services: 'Services',
 }
 
 const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
@@ -722,6 +760,159 @@ const METRIC_CAVEATS: Partial<Record<ScoreMetricKey, string>> = {
   cimdEthnoCulturalComposition: 'Area-level deprivation context; do not infer individual deprivation.',
 }
 
+const METRIC_INDEX_MODULE: Record<ScoreMetricKey, ScoreIndexModule> = {
+  overallDensity: 'localContext',
+  lowCostDensity: 'localContext',
+  referenceDensity: 'localContext',
+  networkVariety: 'localContext',
+  parameterVariety: 'localContext',
+  activeShare: 'localContext',
+  monitorCount: 'localContext',
+  parkDensity: 'environmentalBurden',
+  parkAreaRatio: 'environmentalBurden',
+  trailDensity: 'environmentalBurden',
+  amenityDensity: 'localContext',
+  treeDensity: 'climateBurden',
+  matureTreeDensity: 'climateBurden',
+  forestAreaRatio: 'climateBurden',
+  coolingFacilityDensity: 'climateBurden',
+  responseFacilityDensity: 'localContext',
+  restaurantDensity: 'localContext',
+  foodRiskScore: 'environmentalBurden',
+  criticalViolationRate: 'environmentalBurden',
+  followUpRate: 'environmentalBurden',
+  populationDensity: 'socialVulnerability',
+  parcelDensity: 'localContext',
+  avgAssessedValue: 'socialVulnerability',
+  valueGrowth10y: 'environmentalBurden',
+  buildingAge: 'environmentalBurden',
+  vacantParcelShare: 'environmentalBurden',
+  multiFamilyShare: 'socialVulnerability',
+  commercialShare: 'localContext',
+  landValueShare: 'environmentalBurden',
+  crimeDensity: 'environmentalBurden',
+  crimePerCapita: 'environmentalBurden',
+  recentCrimeShare: 'environmentalBurden',
+  transitStopDensity: 'environmentalBurden',
+  accessibleTransitStopDensity: 'environmentalBurden',
+  transitShelterDensity: 'environmentalBurden',
+  frequentTransitStopAccess: 'environmentalBurden',
+  transitServiceSpan: 'environmentalBurden',
+  transitTripsPerStop: 'environmentalBurden',
+  accessibleFrequentTransitAccess: 'environmentalBurden',
+  parkWalk10Access: 'environmentalBurden',
+  parkWalk20Access: 'environmentalBurden',
+  coolingWalk15Access: 'climateBurden',
+  parkTransit20Access: 'environmentalBurden',
+  serviceAccessComposite: 'environmentalBurden',
+  canopyProxyRatio: 'climateBurden',
+  shadeGap: 'climateBurden',
+  cimdComposite: 'socialVulnerability',
+  cimdResidentialInstability: 'socialVulnerability',
+  cimdEconomicDependency: 'socialVulnerability',
+  cimdSituationalVulnerability: 'socialVulnerability',
+  cimdEthnoCulturalComposition: 'socialVulnerability',
+}
+
+const METRIC_INDEX_DOMAIN: Record<ScoreMetricKey, ScoreIndexDomain> = {
+  overallDensity: 'monitoring',
+  lowCostDensity: 'monitoring',
+  referenceDensity: 'monitoring',
+  networkVariety: 'monitoring',
+  parameterVariety: 'monitoring',
+  activeShare: 'monitoring',
+  monitorCount: 'monitoring',
+  parkDensity: 'builtEnvironment',
+  parkAreaRatio: 'builtEnvironment',
+  trailDensity: 'builtEnvironment',
+  amenityDensity: 'services',
+  treeDensity: 'heat',
+  matureTreeDensity: 'heat',
+  forestAreaRatio: 'heat',
+  coolingFacilityDensity: 'heat',
+  responseFacilityDensity: 'services',
+  restaurantDensity: 'services',
+  foodRiskScore: 'foodSafety',
+  criticalViolationRate: 'foodSafety',
+  followUpRate: 'foodSafety',
+  populationDensity: 'demographics',
+  parcelDensity: 'housing',
+  avgAssessedValue: 'socioeconomic',
+  valueGrowth10y: 'housing',
+  buildingAge: 'builtEnvironment',
+  vacantParcelShare: 'housing',
+  multiFamilyShare: 'housing',
+  commercialShare: 'services',
+  landValueShare: 'housing',
+  crimeDensity: 'publicSafety',
+  crimePerCapita: 'publicSafety',
+  recentCrimeShare: 'publicSafety',
+  transitStopDensity: 'transportationInfrastructure',
+  accessibleTransitStopDensity: 'transportationInfrastructure',
+  transitShelterDensity: 'transportationInfrastructure',
+  frequentTransitStopAccess: 'transportationInfrastructure',
+  transitServiceSpan: 'transportationInfrastructure',
+  transitTripsPerStop: 'transportationInfrastructure',
+  accessibleFrequentTransitAccess: 'transportationInfrastructure',
+  parkWalk10Access: 'builtEnvironment',
+  parkWalk20Access: 'builtEnvironment',
+  coolingWalk15Access: 'heat',
+  parkTransit20Access: 'transportationInfrastructure',
+  serviceAccessComposite: 'services',
+  canopyProxyRatio: 'heat',
+  shadeGap: 'heat',
+  cimdComposite: 'socioeconomic',
+  cimdResidentialInstability: 'housing',
+  cimdEconomicDependency: 'socioeconomic',
+  cimdSituationalVulnerability: 'demographics',
+  cimdEthnoCulturalComposition: 'demographics',
+}
+
+const METRIC_VALUE_BEHAVIOR: Partial<Record<ScoreMetricKey, ScoreMetricValueBehavior>> = {
+  overallDensity: 'inverseContinuous',
+  lowCostDensity: 'inverseContinuous',
+  referenceDensity: 'inverseContinuous',
+  networkVariety: 'inverseContinuous',
+  parameterVariety: 'inverseContinuous',
+  activeShare: 'inverseContinuous',
+  parkDensity: 'inverseContinuous',
+  parkAreaRatio: 'inverseContinuous',
+  trailDensity: 'inverseContinuous',
+  amenityDensity: 'inverseContinuous',
+  treeDensity: 'inverseContinuous',
+  matureTreeDensity: 'inverseContinuous',
+  forestAreaRatio: 'inverseContinuous',
+  coolingFacilityDensity: 'inverseContinuous',
+  responseFacilityDensity: 'inverseContinuous',
+  restaurantDensity: 'inverseContinuous',
+  transitStopDensity: 'inverseContinuous',
+  accessibleTransitStopDensity: 'inverseContinuous',
+  transitShelterDensity: 'inverseContinuous',
+  frequentTransitStopAccess: 'inverseContinuous',
+  transitServiceSpan: 'inverseContinuous',
+  transitTripsPerStop: 'inverseContinuous',
+  accessibleFrequentTransitAccess: 'inverseContinuous',
+  parkWalk10Access: 'inverseContinuous',
+  parkWalk20Access: 'inverseContinuous',
+  coolingWalk15Access: 'inverseContinuous',
+  parkTransit20Access: 'inverseContinuous',
+  serviceAccessComposite: 'inverseContinuous',
+  canopyProxyRatio: 'inverseContinuous',
+  avgAssessedValue: 'inverseContinuous',
+  multiFamilyShare: 'inverseContinuous',
+}
+
+const METRIC_MISSING_DATA_POLICY: Partial<Record<ScoreMetricKey, ScoreMissingDataPolicy>> = {
+  cimdComposite: 'excludeRegion',
+  cimdResidentialInstability: 'excludeRegion',
+  cimdEconomicDependency: 'excludeRegion',
+  cimdSituationalVulnerability: 'excludeRegion',
+  cimdEthnoCulturalComposition: 'excludeRegion',
+  shadeGap: 'neutral',
+  canopyProxyRatio: 'neutral',
+  coolingWalk15Access: 'neutral',
+}
+
 function metricDataSourceLabel(category: ScoreMetricDefinition['category']): string {
   if (category === 'airQuality') return 'Air quality monitor inventory'
   if (category === 'parksRec') return 'City of Prince George parks, trails, and amenities'
@@ -759,6 +950,16 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = SCORE_METRIC_BASES.map((me
         ? 'Latest synced CityPG/BC Transit data'
         : 'Latest bundled PGMaps data',
   comparisonBasis: 'Compared within the currently loaded boundary level',
+  indexModule: METRIC_INDEX_MODULE[metric.key],
+  indexDomain: METRIC_INDEX_DOMAIN[metric.key],
+  valueBehavior:
+    METRIC_VALUE_BEHAVIOR[metric.key] ??
+    (METRIC_DIRECTION[metric.key] === 'higherIsWorse' ? 'continuous' : 'inverseContinuous'),
+  missingDataPolicy: METRIC_MISSING_DATA_POLICY[metric.key] ?? 'neutral',
+  proxyLevel:
+    metric.category === 'deprivation' || metric.category === 'demographics' || metric.category === 'property'
+      ? 'proxy'
+      : 'experimental',
 }))
 
 export const SCORE_METRICS_BY_CATEGORY = SCORE_METRICS.reduce(
@@ -1136,7 +1337,29 @@ export const SCORE_PRESETS: ScorePreset[] = [
       accessibleFrequentTransitAccess: 8,
       serviceAccessComposite: 8,
     },
-    methodSettings: CUMULATIVE_BURDEN_METHOD,
+    methodSettings: MODULE_PERCENTILE_METHOD,
+  },
+  {
+    key: 'pgSocialEnvironmentalRank',
+    label: 'PG Social-Environmental Rank',
+    description: 'EJI SER-style local screen using social vulnerability and environmental burden modules, without health.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      cimdComposite: 18,
+      cimdResidentialInstability: 8,
+      cimdEconomicDependency: 10,
+      populationDensity: 8,
+      foodRiskScore: 10,
+      criticalViolationRate: 8,
+      crimePerCapita: 12,
+      buildingAge: 8,
+      parkWalk10Access: 10,
+      serviceAccessComposite: 8,
+    },
+    methodSettings: MODULE_PERCENTILE_METHOD,
   },
   {
     key: 'heatReliefPriority',
@@ -1317,6 +1540,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
 ]
 
 function formatPresetNormalization(method: Partial<ScoreMethodSettings> | undefined): string {
+  if (method?.aggregation === 'modulePercentileRankedSum') return 'EJI-style module percentile ranks'
   if (method?.aggregation === 'cumulativeBurden') return 'Percentile + cumulative burden'
   if (method?.normalization === 'winsorizedMinMax') return 'Winsorized min-max'
   if (method?.normalization === 'zScore') return 'Z-score'
@@ -1627,7 +1851,7 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
     label: 'PG Environmental Justice Proxy (DA)',
     question: 'Which small areas show overlapping local burden, deprivation context, and adaptive-capacity gaps?',
     description:
-      'CDC EJI-inspired local screen using percentile ranks and a cumulative-burden aggregation. This is a local proxy, not the official ATSDR Environmental Justice Index.',
+      'CDC EJI-inspired local screen using module percentile-ranked sums. This is a local proxy, not the official ATSDR Environmental Justice Index.',
     boundarySource: 'census',
     boundaryLevel: 'da',
     dataSources: ['heatShade', 'restaurants', 'census', 'bcAssessment', 'crime', 'transit', 'deprivation'],
@@ -1649,7 +1873,32 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       accessibleFrequentTransitAccess: 8,
       serviceAccessComposite: 8,
     },
-    methodSettings: CUMULATIVE_BURDEN_METHOD,
+    methodSettings: MODULE_PERCENTILE_METHOD,
+  },
+  {
+    key: 'pgSocialEnvironmentalRankDa',
+    label: 'PG Social-Environmental Rank (DA)',
+    question: 'Which areas have overlapping social vulnerability and environmental burden, before health data is considered?',
+    description:
+      'EJI SER-style example that ranks social vulnerability and environmental burden modules, then combines those module ranks without health vulnerability.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['heatShade', 'restaurants', 'census', 'bcAssessment', 'crime', 'transit', 'deprivation'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      cimdComposite: 18,
+      cimdResidentialInstability: 8,
+      cimdEconomicDependency: 10,
+      populationDensity: 8,
+      foodRiskScore: 10,
+      criticalViolationRate: 8,
+      crimePerCapita: 12,
+      buildingAge: 8,
+      parkWalk10Access: 10,
+      serviceAccessComposite: 8,
+    },
+    methodSettings: MODULE_PERCENTILE_METHOD,
   },
   {
     key: 'heatShadeNeedDa',

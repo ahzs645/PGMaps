@@ -1,7 +1,8 @@
 {
-  "generatedAt": "2026-05-06T14:16:24.466Z",
+  "generatedAt": "2026-05-06T15:35:17.537Z",
   "source": "/Users/ahmadjalil/Library/CloudStorage/GoogleDrive-ahzs645@gmail.com/My Drive/University/Research/Grad/Data/Canue",
   "province": "BC",
+  "boundaryClip": "public/data/boundaries/BCMoH/simplified/health_authorities.json",
   "mode": "latest-year-per-dataset",
   "datasets": [
     {
@@ -130,8 +131,8 @@
       "year": 2021,
       "sourceMember": "pm25dale_a_21.csv",
       "output": "/data/canue/bc/annual/pm25dale_a_2021_bc.csv",
-      "rowCount": 120412,
-      "coordinateCount": 120412,
+      "rowCount": 119614,
+      "coordinateCount": 119614,
       "variables": [
         "pm25dal21_01"
       ]
@@ -143,8 +144,8 @@
       "year": 2022,
       "sourceMember": "aqsmk_avb_22.csv",
       "output": "/data/canue/bc/annual/aqsmk_avb_2022_bc.csv",
-      "rowCount": 120776,
-      "coordinateCount": 120776,
+      "rowCount": 119975,
+      "coordinateCount": 119975,
       "variables": [
         "aqsmk22_01",
         "aqsmk22_02",
@@ -160,8 +161,8 @@
       "year": 2016,
       "sourceMember": "ale_a_16.csv",
       "output": "/data/canue/bc/annual/ale_a_2016_bc.csv",
-      "rowCount": 117649,
-      "coordinateCount": 117649,
+      "rowCount": 116863,
+      "coordinateCount": 116863,
       "variables": [
         "ale16_01",
         "ale16_02",
@@ -185,8 +186,8 @@
       "year": 2021,
       "sourceMember": "nhbic_ava_21.csv",
       "output": "/data/canue/bc/annual/nhbic_ava_2021_bc.csv",
-      "rowCount": 120452,
-      "coordinateCount": 120412,
+      "rowCount": 119614,
+      "coordinateCount": 119614,
       "variables": [
         "nhbic21_01",
         "nhbic21_02",
@@ -207,8 +208,8 @@
       "year": 2019,
       "sourceMember": "nhbld_ava_19.csv",
       "output": "/data/canue/bc/annual/nhbld_ava_2019_bc.csv",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhbld19_01",
         "nhbld19_02",
@@ -225,8 +226,8 @@
       "year": 2019,
       "sourceMember": "nhfac_ava_19.csv",
       "output": "/data/canue/bc/annual/nhfac_ava_2019_bc.csv",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhfac19_01",
         "nhfac19_02",
@@ -249,8 +250,8 @@
       "year": 2013,
       "sourceMember": "lgtnlt_a_13.csv",
       "output": "/data/canue/bc/annual/lgtnlt_a_2013_bc.csv",
-      "rowCount": 116734,
-      "coordinateCount": 116734,
+      "rowCount": 115949,
+      "coordinateCount": 115949,
       "variables": [
         "lgtnlt13_01"
       ]
@@ -262,8 +263,8 @@
       "year": 2019,
       "sourceMember": "nhpmd_ann_19.csv",
       "output": "/data/canue/bc/annual/nhpmd_ann_2019_bc.csv",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhpmd19_01",
         "nhpmd19_02",
@@ -298,8 +299,8 @@
       "year": 2018,
       "sourceMember": "dtr_a_18.csv",
       "output": "/data/canue/bc/annual/dtr_a_2018_bc.csv",
-      "rowCount": 118971,
-      "coordinateCount": 118971,
+      "rowCount": 118184,
+      "coordinateCount": 118184,
       "variables": [
         "dtr18_01",
         "dtr18_02",
@@ -315,8 +316,8 @@
       "year": 2019,
       "sourceMember": "nhtsp_ava_19.csv",
       "output": "/data/canue/bc/annual/nhtsp_ava_2019_bc.csv",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhtsp19_01",
         "nhtsp19_02",
@@ -333,8 +334,8 @@
       "year": 2021,
       "sourceMember": "nhacs_ava_21.csv",
       "output": "/data/canue/bc/annual/nhacs_ava_2021_bc.csv",
-      "rowCount": 120412,
-      "coordinateCount": 120412,
+      "rowCount": 119614,
+      "coordinateCount": 119614,
       "variables": [
         "nhacs21_01",
         "nhacs21_02",
@@ -401,8 +402,8 @@
       "year": 2019,
       "sourceMember": "nhscn_ava_19.csv",
       "output": "/data/canue/bc/annual/nhscn_ava_2019_bc.csv",
-      "rowCount": 119578,
-      "coordinateCount": 119578,
+      "rowCount": 118791,
+      "coordinateCount": 118791,
       "variables": [
         "nhscn19_01",
         "nhscn19_02",
@@ -419,8 +420,8 @@
       "year": 2016,
       "sourceMember": "nhspw_ava_16.csv",
       "output": "/data/canue/bc/annual/nhspw_ava_2016_bc.csv",
-      "rowCount": 117649,
-      "coordinateCount": 117649,
+      "rowCount": 116863,
+      "coordinateCount": 116863,
       "variables": [
         "nhspw16_01",
         "nhspw16_02",

@@ -1,16 +1,21 @@
 import { createInterface } from 'node:readline'
 import { createWriteStream } from 'node:fs'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
+import { booleanPointInPolygon, bbox, point } from '@turf/turf'
 
 const DEFAULT_SOURCE =
   '/Users/ahmadjalil/Library/CloudStorage/GoogleDrive-ahzs645@gmail.com/My Drive/University/Research/Grad/Data/Canue'
 const DEFAULT_OUTPUT = 'public/data/canue/bc'
+const DEFAULT_BC_BOUNDARY = 'public/data/boundaries/BCMoH/simplified/health_authorities.json'
 
 const args = parseArgs(process.argv.slice(2))
 const SOURCE_DIR = path.resolve(args.source || process.env.PG_CANUE_DIR || DEFAULT_SOURCE)
 const OUTPUT_DIR = path.resolve(args.output || DEFAULT_OUTPUT)
+const BOUNDARY_PATH = args['boundary-path'] === 'none'
+  ? null
+  : path.resolve(args['boundary-path'] || DEFAULT_BC_BOUNDARY)
 const PROVINCE = String(args.province || 'BC').toUpperCase()
 const requestedYears = new Set(
   String(args.years || '')
@@ -19,6 +24,7 @@ const requestedYears = new Set(
     .filter(Boolean),
 )
 const latestOnly = args['all-years'] !== 'true'
+let boundaryIndex = []
 
 function parseArgs(argv) {
   const parsed = {}
@@ -147,6 +153,30 @@ function toSlug(value) {
     .replace(/^-|-$/g, '')
 }
 
+async function loadBoundaryIndex() {
+  if (!BOUNDARY_PATH) return []
+  const geojson = JSON.parse(await readFile(BOUNDARY_PATH, 'utf8'))
+  const features = (geojson.features || []).filter((feature) => feature.geometry)
+  return features.map((feature) => ({
+    feature,
+    bbox: bbox(feature),
+  }))
+}
+
+function isInsideBoundary(longitude, latitude) {
+  if (!boundaryIndex.length) return true
+  const lng = Number(longitude)
+  const lat = Number(latitude)
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false
+  const pt = point([lng, lat])
+
+  return boundaryIndex.some((entry) => {
+    const [minLng, minLat, maxLng, maxLat] = entry.bbox
+    if (lng < minLng || lng > maxLng || lat < minLat || lat > maxLat) return false
+    return booleanPointInPolygon(pt, entry.feature)
+  })
+}
+
 async function loadLocations(zipPath, year) {
   const yy = String(year).slice(-2)
   const member = `DMTI_SLI_${yy}.csv`
@@ -165,9 +195,12 @@ async function loadLocations(zipPath, year) {
     if (String(row.PROV_16 || row[`PROV_${yy}`] || '').toUpperCase() !== PROVINCE) continue
     const postalCode = normalizePostalCode(row.POSTALCODE16 || row[`POSTALCODE${yy}`])
     if (!postalCode) continue
+    const latitude = row.LATITUDE_16 || row[`LATITUDE_${yy}`] || ''
+    const longitude = row.LONGITUDE_16 || row[`LONGITUDE_${yy}`] || ''
+    if (!isInsideBoundary(longitude, latitude)) continue
     locations.set(postalCode, {
-      latitude: row.LATITUDE_16 || row[`LATITUDE_${yy}`] || '',
-      longitude: row.LONGITUDE_16 || row[`LONGITUDE_${yy}`] || '',
+      latitude,
+      longitude,
       community: row.COMM_NAME_16 || row[`COMM_NAME_${yy}`] || '',
     })
   }
@@ -209,7 +242,8 @@ async function extractVariableCsv({ zipPath, member, datasetId, label, category,
     const province = String(values[provinceIndex] || '').toUpperCase()
     const postalCode = normalizePostalCode(values[postalIndex])
     if (province !== PROVINCE && !postalCode.startsWith('V')) continue
-    const location = locations.get(postalCode) || { latitude: '', longitude: '', community: '' }
+    const location = locations.get(postalCode)
+    if (!location) continue
     if (location.latitude && location.longitude) withCoordinates += 1
     const variableValues = variableIndexes.map((entry) => values[entry.index] ?? '')
     output.write(
@@ -256,6 +290,10 @@ function selectVariableMembers(members) {
 }
 
 async function main() {
+  boundaryIndex = await loadBoundaryIndex()
+  if (boundaryIndex.length) {
+    console.log(`CANUE: clipping postal-code locations to ${path.relative(process.cwd(), BOUNDARY_PATH)}`)
+  }
   const zips = await findZips(path.join(SOURCE_DIR, 'Annual'))
   await rm(OUTPUT_DIR, { recursive: true, force: true })
   await mkdir(path.join(OUTPUT_DIR, 'annual'), { recursive: true })
@@ -299,6 +337,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     source: SOURCE_DIR,
     province: PROVINCE,
+    boundaryClip: BOUNDARY_PATH ? path.relative(process.cwd(), BOUNDARY_PATH) : null,
     mode: latestOnly && requestedYears.size === 0 ? 'latest-year-per-dataset' : 'selected-years',
     datasets,
     files,

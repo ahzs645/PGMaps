@@ -53,6 +53,13 @@ function formatNormalizationMethod(method: ScoreMethodSettings['normalization'])
   return 'min-max'
 }
 
+function formatAggregationMethod(method: ScoreMethodSettings['aggregation']): string {
+  if (method === 'modulePercentileRankedSum') return 'EJI-style module ranked sum'
+  if (method === 'cumulativeBurden') return 'cumulative burden'
+  if (method === 'geometric') return 'geometric mean'
+  return 'weighted average'
+}
+
 interface ScoreBuilderSidebarProps {
   className?: string
   loading: boolean
@@ -850,7 +857,7 @@ export function ScoreBuilderSidebar({
                 </p>
                 <p className="mt-2">
                   Current settings: {formatNormalizationMethod(methodSettings.normalization)},{' '}
-                  {methodSettings.aggregation}, missing data {methodSettings.missingData}.
+                  {formatAggregationMethod(methodSettings.aggregation)}, missing data {methodSettings.missingData}.
                 </p>
               </div>
 
@@ -1050,6 +1057,7 @@ export function ScoreBuilderSidebar({
                       <option value="additive">Weighted average</option>
                       <option value="geometric">Geometric mean</option>
                       <option value="cumulativeBurden">Cumulative burden</option>
+                      <option value="modulePercentileRankedSum">EJI-style module ranked sum</option>
                     </select>
                   </label>
                   <label className="space-y-1">

@@ -12,27 +12,27 @@ HealthyPlan.City is not a weighted composite index. It is a city-relative decile
 
 ### Directly Usable in the Frontend
 
-| Type | Use | Notes |
-| --- | --- | --- |
+| Type                            | Use                                                                         | Notes                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `GeoJSON` / `FeatureCollection` | Dissemination blocks, neighbourhoods, municipal boundaries, source features | Already fits MapLibre and Turf workflows. Best direct interchange format for boundaries. |
-| `JSON` | Metric catalog, color ramps, variable stops, source manifest | Preferred for app configuration. |
-| Static API-style `JSON` arrays | Scatter points, summary rows, city bounds | Matches current PGMaps fetch patterns. |
+| `JSON`                          | Metric catalog, color ramps, variable stops, source manifest                | Preferred for app configuration.                                                         |
+| Static API-style `JSON` arrays  | Scatter points, summary rows, city bounds                                   | Matches current PGMaps fetch patterns.                                                   |
 
 ### Good for Ingestion Scripts, Not Direct App Use
 
-| Type | Use | Required handling |
-| --- | --- | --- |
-| `CSV` | Census profiles, derived DB tables, final HealthyPlan-like data table | Parse in a Node/Python sync script and emit normalized JSON/GeoJSON. |
-| `GeoPackage` / `GPKG` | Statistics Canada, municipal, or OSM-derived geospatial layers | Convert to GeoJSON or vector tiles before frontend use. |
-| `Shapefile` | StatCan geography, municipal boundaries | Convert to GeoJSON or vector tiles before frontend use. |
-| `GeoTIFF` / raster | Landsat temperature, tree canopy, flood index | Summarize to dissemination blocks before app use; the app should consume block-level values, not raw rasters. |
-| `GTFS` zip | Transit stops/routes/schedules | Extract stops and optionally network/service metrics into JSON/GeoJSON. |
-| OSM extracts (`.pbf`) | Amenities, parks, roads, walking network, noise features | Process offline with tags and buffers/network analysis; emit derived block metrics. |
+| Type                  | Use                                                                   | Required handling                                                                                             |
+| --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `CSV`                 | Census profiles, derived DB tables, final HealthyPlan-like data table | Parse in a Node/Python sync script and emit normalized JSON/GeoJSON.                                          |
+| `GeoPackage` / `GPKG` | Statistics Canada, municipal, or OSM-derived geospatial layers        | Convert to GeoJSON or vector tiles before frontend use.                                                       |
+| `Shapefile`           | StatCan geography, municipal boundaries                               | Convert to GeoJSON or vector tiles before frontend use.                                                       |
+| `GeoTIFF` / raster    | Landsat temperature, tree canopy, flood index                         | Summarize to dissemination blocks before app use; the app should consume block-level values, not raw rasters. |
+| `GTFS` zip            | Transit stops/routes/schedules                                        | Extract stops and optionally network/service metrics into JSON/GeoJSON.                                       |
+| OSM extracts (`.pbf`) | Amenities, parks, roads, walking network, noise features              | Process offline with tags and buffers/network analysis; emit derived block metrics.                           |
 
 ### Optional Later
 
-| Type | Use | Notes |
-| --- | --- | --- |
+| Type                                          | Use                                  | Notes                                                                                                                                                 |
+| --------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Vector tiles (`.pbf` tiles, MBTiles, PMTiles) | High-volume dissemination-block maps | HealthyPlan uses a vector-tile style. PGMaps can display vector tiles through MapLibre, but the repo does not yet include a tile generation pipeline. |
 
 ## Recommended Static Data Layout
@@ -199,17 +199,7 @@ Use this 9-step ramp for `priority_score = 1..9`:
 ```json
 {
   "id": "default",
-  "stops": [
-    "#ffecbf",
-    "#fce4ae",
-    "#fada9b",
-    "#f7d18b",
-    "#f5ca7a",
-    "#d4967a",
-    "#b36666",
-    "#913959",
-    "#73004d"
-  ]
+  "stops": ["#ffecbf", "#fce4ae", "#fada9b", "#f7d18b", "#f5ca7a", "#d4967a", "#b36666", "#913959", "#73004d"]
 }
 ```
 
@@ -235,28 +225,28 @@ color = interpolate(raw_value, stops, colourRamp.stops)
 
 ### Confirmed HealthyPlan Variable Stops
 
-| Variable | Stops |
-| --- | --- |
-| `tcc` | `0, 0.8, 4, 8, 11, 16, 21, 26, 33, 44` |
-| `lstmax` | `1, 23, 25, 26, 27, 28, 29, 30, 31, 33, 43` |
-| `annno2` | `0, 3.87, 4.75, 5.41, 6.05, 6.69, 7.31, 7.9, 8.53, 9.37` |
-| `fsi` | `0, 5, 8, 12, 18, 24, 31, 40, 53, 74, 100` |
-| `gp` | `0, 0.5, 3.7, 7.1, 10.9, 15.8, 22.5, 32.7, 52.2, 107` |
-| `transit` | `0, 2, 3.8, 5.2, 6.5, 7.6, 7.3, 11.2, 14.3, 39` |
-| `educult` | `0, 0.000001, 0.1, 0.67, 1, 1.4, 2, 2.6, 3.3, 5` |
-| `retserv` | `0, 0.1, 0.6, 2, 4.4, 8, 13.16, 21.8, 38.3, 79.7` |
-| `hlthfd` | `0, 0.36, 0.84, 0.99, 1, 1.9, 2.4, 3.8, 7, 42` |
+| Variable       | Stops                                                       |
+| -------------- | ----------------------------------------------------------- |
+| `tcc`          | `0, 0.8, 4, 8, 11, 16, 21, 26, 33, 44`                      |
+| `lstmax`       | `1, 23, 25, 26, 27, 28, 29, 30, 31, 33, 43`                 |
+| `annno2`       | `0, 3.87, 4.75, 5.41, 6.05, 6.69, 7.31, 7.9, 8.53, 9.37`    |
+| `fsi`          | `0, 5, 8, 12, 18, 24, 31, 40, 53, 74, 100`                  |
+| `gp`           | `0, 0.5, 3.7, 7.1, 10.9, 15.8, 22.5, 32.7, 52.2, 107`       |
+| `transit`      | `0, 2, 3.8, 5.2, 6.5, 7.6, 7.3, 11.2, 14.3, 39`             |
+| `educult`      | `0, 0.000001, 0.1, 0.67, 1, 1.4, 2, 2.6, 3.3, 5`            |
+| `retserv`      | `0, 0.1, 0.6, 2, 4.4, 8, 13.16, 21.8, 38.3, 79.7`           |
+| `hlthfd`       | `0, 0.36, 0.84, 0.99, 1, 1.9, 2.4, 3.8, 7, 42`              |
 | `naturalspace` | `0, 0.000001, 2, 4.75, 8.14, 12.9, 19, 27.97, 41.75, 66.87` |
-| `parks` | `0, 3.25, 6.25, 9, 12, 15.2, 19, 23.9, 30.8, 43.5` |
-| `recsport` | `0, 3, 6, 8.58, 11, 13.66, 16.5, 20, 25, 33.5` |
-| `noise` | `0, 0.14, 2.25, 4, 5.33, 6.4, 7.5, 9.05, 11.5, 17` |
-| `vismin` | `0, 0.1, 0.22, 0.35, 0.5, 0.66, 0.82` |
-| `alone` | `0, 0.07, 0.14, 0.22, 0.3, 0.39, 0.5` |
-| `licoatall` | `0, 0.04, 0.08, 0.13, 0.19, 0.26, 0.36` |
-| `u15` | `0, 0.08, 0.12, 0.15, 0.18, 0.21, 0.26` |
-| `a64` | `0, 0.1, 0.15, 0.21, 0.27, 0.38, 0.55` |
-| `fg` | `0, 0.09, 0.18, 0.27, 0.38, 0.49, 0.62` |
-| `i1121` | `0, 0.02, 0.06, 0.09, 0.14, 0.2, 0.29` |
+| `parks`        | `0, 3.25, 6.25, 9, 12, 15.2, 19, 23.9, 30.8, 43.5`          |
+| `recsport`     | `0, 3, 6, 8.58, 11, 13.66, 16.5, 20, 25, 33.5`              |
+| `noise`        | `0, 0.14, 2.25, 4, 5.33, 6.4, 7.5, 9.05, 11.5, 17`          |
+| `vismin`       | `0, 0.1, 0.22, 0.35, 0.5, 0.66, 0.82`                       |
+| `alone`        | `0, 0.07, 0.14, 0.22, 0.3, 0.39, 0.5`                       |
+| `licoatall`    | `0, 0.04, 0.08, 0.13, 0.19, 0.26, 0.36`                     |
+| `u15`          | `0, 0.08, 0.12, 0.15, 0.18, 0.21, 0.26`                     |
+| `a64`          | `0, 0.1, 0.15, 0.21, 0.27, 0.38, 0.55`                      |
+| `fg`           | `0, 0.09, 0.18, 0.27, 0.38, 0.49, 0.62`                     |
+| `i1121`        | `0, 0.02, 0.06, 0.09, 0.14, 0.2, 0.29`                      |
 
 ## Source Data Needed
 
@@ -337,3 +327,30 @@ nbe_city_{environment}_r...
 
 That lets PGMaps reproduce the visible map, scatter plot, and summaries without immediately rebuilding every upstream spatial-processing pipeline. Once the UI and equations are stable, add source-specific sync scripts for Census, OSM, GTFS, rasters, and municipal boundaries.
 
+## Code Brought Into PGMaps
+
+The reusable HealthyPlan method pieces now live in `src/lib/healthyplan/`:
+
+- `config.ts` contains the equity-priority color ramp and confirmed example raw-value scales.
+- `types.ts` defines the input record, ranked record, variable scale, color ramp, and summary shapes.
+- `scoring.ts` implements benefit-direction adjustment, city decile ranks, equity-priority scoring, priority color lookup, field-name helpers, and city affected-population summaries.
+
+The scoring functions are intentionally independent of React and MapLibre so they can be used from:
+
+- an ingestion script that precomputes ranks,
+- a future HealthyPlan-style map section,
+- tests around tie handling and color output,
+- server-side/vector-tile property generation.
+
+## Browser Interface Findings
+
+Observed through the live interface on 2026-05-06:
+
+- The map defaults to Calgary, tree canopy cover, and visible minority individuals.
+- The UI exposes the same built-environment and vulnerable-population dropdowns used by `/api/data/metrics`.
+- The map footer links to a PDF report route: `/report?city={cityId}&demographic={demographic}&environment={environment}`.
+- The report page repeats the selected city, built-environment variable, demographic variable, equity-priority explanation, ranking language, and methods/story links, but does not expose a direct CSV download in the visible UI.
+- The Data Request form states that built-environment data is distributed for one city of demonstrated relevance to the requester and for non-commercial purposes.
+- The Data Request form points academic researchers who need more than one indicator/city to the CANUE data portal.
+- The Data Request form dataset choices are: Air pollution, average summer temperature, education and cultural facilities, flood susceptibility, healthy food outlets, large natural spaces, noise, parks, recreation and sports facilities, retail and services, transit stops, and tree canopy cover.
+- The Data Request form did not show greenspace provision as a requestable dataset, even though the map and Methods page include greenspace provision. Treat greenspace provision access as unresolved until confirmed through CANUE or direct contact.
