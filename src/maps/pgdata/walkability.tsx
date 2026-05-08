@@ -94,14 +94,6 @@ interface WalkabilityGridData {
   caveats: string[]
 }
 
-interface WalkabilityRenderedHeatmapVariant {
-  key: string
-  label: string
-  path?: string
-  areaBufferM: number
-  bandCounts: Record<string, number>
-}
-
 type WalkabilityProperties = {
   communityId: string
   communityName: string
@@ -138,6 +130,42 @@ export const WALKABILITY_DEFAULT_DISPLAY_MODE = 'heatmap'
 const WALKABILITY_DEFAULT_HEATMAP_VARIANT = 'report_fidelity'
 
 type WalkabilityDisplayMode = 'heatmap' | 'community'
+type HeatmapOptionKey =
+  | 'dropGtfsHf'
+  | 'narrowCivic'
+  | 'narrowGrowth'
+  | 'dropPopAge'
+  | 'dropF0'
+  | 'dropC0'
+  | 'dropF8'
+  | 'dropSuppPoi'
+  | 'tightBuffer'
+
+type HeatmapOptionState = Record<HeatmapOptionKey, boolean>
+
+const HEATMAP_EMPTY_OPTIONS: HeatmapOptionState = {
+  dropGtfsHf: false,
+  narrowCivic: false,
+  narrowGrowth: false,
+  dropPopAge: false,
+  dropF0: false,
+  dropC0: false,
+  dropF8: false,
+  dropSuppPoi: false,
+  tightBuffer: false,
+}
+
+const HEATMAP_OPTIONS: Array<{ key: HeatmapOptionKey; label: string; description: string }> = [
+  { key: 'dropGtfsHf', label: 'Remove GTFS high-frequency bonus', description: 'Drops the extra band 4-5 transit stop bonus.' },
+  { key: 'narrowCivic', label: 'Narrow civic factors', description: 'Keeps Cultural, Aquatic, and Administration only.' },
+  { key: 'narrowGrowth', label: 'Narrow growth factors', description: 'Keeps Growth Priority and Future growth only.' },
+  { key: 'dropPopAge', label: 'Drop population and age factors', description: 'Removes F2/F3/F4/F6/F7 for report fidelity.' },
+  { key: 'dropF0', label: 'Drop crosswalks', description: 'Removes F0 crosswalk scoring.' },
+  { key: 'dropC0', label: 'Drop daycares', description: 'Removes C0 daycare scoring.' },
+  { key: 'dropF8', label: 'Drop intercity bus', description: 'Removes F8 intercity bus scoring.' },
+  { key: 'dropSuppPoi', label: 'Drop supplemental POIs', description: 'Removes A1/E0/E1/E2/E3 supplemental POIs.' },
+  { key: 'tightBuffer', label: 'Use 10m area buffer', description: 'Uses 10m instead of the default 20m area/line buffer.' },
+]
 
 const WALKABILITY_SCORE_FIELD_BY_VARIANT: Record<string, keyof WalkabilityProperties> = {
   balanced: 'balancedScore',
@@ -145,6 +173,99 @@ const WALKABILITY_SCORE_FIELD_BY_VARIANT: Record<string, keyof WalkabilityProper
   access: 'accessScore',
   safetyAdjusted: 'safetyAdjustedScore',
   supplementedLocal: 'supplementedLocalScore',
+}
+
+function optionsForHeatmapVariant(variant?: WalkabilityGridVariant | null): HeatmapOptionState {
+  if (!variant) return HEATMAP_EMPTY_OPTIONS
+  return {
+    dropGtfsHf: Boolean(variant.config.drop_gtfs_hf),
+    narrowCivic: Boolean(variant.config.narrow_civic),
+    narrowGrowth: Boolean(variant.config.narrow_growth),
+    dropPopAge: Boolean(variant.config.drop_pop_age),
+    dropF0: Boolean(variant.config.drop_f0),
+    dropC0: Boolean(variant.config.drop_c0),
+    dropF8: Boolean(variant.config.drop_f8),
+    dropSuppPoi: Boolean(variant.config.drop_supp_poi),
+    tightBuffer: variant.areaBufferM === 10,
+  }
+}
+
+function normalizeHeatmapOptions(options: HeatmapOptionState, changedKey?: HeatmapOptionKey): HeatmapOptionState {
+  const next = { ...options }
+  if (changedKey === 'dropGtfsHf' && !next.dropGtfsHf) {
+    next.narrowCivic = false
+    next.narrowGrowth = false
+    next.dropPopAge = false
+    next.dropF0 = false
+    next.dropC0 = false
+    next.dropF8 = false
+    next.dropSuppPoi = false
+    next.tightBuffer = false
+  }
+  if (changedKey === 'narrowCivic' && !next.narrowCivic) {
+    next.narrowGrowth = false
+    next.dropPopAge = false
+    next.dropF0 = false
+    next.dropC0 = false
+    next.dropF8 = false
+    next.dropSuppPoi = false
+    next.tightBuffer = false
+  }
+  if (changedKey === 'narrowGrowth' && !next.narrowGrowth) {
+    next.dropPopAge = false
+    next.dropF0 = false
+    next.dropC0 = false
+    next.dropF8 = false
+    next.dropSuppPoi = false
+    next.tightBuffer = false
+  }
+  if (changedKey === 'dropPopAge' && !next.dropPopAge) {
+    next.dropF0 = false
+    next.dropC0 = false
+    next.dropF8 = false
+    next.dropSuppPoi = false
+    next.tightBuffer = false
+  }
+  if (next.narrowCivic) next.dropGtfsHf = true
+  if (next.narrowGrowth) {
+    next.dropGtfsHf = true
+    next.narrowCivic = true
+  }
+  if (next.dropPopAge || next.dropF0 || next.dropC0 || next.dropF8 || next.dropSuppPoi || next.tightBuffer) {
+    next.dropGtfsHf = true
+    next.narrowCivic = true
+    next.narrowGrowth = true
+    next.dropPopAge = true
+  }
+  return next
+}
+
+function variantKeyForHeatmapOptions(options: HeatmapOptionState): string {
+  const extraDrops = [options.dropF0, options.dropC0, options.dropF8, options.dropSuppPoi].filter(Boolean).length
+  if (options.dropPopAge && options.tightBuffer && options.dropF0 && options.dropC0 && options.dropF8 && options.dropSuppPoi) return 'most_conservative'
+  if (options.dropPopAge && options.tightBuffer && extraDrops === 0) return 'rf_tight_buffer_10m'
+  if (options.dropPopAge && !options.tightBuffer && extraDrops === 1) {
+    if (options.dropF0) return 'rf_drop_f0'
+    if (options.dropC0) return 'rf_drop_c0'
+    if (options.dropF8) return 'rf_drop_f8'
+    return 'rf_drop_supp_poi'
+  }
+  if (options.dropPopAge) return 'report_fidelity'
+  if (options.narrowGrowth) return 'narrow_growth'
+  if (options.narrowCivic) return 'narrow_civic'
+  if (options.dropGtfsHf) return 'no_gtfs_hf'
+  return 'full'
+}
+
+function isHeatmapOptionDisabled(options: HeatmapOptionState, key: HeatmapOptionKey): boolean {
+  const singleDropKeys: HeatmapOptionKey[] = ['dropF0', 'dropC0', 'dropF8', 'dropSuppPoi']
+  if (singleDropKeys.includes(key)) {
+    return singleDropKeys.some((dropKey) => dropKey !== key && options[dropKey])
+  }
+  if (key === 'tightBuffer') {
+    return singleDropKeys.some((dropKey) => options[dropKey])
+  }
+  return false
 }
 
 export function useWalkabilityData(
@@ -175,31 +296,21 @@ export function useWalkabilityData(
   }, [selectedVariantId, variants])
   const selectedScoreField = WALKABILITY_SCORE_FIELD_BY_VARIANT[selectedVariant?.id ?? WALKABILITY_DEFAULT_VARIANT] ?? 'balancedScore'
   const features = data.data?.features ?? []
-  const heatmapVariants = useMemo<WalkabilityRenderedHeatmapVariant[]>(() => {
-    const overlayVariants = heatmapManifest.data?.variants ?? []
-    if (overlayVariants.length) {
-      return overlayVariants.map((variant) => ({
-        key: variant.key,
-        label: variant.label,
-        path: variant.path,
-        areaBufferM: variant.area_buffer_m,
-        bandCounts: variant.band_counts,
-      }))
-    }
-    return (gridHeatmap.data?.variants ?? []).map((variant) => ({
-      key: variant.key,
-      label: variant.label,
-      areaBufferM: variant.areaBufferM,
-      bandCounts: variant.bandCounts,
-    }))
-  }, [gridHeatmap.data?.variants, heatmapManifest.data?.variants])
-  const selectedHeatmapVariant = useMemo<WalkabilityRenderedHeatmapVariant | null>(() => {
+  const heatmapVariants = gridHeatmap.data?.variants ?? []
+  const selectedHeatmapVariant = useMemo(() => {
     if (!heatmapVariants.length) return null
     return heatmapVariants.find((variant) => variant.key === selectedHeatmapVariantId)
-      ?? heatmapVariants.find((variant) => variant.key === heatmapManifest.data?.defaultVariant)
       ?? heatmapVariants.find((variant) => variant.key === gridHeatmap.data?.defaultVariant)
       ?? heatmapVariants[0]
-  }, [gridHeatmap.data?.defaultVariant, heatmapManifest.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
+  }, [gridHeatmap.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
+  const heatmapOptionState = useMemo(() => optionsForHeatmapVariant(selectedHeatmapVariant), [selectedHeatmapVariant])
+  const setHeatmapOption = (key: HeatmapOptionKey, checked: boolean) => {
+    const requested = normalizeHeatmapOptions({ ...heatmapOptionState, [key]: checked }, key)
+    const nextVariantKey = variantKeyForHeatmapOptions(requested)
+    if (heatmapVariants.some((variant) => variant.key === nextVariantKey)) {
+      setSelectedHeatmapVariantId(nextVariantKey)
+    }
+  }
   const selectedCommunity = useMemo<WalkabilityFeature | null>(() => {
     if (!selectedCommunityId) return null
     return features.find((feature) => String(feature.properties.communityId) === selectedCommunityId) ?? null
@@ -252,9 +363,9 @@ export function useWalkabilityData(
   useEffect(() => {
     if (!heatmapVariants.length) return
     if (!heatmapVariants.some((variant) => variant.key === selectedHeatmapVariantId)) {
-      setSelectedHeatmapVariantId(heatmapManifest.data?.defaultVariant ?? gridHeatmap.data?.defaultVariant ?? heatmapVariants[0].key)
+      setSelectedHeatmapVariantId(gridHeatmap.data?.defaultVariant ?? heatmapVariants[0].key)
     }
-  }, [gridHeatmap.data?.defaultVariant, heatmapManifest.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
+  }, [gridHeatmap.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
 
   return {
     manifest,
@@ -268,6 +379,9 @@ export function useWalkabilityData(
     selectedVariantId,
     setSelectedVariantId,
     heatmapVariants,
+    heatmapOptionState,
+    isHeatmapOptionDisabled,
+    setHeatmapOption,
     selectedHeatmapVariant,
     selectedHeatmapVariantId,
     setSelectedHeatmapVariantId,
@@ -310,19 +424,34 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
           </label>
 
           {walkability.displayMode === 'heatmap' && (
-            <label className="block text-xs font-medium text-foreground">
-              Heat map variant
-              <AppSelect
-                value={walkability.selectedHeatmapVariant?.key ?? walkability.selectedHeatmapVariantId}
-                onValueChange={walkability.setSelectedHeatmapVariantId}
-                options={walkability.heatmapVariants.map((variant) => ({
-                  value: variant.key,
-                  label: variant.label,
-                }))}
-                className="mt-1"
-                triggerClassName="h-8 rounded-md text-xs"
-              />
-            </label>
+            <div className="space-y-2">
+              <div>
+                <div className="text-xs font-medium text-foreground">Heat map options</div>
+                <div className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
+                  {walkability.selectedHeatmapVariant?.label ?? 'Citywide MI grid'}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {HEATMAP_OPTIONS.map((option) => (
+                  <label
+                    key={option.key}
+                    className="flex items-start gap-2 rounded border border-border bg-background px-2 py-1.5 text-xs has-[:disabled]:opacity-45"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={walkability.heatmapOptionState[option.key]}
+                      disabled={walkability.isHeatmapOptionDisabled(walkability.heatmapOptionState, option.key)}
+                      onChange={(event) => walkability.setHeatmapOption(option.key, event.target.checked)}
+                      className="mt-0.5 h-3.5 w-3.5 rounded border-border accent-emerald-600"
+                    />
+                    <span className="min-w-0">
+                      <span className="block font-medium leading-4 text-foreground">{option.label}</span>
+                      <span className="block leading-4 text-muted-foreground">{option.description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
           )}
 
           {walkability.displayMode === 'community' && <label className="block text-xs font-medium text-foreground">
@@ -375,7 +504,7 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
 
           <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
             {walkability.displayMode === 'heatmap'
-              ? 'Exact binned Mobility Index overlay imported from the local reconstruction map variants and rendered in MapLibre. The Node/Turf grid rebuild remains in the repo as a recalculation reference.'
+              ? 'Citywide binned Mobility Index grid generated in Node/JSTS from projected reconstruction source layers. It is not restricted to paths, census areas, or community polygons.'
               : walkability.selectedVariant?.description ?? 'Community walkability is recalculated from web-source layers.'}
           </div>
           {walkability.heatmapManifest.error && <div className="text-xs text-red-500">{walkability.heatmapManifest.error}</div>}
@@ -434,14 +563,11 @@ export function WalkabilitySourceNotes({ walkability }: { walkability: Walkabili
   return (
     <>
       <p>Walkability variants updated {formatDate(walkability.manifest.data?.generatedAt)}.</p>
-      {walkability.displayMode === 'heatmap' && <p>Citywide MI overlay updated {formatDate(walkability.heatmapManifest.data?.generatedAt)}.</p>}
+      {walkability.displayMode === 'heatmap' && <p>Citywide MI grid updated {formatDate(walkability.gridHeatmap.data?.generatedAt)}.</p>}
       <p>{walkability.manifest.data?.sourcePolicy ?? 'Web-source-only community scores from public map layers.'}</p>
-      {walkability.displayMode === 'heatmap' && (
-        <>
-          <p>The displayed heat map uses the imported reconstruction overlay PNGs, so it matches the Folium map variants from the Walkability folder.</p>
-          <p>The Node/Turf citywide grid is still stored in the repo as a recalculation reference, but it is not the default rendered layer.</p>
-        </>
-      )}
+      {walkability.displayMode === 'heatmap' && (walkability.gridHeatmap.data?.caveats ?? []).slice(0, 2).map((caveat) => (
+        <p key={caveat}>{caveat}</p>
+      ))}
       {(walkability.manifest.data?.caveats ?? []).slice(0, 2).map((caveat) => (
         <p key={caveat}>{caveat}</p>
       ))}
@@ -478,38 +604,10 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
   const uid = useId().replace(/:/g, '')
   const sourceId = `walkability-grid-src-${uid}`
   const layerId = `walkability-grid-layer-${uid}`
-  const manifest = walkability.heatmapManifest.data
   const grid = walkability.gridHeatmap.data
-  const selectedVariant = walkability.selectedHeatmapVariant
-  const variantKey = selectedVariant?.key ?? grid?.defaultVariant
+  const variantKey = walkability.selectedHeatmapVariant?.key ?? grid?.defaultVariant
 
   useEffect(() => {
-    if (isLoaded && map && manifest?.coordinates && selectedVariant?.path) {
-      map.addSource(sourceId, {
-        type: 'image',
-        url: selectedVariant.path,
-        coordinates: manifest.coordinates,
-      })
-      map.addLayer({
-        id: layerId,
-        type: 'raster',
-        source: sourceId,
-        paint: {
-          'raster-opacity': 0.75,
-          'raster-resampling': 'nearest',
-        },
-      })
-
-      return () => {
-        try {
-          if (map.getLayer(layerId)) map.removeLayer(layerId)
-          if (map.getSource(sourceId)) map.removeSource(sourceId)
-        } catch {
-          // Map may already be destroyed during unmount.
-        }
-      }
-    }
-
     if (!isLoaded || !map || !grid || !variantKey || !grid.grids[variantKey]) return
 
     const canvas = document.createElement('canvas')
@@ -564,7 +662,7 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
         // Map may already be destroyed during unmount.
       }
     }
-  }, [grid, isLoaded, layerId, manifest?.coordinates, map, selectedVariant?.path, sourceId, variantKey])
+  }, [grid, isLoaded, layerId, map, sourceId, variantKey])
 
   return null
 }

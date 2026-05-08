@@ -130,6 +130,16 @@ export const DATASETS = {
     formats: ['URL state', 'CSV export'],
     fields: ['metric', 'weight', 'normalization', 'aggregation', 'regionScore'],
   },
+  healthyBuiltEnvironment: {
+    title: 'Healthy Built Environment toolkit lenses',
+    description:
+      'PGMaps crosswalk from the BCCDC HBE Linkages Toolkit to local map layers for complete neighbourhoods, active transportation, natural environments, food systems, and housing.',
+    source: 'BCCDC HBE Linkages Toolkit, PGMaps normalized local datasets',
+    coverage: 'Prince George planning boundaries and census geographies',
+    license: 'Toolkit content by PHSA/BCCDC; local layers are source-dependent open data',
+    formats: ['Score presets', 'Indicator metadata'],
+    fields: ['hbeFeature', 'planningPrinciple', 'metric', 'proxyConfidence', 'dataGap'],
+  },
 } satisfies Record<string, DatasetInfoRecord>
 
 export type DatasetKey = keyof typeof DATASETS

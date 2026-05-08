@@ -1,6 +1,9 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import * as turf from '@turf/turf'
+import 'jsts/dist/jsts.min.js'
+
+const jsts = globalThis.jsts
+const jstsReader = new jsts.io.GeoJSONReader()
+const jstsWriter = new jsts.io.GeoJSONWriter()
 
 const SOURCE_ROOT = process.env.WALKABILITY_SOURCE_ROOT ?? 'public/data/walkability/source'
 const GIS_DIR = `${SOURCE_ROOT}/data/public_gis`
@@ -180,34 +183,89 @@ function utm10nToLonlat(x, y) {
   return [lon * 180 / Math.PI, lat * 180 / Math.PI]
 }
 
-function arcgisGeomToGeojson(geometry) {
+function makeGeometry(type, coordinates, properties = {}) {
+  return { type, coordinates, properties, bbox: geometryBbox(type, coordinates) }
+}
+
+function geometryToGeojson(geometry) {
+  return { type: geometry.type, coordinates: geometry.coordinates }
+}
+
+function geojsonToProjectedGeometry(geometry, properties = {}) {
+  if (!geometry?.type || !geometry.coordinates) return null
+  return makeGeometry(geometry.type, geometry.coordinates, properties)
+}
+
+function bufferProjectedGeometry(geometry, distanceM) {
+  try {
+    const jstsGeometry = jstsReader.read(geometryToGeojson(geometry))
+    const buffered = jstsGeometry.buffer(distanceM, 16)
+    if (!buffered || buffered.isEmpty()) return null
+    return geojsonToProjectedGeometry(jstsWriter.write(buffered), geometry.properties)
+  } catch {
+    return null
+  }
+}
+
+function geometryBbox(type, coordinates) {
+  const xs = []
+  const ys = []
+  const visit = ([x, y]) => {
+    xs.push(Number(x))
+    ys.push(Number(y))
+  }
+  if (type === 'Point') visit(coordinates)
+  else if (type === 'LineString') coordinates.forEach(visit)
+  else if (type === 'MultiLineString' || type === 'Polygon') coordinates.flat(1).forEach(visit)
+  else if (type === 'MultiPolygon') coordinates.flat(2).forEach(visit)
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  }
+}
+
+function arcgisGeomToProjectedGeometry(geometry) {
   if (!geometry) return null
-  if ('x' in geometry && 'y' in geometry) return turf.point(utm10nToLonlat(Number(geometry.x), Number(geometry.y)))
+  if ('x' in geometry && 'y' in geometry) return makeGeometry('Point', [Number(geometry.x), Number(geometry.y)])
   if (geometry.paths) {
-    const lines = geometry.paths.map((pathLine) => pathLine.map(([x, y]) => utm10nToLonlat(Number(x), Number(y)))).filter((line) => line.length >= 2)
+    const lines = geometry.paths.map((pathLine) => pathLine.map(([x, y]) => [Number(x), Number(y)])).filter((line) => line.length >= 2)
     if (!lines.length) return null
-    return lines.length === 1 ? turf.lineString(lines[0]) : turf.multiLineString(lines)
+    return lines.length === 1 ? makeGeometry('LineString', lines[0]) : makeGeometry('MultiLineString', lines)
   }
   if (geometry.rings) {
-    const rings = geometry.rings.map((ring) => ring.map(([x, y]) => utm10nToLonlat(Number(x), Number(y)))).filter((ring) => ring.length >= 4)
-    if (!rings.length) return null
-    return turf.polygon(rings)
+    const polygons = geometry.rings
+      .map((ring) => ring.map(([x, y]) => [Number(x), Number(y)]))
+      .filter((ring) => ring.length >= 4)
+      .map((ring) => [ring])
+    if (!polygons.length) return null
+    return polygons.length === 1 ? makeGeometry('Polygon', polygons[0]) : makeGeometry('MultiPolygon', polygons)
   }
   return null
 }
 
-function normalizeGeojsonGeometry(feature) {
+function lonLatOrProjectedToUtm([x, y], properties = {}) {
+  const propX = properties.x_26910 === '' || properties.x_26910 == null ? NaN : Number(properties.x_26910)
+  const propY = properties.y_26910 === '' || properties.y_26910 == null ? NaN : Number(properties.y_26910)
+  if (Number.isFinite(propX) && Number.isFinite(propY)) return [propX, propY]
+  const nx = Number(x)
+  const ny = Number(y)
+  if (Math.abs(nx) > 180 || Math.abs(ny) > 90) return [nx, ny]
+  return lonlatToUtm10n(nx, ny)
+}
+
+function normalizeProjectedGeometry(feature) {
   if (!feature?.geometry) return null
   const geom = feature.geometry
-  const convertPoint = ([lon, lat]) => {
-    if (Math.abs(lon) > 180 || Math.abs(lat) > 90) return utm10nToLonlat(Number(lon), Number(lat))
-    return [Number(lon), Number(lat)]
-  }
-  if (geom.type === 'Point') return turf.point(convertPoint(geom.coordinates), feature.properties ?? {})
-  if (geom.type === 'LineString') return turf.lineString(geom.coordinates.map(convertPoint), feature.properties ?? {})
-  if (geom.type === 'Polygon') return turf.polygon(geom.coordinates.map((ring) => ring.map(convertPoint)), feature.properties ?? {})
-  if (geom.type === 'MultiPolygon') return turf.multiPolygon(geom.coordinates.map((poly) => poly.map((ring) => ring.map(convertPoint))), feature.properties ?? {})
-  return feature
+  const properties = feature.properties ?? {}
+  const convertPoint = (point) => lonLatOrProjectedToUtm(point, properties)
+  if (geom.type === 'Point') return makeGeometry('Point', convertPoint(geom.coordinates), properties)
+  if (geom.type === 'LineString') return makeGeometry('LineString', geom.coordinates.map(convertPoint), properties)
+  if (geom.type === 'MultiLineString') return makeGeometry('MultiLineString', geom.coordinates.map((line) => line.map(convertPoint)), properties)
+  if (geom.type === 'Polygon') return makeGeometry('Polygon', geom.coordinates.map((ring) => ring.map(convertPoint)), properties)
+  if (geom.type === 'MultiPolygon') return makeGeometry('MultiPolygon', geom.coordinates.map((poly) => poly.map((ring) => ring.map(convertPoint))), properties)
+  return null
 }
 
 function norm(value) {
@@ -237,9 +295,9 @@ async function readLayer(layerKey) {
   const features = []
   for (const raw of rawFeatures) {
     const feature = layer.source === 'arcgis'
-      ? arcgisGeomToGeojson(raw.geometry)
-      : normalizeGeojsonGeometry(raw)
-    if (!feature?.geometry) continue
+      ? arcgisGeomToProjectedGeometry(raw.geometry)
+      : normalizeProjectedGeometry(raw)
+    if (!feature) continue
     feature.properties = layer.source === 'arcgis' ? raw.attributes ?? {} : raw.properties ?? {}
     features.push(feature)
   }
@@ -249,7 +307,7 @@ async function readLayer(layerKey) {
 function assignPopDensityQuintiles(features) {
   const densities = features.map((feature) => {
     const pop = Number(feature.properties?.DBpop_2021) || 0
-    const area = turf.area(feature)
+    const area = geometryArea(feature)
     const density = area > 0 ? pop / area : 0
     feature.properties._pop_density = density
     return density
@@ -306,37 +364,105 @@ function activeSourceFeatures(layerFeatures, factor) {
   return (layerFeatures[factor.layerKey] ?? []).filter((feature) => whereMatches(feature.properties ?? {}, factor.where) && fieldMatches(feature.properties ?? {}, factor.field, factor.values))
 }
 
-function projectedBboxFromLonlatBbox(bbox) {
-  const projected = [
-    lonlatToUtm10n(bbox[0], bbox[1]),
-    lonlatToUtm10n(bbox[0], bbox[3]),
-    lonlatToUtm10n(bbox[2], bbox[1]),
-    lonlatToUtm10n(bbox[2], bbox[3]),
-  ]
-  return {
-    minX: Math.min(...projected.map(([x]) => x)),
-    minY: Math.min(...projected.map(([, y]) => y)),
-    maxX: Math.max(...projected.map(([x]) => x)),
-    maxY: Math.max(...projected.map(([, y]) => y)),
-  }
-}
-
-function addFeatureToMask(mask, rows, cols, bounds, feature) {
-  const bbox = turf.bbox(feature)
-  const projectedBbox = projectedBboxFromLonlatBbox(bbox)
-  const minCol = Math.max(0, Math.floor((projectedBbox.minX - bounds.minX) / CELL_M))
-  const maxCol = Math.min(cols - 1, Math.ceil((projectedBbox.maxX - bounds.minX) / CELL_M))
-  const minRow = Math.max(0, Math.floor((bounds.maxY - projectedBbox.maxY) / CELL_M))
-  const maxRow = Math.min(rows - 1, Math.ceil((bounds.maxY - projectedBbox.minY) / CELL_M))
+function addGeometryDistanceToMask(mask, rows, cols, bounds, geometry, distanceM) {
+  const bbox = geometry.bbox
+  const minCol = Math.max(0, Math.floor((bbox.minX - distanceM - bounds.minX) / CELL_M))
+  const maxCol = Math.min(cols - 1, Math.ceil((bbox.maxX + distanceM - bounds.minX) / CELL_M))
+  const minRow = Math.max(0, Math.floor((bounds.maxY - (bbox.maxY + distanceM)) / CELL_M))
+  const maxRow = Math.min(rows - 1, Math.ceil((bounds.maxY - (bbox.minY - distanceM)) / CELL_M))
   if (minCol > maxCol || minRow > maxRow) return
 
   for (let row = minRow; row <= maxRow; row += 1) {
+    const y = bounds.maxY - (row + 0.5) * CELL_M
     const base = row * cols
     for (let col = minCol; col <= maxCol; col += 1) {
-      const [lon, lat] = utm10nToLonlat(bounds.minX + (col + 0.5) * CELL_M, bounds.maxY - (row + 0.5) * CELL_M)
-      if (turf.booleanPointInPolygon([lon, lat], feature)) mask[base + col] = 1
+      const x = bounds.minX + (col + 0.5) * CELL_M
+      if (distanceToGeometrySquared([x, y], geometry) <= distanceM * distanceM) mask[base + col] = 1
     }
   }
+}
+
+function addGeometryInteriorToMask(mask, rows, cols, bounds, geometry) {
+  addGeometryDistanceToMask(mask, rows, cols, bounds, geometry, 0)
+}
+
+function geometryArea(geometry) {
+  if (geometry.type === 'Polygon') return polygonArea(geometry.coordinates)
+  if (geometry.type === 'MultiPolygon') return geometry.coordinates.reduce((sum, polygon) => sum + polygonArea(polygon), 0)
+  return 0
+}
+
+function ringArea(ring) {
+  let area = 0
+  for (let index = 0; index < ring.length; index += 1) {
+    const [x1, y1] = ring[index]
+    const [x2, y2] = ring[(index + 1) % ring.length]
+    area += x1 * y2 - x2 * y1
+  }
+  return area / 2
+}
+
+function polygonArea(rings) {
+  if (!rings.length) return 0
+  const outer = Math.abs(ringArea(rings[0]))
+  const holes = rings.slice(1).reduce((sum, ring) => sum + Math.abs(ringArea(ring)), 0)
+  return Math.max(0, outer - holes)
+}
+
+function pointInRing(point, ring) {
+  const [x, y] = point
+  let inside = false
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
+    const [xi, yi] = ring[index]
+    const [xj, yj] = ring[previous]
+    const intersects = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi)
+    if (intersects) inside = !inside
+  }
+  return inside
+}
+
+function pointInPolygon(point, rings) {
+  if (!rings.length || !pointInRing(point, rings[0])) return false
+  return !rings.slice(1).some((ring) => pointInRing(point, ring))
+}
+
+function pointSegmentDistanceSquared(point, start, end) {
+  const [px, py] = point
+  const [x1, y1] = start
+  const [x2, y2] = end
+  const dx = x2 - x1
+  const dy = y2 - y1
+  if (dx === 0 && dy === 0) return (px - x1) ** 2 + (py - y1) ** 2
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+  const x = x1 + t * dx
+  const y = y1 + t * dy
+  return (px - x) ** 2 + (py - y) ** 2
+}
+
+function distanceToLineStringSquared(point, line) {
+  let best = Infinity
+  for (let index = 1; index < line.length; index += 1) {
+    best = Math.min(best, pointSegmentDistanceSquared(point, line[index - 1], line[index]))
+  }
+  return best
+}
+
+function distanceToPolygonSquared(point, rings) {
+  if (pointInPolygon(point, rings)) return 0
+  let best = Infinity
+  for (const ring of rings) {
+    best = Math.min(best, distanceToLineStringSquared(point, ring))
+  }
+  return best
+}
+
+function distanceToGeometrySquared(point, geometry) {
+  if (geometry.type === 'Point') return (point[0] - geometry.coordinates[0]) ** 2 + (point[1] - geometry.coordinates[1]) ** 2
+  if (geometry.type === 'LineString') return distanceToLineStringSquared(point, geometry.coordinates)
+  if (geometry.type === 'MultiLineString') return Math.min(...geometry.coordinates.map((line) => distanceToLineStringSquared(point, line)))
+  if (geometry.type === 'Polygon') return distanceToPolygonSquared(point, geometry.coordinates)
+  if (geometry.type === 'MultiPolygon') return Math.min(...geometry.coordinates.map((polygon) => distanceToPolygonSquared(point, polygon)))
+  return Infinity
 }
 
 function addMaskScoreToGrid(grid, mask, score) {
@@ -411,7 +537,6 @@ async function main() {
 
   const boundaryFile = `${GIS_DIR}/community_boundary.json`
   const boundaryFeatures = await readLayerFromArcgisFile(boundaryFile)
-  const boundaryCollection = turf.featureCollection(boundaryFeatures)
   const { minX, minY, maxX, maxY } = await readArcgisProjectedBounds(boundaryFile)
   const cols = Math.ceil((maxX - minX) / CELL_M)
   const rows = Math.ceil((maxY - minY) / CELL_M)
@@ -428,14 +553,7 @@ async function main() {
     maxY,
   }
   const inside = new Uint8Array(rows * cols)
-  for (let row = 0; row < rows; row += 1) {
-    const base = row * cols
-    for (let col = 0; col < cols; col += 1) {
-      const [lon, lat] = utm10nToLonlat(minX + (col + 0.5) * CELL_M, maxY - (row + 0.5) * CELL_M)
-      inside[base + col] = boundaryFeatures.some((feature) => turf.booleanPointInPolygon([lon, lat], feature)) ? 1 : 0
-    }
-  }
-  fillInteriorMaskHoles(inside, rows, cols)
+  for (const boundary of boundaryFeatures) addGeometryInteriorToMask(inside, rows, cols, bounds, boundary)
 
   const variants = []
   const grids = {}
@@ -451,8 +569,8 @@ async function main() {
           if (!score) continue
           const mask = new Uint8Array(rows * cols)
           for (const feature of features) {
-            const buffered = turf.buffer(feature, distance, { units: 'meters', steps: 8 })
-            if (buffered) addFeatureToMask(mask, rows, cols, bounds, buffered)
+            const buffered = bufferProjectedGeometry(feature, distance)
+            if (buffered) addGeometryInteriorToMask(mask, rows, cols, bounds, buffered)
           }
           addMaskScoreToGrid(grid, mask, score)
         }
@@ -461,8 +579,8 @@ async function main() {
         const bufferM = variant.areaBufferM ?? 20
         const mask = new Uint8Array(rows * cols)
         for (const feature of features) {
-          const buffered = turf.buffer(feature, bufferM, { units: 'meters', steps: 4 })
-          if (buffered) addFeatureToMask(mask, rows, cols, bounds, buffered)
+          const buffered = bufferProjectedGeometry(feature, bufferM)
+          if (buffered) addGeometryInteriorToMask(mask, rows, cols, bounds, buffered)
         }
         addMaskScoreToGrid(grid, mask, score)
       }
@@ -492,7 +610,7 @@ async function main() {
 
   const gridOutput = {
     generatedAt: new Date().toISOString(),
-    calculation: 'Node/Turf citywide non-pathlocked Mobility Index grid',
+    calculation: 'Node/JSTS projected citywide non-pathlocked Mobility Index grid',
     cellSizeM: CELL_M,
     rows,
     cols,
@@ -506,7 +624,7 @@ async function main() {
     sourceRoot: SOURCE_ROOT,
     caveats: [
       'Grid cells are scored citywide inside the Prince George community-boundary union and are not restricted to sidewalk, walkway, or trail assets.',
-      'The scoring logic is ported to Node/Turf from the local reconstruction factor definitions and uses cached web/source layers from the Walkability folder.',
+      'The scoring logic is ported to an all-JS Node/JSTS projected metre-grid rebuild from the local reconstruction factor definitions and repo-local source layers.',
     ],
   }
   await writeFile(OUTPUT_GRID, `${JSON.stringify(gridOutput)}\n`)
@@ -535,10 +653,10 @@ async function main() {
 async function readLayerFromArcgisFile(file) {
   const data = JSON.parse(await readFile(file, 'utf8'))
   return data.map((feature) => {
-    const geojson = arcgisGeomToGeojson(feature.geometry)
-    geojson.properties = feature.attributes ?? {}
-    return geojson
-  }).filter((feature) => feature?.geometry)
+    const projected = arcgisGeomToProjectedGeometry(feature.geometry)
+    if (projected) projected.properties = feature.attributes ?? {}
+    return projected
+  }).filter(Boolean)
 }
 
 async function readArcgisProjectedBounds(file) {

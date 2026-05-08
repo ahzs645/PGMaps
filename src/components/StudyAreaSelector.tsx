@@ -6,11 +6,57 @@ export interface StudyAreaSourceOption<TSource extends string = string> {
   label: string
   description: string
   disabled?: boolean
+  disabledReason?: string
 }
 
 export interface StudyAreaLevelOption<TLevel extends string = string> {
   value: TLevel
   label: string
+}
+
+export type StudyAreaScope = 'pg' | 'province' | 'mixed'
+
+export type CanonicalStudyAreaSource = 'bcHealth' | 'census' | 'cityPG'
+
+const CANONICAL_SOURCE_DEFS: Record<
+  CanonicalStudyAreaSource,
+  { label: string; description: string; provincial: boolean }
+> = {
+  bcHealth: {
+    label: 'CHSA health boundaries',
+    description: 'Community Health Service Areas',
+    provincial: true,
+  },
+  census: {
+    label: 'Census boundaries',
+    description: 'PG census tract -> dissemination area',
+    provincial: false,
+  },
+  cityPG: {
+    label: 'School catchments',
+    description: 'Elementary and secondary catchments',
+    provincial: false,
+  },
+}
+
+// PG-only data has no meaningful breakdown across provincial health-region
+// hierarchies (CHSA/LHA/HSDA all collapse to ~one polygon at city scale), so we
+// surface them as disabled rather than hide them.
+export function getStudyAreaSources(
+  scope: StudyAreaScope,
+  sources: CanonicalStudyAreaSource[] = ['bcHealth', 'census', 'cityPG'],
+): Array<StudyAreaSourceOption<CanonicalStudyAreaSource>> {
+  return sources.map((value) => {
+    const def = CANONICAL_SOURCE_DEFS[value]
+    const disabled = scope === 'pg' && def.provincial
+    return {
+      value,
+      label: def.label,
+      description: def.description,
+      disabled,
+      disabledReason: disabled ? 'Provincial layer — not meaningful for PG-only data' : undefined,
+    }
+  })
 }
 
 interface StudyAreaSelectorProps<TSource extends string = string, TLevel extends string = string> {
@@ -65,6 +111,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
               type="button"
               data-score-builder-boundary-source={dataPrefix === 'score-builder' ? option.value : undefined}
               disabled={option.disabled}
+              title={option.disabled ? option.disabledReason : undefined}
               onClick={() => {
                 if (!option.disabled) onSourceChange(option.value)
               }}

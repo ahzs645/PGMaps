@@ -6,10 +6,9 @@ import {
   MapMarker,
   MapPopup,
   MarkerContent,
-  useMap,
   type MapRef,
 } from '@/components/ui/map'
-import { MapFillLayer } from '@/components/ui/map-layers'
+import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
@@ -66,61 +65,44 @@ function formatTime(time: string): string {
 }
 
 function CrimeHeatmapLayer({ incidents }: { incidents: CrimeIncident[] }) {
-  const { map, isLoaded } = useMap()
-
   const heatmapWeight = useMemo(() => {
     if (incidents.length === 0) return 0
     return Math.min(0.75, Math.max(0.12, 3600 / incidents.length))
   }, [incidents.length])
 
-  const geojson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
-    type: 'FeatureCollection',
-    features: incidents.map((inc) => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [inc.longitude, inc.latitude] },
-      properties: { weight: heatmapWeight },
-    })),
-  }), [incidents, heatmapWeight])
+  const geojson = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
+    () => ({
+      type: 'FeatureCollection',
+      features: incidents.map((inc) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [inc.longitude, inc.latitude] },
+        properties: { weight: heatmapWeight },
+      })),
+    }),
+    [incidents, heatmapWeight],
+  )
 
-  useEffect(() => {
-    if (!isLoaded || !map) return
-
-    const sourceId = 'crime-heatmap-source'
-    const layerId = 'crime-heatmap-layer'
-
-    map.addSource(sourceId, { type: 'geojson', data: geojson })
-    map.addLayer({
-      id: layerId,
-      type: 'heatmap',
-      source: sourceId,
-      paint: {
-        'heatmap-weight': ['coalesce', ['get', 'weight'], 1],
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 8, 0.45, 12, 1, 15, 1.6],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 8, 8, 12, 18, 15, 28],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.76, 14, 0.68, 16, 0.45],
-        'heatmap-color': [
-          'interpolate', ['linear'], ['heatmap-density'],
-          0, 'rgba(0,0,0,0)',
-          0.08, 'rgba(59,130,246,0.28)',
-          0.22, 'rgba(59,130,246,0.7)',
-          0.42, '#22c55e',
-          0.62, '#eab308',
-          0.82, '#f97316',
-          1, '#ef4444',
-        ],
-      },
-    } as never)
-
-    return () => {
-      try {
-        if (!map.getStyle()) return
-        if (map.getLayer(layerId)) map.removeLayer(layerId)
-        if (map.getSource(sourceId)) map.removeSource(sourceId)
-      } catch { /* map destroyed */ }
-    }
-  }, [isLoaded, map, geojson])
-
-  return null
+  return (
+    <MapHeatmapLayer
+      data={geojson}
+      intensityStops={[
+        [8, 0.45],
+        [12, 1],
+        [15, 1.6],
+      ]}
+      radiusStops={[
+        [8, 8],
+        [12, 18],
+        [15, 28],
+      ]}
+      opacity={[
+        [10, 0.76],
+        [14, 0.68],
+        [16, 0.45],
+      ]}
+      colorRamp="crime"
+    />
+  )
 }
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }

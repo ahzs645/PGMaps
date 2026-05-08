@@ -16,6 +16,11 @@ interface ScorePresetDialogProps {
 
 const PRESET_GROUPS = [
   {
+    key: 'hbe',
+    label: 'Healthy Built Environment',
+    description: 'BCCDC HBE Linkages Toolkit recipes for neighbourhoods, mobility, nature, food, and housing.',
+  },
+  {
     key: 'air',
     label: 'Air Monitoring',
     description: 'Coverage, reference strength, and sensor-gap recipes.',
@@ -43,6 +48,7 @@ const PRESET_GROUPS = [
 ] as const
 
 function getPresetGroupKey(preset: ScorePreset): (typeof PRESET_GROUPS)[number]['key'] {
+  if (preset.key.startsWith('hbe')) return 'hbe'
   if (
     preset.key.includes('Coverage') ||
     preset.key.includes('lowCost') ||

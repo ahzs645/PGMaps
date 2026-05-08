@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Layers } from 'lucide-react'
 import { DatasetInfo } from '@/components/DatasetInfo'
-import { AppSelect } from '@/components/ui/select'
+import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
@@ -66,65 +66,18 @@ export function ScoreBuilderLeftPanel({
       <div className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
         <DatasetInfo dataset={DATASETS.scoreBuilder} />
 
-        {/* Boundary section */}
-        <section
-          className="border-b border-border p-4"
-          data-score-builder-section="setup"
-        >
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Study area
-          </h3>
-
-          <div className="space-y-1.5">
-            {BOUNDARY_SOURCE_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                data-score-builder-boundary-source={option.value}
-                onClick={() => onBoundarySourceChange(option.value)}
-                className={cn(
-                  'w-full rounded-md border px-3 py-2 text-left transition-colors',
-                  boundarySource === option.value
-                    ? 'border-cyan-500/70 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/35 dark:text-cyan-100'
-                    : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <div className="text-xs font-medium">{option.label}</div>
-                <div className="text-[10px] text-muted-foreground">{option.description}</div>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <label
-              htmlFor="score-builder-level"
-              className="text-[11px] font-medium text-muted-foreground"
-            >
-              Boundary level
-            </label>
-            <button
-              type="button"
-              onClick={onTogglePoints}
-              className={cn(
-                'rounded border px-2 py-1 text-[11px] transition-colors',
-                showPoints
-                  ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                  : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {showPoints ? 'Hide points' : 'Show points'}
-            </button>
-          </div>
-          <AppSelect
-            id="score-builder-level"
-            data-score-builder-level-select="true"
-            value={selectedRegionLevel}
-            onValueChange={(value) => onRegionLevelChange(value as RegionLevel)}
-            options={boundaryLevelOptions}
-            className="mt-2 w-full"
-            triggerClassName="h-10 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
-          />
-        </section>
+        <StudyAreaSelector<BoundarySource, RegionLevel>
+          source={boundarySource}
+          sourceOptions={BOUNDARY_SOURCE_OPTIONS}
+          level={selectedRegionLevel}
+          levelOptions={boundaryLevelOptions}
+          onSourceChange={onBoundarySourceChange}
+          onLevelChange={onRegionLevelChange}
+          showPoints={showPoints}
+          onTogglePoints={onTogglePoints}
+          levelSelectId="score-builder-level"
+          dataPrefix="score-builder"
+        />
 
         {/* Data sources */}
         <section
