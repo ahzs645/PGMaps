@@ -1,0 +1,89 @@
+{
+  "source": "ICBC Tableau Public",
+  "sourceProfile": "https://public.tableau.com/app/profile/icbc/vizzes#!/",
+  "sourceLicense": "ICBC Open Data Licence",
+  "city": "Prince George",
+  "generatedAt": "2026-05-08T03:33:19.520Z",
+  "datasets": [
+    {
+      "id": "all_crashes",
+      "title": "All reported crash locations",
+      "sourceUrl": "https://public.tableau.com/views/NorthCentralCrashes/NCDashboard.csv?:showVizHome=no",
+      "csv": "/data/icbc/prince_george_crash_locations.csv",
+      "geojson": "/data/icbc/prince_george_crash_locations.geojson",
+      "rows": 1552,
+      "geocodedRows": 658,
+      "fields": [
+        "dataset",
+        "datasetTitle",
+        "location",
+        "municipality",
+        "crashCount",
+        "sourceLocationName",
+        "longitude",
+        "latitude",
+        "geocodeMatchType"
+      ]
+    },
+    {
+      "id": "cyclist_crashes",
+      "title": "Crashes involving cyclists",
+      "sourceUrl": "https://public.tableau.com/views/BC-CrashesinvolvingCyclists-/CyclistsDashboard.csv?:showVizHome=no",
+      "csv": "/data/icbc/prince_george_cyclist_crashes.csv",
+      "geojson": "/data/icbc/prince_george_cyclist_crashes.geojson",
+      "rows": 40,
+      "geocodedRows": 34,
+      "fields": [
+        "dataset",
+        "datasetTitle",
+        "location",
+        "municipality",
+        "crashCount",
+        "sourceLocationName",
+        "longitude",
+        "latitude",
+        "geocodeMatchType"
+      ]
+    },
+    {
+      "id": "pedestrian_crashes",
+      "title": "Crashes involving pedestrians",
+      "sourceUrl": "https://public.tableau.com/views/BC-CrashesinvolvingPedestrians-/PedestriansDashboard.csv?:showVizHome=no",
+      "csv": "/data/icbc/prince_george_pedestrian_crashes.csv",
+      "geojson": "/data/icbc/prince_george_pedestrian_crashes.geojson",
+      "rows": 92,
+      "geocodedRows": 75,
+      "fields": [
+        "dataset",
+        "datasetTitle",
+        "location",
+        "municipality",
+        "crashCount",
+        "sourceLocationName",
+        "longitude",
+        "latitude",
+        "geocodeMatchType"
+      ]
+    },
+    {
+      "id": "motorcycle_crashes",
+      "title": "Crashes involving motorcycles",
+      "sourceUrl": "https://public.tableau.com/views/BC-CrashesinvolvingMotorcycles_0/MotorcycleDashboard.csv?:showVizHome=no",
+      "csv": "/data/icbc/prince_george_motorcycle_crashes.csv",
+      "geojson": "/data/icbc/prince_george_motorcycle_crashes.geojson",
+      "rows": 44,
+      "geocodedRows": 37,
+      "fields": [
+        "dataset",
+        "datasetTitle",
+        "location",
+        "municipality",
+        "crashCount",
+        "sourceLocationName",
+        "longitude",
+        "latitude",
+        "geocodeMatchType"
+      ]
+    }
+  ]
+}

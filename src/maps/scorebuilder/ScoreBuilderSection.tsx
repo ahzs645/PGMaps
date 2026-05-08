@@ -39,6 +39,7 @@ import {
 } from './constants'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import { ScoreBuilderRegionInsightDialog } from './components/ScoreBuilderRegionInsightDialog'
+import { ScoreBuilderSettingsDialog } from './components/ScoreBuilderSettingsDialog'
 import { ScoreBuilderSidebar } from './components/ScoreBuilderSidebar'
 import { ScoreBuilderLeftPanel } from './components/ScoreBuilderLeftPanel'
 import { ScoreBuilderRightPanel } from './components/ScoreBuilderRightPanel'
@@ -59,6 +60,19 @@ import {
 } from './lib/scoring'
 import { scoreRegionRowsWithModulePercentiles } from './lib/modulePercentileScoring'
 import { scoreRegionRowsWithHealthyPlanPriority } from './lib/healthyPlanPriorityScoring'
+import {
+  computeCorrelation,
+  topMetricCorrelations,
+  type CorrelationResult,
+  type MetricCorrelation,
+} from './lib/correlation'
+import {
+  BIVARIATE_3X3_PALETTE,
+  buildBivariateBreaks,
+  getBivariateColor,
+  getResidualColor,
+} from './lib/correlationColors'
+import { COLOR_SCALES, getChoroplethColor } from '@/components/ui/map-styles'
 import type {
   RegionDataCounts,
   RobustnessResult,
@@ -418,6 +432,31 @@ export default function ScoreBuilderSection() {
     return createDefaultWeights()
   })
   const [densityMetric, setDensityMetric] = useState<ScoreMetricKey>('overallDensity')
+  const [densityMode, setDensityMode] = useState(false)
+  const [correlateMode, setCorrelateMode] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const handleToggleCorrelateMode = useCallback(() => {
+    setCorrelateMode((current) => {
+      const next = !current
+      if (next) setDensityMode(false)
+      return next
+    })
+  }, [])
+  const handleToggleDensityMode = useCallback(() => {
+    setDensityMode((current) => {
+      const next = !current
+      if (next) setCorrelateMode(false)
+      return next
+    })
+  }, [])
+  const totalAbsoluteWeight = useMemo(
+    () => SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0),
+    [weights],
+  )
+  const [correlateMetricX, setCorrelateMetricX] = useState<ScoreMetricKey>('populationDensity')
+  const [correlateMetricY, setCorrelateMetricY] = useState<ScoreMetricKey>('crimeDensity')
+  const [correlateVisStyle, setCorrelateVisStyle] = useState<'bivariate' | 'residual'>('bivariate')
   const [showPoints, setShowPoints] = useState(true)
   const [enabledDataSources, setEnabledDataSources] = useState<ScoreDataSource[]>(() => {
     const fromUrl = searchParams.get('ds')
@@ -1142,6 +1181,54 @@ export default function ScoreBuilderSection() {
   const metricValueLists = useMemo(() => {
     return buildMetricValueLists(regionMetricRows)
   }, [regionMetricRows])
+
+  const correlationResult = useMemo<CorrelationResult>(() => {
+    if (!correlateMode) return { stats: null, points: [], residualMaxAbs: 0 }
+    return computeCorrelation(regionMetricRows, correlateMetricX, correlateMetricY)
+  }, [correlateMode, correlateMetricX, correlateMetricY, regionMetricRows])
+
+  const correlationTopPairs = useMemo<MetricCorrelation[]>(() => {
+    if (!correlateMode) return []
+    return topMetricCorrelations(regionMetricRows, { limit: 10 })
+  }, [correlateMode, regionMetricRows])
+
+  const correlateRegionFillColors = useMemo<Record<string, string> | null>(() => {
+    if (!correlateMode) return null
+    if (!correlationResult.points.length) return {}
+    if (correlateVisStyle === 'residual') {
+      const colors: Record<string, string> = {}
+      for (const point of correlationResult.points) {
+        colors[point.regionId] = getResidualColor(point.residual, correlationResult.residualMaxAbs)
+      }
+      return colors
+    }
+    const xs = correlationResult.points.map((point) => point.x)
+    const ys = correlationResult.points.map((point) => point.y)
+    const breaks = buildBivariateBreaks(xs, ys)
+    const colors: Record<string, string> = {}
+    for (const point of correlationResult.points) {
+      colors[point.regionId] = getBivariateColor(point.x, point.y, breaks)
+    }
+    return colors
+  }, [correlateMode, correlateVisStyle, correlationResult])
+
+  const densityRegionFillColors = useMemo<Record<string, string> | null>(() => {
+    if (!densityMode) return null
+    const range = metricRanges[densityMetric]
+    if (!range || range.max <= range.min) return {}
+    const colors: Record<string, string> = {}
+    for (const row of regionMetricRows) {
+      const value = row.metrics[densityMetric]
+      colors[row.region.id] = getChoroplethColor(value, range.min, range.max, 'amber')
+    }
+    return colors
+  }, [densityMode, densityMetric, metricRanges, regionMetricRows])
+
+  const mapRegionFillColors = correlateMode
+    ? correlateRegionFillColors
+    : densityMode
+      ? densityRegionFillColors
+      : null
 
   const activePresetKey = useMemo(() => {
     return getActivePresetKey(weights, enabledDataSources, boundarySource)
@@ -1918,16 +2005,6 @@ export default function ScoreBuilderSection() {
       densitySummary={densitySummary}
       densityLeaders={densityLeaders}
       regions={scoredRegions}
-      totalRegionCount={unfilteredScoredRegions.length}
-      excludedRegionCount={Math.max(0, unfilteredScoredRegions.length - scoredRegions.length)}
-      scoreFilters={scoreFilters}
-      onToggleScoreFilter={toggleScoreFilter}
-      methodSettings={methodSettings}
-      onMethodSettingsChange={setMethodSettings}
-      componentSummaries={componentSummaries}
-      robustnessResults={robustnessResults}
-      scoreBands={scoreBands}
-      scenarioComparison={scenarioComparison}
       filteredRegions={filteredRegions}
       selectedRegion={selectedRegion}
       searchQuery={searchQuery}
@@ -1942,8 +2019,22 @@ export default function ScoreBuilderSection() {
       onExport={handleExport}
       onShareUrl={handleShareUrl}
       activeExampleKey={resolvedExampleKey}
-      onApplyExample={applyExample}
       isDesktop={isDesktop}
+      correlateMode={correlateMode}
+      onToggleCorrelateMode={handleToggleCorrelateMode}
+      densityMode={densityMode}
+      correlateMetricX={correlateMetricX}
+      correlateMetricY={correlateMetricY}
+      onCorrelateMetricXChange={setCorrelateMetricX}
+      onCorrelateMetricYChange={setCorrelateMetricY}
+      correlateVisStyle={correlateVisStyle}
+      onCorrelateVisStyleChange={setCorrelateVisStyle}
+      correlationResult={correlationResult}
+      correlationTopPairs={correlationTopPairs}
+      onApplyTopPair={(metricX, metricY) => {
+        setCorrelateMetricX(metricX)
+        setCorrelateMetricY(metricY)
+      }}
     />
   )
 
@@ -2050,6 +2141,11 @@ export default function ScoreBuilderSection() {
               onAddMetric={handleAddMetric}
               onApplyPreset={handleApplyPreset}
               onExport={handleExport}
+              correlateMode={correlateMode}
+              onToggleCorrelateMode={handleToggleCorrelateMode}
+              densityMode={densityMode}
+              onToggleDensityMode={handleToggleDensityMode}
+              onOpenSettings={() => setSettingsOpen(true)}
             />
           )}
 
@@ -2060,9 +2156,24 @@ export default function ScoreBuilderSection() {
               monitors={filteredMonitors}
               showPoints={showPoints}
               onRegionClick={setSelectedRegionId}
+              regionFillColors={mapRegionFillColors}
             />
 
             <div className="absolute bottom-24 right-4 z-10 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+              {correlateMode ? (
+                <CorrelationMapLegend
+                  metricX={correlateMetricX}
+                  metricY={correlateMetricY}
+                  visStyle={correlateVisStyle}
+                  result={correlationResult}
+                />
+              ) : densityMode ? (
+                <DensityMapLegend
+                  metric={densityMetric}
+                  range={metricRanges[densityMetric]}
+                />
+              ) : (
+                <>
               <h4 className="mb-2 text-xs font-semibold text-foreground">
                 {methodSettings.aggregation === 'healthyPlanPairwisePriority'
                   ? 'HealthyPlan priority'
@@ -2119,6 +2230,8 @@ export default function ScoreBuilderSection() {
                   {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'} have thin active-data coverage.
                 </div>
               )}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -2132,6 +2245,145 @@ export default function ScoreBuilderSection() {
         methodSettings={methodSettings}
         isMobile={!isDesktop}
       />
+
+      <ScoreBuilderSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        activeExampleKey={resolvedExampleKey}
+        onApplyExample={applyExample}
+        weights={weights}
+        methodSettings={methodSettings}
+        onMethodSettingsChange={setMethodSettings}
+        componentSummaries={componentSummaries}
+        activePresetKey={activePresetKey}
+        totalAbsoluteWeight={totalAbsoluteWeight}
+        scoreFilters={scoreFilters}
+        onToggleScoreFilter={toggleScoreFilter}
+        scoreBands={scoreBands}
+        scenarioComparison={scenarioComparison}
+        regions={scoredRegions}
+        totalRegionCount={unfilteredScoredRegions.length}
+        excludedRegionCount={Math.max(0, unfilteredScoredRegions.length - scoredRegions.length)}
+        scoreSpread={scoreSpread}
+        robustnessResults={robustnessResults}
+      />
+    </>
+  )
+}
+
+function CorrelationMapLegend({
+  metricX,
+  metricY,
+  visStyle,
+  result,
+}: {
+  metricX: ScoreMetricKey
+  metricY: ScoreMetricKey
+  visStyle: 'bivariate' | 'residual'
+  result: CorrelationResult
+}) {
+  const xLabel = SCORE_METRICS.find((metric) => metric.key === metricX)?.shortLabel ?? metricX
+  const yLabel = SCORE_METRICS.find((metric) => metric.key === metricY)?.shortLabel ?? metricY
+  const stats = result.stats
+  return (
+    <>
+      <h4 className="mb-2 text-xs font-semibold text-foreground">
+        Correlate · {visStyle === 'bivariate' ? 'Bivariate map' : 'Residual map'}
+      </h4>
+      {visStyle === 'bivariate' ? (
+        <div className="flex items-start gap-2">
+          <div
+            className="grid h-12 w-12 shrink-0 grid-cols-3 grid-rows-3 overflow-hidden rounded border border-border"
+            aria-label="Bivariate legend grid"
+          >
+            {BIVARIATE_3X3_PALETTE.slice().reverse().flatMap((row, rowIdx) =>
+              row.map((color, colIdx) => (
+                <div key={`bv-${rowIdx}-${colIdx}`} style={{ backgroundColor: color }} />
+              )),
+            )}
+          </div>
+          <div className="text-[10px] leading-tight text-muted-foreground">
+            <div className="font-medium text-foreground">Y · {yLabel}</div>
+            <div>up the grid = higher</div>
+            <div className="mt-1 font-medium text-foreground">X · {xLabel}</div>
+            <div>across the grid = higher</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div
+            className="h-2 w-full rounded"
+            style={{ background: 'linear-gradient(to right, #1d4ed8, #f1f5f9, #b91c1c)' }}
+          />
+          <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>Y below fit</span>
+            <span>On fit</span>
+            <span>Y above fit</span>
+          </div>
+          <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+            Color = residual from a least-squares line of {yLabel} on {xLabel}.
+          </div>
+        </>
+      )}
+      <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
+        <div>
+          <div className="uppercase">r</div>
+          <div className="font-medium text-foreground">{stats ? stats.pearson.toFixed(2) : '–'}</div>
+        </div>
+        <div>
+          <div className="uppercase">r²</div>
+          <div className="font-medium text-foreground">{stats ? stats.rSquared.toFixed(2) : '–'}</div>
+        </div>
+        <div>
+          <div className="uppercase">n</div>
+          <div className="font-medium text-foreground">{stats ? stats.n : '–'}</div>
+        </div>
+      </div>
+      {stats && (
+        <div className="mt-1 text-[10px] text-muted-foreground">
+          Spearman ρ {stats.spearman.toFixed(2)} · within current boundary level.
+        </div>
+      )}
+    </>
+  )
+}
+
+function DensityMapLegend({
+  metric,
+  range,
+}: {
+  metric: ScoreMetricKey
+  range: { min: number; max: number } | undefined
+}) {
+  const definition = SCORE_METRICS.find((entry) => entry.key === metric)
+  const label = definition?.shortLabel ?? metric
+  const colors = COLOR_SCALES.amber
+  return (
+    <>
+      <h4 className="mb-2 text-xs font-semibold text-foreground">Density · {label}</h4>
+      <div
+        className="h-2 w-full rounded"
+        style={{ background: `linear-gradient(to right, ${colors.join(', ')})` }}
+      />
+      <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>Lower</span>
+        <span>Higher</span>
+      </div>
+      {range && (
+        <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+          <div>
+            <div className="uppercase">Min</div>
+            <div className="font-medium text-foreground">{range.min.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+          </div>
+          <div>
+            <div className="uppercase">Max</div>
+            <div className="font-medium text-foreground">{range.max.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+          </div>
+        </div>
+      )}
+      <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+        Each region colored by its raw value of {label} within the current boundary level.
+      </div>
     </>
   )
 }

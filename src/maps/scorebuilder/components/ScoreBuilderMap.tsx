@@ -11,6 +11,7 @@ interface ScoreBuilderMapProps {
   monitors: AirMonitor[]
   showPoints: boolean
   onRegionClick: (regionId: string) => void
+  regionFillColors?: Record<string, string> | null
 }
 
 const ZOOM = 12
@@ -21,6 +22,7 @@ export function ScoreBuilderMap({
   monitors,
   showPoints,
   onRegionClick,
+  regionFillColors = null,
 }: ScoreBuilderMapProps) {
   const mapRef = useRef<MapRef>(null)
 
@@ -37,13 +39,13 @@ export function ScoreBuilderMap({
           code: entry.region.code,
           name: entry.region.name,
           score: entry.score,
-          scoreColor: entry.scoreColor,
+          scoreColor: regionFillColors?.[entry.region.id] ?? entry.scoreColor,
           monitorCount: entry.counts.monitorCount,
           density: entry.metrics.overallDensity,
         },
       })),
     }
-  }, [regions])
+  }, [regions, regionFillColors])
 
   const points = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>>(() => {
     return {

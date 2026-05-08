@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
 import {
+  Activity,
   Check,
   ChevronDown,
   ChevronUp,
   Download,
   FlipHorizontal,
+  Flame,
   GripVertical,
   Info,
   Plus,
   Search,
+  Settings as SettingsIcon,
   X,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -32,6 +35,11 @@ interface ScoreBuilderEquationBarProps {
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
   onExport: (format: 'csv' | 'geojson') => void
+  correlateMode: boolean
+  onToggleCorrelateMode: () => void
+  densityMode: boolean
+  onToggleDensityMode: () => void
+  onOpenSettings: () => void
 }
 
 function getDefaultMetricWeight(metric: ScoreMetricKey): number {
@@ -78,6 +86,11 @@ export function ScoreBuilderEquationBar({
   onAddMetric,
   onApplyPreset,
   onExport,
+  correlateMode,
+  onToggleCorrelateMode,
+  densityMode,
+  onToggleDensityMode,
+  onOpenSettings,
 }: ScoreBuilderEquationBarProps) {
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [metricDialogOpen, setMetricDialogOpen] = useState(false)
@@ -109,21 +122,22 @@ export function ScoreBuilderEquationBar({
   return (
     <div className="shrink-0 border-b border-border bg-background/96 px-4 py-3 shadow-sm backdrop-blur">
       <div className="rounded-xl border border-border bg-card p-3 shadow-sm" data-score-builder-results-preview="true">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold text-foreground">{activeRecipeLabel}</h2>
             <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{activeRecipeDescription}</p>
           </div>
-          <div className="flex shrink-0 items-start gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex w-full shrink-0 items-start gap-2 sm:w-auto">
+            <div className="flex flex-1 flex-wrap items-center justify-end gap-1 sm:flex-none">
               <button
                 type="button"
                 aria-expanded={equationOpen}
+                aria-label={equationOpen ? 'Hide equation' : 'Show equation'}
+                title={equationOpen ? 'Hide equation' : 'Show equation'}
                 onClick={() => setEquationOpen((current) => !current)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
               >
-                {equationOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                {equationOpen ? 'Hide equation' : 'Show equation'}
+                {equationOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
               <button
                 type="button"
@@ -132,26 +146,75 @@ export function ScoreBuilderEquationBar({
                   isHealthyPlanMode || activeTerms.length > 0 ? formulaText : 'Add a metric before viewing the formula.'
                 }
                 aria-expanded={formulaOpen}
+                aria-label="Equation details"
                 onClick={() => setFormulaOpen((current) => !current)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Info className="h-3.5 w-3.5" />
-                Details
+                <Info className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onToggleDensityMode}
+                aria-pressed={densityMode}
+                title={
+                  densityMode
+                    ? 'Density mode is on — map paints regions by a single metric'
+                    : 'Turn on density mode to paint the map by a single metric'
+                }
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  densityMode
+                    ? 'border-amber-500 bg-amber-500 text-white hover:bg-amber-600'
+                    : 'border-input bg-background text-foreground hover:bg-muted',
+                )}
+              >
+                <Flame className="h-3.5 w-3.5" />
+                {densityMode ? 'Density · On' : 'Density'}
+              </button>
+              <button
+                type="button"
+                onClick={onToggleCorrelateMode}
+                aria-pressed={correlateMode}
+                title={
+                  correlateMode
+                    ? 'Correlation mode is on — map shows relationship between two metrics'
+                    : 'Turn on correlation mode to compare any two metrics'
+                }
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  correlateMode
+                    ? 'border-cyan-500 bg-cyan-500 text-white hover:bg-cyan-600'
+                    : 'border-input bg-background text-foreground hover:bg-muted',
+                )}
+              >
+                <Activity className="h-3.5 w-3.5" />
+                {correlateMode ? 'Correlate · On' : 'Correlate'}
               </button>
               <button
                 type="button"
                 onClick={() => setPresetDialogOpen(true)}
+                title="Browse presets"
                 className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
               >
-                Browse presets
+                Presets
+              </button>
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                title="Open index settings (examples, methodology, model, robustness)"
+                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                <SettingsIcon className="h-3.5 w-3.5" />
+                Settings
               </button>
               <button
                 type="button"
                 onClick={() => onExport('csv')}
-                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                title="Export CSV"
+                aria-label="Export CSV"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
               >
-                <Download className="h-3.5 w-3.5" />
-                Export
+                <Download className="h-4 w-4" />
               </button>
             </div>
           </div>

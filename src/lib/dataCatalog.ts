@@ -62,6 +62,16 @@ export const DATASETS = {
     downloadUrl: '/data/transit/prince_george_gtfs_route_segments.geojson',
     fields: ['route_id', 'route_short_name', 'route_long_name', 'geometry'],
   },
+  icbc: {
+    title: 'ICBC reported crash locations',
+    description: 'Reported crash-location counts from ICBC Tableau Public exports, filtered to Prince George and geocoded to CityPG intersection centroids where possible.',
+    source: 'ICBC Tableau Public',
+    coverage: 'Prince George crash-location summaries',
+    license: 'ICBC Open Data Licence',
+    formats: ['CSV', 'GeoJSON', 'JSON manifest'],
+    downloadUrl: '/data/icbc/manifest.json',
+    fields: ['location', 'municipality', 'crashCount', 'longitude', 'latitude', 'geocodeMatchType'],
+  },
   heatShade: {
     title: 'Heat and shade proxy layers',
     description: 'Tree, forest, facility, and remote-sensing metadata used as shade, heat, and cooling-access proxies.',
