@@ -1313,7 +1313,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       'Healthy Built Environment toolkit proxy combining complete neighbourhoods, active mobility, nature access, food context, housing, and equity.',
     boundarySources: ['census', 'cityPG'],
     recommendedBoundarySource: 'census',
-    recommendedBoundaryLevel: 'da',
+    recommendedBoundaryLevel: 'ct',
     weights: {
       ...ZERO_WEIGHTS,
       serviceAccessComposite: 14,

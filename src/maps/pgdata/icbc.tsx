@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
+import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { formatDate, useJsonManifest } from './shared'
@@ -36,6 +37,26 @@ interface IcbcCrashProperties {
 }
 
 type IcbcCrashFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, IcbcCrashProperties>
+type IcbcDisplayMode = 'points' | 'heatmap'
+
+const ICBC_DATASET_LABELS: Record<string, string> = {
+  all_crashes: 'All crashes',
+  pedestrian_crashes: 'Person crashes',
+  cyclist_crashes: 'Bike crashes',
+  motorcycle_crashes: 'Motorcycle crashes',
+}
+
+const ICBC_DATASET_HELP: Record<string, string> = {
+  all_crashes: 'All ICBC reported crash locations. ICBC does not expose a car-only field in this downloaded layer.',
+  pedestrian_crashes: 'Crashes involving pedestrians.',
+  cyclist_crashes: 'Crashes involving cyclists.',
+  motorcycle_crashes: 'Crashes involving motorcycles.',
+}
+
+function getIcbcDatasetLabel(dataset: IcbcManifestDataset | null | undefined): string {
+  if (!dataset) return 'Crash locations'
+  return ICBC_DATASET_LABELS[dataset.id] ?? dataset.title
+}
 
 function getIcbcMarkerSize(crashCount: number, maxCrashCount: number): number {
   if (!Number.isFinite(crashCount) || crashCount <= 0) return 8
@@ -43,8 +64,9 @@ function getIcbcMarkerSize(crashCount: number, maxCrashCount: number): number {
   return Math.max(8, Math.min(28, 7 + Math.sqrt(crashCount / maxCrashCount) * 22))
 }
 
-export function useIcbcData(active: boolean, initialDatasetId: string | null) {
+export function useIcbcData(active: boolean, initialDatasetId: string | null, initialDisplayMode: string | null = null) {
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(initialDatasetId)
+  const [displayMode, setDisplayMode] = useState<IcbcDisplayMode>(initialDisplayMode === 'heatmap' ? 'heatmap' : 'points')
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const manifest = useJsonManifest<IcbcManifest>(active ? '/data/icbc/manifest.json' : null)
   const datasets = manifest.data?.datasets ?? []
@@ -70,6 +92,16 @@ export function useIcbcData(active: boolean, initialDatasetId: string | null) {
   const totalCrashes = useMemo(() => (
     crashFeatures.reduce((sum, feature) => sum + (Number(feature.properties.crashCount) || 0), 0)
   ), [crashFeatures])
+  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
+    type: 'FeatureCollection',
+    features: crashFeatures.map((feature) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        weight: Math.max(1, Number(feature.properties.crashCount) || 1),
+      },
+    })),
+  }), [crashFeatures])
 
   useEffect(() => {
     if (!selectedDataset && datasets[0]) {
@@ -92,9 +124,12 @@ export function useIcbcData(active: boolean, initialDatasetId: string | null) {
     selectedDataset,
     selectedDatasetId,
     setSelectedDatasetId,
+    displayMode,
+    setDisplayMode,
     selectedLocation,
     setSelectedLocation,
     crashFeatures,
+    heatmapData,
     selectedCrash,
     maxCrashCount,
     totalCrashes,
@@ -113,18 +148,39 @@ export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
         </div>
         <div className="space-y-3">
           <label className="block text-xs font-medium text-foreground">
-            Dataset
+            Crash type
             <AppSelect
               value={icbc.selectedDataset?.id ?? ''}
               onValueChange={icbc.setSelectedDatasetId}
               options={icbc.datasets.map((dataset) => ({
                 value: dataset.id,
-                label: dataset.title,
+                label: getIcbcDatasetLabel(dataset),
               }))}
               className="mt-1"
               triggerClassName="h-8 rounded-md text-xs"
             />
           </label>
+
+          <div className="grid grid-cols-2 gap-1 rounded-md border border-border bg-muted/30 p-1">
+            {[
+              { value: 'points' as const, label: 'Points' },
+              { value: 'heatmap' as const, label: 'Heatmap' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => icbc.setDisplayMode(option.value)}
+                className={cn(
+                  'h-8 rounded px-2 text-xs font-medium transition-colors',
+                  icbc.displayMode === option.value
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
 
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded border border-border p-2">
@@ -144,7 +200,7 @@ export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
           {icbc.crashes.error && <div className="text-xs text-red-500">{icbc.crashes.error}</div>}
           {icbc.manifest.error && <div className="text-xs text-red-500">{icbc.manifest.error}</div>}
           <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
-            Points are ICBC crash-location summaries matched to CityPG road-intersection centroids. Unmatched rows remain in the CSV exports.
+            {icbc.selectedDataset ? ICBC_DATASET_HELP[icbc.selectedDataset.id] : 'ICBC crash-location summaries.'} Locations are matched to CityPG road-intersection centroids where possible.
           </div>
         </div>
       </div>
@@ -190,7 +246,29 @@ export function IcbcSourceNotes({ icbc }: { icbc: IcbcState }) {
 export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
   return (
     <>
-      {icbc.crashFeatures.map((feature) => {
+      {icbc.displayMode === 'heatmap' && (
+        <MapHeatmapLayer
+          data={icbc.heatmapData}
+          weight={['interpolate', ['linear'], ['coalesce', ['get', 'weight'], 1], 1, 0.15, Math.max(icbc.maxCrashCount, 1), 1]}
+          intensityStops={[
+            [8, 0.8],
+            [11, 1.35],
+            [14, 2.1],
+          ]}
+          radiusStops={[
+            [8, 18],
+            [11, 34],
+            [14, 52],
+          ]}
+          opacity={[
+            [8, 0.62],
+            [14, 0.78],
+          ]}
+          colorRamp="crime"
+        />
+      )}
+
+      {icbc.displayMode === 'points' && icbc.crashFeatures.map((feature) => {
         const [longitude, latitude] = feature.geometry.coordinates
         const size = getIcbcMarkerSize(feature.properties.crashCount, icbc.maxCrashCount)
         const selected = icbc.selectedLocation === feature.properties.location
@@ -222,16 +300,26 @@ export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
 export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
   return (
     <div className="w-52 space-y-2 text-xs text-muted-foreground">
-      <div className="font-medium text-foreground">{icbc.selectedDataset?.title ?? 'Crash locations'}</div>
-      <div className="flex items-center justify-between gap-2">
-        <span>Small</span>
-        <div className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full border border-white bg-rose-500 shadow-sm" />
-          <span className="h-4 w-4 rounded-full border border-white bg-rose-500 shadow-sm" />
-          <span className="h-7 w-7 rounded-full border border-white bg-rose-500 shadow-sm" />
+      <div className="font-medium text-foreground">{getIcbcDatasetLabel(icbc.selectedDataset)}</div>
+      {icbc.displayMode === 'points' ? (
+        <div className="flex items-center justify-between gap-2">
+          <span>Small</span>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full border border-white bg-rose-500 shadow-sm" />
+            <span className="h-4 w-4 rounded-full border border-white bg-rose-500 shadow-sm" />
+            <span className="h-7 w-7 rounded-full border border-white bg-rose-500 shadow-sm" />
+          </div>
+          <span>High</span>
         </div>
-        <span>High</span>
-      </div>
+      ) : (
+        <div>
+          <div className="h-3 w-full rounded-sm border border-border bg-gradient-to-r from-sky-300 via-yellow-300 to-red-600" aria-hidden="true" />
+          <div className="mt-1 flex justify-between text-[10px]">
+            <span>Lower density</span>
+            <span>Higher density</span>
+          </div>
+        </div>
+      )}
       <div>{icbc.crashFeatures.length.toLocaleString()} mapped locations</div>
     </div>
   )

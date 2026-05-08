@@ -705,7 +705,7 @@ export default function MiscDataSection() {
   const canueMembership = useJsonManifest<CanuePostalMembership>('/data/canue/bc/postal-boundary-membership.json')
   const canueBoundaryConfig = CANUE_BOUNDARY_CONFIG[canueBoundaryLevel]
   const canueBoundaries = useJsonManifest<BoundaryFeatureCollection>(canueBoundaryConfig.path)
-  const icbc = useIcbcData(activeTab === 'icbc', searchParams.get('icbcDataset'))
+  const icbc = useIcbcData(activeTab === 'icbc', searchParams.get('icbcDataset'), searchParams.get('icbcView'))
   const walkability = useWalkabilityData(
     activeTab === 'walkability',
     searchParams.get('walkability') || WALKABILITY_DEFAULT_VARIANT,
@@ -736,6 +736,8 @@ export default function MiscDataSection() {
     }
     if (activeTab === 'icbc' && icbc.selectedDatasetId) params.set('icbcDataset', icbc.selectedDatasetId)
     else params.delete('icbcDataset')
+    if (activeTab === 'icbc' && icbc.displayMode === 'heatmap') params.set('icbcView', 'heatmap')
+    else params.delete('icbcView')
     if (activeTab === 'walkability' && walkability.selectedVariantId !== WALKABILITY_DEFAULT_VARIANT) params.set('walkability', walkability.selectedVariantId)
     else params.delete('walkability')
     if (activeTab === 'walkability' && walkability.displayMode !== WALKABILITY_DEFAULT_DISPLAY_MODE) params.set('walkabilityMode', walkability.displayMode)
@@ -748,7 +750,7 @@ export default function MiscDataSection() {
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.selectedDatasetId, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.displayMode, icbc.selectedDatasetId, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',

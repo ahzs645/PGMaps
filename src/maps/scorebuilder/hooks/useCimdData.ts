@@ -74,6 +74,11 @@ export function useCimdData(enabled = true) {
           return
         }
         if (!response.ok) throw new Error(`Failed to fetch CIMD data: ${response.status}`)
+        const contentType = response.headers.get('content-type') || ''
+        if (!contentType.includes('application/json')) {
+          if (!controller.signal.aborted) setRecords([])
+          return
+        }
         const payload = await response.json()
         if (!controller.signal.aborted) setRecords(parseCimdRecords(payload))
       } catch (err) {

@@ -94,6 +94,27 @@ interface WalkabilityGridData {
   caveats: string[]
 }
 
+interface WalkabilityLiveGrid {
+  key: string
+  label: string
+  generatedAt: string
+  cellSizeM: number
+  rows: number
+  cols: number
+  noData: number
+  imageCoordinates: [[number, number], [number, number], [number, number], [number, number]]
+  bandCounts: Record<string, number>
+  rle: Array<[number, number]>
+}
+
+interface WalkabilityLiveHeatmapState {
+  status: 'idle' | 'loading' | 'ready' | 'error'
+  requestKey: string
+  progress: string
+  grid: WalkabilityLiveGrid | null
+  error: string | null
+}
+
 type WalkabilityProperties = {
   communityId: string
   communityName: string
@@ -257,17 +278,6 @@ function variantKeyForHeatmapOptions(options: HeatmapOptionState): string {
   return 'full'
 }
 
-function isHeatmapOptionDisabled(options: HeatmapOptionState, key: HeatmapOptionKey): boolean {
-  const singleDropKeys: HeatmapOptionKey[] = ['dropF0', 'dropC0', 'dropF8', 'dropSuppPoi']
-  if (singleDropKeys.includes(key)) {
-    return singleDropKeys.some((dropKey) => dropKey !== key && options[dropKey])
-  }
-  if (key === 'tightBuffer') {
-    return singleDropKeys.some((dropKey) => options[dropKey])
-  }
-  return false
-}
-
 export function useWalkabilityData(
   active: boolean,
   initialVariantId: string,
@@ -279,6 +289,16 @@ export function useWalkabilityData(
     initialDisplayMode === 'community' ? 'community' : WALKABILITY_DEFAULT_DISPLAY_MODE,
   )
   const [selectedHeatmapVariantId, setSelectedHeatmapVariantId] = useState<string>(initialHeatmapVariantId || WALKABILITY_DEFAULT_HEATMAP_VARIANT)
+  const [heatmapOptionState, setHeatmapOptionState] = useState<HeatmapOptionState>(() => (
+    normalizeHeatmapOptions(optionsForHeatmapVariant(null))
+  ))
+  const [liveHeatmap, setLiveHeatmap] = useState<WalkabilityLiveHeatmapState>({
+    status: 'idle',
+    requestKey: '',
+    progress: '',
+    grid: null,
+    error: null,
+  })
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null)
   const manifest = useJsonManifest<WalkabilityManifest>(active ? '/data/walkability/manifest.json' : null)
   const heatmapManifest = useJsonManifest<WalkabilityHeatmapManifest>(active ? '/data/walkability/heatmap/manifest.json' : null)
@@ -303,14 +323,20 @@ export function useWalkabilityData(
       ?? heatmapVariants.find((variant) => variant.key === gridHeatmap.data?.defaultVariant)
       ?? heatmapVariants[0]
   }, [gridHeatmap.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
-  const heatmapOptionState = useMemo(() => optionsForHeatmapVariant(selectedHeatmapVariant), [selectedHeatmapVariant])
   const setHeatmapOption = (key: HeatmapOptionKey, checked: boolean) => {
     const requested = normalizeHeatmapOptions({ ...heatmapOptionState, [key]: checked }, key)
     const nextVariantKey = variantKeyForHeatmapOptions(requested)
+    setHeatmapOptionState(requested)
     if (heatmapVariants.some((variant) => variant.key === nextVariantKey)) {
       setSelectedHeatmapVariantId(nextVariantKey)
     }
   }
+  const heatmapOptionKey = useMemo(() => (
+    JSON.stringify(heatmapOptionState)
+  ), [heatmapOptionState])
+  const selectedHeatmapBandCounts = liveHeatmap.status === 'ready' && liveHeatmap.requestKey === heatmapOptionKey
+    ? liveHeatmap.grid?.bandCounts
+    : selectedHeatmapVariant?.bandCounts
   const selectedCommunity = useMemo<WalkabilityFeature | null>(() => {
     if (!selectedCommunityId) return null
     return features.find((feature) => String(feature.properties.communityId) === selectedCommunityId) ?? null
@@ -367,6 +393,78 @@ export function useWalkabilityData(
     }
   }, [gridHeatmap.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
 
+  useEffect(() => {
+    if (!heatmapVariants.length) return
+    const initialKey = initialHeatmapVariantId || gridHeatmap.data?.defaultVariant || WALKABILITY_DEFAULT_HEATMAP_VARIANT
+    const initialVariant = heatmapVariants.find((variant) => variant.key === initialKey)
+      ?? heatmapVariants.find((variant) => variant.key === gridHeatmap.data?.defaultVariant)
+      ?? heatmapVariants[0]
+    setHeatmapOptionState(normalizeHeatmapOptions(optionsForHeatmapVariant(initialVariant)))
+  }, [gridHeatmap.data?.defaultVariant, heatmapVariants, initialHeatmapVariantId])
+
+  useEffect(() => {
+    if (!active || displayMode !== 'heatmap' || !gridHeatmap.data) return
+    let cancelled = false
+    const requestKey = heatmapOptionKey
+    const worker = new Worker(new URL('./walkabilityLiveHeatmap.worker.js', import.meta.url), { type: 'module' })
+    setLiveHeatmap({
+      status: 'loading',
+      requestKey,
+      progress: 'Loading source layers',
+      grid: null,
+      error: null,
+    })
+    worker.onmessage = (event: MessageEvent) => {
+      if (cancelled) return
+      const message = event.data as {
+        type: 'progress' | 'result' | 'error'
+        requestKey: string
+        progress?: string
+        grid?: WalkabilityLiveGrid
+        error?: string
+      }
+      if (message.requestKey !== requestKey) return
+      if (message.type === 'progress') {
+        setLiveHeatmap((current) => current.requestKey === requestKey
+          ? { ...current, progress: message.progress ?? current.progress }
+          : current)
+      }
+      if (message.type === 'result' && message.grid) {
+        setLiveHeatmap({
+          status: 'ready',
+          requestKey,
+          progress: 'Live grid ready',
+          grid: message.grid,
+          error: null,
+        })
+      }
+      if (message.type === 'error') {
+        setLiveHeatmap({
+          status: 'error',
+          requestKey,
+          progress: '',
+          grid: null,
+          error: message.error ?? 'Live heat map calculation failed',
+        })
+      }
+    }
+    worker.onerror = (event) => {
+      if (cancelled) return
+      setLiveHeatmap({
+        status: 'error',
+        requestKey,
+        progress: '',
+        grid: null,
+        error: event.message || 'Live heat map calculation failed',
+      })
+    }
+    worker.postMessage({ type: 'compute', requestKey, options: heatmapOptionState })
+    return () => {
+      cancelled = true
+      worker.terminate()
+    }
+  }, [active, displayMode, gridHeatmap.data, heatmapOptionKey, heatmapOptionState])
+
   return {
     manifest,
     heatmapManifest,
@@ -380,8 +478,10 @@ export function useWalkabilityData(
     setSelectedVariantId,
     heatmapVariants,
     heatmapOptionState,
-    isHeatmapOptionDisabled,
     setHeatmapOption,
+    heatmapOptionKey,
+    liveHeatmap,
+    selectedHeatmapBandCounts,
     selectedHeatmapVariant,
     selectedHeatmapVariantId,
     setSelectedHeatmapVariantId,
@@ -435,12 +535,11 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
                 {HEATMAP_OPTIONS.map((option) => (
                   <label
                     key={option.key}
-                    className="flex items-start gap-2 rounded border border-border bg-background px-2 py-1.5 text-xs has-[:disabled]:opacity-45"
+                    className="flex items-start gap-2 rounded border border-border bg-background px-2 py-1.5 text-xs"
                   >
                     <input
                       type="checkbox"
                       checked={walkability.heatmapOptionState[option.key]}
-                      disabled={walkability.isHeatmapOptionDisabled(walkability.heatmapOptionState, option.key)}
                       onChange={(event) => walkability.setHeatmapOption(option.key, event.target.checked)}
                       className="mt-0.5 h-3.5 w-3.5 rounded border-border accent-emerald-600"
                     />
@@ -472,7 +571,7 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded border border-border p-2">
               <div className="text-sm font-bold text-foreground">
-                {Object.values(walkability.selectedHeatmapVariant?.bandCounts ?? {}).reduce((sum, count) => sum + count, 0).toLocaleString()}
+                {Object.values(walkability.selectedHeatmapBandCounts ?? {}).reduce((sum, count) => sum + count, 0).toLocaleString()}
               </div>
               <div className="text-[10px] text-muted-foreground">cells</div>
             </div>
@@ -504,9 +603,18 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
 
           <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
             {walkability.displayMode === 'heatmap'
-              ? 'Citywide binned Mobility Index grid generated in Node/JSTS from projected reconstruction source layers. It is not restricted to paths, census areas, or community polygons.'
+              ? 'Citywide binned Mobility Index grid recalculated in a browser Web Worker from projected JSTS source layers. The prebuilt grid remains visible while live scoring runs.'
               : walkability.selectedVariant?.description ?? 'Community walkability is recalculated from web-source layers.'}
           </div>
+          {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'loading' && (
+            <div className="text-xs text-muted-foreground">{walkability.liveHeatmap.progress || 'Live heat map recalculating'}</div>
+          )}
+          {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'ready' && (
+            <div className="text-xs text-emerald-600 dark:text-emerald-400">Live browser-calculated grid active.</div>
+          )}
+          {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'error' && (
+            <div className="text-xs text-red-500">{walkability.liveHeatmap.error}</div>
+          )}
           {walkability.heatmapManifest.error && <div className="text-xs text-red-500">{walkability.heatmapManifest.error}</div>}
           {walkability.gridHeatmap.error && <div className="text-xs text-red-500">{walkability.gridHeatmap.error}</div>}
           {walkability.manifest.error && <div className="text-xs text-red-500">{walkability.manifest.error}</div>}
@@ -563,7 +671,13 @@ export function WalkabilitySourceNotes({ walkability }: { walkability: Walkabili
   return (
     <>
       <p>Walkability variants updated {formatDate(walkability.manifest.data?.generatedAt)}.</p>
-      {walkability.displayMode === 'heatmap' && <p>Citywide MI grid updated {formatDate(walkability.gridHeatmap.data?.generatedAt)}.</p>}
+      {walkability.displayMode === 'heatmap' && (
+        <p>
+          Citywide MI grid {walkability.liveHeatmap.status === 'ready'
+            ? `live recalculated ${formatDate(walkability.liveHeatmap.grid?.generatedAt)}`
+            : `prebuilt fallback updated ${formatDate(walkability.gridHeatmap.data?.generatedAt)}`}.
+        </p>
+      )}
       <p>{walkability.manifest.data?.sourcePolicy ?? 'Web-source-only community scores from public map layers.'}</p>
       {walkability.displayMode === 'heatmap' && (walkability.gridHeatmap.data?.caveats ?? []).slice(0, 2).map((caveat) => (
         <p key={caveat}>{caveat}</p>
@@ -606,17 +720,24 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
   const layerId = `walkability-grid-layer-${uid}`
   const grid = walkability.gridHeatmap.data
   const variantKey = walkability.selectedHeatmapVariant?.key ?? grid?.defaultVariant
+  const liveGrid = walkability.liveHeatmap.status === 'ready' && walkability.liveHeatmap.requestKey === walkability.heatmapOptionKey
+    ? walkability.liveHeatmap.grid
+    : null
 
   useEffect(() => {
-    if (!isLoaded || !map || !grid || !variantKey || !grid.grids[variantKey]) return
+    const rows = liveGrid?.rows ?? grid?.rows
+    const cols = liveGrid?.cols ?? grid?.cols
+    const imageCoordinates = liveGrid?.imageCoordinates ?? grid?.imageCoordinates
+    const rle = liveGrid?.rle ?? (variantKey && grid?.grids[variantKey])
+    if (!isLoaded || !map || !rows || !cols || !imageCoordinates || !rle) return
 
     const canvas = document.createElement('canvas')
-    canvas.width = grid.cols
-    canvas.height = grid.rows
+    canvas.width = cols
+    canvas.height = rows
     const context = canvas.getContext('2d')
     if (!context) return
 
-    const image = context.createImageData(grid.cols, grid.rows)
+    const image = context.createImageData(cols, rows)
     const colors: Record<number, [number, number, number, number]> = {
       1: [79, 154, 214, 217],
       2: [158, 201, 156, 217],
@@ -625,7 +746,7 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
       5: [211, 59, 59, 217],
     }
     let pixel = 0
-    for (const [value, count] of grid.grids[variantKey]) {
+    for (const [value, count] of rle) {
       const color = colors[value] ?? [0, 0, 0, 0]
       for (let index = 0; index < count; index += 1) {
         const offset = pixel * 4
@@ -642,7 +763,7 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
     map.addSource(sourceId, {
       type: 'image',
       url,
-      coordinates: grid.imageCoordinates,
+      coordinates: imageCoordinates,
     })
     map.addLayer({
       id: layerId,
@@ -662,7 +783,7 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
         // Map may already be destroyed during unmount.
       }
     }
-  }, [grid, isLoaded, layerId, map, sourceId, variantKey])
+  }, [grid, isLoaded, layerId, liveGrid, map, sourceId, variantKey])
 
   return null
 }
@@ -671,7 +792,9 @@ export function WalkabilityLegend({ walkability }: { walkability: WalkabilitySta
   if (walkability.displayMode === 'heatmap') {
     return (
       <div className="w-64 space-y-2 text-xs text-muted-foreground">
-        <div className="font-medium text-foreground">{walkability.selectedHeatmapVariant?.label ?? 'Citywide MI grid'}</div>
+        <div className="font-medium text-foreground">
+          {walkability.liveHeatmap.status === 'ready' ? 'Live recalculated grid' : (walkability.selectedHeatmapVariant?.label ?? 'Citywide MI grid')}
+        </div>
         <div className="grid grid-cols-5 overflow-hidden rounded-sm border border-border">
           <span className="block h-3" style={{ backgroundColor: '#4f9ad6' }} />
           <span className="block h-3" style={{ backgroundColor: '#9ec99c' }} />
@@ -686,7 +809,7 @@ export function WalkabilityLegend({ walkability }: { walkability: WalkabilitySta
           <span>64-82</span>
           <span>83-170</span>
         </div>
-        <div>{Object.values(walkability.selectedHeatmapVariant?.bandCounts ?? {}).reduce((sum, count) => sum + count, 0).toLocaleString()} non-pathlocked grid cells</div>
+        <div>{Object.values(walkability.selectedHeatmapBandCounts ?? {}).reduce((sum, count) => sum + count, 0).toLocaleString()} non-pathlocked grid cells</div>
       </div>
     )
   }
