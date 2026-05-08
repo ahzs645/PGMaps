@@ -15,6 +15,7 @@ import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
 import {
   WALKABILITY_DEFAULT_VARIANT,
+  WALKABILITY_DEFAULT_DISPLAY_MODE,
   WalkabilityLayer,
   WalkabilityLegend,
   WalkabilitySidebar,
@@ -705,7 +706,12 @@ export default function MiscDataSection() {
   const canueBoundaryConfig = CANUE_BOUNDARY_CONFIG[canueBoundaryLevel]
   const canueBoundaries = useJsonManifest<BoundaryFeatureCollection>(canueBoundaryConfig.path)
   const icbc = useIcbcData(activeTab === 'icbc', searchParams.get('icbcDataset'))
-  const walkability = useWalkabilityData(activeTab === 'walkability', searchParams.get('walkability') || WALKABILITY_DEFAULT_VARIANT)
+  const walkability = useWalkabilityData(
+    activeTab === 'walkability',
+    searchParams.get('walkability') || WALKABILITY_DEFAULT_VARIANT,
+    searchParams.get('walkabilityMode') || WALKABILITY_DEFAULT_DISPLAY_MODE,
+    searchParams.get('walkabilityHeatmap'),
+  )
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -732,10 +738,17 @@ export default function MiscDataSection() {
     else params.delete('icbcDataset')
     if (activeTab === 'walkability' && walkability.selectedVariantId !== WALKABILITY_DEFAULT_VARIANT) params.set('walkability', walkability.selectedVariantId)
     else params.delete('walkability')
+    if (activeTab === 'walkability' && walkability.displayMode !== WALKABILITY_DEFAULT_DISPLAY_MODE) params.set('walkabilityMode', walkability.displayMode)
+    else params.delete('walkabilityMode')
+    if (activeTab === 'walkability' && walkability.displayMode === 'heatmap' && walkability.selectedHeatmapVariantId !== 'report_fidelity') {
+      params.set('walkabilityHeatmap', walkability.selectedHeatmapVariantId)
+    } else {
+      params.delete('walkabilityHeatmap')
+    }
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.selectedDatasetId, walkability.selectedVariantId, setSearchParams])
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.selectedDatasetId, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -1252,7 +1265,9 @@ export default function MiscDataSection() {
               : activeTab === 'icbc'
                 ? `${icbc.selectedDataset?.title || 'Crash locations'} | ${icbc.crashFeatures.length.toLocaleString()} mapped`
                 : activeTab === 'walkability'
-                  ? `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString()} communities`
+                  ? walkability.displayMode === 'heatmap'
+                    ? `${walkability.selectedHeatmapVariant?.label || 'Citywide MI grid'}`
+                    : `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString()} communities`
                   : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
           </div>
         </div>

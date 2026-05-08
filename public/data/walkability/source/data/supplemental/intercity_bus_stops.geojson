@@ -1,0 +1,69 @@
+{
+  "type": "FeatureCollection",
+  "name": "intercity_bus_stops",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.743588500001,
+          53.918982
+        ]
+      },
+      "properties": {
+        "x_26910": 516841.3684755876,
+        "y_26910": 5974537.430690083,
+        "name": "VIA Rail Prince George Station",
+        "address": "1300 1st Ave",
+        "matched_address": "1300 1st Ave",
+        "geocode_score": 100,
+        "poi_class": "Intercity Bus Depot"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.74484540616,
+          53.915785999073
+        ]
+      },
+      "properties": {
+        "x_26910": 516760.09896882705,
+        "y_26910": 5974181.550261786,
+        "name": "Prince George Transit Exchange (BC Bus North / Northern Health Connections)",
+        "address": "1190 4th Ave",
+        "matched_address": "1190 4th Ave",
+        "geocode_score": 100,
+        "poi_class": "Intercity Bus Depot"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.795793042091,
+          53.902671228649
+        ]
+      },
+      "properties": {
+        "x_26910": 513417.9787738015,
+        "y_26910": 5972711.57869898,
+        "name": "Ebus Prince George Stop (former Greyhound / Husky 22nd Ave)",
+        "address": "1442 22nd Ave",
+        "matched_address": "22nd Ave",
+        "geocode_score": 70.91,
+        "poi_class": "Intercity Bus Depot"
+      }
+    }
+  ]
+}

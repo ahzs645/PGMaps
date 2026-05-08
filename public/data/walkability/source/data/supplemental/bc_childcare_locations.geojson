@@ -1,0 +1,3132 @@
+{
+  "type": "FeatureCollection",
+  "name": "bc_childcare_locations",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.748834,
+          53.916107
+        ]
+      },
+      "properties": {
+        "x_26910": 516496.88527144305,
+        "y_26910": 5974216.974323816,
+        "name": "Tyke Town Early Learning",
+        "service_type": "Licensed Group",
+        "address": "1448 5Th Ave",
+        "postal_code": "V2L 3L7",
+        "fac_id": "63",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.783626,
+          53.903804
+        ]
+      },
+      "properties": {
+        "x_26910": 514215.88565295376,
+        "y_26910": 5972840.625248782,
+        "name": "Caledonia Early Care And Learning Centre",
+        "service_type": "Licensed Group",
+        "address": "3330 22Nd Avenue",
+        "postal_code": "V2N 1P8",
+        "fac_id": "261",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.755565,
+          53.898233
+        ]
+      },
+      "properties": {
+        "x_26910": 516061.64148979733,
+        "y_26910": 5972226.795685401,
+        "name": "Carney Hill Neighbourhood Centre",
+        "service_type": "Licensed Group",
+        "address": "2579 Victoria St",
+        "postal_code": "V2L 2M3",
+        "fac_id": "279",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.632331,
+          53.841907
+        ]
+      },
+      "properties": {
+        "x_26910": 524191.7076665445,
+        "y_26910": 5965995.061959819,
+        "name": "Teddy Bear Preschool",
+        "service_type": "Licensed Group",
+        "address": "6355 Bendixon Rd",
+        "postal_code": "V2N 5V5",
+        "fac_id": "291",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.813939,
+          53.887586
+        ]
+      },
+      "properties": {
+        "x_26910": 512229.0421088378,
+        "y_26910": 5971030.585623569,
+        "name": "Unbc Child Care",
+        "service_type": "Licensed Group",
+        "address": "3333 University Way",
+        "postal_code": "V2N 4Z9",
+        "fac_id": "305",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.76746,
+          53.860541
+        ]
+      },
+      "properties": {
+        "x_26910": 515293.7795751972,
+        "y_26910": 5968030.632231528,
+        "name": "Teeter Tots Early Learning Centre",
+        "service_type": "Licensed Group",
+        "address": "7201 Domano Blvd",
+        "postal_code": "V2N 5E1",
+        "fac_id": "336",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.741323,
+          53.912065
+        ]
+      },
+      "properties": {
+        "x_26910": 516991.8565699245,
+        "y_26910": 5973769.041191471,
+        "name": "Children's Choice Daycare",
+        "service_type": "Licensed Group",
+        "address": "933 Patricia Blvd.",
+        "postal_code": "V2L 3V6",
+        "fac_id": "374",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.802405,
+          53.914864
+        ]
+      },
+      "properties": {
+        "x_26910": 512978.6677681059,
+        "y_26910": 5974067.543736972,
+        "name": "Sunny Day",
+        "service_type": "Licensed Group",
+        "address": "4191 Davie Ave",
+        "postal_code": "V2M 4G6",
+        "fac_id": "391",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.786417,
+          53.915008
+        ]
+      },
+      "properties": {
+        "x_26910": 514028.7607403649,
+        "y_26910": 5974086.610177411,
+        "name": "Little Tykes Day Care",
+        "service_type": "Licensed Family",
+        "address": "1036 Babine Cres",
+        "postal_code": "V2M 3X4",
+        "fac_id": "492",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.80901,
+          53.918767
+        ]
+      },
+      "properties": {
+        "x_26910": 512543.6610438867,
+        "y_26910": 5974500.597695583,
+        "name": "Happy Tots Day Care",
+        "service_type": "Licensed Family",
+        "address": "634 Faulkner Cres",
+        "postal_code": "V2M 5C6",
+        "fac_id": "493",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.795107,
+          53.894334
+        ]
+      },
+      "properties": {
+        "x_26910": 513464.62323683867,
+        "y_26910": 5971784.767670942,
+        "name": "Tykes 'N Tots",
+        "service_type": "Licensed Family",
+        "address": "3851 Grace Cres",
+        "postal_code": "V2N 4V9",
+        "fac_id": "494",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.777675,
+          53.860669
+        ]
+      },
+      "properties": {
+        "x_26910": 514621.9119722962,
+        "y_26910": 5968042.719560089,
+        "name": "Goldilocks Family Day Care",
+        "service_type": "Licensed Family",
+        "address": "2967 Parent Rd",
+        "postal_code": "V2N 5G2",
+        "fac_id": "495",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.787241,
+          53.917963
+        ]
+      },
+      "properties": {
+        "x_26910": 513973.65143538365,
+        "y_26910": 5974415.216874705,
+        "name": "Sherwood Forest",
+        "service_type": "Licensed Family",
+        "address": "856 Warren Ave",
+        "postal_code": "V2M 3V7",
+        "fac_id": "496",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.782122,
+          53.887224
+        ]
+      },
+      "properties": {
+        "x_26910": 514320.366590984,
+        "y_26910": 5970996.265400201,
+        "name": "Eeyore's Daycare",
+        "service_type": "Licensed Family",
+        "address": "106-3308 Underhill Rd",
+        "postal_code": "V2N 1W5",
+        "fac_id": "497",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.782952,
+          53.893137
+        ]
+      },
+      "properties": {
+        "x_26910": 514263.800259625,
+        "y_26910": 5971653.967814147,
+        "name": "Amazing Kids Center",
+        "service_type": "Licensed Family",
+        "address": "2742 Michener Cres",
+        "postal_code": "V2N 1G9",
+        "fac_id": "587",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.786855,
+          53.889061
+        ]
+      },
+      "properties": {
+        "x_26910": 514008.669092658,
+        "y_26910": 5971199.7013605675,
+        "name": "Little Bits Of Joy Daycare",
+        "service_type": "Licensed Family",
+        "address": "3194 Ospika Blvd S",
+        "postal_code": "V2N 2T5",
+        "fac_id": "622",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.757765,
+          53.915011
+        ]
+      },
+      "properties": {
+        "x_26910": 515910.7041583814,
+        "y_26910": 5974092.993694796,
+        "name": "Duchess Early Learning Centre",
+        "service_type": "Licensed Group",
+        "address": "810 Winnipeg St",
+        "postal_code": "V2L 5T7",
+        "fac_id": "637",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.75897,
+          53.9021
+        ]
+      },
+      "properties": {
+        "x_26910": 515836.4394907382,
+        "y_26910": 5972656.265754377,
+        "name": "Story Book Preschool",
+        "service_type": "Licensed Group",
+        "address": "1687 Strathcona Ave",
+        "postal_code": "V2L 4E7",
+        "fac_id": "642",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.807039,
+          53.936329
+        ]
+      },
+      "properties": {
+        "x_26910": 512667.79155058746,
+        "y_26910": 5976454.877702404,
+        "name": "Natural Beginnings Child Care Centre",
+        "service_type": "Licensed Family",
+        "address": "995 Heritage Cres",
+        "postal_code": "V2M 6X2",
+        "fac_id": "650",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.805408,
+          54.015331
+        ]
+      },
+      "properties": {
+        "x_26910": 512750.7219828989,
+        "y_26910": 5985244.919799105,
+        "name": "ymca Springwood School Age Care",
+        "service_type": "Licensed Group",
+        "address": "4600 Zral Rd",
+        "postal_code": "V2K 5X9",
+        "fac_id": "670",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.766492,
+          53.850574
+        ]
+      },
+      "properties": {
+        "x_26910": 515361.0927793964,
+        "y_26910": 5966921.9377511395,
+        "name": "Abc's & 123 Daycare",
+        "service_type": "Licensed Family",
+        "address": "8036 Princeton Cres",
+        "postal_code": "V2N 3W5",
+        "fac_id": "680",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.762582,
+          53.858883
+        ]
+      },
+      "properties": {
+        "x_26910": 515615.2144834863,
+        "y_26910": 5967847.229733616,
+        "name": "Castle Court Child Care (C.C.C.C)",
+        "service_type": "Licensed Family",
+        "address": "6877 Simon Fraser Ave",
+        "postal_code": "V2N 2N3",
+        "fac_id": "697",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.777675,
+          53.854274
+        ]
+      },
+      "properties": {
+        "x_26910": 514624.1414782831,
+        "y_26910": 5967331.227400193,
+        "name": "Kidz Corner",
+        "service_type": "Licensed Family",
+        "address": "7598 Southridge Ave",
+        "postal_code": "V2N 6S4",
+        "fac_id": "728",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.758865,
+          53.951421
+        ]
+      },
+      "properties": {
+        "x_26910": 515824.67192699783,
+        "y_26910": 5978143.685223106,
+        "name": "Fairytale Daycare",
+        "service_type": "Licensed Family",
+        "address": "1820 Hegert Rd",
+        "postal_code": "V2K 1L8",
+        "fac_id": "797",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.822581,
+          53.850867
+        ]
+      },
+      "properties": {
+        "x_26910": 511671.25603288534,
+        "y_26910": 5966943.851960844,
+        "name": "Busy B's Clubhouse",
+        "service_type": "Licensed Group",
+        "address": "4637 Highway 16 W",
+        "postal_code": "V2N 5M8",
+        "fac_id": "870",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.771486,
+          53.906706
+        ]
+      },
+      "properties": {
+        "x_26910": 515012.4482474094,
+        "y_26910": 5973165.999411432,
+        "name": "Service De Garde Franco-Amis",
+        "service_type": "Licensed Group",
+        "address": "2641 Ellison Dr",
+        "postal_code": "V2M 2S6",
+        "fac_id": "879",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.801556,
+          53.917832
+        ]
+      },
+      "properties": {
+        "x_26910": 513033.50842272956,
+        "y_26910": 5974397.915366057,
+        "name": "Robyn's Nest Daycare",
+        "service_type": "Licensed Family",
+        "address": "755 Kerry St",
+        "postal_code": "V2M 5A8",
+        "fac_id": "916",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.769724,
+          53.916606
+        ]
+      },
+      "properties": {
+        "x_26910": 515124.6269533828,
+        "y_26910": 5974267.833658095,
+        "name": "Always Home Childcare",
+        "service_type": "Licensed Group",
+        "address": "887 Carney St",
+        "postal_code": "V2M 2K8",
+        "fac_id": "924",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.808961,
+          53.994832
+        ]
+      },
+      "properties": {
+        "x_26910": 512524.0630613398,
+        "y_26910": 5982963.559199412,
+        "name": "Heart To Hart Preschool & After School Care",
+        "service_type": "Licensed Group",
+        "address": "7151 Heather Park Rd",
+        "postal_code": "V2K 5Y3",
+        "fac_id": "935",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.762399,
+          53.856339
+        ]
+      },
+      "properties": {
+        "x_26910": 515628.198416049,
+        "y_26910": 5967564.230853421,
+        "name": "Candy's Kiddie Korner",
+        "service_type": "Licensed Family",
+        "address": "7652 Moncton Cres",
+        "postal_code": "V2N 3M1",
+        "fac_id": "1041",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.793425,
+          53.893147
+        ]
+      },
+      "properties": {
+        "x_26910": 513575.54106655845,
+        "y_26910": 5971653.024757841,
+        "name": "Shine Star Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "3794 Shane Cres",
+        "postal_code": "V2N 4N2",
+        "fac_id": "1116",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.776356,
+          53.987821
+        ]
+      },
+      "properties": {
+        "x_26910": 514664.0293225188,
+        "y_26910": 5982189.772438283,
+        "name": "A Loving Hart Daycare",
+        "service_type": "Licensed Family",
+        "address": "6386 Dawson Rd",
+        "postal_code": "V2K 4X8",
+        "fac_id": "1161",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.795418,
+          53.892644
+        ]
+      },
+      "properties": {
+        "x_26910": 513444.7281971867,
+        "y_26910": 5971596.682174427,
+        "name": "Ishwar Family Child Care",
+        "service_type": "Licensed Family",
+        "address": "3807 Grace Cres",
+        "postal_code": "V2N 4N5",
+        "fac_id": "1170",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.779784,
+          53.978369
+        ]
+      },
+      "properties": {
+        "x_26910": 514442.52972731605,
+        "y_26910": 5981137.43949505,
+        "name": "Mystic Kids Daycare",
+        "service_type": "Licensed Family",
+        "address": "5473 Cook Cres",
+        "postal_code": "V2K 1V3",
+        "fac_id": "1184",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.75244,
+          53.908284
+        ]
+      },
+      "properties": {
+        "x_26910": 516263.0783720541,
+        "y_26910": 5973345.765807836,
+        "name": "ymca Ron Brent After School Care",
+        "service_type": "Licensed Group",
+        "address": "1401 17Th Ave",
+        "postal_code": "V2L 3Z2",
+        "fac_id": "1244",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.80213,
+          53.994104
+        ]
+      },
+      "properties": {
+        "x_26910": 512972.11294239905,
+        "y_26910": 5982883.791306195,
+        "name": "Kidlogic Daycare",
+        "service_type": "Licensed Family",
+        "address": "4529 Gray Dr",
+        "postal_code": "V2K 4Y4",
+        "fac_id": "1267",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.814219,
+          53.847139
+        ]
+      },
+      "properties": {
+        "x_26910": 512222.423661004,
+        "y_26910": 5966530.491891105,
+        "name": "Parkridge Early Learning Centre",
+        "service_type": "Licensed Family",
+        "address": "5264 Park Dr",
+        "postal_code": "V2N 5M8",
+        "fac_id": "1291",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.762041,
+          53.858187
+        ]
+      },
+      "properties": {
+        "x_26910": 515651.05623670045,
+        "y_26910": 5967769.9136826815,
+        "name": "Kool Cats Kid Care And Kool Cats Preschool",
+        "service_type": "Licensed Group",
+        "address": "6989 Gladstone Dr",
+        "postal_code": "V2N 3N7",
+        "fac_id": "1405",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.80538,
+          54.01489
+        ]
+      },
+      "properties": {
+        "x_26910": 512752.6915536569,
+        "y_26910": 5985195.858932722,
+        "name": "Exploring The North Childcare",
+        "service_type": "Licensed Family",
+        "address": "4651 Zral Rd",
+        "postal_code": "V2K 5X9",
+        "fac_id": "1428",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.808308,
+          53.926379
+        ]
+      },
+      "properties": {
+        "x_26910": 512587.4762246609,
+        "y_26910": 5975347.62448215,
+        "name": "Building Blocks Childcare",
+        "service_type": "Licensed Group",
+        "address": "261 Bellos St",
+        "postal_code": "V2M 4W8",
+        "fac_id": "1486",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.816791,
+          53.960229
+        ]
+      },
+      "properties": {
+        "x_26910": 512020.70402910496,
+        "y_26910": 5979112.2771150805,
+        "name": "Sunshine Learning Centre",
+        "service_type": "Licensed Group",
+        "address": "5100 N Nechako Rd",
+        "postal_code": "V2K 4Y5",
+        "fac_id": "1493",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.767518,
+          53.973602
+        ]
+      },
+      "properties": {
+        "x_26910": 515248.71577978006,
+        "y_26910": 5980609.634613036,
+        "name": "Adventure Time Childcare",
+        "service_type": "Licensed Family",
+        "address": "14-5164 Hart Hwy",
+        "postal_code": "V2K 3A1",
+        "fac_id": "1527",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.766159,
+          53.859139
+        ]
+      },
+      "properties": {
+        "x_26910": 515379.8582133935,
+        "y_26910": 5967874.930331186,
+        "name": "Precious Stars Daycare",
+        "service_type": "Licensed Group",
+        "address": "7092 Domano Boulevard",
+        "postal_code": "V2N 3Z4",
+        "fac_id": "1558",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.781924,
+          53.992194
+        ]
+      },
+      "properties": {
+        "x_26910": 514297.4457851274,
+        "y_26910": 5982675.1742572,
+        "name": "Moonlight Daycare",
+        "service_type": "Licensed Family",
+        "address": "6896 Helm Dr",
+        "postal_code": "V2K 2N6",
+        "fac_id": "1561",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.761664,
+          53.896342
+        ]
+      },
+      "properties": {
+        "x_26910": 515661.5885692185,
+        "y_26910": 5972015.042110436,
+        "name": "Young Pup Child Care",
+        "service_type": "Licensed Family",
+        "address": "2685 Abbott Cres",
+        "postal_code": "V2L 2X6",
+        "fac_id": "1565",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.785079,
+          53.852221
+        ]
+      },
+      "properties": {
+        "x_26910": 514137.8121539516,
+        "y_26910": 5967101.315097684,
+        "name": "Little Star Daycare",
+        "service_type": "Licensed Family",
+        "address": "2821 Vista Ridge Crt",
+        "postal_code": "V2N 0G9",
+        "fac_id": "1603",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.788991,
+          53.923274
+        ]
+      },
+      "properties": {
+        "x_26910": 513856.9557765133,
+        "y_26910": 5975005.768696581,
+        "name": "Bbbs Nbc Asc Quinson",
+        "service_type": "Licensed Group",
+        "address": "251 Ogilvie St S",
+        "postal_code": "V2M 3M4",
+        "fac_id": "1631",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.831391,
+          54.01475
+        ]
+      },
+      "properties": {
+        "x_26910": 511048.3306300253,
+        "y_26910": 5985175.910851828,
+        "name": "Tena's Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "9059 Fox Dr",
+        "postal_code": "V2K 5H4",
+        "fac_id": "1666",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.762966,
+          53.849636
+        ]
+      },
+      "properties": {
+        "x_26910": 515593.3954228179,
+        "y_26910": 5966818.347411436,
+        "name": "ymca Malaspina School Age Care",
+        "service_type": "Licensed Group",
+        "address": "7900 Malaspina Ave",
+        "postal_code": "V2N 4A9",
+        "fac_id": "1687",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.874723,
+          53.83059
+        ]
+      },
+      "properties": {
+        "x_26910": 508245.15342489304,
+        "y_26910": 5964680.568684788,
+        "name": "Bbbs Childcare - Beaverly",
+        "service_type": "Licensed Group",
+        "address": "101-9777 Western Rd",
+        "postal_code": "V2N 6M9",
+        "fac_id": "1745",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.797584,
+          53.982225
+        ]
+      },
+      "properties": {
+        "x_26910": 513273.91961392167,
+        "y_26910": 5981562.975388572,
+        "name": "Hart Highlands Childcare",
+        "service_type": "Licensed Family",
+        "address": "5963 Teresa Pl",
+        "postal_code": "V2K 2C9",
+        "fac_id": "1753",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.797773,
+          53.900322
+        ]
+      },
+      "properties": {
+        "x_26910": 513287.5263623343,
+        "y_26910": 5972450.479818608,
+        "name": "Lariah's Little Learners Childcare",
+        "service_type": "Licensed Family",
+        "address": "4110 Campbell Ave",
+        "postal_code": "V2N 3A9",
+        "fac_id": "1754",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.779405,
+          53.909752
+        ]
+      },
+      "properties": {
+        "x_26910": 514491.1483195624,
+        "y_26910": 5973503.245257195,
+        "name": "Costumes & Crayons Daycare Center",
+        "service_type": "Licensed Group",
+        "address": "1600 Johnson St",
+        "postal_code": "V2M 3A6",
+        "fac_id": "1780",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.791498,
+          53.925816
+        ]
+      },
+      "properties": {
+        "x_26910": 513691.4895298005,
+        "y_26910": 5975288.101559477,
+        "name": "Chiddlers Daycare",
+        "service_type": "Licensed Family",
+        "address": "210 Quinn St N",
+        "postal_code": "V2M 3J5",
+        "fac_id": "1850",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.761925,
+          53.887111
+        ]
+      },
+      "properties": {
+        "x_26910": 515647.88544898166,
+        "y_26910": 5970987.960327794,
+        "name": "Northern Roots Family Child Care",
+        "service_type": "Licensed Family",
+        "address": "541 Runnals Ave",
+        "postal_code": "V2N 1Z1",
+        "fac_id": "2093",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.806052,
+          53.854196
+        ]
+      },
+      "properties": {
+        "x_26910": 512757.57913560374,
+        "y_26910": 5967317.073749937,
+        "name": "Little Tots Childcare",
+        "service_type": "Licensed Family",
+        "address": "7312 Aldeen Rd",
+        "postal_code": "V2N 5P8",
+        "fac_id": "2097",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.775058,
+          53.855962
+        ]
+      },
+      "properties": {
+        "x_26910": 514795.6873971011,
+        "y_26910": 5967519.572662574,
+        "name": "The Creative Zone",
+        "service_type": "Licensed Family",
+        "address": "7937 St John Cres",
+        "postal_code": "V2N 4H9",
+        "fac_id": "2160",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.79841,
+          53.94497
+        ]
+      },
+      "properties": {
+        "x_26910": 513231.5458105964,
+        "y_26910": 5977417.844844927,
+        "name": "Megans Nature Childcare",
+        "service_type": "Licensed Family",
+        "address": "4236 Churchill Rd",
+        "postal_code": "V2K 1C3",
+        "fac_id": "2223",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.758591,
+          53.899139
+        ]
+      },
+      "properties": {
+        "x_26910": 515862.46249142673,
+        "y_26910": 5972326.914555788,
+        "name": "Bigs Nbc Early Learning Centre",
+        "service_type": "Licensed Group",
+        "address": "1788 Diefenbaker Dr",
+        "postal_code": "V2M 2L3",
+        "fac_id": "2250",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.757964,
+          53.94632
+        ]
+      },
+      "properties": {
+        "x_26910": 515885.7389723022,
+        "y_26910": 5977576.353496983,
+        "name": "Sky's The Limit Childcare",
+        "service_type": "Licensed Family",
+        "address": "2319 mcmillan Dr",
+        "postal_code": "V2K 5R6",
+        "fac_id": "2254",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.788562,
+          53.898982
+        ]
+      },
+      "properties": {
+        "x_26910": 513893.18800085346,
+        "y_26910": 5972303.1588830985,
+        "name": "Precious Gems Daycare",
+        "service_type": "Licensed Group",
+        "address": "10-2440 Nicholson St S",
+        "postal_code": "V2N 2M3",
+        "fac_id": "2307",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.934533,
+          54.009906
+        ]
+      },
+      "properties": {
+        "x_26910": 504290.31278958684,
+        "y_26910": 5984625.792998225,
+        "name": "Circle Z Childcare",
+        "service_type": "Licensed Family",
+        "address": "12785 Chief Lake Rd",
+        "postal_code": "V2K 5J8",
+        "fac_id": "2316",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.769548,
+          53.91278
+        ]
+      },
+      "properties": {
+        "x_26910": 515137.57033922063,
+        "y_26910": 5973842.195752631,
+        "name": "Little Peanuts Early Learning",
+        "service_type": "Licensed Family",
+        "address": "1257 Carney St",
+        "postal_code": "V2M 2L3",
+        "fac_id": "2357",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.765245,
+          53.849357
+        ]
+      },
+      "properties": {
+        "x_26910": 515443.573266102,
+        "y_26910": 5966786.808175453,
+        "name": "Kool Cats Family Care",
+        "service_type": "Licensed Group",
+        "address": "8008 Malaspina Ave",
+        "postal_code": "V2N 4S7",
+        "fac_id": "2387",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.796696,
+          53.859222
+        ]
+      },
+      "properties": {
+        "x_26910": 513371.39829908276,
+        "y_26910": 5967877.977256301,
+        "name": "Immaculate Conception School",
+        "service_type": "Licensed Group",
+        "address": "3285 Cathedral Ave",
+        "postal_code": "V2N 6R4",
+        "fac_id": "2393",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.79086,
+          53.975409
+        ]
+      },
+      "properties": {
+        "x_26910": 513717.1004643318,
+        "y_26910": 5980805.909105241,
+        "name": "Junior Trekkers",
+        "service_type": "Licensed Group",
+        "address": "2850 Sussex Pl",
+        "postal_code": "V2K 3H9",
+        "fac_id": "2424",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.817201,
+          53.857978
+        ]
+      },
+      "properties": {
+        "x_26910": 512023.1330119007,
+        "y_26910": 5967735.903076564,
+        "name": "ymca Vanway School Age Child Care",
+        "service_type": "Licensed Group",
+        "address": "4509 Highway 16 W",
+        "postal_code": "V2N 5M8",
+        "fac_id": "2446",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.785824,
+          53.991043
+        ]
+      },
+      "properties": {
+        "x_26910": 514042.14253834647,
+        "y_26910": 5982546.333681275,
+        "name": "Tsulh Cho (Huckleberry) Early Learning And Care Centre",
+        "service_type": "Licensed Group",
+        "address": "6776 Dagg Rd",
+        "postal_code": "V2K 2R7",
+        "fac_id": "2494",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.797375,
+          53.948082
+        ]
+      },
+      "properties": {
+        "x_26910": 513298.4889602584,
+        "y_26910": 5977764.277428056,
+        "name": "The Hundred Acre Wood Early Learning Centre",
+        "service_type": "Licensed Family",
+        "address": "2578 North Nechako Rd",
+        "postal_code": "V2K 5C3",
+        "fac_id": "2520",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.773482,
+          53.913253
+        ]
+      },
+      "properties": {
+        "x_26910": 514878.9921844418,
+        "y_26910": 5973893.98830133,
+        "name": "St. Mary's Daycare",
+        "service_type": "Licensed Group",
+        "address": "1206 Freeman St",
+        "postal_code": "V2M 2V3",
+        "fac_id": "2551",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.776308,
+          53.978214
+        ]
+      },
+      "properties": {
+        "x_26910": 514670.55197538406,
+        "y_26910": 5981120.9084805595,
+        "name": "Munchkins Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "5494 Lehman St",
+        "postal_code": "V2K 4P2",
+        "fac_id": "2596",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.797787,
+          54.007146
+        ]
+      },
+      "properties": {
+        "x_26910": 513252.6911222521,
+        "y_26910": 5984335.65202993,
+        "name": "Baby Duck's Early Learning Centre",
+        "service_type": "Licensed Group",
+        "address": "4247 Estavilla Dr",
+        "postal_code": "V2K 2V2",
+        "fac_id": "2673",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760885,
+          53.903596
+        ]
+      },
+      "properties": {
+        "x_26910": 515710.0568375736,
+        "y_26910": 5972822.282298331,
+        "name": "Doodlebugs Daycare",
+        "service_type": "Licensed Family",
+        "address": "30A-2131 Upland St",
+        "postal_code": "V2L 2V8",
+        "fac_id": "2702",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.791408,
+          53.919078
+        ]
+      },
+      "properties": {
+        "x_26910": 513699.6052919478,
+        "y_26910": 5974538.457080711,
+        "name": "First Steps Daycare",
+        "service_type": "Licensed Family",
+        "address": "681 Tay Cres",
+        "postal_code": "V2M 3V3",
+        "fac_id": "2734",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.80794,
+          53.920244
+        ]
+      },
+      "properties": {
+        "x_26910": 512613.4902252544,
+        "y_26910": 5974665.116778691,
+        "name": "Hopes And Dreams Out Of School Childcare",
+        "service_type": "Licensed Group",
+        "address": "511 Tabor Blvd S",
+        "postal_code": "V2M 6W7",
+        "fac_id": "2756",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.77403,
+          53.91399
+        ]
+      },
+      "properties": {
+        "x_26910": 514842.73513671063,
+        "y_26910": 5973975.871030105,
+        "name": "St. Mary's After School Care",
+        "service_type": "Licensed Group",
+        "address": "1125 Freeman Street",
+        "postal_code": "V2M 2R6",
+        "fac_id": "2855",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.80366,
+          54.00597
+        ]
+      },
+      "properties": {
+        "x_26910": 512868.14807567856,
+        "y_26910": 5984203.726652333,
+        "name": "Little Bambinos Child Care",
+        "service_type": "Licensed Family",
+        "address": "8263 Peter Rd",
+        "postal_code": "V2K 0B2",
+        "fac_id": "2856",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.813294,
+          53.919748
+        ]
+      },
+      "properties": {
+        "x_26910": 512262.0133973213,
+        "y_26910": 5974608.993088231,
+        "name": "Costumes & Crayons It Centre Urquhart",
+        "service_type": "Licensed Group",
+        "address": "4480 Urquhart Crescent",
+        "postal_code": "V2M 5H4",
+        "fac_id": "2881",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.799733,
+          53.993834
+        ]
+      },
+      "properties": {
+        "x_26910": 513129.3420483287,
+        "y_26910": 5982854.192740483,
+        "name": "Mini Marvels Daycare",
+        "service_type": "Licensed Group",
+        "address": "4369 Turner Rd",
+        "postal_code": "V2K 2J5",
+        "fac_id": "2946",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.775471,
+          53.920886
+        ]
+      },
+      "properties": {
+        "x_26910": 514745.6539816889,
+        "y_26910": 5974742.810184358,
+        "name": "ymca Gillett School Age Care",
+        "service_type": "Licensed Group",
+        "address": "483 Gillett St",
+        "postal_code": "V2M 2T6",
+        "fac_id": "3022",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.793706,
+          53.894455
+        ]
+      },
+      "properties": {
+        "x_26910": 513556.65121485095,
+        "y_26910": 5971798.496836265,
+        "name": "Stepping Stones Family Day Care",
+        "service_type": "Licensed Family",
+        "address": "3785 Goheen Pl",
+        "postal_code": "V2N 4Z4",
+        "fac_id": "3055",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.792058,
+          53.912243
+        ]
+      },
+      "properties": {
+        "x_26910": 513659.1460031092,
+        "y_26910": 5973777.878554195,
+        "name": "Dad Does It Childcare",
+        "service_type": "Licensed Family",
+        "address": "1341 Kellogg Ave",
+        "postal_code": "V2M 4B1",
+        "fac_id": "3185",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.748192,
+          53.915919
+        ]
+      },
+      "properties": {
+        "x_26910": 516539.12681244384,
+        "y_26910": 5974196.207286692,
+        "name": "Tiny Tyke Town",
+        "service_type": "Licensed Group",
+        "address": "1388 5Th Ave",
+        "postal_code": "V2L 3L4",
+        "fac_id": "3196",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.764645,
+          53.892763
+        ]
+      },
+      "properties": {
+        "x_26910": 515467.02228544897,
+        "y_26910": 5971616.194664624,
+        "name": "4Pillar Early Learning Centre Inc.",
+        "service_type": "Licensed Group",
+        "address": "172 Mckenzie Avenue",
+        "postal_code": "V2L 4N4",
+        "fac_id": "3199",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.812541,
+          53.91841
+        ]
+      },
+      "properties": {
+        "x_26910": 512311.8606380364,
+        "y_26910": 5974460.259330058,
+        "name": "Taycare",
+        "service_type": "Licensed Family",
+        "address": "726 Selwyn Cres",
+        "postal_code": "V2M 5H5",
+        "fac_id": "3237",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.735886,
+          53.905137
+        ]
+      },
+      "properties": {
+        "x_26910": 517351.87019453617,
+        "y_26910": 5972999.559595715,
+        "name": "Preschool North & Childcare",
+        "service_type": "Licensed Group",
+        "address": "333 Becott Place",
+        "postal_code": "V2L 4V7",
+        "fac_id": "3314",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.772544,
+          53.851401
+        ]
+      },
+      "properties": {
+        "x_26910": 514962.67364042986,
+        "y_26910": 5967012.654445599,
+        "name": "Cherished Treasures",
+        "service_type": "Licensed Family",
+        "address": "7694 St Mark Cres",
+        "postal_code": "V2N 4B8",
+        "fac_id": "3370",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.741268,
+          53.899115
+        ]
+      },
+      "properties": {
+        "x_26910": 517000.72676218156,
+        "y_26910": 5972328.258411081,
+        "name": "The Tots Cave Daycare",
+        "service_type": "Licensed Group",
+        "address": "2414 Queensway",
+        "postal_code": "V2L 1M8",
+        "fac_id": "3377",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.737754,
+          53.90586
+        ]
+      },
+      "properties": {
+        "x_26910": 517228.8483180805,
+        "y_26910": 5973079.543882597,
+        "name": "Lheidli Littles' Lodge",
+        "service_type": "Licensed Group",
+        "address": "1950 Gorse Street",
+        "postal_code": "V2L 1G6",
+        "fac_id": "3401",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.74767,
+          53.916345
+        ]
+      },
+      "properties": {
+        "x_26910": 516573.24379791104,
+        "y_26910": 5974243.725346142,
+        "name": "Tiny Tykes On 4Th",
+        "service_type": "Licensed Group",
+        "address": "1367 4Th Ave",
+        "postal_code": "V2L 3J6",
+        "fac_id": "3430",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.780514,
+          53.872191
+        ]
+      },
+      "properties": {
+        "x_26910": 514431.23026160727,
+        "y_26910": 5969324.04990498,
+        "name": "Wise Owls Daycare Ltd",
+        "service_type": "Licensed Family",
+        "address": "4479 Wheeler Rd",
+        "postal_code": "V2N 5H5",
+        "fac_id": "3449",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.828569,
+          53.836737
+        ]
+      },
+      "properties": {
+        "x_26910": 511281.1421684357,
+        "y_26910": 5965370.816318213,
+        "name": "Mousewood Forest And Nature Early Learning And Family Centre",
+        "service_type": "Licensed Group",
+        "address": "8868 Haldi Rd",
+        "postal_code": "V2N 6K1",
+        "fac_id": "3461",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.766699,
+          53.91013
+        ]
+      },
+      "properties": {
+        "x_26910": 515325.68084229564,
+        "y_26910": 5973547.9726376515,
+        "name": "Ilm-Alward",
+        "service_type": "Licensed Group",
+        "address": "1511 Alward Street",
+        "postal_code": "V2M 2G7",
+        "fac_id": "3513",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.764713,
+          53.892478
+        ]
+      },
+      "properties": {
+        "x_26910": 515462.6586809362,
+        "y_26910": 5971584.471250822,
+        "name": "4Pillar Early Learning Centre Inc Pg",
+        "service_type": "Licensed Group",
+        "address": "177 Mckenzie Ave",
+        "postal_code": "V2L 4N5",
+        "fac_id": "3533",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.801632,
+          53.980924
+        ]
+      },
+      "properties": {
+        "x_26910": 513008.86787928425,
+        "y_26910": 5981417.475261757,
+        "name": "Northern Lights Out Of School Care",
+        "service_type": "Licensed Group",
+        "address": "4412 Enns Rd",
+        "postal_code": "V2K 4X3",
+        "fac_id": "3586",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.809859,
+          53.984559
+        ]
+      },
+      "properties": {
+        "x_26910": 512468.26064253633,
+        "y_26910": 5981820.425768199,
+        "name": "Little Valley Daycare",
+        "service_type": "Licensed Family",
+        "address": "4798 Vellencher Rd",
+        "postal_code": "V2K 4P1",
+        "fac_id": "3671",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.747772,
+          53.912579
+        ]
+      },
+      "properties": {
+        "x_26910": 516568.0350074659,
+        "y_26910": 5973824.701778045,
+        "name": "Wild Haven Dayhome",
+        "service_type": "Licensed Family",
+        "address": "12910 Eagle Crest Rd",
+        "postal_code": "V2K 5V3",
+        "fac_id": "3677",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.794715,
+          53.898393
+        ]
+      },
+      "properties": {
+        "x_26910": 513489.07634005015,
+        "y_26910": 5972236.439738877,
+        "name": "Giggleberry Early Learning Centre",
+        "service_type": "Licensed Group",
+        "address": "2460 Foot St",
+        "postal_code": "V2N 2Y4",
+        "fac_id": "3701",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.784395,
+          53.894817
+        ]
+      },
+      "properties": {
+        "x_26910": 514168.4021205255,
+        "y_26910": 5971840.592430129,
+        "name": "Big Dreams Learning Center",
+        "service_type": "Licensed Group",
+        "address": "2670 Vanier Drive",
+        "postal_code": "V2N 1T7",
+        "fac_id": "3830",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.792025,
+          53.925525
+        ]
+      },
+      "properties": {
+        "x_26910": 513656.9785887696,
+        "y_26910": 5975255.623570276,
+        "name": "Thimbleberry Early Years Society",
+        "service_type": "Licensed Group",
+        "address": "109 Riley Dr",
+        "postal_code": "V2M 3N9",
+        "fac_id": "3878",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.789178,
+          53.986656
+        ]
+      },
+      "properties": {
+        "x_26910": 513823.6954173785,
+        "y_26910": 5982057.57614423,
+        "name": "Curious Minds Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "3722 Balsum Rd",
+        "postal_code": "V2K 1Z7",
+        "fac_id": "3897",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.745672,
+          53.916111
+        ]
+      },
+      "properties": {
+        "x_26910": 516704.5672278348,
+        "y_26910": 5974218.159752728,
+        "name": "Tyke Town Corner",
+        "service_type": "Licensed Group",
+        "address": "1240 4Th Avenue",
+        "postal_code": "V2L 3J4",
+        "fac_id": "3906",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.809109,
+          53.937836
+        ]
+      },
+      "properties": {
+        "x_26910": 512531.44568876707,
+        "y_26910": 5976622.177218799,
+        "name": "Tracey\u2019S Place Daycare",
+        "service_type": "Licensed Family",
+        "address": "4634 Ryser Crt",
+        "postal_code": "V2M 6X8",
+        "fac_id": "3969",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.782187,
+          53.988802
+        ]
+      },
+      "properties": {
+        "x_26910": 514281.3636181043,
+        "y_26910": 5982297.727088156,
+        "name": "Tadpole Ranch Daycare",
+        "service_type": "Licensed Group",
+        "address": "6599 Driftwood Rd",
+        "postal_code": "V2K 4E4",
+        "fac_id": "3975",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.81499,
+          53.911972
+        ]
+      },
+      "properties": {
+        "x_26910": 512152.8854937002,
+        "y_26910": 5973743.553143378,
+        "name": "Happy Home Day Care",
+        "service_type": "Licensed Family",
+        "address": "4545 Cascade Ave",
+        "postal_code": "V2M 6L5",
+        "fac_id": "3978",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.797412,
+          53.874498
+        ]
+      },
+      "properties": {
+        "x_26910": 513319.4532005565,
+        "y_26910": 5969577.416521011,
+        "name": "Sweet Pumpkins Day Care Inc",
+        "service_type": "Licensed Group",
+        "address": "2501 Chancellor Blvd",
+        "postal_code": "V2N 0E6",
+        "fac_id": "3979",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.783673,
+          53.870409
+        ]
+      },
+      "properties": {
+        "x_26910": 514224.1305535338,
+        "y_26910": 5969125.150393037,
+        "name": "Seven Tiny Toes Childcare",
+        "service_type": "Licensed Group",
+        "address": "4427 Wheeler Rd",
+        "postal_code": "V2N 5H4",
+        "fac_id": "4028",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.795116,
+          53.976742
+        ]
+      },
+      "properties": {
+        "x_26910": 513437.5288486111,
+        "y_26910": 5980953.402754503,
+        "name": "Hart Highlands Montessori Day Care Inc.",
+        "service_type": "Licensed Family",
+        "address": "2886 Langley Cres",
+        "postal_code": "V2K 3J8",
+        "fac_id": "4031",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.805025,
+          53.922118
+        ]
+      },
+      "properties": {
+        "x_26910": 512804.35842710413,
+        "y_26910": 5974874.138379579,
+        "name": "Playhouse",
+        "service_type": "Licensed Family",
+        "address": "4242 Carrier Ave",
+        "postal_code": "V2M 5M9",
+        "fac_id": "4112",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.815843,
+          53.916121
+        ]
+      },
+      "properties": {
+        "x_26910": 512095.6549011213,
+        "y_26910": 5974205.0196318,
+        "name": "L'il Monsters Daycare",
+        "service_type": "Licensed Family",
+        "address": "921 Ochakwin Cres",
+        "postal_code": "V2M 5P5",
+        "fac_id": "4135",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.800401,
+          53.855196
+        ]
+      },
+      "properties": {
+        "x_26910": 513128.97914913786,
+        "y_26910": 5967429.36219241,
+        "name": "Always Sunshine",
+        "service_type": "Licensed Family",
+        "address": "3219 Embree Pl",
+        "postal_code": "V2N 0A4",
+        "fac_id": "4136",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.81863,
+          53.84766
+        ]
+      },
+      "properties": {
+        "x_26910": 511932.07868212264,
+        "y_26910": 5966587.7062740335,
+        "name": "Huggabug",
+        "service_type": "Licensed Family",
+        "address": "5570 Heyer Rd",
+        "postal_code": "V2N 6P7",
+        "fac_id": "4140",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.786204,
+          53.920396
+        ]
+      },
+      "properties": {
+        "x_26910": 514040.94341340195,
+        "y_26910": 5974686.114279243,
+        "name": "Edge Meadows Preschool",
+        "service_type": "Licensed Group",
+        "address": "3555 5Th Ave",
+        "postal_code": "V2M 1K8",
+        "fac_id": "4169",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.805178,
+          53.981993
+        ]
+      },
+      "properties": {
+        "x_26910": 512775.9962580293,
+        "y_26910": 5981535.766763148,
+        "name": "Rainbow Kids Daycare",
+        "service_type": "Licensed Family",
+        "address": "4521 Stauble Rd",
+        "postal_code": "V2K 4W9",
+        "fac_id": "4199",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.807946,
+          53.920246
+        ]
+      },
+      "properties": {
+        "x_26910": 512613.0955744604,
+        "y_26910": 5974665.338228779,
+        "name": "Prince George Cornerstone Learning Centre",
+        "service_type": "Licensed Group",
+        "address": "511 South Tabor Blvd",
+        "postal_code": "V2M 6W7",
+        "fac_id": "4255",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.779001,
+          53.989421
+        ]
+      },
+      "properties": {
+        "x_26910": 514490.0451555966,
+        "y_26910": 5982367.2441181475,
+        "name": "Wee Care Day Care",
+        "service_type": "Licensed Family",
+        "address": "3111 Austin Rd E",
+        "postal_code": "V2K 2K6",
+        "fac_id": "4289",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.800309,
+          53.898049
+        ]
+      },
+      "properties": {
+        "x_26910": 513121.60831430065,
+        "y_26910": 5972197.117260149,
+        "name": "The Friendship Garden Family Day Care",
+        "service_type": "Licensed Family",
+        "address": "4150 Morgan Cres",
+        "postal_code": "V2N 3E6",
+        "fac_id": "4290",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.797945,
+          53.898498
+        ]
+      },
+      "properties": {
+        "x_26910": 513276.8031866309,
+        "y_26910": 5972247.512289128,
+        "name": "Grizzly Den Daycare",
+        "service_type": "Licensed Family",
+        "address": "4118 Guest Cres",
+        "postal_code": "V2N 3G4",
+        "fac_id": "4296",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.763427,
+          53.955812
+        ]
+      },
+      "properties": {
+        "x_26910": 515523.6566820284,
+        "y_26910": 5978631.215830441,
+        "name": "Dandilions & Daisies Family Day Care",
+        "service_type": "Licensed Family",
+        "address": "3473 Clearwood Cres",
+        "postal_code": "V2K 4R1",
+        "fac_id": "4373",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.804689,
+          53.92179
+        ]
+      },
+      "properties": {
+        "x_26910": 512826.52466502716,
+        "y_26910": 5974837.706224048,
+        "name": "Clarke's Candyland",
+        "service_type": "Licensed Family",
+        "address": "4231 Carrier Ave",
+        "postal_code": "V2M 5T9",
+        "fac_id": "4428",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.79671,
+          53.979349
+        ]
+      },
+      "properties": {
+        "x_26910": 513332.15248648357,
+        "y_26910": 5981243.156023023,
+        "name": "Little Shooting Stars Family Day Care",
+        "service_type": "Licensed Family",
+        "address": "3049 Poyner Cres",
+        "postal_code": "V2K 2B8",
+        "fac_id": "4439",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.988115,
+          54.085229
+        ]
+      },
+      "properties": {
+        "x_26910": 500777.4641130828,
+        "y_26910": 5993004.415013804,
+        "name": "Nukko Lake Child Care",
+        "service_type": "Licensed Group",
+        "address": "23955 Chief Lake Rd",
+        "postal_code": "V2K 5L1",
+        "fac_id": "4445",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.828646,
+          54.032146
+        ]
+      },
+      "properties": {
+        "x_26910": 511223.5158999361,
+        "y_26910": 5987111.8348966995,
+        "name": "Teddy Bear Junction",
+        "service_type": "Licensed Family",
+        "address": "5963 Ferguson Lake Rd",
+        "postal_code": "V2K 5V2",
+        "fac_id": "4468",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.809656,
+          53.927899
+        ]
+      },
+      "properties": {
+        "x_26910": 512498.505655545,
+        "y_26910": 5975516.499541959,
+        "name": "Power Of Friendship Aboriginal Head Start Program",
+        "service_type": "Licensed Group",
+        "address": "110 Anderson St",
+        "postal_code": "V2M 4Z1",
+        "fac_id": "4472",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.757616,
+          53.919996
+        ]
+      },
+      "properties": {
+        "x_26910": 515918.5946911311,
+        "y_26910": 5974647.651461766,
+        "name": "Pg Aboriginal Head Start",
+        "service_type": "Licensed Group",
+        "address": "1945 3Rd Ave",
+        "postal_code": "V2M 1G6",
+        "fac_id": "4473",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.781838,
+          53.853446
+        ]
+      },
+      "properties": {
+        "x_26910": 514350.59042710403,
+        "y_26910": 5967238.256171353,
+        "name": "Little Blessings Daycare",
+        "service_type": "Licensed Family",
+        "address": "8454 St Lawrence Ave",
+        "postal_code": "V2N 5G9",
+        "fac_id": "4488",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.78511,
+          53.990656
+        ]
+      },
+      "properties": {
+        "x_26910": 514089.0854908267,
+        "y_26910": 5982503.4178231405,
+        "name": "Abra-Kid-Abra Out Of School Daycare",
+        "service_type": "Licensed Group",
+        "address": "6742 Dagg Rd",
+        "postal_code": "V2K 3Y4",
+        "fac_id": "4502",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.812072,
+          53.91385
+        ]
+      },
+      "properties": {
+        "x_26910": 512344.00822814216,
+        "y_26910": 5973953.001047279,
+        "name": "Kitty's Korner",
+        "service_type": "Licensed Family",
+        "address": "1117 Limestone Cres",
+        "postal_code": "V2M 4Z5",
+        "fac_id": "4509",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.815619,
+          53.920905
+        ]
+      },
+      "properties": {
+        "x_26910": 512108.9831817436,
+        "y_26910": 5974737.3199063465,
+        "name": "Cedars Christian School Pre-School",
+        "service_type": "Licensed Group",
+        "address": "4590 5Th Ave",
+        "postal_code": "V2M 6B6",
+        "fac_id": "4511",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.798001,
+          53.946227
+        ]
+      },
+      "properties": {
+        "x_26910": 513257.9922506415,
+        "y_26910": 5977557.774166787,
+        "name": "Little Achievers Day Care",
+        "service_type": "Licensed Family",
+        "address": "4188 Craig Dr",
+        "postal_code": "V2K 1E5",
+        "fac_id": "4516",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.767018,
+          53.855981
+        ]
+      },
+      "properties": {
+        "x_26910": 515324.515138274,
+        "y_26910": 5967523.393130244,
+        "name": "Tunz O Fun Family Day Care",
+        "service_type": "Licensed Family",
+        "address": "7797 Queens Cres",
+        "postal_code": "V2N 3H3",
+        "fac_id": "4525",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.792448,
+          53.915895
+        ]
+      },
+      "properties": {
+        "x_26910": 513632.33852250007,
+        "y_26910": 5974184.12010454,
+        "name": "Bbbs Nbc Asc Spruceland",
+        "service_type": "Licensed Group",
+        "address": "3805 Rainbow Dr",
+        "postal_code": "V2M 3W2",
+        "fac_id": "4561",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.818823,
+          53.93334
+        ]
+      },
+      "properties": {
+        "x_26910": 511895.0288009004,
+        "y_26910": 5976120.282473236,
+        "name": "Jelly Bean Bunch Childcare",
+        "service_type": "Licensed Family",
+        "address": "183 Van Somer St",
+        "postal_code": "V2N 6C9",
+        "fac_id": "4621",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.74263,
+          53.899863
+        ]
+      },
+      "properties": {
+        "x_26910": 516910.9307895451,
+        "y_26910": 5972411.153921749,
+        "name": "Little Monkey's Day Care",
+        "service_type": "Licensed Family",
+        "address": "2384 Jasper St",
+        "postal_code": "V2L 1P1",
+        "fac_id": "4635",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.783481,
+          53.991529
+        ]
+      },
+      "properties": {
+        "x_26910": 514195.5924566405,
+        "y_26910": 5982600.873125584,
+        "name": "Giggles And Stickers Daycare",
+        "service_type": "Licensed Family",
+        "address": "6824 Glenview Dr",
+        "postal_code": "V2K 2N8",
+        "fac_id": "4700",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.780439,
+          53.858258
+        ]
+      },
+      "properties": {
+        "x_26910": 514440.9591024923,
+        "y_26910": 5967773.911343561,
+        "name": "Peanuts Lifetime Pals Club",
+        "service_type": "Licensed Group",
+        "address": "7148 Southridge Ave",
+        "postal_code": "V2N 4Y6",
+        "fac_id": "4738",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.780739,
+          53.89579
+        ]
+      },
+      "properties": {
+        "x_26910": 514408.31973391946,
+        "y_26910": 5971949.583368698,
+        "name": "Solid Foundations Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "2626 Tweedsmuir Ave",
+        "postal_code": "V2N 1E7",
+        "fac_id": "4811",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.784961,
+          53.8952
+        ]
+      },
+      "properties": {
+        "x_26910": 514131.0784820473,
+        "y_26910": 5971883.091419935,
+        "name": "ymca Westwood After School Care",
+        "service_type": "Licensed Group",
+        "address": "2633 Vanier Dr",
+        "postal_code": "V2N 1V1",
+        "fac_id": "4827",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.78967,
+          53.895907
+        ]
+      },
+      "properties": {
+        "x_26910": 513821.39826148003,
+        "y_26910": 5971960.822972212,
+        "name": "Gentle Rain Family Child Care",
+        "service_type": "Licensed Family",
+        "address": "3618 Forest Ave",
+        "postal_code": "V2N 3Z5",
+        "fac_id": "4872",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.809214,
+          53.915506
+        ]
+      },
+      "properties": {
+        "x_26910": 512531.2393019068,
+        "y_26910": 5974137.74684148,
+        "name": "Little Niblets Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "853 Faulkner Cres",
+        "postal_code": "V2M 5E1",
+        "fac_id": "4897",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.64316,
+          53.89867
+        ]
+      },
+      "properties": {
+        "x_26910": 523447.4209925264,
+        "y_26910": 5972306.7288924195,
+        "name": "Amanda's Angels",
+        "service_type": "Licensed Family",
+        "address": "5428 Giscome Rd",
+        "postal_code": "V2N 6S7",
+        "fac_id": "4918",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.736563,
+          53.907998
+        ]
+      },
+      "properties": {
+        "x_26910": 517306.20983276615,
+        "y_26910": 5973317.704364245,
+        "name": "Le Coin Des Petits",
+        "service_type": "Licensed Group",
+        "address": "1752 Fir St",
+        "postal_code": "V2L 1E7",
+        "fac_id": "5046",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.805339,
+          53.9173
+        ]
+      },
+      "properties": {
+        "x_26910": 512785.2093926208,
+        "y_26910": 5974338.0368670765,
+        "name": "Lisa's Daycare",
+        "service_type": "Licensed Family",
+        "address": "4262 Merton Cres",
+        "postal_code": "V2M 5B8",
+        "fac_id": "5114",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.78405,
+          53.92999
+        ]
+      },
+      "properties": {
+        "x_26910": 514179.15435118397,
+        "y_26910": 5975753.960409981,
+        "name": "Cedars Child Care",
+        "service_type": "Licensed Group",
+        "address": "600 Preston Rd",
+        "postal_code": "V2K 1A8",
+        "fac_id": "5161",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.790317,
+          53.891387
+        ]
+      },
+      "properties": {
+        "x_26910": 513780.3689687392,
+        "y_26910": 5971457.809676275,
+        "name": "Precious Angels Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "2920 Christopher Cres",
+        "postal_code": "V2N 4S4",
+        "fac_id": "5267",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.751284,
+          53.918711
+        ]
+      },
+      "properties": {
+        "x_26910": 516334.95024148875,
+        "y_26910": 5974506.124466845,
+        "name": "Little Friends Day Care",
+        "service_type": "Licensed Group",
+        "address": "1600 3Rd Ave",
+        "postal_code": "V2L 3G6",
+        "fac_id": "5310",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.803985,
+          53.857883
+        ]
+      },
+      "properties": {
+        "x_26910": 512892.40955046535,
+        "y_26910": 5967727.654156003,
+        "name": "Little Otters Daycare",
+        "service_type": "Licensed Family",
+        "address": "6864 Chartwell Cres",
+        "postal_code": "V2N 6Y3",
+        "fac_id": "5431",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.781339,
+          53.872329
+        ]
+      },
+      "properties": {
+        "x_26910": 514376.93916752405,
+        "y_26910": 5969339.235967005,
+        "name": "Soaring Butterflies Family Day Care",
+        "service_type": "Licensed Family",
+        "address": "4467 Wheeler Rd",
+        "postal_code": "V2N 5H5",
+        "fac_id": "5445",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.792118,
+          53.919925
+        ]
+      },
+      "properties": {
+        "x_26910": 513652.6986663584,
+        "y_26910": 5974632.556280842,
+        "name": "Bbbs Pg Asc Clubhouse",
+        "service_type": "Licensed Group",
+        "address": "777 Kinsmen Pl",
+        "postal_code": "V2M 6Y7",
+        "fac_id": "5539",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.798283,
+          53.914179
+        ]
+      },
+      "properties": {
+        "x_26910": 513249.63033056736,
+        "y_26910": 5973992.093992482,
+        "name": "Little Ladybugs Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "1112 Cluculz Ave",
+        "postal_code": "V2M 4G2",
+        "fac_id": "5551",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.803664,
+          53.985576
+        ]
+      },
+      "properties": {
+        "x_26910": 512874.175987654,
+        "y_26910": 5981934.685385026,
+        "name": "Growing Patch (The)",
+        "service_type": "Licensed Family",
+        "address": "6221 Tasa Pl",
+        "postal_code": "V2K 4J3",
+        "fac_id": "5598",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.805004,
+          53.899433
+        ]
+      },
+      "properties": {
+        "x_26910": 512812.67886297556,
+        "y_26910": 5972350.240341884,
+        "name": "Something Cool Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "2387 Webber Cres",
+        "postal_code": "V2N 3C9",
+        "fac_id": "5650",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.768924,
+          53.910547
+        ]
+      },
+      "properties": {
+        "x_26910": 515179.36831247597,
+        "y_26910": 5973593.8887998685,
+        "name": "Mindfulnest Early Learning Centre Ltd.",
+        "service_type": "Licensed Group",
+        "address": "2364 15Th Ave",
+        "postal_code": "V2M 1S4",
+        "fac_id": "5756",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.803551,
+          53.899174
+        ]
+      },
+      "properties": {
+        "x_26910": 512908.23142132704,
+        "y_26910": 5972321.687927926,
+        "name": "Adrianne's Little Critters Family Daycare",
+        "service_type": "Licensed Family",
+        "address": "4245 Paschal Pl",
+        "postal_code": "V2N 3J7",
+        "fac_id": "5810",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.774647,
+          53.908872
+        ]
+      },
+      "properties": {
+        "x_26910": 514804.0177038272,
+        "y_26910": 5973406.320686581,
+        "name": "Chez Naty",
+        "service_type": "Licensed Family",
+        "address": "1658 Gillett St",
+        "postal_code": "V2M 2V4",
+        "fac_id": "5837",
+        "poi_class": "Daycare"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.759004,
+          53.893257
+        ]
+      },
+      "properties": {
+        "x_26910": 515837.54919010005,
+        "y_26910": 5971672.401243883,
+        "name": "Happy Beginnings Childcare",
+        "service_type": "Licensed Family",
+        "address": "2744 Lonsdale St",
+        "postal_code": "V2L 4X9",
+        "fac_id": "5869",
+        "poi_class": "Daycare"
+      }
+    }
+  ]
+}

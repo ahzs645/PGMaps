@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-08T06:12:33.995Z",
+  "generatedAt": "2026-05-08T15:56:23.189Z",
   "sourceRoot": "/Users/ahmadjalil/Downloads/Walkability",
   "copiedGeojson": [
     {
@@ -76,6 +76,13 @@
     "joinedFeatures": 1916,
     "unmatchedScoreRows": 569,
     "note": "Joined only RPath rows whose AssetID exists in local CityPG sidewalks/walkways WGS84 layers. PTrail rows remain available in CSV tables because no matching WGS84 trail layer is currently present in this repo import path."
+  },
+  "heatmap": {
+    "path": "/data/walkability/heatmap/manifest.json",
+    "assetBinnedPath": "/data/walkability/heatmap/asset_mi_bins.geojson",
+    "assetBinnedFeatures": 1916,
+    "variants": 11,
+    "defaultVariant": "asset_binned"
   },
   "caveats": [
     "Supplemental point layers were copied from the local Walkability reconstruction folder and are not part of the strict web-only score unless a supplemented variant explicitly says so.",

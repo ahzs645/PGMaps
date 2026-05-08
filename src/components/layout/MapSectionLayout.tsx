@@ -24,18 +24,18 @@ interface MapSectionLayoutProps {
 // ---------------------------------------------------------------------------
 
 /** Snap positions as translateY pixel values. Lower value = more sheet visible. */
-function getSnapPositions() {
-  const vh = window.innerHeight
+function getSnapPositions(height: number) {
+  const sheetHeight = Math.max(160, height)
   return {
     full: 16,
-    half: Math.round(vh * 0.42),
-    collapsed: vh - 72,
+    half: Math.round(sheetHeight * 0.42),
+    collapsed: Math.max(88, sheetHeight - 72),
   }
 }
 
 /** Pick the best snap point, biased by swipe velocity. */
-function resolveSnap(y: number, velocityPxMs: number): MobileSheetState {
-  const snaps = getSnapPositions()
+function resolveSnap(y: number, velocityPxMs: number, height: number): MobileSheetState {
+  const snaps = getSnapPositions(height)
   const projected = y + velocityPxMs * 200
   const entries: [MobileSheetState, number][] = [
     ['full', snaps.full],
@@ -55,8 +55,8 @@ function resolveSnap(y: number, velocityPxMs: number): MobileSheetState {
 }
 
 /** Derive the logical state from the current translateY. */
-function stateFromTranslate(y: number): MobileSheetState {
-  const snaps = getSnapPositions()
+function stateFromTranslate(y: number, height: number): MobileSheetState {
+  const snaps = getSnapPositions(height)
   const entries: [MobileSheetState, number][] = [
     ['full', snaps.full],
     ['half', snaps.half],
@@ -116,6 +116,10 @@ export function MapSectionLayout({
 
   // ------ helpers ----------------------------------------------------------
 
+  const getSheetHeight = useCallback(() => {
+    return sheetRef.current?.getBoundingClientRect().height || window.innerHeight
+  }, [])
+
   const applyTransform = useCallback((y: number, animate: boolean) => {
     const sheet = sheetRef.current
     if (!sheet) return
@@ -124,7 +128,7 @@ export function MapSectionLayout({
     curY.current = y
 
     // Scrim opacity (0 at collapsed → 0.4 at full)
-    const snaps = getSnapPositions()
+    const snaps = getSnapPositions(getSheetHeight())
     const range = snaps.collapsed - snaps.full
     const t = Math.max(0, Math.min(1, 1 - (y - snaps.full) / range))
     if (scrimRef.current) {
@@ -132,14 +136,14 @@ export function MapSectionLayout({
       scrimRef.current.style.pointerEvents = t > 0.05 ? 'auto' : 'none'
       scrimRef.current.style.transition = animate ? 'opacity 0.35s ease' : 'none'
     }
-  }, [])
+  }, [getSheetHeight])
 
   const snapTo = useCallback(
     (state: MobileSheetState) => {
       setMobileSheetState(state)
-      applyTransform(getSnapPositions()[state], true)
+      applyTransform(getSnapPositions(getSheetHeight())[state], true)
     },
-    [applyTransform],
+    [applyTransform, getSheetHeight],
   )
 
   // ------ lifecycle --------------------------------------------------------
@@ -147,7 +151,7 @@ export function MapSectionLayout({
   // Position on first paint (before browser paints → no flash)
   useLayoutEffect(() => {
     if (window.innerWidth < 768) {
-      const y = getSnapPositions()[mobileInitialSheetState]
+      const y = getSnapPositions(getSheetHeight())[mobileInitialSheetState]
       if (sheetRef.current) {
         sheetRef.current.style.transform = `translateY(${y}px)`
         sheetRef.current.style.transition = 'none'
@@ -175,8 +179,8 @@ export function MapSectionLayout({
           scrimRef.current.style.pointerEvents = 'none'
         }
       } else if (!dragging.current) {
-        const state = stateFromTranslate(curY.current)
-        applyTransform(getSnapPositions()[state], false)
+        const state = stateFromTranslate(curY.current, getSheetHeight())
+        applyTransform(getSnapPositions(getSheetHeight())[state], false)
       }
     }
     const onOrientationChange = () => setTimeout(onResize, 150)
@@ -187,7 +191,7 @@ export function MapSectionLayout({
       window.removeEventListener('resize', onResize)
       window.removeEventListener('orientationchange', onOrientationChange)
     }
-  }, [applyTransform])
+  }, [applyTransform, getSheetHeight])
 
   // ------ touch events (non-passive, native) --------------------------------
 
@@ -245,7 +249,7 @@ export function MapSectionLayout({
         e.preventDefault()
         const delta = t.clientY - startY.current
         let ny = startTranslate.current + delta
-        const snaps = getSnapPositions()
+        const snaps = getSnapPositions(getSheetHeight())
         // Rubber-band at edges
         if (ny < snaps.full) ny = snaps.full - (snaps.full - ny) * 0.25
         if (ny > snaps.collapsed) ny = snaps.collapsed + (ny - snaps.collapsed) * 0.25
@@ -262,7 +266,7 @@ export function MapSectionLayout({
         decided.current = true
         if (dx > dy) return // horizontal — let browser handle
 
-        const state = stateFromTranslate(curY.current)
+        const state = stateFromTranslate(curY.current, getSheetHeight())
         const goingDown = t.clientY > startY.current
 
         if (state !== 'full') {
@@ -304,13 +308,13 @@ export function MapSectionLayout({
         const ct = e.changedTouches[0]
         const moved = Math.abs(ct.clientY - startY.current) + Math.abs(ct.clientX - startX.current)
         if (moved < 10) {
-          const s = stateFromTranslate(curY.current)
+          const s = stateFromTranslate(curY.current, getSheetHeight())
           snapTo(s === 'collapsed' ? 'half' : s === 'half' ? 'full' : 'collapsed')
           return
         }
       }
 
-      snapTo(resolveSnap(curY.current, vel.current))
+      snapTo(resolveSnap(curY.current, vel.current, getSheetHeight()))
     }
 
     sheet.addEventListener('touchstart', onTouchStart, { passive: false })
@@ -324,7 +328,7 @@ export function MapSectionLayout({
       sheet.removeEventListener('touchend', onTouchEnd)
       sheet.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [applyTransform, snapTo])
+  }, [applyTransform, getSheetHeight, snapTo])
 
   // Scrim tap → collapse
   const handleScrimClick = useCallback(() => snapTo('collapsed'), [snapTo])
@@ -340,6 +344,7 @@ export function MapSectionLayout({
           showDesktopSidebar ? 'md:block md:w-[var(--desktop-sidebar-width)]' : 'md:hidden',
         )}
         style={{ '--desktop-sidebar-width': `${desktopSidebarWidth}px` } as CSSProperties}
+        data-map-sidebar-wrapper="true"
       >
         {/* Scrim / backdrop */}
         <div
@@ -357,6 +362,7 @@ export function MapSectionLayout({
             'pointer-events-auto absolute inset-x-0 bottom-0 flex h-full max-h-full flex-col overflow-hidden rounded-t-2xl border border-b-0 border-border bg-background/95 shadow-2xl backdrop-blur',
             'md:relative md:inset-auto md:h-full md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-blur-none',
           )}
+          data-map-mobile-sheet="true"
         >
           {/* Drag handle */}
           <div
@@ -364,6 +370,7 @@ export function MapSectionLayout({
             className="relative flex shrink-0 cursor-grab touch-none flex-col items-center justify-center gap-2 px-4 py-3 select-none active:cursor-grabbing md:hidden"
             role="separator"
             aria-label="Drag to resize sheet"
+            data-map-mobile-sheet-handle="true"
           >
             <div className="h-1 w-10 rounded-full bg-muted-foreground/40" />
             {mobilePeek && (

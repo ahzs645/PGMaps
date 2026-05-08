@@ -32,7 +32,8 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "walkability:build": "node scripts/build-walkability-web.mjs",
-    "walkability:import-supplements": "node scripts/import-walkability-supplements.mjs"
+    "walkability:import-supplements": "node scripts/import-walkability-supplements.mjs",
+    "walkability:build-grid-heatmap": "node scripts/build-walkability-grid-heatmap.mjs"
   },
   "dependencies": {
     "@firstform/json-url": "file:vendor/json-url",
