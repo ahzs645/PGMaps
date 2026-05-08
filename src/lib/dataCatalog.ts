@@ -92,6 +92,16 @@ export const DATASETS = {
     downloadUrl: '/data/canue/bc/annual-gzip/manifest.json',
     fields: ['datasetId', 'category', 'year', 'postal_code', 'value'],
   },
+  walkability: {
+    title: 'Web-source walkability variants',
+    description: 'Community-level walkability variants recalculated from CityPG web layers and ICBC public crash summaries.',
+    source: 'City of Prince George Open Data and ICBC',
+    coverage: 'Prince George community boundaries',
+    license: 'Source-dependent open data',
+    formats: ['GeoJSON', 'JSON manifest'],
+    downloadUrl: '/data/walkability/manifest.json',
+    fields: ['communityName', 'balancedScore', 'infrastructureScore', 'accessScore', 'safetyAdjustedScore'],
+  },
   bcAssessment: {
     title: 'BC Assessment properties',
     description: 'Parcel/property assessment extracts with value, year built, category, and location attributes.',

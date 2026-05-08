@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createInterface } from 'node:readline'
+import { createGunzip } from 'node:zlib'
 import { bbox, booleanPointInPolygon, point } from '@turf/turf'
 
 const DEFAULT_MANIFEST = 'public/data/canue/bc/manifest.json'
@@ -158,7 +159,10 @@ async function loadPostalPoints(manifest) {
 
   for (const file of manifest.files || []) {
     const sourcePath = path.resolve('public', file.output.replace(/^\/+data\//, 'data/'))
-    const rl = createInterface({ input: createReadStream(sourcePath), crlfDelay: Infinity })
+    const input = sourcePath.endsWith('.gz')
+      ? createReadStream(sourcePath).pipe(createGunzip())
+      : createReadStream(sourcePath)
+    const rl = createInterface({ input, crlfDelay: Infinity })
     let headers = null
     let postalIndex = -1
     let latitudeIndex = -1

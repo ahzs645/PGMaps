@@ -17,6 +17,13 @@ Use `npm run canue:bc:sync:all-years` instead of `npm run canue:bc:sync`
 when the app should expose CANUE timeline controls for datasets that ship
 multiple annual files.
 
+Use `npm run canue:bc:sync:all-cadences -- --source "/path/to/2026 pull"`
+for the flat 2026 CANUE pull when monthly files should also be imported.
+Monthly files stay as raw monthly columns in the derived CSVs; the app can show
+a single month, a year average, an all-years average, or a year-range average.
+Use `npm run canue:bc:sync:monthly` for the lighter monthly-only path; it writes
+gzip files directly and avoids the large uncompressed intermediate CSV folder.
+
 By default, the script uses the local CANUE path under Google Drive and extracts the latest
 available year from each annual archive. Override the source or year selection when needed:
 
@@ -24,6 +31,9 @@ available year from each annual archive. Override the source or year selection w
 PG_CANUE_DIR="/path/to/Canue" npm run canue:bc:sync
 node scripts/sync-canue-bc.mjs --years 2016,2019,2021
 node scripts/sync-canue-bc.mjs --all-years
+node scripts/sync-canue-bc.mjs --all-years --cadence both --source "/path/to/2026 pull"
+node scripts/sync-canue-bc.mjs --all-years --cadence monthly --gzip true --source "/path/to/2026 pull"
+node scripts/sync-canue-bc.mjs --all-years --cadence both --include "pm25dal*,aqsmk_*"
 node scripts/sync-canue-bc.mjs --boundary-path none
 ```
 

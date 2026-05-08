@@ -15,6 +15,8 @@
     "cimd:sync": "node scripts/sync-cimd.mjs",
     "canue:bc:sync": "node scripts/sync-canue-bc.mjs",
     "canue:bc:sync:all-years": "node scripts/sync-canue-bc.mjs --all-years true",
+    "canue:bc:sync:all-cadences": "node scripts/sync-canue-bc.mjs --all-years true --cadence both",
+    "canue:bc:sync:monthly": "node scripts/sync-canue-bc.mjs --all-years true --cadence monthly --gzip true",
     "canue:bc:membership": "node scripts/build-canue-postal-membership.mjs",
     "canue:bc:gzip": "node scripts/gzip-canue-csv.mjs",
     "canue:bc:boundaries": "node scripts/build-canue-boundary-aggregates.mjs",
@@ -28,7 +30,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "e2e": "playwright test",
-    "e2e:headed": "playwright test --headed"
+    "e2e:headed": "playwright test --headed",
+    "walkability:build": "node scripts/build-walkability-web.mjs"
   },
   "dependencies": {
     "@firstform/json-url": "file:vendor/json-url",

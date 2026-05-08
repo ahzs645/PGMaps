@@ -1,0 +1,141 @@
+{
+  "generatedAt": "2026-05-08T06:02:14.627Z",
+  "geography": "City of Prince George community boundaries",
+  "output": "/data/walkability/community_walkability.geojson",
+  "sourcePolicy": "Web-source-only recalculation from CityPG ArcGIS REST layers and ICBC public crash exports. The 2017 pedestrian-network study extraction is used only to choose variant concepts and proximity-oriented metric families.",
+  "variants": [
+    {
+      "id": "balanced",
+      "label": "Balanced walkability",
+      "description": "Infrastructure, destinations, transit, intersections, and pedestrian-safety burden.",
+      "weights": {
+        "sidewalkDensity": 0.24,
+        "walkwayDensity": 0.14,
+        "intersectionDensity": 0.18,
+        "transitStopDensity": 0.16,
+        "parkAmenityDensity": 0.14,
+        "pedestrianSafety": 0.14
+      }
+    },
+    {
+      "id": "infrastructure",
+      "label": "Pedestrian infrastructure",
+      "description": "Sidewalk, walkway, and intersection density.",
+      "weights": {
+        "sidewalkDensity": 0.5,
+        "walkwayDensity": 0.25,
+        "intersectionDensity": 0.25
+      }
+    },
+    {
+      "id": "access",
+      "label": "Access to daily movement",
+      "description": "Transit stops, parks and recreation amenities, and intersection density.",
+      "weights": {
+        "transitStopDensity": 0.35,
+        "parkAmenityDensity": 0.35,
+        "intersectionDensity": 0.3
+      }
+    },
+    {
+      "id": "safetyAdjusted",
+      "label": "Safety-adjusted walkability",
+      "description": "Balanced score with extra penalty for mapped pedestrian crash concentration.",
+      "weights": {
+        "sidewalkDensity": 0.22,
+        "walkwayDensity": 0.12,
+        "intersectionDensity": 0.14,
+        "transitStopDensity": 0.14,
+        "parkAmenityDensity": 0.12,
+        "pedestrianSafety": 0.26
+      }
+    }
+  ],
+  "metrics": [
+    {
+      "id": "sidewalkDensity",
+      "label": "Sidewalk km per sq km",
+      "direction": "higherIsBetter"
+    },
+    {
+      "id": "walkwayDensity",
+      "label": "Walkway km per sq km",
+      "direction": "higherIsBetter"
+    },
+    {
+      "id": "intersectionDensity",
+      "label": "Road intersections per sq km",
+      "direction": "higherIsBetter"
+    },
+    {
+      "id": "transitStopDensity",
+      "label": "Transit stops per sq km",
+      "direction": "higherIsBetter"
+    },
+    {
+      "id": "parkAmenityDensity",
+      "label": "Park facilities and playing areas per sq km",
+      "direction": "higherIsBetter"
+    },
+    {
+      "id": "pedestrianSafety",
+      "label": "Inverse pedestrian crash density",
+      "direction": "lowerCrashDensityIsBetter"
+    }
+  ],
+  "sources": [
+    {
+      "id": "communities",
+      "label": "CityPG community boundaries",
+      "url": "https://gishub.princegeorge.ca/server/rest/services/GroupMapServices/Community_Information/FeatureServer/1",
+      "localPath": "public/data/citypg/community_boundaries.geojson"
+    },
+    {
+      "id": "sidewalks",
+      "label": "CityPG sidewalks",
+      "url": "https://gishub.princegeorge.ca/server/rest/services/GroupMapServices/Transportation_Infrastructure/FeatureServer/0",
+      "localPath": "public/data/citypg/sidewalks.geojson"
+    },
+    {
+      "id": "walkways",
+      "label": "CityPG walkways",
+      "url": "https://gishub.princegeorge.ca/server/rest/services/GroupMapServices/Transportation_Infrastructure/FeatureServer/1",
+      "localPath": "public/data/citypg/walkways.geojson"
+    },
+    {
+      "id": "intersections",
+      "label": "CityPG road intersections",
+      "url": "https://gishub.princegeorge.ca/server/rest/services/GroupMapServices/Transportation_Infrastructure/MapServer/8",
+      "localPath": "public/data/citypg/road_intersections.geojson"
+    },
+    {
+      "id": "transitStops",
+      "label": "CityPG transit bus stops",
+      "url": "https://gishub.princegeorge.ca/server/rest/services/GroupMapServices/Transit_Features/MapServer/0",
+      "localPath": "public/data/citypg/transit_bus_stops.geojson"
+    },
+    {
+      "id": "parkFacilities",
+      "label": "CityPG park facilities",
+      "url": "https://gishub.princegeorge.ca/server/rest/services/GroupMapServices/Parks/FeatureServer/19",
+      "localPath": "public/data/citypg/parks_facilities.geojson"
+    },
+    {
+      "id": "parkPlayingAreas",
+      "label": "CityPG park playing areas",
+      "url": "https://gishub.princegeorge.ca/server/rest/services/GroupMapServices/Parks/FeatureServer/20",
+      "localPath": "public/data/citypg/parks_playing_areas.geojson"
+    },
+    {
+      "id": "pedestrianCrashes",
+      "label": "ICBC pedestrian crash locations",
+      "url": "https://public.tableau.com/app/profile/icbc/viz/LowerMainlandCrashes/LMDashboard",
+      "localPath": "public/data/icbc/prince_george_pedestrian_crashes.geojson"
+    }
+  ],
+  "caveats": [
+    "Line lengths are assigned to the community containing each feature centroid, so boundary-crossing features are not split.",
+    "Scores are min-max normalized within Prince George communities and are relative local indices, not audited engineering ratings.",
+    "Crash counts reflect mapped ICBC summary locations and should be interpreted as reported-location concentration, not exposure-adjusted risk."
+  ]
+}

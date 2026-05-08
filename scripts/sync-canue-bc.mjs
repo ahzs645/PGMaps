@@ -1,8 +1,9 @@
 import { createInterface } from 'node:readline'
-import { createWriteStream } from 'node:fs'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { createReadStream, createWriteStream, existsSync } from 'node:fs'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
+import { createGzip } from 'node:zlib'
 import { booleanPointInPolygon, bbox, point } from '@turf/turf'
 
 const DEFAULT_SOURCE =
@@ -23,8 +24,18 @@ const requestedYears = new Set(
     .map((year) => year.trim())
     .filter(Boolean),
 )
+const requestedCadence = String(args.cadence || 'annual').toLowerCase()
+const includePatterns = String(args.include || '')
+  .split(',')
+  .map((pattern) => pattern.trim())
+  .filter(Boolean)
+  .map((pattern) => new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`))
 const latestOnly = args['all-years'] !== 'true'
+const resume = args.resume === 'true'
+const gzipOutput = args.gzip === 'true'
+const outputDataDir = gzipOutput ? 'annual-gzip' : 'annual'
 let boundaryIndex = []
+const locationCache = new Map()
 
 function parseArgs(argv) {
   const parsed = {}
@@ -49,6 +60,10 @@ function unzipStream(zipPath, member) {
     throw error
   })
   return child.stdout
+}
+
+function byteCount(text) {
+  return Buffer.byteLength(text)
 }
 
 function unzipList(zipPath) {
@@ -127,15 +142,71 @@ function yearFromName(name) {
   const match = name.match(/_(\d{2})\.csv$/)
   if (!match) return null
   const yy = Number(match[1])
-  return yy >= 90 ? 1900 + yy : 2000 + yy
+  return yy >= 80 ? 1900 + yy : 2000 + yy
 }
 
 function datasetIdFromCsvName(name) {
   return path.basename(name, '.csv').replace(/_\d{2}$/, '')
 }
 
+function archiveDatasetId(zipPath) {
+  const base = path.basename(zipPath, '.zip')
+  return base.replace(/_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_(annual|monthly)$/i, '')
+}
+
+function archiveCadence(zipPath) {
+  const match = path.basename(zipPath).match(/_(annual|monthly)\.zip$/i)
+  return match ? match[1].toLowerCase() : 'annual'
+}
+
+function cadenceEnabled(cadence) {
+  return requestedCadence === 'both' || requestedCadence === cadence
+}
+
+function datasetEnabled(datasetId) {
+  return includePatterns.length === 0 || includePatterns.some((pattern) => pattern.test(datasetId))
+}
+
 function outputName(datasetId, year) {
   return `${datasetId}_${year}_${PROVINCE.toLowerCase()}.csv`
+}
+
+async function summarizeExistingCsv({ absoluteOutput, relativeOutput, datasetId, label, category, year, cadence, member }) {
+  const rl = createInterface({ input: createReadStream(absoluteOutput), crlfDelay: Infinity })
+  let headers = null
+  let rows = 0
+  let withCoordinates = 0
+  let latitudeIndex = -1
+  let longitudeIndex = -1
+  let variables = []
+
+  for await (const line of rl) {
+    if (!line) continue
+    const values = splitCsvLine(line)
+    if (!headers) {
+      headers = values.map(normalizeHeader)
+      latitudeIndex = headers.indexOf('latitude')
+      longitudeIndex = headers.indexOf('longitude')
+      variables = headers.filter((header) => !['postalcode', 'province', 'year', 'latitude', 'longitude', 'community'].includes(header))
+      continue
+    }
+
+    rows += 1
+    if (values[latitudeIndex] && values[longitudeIndex]) withCoordinates += 1
+  }
+
+  return {
+    datasetId,
+    label,
+    category,
+    cadence,
+    year,
+    sourceMember: member,
+    output: `/data/canue/bc/${relativeOutput}`,
+    rowCount: rows,
+    coordinateCount: withCoordinates,
+    variables,
+  }
 }
 
 function normalizePostalCode(value) {
@@ -185,6 +256,7 @@ function isInsideBoundary(longitude, latitude) {
 }
 
 async function loadLocations(zipPath, year) {
+  if (locationCache.has(year)) return locationCache.get(year)
   const yy = String(year).slice(-2)
   const member = `DMTI_SLI_${yy}.csv`
   const locations = new Map()
@@ -212,22 +284,31 @@ async function loadLocations(zipPath, year) {
     })
   }
 
+  locationCache.set(year, locations)
   return locations
 }
 
-async function extractVariableCsv({ zipPath, member, datasetId, label, category, year }) {
-  const locations = await loadLocations(zipPath, year)
-  const relativeOutput = path.posix.join('annual', outputName(datasetId, year))
+async function extractVariableCsv({ zipPath, member, datasetId, label, category, year, cadence }) {
+  const relativeOutput = path.posix.join(outputDataDir, `${outputName(datasetId, year)}${gzipOutput ? '.gz' : ''}`)
   const absoluteOutput = path.join(OUTPUT_DIR, relativeOutput)
+  if (resume && existsSync(absoluteOutput)) {
+    return summarizeExistingCsv({ absoluteOutput, relativeOutput, datasetId, label, category, year, cadence, member })
+  }
+
+  const locations = await loadLocations(zipPath, year)
   await mkdir(path.dirname(absoluteOutput), { recursive: true })
 
-  const output = createWriteStream(absoluteOutput)
+  const fileOutput = createWriteStream(absoluteOutput)
+  const gzip = gzipOutput ? createGzip({ level: 9 }) : null
+  const output = gzip ?? fileOutput
+  if (gzip) gzip.pipe(fileOutput)
   const rl = createInterface({ input: unzipStream(zipPath, member), crlfDelay: Infinity })
   let headers = null
   let postalIndex = -1
   let provinceIndex = -1
   let rows = 0
   let withCoordinates = 0
+  let sourceSize = 0
   let variables = []
   let variableIndexes = []
 
@@ -242,7 +323,9 @@ async function extractVariableCsv({ zipPath, member, datasetId, label, category,
         .map((header, index) => ({ header, index }))
         .filter((entry) => entry.index !== postalIndex && entry.index !== provinceIndex)
       variables = variableIndexes.map((entry) => entry.header)
-      output.write(['postalcode', 'province', 'year', 'latitude', 'longitude', 'community', ...variables].join(',') + '\n')
+      const outputLine = ['postalcode', 'province', 'year', 'latitude', 'longitude', 'community', ...variables].join(',') + '\n'
+      sourceSize += byteCount(outputLine)
+      output.write(outputLine)
       continue
     }
 
@@ -253,37 +336,55 @@ async function extractVariableCsv({ zipPath, member, datasetId, label, category,
     if (!location) continue
     if (location.latitude && location.longitude) withCoordinates += 1
     const variableValues = variableIndexes.map((entry) => values[entry.index] ?? '')
-    output.write(
-      [postalCode, province || PROVINCE, year, location.latitude, location.longitude, location.community, ...variableValues]
-        .map(csvValue)
-        .join(',') + '\n',
-    )
+    const outputLine = [postalCode, province || PROVINCE, year, location.latitude, location.longitude, location.community, ...variableValues]
+      .map(csvValue)
+      .join(',') + '\n'
+    sourceSize += byteCount(outputLine)
+    output.write(outputLine)
     rows += 1
   }
 
   await new Promise((resolve, reject) => {
-    output.end(resolve)
+    output.end()
+    fileOutput.on('finish', resolve)
     output.on('error', reject)
+    fileOutput.on('error', reject)
   })
+  const outputStats = await stat(absoluteOutput)
 
   return {
     datasetId,
     label,
     category,
+    cadence,
     year,
     sourceMember: member,
     output: `/data/canue/bc/${relativeOutput}`,
     rowCount: rows,
     coordinateCount: withCoordinates,
     variables,
+    ...(gzipOutput ? {
+      compression: 'gzip',
+      sourceCsv: `/data/canue/bc/annual/${outputName(datasetId, year)}`,
+      sourceSize,
+      gzipSize: outputStats.size,
+      compressionRatio: sourceSize ? Number((outputStats.size / sourceSize).toFixed(4)) : null,
+    } : {}),
   }
 }
 
-function selectVariableMembers(members) {
+function selectVariableMembers(members, zipPath) {
+  const cadence = archiveCadence(zipPath)
+  const archiveId = archiveDatasetId(zipPath)
   const variableMembers = members
     .filter((member) => member.endsWith('.csv'))
     .filter((member) => !member.startsWith('DMTI_SLI_'))
-    .map((member) => ({ member, year: yearFromName(member), datasetId: datasetIdFromCsvName(member) }))
+    .map((member) => ({
+      member,
+      year: yearFromName(member),
+      datasetId: cadence === 'monthly' ? archiveId : datasetIdFromCsvName(member),
+      cadence,
+    }))
     .filter((entry) => entry.year && entry.datasetId)
 
   const filteredByYear = requestedYears.size
@@ -301,23 +402,54 @@ async function main() {
   if (boundaryIndex.length) {
     console.log(`CANUE: clipping postal-code locations to ${path.relative(process.cwd(), BOUNDARY_PATH)}`)
   }
-  const zips = await findZips(path.join(SOURCE_DIR, 'Annual'))
-  await rm(OUTPUT_DIR, { recursive: true, force: true })
-  await mkdir(path.join(OUTPUT_DIR, 'annual'), { recursive: true })
+  const annualRoot = path.join(SOURCE_DIR, 'Annual')
+  const monthlyRoot = path.join(SOURCE_DIR, 'Monthly')
+  const allZips = await findZips(SOURCE_DIR)
+  const zips = allZips.filter((zipPath) => {
+    const cadence = archiveCadence(zipPath)
+    const datasetId = archiveDatasetId(zipPath)
+    if (!cadenceEnabled(cadence)) return false
+    if (!datasetEnabled(datasetId)) return false
+    if (zipPath.includes(`${path.sep}Annual${path.sep}`)) return cadence === 'annual'
+    if (zipPath.includes(`${path.sep}Monthly${path.sep}`)) return cadence === 'monthly'
+    return path.dirname(zipPath) === SOURCE_DIR
+  })
+  if (!resume) await rm(OUTPUT_DIR, { recursive: true, force: true })
+  await mkdir(path.join(OUTPUT_DIR, outputDataDir), { recursive: true })
 
   const files = []
   const datasets = []
+  const skippedArchives = []
+  const seenOutputs = new Set()
 
   for (const zipPath of zips) {
-    const members = await unzipList(zipPath)
-    const variableMembers = selectVariableMembers(members)
+    let members = []
+    try {
+      members = await unzipList(zipPath)
+    } catch (error) {
+      skippedArchives.push({
+        sourceArchive: path.relative(SOURCE_DIR, zipPath),
+        reason: (error instanceof Error ? error.message : String(error)).trim(),
+      })
+      console.warn(`CANUE: skipped unreadable archive ${path.relative(SOURCE_DIR, zipPath)}`)
+      continue
+    }
+    const variableMembers = selectVariableMembers(members, zipPath)
     if (variableMembers.length === 0) continue
 
-    const relativeDir = path.relative(path.join(SOURCE_DIR, 'Annual'), path.dirname(zipPath))
-    const [category = 'CANUE', label = path.basename(path.dirname(zipPath))] = relativeDir.split(path.sep)
+    const cadence = archiveCadence(zipPath)
+    const root = zipPath.includes(`${path.sep}Monthly${path.sep}`) ? monthlyRoot : annualRoot
+    const relativeDir = path.relative(root, path.dirname(zipPath))
+    const archiveId = archiveDatasetId(zipPath)
+    const [category = cadence === 'monthly' ? 'CANUE Monthly' : 'CANUE', label = archiveId] =
+      relativeDir && !relativeDir.startsWith('..') && relativeDir !== '.'
+        ? relativeDir.split(path.sep)
+        : [cadence === 'monthly' ? 'CANUE Monthly' : 'CANUE', archiveId]
     const datasetFiles = []
 
     for (const entry of variableMembers) {
+      const output = `/data/canue/bc/${path.posix.join(outputDataDir, `${outputName(entry.datasetId, entry.year)}${gzipOutput ? '.gz' : ''}`)}`
+      if (seenOutputs.has(output)) continue
       const extracted = await extractVariableCsv({
         zipPath,
         member: entry.member,
@@ -325,7 +457,9 @@ async function main() {
         label,
         category,
         year: entry.year,
+        cadence: entry.cadence,
       })
+      seenOutputs.add(extracted.output)
       files.push(extracted)
       datasetFiles.push(extracted)
       console.log(`${extracted.datasetId} ${extracted.year}: ${extracted.rowCount} ${PROVINCE} rows`)
@@ -346,10 +480,23 @@ async function main() {
     province: PROVINCE,
     boundaryClip: BOUNDARY_PATH ? path.relative(process.cwd(), BOUNDARY_PATH) : null,
     mode: latestOnly && requestedYears.size === 0 ? 'latest-year-per-dataset' : 'selected-years',
+    include: includePatterns.length ? String(args.include || '').split(',').map((pattern) => pattern.trim()).filter(Boolean) : null,
+    skippedArchives,
     datasets,
     files,
   }
   await writeFile(path.join(OUTPUT_DIR, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+  if (gzipOutput) {
+    await writeFile(path.join(OUTPUT_DIR, outputDataDir, 'manifest.json'), `${JSON.stringify({
+      ...manifest,
+      compression: {
+        format: 'gzip',
+        level: 9,
+        sourceBytes: files.reduce((sum, file) => sum + (file.sourceSize || 0), 0),
+        gzipBytes: files.reduce((sum, file) => sum + (file.gzipSize || 0), 0),
+      },
+    }, null, 2)}\n`)
+  }
   console.log(`CANUE: wrote ${files.length} BC files to ${OUTPUT_DIR}`)
 }
 

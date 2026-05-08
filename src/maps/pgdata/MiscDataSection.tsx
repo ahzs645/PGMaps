@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ElementType } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Database, Flame, Satellite, Trees } from 'lucide-react'
+import { Database, Flame, Footprints, Satellite, ShieldAlert, Trees } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -31,8 +31,8 @@ interface HeatShadeManifest {
 type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
 
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
-type MiscDataTab = 'heatShade' | 'canue'
-type CanueYearMode = 'single' | 'all' | 'range'
+type MiscDataTab = 'heatShade' | 'canue' | 'icbc' | 'walkability'
+type CanueYearMode = 'single' | 'month' | 'all' | 'range'
 type CanueBoundarySource = 'bcHealth' | 'census' | 'cityPG'
 type CanueBoundaryLevel =
   | 'healthAuthority'
@@ -51,6 +51,7 @@ interface CanueFile {
   datasetId: string
   label: string
   category: string
+  cadence?: 'annual' | 'monthly'
   year: number
   output: string
   rowCount: number
@@ -109,6 +110,93 @@ interface CanuePostalMembership {
   records: CanuePostalMembershipRecord[]
 }
 
+interface IcbcManifestDataset {
+  id: string
+  title: string
+  sourceUrl: string
+  csv: string
+  geojson: string
+  rows: number
+  geocodedRows: number
+  fields: string[]
+}
+
+interface IcbcManifest {
+  source: string
+  sourceProfile: string
+  sourceLicense: string
+  city: string
+  generatedAt: string
+  datasets: IcbcManifestDataset[]
+}
+
+interface WalkabilityVariant {
+  id: string
+  label: string
+  description: string
+}
+
+interface WalkabilityMetric {
+  id: string
+  label: string
+  direction: string
+}
+
+interface WalkabilitySource {
+  id: string
+  label: string
+  url: string
+  localPath: string
+}
+
+interface WalkabilityManifest {
+  generatedAt: string
+  geography: string
+  output: string
+  sourcePolicy: string
+  variants: WalkabilityVariant[]
+  metrics: WalkabilityMetric[]
+  sources: WalkabilitySource[]
+  caveats: string[]
+}
+
+type WalkabilityProperties = {
+  communityId: string
+  communityName: string
+  areaSqKm: number
+  sidewalkKm: number
+  walkwayKm: number
+  intersectionCount: number
+  transitStopCount: number
+  parkAmenityCount: number
+  pedestrianCrashCount: number
+  sidewalkDensity: number
+  walkwayDensity: number
+  intersectionDensity: number
+  transitStopDensity: number
+  parkAmenityDensity: number
+  pedestrianCrashDensity: number
+  balancedScore: number
+  infrastructureScore: number
+  accessScore: number
+  safetyAdjustedScore: number
+}
+
+type WalkabilityFeature = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, WalkabilityProperties>
+type WalkabilityFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, WalkabilityProperties>
+
+interface IcbcCrashProperties {
+  dataset: string
+  datasetTitle: string
+  location: string
+  municipality: string
+  crashCount: number
+  sourceLocationName: string
+  geocodeMatchType: string
+}
+
+type IcbcCrashFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, IcbcCrashProperties>
+
 const MISC_LAYERS: Array<{ id: MiscLayerId; label: string; color: string }> = [
   { id: 'trees', label: 'Tree canopy proxy', color: '#16a34a' },
   { id: 'forests', label: 'Forests', color: '#15803d' },
@@ -118,6 +206,8 @@ const MISC_LAYERS: Array<{ id: MiscLayerId; label: string; color: string }> = [
 const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = [
   { id: 'heatShade', label: 'Heat & Shade', icon: Trees },
   { id: 'canue', label: 'CANUE', icon: Database },
+  { id: 'icbc', label: 'ICBC', icon: ShieldAlert },
+  { id: 'walkability', label: 'Walkability', icon: Footprints },
 ]
 
 const CANUE_BOUNDARY_SOURCE_OPTIONS: Array<StudyAreaSourceOption<CanueBoundarySource>> = [
@@ -234,6 +324,13 @@ const CANUE_DEFAULT_VARIABLE_BY_DATASET: Partial<Record<string, string>> = {
 }
 
 const CANUE_INVALID_NUMERIC_VALUES = new Set([-9999, -1111])
+const WALKABILITY_DEFAULT_VARIANT = 'balanced'
+const WALKABILITY_SCORE_FIELD_BY_VARIANT: Record<string, keyof WalkabilityProperties> = {
+  balanced: 'balancedScore',
+  infrastructure: 'infrastructureScore',
+  access: 'accessScore',
+  safetyAdjusted: 'safetyAdjustedScore',
+}
 
 const CANUE_EXACT_VARIABLE_LABELS: Record<string, string> = {
   pm25dal21_01: 'Annual mean PM2.5',
@@ -325,6 +422,23 @@ const CANUE_SUFFIX_LABELS_BY_DATASET: Record<string, Record<string, string>> = {
 }
 
 const BC_CENTER: [number, number] = [-124.6, 54.4]
+const CANUE_MONTHS = [
+  { value: 1, key: 'jan', label: 'January' },
+  { value: 2, key: 'feb', label: 'February' },
+  { value: 3, key: 'mar', label: 'March' },
+  { value: 4, key: 'apr', label: 'April' },
+  { value: 5, key: 'may', label: 'May' },
+  { value: 6, key: 'jun', label: 'June' },
+  { value: 7, key: 'jul', label: 'July' },
+  { value: 8, key: 'aug', label: 'August' },
+  { value: 9, key: 'sep', label: 'September' },
+  { value: 10, key: 'oct', label: 'October' },
+  { value: 11, key: 'nov', label: 'November' },
+  { value: 12, key: 'dec', label: 'December' },
+] as const
+
+const CANUE_MONTH_BY_VALUE: Map<number, (typeof CANUE_MONTHS)[number]> = new Map(CANUE_MONTHS.map((month) => [month.value, month]))
+const CANUE_MONTH_PATTERN = /_(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)_\d{2}$/i
 
 function formatDate(value: string | undefined): string {
   if (!value) return 'Unknown'
@@ -340,9 +454,23 @@ function formatNullableNumber(value: number | null | undefined): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: 3 })
 }
 
+function getIcbcMarkerSize(crashCount: number, maxCrashCount: number): number {
+  if (!Number.isFinite(crashCount) || crashCount <= 0) return 8
+  if (!Number.isFinite(maxCrashCount) || maxCrashCount <= 0) return 8
+  return Math.max(8, Math.min(28, 7 + Math.sqrt(crashCount / maxCrashCount) * 22))
+}
+
 function getCanueVariableLabel(file: CanueFile | null, variable: string): string {
   if (!file) return variable
   if (CANUE_EXACT_VARIABLE_LABELS[variable]) return CANUE_EXACT_VARIABLE_LABELS[variable]
+  if (file.cadence === 'monthly') {
+    if (variable === 'pm25') return 'Monthly PM2.5'
+    if (variable.startsWith('aqsmk')) return 'Monthly smoke PM2.5'
+    if (variable.startsWith('aqozn_8h')) return 'Monthly ozone 8-hour'
+    if (variable.startsWith('aqozn_mn')) return 'Monthly ozone mean'
+    if (variable.startsWith('aqno2')) return 'Monthly NO2'
+    return `${file.label} monthly measure`
+  }
 
   const match = variable.match(/_(\d+)$/)
   const suffix = match?.[1]
@@ -366,23 +494,46 @@ function getCanueVariableLabel(file: CanueFile | null, variable: string): string
 function getDefaultCanueVariable(file: CanueFile): string | null {
   const preferred = CANUE_DEFAULT_VARIABLE_BY_DATASET[file.datasetId]
   if (preferred && file.variables.includes(preferred)) return preferred
-  return file.variables[0] ?? null
+  return getSelectableCanueVariables(file)[0] ?? null
 }
 
 function getCanueVariableSuffix(variable: string | null): string | null {
   return variable?.match(/_(\d+)$/)?.[1] ?? null
 }
 
-function findCanueVariableForFile(file: CanueFile, selectedVariable: string): string | null {
-  if (file.variables.includes(selectedVariable)) return selectedVariable
-  const suffix = getCanueVariableSuffix(selectedVariable)
-  if (!suffix) return null
-  return file.variables.find((variable) => getCanueVariableSuffix(variable) === suffix) ?? null
+function getCanueVariableFamily(variable: string): string {
+  return variable.replace(CANUE_MONTH_PATTERN, '')
 }
 
-function getCanuePeriodLabel(files: CanueFile[], mode: CanueYearMode): string {
+function getSelectableCanueVariables(file: CanueFile): string[] {
+  if (file.cadence !== 'monthly') return file.variables
+  return Array.from(new Set(file.variables.map(getCanueVariableFamily)))
+}
+
+function findCanueVariablesForFile(file: CanueFile, selectedVariable: string, month: number | null): string[] {
+  if (file.cadence === 'monthly') {
+    const family = getCanueVariableFamily(selectedVariable)
+    const monthKey = month ? CANUE_MONTH_BY_VALUE.get(month)?.key : null
+    return file.variables.filter((variable) => {
+      if (getCanueVariableFamily(variable) !== family) return false
+      return monthKey ? variable.toLowerCase().includes(`_${monthKey}_`) : true
+    })
+  }
+
+  if (file.variables.includes(selectedVariable)) return [selectedVariable]
+  const suffix = getCanueVariableSuffix(selectedVariable)
+  if (!suffix) return []
+  const matched = file.variables.find((variable) => getCanueVariableSuffix(variable) === suffix)
+  return matched ? [matched] : []
+}
+
+function getCanuePeriodLabel(files: CanueFile[], mode: CanueYearMode, month: number | null): string {
   if (!files.length) return 'No years'
-  if (files.length === 1) return String(files[0].year)
+  if (mode === 'month') {
+    const monthLabel = CANUE_MONTH_BY_VALUE.get(month ?? 1)?.label ?? 'Month'
+    return `${monthLabel} ${files[0].year}`
+  }
+  if (files.length === 1) return files[0].cadence === 'monthly' ? `${files[0].year} average` : String(files[0].year)
   const years = files.map((file) => file.year).sort((a, b) => a - b)
   const range = `${years[0]}-${years[years.length - 1]}`
   return mode === 'single' ? String(files[0].year) : `${range} average`
@@ -484,6 +635,7 @@ function useCanueBoundaryData(
   boundaryLevel: CanueBoundaryLevel,
   membership: CanuePostalMembership | null,
   yearMode: CanueYearMode,
+  month: number | null,
 ): CanueBoundaryResult {
   const [result, setResult] = useState<CanueBoundaryResult>({
     data: { type: 'FeatureCollection', features: [] },
@@ -516,6 +668,7 @@ function useCanueBoundaryData(
     const activeBoundaryLevel = boundaryLevel
     const boundaryConfig = CANUE_BOUNDARY_CONFIG[boundaryLevel]
     const activeVariable = variable
+    const activeMonth = month
 
     async function load() {
       setResult((current) => ({ ...current, loading: true, error: null }))
@@ -544,17 +697,17 @@ function useCanueBoundaryData(
         let matchedRowCount = 0
 
         for (const activeFile of activeFiles) {
-          const fileVariable = findCanueVariableForFile(activeFile, activeVariable)
-          if (!fileVariable) throw new Error(`${activeFile.label} ${activeFile.year} is missing ${activeVariable}`)
+          const fileVariables = findCanueVariablesForFile(activeFile, activeVariable, activeFile.cadence === 'monthly' && yearMode === 'month' ? activeMonth : null)
+          if (!fileVariables.length) throw new Error(`${activeFile.label} ${activeFile.year} is missing ${activeVariable}`)
 
           const text = await fetchGzipText(activeFile.output, controller.signal)
           const lines = text.split(/\r?\n/)
           const headers = splitCsvLine(lines[0] ?? '')
           const postalIndex = headers.indexOf('postalcode')
-          const variableIndex = headers.indexOf(fileVariable)
+          const variableIndexes = fileVariables.map((fileVariable) => headers.indexOf(fileVariable))
 
-          if (postalIndex < 0 || variableIndex < 0) {
-            throw new Error(`CANUE file is missing postalcode or ${fileVariable}`)
+          if (postalIndex < 0 || variableIndexes.some((variableIndex) => variableIndex < 0)) {
+            throw new Error(`CANUE file is missing postalcode or ${fileVariables.join(', ')}`)
           }
 
           for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
@@ -568,16 +721,18 @@ function useCanueBoundaryData(
             bucket.rowCount += 1
             matchedRowCount += 1
 
-            const value = Number(values[variableIndex])
-            if (!Number.isFinite(value) || CANUE_INVALID_NUMERIC_VALUES.has(value)) continue
-            bucket.sum += value
-            bucket.count += 1
-            bucket.min = bucket.min == null ? value : Math.min(bucket.min, value)
-            bucket.max = bucket.max == null ? value : Math.max(bucket.max, value)
-            const yearBucket = bucket.years.get(activeFile.year) ?? { sum: 0, count: 0 }
-            yearBucket.sum += value
-            yearBucket.count += 1
-            bucket.years.set(activeFile.year, yearBucket)
+            for (const variableIndex of variableIndexes) {
+              const value = Number(values[variableIndex])
+              if (!Number.isFinite(value) || CANUE_INVALID_NUMERIC_VALUES.has(value)) continue
+              bucket.sum += value
+              bucket.count += 1
+              bucket.min = bucket.min == null ? value : Math.min(bucket.min, value)
+              bucket.max = bucket.max == null ? value : Math.max(bucket.max, value)
+              const yearBucket = bucket.years.get(activeFile.year) ?? { sum: 0, count: 0 }
+              yearBucket.sum += value
+              yearBucket.count += 1
+              bucket.years.set(activeFile.year, yearBucket)
+            }
           }
         }
 
@@ -609,7 +764,7 @@ function useCanueBoundaryData(
               category: activeFiles[0]?.category,
               year: activeFiles.length === 1 ? activeFiles[0].year : null,
               yearMode,
-              yearLabel: getCanuePeriodLabel(activeFiles, yearMode),
+              yearLabel: getCanuePeriodLabel(activeFiles, yearMode, activeMonth),
               rowCount: bucket?.rowCount ?? 0,
               [activeVariable]: value,
               [`${activeVariable}_count`]: bucket?.count ?? 0,
@@ -657,7 +812,7 @@ function useCanueBoundaryData(
 
     void load()
     return () => controller.abort()
-  }, [boundaries, boundaryLevel, files, membership, variable, yearMode])
+  }, [boundaries, boundaryLevel, files, membership, month, variable, yearMode])
 
   return result
 }
@@ -665,7 +820,10 @@ function useCanueBoundaryData(
 export default function MiscDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [showSidebar, setShowSidebar] = useState(true)
-  const [activeTab, setActiveTab] = useState<MiscDataTab>(() => searchParams.get('tab') === 'heatShade' ? 'heatShade' : 'canue')
+  const [activeTab, setActiveTab] = useState<MiscDataTab>(() => {
+    const tab = searchParams.get('tab')
+    return tab === 'heatShade' || tab === 'icbc' || tab === 'walkability' ? tab : 'canue'
+  })
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
   const [canueBoundarySource, setCanueBoundarySource] = useState<CanueBoundarySource>('bcHealth')
   const [canueBoundaryLevel, setCanueBoundaryLevel] = useState<CanueBoundaryLevel>('chsa')
@@ -678,14 +836,27 @@ export default function MiscDataSection() {
   const [canueYearMode, setCanueYearMode] = useState<CanueYearMode>(() => (searchParams.get('years') as CanueYearMode) || 'single')
   const [canueRangeStartYear, setCanueRangeStartYear] = useState<number | null>(null)
   const [canueRangeEndYear, setCanueRangeEndYear] = useState<number | null>(null)
+  const [selectedCanueMonth, setSelectedCanueMonth] = useState<number>(() => {
+    const month = Number(searchParams.get('month'))
+    return Number.isFinite(month) && month >= 1 && month <= 12 ? month : 1
+  })
   const [selectedCanueVariable, setSelectedCanueVariable] = useState<string | null>(null)
   const [selectedCanueBoundaryId, setSelectedCanueBoundaryId] = useState<string | null>(null)
+  const [selectedIcbcDatasetId, setSelectedIcbcDatasetId] = useState<string | null>(() => searchParams.get('icbcDataset'))
+  const [selectedIcbcLocation, setSelectedIcbcLocation] = useState<string | null>(null)
+  const [selectedWalkabilityVariantId, setSelectedWalkabilityVariantId] = useState<string>(() => searchParams.get('walkability') || WALKABILITY_DEFAULT_VARIANT)
+  const [selectedWalkabilityCommunityId, setSelectedWalkabilityCommunityId] = useState<string | null>(null)
   const { trees, forests, facilities, loading, error } = useHeatShadeData(activeTab === 'heatShade')
   const heatShadeManifest = useJsonManifest<HeatShadeManifest>(activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null)
   const canueManifest = useJsonManifest<CanueManifest>('/data/canue/bc/annual-gzip/manifest.json')
   const canueMembership = useJsonManifest<CanuePostalMembership>('/data/canue/bc/postal-boundary-membership.json')
   const canueBoundaryConfig = CANUE_BOUNDARY_CONFIG[canueBoundaryLevel]
   const canueBoundaries = useJsonManifest<BoundaryFeatureCollection>(canueBoundaryConfig.path)
+  const icbcManifest = useJsonManifest<IcbcManifest>(activeTab === 'icbc' ? '/data/icbc/manifest.json' : null)
+  const walkabilityManifest = useJsonManifest<WalkabilityManifest>(activeTab === 'walkability' ? '/data/walkability/manifest.json' : null)
+  const walkabilityData = useJsonManifest<WalkabilityFeatureCollection>(
+    activeTab === 'walkability' ? (walkabilityManifest.data?.output ?? '/data/walkability/community_walkability.geojson') : null,
+  )
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -698,17 +869,24 @@ export default function MiscDataSection() {
       else params.delete('year')
       if (canueYearMode !== 'single') params.set('years', canueYearMode)
       else params.delete('years')
+      if (canueYearMode === 'month') params.set('month', String(selectedCanueMonth))
+      else params.delete('month')
       params.set('boundary', canueBoundaryLevel)
     } else {
       params.delete('dataset')
       params.delete('year')
       params.delete('years')
+      params.delete('month')
       params.delete('boundary')
     }
+    if (activeTab === 'icbc' && selectedIcbcDatasetId) params.set('icbcDataset', selectedIcbcDatasetId)
+    else params.delete('icbcDataset')
+    if (activeTab === 'walkability' && selectedWalkabilityVariantId !== WALKABILITY_DEFAULT_VARIANT) params.set('walkability', selectedWalkabilityVariantId)
+    else params.delete('walkability')
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueYear, setSearchParams])
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, selectedIcbcDatasetId, selectedWalkabilityVariantId, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -788,7 +966,7 @@ export default function MiscDataSection() {
     }
     return selectedCanueFile ? [selectedCanueFile] : []
   }, [canueRangeEndYear, canueRangeStartYear, canueYearMode, selectedCanueDataset, selectedCanueFile])
-  const canuePeriodLabel = getCanuePeriodLabel(selectedCanueFiles, canueYearMode)
+  const canuePeriodLabel = getCanuePeriodLabel(selectedCanueFiles, canueYearMode, selectedCanueMonth)
   const canueBoundaryData = useCanueBoundaryData(
     selectedCanueFiles,
     selectedCanueVariable,
@@ -796,6 +974,7 @@ export default function MiscDataSection() {
     canueBoundaryLevel,
     canueMembership.data,
     canueYearMode,
+    selectedCanueMonth,
   )
   const selectedCanueBoundary = useMemo(() => {
     if (!selectedCanueBoundaryId) return null
@@ -831,22 +1010,87 @@ export default function MiscDataSection() {
       ],
     ]
   }, [canueBoundaryData.maxValue, canueBoundaryData.minValue, selectedCanueVariable])
+  const icbcDatasets = icbcManifest.data?.datasets ?? []
+  const selectedIcbcDataset = useMemo(() => {
+    if (!icbcDatasets.length) return null
+    if (selectedIcbcDatasetId) {
+      const selected = icbcDatasets.find((dataset) => dataset.id === selectedIcbcDatasetId)
+      if (selected) return selected
+    }
+    return icbcDatasets[0]
+  }, [icbcDatasets, selectedIcbcDatasetId])
+  const icbcCrashes = useJsonManifest<IcbcCrashFeatureCollection>(
+    activeTab === 'icbc' && selectedIcbcDataset ? selectedIcbcDataset.geojson : null,
+  )
+  const icbcCrashFeatures = icbcCrashes.data?.features ?? []
+  const selectedIcbcCrash = useMemo(() => {
+    if (!selectedIcbcLocation) return null
+    return icbcCrashFeatures.find((feature) => feature.properties.location === selectedIcbcLocation) ?? null
+  }, [icbcCrashFeatures, selectedIcbcLocation])
+  const maxIcbcCrashCount = useMemo(() => (
+    icbcCrashFeatures.reduce((max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0), 0)
+  ), [icbcCrashFeatures])
+  const totalIcbcCrashes = useMemo(() => (
+    icbcCrashFeatures.reduce((sum, feature) => sum + (Number(feature.properties.crashCount) || 0), 0)
+  ), [icbcCrashFeatures])
+  const walkabilityVariants = walkabilityManifest.data?.variants ?? []
+  const selectedWalkabilityVariant = useMemo(() => {
+    if (!walkabilityVariants.length) return null
+    return walkabilityVariants.find((variant) => variant.id === selectedWalkabilityVariantId) ?? walkabilityVariants[0]
+  }, [selectedWalkabilityVariantId, walkabilityVariants])
+  const selectedWalkabilityScoreField = WALKABILITY_SCORE_FIELD_BY_VARIANT[selectedWalkabilityVariant?.id ?? WALKABILITY_DEFAULT_VARIANT] ?? 'balancedScore'
+  const walkabilityFeatures = walkabilityData.data?.features ?? []
+  const selectedWalkabilityCommunity = useMemo<WalkabilityFeature | null>(() => {
+    if (!selectedWalkabilityCommunityId) return null
+    return walkabilityFeatures.find((feature) => String(feature.properties.communityId) === selectedWalkabilityCommunityId) ?? null
+  }, [selectedWalkabilityCommunityId, walkabilityFeatures])
+  const walkabilityScores = useMemo(() => (
+    walkabilityFeatures.map((feature) => Number(feature.properties[selectedWalkabilityScoreField])).filter(Number.isFinite)
+  ), [selectedWalkabilityScoreField, walkabilityFeatures])
+  const walkabilityMinScore = walkabilityScores.length ? Math.min(...walkabilityScores) : 0
+  const walkabilityMaxScore = walkabilityScores.length ? Math.max(...walkabilityScores) : 100
+  const walkabilityFillColor = useMemo(() => {
+    const low = walkabilityMinScore
+    const high = walkabilityMaxScore !== low ? walkabilityMaxScore : low + 1
+    const mid = low + ((high - low) / 2)
+
+    return [
+      'case',
+      ['!', ['has', selectedWalkabilityScoreField]],
+      '#e5e7eb',
+      ['==', ['get', selectedWalkabilityScoreField], null],
+      '#e5e7eb',
+      [
+        'interpolate',
+        ['linear'],
+        ['to-number', ['get', selectedWalkabilityScoreField]],
+        low,
+        '#f97316',
+        mid,
+        '#facc15',
+        high,
+        '#22c55e',
+      ],
+    ]
+  }, [selectedWalkabilityScoreField, walkabilityMaxScore, walkabilityMinScore])
   const heatShadeSources = heatShadeManifest.data?.sources ?? []
   const landsatSource = heatShadeSources.find((source) => source.kind === 'historicalNdviLst')
   const canueMapCenter = canueBoundarySource === 'bcHealth' ? BC_CENTER : PG_CENTER
   const canueMapZoom = canueBoundarySource === 'bcHealth' ? 4.4 : canueBoundarySource === 'cityPG' ? 10.2 : 9.4
   const mapCenter = activeTab === 'canue' ? canueMapCenter : PG_CENTER
-  const mapZoom = activeTab === 'canue' ? canueMapZoom : 11
+  const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'icbc' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
   const mapKey = activeTab === 'canue' ? `${activeTab}-${canueBoundarySource}` : activeTab
 
   useEffect(() => {
     if (!selectedCanueDataset || !selectedCanueFile) return
     if (selectedCanueDatasetId !== selectedCanueDataset.datasetId) setSelectedCanueDatasetId(selectedCanueDataset.datasetId)
     if (selectedCanueYear !== selectedCanueFile.year) setSelectedCanueYear(selectedCanueFile.year)
-    if (selectedCanueDataset.years.length <= 1 && canueYearMode !== 'single') setCanueYearMode('single')
+    if (selectedCanueFile.cadence !== 'monthly' && canueYearMode === 'month') setCanueYearMode('single')
+    if (selectedCanueDataset.years.length <= 1 && canueYearMode !== 'single' && canueYearMode !== 'month') setCanueYearMode('single')
     if (canueRangeStartYear == null) setCanueRangeStartYear(selectedCanueDataset.years[0])
     if (canueRangeEndYear == null) setCanueRangeEndYear(selectedCanueDataset.years[selectedCanueDataset.years.length - 1])
-    if (!selectedCanueVariable || !selectedCanueFile.variables.includes(selectedCanueVariable)) {
+    const selectableVariables = getSelectableCanueVariables(selectedCanueFile)
+    if (!selectedCanueVariable || !selectableVariables.includes(selectedCanueVariable)) {
       setSelectedCanueVariable(getDefaultCanueVariable(selectedCanueFile))
     }
   }, [
@@ -863,6 +1107,31 @@ export default function MiscDataSection() {
   useEffect(() => {
     setSelectedCanueBoundaryId(null)
   }, [canueBoundaryLevel, canuePeriodLabel, selectedCanueDatasetId, selectedCanueVariable])
+
+  useEffect(() => {
+    if (!selectedIcbcDataset && icbcDatasets[0]) {
+      setSelectedIcbcDatasetId(icbcDatasets[0].id)
+      return
+    }
+    if (selectedIcbcDataset && selectedIcbcDatasetId !== selectedIcbcDataset.id) {
+      setSelectedIcbcDatasetId(selectedIcbcDataset.id)
+    }
+  }, [icbcDatasets, selectedIcbcDataset, selectedIcbcDatasetId])
+
+  useEffect(() => {
+    setSelectedIcbcLocation(null)
+  }, [selectedIcbcDatasetId])
+
+  useEffect(() => {
+    if (!walkabilityVariants.length) return
+    if (!walkabilityVariants.some((variant) => variant.id === selectedWalkabilityVariantId)) {
+      setSelectedWalkabilityVariantId(walkabilityVariants[0].id)
+    }
+  }, [selectedWalkabilityVariantId, walkabilityVariants])
+
+  useEffect(() => {
+    setSelectedWalkabilityCommunityId(null)
+  }, [selectedWalkabilityVariantId])
 
   const handleCanueBoundarySourceChange = (source: CanueBoundarySource) => {
     setCanueBoundarySource(source)
@@ -886,8 +1155,20 @@ export default function MiscDataSection() {
 
       <DatasetInfo
         dataset={{
-          ...(activeTab === 'heatShade' ? DATASETS.heatShade : DATASETS.canue),
-          updated: activeTab === 'heatShade' ? heatShadeManifest.data?.generatedAt : canueManifest.data?.generatedAt,
+          ...(activeTab === 'heatShade'
+            ? DATASETS.heatShade
+            : activeTab === 'icbc'
+              ? DATASETS.icbc
+              : activeTab === 'walkability'
+                ? DATASETS.walkability
+                : DATASETS.canue),
+          updated: activeTab === 'heatShade'
+            ? heatShadeManifest.data?.generatedAt
+            : activeTab === 'icbc'
+              ? icbcManifest.data?.generatedAt
+              : activeTab === 'walkability'
+                ? walkabilityManifest.data?.generatedAt
+                : canueManifest.data?.generatedAt,
         }}
       />
 
@@ -1010,15 +1291,16 @@ export default function MiscDataSection() {
                   triggerClassName="h-8 rounded-md text-xs"
                 />
               </label>
-              {selectedCanueDataset && selectedCanueDataset.years.length > 1 && (
+              {selectedCanueDataset && (selectedCanueDataset.years.length > 1 || selectedCanueFile.cadence === 'monthly') && (
                 <div className="space-y-2 rounded-md border border-border bg-muted/15 p-2">
                   <label className="block text-xs font-medium text-foreground">
-                    Years
+                    Time
                     <AppSelect
                       value={canueYearMode}
                       onValueChange={(value) => setCanueYearMode(value as CanueYearMode)}
                       options={[
-                        { value: 'single', label: 'Single year' },
+                        { value: 'single', label: selectedCanueFile.cadence === 'monthly' ? 'Year average' : 'Single year' },
+                        ...(selectedCanueFile.cadence === 'monthly' ? [{ value: 'month', label: 'Single month' }] : []),
                         { value: 'all', label: 'All years average' },
                         { value: 'range', label: 'Year range average' },
                       ]}
@@ -1026,7 +1308,7 @@ export default function MiscDataSection() {
                       triggerClassName="h-8 rounded-md text-xs"
                     />
                   </label>
-                  {canueYearMode === 'single' && (
+                  {(canueYearMode === 'single' || canueYearMode === 'month') && (
                     <label className="block text-xs font-medium text-foreground">
                       Year
                       <AppSelect
@@ -1040,6 +1322,21 @@ export default function MiscDataSection() {
                         options={selectedCanueDataset.years.map((year) => ({
                           value: String(year),
                           label: String(year),
+                        }))}
+                        className="mt-1"
+                        triggerClassName="h-8 rounded-md text-xs"
+                      />
+                    </label>
+                  )}
+                  {canueYearMode === 'month' && selectedCanueFile.cadence === 'monthly' && (
+                    <label className="block text-xs font-medium text-foreground">
+                      Month
+                      <AppSelect
+                        value={String(selectedCanueMonth)}
+                        onValueChange={(month) => setSelectedCanueMonth(Number(month))}
+                        options={CANUE_MONTHS.map((month) => ({
+                          value: String(month.value),
+                          label: month.label,
                         }))}
                         className="mt-1"
                         triggerClassName="h-8 rounded-md text-xs"
@@ -1083,7 +1380,7 @@ export default function MiscDataSection() {
                 <AppSelect
                   value={selectedCanueVariable ?? ''}
                   onValueChange={setSelectedCanueVariable}
-                  options={selectedCanueFile.variables.map((variable) => ({
+                  options={getSelectableCanueVariables(selectedCanueFile).map((variable) => ({
                     value: variable,
                     label: `${getCanueVariableLabel(selectedCanueFile, variable)} (${variable})`,
                   }))}
@@ -1133,6 +1430,160 @@ export default function MiscDataSection() {
         </>
         )}
 
+        {activeTab === 'icbc' && (
+        <>
+        <div className="border-b border-border p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-rose-600" />
+            <h2 className="text-sm font-semibold text-foreground">ICBC Crash Locations</h2>
+          </div>
+          <div className="space-y-3">
+            <label className="block text-xs font-medium text-foreground">
+              Dataset
+              <AppSelect
+                value={selectedIcbcDataset?.id ?? ''}
+                onValueChange={setSelectedIcbcDatasetId}
+                options={icbcDatasets.map((dataset) => ({
+                  value: dataset.id,
+                  label: dataset.title,
+                }))}
+                className="mt-1"
+                triggerClassName="h-8 rounded-md text-xs"
+              />
+            </label>
+
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded border border-border p-2">
+                <div className="text-sm font-bold text-foreground">{selectedIcbcDataset?.rows.toLocaleString() ?? '0'}</div>
+                <div className="text-[10px] text-muted-foreground">rows</div>
+              </div>
+              <div className="rounded border border-border p-2">
+                <div className="text-sm font-bold text-foreground">{icbcCrashFeatures.length.toLocaleString()}</div>
+                <div className="text-[10px] text-muted-foreground">mapped</div>
+              </div>
+              <div className="rounded border border-border p-2">
+                <div className="text-sm font-bold text-foreground">{totalIcbcCrashes.toLocaleString()}</div>
+                <div className="text-[10px] text-muted-foreground">crashes</div>
+              </div>
+            </div>
+
+            {icbcCrashes.error && <div className="text-xs text-red-500">{icbcCrashes.error}</div>}
+            {icbcManifest.error && <div className="text-xs text-red-500">{icbcManifest.error}</div>}
+            <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
+              Points are ICBC crash-location summaries matched to CityPG road-intersection centroids. Unmatched rows remain in the CSV exports.
+            </div>
+          </div>
+        </div>
+
+        {selectedIcbcCrash && (
+          <div className="border-b border-border p-4">
+            <div className="mb-2 text-sm font-semibold text-foreground">Selected Location</div>
+            <div className="rounded-md border border-border bg-background p-3 text-xs">
+              <div className="font-semibold leading-5 text-foreground">{selectedIcbcCrash.properties.location}</div>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Crash count</span>
+                <span className="font-semibold text-foreground">{selectedIcbcCrash.properties.crashCount.toLocaleString()}</span>
+              </div>
+              <div className="mt-1 flex items-start justify-between gap-3">
+                <span className="text-muted-foreground">Matched to</span>
+                <span className="max-w-[12rem] text-right text-foreground">{selectedIcbcCrash.properties.sourceLocationName}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedIcbcLocation(null)}
+                className="mt-3 text-xs font-medium text-rose-600 hover:text-rose-700 dark:text-rose-400"
+              >
+                Clear selection
+              </button>
+            </div>
+          </div>
+        )}
+        </>
+        )}
+
+        {activeTab === 'walkability' && (
+        <>
+        <div className="border-b border-border p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Footprints className="h-4 w-4 text-emerald-600" />
+            <h2 className="text-sm font-semibold text-foreground">Walkability Variants</h2>
+          </div>
+          <div className="space-y-3">
+            <label className="block text-xs font-medium text-foreground">
+              Variant
+              <AppSelect
+                value={selectedWalkabilityVariant?.id ?? selectedWalkabilityVariantId}
+                onValueChange={setSelectedWalkabilityVariantId}
+                options={walkabilityVariants.map((variant) => ({
+                  value: variant.id,
+                  label: variant.label,
+                }))}
+                className="mt-1"
+                triggerClassName="h-8 rounded-md text-xs"
+              />
+            </label>
+
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded border border-border p-2">
+                <div className="text-sm font-bold text-foreground">{walkabilityFeatures.length.toLocaleString()}</div>
+                <div className="text-[10px] text-muted-foreground">communities</div>
+              </div>
+              <div className="rounded border border-border p-2">
+                <div className="text-sm font-bold text-foreground">{formatNullableNumber(walkabilityMinScore)}</div>
+                <div className="text-[10px] text-muted-foreground">low score</div>
+              </div>
+              <div className="rounded border border-border p-2">
+                <div className="text-sm font-bold text-foreground">{formatNullableNumber(walkabilityMaxScore)}</div>
+                <div className="text-[10px] text-muted-foreground">high score</div>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
+              {selectedWalkabilityVariant?.description ?? 'Community walkability is recalculated from web-source layers.'}
+            </div>
+            {walkabilityManifest.error && <div className="text-xs text-red-500">{walkabilityManifest.error}</div>}
+            {walkabilityData.error && <div className="text-xs text-red-500">{walkabilityData.error}</div>}
+          </div>
+        </div>
+
+        {selectedWalkabilityCommunity && (
+          <div className="border-b border-border p-4">
+            <div className="mb-2 text-sm font-semibold text-foreground">Selected Community</div>
+            <div className="rounded-md border border-border bg-background p-3 text-xs">
+              <div className="font-semibold leading-5 text-foreground">{selectedWalkabilityCommunity.properties.communityName}</div>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">{selectedWalkabilityVariant?.label ?? 'Score'}</span>
+                <span className="font-semibold text-foreground">
+                  {formatNullableNumber(Number(selectedWalkabilityCommunity.properties[selectedWalkabilityScoreField]))}
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-muted-foreground">
+                <span>Sidewalk km</span>
+                <span className="text-right text-foreground">{formatNullableNumber(selectedWalkabilityCommunity.properties.sidewalkKm)}</span>
+                <span>Walkway km</span>
+                <span className="text-right text-foreground">{formatNullableNumber(selectedWalkabilityCommunity.properties.walkwayKm)}</span>
+                <span>Intersections</span>
+                <span className="text-right text-foreground">{selectedWalkabilityCommunity.properties.intersectionCount.toLocaleString()}</span>
+                <span>Transit stops</span>
+                <span className="text-right text-foreground">{selectedWalkabilityCommunity.properties.transitStopCount.toLocaleString()}</span>
+                <span>Park amenities</span>
+                <span className="text-right text-foreground">{selectedWalkabilityCommunity.properties.parkAmenityCount.toLocaleString()}</span>
+                <span>Pedestrian crashes</span>
+                <span className="text-right text-foreground">{selectedWalkabilityCommunity.properties.pedestrianCrashCount.toLocaleString()}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedWalkabilityCommunityId(null)}
+                className="mt-3 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+              >
+                Clear selection
+              </button>
+            </div>
+          </div>
+        )}
+        </>
+        )}
+
         <div className="p-4">
           <div className="mb-2 flex items-center gap-2">
             <Flame className="h-4 w-4 text-orange-600" />
@@ -1141,7 +1592,18 @@ export default function MiscDataSection() {
           <div className="space-y-2 text-xs leading-5 text-muted-foreground">
             {activeTab === 'heatShade' && <p>Heat/shade updated {formatDate(heatShadeManifest.data?.generatedAt)}.</p>}
             {activeTab === 'canue' && <p>CANUE raw extracts updated {formatDate(canueManifest.data?.generatedAt)}.</p>}
+            {activeTab === 'icbc' && <p>ICBC exports updated {formatDate(icbcManifest.data?.generatedAt)}.</p>}
+            {activeTab === 'walkability' && <p>Walkability variants updated {formatDate(walkabilityManifest.data?.generatedAt)}.</p>}
+            {activeTab === 'icbc' && selectedIcbcDataset && (
+              <p>{selectedIcbcDataset.geocodedRows.toLocaleString()} of {selectedIcbcDataset.rows.toLocaleString()} source rows have map coordinates.</p>
+            )}
+            {activeTab === 'walkability' && (
+              <p>{walkabilityManifest.data?.sourcePolicy ?? 'Web-source-only community scores from public map layers.'}</p>
+            )}
             {activeTab === 'heatShade' && (heatShadeManifest.data?.caveats ?? []).slice(0, 2).map((caveat) => (
+              <p key={caveat}>{caveat}</p>
+            ))}
+            {activeTab === 'walkability' && (walkabilityManifest.data?.caveats ?? []).slice(0, 2).map((caveat) => (
               <p key={caveat}>{caveat}</p>
             ))}
           </div>
@@ -1180,12 +1642,16 @@ export default function MiscDataSection() {
       mobilePeek={(
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">
-            MISC Data | {activeTab === 'canue' ? 'CANUE' : 'Heat/shade'}
+            MISC Data | {activeTab === 'canue' ? 'CANUE' : activeTab === 'icbc' ? 'ICBC' : activeTab === 'walkability' ? 'Walkability' : 'Heat/shade'}
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
             {activeTab === 'canue'
               ? `${selectedCanueDataset?.label || 'Dataset'} | ${canuePeriodLabel}`
-              : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
+              : activeTab === 'icbc'
+                ? `${selectedIcbcDataset?.title || 'Crash locations'} | ${icbcCrashFeatures.length.toLocaleString()} mapped`
+                : activeTab === 'walkability'
+                  ? `${selectedWalkabilityVariant?.label || 'Variant'} | ${walkabilityFeatures.length.toLocaleString()} communities`
+                  : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
           </div>
         </div>
       )}
@@ -1236,11 +1702,53 @@ export default function MiscDataSection() {
               onFeatureClick={setSelectedCanueBoundaryId}
             />
           )}
+
+          {activeTab === 'walkability' && walkabilityFeatures.length > 0 && (
+            <MapFillLayer
+              data={walkabilityData.data ?? { type: 'FeatureCollection', features: [] }}
+              fillColor={walkabilityFillColor}
+              fillOpacity={0.76}
+              lineColor="#047857"
+              lineWidth={0.9}
+              lineOpacity={0.65}
+              idProperty="communityId"
+              selectedId={selectedWalkabilityCommunityId}
+              selectionColor="#064e3b"
+              selectionWidth={2.2}
+              onFeatureClick={setSelectedWalkabilityCommunityId}
+            />
+          )}
+
+          {activeTab === 'icbc' && icbcCrashFeatures.map((feature) => {
+            const [longitude, latitude] = feature.geometry.coordinates
+            const size = getIcbcMarkerSize(feature.properties.crashCount, maxIcbcCrashCount)
+            const selected = selectedIcbcLocation === feature.properties.location
+
+            return (
+              <MapMarker
+                key={`${feature.properties.dataset}-${feature.properties.location}`}
+                longitude={longitude}
+                latitude={latitude}
+                onClick={() => setSelectedIcbcLocation(feature.properties.location)}
+              >
+                <MarkerContent>
+                  <div
+                    className={cn(
+                      'rounded-full border-2 border-white shadow-md transition-transform',
+                      selected ? 'scale-125 bg-rose-700 ring-2 ring-rose-300' : 'bg-rose-500/85 hover:bg-rose-600',
+                    )}
+                    style={{ width: size, height: size }}
+                    title={`${feature.properties.location}: ${feature.properties.crashCount.toLocaleString()} crashes`}
+                  />
+                </MarkerContent>
+              </MapMarker>
+            )
+          })}
         </PgMap>
 
         <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
           <h4 className="mb-2 text-xs font-semibold text-foreground">
-            {activeTab === 'canue' ? 'CANUE Layer' : 'MISC Layers'}
+            {activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'walkability' ? 'Walkability Layer' : 'MISC Layers'}
           </h4>
           <div className="space-y-1">
             {activeTab === 'heatShade' && MISC_LAYERS.filter((layer) => activeLayers.includes(layer.id)).map((layer) => (
@@ -1267,6 +1775,35 @@ export default function MiscDataSection() {
                     <span>{formatNullableNumber(canueBoundaryData.maxValue)}</span>
                   </div>
                 </div>
+              </div>
+            )}
+            {activeTab === 'icbc' && (
+              <div className="w-52 space-y-2 text-xs text-muted-foreground">
+                <div className="font-medium text-foreground">{selectedIcbcDataset?.title ?? 'Crash locations'}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <span>Small</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full border border-white bg-rose-500 shadow-sm" />
+                    <span className="h-4 w-4 rounded-full border border-white bg-rose-500 shadow-sm" />
+                    <span className="h-7 w-7 rounded-full border border-white bg-rose-500 shadow-sm" />
+                  </div>
+                  <span>High</span>
+                </div>
+                <div>{icbcCrashFeatures.length.toLocaleString()} mapped locations</div>
+              </div>
+            )}
+            {activeTab === 'walkability' && (
+              <div className="w-56 space-y-2 text-xs text-muted-foreground">
+                <div className="font-medium text-foreground">{selectedWalkabilityVariant?.label ?? 'Walkability score'}</div>
+                <div
+                  className="h-3 w-full rounded-sm border border-border bg-gradient-to-r from-orange-500 via-yellow-300 to-green-500"
+                  aria-hidden="true"
+                />
+                <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums">
+                  <span>{formatNullableNumber(walkabilityMinScore)}</span>
+                  <span>{formatNullableNumber(walkabilityMaxScore)}</span>
+                </div>
+                <div>{walkabilityFeatures.length.toLocaleString()} community polygons</div>
               </div>
             )}
           </div>
