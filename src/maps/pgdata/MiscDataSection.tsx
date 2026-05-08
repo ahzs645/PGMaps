@@ -12,6 +12,16 @@ import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
+import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
+import {
+  WALKABILITY_DEFAULT_VARIANT,
+  WalkabilityLayer,
+  WalkabilityLegend,
+  WalkabilitySidebar,
+  WalkabilitySourceNotes,
+  useWalkabilityData,
+} from './walkability'
+import { IcbcLayer, IcbcLegend, IcbcSidebar, IcbcSourceNotes, useIcbcData } from './icbc'
 
 interface HeatShadeManifestSource {
   id: string
@@ -109,93 +119,6 @@ interface CanuePostalMembership {
   generatedAt: string
   records: CanuePostalMembershipRecord[]
 }
-
-interface IcbcManifestDataset {
-  id: string
-  title: string
-  sourceUrl: string
-  csv: string
-  geojson: string
-  rows: number
-  geocodedRows: number
-  fields: string[]
-}
-
-interface IcbcManifest {
-  source: string
-  sourceProfile: string
-  sourceLicense: string
-  city: string
-  generatedAt: string
-  datasets: IcbcManifestDataset[]
-}
-
-interface WalkabilityVariant {
-  id: string
-  label: string
-  description: string
-}
-
-interface WalkabilityMetric {
-  id: string
-  label: string
-  direction: string
-}
-
-interface WalkabilitySource {
-  id: string
-  label: string
-  url: string
-  localPath: string
-}
-
-interface WalkabilityManifest {
-  generatedAt: string
-  geography: string
-  output: string
-  sourcePolicy: string
-  variants: WalkabilityVariant[]
-  metrics: WalkabilityMetric[]
-  sources: WalkabilitySource[]
-  caveats: string[]
-}
-
-type WalkabilityProperties = {
-  communityId: string
-  communityName: string
-  areaSqKm: number
-  sidewalkKm: number
-  walkwayKm: number
-  intersectionCount: number
-  transitStopCount: number
-  parkAmenityCount: number
-  pedestrianCrashCount: number
-  sidewalkDensity: number
-  walkwayDensity: number
-  intersectionDensity: number
-  transitStopDensity: number
-  parkAmenityDensity: number
-  pedestrianCrashDensity: number
-  balancedScore: number
-  infrastructureScore: number
-  accessScore: number
-  safetyAdjustedScore: number
-}
-
-type WalkabilityFeature = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, WalkabilityProperties>
-type WalkabilityFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, WalkabilityProperties>
-
-interface IcbcCrashProperties {
-  dataset: string
-  datasetTitle: string
-  location: string
-  municipality: string
-  crashCount: number
-  sourceLocationName: string
-  geocodeMatchType: string
-}
-
-type IcbcCrashFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, IcbcCrashProperties>
 
 const MISC_LAYERS: Array<{ id: MiscLayerId; label: string; color: string }> = [
   { id: 'trees', label: 'Tree canopy proxy', color: '#16a34a' },
@@ -324,13 +247,6 @@ const CANUE_DEFAULT_VARIABLE_BY_DATASET: Partial<Record<string, string>> = {
 }
 
 const CANUE_INVALID_NUMERIC_VALUES = new Set([-9999, -1111])
-const WALKABILITY_DEFAULT_VARIANT = 'balanced'
-const WALKABILITY_SCORE_FIELD_BY_VARIANT: Record<string, keyof WalkabilityProperties> = {
-  balanced: 'balancedScore',
-  infrastructure: 'infrastructureScore',
-  access: 'accessScore',
-  safetyAdjusted: 'safetyAdjustedScore',
-}
 
 const CANUE_EXACT_VARIABLE_LABELS: Record<string, string> = {
   pm25dal21_01: 'Annual mean PM2.5',
@@ -440,26 +356,6 @@ const CANUE_MONTHS = [
 const CANUE_MONTH_BY_VALUE: Map<number, (typeof CANUE_MONTHS)[number]> = new Map(CANUE_MONTHS.map((month) => [month.value, month]))
 const CANUE_MONTH_PATTERN = /_(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)_\d{2}$/i
 
-function formatDate(value: string | undefined): string {
-  if (!value) return 'Unknown'
-  return new Date(value).toLocaleDateString('en-CA', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-function formatNullableNumber(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return 'No value'
-  return value.toLocaleString(undefined, { maximumFractionDigits: 3 })
-}
-
-function getIcbcMarkerSize(crashCount: number, maxCrashCount: number): number {
-  if (!Number.isFinite(crashCount) || crashCount <= 0) return 8
-  if (!Number.isFinite(maxCrashCount) || maxCrashCount <= 0) return 8
-  return Math.max(8, Math.min(28, 7 + Math.sqrt(crashCount / maxCrashCount) * 22))
-}
-
 function getCanueVariableLabel(file: CanueFile | null, variable: string): string {
   if (!file) return variable
   if (CANUE_EXACT_VARIABLE_LABELS[variable]) return CANUE_EXACT_VARIABLE_LABELS[variable]
@@ -537,46 +433,6 @@ function getCanuePeriodLabel(files: CanueFile[], mode: CanueYearMode, month: num
   const years = files.map((file) => file.year).sort((a, b) => a - b)
   const range = `${years[0]}-${years[years.length - 1]}`
   return mode === 'single' ? String(files[0].year) : `${range} average`
-}
-
-function useJsonManifest<T>(path: string | null) {
-  const [data, setData] = useState<T | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!path) {
-      setData(null)
-      setError(null)
-      return
-    }
-
-    const controller = new AbortController()
-    const resolvedPath = path
-
-    async function load() {
-      try {
-        setError(null)
-        const response = await fetch(resolvedPath, { signal: controller.signal, cache: 'no-store' })
-        if (!response.ok) throw new Error(`Failed to fetch ${resolvedPath}: ${response.status}`)
-        const contentType = response.headers.get('content-type') ?? ''
-        const text = await response.text()
-        if (!contentType.includes('json') && text.trimStart().startsWith('<')) {
-          throw new Error(`Expected JSON from ${resolvedPath}, but received ${contentType || 'unknown content type'}`)
-        }
-        setData(JSON.parse(text) as T)
-        setError(null)
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return
-        setData(null)
-        setError((err as Error).message || `Unable to load ${resolvedPath}`)
-      }
-    }
-
-    void load()
-    return () => controller.abort()
-  }, [path])
-
-  return { data, error }
 }
 
 function splitCsvLine(line: string): string[] {
@@ -842,21 +698,14 @@ export default function MiscDataSection() {
   })
   const [selectedCanueVariable, setSelectedCanueVariable] = useState<string | null>(null)
   const [selectedCanueBoundaryId, setSelectedCanueBoundaryId] = useState<string | null>(null)
-  const [selectedIcbcDatasetId, setSelectedIcbcDatasetId] = useState<string | null>(() => searchParams.get('icbcDataset'))
-  const [selectedIcbcLocation, setSelectedIcbcLocation] = useState<string | null>(null)
-  const [selectedWalkabilityVariantId, setSelectedWalkabilityVariantId] = useState<string>(() => searchParams.get('walkability') || WALKABILITY_DEFAULT_VARIANT)
-  const [selectedWalkabilityCommunityId, setSelectedWalkabilityCommunityId] = useState<string | null>(null)
   const { trees, forests, facilities, loading, error } = useHeatShadeData(activeTab === 'heatShade')
   const heatShadeManifest = useJsonManifest<HeatShadeManifest>(activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null)
   const canueManifest = useJsonManifest<CanueManifest>('/data/canue/bc/annual-gzip/manifest.json')
   const canueMembership = useJsonManifest<CanuePostalMembership>('/data/canue/bc/postal-boundary-membership.json')
   const canueBoundaryConfig = CANUE_BOUNDARY_CONFIG[canueBoundaryLevel]
   const canueBoundaries = useJsonManifest<BoundaryFeatureCollection>(canueBoundaryConfig.path)
-  const icbcManifest = useJsonManifest<IcbcManifest>(activeTab === 'icbc' ? '/data/icbc/manifest.json' : null)
-  const walkabilityManifest = useJsonManifest<WalkabilityManifest>(activeTab === 'walkability' ? '/data/walkability/manifest.json' : null)
-  const walkabilityData = useJsonManifest<WalkabilityFeatureCollection>(
-    activeTab === 'walkability' ? (walkabilityManifest.data?.output ?? '/data/walkability/community_walkability.geojson') : null,
-  )
+  const icbc = useIcbcData(activeTab === 'icbc', searchParams.get('icbcDataset'))
+  const walkability = useWalkabilityData(activeTab === 'walkability', searchParams.get('walkability') || WALKABILITY_DEFAULT_VARIANT)
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -879,14 +728,14 @@ export default function MiscDataSection() {
       params.delete('month')
       params.delete('boundary')
     }
-    if (activeTab === 'icbc' && selectedIcbcDatasetId) params.set('icbcDataset', selectedIcbcDatasetId)
+    if (activeTab === 'icbc' && icbc.selectedDatasetId) params.set('icbcDataset', icbc.selectedDatasetId)
     else params.delete('icbcDataset')
-    if (activeTab === 'walkability' && selectedWalkabilityVariantId !== WALKABILITY_DEFAULT_VARIANT) params.set('walkability', selectedWalkabilityVariantId)
+    if (activeTab === 'walkability' && walkability.selectedVariantId !== WALKABILITY_DEFAULT_VARIANT) params.set('walkability', walkability.selectedVariantId)
     else params.delete('walkability')
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, selectedIcbcDatasetId, selectedWalkabilityVariantId, setSearchParams])
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.selectedDatasetId, walkability.selectedVariantId, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -1010,69 +859,6 @@ export default function MiscDataSection() {
       ],
     ]
   }, [canueBoundaryData.maxValue, canueBoundaryData.minValue, selectedCanueVariable])
-  const icbcDatasets = icbcManifest.data?.datasets ?? []
-  const selectedIcbcDataset = useMemo(() => {
-    if (!icbcDatasets.length) return null
-    if (selectedIcbcDatasetId) {
-      const selected = icbcDatasets.find((dataset) => dataset.id === selectedIcbcDatasetId)
-      if (selected) return selected
-    }
-    return icbcDatasets[0]
-  }, [icbcDatasets, selectedIcbcDatasetId])
-  const icbcCrashes = useJsonManifest<IcbcCrashFeatureCollection>(
-    activeTab === 'icbc' && selectedIcbcDataset ? selectedIcbcDataset.geojson : null,
-  )
-  const icbcCrashFeatures = icbcCrashes.data?.features ?? []
-  const selectedIcbcCrash = useMemo(() => {
-    if (!selectedIcbcLocation) return null
-    return icbcCrashFeatures.find((feature) => feature.properties.location === selectedIcbcLocation) ?? null
-  }, [icbcCrashFeatures, selectedIcbcLocation])
-  const maxIcbcCrashCount = useMemo(() => (
-    icbcCrashFeatures.reduce((max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0), 0)
-  ), [icbcCrashFeatures])
-  const totalIcbcCrashes = useMemo(() => (
-    icbcCrashFeatures.reduce((sum, feature) => sum + (Number(feature.properties.crashCount) || 0), 0)
-  ), [icbcCrashFeatures])
-  const walkabilityVariants = walkabilityManifest.data?.variants ?? []
-  const selectedWalkabilityVariant = useMemo(() => {
-    if (!walkabilityVariants.length) return null
-    return walkabilityVariants.find((variant) => variant.id === selectedWalkabilityVariantId) ?? walkabilityVariants[0]
-  }, [selectedWalkabilityVariantId, walkabilityVariants])
-  const selectedWalkabilityScoreField = WALKABILITY_SCORE_FIELD_BY_VARIANT[selectedWalkabilityVariant?.id ?? WALKABILITY_DEFAULT_VARIANT] ?? 'balancedScore'
-  const walkabilityFeatures = walkabilityData.data?.features ?? []
-  const selectedWalkabilityCommunity = useMemo<WalkabilityFeature | null>(() => {
-    if (!selectedWalkabilityCommunityId) return null
-    return walkabilityFeatures.find((feature) => String(feature.properties.communityId) === selectedWalkabilityCommunityId) ?? null
-  }, [selectedWalkabilityCommunityId, walkabilityFeatures])
-  const walkabilityScores = useMemo(() => (
-    walkabilityFeatures.map((feature) => Number(feature.properties[selectedWalkabilityScoreField])).filter(Number.isFinite)
-  ), [selectedWalkabilityScoreField, walkabilityFeatures])
-  const walkabilityMinScore = walkabilityScores.length ? Math.min(...walkabilityScores) : 0
-  const walkabilityMaxScore = walkabilityScores.length ? Math.max(...walkabilityScores) : 100
-  const walkabilityFillColor = useMemo(() => {
-    const low = walkabilityMinScore
-    const high = walkabilityMaxScore !== low ? walkabilityMaxScore : low + 1
-    const mid = low + ((high - low) / 2)
-
-    return [
-      'case',
-      ['!', ['has', selectedWalkabilityScoreField]],
-      '#e5e7eb',
-      ['==', ['get', selectedWalkabilityScoreField], null],
-      '#e5e7eb',
-      [
-        'interpolate',
-        ['linear'],
-        ['to-number', ['get', selectedWalkabilityScoreField]],
-        low,
-        '#f97316',
-        mid,
-        '#facc15',
-        high,
-        '#22c55e',
-      ],
-    ]
-  }, [selectedWalkabilityScoreField, walkabilityMaxScore, walkabilityMinScore])
   const heatShadeSources = heatShadeManifest.data?.sources ?? []
   const landsatSource = heatShadeSources.find((source) => source.kind === 'historicalNdviLst')
   const canueMapCenter = canueBoundarySource === 'bcHealth' ? BC_CENTER : PG_CENTER
@@ -1108,31 +894,6 @@ export default function MiscDataSection() {
     setSelectedCanueBoundaryId(null)
   }, [canueBoundaryLevel, canuePeriodLabel, selectedCanueDatasetId, selectedCanueVariable])
 
-  useEffect(() => {
-    if (!selectedIcbcDataset && icbcDatasets[0]) {
-      setSelectedIcbcDatasetId(icbcDatasets[0].id)
-      return
-    }
-    if (selectedIcbcDataset && selectedIcbcDatasetId !== selectedIcbcDataset.id) {
-      setSelectedIcbcDatasetId(selectedIcbcDataset.id)
-    }
-  }, [icbcDatasets, selectedIcbcDataset, selectedIcbcDatasetId])
-
-  useEffect(() => {
-    setSelectedIcbcLocation(null)
-  }, [selectedIcbcDatasetId])
-
-  useEffect(() => {
-    if (!walkabilityVariants.length) return
-    if (!walkabilityVariants.some((variant) => variant.id === selectedWalkabilityVariantId)) {
-      setSelectedWalkabilityVariantId(walkabilityVariants[0].id)
-    }
-  }, [selectedWalkabilityVariantId, walkabilityVariants])
-
-  useEffect(() => {
-    setSelectedWalkabilityCommunityId(null)
-  }, [selectedWalkabilityVariantId])
-
   const handleCanueBoundarySourceChange = (source: CanueBoundarySource) => {
     setCanueBoundarySource(source)
     setCanueBoundaryLevel(source === 'bcHealth' ? 'chsa' : source === 'cityPG' ? 'elementarySchoolCatchment' : 'da')
@@ -1165,9 +926,9 @@ export default function MiscDataSection() {
           updated: activeTab === 'heatShade'
             ? heatShadeManifest.data?.generatedAt
             : activeTab === 'icbc'
-              ? icbcManifest.data?.generatedAt
+              ? icbc.manifest.data?.generatedAt
               : activeTab === 'walkability'
-                ? walkabilityManifest.data?.generatedAt
+                ? walkability.manifest.data?.generatedAt
                 : canueManifest.data?.generatedAt,
         }}
       />
@@ -1430,159 +1191,9 @@ export default function MiscDataSection() {
         </>
         )}
 
-        {activeTab === 'icbc' && (
-        <>
-        <div className="border-b border-border p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-rose-600" />
-            <h2 className="text-sm font-semibold text-foreground">ICBC Crash Locations</h2>
-          </div>
-          <div className="space-y-3">
-            <label className="block text-xs font-medium text-foreground">
-              Dataset
-              <AppSelect
-                value={selectedIcbcDataset?.id ?? ''}
-                onValueChange={setSelectedIcbcDatasetId}
-                options={icbcDatasets.map((dataset) => ({
-                  value: dataset.id,
-                  label: dataset.title,
-                }))}
-                className="mt-1"
-                triggerClassName="h-8 rounded-md text-xs"
-              />
-            </label>
+        {activeTab === 'icbc' && <IcbcSidebar icbc={icbc} />}
 
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">{selectedIcbcDataset?.rows.toLocaleString() ?? '0'}</div>
-                <div className="text-[10px] text-muted-foreground">rows</div>
-              </div>
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">{icbcCrashFeatures.length.toLocaleString()}</div>
-                <div className="text-[10px] text-muted-foreground">mapped</div>
-              </div>
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">{totalIcbcCrashes.toLocaleString()}</div>
-                <div className="text-[10px] text-muted-foreground">crashes</div>
-              </div>
-            </div>
-
-            {icbcCrashes.error && <div className="text-xs text-red-500">{icbcCrashes.error}</div>}
-            {icbcManifest.error && <div className="text-xs text-red-500">{icbcManifest.error}</div>}
-            <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
-              Points are ICBC crash-location summaries matched to CityPG road-intersection centroids. Unmatched rows remain in the CSV exports.
-            </div>
-          </div>
-        </div>
-
-        {selectedIcbcCrash && (
-          <div className="border-b border-border p-4">
-            <div className="mb-2 text-sm font-semibold text-foreground">Selected Location</div>
-            <div className="rounded-md border border-border bg-background p-3 text-xs">
-              <div className="font-semibold leading-5 text-foreground">{selectedIcbcCrash.properties.location}</div>
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Crash count</span>
-                <span className="font-semibold text-foreground">{selectedIcbcCrash.properties.crashCount.toLocaleString()}</span>
-              </div>
-              <div className="mt-1 flex items-start justify-between gap-3">
-                <span className="text-muted-foreground">Matched to</span>
-                <span className="max-w-[12rem] text-right text-foreground">{selectedIcbcCrash.properties.sourceLocationName}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedIcbcLocation(null)}
-                className="mt-3 text-xs font-medium text-rose-600 hover:text-rose-700 dark:text-rose-400"
-              >
-                Clear selection
-              </button>
-            </div>
-          </div>
-        )}
-        </>
-        )}
-
-        {activeTab === 'walkability' && (
-        <>
-        <div className="border-b border-border p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Footprints className="h-4 w-4 text-emerald-600" />
-            <h2 className="text-sm font-semibold text-foreground">Walkability Variants</h2>
-          </div>
-          <div className="space-y-3">
-            <label className="block text-xs font-medium text-foreground">
-              Variant
-              <AppSelect
-                value={selectedWalkabilityVariant?.id ?? selectedWalkabilityVariantId}
-                onValueChange={setSelectedWalkabilityVariantId}
-                options={walkabilityVariants.map((variant) => ({
-                  value: variant.id,
-                  label: variant.label,
-                }))}
-                className="mt-1"
-                triggerClassName="h-8 rounded-md text-xs"
-              />
-            </label>
-
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">{walkabilityFeatures.length.toLocaleString()}</div>
-                <div className="text-[10px] text-muted-foreground">communities</div>
-              </div>
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">{formatNullableNumber(walkabilityMinScore)}</div>
-                <div className="text-[10px] text-muted-foreground">low score</div>
-              </div>
-              <div className="rounded border border-border p-2">
-                <div className="text-sm font-bold text-foreground">{formatNullableNumber(walkabilityMaxScore)}</div>
-                <div className="text-[10px] text-muted-foreground">high score</div>
-              </div>
-            </div>
-
-            <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
-              {selectedWalkabilityVariant?.description ?? 'Community walkability is recalculated from web-source layers.'}
-            </div>
-            {walkabilityManifest.error && <div className="text-xs text-red-500">{walkabilityManifest.error}</div>}
-            {walkabilityData.error && <div className="text-xs text-red-500">{walkabilityData.error}</div>}
-          </div>
-        </div>
-
-        {selectedWalkabilityCommunity && (
-          <div className="border-b border-border p-4">
-            <div className="mb-2 text-sm font-semibold text-foreground">Selected Community</div>
-            <div className="rounded-md border border-border bg-background p-3 text-xs">
-              <div className="font-semibold leading-5 text-foreground">{selectedWalkabilityCommunity.properties.communityName}</div>
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">{selectedWalkabilityVariant?.label ?? 'Score'}</span>
-                <span className="font-semibold text-foreground">
-                  {formatNullableNumber(Number(selectedWalkabilityCommunity.properties[selectedWalkabilityScoreField]))}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-muted-foreground">
-                <span>Sidewalk km</span>
-                <span className="text-right text-foreground">{formatNullableNumber(selectedWalkabilityCommunity.properties.sidewalkKm)}</span>
-                <span>Walkway km</span>
-                <span className="text-right text-foreground">{formatNullableNumber(selectedWalkabilityCommunity.properties.walkwayKm)}</span>
-                <span>Intersections</span>
-                <span className="text-right text-foreground">{selectedWalkabilityCommunity.properties.intersectionCount.toLocaleString()}</span>
-                <span>Transit stops</span>
-                <span className="text-right text-foreground">{selectedWalkabilityCommunity.properties.transitStopCount.toLocaleString()}</span>
-                <span>Park amenities</span>
-                <span className="text-right text-foreground">{selectedWalkabilityCommunity.properties.parkAmenityCount.toLocaleString()}</span>
-                <span>Pedestrian crashes</span>
-                <span className="text-right text-foreground">{selectedWalkabilityCommunity.properties.pedestrianCrashCount.toLocaleString()}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedWalkabilityCommunityId(null)}
-                className="mt-3 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-              >
-                Clear selection
-              </button>
-            </div>
-          </div>
-        )}
-        </>
-        )}
+        {activeTab === 'walkability' && <WalkabilitySidebar walkability={walkability} />}
 
         <div className="p-4">
           <div className="mb-2 flex items-center gap-2">
@@ -1592,18 +1203,9 @@ export default function MiscDataSection() {
           <div className="space-y-2 text-xs leading-5 text-muted-foreground">
             {activeTab === 'heatShade' && <p>Heat/shade updated {formatDate(heatShadeManifest.data?.generatedAt)}.</p>}
             {activeTab === 'canue' && <p>CANUE raw extracts updated {formatDate(canueManifest.data?.generatedAt)}.</p>}
-            {activeTab === 'icbc' && <p>ICBC exports updated {formatDate(icbcManifest.data?.generatedAt)}.</p>}
-            {activeTab === 'walkability' && <p>Walkability variants updated {formatDate(walkabilityManifest.data?.generatedAt)}.</p>}
-            {activeTab === 'icbc' && selectedIcbcDataset && (
-              <p>{selectedIcbcDataset.geocodedRows.toLocaleString()} of {selectedIcbcDataset.rows.toLocaleString()} source rows have map coordinates.</p>
-            )}
-            {activeTab === 'walkability' && (
-              <p>{walkabilityManifest.data?.sourcePolicy ?? 'Web-source-only community scores from public map layers.'}</p>
-            )}
+            {activeTab === 'icbc' && <IcbcSourceNotes icbc={icbc} />}
+            {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
             {activeTab === 'heatShade' && (heatShadeManifest.data?.caveats ?? []).slice(0, 2).map((caveat) => (
-              <p key={caveat}>{caveat}</p>
-            ))}
-            {activeTab === 'walkability' && (walkabilityManifest.data?.caveats ?? []).slice(0, 2).map((caveat) => (
               <p key={caveat}>{caveat}</p>
             ))}
           </div>
@@ -1648,9 +1250,9 @@ export default function MiscDataSection() {
             {activeTab === 'canue'
               ? `${selectedCanueDataset?.label || 'Dataset'} | ${canuePeriodLabel}`
               : activeTab === 'icbc'
-                ? `${selectedIcbcDataset?.title || 'Crash locations'} | ${icbcCrashFeatures.length.toLocaleString()} mapped`
+                ? `${icbc.selectedDataset?.title || 'Crash locations'} | ${icbc.crashFeatures.length.toLocaleString()} mapped`
                 : activeTab === 'walkability'
-                  ? `${selectedWalkabilityVariant?.label || 'Variant'} | ${walkabilityFeatures.length.toLocaleString()} communities`
+                  ? `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString()} communities`
                   : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
           </div>
         </div>
@@ -1703,47 +1305,9 @@ export default function MiscDataSection() {
             />
           )}
 
-          {activeTab === 'walkability' && walkabilityFeatures.length > 0 && (
-            <MapFillLayer
-              data={walkabilityData.data ?? { type: 'FeatureCollection', features: [] }}
-              fillColor={walkabilityFillColor}
-              fillOpacity={0.76}
-              lineColor="#047857"
-              lineWidth={0.9}
-              lineOpacity={0.65}
-              idProperty="communityId"
-              selectedId={selectedWalkabilityCommunityId}
-              selectionColor="#064e3b"
-              selectionWidth={2.2}
-              onFeatureClick={setSelectedWalkabilityCommunityId}
-            />
-          )}
+          {activeTab === 'walkability' && <WalkabilityLayer walkability={walkability} />}
 
-          {activeTab === 'icbc' && icbcCrashFeatures.map((feature) => {
-            const [longitude, latitude] = feature.geometry.coordinates
-            const size = getIcbcMarkerSize(feature.properties.crashCount, maxIcbcCrashCount)
-            const selected = selectedIcbcLocation === feature.properties.location
-
-            return (
-              <MapMarker
-                key={`${feature.properties.dataset}-${feature.properties.location}`}
-                longitude={longitude}
-                latitude={latitude}
-                onClick={() => setSelectedIcbcLocation(feature.properties.location)}
-              >
-                <MarkerContent>
-                  <div
-                    className={cn(
-                      'rounded-full border-2 border-white shadow-md transition-transform',
-                      selected ? 'scale-125 bg-rose-700 ring-2 ring-rose-300' : 'bg-rose-500/85 hover:bg-rose-600',
-                    )}
-                    style={{ width: size, height: size }}
-                    title={`${feature.properties.location}: ${feature.properties.crashCount.toLocaleString()} crashes`}
-                  />
-                </MarkerContent>
-              </MapMarker>
-            )
-          })}
+          {activeTab === 'icbc' && <IcbcLayer icbc={icbc} />}
         </PgMap>
 
         <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
@@ -1777,35 +1341,8 @@ export default function MiscDataSection() {
                 </div>
               </div>
             )}
-            {activeTab === 'icbc' && (
-              <div className="w-52 space-y-2 text-xs text-muted-foreground">
-                <div className="font-medium text-foreground">{selectedIcbcDataset?.title ?? 'Crash locations'}</div>
-                <div className="flex items-center justify-between gap-2">
-                  <span>Small</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full border border-white bg-rose-500 shadow-sm" />
-                    <span className="h-4 w-4 rounded-full border border-white bg-rose-500 shadow-sm" />
-                    <span className="h-7 w-7 rounded-full border border-white bg-rose-500 shadow-sm" />
-                  </div>
-                  <span>High</span>
-                </div>
-                <div>{icbcCrashFeatures.length.toLocaleString()} mapped locations</div>
-              </div>
-            )}
-            {activeTab === 'walkability' && (
-              <div className="w-56 space-y-2 text-xs text-muted-foreground">
-                <div className="font-medium text-foreground">{selectedWalkabilityVariant?.label ?? 'Walkability score'}</div>
-                <div
-                  className="h-3 w-full rounded-sm border border-border bg-gradient-to-r from-orange-500 via-yellow-300 to-green-500"
-                  aria-hidden="true"
-                />
-                <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums">
-                  <span>{formatNullableNumber(walkabilityMinScore)}</span>
-                  <span>{formatNullableNumber(walkabilityMaxScore)}</span>
-                </div>
-                <div>{walkabilityFeatures.length.toLocaleString()} community polygons</div>
-              </div>
-            )}
+            {activeTab === 'icbc' && <IcbcLegend icbc={icbc} />}
+            {activeTab === 'walkability' && <WalkabilityLegend walkability={walkability} />}
           </div>
         </div>
       </div>

@@ -1,0 +1,3057 @@
+{
+  "type": "FeatureCollection",
+  "name": "report_class3_crosswalks",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.764239000001,
+          53.915607
+        ]
+      },
+      "properties": {
+        "x_26910": 515486.363199513,
+        "y_26910": 5974157.224914942,
+        "crosswalk_id": "4",
+        "intersection": "10th Avenue & Laurier",
+        "deficient": "Yes",
+        "report_mi_value": "85",
+        "geocode_score": 99.52,
+        "matched_address": "10th Ave & Laurier Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.754501000001,
+          53.919396
+        ]
+      },
+      "properties": {
+        "x_26910": 516124.51348874765,
+        "y_26910": 5974580.954754549,
+        "crosswalk_id": "38",
+        "intersection": "3rd Avenue & Winnipeg",
+        "deficient": "Maybe",
+        "report_mi_value": "83",
+        "geocode_score": 99.52,
+        "matched_address": "3rd Ave & Winnipeg St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.769265500001,
+          53.908155
+        ]
+      },
+      "properties": {
+        "x_26910": 515158.91139597166,
+        "y_26910": 5973327.039943648,
+        "crosswalk_id": "71",
+        "intersection": "Carney & Ellison",
+        "deficient": "Yes",
+        "report_mi_value": "82",
+        "geocode_score": 99.05,
+        "matched_address": "Carney St & Ellison Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.766444000001,
+          53.910306
+        ]
+      },
+      "properties": {
+        "x_26910": 515343.4775101109,
+        "y_26910": 5973566.963855476,
+        "crosswalk_id": "6",
+        "intersection": "15th Avenue & Alward",
+        "deficient": "Maybe",
+        "report_mi_value": "79",
+        "geocode_score": 99.52,
+        "matched_address": "15th Ave & Alward St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.766457500001,
+          53.915427
+        ]
+      },
+      "properties": {
+        "x_26910": 515340.71391298925,
+        "y_26910": 5974136.716079007,
+        "crosswalk_id": "1",
+        "intersection": "10th Avenue & Alward",
+        "deficient": "No",
+        "report_mi_value": "76",
+        "geocode_score": 99.52,
+        "matched_address": "10th Ave & Alward St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.742346500001,
+          53.911629
+        ]
+      },
+      "properties": {
+        "x_26910": 516925.9118354233,
+        "y_26910": 5973719.642272723,
+        "crosswalk_id": "135",
+        "intersection": "Queensway & Connaught",
+        "deficient": "Maybe",
+        "report_mi_value": "75",
+        "geocode_score": 99.51,
+        "matched_address": "Queensway & Connaught Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.744187000001,
+          53.912556
+        ]
+      },
+      "properties": {
+        "x_26910": 516804.64077569544,
+        "y_26910": 5973822.341121706,
+        "crosswalk_id": "131",
+        "intersection": "Patricia & George",
+        "deficient": "Yes",
+        "report_mi_value": "75",
+        "geocode_score": 99.05,
+        "matched_address": "Patricia Blvd & George St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.790042000001,
+          53.916138
+        ]
+      },
+      "properties": {
+        "x_26910": 513791.3982042597,
+        "y_26910": 5974210.975803353,
+        "crosswalk_id": "139",
+        "intersection": "Rainbow & Liard",
+        "deficient": "Yes",
+        "report_mi_value": "72",
+        "geocode_score": 99.05,
+        "matched_address": "Rainbow Dr & Liard Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.787067500001,
+          53.916165
+        ]
+      },
+      "properties": {
+        "x_26910": 513986.75755701645,
+        "y_26910": 5974214.562466389,
+        "crosswalk_id": "141",
+        "intersection": "Rainbow & Union",
+        "deficient": "Yes",
+        "report_mi_value": "72",
+        "geocode_score": 99.05,
+        "matched_address": "Rainbow Dr & Union St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.779566000001,
+          53.885772
+        ]
+      },
+      "properties": {
+        "x_26910": 514489.97563919704,
+        "y_26910": 5970834.592380175,
+        "crosswalk_id": "171",
+        "intersection": "Westwood & Andres",
+        "deficient": "No",
+        "report_mi_value": "70",
+        "geocode_score": 99.05,
+        "matched_address": "Westwood Dr & Andres Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.755747500001,
+          53.917857
+        ]
+      },
+      "properties": {
+        "x_26910": 516043.23838547495,
+        "y_26910": 5974409.444914761,
+        "crosswalk_id": "51",
+        "intersection": "5th Avenue & Winnipeg",
+        "deficient": "Yes",
+        "report_mi_value": "68",
+        "geocode_score": 99.52,
+        "matched_address": "5th Ave & Winnipeg St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.755185000001,
+          53.897688
+        ]
+      },
+      "properties": {
+        "x_26910": 516087.93039314414,
+        "y_26910": 5972165.600690484,
+        "crosswalk_id": "167",
+        "intersection": "Victoria & Diefenbaker",
+        "deficient": "Yes",
+        "report_mi_value": "67",
+        "geocode_score": 99.05,
+        "matched_address": "Victoria St & Diefenbaker Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.786694000001,
+          53.910378
+        ]
+      },
+      "properties": {
+        "x_26910": 514013.2265209817,
+        "y_26910": 5973570.7825432755,
+        "crosswalk_id": "9",
+        "intersection": "15th Avenue N & Endako",
+        "deficient": "Yes",
+        "report_mi_value": "67",
+        "geocode_score": 97.99,
+        "matched_address": "15th Ave & Endako St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.752800000001,
+          53.916075
+        ]
+      },
+      "properties": {
+        "x_26910": 516237.5165868653,
+        "y_26910": 5974211.853052151,
+        "crosswalk_id": "52",
+        "intersection": "6th Avenue & Vancouver",
+        "deficient": "Yes",
+        "report_mi_value": "67",
+        "geocode_score": 99.52,
+        "matched_address": "6th Ave & Vancouver St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.778225000001,
+          53.910315
+        ]
+      },
+      "properties": {
+        "x_26910": 514569.57800234645,
+        "y_26910": 5973565.480191128,
+        "crosswalk_id": "8",
+        "intersection": "15th Avenue & Irwin",
+        "deficient": "Yes",
+        "report_mi_value": "66",
+        "geocode_score": 99.52,
+        "matched_address": "15th Ave & Irwin St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.759932500001,
+          53.915238
+        ]
+      },
+      "properties": {
+        "x_26910": 515769.3612229531,
+        "y_26910": 5974117.119705635,
+        "crosswalk_id": "62",
+        "intersection": "9th Avenue & Edmonton-Ross",
+        "deficient": "Yes",
+        "report_mi_value": "66",
+        "geocode_score": 96.69,
+        "matched_address": "9th Ave & Edmonton St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.756809500001,
+          53.919099
+        ]
+      },
+      "properties": {
+        "x_26910": 515973.01397513924,
+        "y_26910": 5974547.38837284,
+        "crosswalk_id": "39",
+        "intersection": "4th Avenue & Edmonton",
+        "deficient": "Maybe",
+        "report_mi_value": "66",
+        "geocode_score": 99.52,
+        "matched_address": "4th Ave & Edmonton St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.756188500001,
+          53.919873
+        ]
+      },
+      "properties": {
+        "x_26910": 516013.5028541327,
+        "y_26910": 5974633.64266906,
+        "crosswalk_id": "34",
+        "intersection": "3rd Avenue & Edmonton",
+        "deficient": "Maybe",
+        "report_mi_value": "66",
+        "geocode_score": 99.52,
+        "matched_address": "3rd Ave & Edmonton St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.804482500001,
+          53.91027
+        ]
+      },
+      "properties": {
+        "x_26910": 512844.73080256034,
+        "y_26910": 5973555.397696182,
+        "crosswalk_id": "11",
+        "intersection": "15th Avenue S & Jarvis",
+        "deficient": "Yes",
+        "report_mi_value": "65",
+        "geocode_score": 97.99,
+        "matched_address": "15th Ave & Jarvis St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.790240000001,
+          53.988813
+        ]
+      },
+      "properties": {
+        "x_26910": 513754.45899353095,
+        "y_26910": 5982296.711541065,
+        "crosswalk_id": "67",
+        "intersection": "Austin West & Madill",
+        "deficient": "Maybe",
+        "report_mi_value": "65",
+        "geocode_score": 85,
+        "matched_address": "Austin Rd & Madill Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.780821500001,
+          53.897481
+        ]
+      },
+      "properties": {
+        "x_26910": 514403.42707532336,
+        "y_26910": 5972137.059004045,
+        "crosswalk_id": "172",
+        "intersection": "Westwood & Lorne",
+        "deficient": "Maybe",
+        "report_mi_value": "64",
+        "geocode_score": 99.05,
+        "matched_address": "Westwood Dr & Lorne Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.757003000001,
+          53.916318
+        ]
+      },
+      "properties": {
+        "x_26910": 515961.36612020235,
+        "y_26910": 5974237.934522659,
+        "crosswalk_id": "61",
+        "intersection": "7th Avenue & Winnipeg",
+        "deficient": "Yes",
+        "report_mi_value": "63",
+        "geocode_score": 99.52,
+        "matched_address": "7th Ave & Winnipeg St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.756377500001,
+          53.917083
+        ]
+      },
+      "properties": {
+        "x_26910": 516002.15695415135,
+        "y_26910": 5974323.18836024,
+        "crosswalk_id": "57",
+        "intersection": "6th Avenue & Winnipeg",
+        "deficient": "Yes",
+        "report_mi_value": "63",
+        "geocode_score": 99.52,
+        "matched_address": "6th Ave & Winnipeg St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.750937000001,
+          53.918388
+        ]
+      },
+      "properties": {
+        "x_26910": 516358.9764591972,
+        "y_26910": 5974469.6224910235,
+        "crosswalk_id": "37",
+        "intersection": "3rd Avenue & Vancouver-Crossing",
+        "deficient": "Yes",
+        "report_mi_value": "62",
+        "geocode_score": 95.54,
+        "matched_address": "3rd Ave & Vancouver St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.752714500001,
+          53.918892
+        ]
+      },
+      "properties": {
+        "x_26910": 516242.0391126955,
+        "y_26910": 5974525.288178088,
+        "crosswalk_id": "35",
+        "intersection": "3rd Avenue & Prince Rupert",
+        "deficient": "Maybe",
+        "report_mi_value": "62",
+        "geocode_score": 99.52,
+        "matched_address": "3rd Ave & Prince Rupert St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.791770000001,
+          53.923653
+        ]
+      },
+      "properties": {
+        "x_26910": 513675.4454281857,
+        "y_26910": 5975046.750650535,
+        "crosswalk_id": "137",
+        "intersection": "Quinn & 2nd Avenue",
+        "deficient": "Yes",
+        "report_mi_value": "62",
+        "geocode_score": 99.52,
+        "matched_address": "Quinn St & 2nd Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.789137500001,
+          53.892081
+        ]
+      },
+      "properties": {
+        "x_26910": 513858.7662162962,
+        "y_26910": 5971534.607333145,
+        "crosswalk_id": "128",
+        "intersection": "Ospika & Pinewood",
+        "deficient": "Maybe",
+        "report_mi_value": "61",
+        "geocode_score": 99.05,
+        "matched_address": "Ospika Blvd & Pinewood Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.750856000001,
+          53.905455
+        ]
+      },
+      "properties": {
+        "x_26910": 516369.35268472414,
+        "y_26910": 5973030.73480973,
+        "crosswalk_id": "25",
+        "intersection": "20th Avenue & Oak",
+        "deficient": "No",
+        "report_mi_value": "61",
+        "geocode_score": 99.52,
+        "matched_address": "20th Ave & Oak St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.750851500001,
+          53.908443
+        ]
+      },
+      "properties": {
+        "x_26910": 516368.48017561296,
+        "y_26910": 5973363.176014693,
+        "crosswalk_id": "13",
+        "intersection": "17th Avenue & Oak",
+        "deficient": "Yes",
+        "report_mi_value": "61",
+        "geocode_score": 99.52,
+        "matched_address": "17th Ave & Oak St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.736582000001,
+          53.908479
+        ]
+      },
+      "properties": {
+        "x_26910": 517305.8728724173,
+        "y_26910": 5973370.569630981,
+        "crosswalk_id": "12",
+        "intersection": "17th Avenue & Fir",
+        "deficient": "Yes",
+        "report_mi_value": "61",
+        "geocode_score": 99.52,
+        "matched_address": "17th Ave & Fir St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.762470500001,
+          53.858538
+        ]
+      },
+      "properties": {
+        "x_26910": 515623.7866283702,
+        "y_26910": 5967808.225180282,
+        "crosswalk_id": "88",
+        "intersection": "Gladstone & Simon Fraser",
+        "deficient": "Yes",
+        "report_mi_value": "60",
+        "geocode_score": 99.05,
+        "matched_address": "Gladstone Dr & Simon Fraser Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.766475500001,
+          53.920602
+        ]
+      },
+      "properties": {
+        "x_26910": 515337.6350846769,
+        "y_26910": 5974712.4757882655,
+        "crosswalk_id": "43",
+        "intersection": "5th Avenue & Alward",
+        "deficient": "No",
+        "report_mi_value": "60",
+        "geocode_score": 99.52,
+        "matched_address": "5th Ave & Alward St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.745141339855,
+          53.912806406981
+        ]
+      },
+      "properties": {
+        "x_26910": 516741.85325093864,
+        "y_26910": 5973849.975269033,
+        "crosswalk_id": "85",
+        "intersection": "George & City Hall",
+        "deficient": "Yes",
+        "report_mi_value": "60",
+        "geocode_score": 74.29,
+        "matched_address": "City Hall",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760715500001,
+          53.889444
+        ]
+      },
+      "properties": {
+        "x_26910": 515727.6161307697,
+        "y_26910": 5971247.147664746,
+        "crosswalk_id": "162",
+        "intersection": "Upland & Rebman",
+        "deficient": "Maybe",
+        "report_mi_value": "59",
+        "geocode_score": 99.05,
+        "matched_address": "Upland St & Rebman Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760688500001,
+          53.89092
+        ]
+      },
+      "properties": {
+        "x_26910": 515728.836514972,
+        "y_26910": 5971411.370659752,
+        "crosswalk_id": "163",
+        "intersection": "Upland & Wilson",
+        "deficient": "No",
+        "report_mi_value": "59",
+        "geocode_score": 99.05,
+        "matched_address": "Upland St & Wilson Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.773432500001,
+          53.904789
+        ]
+      },
+      "properties": {
+        "x_26910": 514886.36288106785,
+        "y_26910": 5972951.661156652,
+        "crosswalk_id": "104",
+        "intersection": "Massey & Griffith",
+        "deficient": "Maybe",
+        "report_mi_value": "59",
+        "geocode_score": 98.25,
+        "matched_address": "Massey Dr & Griffiths Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.804482500001,
+          53.91027
+        ]
+      },
+      "properties": {
+        "x_26910": 512844.73080256034,
+        "y_26910": 5973555.397696182,
+        "crosswalk_id": "10",
+        "intersection": "15th Avenue N & Jarvis",
+        "deficient": "Yes",
+        "report_mi_value": "59",
+        "geocode_score": 97.99,
+        "matched_address": "15th Ave & Jarvis St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.751553500001,
+          53.917623
+        ]
+      },
+      "properties": {
+        "x_26910": 516318.78455622424,
+        "y_26910": 5974384.367566342,
+        "crosswalk_id": "42",
+        "intersection": "4th Avenue & Vancouver",
+        "deficient": "No",
+        "report_mi_value": "59",
+        "geocode_score": 99.52,
+        "matched_address": "4th Ave & Vancouver St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.772262500001,
+          53.910306
+        ]
+      },
+      "properties": {
+        "x_26910": 514961.25904158707,
+        "y_26910": 5973565.720475482,
+        "crosswalk_id": "7",
+        "intersection": "15th Avenue & Ewert",
+        "deficient": "Yes",
+        "report_mi_value": "58",
+        "geocode_score": 99.52,
+        "matched_address": "15th Ave & Ewert St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.748543000001,
+          53.913924
+        ]
+      },
+      "properties": {
+        "x_26910": 516517.969948334,
+        "y_26910": 5973973.519192202,
+        "crosswalk_id": "60",
+        "intersection": "7th Avenue & Quebec",
+        "deficient": "Yes",
+        "report_mi_value": "58",
+        "geocode_score": 99.52,
+        "matched_address": "7th Ave & Quebec St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760562500001,
+          53.914473
+        ]
+      },
+      "properties": {
+        "x_26910": 515728.2687234539,
+        "y_26910": 5974031.866946491,
+        "crosswalk_id": "2",
+        "intersection": "10th Avenue & Edmonton",
+        "deficient": "Yes",
+        "report_mi_value": "58",
+        "geocode_score": 99.52,
+        "matched_address": "10th Ave & Edmonton St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.807452500001,
+          53.993484
+        ]
+      },
+      "properties": {
+        "x_26910": 512624.4743800181,
+        "y_26910": 5982813.202505571,
+        "crosswalk_id": "90",
+        "intersection": "Heather & Heather Park Rd",
+        "deficient": "No",
+        "report_mi_value": "58",
+        "geocode_score": 99.52,
+        "matched_address": "Heather Rd & Heather Park Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.748808500001,
+          53.915904
+        ]
+      },
+      "properties": {
+        "x_26910": 516499.7502116278,
+        "y_26910": 5974193.749331887,
+        "crosswalk_id": "44",
+        "intersection": "5th Avenue & Brunswick",
+        "deficient": "Yes",
+        "report_mi_value": "57",
+        "geocode_score": 99.52,
+        "matched_address": "5th Ave & Brunswick St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.752174500001,
+          53.916849
+        ]
+      },
+      "properties": {
+        "x_26910": 516278.2991101858,
+        "y_26910": 5974298.110641564,
+        "crosswalk_id": "48",
+        "intersection": "5th Avenue & Vancouver",
+        "deficient": "No",
+        "report_mi_value": "57",
+        "geocode_score": 99.52,
+        "matched_address": "5th Ave & Vancouver St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.789596500001,
+          53.920566
+        ]
+      },
+      "properties": {
+        "x_26910": 513819.19700387365,
+        "y_26910": 5974703.716193298,
+        "crosswalk_id": "47",
+        "intersection": "5th Avenue & Stuart",
+        "deficient": "Yes",
+        "report_mi_value": "57",
+        "geocode_score": 99.52,
+        "matched_address": "5th Ave & Stuart Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.787369000001,
+          53.888274
+        ]
+      },
+      "properties": {
+        "x_26910": 513976.25987886416,
+        "y_26910": 5971111.39439697,
+        "crosswalk_id": "127",
+        "intersection": "Ospika & Ferry",
+        "deficient": "Maybe",
+        "report_mi_value": "56",
+        "geocode_score": 99.05,
+        "matched_address": "Ospika Blvd & Ferry Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.761174500001,
+          53.913717
+        ]
+      },
+      "properties": {
+        "x_26910": 515688.3536622947,
+        "y_26910": 5973947.619873319,
+        "crosswalk_id": "5",
+        "intersection": "11th Avenue & Edmonton",
+        "deficient": "Yes",
+        "report_mi_value": "56",
+        "geocode_score": 99.52,
+        "matched_address": "11th Ave & Edmonton St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.784705000001,
+          53.892081
+        ]
+      },
+      "properties": {
+        "x_26910": 514150.06491226266,
+        "y_26910": 5971535.482564104,
+        "crosswalk_id": "165",
+        "intersection": "Vanier & Pinewood",
+        "deficient": "Yes",
+        "report_mi_value": "55",
+        "geocode_score": 99.05,
+        "matched_address": "Vanier Dr & Pinewood Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.755140000001,
+          53.900964
+        ]
+      },
+      "properties": {
+        "x_26910": 516089.62876926106,
+        "y_26910": 5972530.093062688,
+        "crosswalk_id": "168",
+        "intersection": "Victoria & Milburn",
+        "deficient": "Yes",
+        "report_mi_value": "55",
+        "geocode_score": 99.05,
+        "matched_address": "Victoria St & Milburn Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.809657500001,
+          53.928135
+        ]
+      },
+      "properties": {
+        "x_26910": 512499.4468102426,
+        "y_26910": 5975542.11084685,
+        "crosswalk_id": "17",
+        "intersection": "1st Avenue & Anderson",
+        "deficient": "Yes",
+        "report_mi_value": "55",
+        "geocode_score": 99.52,
+        "matched_address": "1st Ave & Anderson St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.761093500001,
+          53.858349
+        ]
+      },
+      "properties": {
+        "x_26910": 515714.4246579269,
+        "y_26910": 5967787.50159575,
+        "crosswalk_id": "87",
+        "intersection": "Gladstone & Fairmont",
+        "deficient": "Yes",
+        "report_mi_value": "54",
+        "geocode_score": 99.05,
+        "matched_address": "Gladstone Dr & Fairmont Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.750059500001,
+          53.914356
+        ]
+      },
+      "properties": {
+        "x_26910": 516418.1899626762,
+        "y_26910": 5974021.230660664,
+        "crosswalk_id": "58",
+        "intersection": "7th Avenue & Brunswick",
+        "deficient": "Yes",
+        "report_mi_value": "54",
+        "geocode_score": 99.52,
+        "matched_address": "7th Ave & Brunswick St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.776753500001,
+          53.922645
+        ]
+      },
+      "properties": {
+        "x_26910": 514661.9213689991,
+        "y_26910": 5974937.602866214,
+        "crosswalk_id": "33",
+        "intersection": "3rd Avenue & Harper",
+        "deficient": "No",
+        "report_mi_value": "54",
+        "geocode_score": 99.52,
+        "matched_address": "3rd Ave & Harper St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.807457000001,
+          53.994384
+        ]
+      },
+      "properties": {
+        "x_26910": 512623.9071441164,
+        "y_26910": 5982913.335857466,
+        "crosswalk_id": "92",
+        "intersection": "Heather Park Rd & Gray",
+        "deficient": "No",
+        "report_mi_value": "54",
+        "geocode_score": 99.52,
+        "matched_address": "Heather Park Rd & Gray Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.762763000001,
+          53.917965
+        ]
+      },
+      "properties": {
+        "x_26910": 515582.4317630342,
+        "y_26910": 5974419.896173972,
+        "crosswalk_id": "111",
+        "intersection": "McBride & 7th",
+        "deficient": "Yes",
+        "report_mi_value": "53",
+        "geocode_score": 99.05,
+        "matched_address": "McBride Cres & 7th Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760193500001,
+          53.918352
+        ]
+      },
+      "properties": {
+        "x_26910": 515751.0461929554,
+        "y_26910": 5974463.521059692,
+        "crosswalk_id": "144",
+        "intersection": "Ross & Melville",
+        "deficient": "Yes",
+        "report_mi_value": "53",
+        "geocode_score": 99.05,
+        "matched_address": "Ross Cres & Melville Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.794155000001,
+          53.924868
+        ]
+      },
+      "properties": {
+        "x_26910": 513518.4316354663,
+        "y_26910": 5975181.472726051,
+        "crosswalk_id": "23",
+        "intersection": "1st Avenue & Ospika",
+        "deficient": "No",
+        "report_mi_value": "53",
+        "geocode_score": 99.52,
+        "matched_address": "1st Ave & Ospika Blvd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.796387000001,
+          53.924868
+        ]
+      },
+      "properties": {
+        "x_26910": 513371.86202429514,
+        "y_26910": 5975181.049425926,
+        "crosswalk_id": "24",
+        "intersection": "1st Avenue & McIntyre",
+        "deficient": "Yes",
+        "report_mi_value": "53",
+        "geocode_score": 99.52,
+        "matched_address": "1st Ave & McIntyre Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.803668000001,
+          53.988858
+        ]
+      },
+      "properties": {
+        "x_26910": 512874.0115994938,
+        "y_26910": 5982299.194363687,
+        "crosswalk_id": "66",
+        "intersection": "Austin West & Edelweiss",
+        "deficient": "No",
+        "report_mi_value": "53",
+        "geocode_score": 86.92,
+        "matched_address": "Austin Rd & Edelweiss Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.807452500001,
+          53.993484
+        ]
+      },
+      "properties": {
+        "x_26910": 512624.4743800181,
+        "y_26910": 5982813.202505571,
+        "crosswalk_id": "91",
+        "intersection": "Heather & Heather Road Park",
+        "deficient": "No",
+        "report_mi_value": "53",
+        "geocode_score": 83.37,
+        "matched_address": "Heather Rd & Heather Park Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.747917500001,
+          53.914698
+        ]
+      },
+      "properties": {
+        "x_26910": 516558.74941668665,
+        "y_26910": 5974059.779212498,
+        "crosswalk_id": "56",
+        "intersection": "6th Avenue & Quebec",
+        "deficient": "Yes",
+        "report_mi_value": "52",
+        "geocode_score": 99.52,
+        "matched_address": "6th Ave & Quebec St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.749438500001,
+          53.915121
+        ]
+      },
+      "properties": {
+        "x_26910": 516458.6788158402,
+        "y_26910": 5974106.487438974,
+        "crosswalk_id": "53",
+        "intersection": "6th Avenue & Brunswick",
+        "deficient": "Yes",
+        "report_mi_value": "52",
+        "geocode_score": 99.52,
+        "matched_address": "6th Ave & Brunswick St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.742985500001,
+          53.900343
+        ]
+      },
+      "properties": {
+        "x_26910": 516888.4886159089,
+        "y_26910": 5972463.827803889,
+        "crosswalk_id": "114",
+        "intersection": "Moss & Jasper Park",
+        "deficient": "Yes",
+        "report_mi_value": "52",
+        "geocode_score": 94.37,
+        "matched_address": "Moss Ave & Jasper St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760589500001,
+          53.902269
+        ]
+      },
+      "properties": {
+        "x_26910": 515731.07998417795,
+        "y_26910": 5972674.062547157,
+        "crosswalk_id": "153",
+        "intersection": "Strathcona & Upland",
+        "deficient": "No",
+        "report_mi_value": "51",
+        "geocode_score": 99.05,
+        "matched_address": "Strathcona Ave & Upland St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.744781000001,
+          53.913582
+        ]
+      },
+      "properties": {
+        "x_26910": 516765.21199505747,
+        "y_26910": 5973936.351746256,
+        "crosswalk_id": "86",
+        "intersection": "George & 7th Avenue",
+        "deficient": "Yes",
+        "report_mi_value": "51",
+        "geocode_score": 99.52,
+        "matched_address": "George St & 7th Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.744637000001,
+          53.913762
+        ]
+      },
+      "properties": {
+        "x_26910": 516774.5985073677,
+        "y_26910": 5973956.41234056,
+        "crosswalk_id": "55",
+        "intersection": "6th Avenue & George",
+        "deficient": "Yes",
+        "report_mi_value": "51",
+        "geocode_score": 99.52,
+        "matched_address": "6th Ave & George St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.758893000001,
+          53.919387
+        ]
+      },
+      "properties": {
+        "x_26910": 515836.0682375965,
+        "y_26910": 5974578.963481152,
+        "crosswalk_id": "109",
+        "intersection": "McBride & Cassiar",
+        "deficient": "Yes",
+        "report_mi_value": "51",
+        "geocode_score": 99.05,
+        "matched_address": "McBride Cres & Cassiar St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.802831000001,
+          53.92062
+        ]
+      },
+      "properties": {
+        "x_26910": 512950.0158695966,
+        "y_26910": 5974707.225675207,
+        "crosswalk_id": "49",
+        "intersection": "5th Avenue & Voyageur/Lacoma",
+        "deficient": "Maybe",
+        "report_mi_value": "51",
+        "geocode_score": 96,
+        "matched_address": "5th Ave & Voyageur Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.791765500001,
+          53.921655
+        ]
+      },
+      "properties": {
+        "x_26910": 513676.3939133738,
+        "y_26910": 5974824.456413007,
+        "crosswalk_id": "138",
+        "intersection": "Quinn & 4th Avenue",
+        "deficient": "Yes",
+        "report_mi_value": "51",
+        "geocode_score": 99.52,
+        "matched_address": "Quinn St & 4th Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.805355500001,
+          53.923842
+        ]
+      },
+      "properties": {
+        "x_26910": 512783.2374227202,
+        "y_26910": 5975065.243468888,
+        "crosswalk_id": "158",
+        "intersection": "Tabor & Trapper",
+        "deficient": "Yes",
+        "report_mi_value": "51",
+        "geocode_score": 99.05,
+        "matched_address": "Tabor Blvd & Trapper Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.761512000001,
+          53.849862
+        ]
+      },
+      "properties": {
+        "x_26910": 515690.0730345487,
+        "y_26910": 5966843.166880956,
+        "crosswalk_id": "103",
+        "intersection": "Malaspina & Loyola East",
+        "deficient": "Yes",
+        "report_mi_value": "50",
+        "geocode_score": 95.1,
+        "matched_address": "Malaspina Ave & Loyola Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.757979500001,
+          53.88876
+        ]
+      },
+      "properties": {
+        "x_26910": 515907.6937503086,
+        "y_26910": 5971171.657291729,
+        "crosswalk_id": "82",
+        "intersection": "Ferry & Williams",
+        "deficient": "Yes",
+        "report_mi_value": "50",
+        "geocode_score": 99.05,
+        "matched_address": "Ferry Ave & Williams Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760630000001,
+          53.89848
+        ]
+      },
+      "properties": {
+        "x_26910": 515729.8420599623,
+        "y_26910": 5972252.495771249,
+        "crosswalk_id": "161",
+        "intersection": "Upland & Pearson",
+        "deficient": "No",
+        "report_mi_value": "50",
+        "geocode_score": 99.05,
+        "matched_address": "Upland St & Pearson Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760625500001,
+          53.900334
+        ]
+      },
+      "properties": {
+        "x_26910": 515729.4414358689,
+        "y_26910": 5972458.769670022,
+        "crosswalk_id": "160",
+        "intersection": "Upland & Diefenbaker",
+        "deficient": "No",
+        "report_mi_value": "50",
+        "geocode_score": 99.05,
+        "matched_address": "Upland St & Diefenbaker Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.802466500001,
+          53.915751
+        ]
+      },
+      "properties": {
+        "x_26910": 512975.4634610194,
+        "y_26910": 5974165.573456853,
+        "crosswalk_id": "97",
+        "intersection": "Kerry & Inez",
+        "deficient": "Yes",
+        "report_mi_value": "50",
+        "geocode_score": 99.05,
+        "matched_address": "Kerry St & Inez Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.746657500001,
+          53.916228
+        ]
+      },
+      "properties": {
+        "x_26910": 516640.90206790966,
+        "y_26910": 5974230.299824174,
+        "crosswalk_id": "41",
+        "intersection": "4th Avenue & Quebec",
+        "deficient": "No",
+        "report_mi_value": "50",
+        "geocode_score": 99.52,
+        "matched_address": "4th Ave & Quebec St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.811241500001,
+          53.929134
+        ]
+      },
+      "properties": {
+        "x_26910": 512395.1417865005,
+        "y_26910": 5975652.98042647,
+        "crosswalk_id": "22",
+        "intersection": "1st Avenue & Claxton South",
+        "deficient": "Yes",
+        "report_mi_value": "50",
+        "geocode_score": 96.22,
+        "matched_address": "1st Ave & Claxton Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.754496500001,
+          53.889282
+        ]
+      },
+      "properties": {
+        "x_26910": 516136.4093763556,
+        "y_26910": 5971230.5208279565,
+        "crosswalk_id": "83",
+        "intersection": "Ferry & Clapperton",
+        "deficient": "Yes",
+        "report_mi_value": "49",
+        "geocode_score": 99.05,
+        "matched_address": "Ferry Ave & Clapperton St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.764545000001,
+          53.890947
+        ]
+      },
+      "properties": {
+        "x_26910": 515475.37499390176,
+        "y_26910": 5971413.526264893,
+        "crosswalk_id": "174",
+        "intersection": "Wilson & Watson East Leg",
+        "deficient": "No",
+        "report_mi_value": "49",
+        "geocode_score": 93.56,
+        "matched_address": "Wilson Cres & Watson Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.786968500001,
+          53.9073
+        ]
+      },
+      "properties": {
+        "x_26910": 513996.2235056362,
+        "y_26910": 5973228.274531155,
+        "crosswalk_id": "16",
+        "intersection": "18th Avenue & Nicholson",
+        "deficient": "No",
+        "report_mi_value": "49",
+        "geocode_score": 99.52,
+        "matched_address": "18th Ave & Nicholson St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.802601500001,
+          53.91504
+        ]
+      },
+      "properties": {
+        "x_26910": 512966.81668291404,
+        "y_26910": 5974086.443824662,
+        "crosswalk_id": "75",
+        "intersection": "Davie & Kerry",
+        "deficient": "No",
+        "report_mi_value": "49",
+        "geocode_score": 99.05,
+        "matched_address": "Davie Ave & Kerry St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.773774500001,
+          53.915409
+        ]
+      },
+      "properties": {
+        "x_26910": 514860.12385242817,
+        "y_26910": 5974133.155082704,
+        "crosswalk_id": "3",
+        "intersection": "10th Avenue & Freeman",
+        "deficient": "No",
+        "report_mi_value": "49",
+        "geocode_score": 99.52,
+        "matched_address": "10th Ave & Freeman St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.769333000001,
+          53.922627
+        ]
+      },
+      "properties": {
+        "x_26910": 515149.2384136731,
+        "y_26910": 5974937.1603424745,
+        "crosswalk_id": "32",
+        "intersection": "3rd Avenue & Carney",
+        "deficient": "Yes",
+        "report_mi_value": "49",
+        "geocode_score": 99.52,
+        "matched_address": "3rd Ave & Carney St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.761512000001,
+          53.849862
+        ]
+      },
+      "properties": {
+        "x_26910": 515690.0730345487,
+        "y_26910": 5966843.166880956,
+        "crosswalk_id": "102",
+        "intersection": "Malaspina & Loyola West",
+        "deficient": "Yes",
+        "report_mi_value": "48",
+        "geocode_score": 95.1,
+        "matched_address": "Malaspina Ave & Loyola Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.807002500001,
+          53.91774
+        ]
+      },
+      "properties": {
+        "x_26910": 512676.9288102657,
+        "y_26910": 5974386.046503341,
+        "crosswalk_id": "155",
+        "intersection": "Tabor & Ness",
+        "deficient": "No",
+        "report_mi_value": "48",
+        "geocode_score": 99.05,
+        "matched_address": "Tabor Blvd & Ness Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.764045500001,
+          53.918325
+        ]
+      },
+      "properties": {
+        "x_26910": 515498.06619117083,
+        "y_26910": 5974459.668185328,
+        "crosswalk_id": "101",
+        "intersection": "Laurier & 7th",
+        "deficient": "Yes",
+        "report_mi_value": "48",
+        "geocode_score": 99.05,
+        "matched_address": "Laurier Cres & 7th Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.761521000001,
+          53.919855
+        ]
+      },
+      "properties": {
+        "x_26910": 515663.2967029781,
+        "y_26910": 5974630.448746859,
+        "crosswalk_id": "100",
+        "intersection": "Laurier & Melville",
+        "deficient": "Yes",
+        "report_mi_value": "48",
+        "geocode_score": 99.05,
+        "matched_address": "Laurier Cres & Melville Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.809538039921,
+          53.919482928045
+        ]
+      },
+      "properties": {
+        "x_26910": 512509.87715093745,
+        "y_26910": 5974579.512169034,
+        "crosswalk_id": "132",
+        "intersection": "Pilot & Jack Pine Park",
+        "deficient": "Yes",
+        "report_mi_value": "48",
+        "geocode_score": 81.35,
+        "matched_address": "Jackpine Park",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.801805000001,
+          53.917272
+        ]
+      },
+      "properties": {
+        "x_26910": 513018.4388286839,
+        "y_26910": 5974334.919227117,
+        "crosswalk_id": "96",
+        "intersection": "Kerry & Lacoma",
+        "deficient": "No",
+        "report_mi_value": "47",
+        "geocode_score": 99.05,
+        "matched_address": "Kerry St & Lacoma St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.763636000001,
+          53.920611
+        ]
+      },
+      "properties": {
+        "x_26910": 515524.1131917094,
+        "y_26910": 5974714.095136226,
+        "crosswalk_id": "50",
+        "intersection": "5th Avenue & Watrous",
+        "deficient": "Yes",
+        "report_mi_value": "47",
+        "geocode_score": 99.52,
+        "matched_address": "5th Ave & Watrous St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.778301044575,
+          53.904815159641
+        ]
+      },
+      "properties": {
+        "x_26910": 514566.4958900425,
+        "y_26910": 5972953.560576114,
+        "crosswalk_id": "89",
+        "intersection": "Griffiths & PGSS",
+        "deficient": "Yes",
+        "report_mi_value": "47",
+        "geocode_score": 71.56,
+        "matched_address": "Griffiths Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.799996000001,
+          53.914905
+        ]
+      },
+      "properties": {
+        "x_26910": 513137.99564204866,
+        "y_26910": 5974071.903540799,
+        "crosswalk_id": "73",
+        "intersection": "Davie & Bednesti",
+        "deficient": "No",
+        "report_mi_value": "46",
+        "geocode_score": 99.05,
+        "matched_address": "Davie Ave & Bednesti Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.746351500001,
+          53.914248
+        ]
+      },
+      "properties": {
+        "x_26910": 516661.78855709883,
+        "y_26910": 5974010.079729084,
+        "crosswalk_id": "54",
+        "intersection": "6th Avenue & Dominion",
+        "deficient": "Yes",
+        "report_mi_value": "46",
+        "geocode_score": 99.52,
+        "matched_address": "6th Ave & Dominion St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.741037000001,
+          53.915598
+        ]
+      },
+      "properties": {
+        "x_26910": 517010.3174583021,
+        "y_26910": 5974161.54072952,
+        "crosswalk_id": "36",
+        "intersection": "3rd Avenue & Queensway",
+        "deficient": "Yes",
+        "report_mi_value": "46",
+        "geocode_score": 100,
+        "matched_address": "3rd Ave & Queensway",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.769333000001,
+          53.923626
+        ]
+      },
+      "properties": {
+        "x_26910": 515148.87675332837,
+        "y_26910": 5975048.307853101,
+        "crosswalk_id": "27",
+        "intersection": "2nd Avenue & Carney",
+        "deficient": "Yes",
+        "report_mi_value": "46",
+        "geocode_score": 99.52,
+        "matched_address": "2nd Ave & Carney St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.804028000001,
+          53.934705
+        ]
+      },
+      "properties": {
+        "x_26910": 512867.07163611596,
+        "y_26910": 5976274.089736083,
+        "crosswalk_id": "130",
+        "intersection": "Otway & west of Tabor",
+        "deficient": "Yes",
+        "report_mi_value": "46",
+        "geocode_score": 81.96,
+        "matched_address": "Otway Rd & Tabor Blvd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.777028000001,
+          53.900613
+        ]
+      },
+      "properties": {
+        "x_26910": 514651.6035740821,
+        "y_26910": 5972486.297241961,
+        "crosswalk_id": "106",
+        "intersection": "Massey & Pine Centre",
+        "deficient": "No",
+        "report_mi_value": "45",
+        "geocode_score": 99.05,
+        "matched_address": "Massey Dr & Pine Centre Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.740393500001,
+          53.916372
+        ]
+      },
+      "properties": {
+        "x_26910": 517052.2684039493,
+        "y_26910": 5974247.8094345005,
+        "crosswalk_id": "29",
+        "intersection": "2nd Avenue & Queensway",
+        "deficient": "Yes",
+        "report_mi_value": "45",
+        "geocode_score": 100,
+        "matched_address": "2nd Ave & Queensway",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.745388500001,
+          53.917803
+        ]
+      },
+      "properties": {
+        "x_26910": 516723.6217794292,
+        "y_26910": 5974405.830700419,
+        "crosswalk_id": "31",
+        "intersection": "2nd Avenue & Quebec",
+        "deficient": "Yes",
+        "report_mi_value": "45",
+        "geocode_score": 99.52,
+        "matched_address": "2nd Ave & Quebec St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.825601256111,
+          53.961935717772
+        ]
+      },
+      "properties": {
+        "x_26910": 511443.2890509386,
+        "y_26910": 5979300.061469033,
+        "crosswalk_id": "118",
+        "intersection": "North Nechako & School",
+        "deficient": "Yes",
+        "report_mi_value": "45",
+        "geocode_score": 80,
+        "matched_address": "North Nechako",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.783697000001,
+          53.876115
+        ]
+      },
+      "properties": {
+        "x_26910": 514221.7268749993,
+        "y_26910": 5969759.337702104,
+        "crosswalk_id": "76",
+        "intersection": "Davis & Baker",
+        "deficient": "Yes",
+        "report_mi_value": "44",
+        "geocode_score": 99.05,
+        "matched_address": "Davis Rd & Baker Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.812663500001,
+          53.917011
+        ]
+      },
+      "properties": {
+        "x_26910": 512305.33661831834,
+        "y_26910": 5974303.941542559,
+        "crosswalk_id": "133",
+        "intersection": "Pilot & Selwyn",
+        "deficient": "No",
+        "report_mi_value": "44",
+        "geocode_score": 99.05,
+        "matched_address": "Pilot St & Selwyn Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760859500001,
+          53.919117
+        ]
+      },
+      "properties": {
+        "x_26910": 515707.0178283866,
+        "y_26910": 5974548.486186338,
+        "crosswalk_id": "110",
+        "intersection": "McBride & Melville",
+        "deficient": "Yes",
+        "report_mi_value": "43",
+        "geocode_score": 99.05,
+        "matched_address": "McBride Cres & Melville Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.810301000001,
+          53.922879
+        ]
+      },
+      "properties": {
+        "x_26910": 512458.75802367245,
+        "y_26910": 5974957.22078468,
+        "crosswalk_id": "64",
+        "intersection": "Anderson & Hill",
+        "deficient": "No",
+        "report_mi_value": "43",
+        "geocode_score": 99.05,
+        "matched_address": "Anderson St & Hill Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.804865000001,
+          53.914869
+        ]
+      },
+      "properties": {
+        "x_26910": 512818.1959776656,
+        "y_26910": 5974067.0070119295,
+        "crosswalk_id": "74",
+        "intersection": "Davie & Jarvis",
+        "deficient": "Yes",
+        "report_mi_value": "42",
+        "geocode_score": 99.05,
+        "matched_address": "Davie Ave & Jarvis St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.747283000001,
+          53.915463
+        ]
+      },
+      "properties": {
+        "x_26910": 516600.12206979544,
+        "y_26910": 5974145.04038387,
+        "crosswalk_id": "46",
+        "intersection": "5th Avenue & Quebec",
+        "deficient": "Yes",
+        "report_mi_value": "42",
+        "geocode_score": 99.52,
+        "matched_address": "5th Ave & Quebec St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.788773000001,
+          53.923653
+        ]
+      },
+      "properties": {
+        "x_26910": 513872.2562876127,
+        "y_26910": 5975047.332921219,
+        "crosswalk_id": "123",
+        "intersection": "Ogilvie & 2nd Avenue",
+        "deficient": "Yes",
+        "report_mi_value": "42",
+        "geocode_score": 99.52,
+        "matched_address": "Ogilvie St & 2nd Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.811241500001,
+          53.929134
+        ]
+      },
+      "properties": {
+        "x_26910": 512395.1417865005,
+        "y_26910": 5975652.98042647,
+        "crosswalk_id": "21",
+        "intersection": "1st Avenue & Claxton North",
+        "deficient": "Yes",
+        "report_mi_value": "42",
+        "geocode_score": 96.22,
+        "matched_address": "1st Ave & Claxton Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.778612000001,
+          53.855595
+        ]
+      },
+      "properties": {
+        "x_26910": 514563.1590237418,
+        "y_26910": 5967477.360621238,
+        "crosswalk_id": "151",
+        "intersection": "St Lawrence & Southridge",
+        "deficient": "No",
+        "report_mi_value": "41",
+        "geocode_score": 99.05,
+        "matched_address": "St Lawrence Ave & Southridge Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.768419500001,
+          53.873811
+        ]
+      },
+      "properties": {
+        "x_26910": 515226.9655298695,
+        "y_26910": 5969506.170583576,
+        "crosswalk_id": "145",
+        "intersection": "Simon Fraser & Eton",
+        "deficient": "Yes",
+        "report_mi_value": "41",
+        "geocode_score": 99.05,
+        "matched_address": "Simon Fraser Ave & Eton Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.776758000001,
+          53.923626
+        ]
+      },
+      "properties": {
+        "x_26910": 514661.2821380016,
+        "y_26910": 5975046.746805648,
+        "crosswalk_id": "30",
+        "intersection": "2nd Avenue & Harper",
+        "deficient": "Yes",
+        "report_mi_value": "41",
+        "geocode_score": 99.52,
+        "matched_address": "2nd Ave & Harper St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.741428500001,
+          53.902188
+        ]
+      },
+      "properties": {
+        "x_26910": 516990.04402328166,
+        "y_26910": 5972669.471275929,
+        "crosswalk_id": "136",
+        "intersection": "Queensway & Regents",
+        "deficient": "Yes",
+        "report_mi_value": "40",
+        "geocode_score": 99.51,
+        "matched_address": "Queensway & Regents Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.804037000001,
+          53.933877
+        ]
+      },
+      "properties": {
+        "x_26910": 512866.73546139547,
+        "y_26910": 5976181.9656057665,
+        "crosswalk_id": "157",
+        "intersection": "Tabor & Galinis",
+        "deficient": "Yes",
+        "report_mi_value": "40",
+        "geocode_score": 99.05,
+        "matched_address": "Tabor Blvd & Galinis Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.764338000001,
+          53.870283
+        ]
+      },
+      "properties": {
+        "x_26910": 515496.61778949294,
+        "y_26910": 5969114.53684306,
+        "crosswalk_id": "147",
+        "intersection": "Simon Fraser & Trent/Brock",
+        "deficient": "No",
+        "report_mi_value": "39",
+        "geocode_score": 94.83,
+        "matched_address": "Simon Fraser Ave & Trent Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.797440000001,
+          53.931105
+        ]
+      },
+      "properties": {
+        "x_26910": 513300.73133566295,
+        "y_26910": 5975874.773228508,
+        "crosswalk_id": "113",
+        "intersection": "McDermid & McIvor",
+        "deficient": "Yes",
+        "report_mi_value": "39",
+        "geocode_score": 99.05,
+        "matched_address": "McDermid Dr & McIvor St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.804041500001,
+          53.931501
+        ]
+      },
+      "properties": {
+        "x_26910": 512867.1708477952,
+        "y_26910": 5975917.613347584,
+        "crosswalk_id": "156",
+        "intersection": "Tabor & Parker/Dornbierer",
+        "deficient": "Yes",
+        "report_mi_value": "39",
+        "geocode_score": 92.52,
+        "matched_address": "Tabor Blvd & Parker Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.803247787685,
+          53.90631186891
+        ]
+      },
+      "properties": {
+        "x_26910": 512927.06145093736,
+        "y_26910": 5973115.246069035,
+        "crosswalk_id": "129",
+        "intersection": "Ospika & Exhibition Grounds",
+        "deficient": "Maybe",
+        "report_mi_value": "39",
+        "geocode_score": 84.35,
+        "matched_address": "Exhibition Grounds",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.798047500001,
+          53.899641
+        ]
+      },
+      "properties": {
+        "x_26910": 513270.8160546502,
+        "y_26910": 5972374.016013224,
+        "crosswalk_id": "70",
+        "intersection": "Campbell & Foot",
+        "deficient": "Yes",
+        "report_mi_value": "38",
+        "geocode_score": 99.05,
+        "matched_address": "Campbell Ave & Foot St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.799550500001,
+          53.932158
+        ]
+      },
+      "properties": {
+        "x_26910": 513161.8296568702,
+        "y_26910": 5975991.535023999,
+        "crosswalk_id": "112",
+        "intersection": "McDermid & Parker",
+        "deficient": "Yes",
+        "report_mi_value": "38",
+        "geocode_score": 99.05,
+        "matched_address": "McDermid Dr & Parker Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.764927500001,
+          53.867619
+        ]
+      },
+      "properties": {
+        "x_26910": 515458.83856378775,
+        "y_26910": 5968818.017588286,
+        "crosswalk_id": "146",
+        "intersection": "Simon Fraser & Rideau",
+        "deficient": "Yes",
+        "report_mi_value": "37",
+        "geocode_score": 99.05,
+        "matched_address": "Simon Fraser Ave & Rideau Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.786028000001,
+          53.885781
+        ]
+      },
+      "properties": {
+        "x_26910": 514065.23364341125,
+        "y_26910": 5970834.292943494,
+        "crosswalk_id": "125",
+        "intersection": "Ospika & Andres",
+        "deficient": "Maybe",
+        "report_mi_value": "37",
+        "geocode_score": 99.05,
+        "matched_address": "Ospika Blvd & Andres Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.784700500001,
+          53.895744
+        ]
+      },
+      "properties": {
+        "x_26910": 514149.12337168003,
+        "y_26910": 5971943.0224717595,
+        "crosswalk_id": "164",
+        "intersection": "Vanier & Dufferin",
+        "deficient": "Yes",
+        "report_mi_value": "37",
+        "geocode_score": 99.05,
+        "matched_address": "Vanier Dr & Dufferin Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.786986500001,
+          53.903628
+        ]
+      },
+      "properties": {
+        "x_26910": 513996.2683252745,
+        "y_26910": 5972819.729835821,
+        "crosswalk_id": "26",
+        "intersection": "22nd Avenue & Nicholson",
+        "deficient": "No",
+        "report_mi_value": "37",
+        "geocode_score": 99.52,
+        "matched_address": "22nd Ave & Nicholson St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.743390500001,
+          53.91531
+        ]
+      },
+      "properties": {
+        "x_26910": 516855.85117353365,
+        "y_26910": 5974128.936189449,
+        "crosswalk_id": "40",
+        "intersection": "4th Avenue & George",
+        "deficient": "No",
+        "report_mi_value": "37",
+        "geocode_score": 99.52,
+        "matched_address": "4th Ave & George St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.742126000001,
+          53.916858
+        ]
+      },
+      "properties": {
+        "x_26910": 516938.28000654397,
+        "y_26910": 5974301.4658122575,
+        "crosswalk_id": "28",
+        "intersection": "2nd Avenue & George",
+        "deficient": "Yes",
+        "report_mi_value": "36",
+        "geocode_score": 99.52,
+        "matched_address": "2nd Ave & George St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.799411000001,
+          53.922267
+        ]
+      },
+      "properties": {
+        "x_26910": 513174.1026731521,
+        "y_26910": 5974891.099028968,
+        "crosswalk_id": "69",
+        "intersection": "Brigade & Pioneer",
+        "deficient": "Yes",
+        "report_mi_value": "36",
+        "geocode_score": 99.05,
+        "matched_address": "Brigade Dr & Pioneer Ave",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.803052256472,
+          53.907955422086
+        ]
+      },
+      "properties": {
+        "x_26910": 512939.39925093896,
+        "y_26910": 5973298.141069032,
+        "crosswalk_id": "14",
+        "intersection": "18th Avenue & Aquatic Centre",
+        "deficient": "Yes",
+        "report_mi_value": "35",
+        "geocode_score": 73.91,
+        "matched_address": "Aquatic Centre",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.784705000001,
+          53.876673
+        ]
+      },
+      "properties": {
+        "x_26910": 514155.2686235594,
+        "y_26910": 5969821.218015549,
+        "crosswalk_id": "126",
+        "intersection": "Ospika & Davis",
+        "deficient": "Maybe",
+        "report_mi_value": "34",
+        "geocode_score": 99.05,
+        "matched_address": "Ospika Blvd & Davis Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.744007000001,
+          53.914545
+        ]
+      },
+      "properties": {
+        "x_26910": 516815.6653476249,
+        "y_26910": 5974043.677008536,
+        "crosswalk_id": "45",
+        "intersection": "5th Avenue & George",
+        "deficient": "Yes",
+        "report_mi_value": "34",
+        "geocode_score": 99.52,
+        "matched_address": "5th Ave & George St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.760472500001,
+          53.944272
+        ]
+      },
+      "properties": {
+        "x_26910": 515722.977055772,
+        "y_26910": 5977347.2898044,
+        "crosswalk_id": "121",
+        "intersection": "Northwood Pulp & Aberdeen",
+        "deficient": "Yes",
+        "report_mi_value": "34",
+        "geocode_score": 94.57,
+        "matched_address": "Northwood Pulpmill Rd & Aberdeen Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.793232500001,
+          53.975322
+        ]
+      },
+      "properties": {
+        "x_26910": 513562.631129506,
+        "y_26910": 5980795.127038734,
+        "crosswalk_id": "98",
+        "intersection": "Killarney & Sussex",
+        "deficient": "Yes",
+        "report_mi_value": "33",
+        "geocode_score": 99.05,
+        "matched_address": "Killarney Dr & Sussex Lane",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.773531500001,
+          53.86806
+        ]
+      },
+      "properties": {
+        "x_26910": 514892.90721577255,
+        "y_26910": 5968865.241769381,
+        "crosswalk_id": "78",
+        "intersection": "Domano & Moriarty West",
+        "deficient": "Yes",
+        "report_mi_value": "32",
+        "geocode_score": 94.98,
+        "matched_address": "Domano Blvd & Moriarty Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.795590500001,
+          53.976762
+        ]
+      },
+      "properties": {
+        "x_26910": 513407.5119294202,
+        "y_26910": 5980954.89235082,
+        "crosswalk_id": "99",
+        "intersection": "Langley & Dundee",
+        "deficient": "Yes",
+        "report_mi_value": "32",
+        "geocode_score": 99.05,
+        "matched_address": "Langley Cres & Dundee Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.775484500001,
+          53.930637
+        ]
+      },
+      "properties": {
+        "x_26910": 514742.44142937596,
+        "y_26910": 5975827.046776974,
+        "crosswalk_id": "120",
+        "intersection": "North Nechako & Tomlin",
+        "deficient": "Yes",
+        "report_mi_value": "31",
+        "geocode_score": 99.05,
+        "matched_address": "North Nechako Rd & Tomlin Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.789749500001,
+          53.974989
+        ]
+      },
+      "properties": {
+        "x_26910": 513791.18468535104,
+        "y_26910": 5980758.749898876,
+        "crosswalk_id": "154",
+        "intersection": "Sussex & Wildwood",
+        "deficient": "No",
+        "report_mi_value": "31",
+        "geocode_score": 99.05,
+        "matched_address": "Sussex Lane & Wildwood Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.777464500001,
+          53.995644
+        ]
+      },
+      "properties": {
+        "x_26910": 514589.7219149828,
+        "y_26910": 5983059.285289704,
+        "crosswalk_id": "77",
+        "intersection": "Dawson & Cluff",
+        "deficient": "Yes",
+        "report_mi_value": "30",
+        "geocode_score": 99.05,
+        "matched_address": "Dawson Rd & Cluff Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.819472000001,
+          53.918244
+        ]
+      },
+      "properties": {
+        "x_26910": 511857.80675791844,
+        "y_26910": 5974439.963438514,
+        "crosswalk_id": "84",
+        "intersection": "Foothills & Ochakwin",
+        "deficient": "Yes",
+        "report_mi_value": "29",
+        "geocode_score": 99.05,
+        "matched_address": "Foothills Blvd & Ochakwin Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.768455500001,
+          53.925462
+        ]
+      },
+      "properties": {
+        "x_26910": 515205.83435262245,
+        "y_26910": 5975252.766860196,
+        "crosswalk_id": "18",
+        "intersection": "1st Avenue & Carney",
+        "deficient": "Yes",
+        "report_mi_value": "28",
+        "geocode_score": 99.52,
+        "matched_address": "1st Ave & Carney St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.825601256111,
+          53.961935717772
+        ]
+      },
+      "properties": {
+        "x_26910": 511443.2890509386,
+        "y_26910": 5979300.061469033,
+        "crosswalk_id": "117",
+        "intersection": "North Nechako & Trailer Park",
+        "deficient": "Yes",
+        "report_mi_value": "27",
+        "geocode_score": 71.3,
+        "matched_address": "North Nechako",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.768455500001,
+          53.925462
+        ]
+      },
+      "properties": {
+        "x_26910": 515205.83435262245,
+        "y_26910": 5975252.766860196,
+        "crosswalk_id": "19",
+        "intersection": "1st Avenue & Carney Off Ramp",
+        "deficient": "Yes",
+        "report_mi_value": "25",
+        "geocode_score": 95.44,
+        "matched_address": "1st Ave & Carney St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.800252500001,
+          53.945577
+        ]
+      },
+      "properties": {
+        "x_26910": 513111.5315292675,
+        "y_26910": 5977484.391195409,
+        "crosswalk_id": "72",
+        "intersection": "Churchill & Craig",
+        "deficient": "Yes",
+        "report_mi_value": "24",
+        "geocode_score": 99.05,
+        "matched_address": "Churchill Rd & Craig Dr",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.768455500001,
+          53.925462
+        ]
+      },
+      "properties": {
+        "x_26910": 515205.83435262245,
+        "y_26910": 5975252.766860196,
+        "crosswalk_id": "20",
+        "intersection": "1st Avenue & Carney On Ramp",
+        "deficient": "Yes",
+        "report_mi_value": "24",
+        "geocode_score": 95.76,
+        "matched_address": "1st Ave & Carney St",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.801125500001,
+          54.015147
+        ]
+      },
+      "properties": {
+        "x_26910": 513032.50170992,
+        "y_26910": 5985224.581675207,
+        "crosswalk_id": "94",
+        "intersection": "Kelly Rd North & Zral",
+        "deficient": "Yes",
+        "report_mi_value": "22",
+        "geocode_score": 83.17,
+        "matched_address": "Kelly Rd & Zral Rd",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.767659000001,
+          53.928477
+        ]
+      },
+      "properties": {
+        "x_26910": 515257.03818296955,
+        "y_26910": 5975588.383388336,
+        "crosswalk_id": "119",
+        "intersection": "North Nechako & Roundabout",
+        "deficient": "Yes",
+        "report_mi_value": "15",
+        "geocode_score": 99.51,
+        "matched_address": "North Nechako Rd & Roundabout",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.794830000001,
+          54.010143
+        ]
+      },
+      "properties": {
+        "x_26910": 513446.6314080479,
+        "y_26910": 5984669.011133262,
+        "crosswalk_id": "81",
+        "intersection": "Estavilla & Knight",
+        "deficient": "Yes",
+        "report_mi_value": "11",
+        "geocode_score": 99.05,
+        "matched_address": "Estavilla Dr & Knight Cres",
+        "poi_class": "Crosswalk (Class 3)"
+      }
+    }
+  ]
+}

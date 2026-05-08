@@ -47,6 +47,11 @@ const SOURCES = {
     url: 'https://public.tableau.com/app/profile/icbc/viz/LowerMainlandCrashes/LMDashboard',
     path: 'public/data/icbc/prince_george_pedestrian_crashes.geojson',
   },
+  supplementalManifest: {
+    label: 'Local Walkability supplemental manifest',
+    url: 'local:/data/walkability/supplemental/manifest.json',
+    path: 'public/data/walkability/supplemental/manifest.json',
+  },
 }
 
 const VARIANTS = [
@@ -96,10 +101,35 @@ const VARIANTS = [
       pedestrianSafety: 0.26,
     },
   },
+  {
+    id: 'supplementedLocal',
+    label: 'Supplemented local walkability',
+    description: 'Balanced score augmented with imported local POIs, childcare/daycare, intercity stops, crossings, and class-3 crosswalk burden.',
+    weights: {
+      sidewalkDensity: 0.19,
+      walkwayDensity: 0.1,
+      intersectionDensity: 0.14,
+      transitStopDensity: 0.12,
+      parkAmenityDensity: 0.1,
+      supplementalPoiDensity: 0.14,
+      crossingDensity: 0.09,
+      pedestrianSafety: 0.06,
+      crosswalkDeficiencySafety: 0.06,
+    },
+  },
 ]
 
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, 'utf8'))
+}
+
+async function readJsonIfExists(filePath) {
+  try {
+    return await readJson(filePath)
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null
+    throw error
+  }
 }
 
 function asFeatureCollection(data) {
@@ -170,6 +200,13 @@ async function main() {
   const parkFacilities = asFeatureCollection(await readJson(SOURCES.parkFacilities.path))
   const parkPlayingAreas = asFeatureCollection(await readJson(SOURCES.parkPlayingAreas.path))
   const pedestrianCrashes = asFeatureCollection(await readJson(SOURCES.pedestrianCrashes.path))
+  const supplementalManifest = await readJsonIfExists(SOURCES.supplementalManifest.path)
+  const supplementalLayers = new Map()
+
+  for (const layer of supplementalManifest?.copiedGeojson ?? []) {
+    const localPath = `public${layer.path}`
+    supplementalLayers.set(layer.id, asFeatureCollection(await readJson(localPath)))
+  }
 
   const communities = communitiesGeojson.features
     .filter((feature) => feature.geometry)
@@ -189,6 +226,17 @@ async function main() {
   const transitStopCount = summarizeFeatures(transitStops.features, communities, () => 1)
   const parkAmenityCount = summarizeFeatures([...parkFacilities.features, ...parkPlayingAreas.features], communities, () => 1)
   const pedestrianCrashCount = summarizeFeatures(pedestrianCrashes.features, communities, (feature) => Number(feature.properties?.crashCount) || 0)
+  const supplementalPoiFeatures = [
+    ...(supplementalLayers.get('bc_childcare_locations')?.features ?? []),
+    ...(supplementalLayers.get('osm_daycares')?.features ?? []),
+    ...(supplementalLayers.get('intercity_bus_stops')?.features ?? []),
+    ...(supplementalLayers.get('missing_poi_supplement')?.features ?? []),
+  ]
+  const crossingFeatures = supplementalLayers.get('osm_crossings')?.features ?? []
+  const class3CrosswalkFeatures = supplementalLayers.get('report_class3_crosswalks')?.features ?? []
+  const supplementalPoiCount = summarizeFeatures(supplementalPoiFeatures, communities, () => 1)
+  const crossingCount = summarizeFeatures(crossingFeatures, communities, () => 1)
+  const class3CrosswalkCount = summarizeFeatures(class3CrosswalkFeatures, communities, () => 1)
 
   const rawRows = communities.map((community) => {
     const area = community.areaSqKm > 0 ? community.areaSqKm : 1
@@ -201,12 +249,18 @@ async function main() {
         transitStopCount: transitStopCount.get(community.id) ?? 0,
         parkAmenityCount: parkAmenityCount.get(community.id) ?? 0,
         pedestrianCrashCount: pedestrianCrashCount.get(community.id) ?? 0,
+        supplementalPoiCount: supplementalPoiCount.get(community.id) ?? 0,
+        crossingCount: crossingCount.get(community.id) ?? 0,
+        class3CrosswalkCount: class3CrosswalkCount.get(community.id) ?? 0,
         sidewalkDensity: (sidewalkKm.get(community.id) ?? 0) / area,
         walkwayDensity: (walkwayKm.get(community.id) ?? 0) / area,
         intersectionDensity: (intersectionCount.get(community.id) ?? 0) / area,
         transitStopDensity: (transitStopCount.get(community.id) ?? 0) / area,
         parkAmenityDensity: (parkAmenityCount.get(community.id) ?? 0) / area,
         pedestrianCrashDensity: (pedestrianCrashCount.get(community.id) ?? 0) / area,
+        supplementalPoiDensity: (supplementalPoiCount.get(community.id) ?? 0) / area,
+        crossingDensity: (crossingCount.get(community.id) ?? 0) / area,
+        class3CrosswalkDensity: (class3CrosswalkCount.get(community.id) ?? 0) / area,
       },
     }
   })
@@ -218,6 +272,9 @@ async function main() {
     transitStopDensity: rawRows.map((row) => row.metrics.transitStopDensity),
     parkAmenityDensity: rawRows.map((row) => row.metrics.parkAmenityDensity),
     pedestrianCrashDensity: rawRows.map((row) => row.metrics.pedestrianCrashDensity),
+    supplementalPoiDensity: rawRows.map((row) => row.metrics.supplementalPoiDensity),
+    crossingDensity: rawRows.map((row) => row.metrics.crossingDensity),
+    class3CrosswalkDensity: rawRows.map((row) => row.metrics.class3CrosswalkDensity),
   }
 
   const output = {
@@ -230,6 +287,9 @@ async function main() {
         transitStopDensity: normalize(metricValues.transitStopDensity, row.metrics.transitStopDensity),
         parkAmenityDensity: normalize(metricValues.parkAmenityDensity, row.metrics.parkAmenityDensity),
         pedestrianSafety: normalize(metricValues.pedestrianCrashDensity, row.metrics.pedestrianCrashDensity, true),
+        supplementalPoiDensity: normalize(metricValues.supplementalPoiDensity, row.metrics.supplementalPoiDensity),
+        crossingDensity: normalize(metricValues.crossingDensity, row.metrics.crossingDensity),
+        crosswalkDeficiencySafety: normalize(metricValues.class3CrosswalkDensity, row.metrics.class3CrosswalkDensity, true),
       }
       const scores = Object.fromEntries(VARIANTS.map((variant) => [variant.id, scoreVariant(normalizedMetrics, variant)]))
 
@@ -253,7 +313,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     geography: 'City of Prince George community boundaries',
     output: `/${OUTPUT_GEOJSON.replace(/^public\//, '')}`,
-    sourcePolicy: 'Web-source-only recalculation from CityPG ArcGIS REST layers and ICBC public crash exports. The 2017 pedestrian-network study extraction is used only to choose variant concepts and proximity-oriented metric families.',
+    sourcePolicy: 'Base variants are web-source-only recalculations from CityPG ArcGIS REST layers and ICBC public crash exports. The supplemented local variant additionally uses imported layers from the local Walkability reconstruction folder. The 2017 pedestrian-network study extraction is used to choose variant concepts and proximity-oriented metric families.',
     variants: VARIANTS,
     metrics: [
       { id: 'sidewalkDensity', label: 'Sidewalk km per sq km', direction: 'higherIsBetter' },
@@ -262,8 +322,18 @@ async function main() {
       { id: 'transitStopDensity', label: 'Transit stops per sq km', direction: 'higherIsBetter' },
       { id: 'parkAmenityDensity', label: 'Park facilities and playing areas per sq km', direction: 'higherIsBetter' },
       { id: 'pedestrianSafety', label: 'Inverse pedestrian crash density', direction: 'lowerCrashDensityIsBetter' },
+      { id: 'supplementalPoiDensity', label: 'Imported supplemental POIs per sq km', direction: 'higherIsBetter' },
+      { id: 'crossingDensity', label: 'Imported pedestrian crossings per sq km', direction: 'higherIsBetter' },
+      { id: 'crosswalkDeficiencySafety', label: 'Inverse class-3 crosswalk density', direction: 'lowerClass3CrosswalkDensityIsBetter' },
     ],
     sources: Object.entries(SOURCES).map(([id, source]) => ({ id, label: source.label, url: source.url, localPath: source.path })),
+    supplementalInputs: supplementalManifest
+      ? {
+        manifest: '/data/walkability/supplemental/manifest.json',
+        layers: supplementalManifest.copiedGeojson,
+        joinedAssets: supplementalManifest.joinedAssets,
+      }
+      : null,
     caveats: [
       'Line lengths are assigned to the community containing each feature centroid, so boundary-crossing features are not split.',
       'Scores are min-max normalized within Prince George communities and are relative local indices, not audited engineering ratings.',
