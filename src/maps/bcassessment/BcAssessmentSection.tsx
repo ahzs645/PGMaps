@@ -7,7 +7,46 @@ import { useBcAssessmentData } from './hooks/useBcAssessmentData'
 import { useBoundaryData } from './hooks/useBoundaryData'
 import { useBoundaryAggregates } from './hooks/useBoundaryAggregates'
 import { ALL_CATEGORIES, formatCurrency, VALUE_STOPS, YEAR_STOPS } from './constants'
-import type { Property, PropertyCategory, ColorMetric, BoundaryLevel } from './types'
+import type {
+  AssessmentBoundaryLevel,
+  AssessmentBoundarySource,
+  Property,
+  PropertyCategory,
+  ColorMetric,
+  BoundaryLevel,
+} from './types'
+
+const DEFAULT_LEVEL_BY_SOURCE: Record<AssessmentBoundarySource, AssessmentBoundaryLevel> = {
+  bcHealth: 'chsa',
+  regionalDistrict: 'regionalDistrict',
+  census: 'ct',
+  cityPG: 'elementarySchoolCatchment',
+  watershed: 'majorWatershed',
+}
+
+const SOURCE_BY_LEVEL: Record<AssessmentBoundaryLevel, AssessmentBoundarySource> = {
+  healthAuthority: 'bcHealth',
+  hsda: 'bcHealth',
+  lha: 'bcHealth',
+  chsa: 'bcHealth',
+  regionalDistrict: 'regionalDistrict',
+  ct: 'census',
+  da: 'census',
+  db: 'census',
+  elementarySchoolCatchment: 'cityPG',
+  secondarySchoolCatchment: 'cityPG',
+  majorWatershed: 'watershed',
+  watershedGroup: 'watershed',
+  assessmentWatershed: 'watershed',
+}
+
+function isAssessmentBoundaryLevel(level: string | null): level is AssessmentBoundaryLevel {
+  return !!level && level in SOURCE_BY_LEVEL
+}
+
+function isAssessmentBoundarySource(source: string | null): source is AssessmentBoundarySource {
+  return !!source && source in DEFAULT_LEVEL_BY_SOURCE
+}
 
 export default function BcAssessmentSection() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -17,7 +56,16 @@ export default function BcAssessmentSection() {
   const [categoriesInitialized, setCategoriesInitialized] = useState(false)
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [colorMetric, setColorMetric] = useState<ColorMetric>(() => (searchParams.get('metric') as ColorMetric) || 'totalAssessed')
-  const [boundaryLevel, setBoundaryLevel] = useState<BoundaryLevel>(() => (searchParams.get('boundary') as BoundaryLevel) || 'none')
+  const [boundaryLevel, setBoundaryLevel] = useState<BoundaryLevel>(() => {
+    const boundary = searchParams.get('boundary')
+    return isAssessmentBoundaryLevel(boundary) ? boundary : 'none'
+  })
+  const [boundarySource, setBoundarySource] = useState<AssessmentBoundarySource>(() => {
+    const source = searchParams.get('source')
+    if (isAssessmentBoundarySource(source)) return source
+    const boundary = searchParams.get('boundary')
+    return isAssessmentBoundaryLevel(boundary) ? SOURCE_BY_LEVEL[boundary] : 'census'
+  })
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [selectedBoundaryId, setSelectedBoundaryId] = useState<string | null>(() => searchParams.get('region'))
   const [showSidebar, setShowSidebar] = useState(true)
@@ -48,6 +96,8 @@ export default function BcAssessmentSection() {
     else params.delete('metric')
     if (boundaryLevel !== 'none') params.set('boundary', boundaryLevel)
     else params.delete('boundary')
+    if (boundarySource !== 'census') params.set('source', boundarySource)
+    else params.delete('source')
     if (selectedProperty) params.set('property', selectedProperty.id)
     else params.delete('property')
     if (selectedBoundaryId) params.set('region', selectedBoundaryId)
@@ -55,7 +105,7 @@ export default function BcAssessmentSection() {
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [boundaryLevel, colorMetric, searchParams, searchQuery, selectedBoundaryId, selectedProperty, setSearchParams])
+  }, [boundaryLevel, boundarySource, colorMetric, searchParams, searchQuery, selectedBoundaryId, selectedProperty, setSearchParams])
 
   const filteredProperties = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -97,6 +147,12 @@ export default function BcAssessmentSection() {
     setSelectedBoundaryId(null)
   }, [])
 
+  const handleBoundarySourceChange = useCallback((source: AssessmentBoundarySource) => {
+    setBoundarySource(source)
+    setBoundaryLevel(DEFAULT_LEVEL_BY_SOURCE[source])
+    setSelectedBoundaryId(null)
+  }, [])
+
   // Build legend
   const legendItems = useMemo(() => {
     const stops = colorMetric === 'yearBuilt' ? YEAR_STOPS : VALUE_STOPS
@@ -129,12 +185,14 @@ export default function BcAssessmentSection() {
           selectedProperty={selectedProperty}
           searchQuery={searchQuery}
           colorMetric={colorMetric}
+          boundarySource={boundarySource}
           boundaryLevel={boundaryLevel}
           loading={loading}
           error={error}
           onSearchQueryChange={setSearchQuery}
           onToggleCategory={toggleCategory}
           onColorMetricChange={setColorMetric}
+          onBoundarySourceChange={handleBoundarySourceChange}
           selectedBoundary={selectedBoundaryId ? boundaryAggregates.get(selectedBoundaryId) ?? null : null}
           onBoundaryLevelChange={(level) => { setBoundaryLevel(level); setSelectedBoundaryId(null) }}
           onPropertyClick={handlePropertyClick}

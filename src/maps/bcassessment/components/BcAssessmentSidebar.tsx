@@ -11,13 +11,38 @@ import {
   COLOR_METRICS,
   formatCurrency,
 } from '../constants'
-import type { Property, PropertyCategory, ColorMetric, BoundaryLevel, BoundaryAggregate } from '../types'
+import type {
+  AssessmentBoundaryLevel,
+  AssessmentBoundarySource,
+  Property,
+  PropertyCategory,
+  ColorMetric,
+  BoundaryLevel,
+  BoundaryAggregate,
+} from '../types'
+
+const BOUNDARY_LABELS: Record<AssessmentBoundaryLevel, string> = {
+  healthAuthority: 'Health Authority',
+  hsda: 'HSDA',
+  lha: 'LHA',
+  chsa: 'CHSA',
+  regionalDistrict: 'Regional District',
+  ct: 'Census Tracts',
+  da: 'Dissemination Areas',
+  db: 'Dissemination Blocks',
+  elementarySchoolCatchment: 'Elementary Catchments',
+  secondarySchoolCatchment: 'Secondary Catchments',
+  majorWatershed: 'Major River Basins',
+  watershedGroup: 'Watershed Groups',
+  assessmentWatershed: 'Assessment Watersheds',
+}
 
 const BOUNDARY_OPTIONS: { value: BoundaryLevel; label: string }[] = [
   { value: 'none', label: 'None' },
-  { value: 'ct', label: 'Census Tracts' },
-  { value: 'da', label: 'Dissemination Areas' },
-  { value: 'db', label: 'Dissemination Blocks' },
+  ...Object.entries(BOUNDARY_LABELS).map(([value, label]) => ({
+    value: value as AssessmentBoundaryLevel,
+    label,
+  })),
 ]
 
 interface BcAssessmentSidebarProps {
@@ -29,39 +54,73 @@ interface BcAssessmentSidebarProps {
   selectedBoundary: BoundaryAggregate | null
   searchQuery: string
   colorMetric: ColorMetric
+  boundarySource: AssessmentBoundarySource
   boundaryLevel: BoundaryLevel
   loading: boolean
   error: string | null
   onSearchQueryChange: (query: string) => void
   onToggleCategory: (category: PropertyCategory) => void
   onColorMetricChange: (metric: ColorMetric) => void
+  onBoundarySourceChange: (source: AssessmentBoundarySource) => void
   onBoundaryLevelChange: (level: BoundaryLevel) => void
   onPropertyClick: (property: Property) => void
   onClearSelection: () => void
 }
 
-const REGION_SOURCE_OPTIONS: Array<StudyAreaSourceOption<string>> = BOUNDARY_SOURCE_OPTIONS.map((option) => {
-  if (option.value === 'census') {
-    return {
-      value: option.value,
-      label: 'Census Boundaries',
-      description: 'CT -> DA -> DB',
-    }
-  }
-  return {
-    value: option.value,
-    label: option.label,
-    description: option.description,
-    disabled: true,
-    disabledReason: 'BC Assessment parcels are aggregated to census boundaries only.',
-  }
-})
+const ASSESSMENT_BOUNDARY_SOURCES = new Set<AssessmentBoundarySource>([
+  'bcHealth',
+  'regionalDistrict',
+  'census',
+  'cityPG',
+  'watershed',
+])
 
-const REGION_LEVEL_OPTIONS: Array<{ value: Exclude<BoundaryLevel, 'none'>; label: string }> = [
-  { value: 'ct', label: 'Census Tracts' },
-  { value: 'da', label: 'Dissemination Areas' },
-  { value: 'db', label: 'Dissemination Blocks' },
-]
+function isAssessmentBoundarySource(value: string): value is AssessmentBoundarySource {
+  return ASSESSMENT_BOUNDARY_SOURCES.has(value as AssessmentBoundarySource)
+}
+
+const REGION_SOURCE_OPTIONS: Array<StudyAreaSourceOption<AssessmentBoundarySource>> = BOUNDARY_SOURCE_OPTIONS
+  .filter((option) => isAssessmentBoundarySource(option.value))
+  .map((option) => {
+    if (option.value === 'census') {
+      return {
+        value: 'census',
+        label: 'Census Boundaries',
+        description: 'CT -> DA -> DB',
+      }
+    }
+    return {
+      value: option.value as AssessmentBoundarySource,
+      label: option.label,
+      description: option.description,
+    }
+  })
+
+const REGION_LEVEL_OPTIONS: Record<AssessmentBoundarySource, Array<{ value: AssessmentBoundaryLevel; label: string }>> = {
+  bcHealth: [
+    { value: 'chsa', label: 'CHSA' },
+    { value: 'lha', label: 'LHA' },
+    { value: 'hsda', label: 'HSDA' },
+    { value: 'healthAuthority', label: 'Health Authority' },
+  ],
+  regionalDistrict: [
+    { value: 'regionalDistrict', label: 'Regional District' },
+  ],
+  census: [
+    { value: 'ct', label: 'Census Tracts' },
+    { value: 'da', label: 'Dissemination Areas' },
+    { value: 'db', label: 'Dissemination Blocks' },
+  ],
+  cityPG: [
+    { value: 'elementarySchoolCatchment', label: 'Elementary Catchments' },
+    { value: 'secondarySchoolCatchment', label: 'Secondary Catchments' },
+  ],
+  watershed: [
+    { value: 'majorWatershed', label: 'Major River Basins' },
+    { value: 'watershedGroup', label: 'Watershed Groups' },
+    { value: 'assessmentWatershed', label: 'Assessment Watersheds' },
+  ],
+}
 
 function formatNumber(n: number): string {
   return n.toLocaleString()
@@ -162,12 +221,14 @@ export function BcAssessmentSidebar({
   selectedBoundary,
   searchQuery,
   colorMetric,
+  boundarySource,
   boundaryLevel,
   loading,
   error,
   onSearchQueryChange,
   onToggleCategory,
   onColorMetricChange,
+  onBoundarySourceChange,
   onBoundaryLevelChange,
   onPropertyClick,
   onClearSelection,
@@ -190,7 +251,11 @@ export function BcAssessmentSidebar({
   }, [totalValue, filteredProperties.length])
 
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const activeRegionLevel: Exclude<BoundaryLevel, 'none'> = boundaryLevel === 'none' ? 'ct' : boundaryLevel
+  const levelOptions = REGION_LEVEL_OPTIONS[boundarySource]
+  const activeRegionLevel: AssessmentBoundaryLevel =
+    boundaryLevel === 'none' || !levelOptions.some((option) => option.value === boundaryLevel)
+      ? levelOptions[0].value
+      : boundaryLevel
 
   const colorMetricLabel =
     COLOR_METRICS.find((m) => m.value === colorMetric)?.label ?? ''
@@ -217,12 +282,12 @@ export function BcAssessmentSidebar({
 
       <DatasetInfo dataset={DATASETS.bcAssessment} />
 
-      <StudyAreaSelector<string, Exclude<BoundaryLevel, 'none'>>
-        source="census"
+      <StudyAreaSelector<AssessmentBoundarySource, AssessmentBoundaryLevel>
+        source={boundarySource}
         sourceOptions={REGION_SOURCE_OPTIONS}
         level={activeRegionLevel}
-        levelOptions={REGION_LEVEL_OPTIONS}
-        onSourceChange={() => undefined}
+        levelOptions={levelOptions}
+        onSourceChange={onBoundarySourceChange}
         onLevelChange={(level) => onBoundaryLevelChange(level)}
         showPoints={boundaryLevel !== 'none'}
         onTogglePoints={() => onBoundaryLevelChange(boundaryLevel === 'none' ? activeRegionLevel : 'none')}
@@ -346,10 +411,13 @@ export function BcAssessmentSidebar({
 
             <div>
               <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Census Boundaries
+                Quick Boundaries
               </h2>
               <div className="flex flex-wrap gap-1.5">
-                {BOUNDARY_OPTIONS.map(({ value, label }) => (
+                {[
+                  { value: 'none' as const, label: 'None' },
+                  ...levelOptions,
+                ].map(({ value, label }) => (
                   <button
                     key={value}
                     onClick={() => onBoundaryLevelChange(value)}

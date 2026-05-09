@@ -35,18 +35,38 @@ export type AirQualityObservationLayer =
   | 'correctedEGG'
   | 'agencyFEM'
 
-export type BoundarySource = 'bcHealth' | 'regionalDistrict' | 'census' | 'cityPG' | 'watershed'
+export type BoundarySource =
+  | 'bcHealth'
+  | 'regionalDistrict'
+  | 'census'
+  | 'cityPG'
+  | 'watershed'
+  | 'nrAdmin'
+  | 'uwr'
+  | 'crownTenure'
+  | 'rangeTenure'
+  | 'mineralTenure'
 export type BoundaryLevel = 'healthAuthority' | 'hsda' | 'lha' | 'chsa'
 export type RegionalDistrictBoundaryLevel = 'regionalDistrict'
 export type CensusBoundaryLevel = 'cd' | 'csd' | 'ct' | 'da'
 export type CityBoundaryLevel = 'elementarySchoolCatchment' | 'secondarySchoolCatchment'
 export type WatershedBoundaryLevel = 'majorWatershed' | 'watershedGroup' | 'assessmentWatershed'
+export type NrAdminBoundaryLevel = 'nrArea' | 'nrRegion' | 'nrDistrict'
+export type UwrBoundaryLevel = 'ungulateWinterRange'
+export type CrownTenureBoundaryLevel = 'crownTenure'
+export type RangeTenureBoundaryLevel = 'rangeTenurePolygon' | 'rangePasture'
+export type MineralTenureBoundaryLevel = 'mineralTenure'
 export type RegionLevel =
   | BoundaryLevel
   | RegionalDistrictBoundaryLevel
   | CensusBoundaryLevel
   | CityBoundaryLevel
   | WatershedBoundaryLevel
+  | NrAdminBoundaryLevel
+  | UwrBoundaryLevel
+  | CrownTenureBoundaryLevel
+  | RangeTenureBoundaryLevel
+  | MineralTenureBoundaryLevel
 
 export interface BoundaryRegionRecord {
   id: string
@@ -87,4 +107,14 @@ export interface SensorDensityStats {
   totalCount: number
   lowCostCount: number
   otherCount: number
+}
+
+export interface AirQualityAreaStats {
+  monitorCount: number
+  pm25MonitorCount: number
+  rawPm25Average: number | null
+  correctedPm25Average: number | null
+  correctedPm25Min: number | null
+  correctedPm25Max: number | null
+  networkCount: number
 }

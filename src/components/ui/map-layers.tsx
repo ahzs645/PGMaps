@@ -205,12 +205,12 @@ type MapLineLayerProps = {
   data: GeoJSON.FeatureCollection
   /** Line color — static string or MapLibre expression */
   color: string | StyleExpression
-  /** Line width (default: 2.2) */
-  width?: number
+  /** Line width (default: 2.2) — number or MapLibre expression (e.g. zoom interpolation) */
+  width?: number | StyleExpression
   /** Line offset in pixels, useful for parallel route lines (default: 0) */
   offset?: number | StyleExpression
-  /** Line opacity (default: 0.75) */
-  opacity?: number
+  /** Line opacity (default: 0.75) — number or MapLibre expression */
+  opacity?: number | StyleExpression
   /** Dash pattern [dash, gap] */
   dashArray?: number[]
   /** Line join style (default: 'round') */
@@ -258,7 +258,9 @@ function MapLineLayer({
   const idPropRef = useRef(idProperty)
   idPropRef.current = idProperty
 
-  const resolvedSelectionWidth = selectionWidth ?? Math.max(width + 2, width * 1.8)
+  const resolvedSelectionWidth =
+    selectionWidth ??
+    (typeof width === 'number' ? Math.max(width + 2, width * 1.8) : width)
 
   // Mount: create source + layers
   useEffect(() => {
@@ -279,9 +281,9 @@ function MapLineLayer({
       },
       paint: {
         'line-color': color as never,
-        'line-width': width,
+        'line-width': width as never,
         'line-offset': offset as never,
-        'line-opacity': opacity,
+        'line-opacity': opacity as never,
         ...(dashArray && { 'line-dasharray': dashArray }),
       },
     })
@@ -297,7 +299,7 @@ function MapLineLayer({
       },
       paint: {
         'line-color': selectionColor,
-        'line-width': resolvedSelectionWidth,
+        'line-width': resolvedSelectionWidth as never,
         'line-offset': offset as never,
         'line-opacity': 1,
         ...(dashArray && { 'line-dasharray': dashArray }),

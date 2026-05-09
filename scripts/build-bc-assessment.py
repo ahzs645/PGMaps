@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
 Merge BC Assessment parcel geometries with property data from CSVs,
-then spatial-join each property to its Census boundary (CT, DA, DB).
+then spatial-join each property to configured study-area boundaries.
 
 Input:
   - scripts/bc-assessment-source/prince_george_parcels.geojson  (30K parcel polygons)
   - scripts/bc-assessment-source/prince_george_full.csv          (assessment + detail data)
   - public/data/census/prince_george_{ct,da,db}.geo.json         (census boundaries)
+  - public/data/boundaries/*                                     (health, school, regional, watershed boundaries)
 
 Output:
   - public/data/bc-assessment/parcels.geojson     (enriched GeoJSON with boundary IDs)
@@ -19,6 +20,7 @@ import re
 import sys
 
 from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon, shape, mapping
+from shapely.errors import ShapelyError
 from shapely.validation import explain_validity
 from shapely import make_valid
 from shapely.strtree import STRtree
@@ -35,10 +37,60 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "public", "data", "bc-assessment")
 OUTPUT_PATH = os.path.join(OUTPUT_DIR, "parcels.geojson")
 
 CENSUS_DIR = os.path.join(PROJECT_ROOT, "public", "data", "census")
+BOUNDARY_DIR = os.path.join(PROJECT_ROOT, "public", "data", "boundaries")
 BOUNDARY_LEVELS = {
-    "ct": os.path.join(CENSUS_DIR, "prince_george_ct.geo.json"),
-    "da": os.path.join(CENSUS_DIR, "prince_george_da.geo.json"),
-    "db": os.path.join(CENSUS_DIR, "prince_george_db.geo.json"),
+    "ct": {
+        "path": os.path.join(CENSUS_DIR, "prince_george_ct.geo.json"),
+        "code_props": ["id"],
+    },
+    "da": {
+        "path": os.path.join(CENSUS_DIR, "prince_george_da.geo.json"),
+        "code_props": ["id"],
+    },
+    "db": {
+        "path": os.path.join(CENSUS_DIR, "prince_george_db.geo.json"),
+        "code_props": ["id"],
+    },
+    "healthAuthority": {
+        "path": os.path.join(BOUNDARY_DIR, "BCMoH", "simplified", "health_authorities.json"),
+        "code_props": ["HLTH_AUTHORITY_CODE"],
+    },
+    "hsda": {
+        "path": os.path.join(BOUNDARY_DIR, "BCMoH", "simplified", "health_service_delivery_areas.json"),
+        "code_props": ["HLTH_SERVICE_DLVR_AREA_CODE"],
+    },
+    "lha": {
+        "path": os.path.join(BOUNDARY_DIR, "BCMoH", "simplified", "local_health_areas.json"),
+        "code_props": ["LOCAL_HLTH_AREA_CODE"],
+    },
+    "chsa": {
+        "path": os.path.join(BOUNDARY_DIR, "BCMoH", "simplified", "community_health_service_areas.json"),
+        "code_props": ["CMNTY_HLTH_SERV_AREA_CODE"],
+    },
+    "regionalDistrict": {
+        "path": os.path.join(BOUNDARY_DIR, "BC", "regional_districts.geojson"),
+        "code_props": ["ADMIN_AREA_ABBREVIATION", "LGL_ADMIN_AREA_ID"],
+    },
+    "elementarySchoolCatchment": {
+        "path": os.path.join(BOUNDARY_DIR, "CityPG", "elementary_school_catchments.geojson"),
+        "code_props": ["OBJECTID"],
+    },
+    "secondarySchoolCatchment": {
+        "path": os.path.join(BOUNDARY_DIR, "CityPG", "secondary_school_catchments.geojson"),
+        "code_props": ["OBJECTID"],
+    },
+    "majorWatershed": {
+        "path": os.path.join(BOUNDARY_DIR, "BCFWA", "major_watersheds.geojson"),
+        "code_props": ["boundaryCode", "OBJECTID"],
+    },
+    "watershedGroup": {
+        "path": os.path.join(BOUNDARY_DIR, "BCFWA", "watershed_groups.geojson"),
+        "code_props": ["boundaryCode", "OBJECTID"],
+    },
+    "assessmentWatershed": {
+        "path": os.path.join(BOUNDARY_DIR, "BCFWA", "assessment_watersheds.geojson"),
+        "code_props": ["boundaryCode", "OBJECTID"],
+    },
 }
 
 
@@ -194,23 +246,42 @@ def normalize_feature_geometries(features: list[dict]) -> None:
 
 
 def build_spatial_index(boundary_path: str) -> tuple[STRtree, list[dict]]:
-    """Load a census boundary GeoJSON and build an STRtree spatial index."""
+    """Load boundary GeoJSON and build an STRtree spatial index."""
     with open(boundary_path, encoding="utf-8") as f:
         geo = json.load(f)
     polys = []
     features_list = []
     for feat in geo["features"]:
-        geom = shape(feat["geometry"])
+        if not feat.get("geometry"):
+            continue
+        try:
+            geom = shape(feat["geometry"])
+        except (IndexError, KeyError, TypeError, ShapelyError):
+            continue
+        if geom.is_empty or not isinstance(geom, (Polygon, MultiPolygon)):
+            continue
         polys.append(geom)
         features_list.append(feat)
     tree = STRtree(polys)
     return tree, features_list
 
 
+def boundary_code(feature: dict, code_props: list[str]) -> str | None:
+    props = feature.get("properties") or {}
+    for prop in code_props:
+        value = props.get(prop)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    value = feature.get("id")
+    if value is not None and str(value).strip():
+        return str(value).strip()
+    return None
+
+
 def spatial_join_level(
-    features: list[dict], level_key: str, boundary_path: str
+    features: list[dict], level_key: str, boundary_path: str, code_props: list[str]
 ) -> int:
-    """Assign boundary ID for a given census level to each parcel feature."""
+    """Assign boundary ID for a configured level to each parcel feature."""
     print(f"  Spatial join: {level_key} from {os.path.basename(boundary_path)}...")
     tree, boundary_features = build_spatial_index(boundary_path)
     boundary_geoms = [shape(f["geometry"]) for f in boundary_features]
@@ -224,7 +295,7 @@ def spatial_join_level(
         candidate_idxs = tree.query(pt)
         for idx in candidate_idxs:
             if boundary_geoms[idx].contains(pt):
-                bid = boundary_features[idx]["properties"].get("id")
+                bid = boundary_code(boundary_features[idx], code_props)
                 if bid is not None:
                     feature["properties"][level_key] = str(bid)
                     assigned += 1
@@ -358,11 +429,12 @@ def main():
 
     print(f"  Matched: {matched}, Unmatched: {unmatched}")
 
-    # 5. Spatial join — assign census boundary IDs
+    # 5. Spatial join — assign study-area boundary IDs
     print("Running spatial joins...")
-    for level_key, boundary_path in BOUNDARY_LEVELS.items():
+    for level_key, config in BOUNDARY_LEVELS.items():
+        boundary_path = config["path"]
         if os.path.exists(boundary_path):
-            spatial_join_level(features, level_key, boundary_path)
+            spatial_join_level(features, level_key, boundary_path, config["code_props"])
         else:
             print(f"  Skipping {level_key}: {boundary_path} not found")
 

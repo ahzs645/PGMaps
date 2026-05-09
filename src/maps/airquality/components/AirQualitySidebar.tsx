@@ -13,6 +13,7 @@ import {
 } from '../lib/corrections'
 import type {
   AirMonitor,
+  AirQualityAreaStats,
   AirQualityBasemap,
   AirQualityCorrectionModel,
   AirQualityObservationLayer,
@@ -26,6 +27,7 @@ interface AirQualitySidebarProps {
   monitors: AirMonitor[]
   filteredMonitors: AirMonitor[]
   visibleMonitorCount: number
+  visibleMonitorCountLabel: string
   selectedMonitor: AirMonitor | null
   selectedNetworks: string[]
   boundarySource: BoundarySource
@@ -34,9 +36,11 @@ interface AirQualitySidebarProps {
   boundaryLoading: boolean
   boundaryError: string | null
   densityStats: SensorDensityStats | null
+  areaStats: AirQualityAreaStats | null
   densityScopeLabel: string
   searchQuery: string
   showHeatmap: boolean
+  showPoints: boolean
   basemap: AirQualityBasemap
   correctionModel: AirQualityCorrectionModel
   observationLayers: AirQualityObservationLayer[]
@@ -49,6 +53,7 @@ interface AirQualitySidebarProps {
   onRegionLevelChange: (level: RegionLevel) => void
   onSearchQueryChange: (query: string) => void
   onToggleHeatmap: () => void
+  onTogglePoints: () => void
   onToggleNetwork: (network: string) => void
   onSelectAllNetworks: () => void
   onClearNetworks: () => void
@@ -67,11 +72,17 @@ function formatDensityValue(value: number, count: number): string {
   return `1 per ${(1 / value).toFixed(1)} km²`
 }
 
+function formatAveragePm25(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return 'No data'
+  return `${value.toFixed(1)} ug/m3`
+}
+
 export function AirQualitySidebar({
   className,
   monitors,
   filteredMonitors,
   visibleMonitorCount,
+  visibleMonitorCountLabel,
   selectedMonitor,
   selectedNetworks,
   boundarySource,
@@ -80,9 +91,11 @@ export function AirQualitySidebar({
   boundaryLoading,
   boundaryError,
   densityStats,
+  areaStats,
   densityScopeLabel,
   searchQuery,
   showHeatmap,
+  showPoints,
   correctionModel,
   loading,
   error,
@@ -90,6 +103,7 @@ export function AirQualitySidebar({
   onRegionLevelChange,
   onSearchQueryChange,
   onToggleHeatmap,
+  onTogglePoints,
   onToggleNetwork,
   onSelectAllNetworks,
   onClearNetworks,
@@ -133,27 +147,93 @@ export function AirQualitySidebar({
             <h1 className="text-xl font-bold text-foreground">Air Quality</h1>
             <p className="text-sm text-muted-foreground">Monitoring Networks</p>
           </div>
-          <button
-            onClick={onToggleHeatmap}
-            className={cn(
-              'rounded border px-2 py-1 text-xs transition-colors',
-              showHeatmap
-                ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                : 'border-input text-muted-foreground hover:text-foreground'
-            )}
-          >
-            Heatmap
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onTogglePoints}
+              className={cn(
+                'rounded border px-2 py-1 text-[11px] transition-colors',
+                showPoints
+                  ? 'border-sky-500 text-sky-600 dark:text-sky-400'
+                  : 'border-input text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {showPoints ? 'Hide points' : 'Show points'}
+            </button>
+            <button
+              type="button"
+              onClick={onToggleHeatmap}
+              className={cn(
+                'rounded border px-2 py-1 text-[11px] transition-colors',
+                showHeatmap
+                  ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                  : 'border-input text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Heatmap
+            </button>
+          </div>
         </div>
       </div>
 
       <DatasetInfo dataset={DATASETS.airQuality} />
 
       <div className="flex-1 overflow-y-auto">
+        <StudyAreaSelector<BoundarySource, RegionLevel>
+          source={boundarySource}
+          sourceOptions={BOUNDARY_SOURCE_OPTIONS}
+          level={selectedRegionLevel}
+          levelOptions={regionLevelOptions}
+          onSourceChange={onBoundarySourceChange}
+          onLevelChange={onRegionLevelChange}
+          levelSelectId="air-quality-study-area-level"
+        />
+
+        {(boundaryLoading || boundaryError) && (
+          <div className="border-b border-border bg-background/95 px-4 pb-4 text-xs">
+            {boundaryLoading && <p className="text-muted-foreground">Loading boundaries...</p>}
+            {boundaryError && <p className="text-red-600 dark:text-red-400">{boundaryError}</p>}
+          </div>
+        )}
+
         {densityStats && (
           <div className="border-b border-border bg-background/95 p-4">
-            <h3 className="mb-3 text-sm font-semibold text-foreground">Sensor Density</h3>
+            <h3 className="mb-3 text-sm font-semibold text-foreground">Area Summary</h3>
             <div className="space-y-2 text-sm">
+              {areaStats && (
+                <>
+                  <div className="grid grid-cols-2 gap-2 rounded-md border border-border bg-muted/25 p-3 text-xs">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Corrected PM2.5</div>
+                      <div className="text-base font-semibold text-foreground">
+                        {formatAveragePm25(areaStats.correctedPm25Average)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Raw PM2.5</div>
+                      <div className="text-base font-semibold text-foreground">
+                        {formatAveragePm25(areaStats.rawPm25Average)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">PM2.5 sensors</div>
+                      <div className="font-medium text-foreground">{areaStats.pm25MonitorCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Networks</div>
+                      <div className="font-medium text-foreground">{areaStats.networkCount}</div>
+                    </div>
+                  </div>
+                  {(areaStats.correctedPm25Min !== null || areaStats.correctedPm25Max !== null) && (
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Corrected range:</span>
+                      <span>
+                        {formatAveragePm25(areaStats.correctedPm25Min)} - {formatAveragePm25(areaStats.correctedPm25Max)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Low-cost:</span>
                 <span className="font-medium">{formatDensityValue(densityStats.lowCost, densityStats.lowCostCount)}</span>
@@ -271,25 +351,6 @@ export function AirQualitySidebar({
           </div>
         </div>
 
-        <StudyAreaSelector<BoundarySource, RegionLevel>
-          source={boundarySource}
-          sourceOptions={BOUNDARY_SOURCE_OPTIONS}
-          level={selectedRegionLevel}
-          levelOptions={regionLevelOptions}
-          onSourceChange={onBoundarySourceChange}
-          onLevelChange={onRegionLevelChange}
-          showPoints={!showHeatmap}
-          onTogglePoints={onToggleHeatmap}
-          levelSelectId="air-quality-study-area-level"
-        />
-
-        {(boundaryLoading || boundaryError) && (
-          <div className="border-b border-border bg-background/95 px-4 pb-4 text-xs">
-            {boundaryLoading && <p className="text-muted-foreground">Loading boundaries...</p>}
-            {boundaryError && <p className="text-red-600 dark:text-red-400">{boundaryError}</p>}
-          </div>
-        )}
-
         {selectedMonitor && (
           <div className="border-b border-sky-300/60 bg-sky-50 p-4 dark:border-sky-800/60 dark:bg-sky-950/30">
             <div className="mb-2 flex items-start justify-between gap-3">
@@ -380,7 +441,7 @@ export function AirQualitySidebar({
         ) : (
           <div className="pb-6">
             <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
-              <span>{visibleMonitorCount} monitors in view</span>
+              <span>{visibleMonitorCount} {visibleMonitorCountLabel}</span>
               {filteredMonitors.length > MAX_VISIBLE_ROWS && (
                 <span>Showing first {MAX_VISIBLE_ROWS}</span>
               )}

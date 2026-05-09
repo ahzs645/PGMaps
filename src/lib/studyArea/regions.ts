@@ -14,9 +14,14 @@ import type {
   BoundarySource,
   CensusBoundaryLevel,
   CityBoundaryLevel,
+  CrownTenureBoundaryLevel,
+  MineralTenureBoundaryLevel,
+  NrAdminBoundaryLevel,
+  RangeTenureBoundaryLevel,
   RegionLevel,
   RegionalDistrictBoundaryLevel,
   StudyAreaRegion,
+  UwrBoundaryLevel,
   WatershedBoundaryLevel,
 } from './types'
 
@@ -51,6 +56,24 @@ const WATERSHED_FILE_BY_LEVEL: Record<WatershedBoundaryLevel, string> = {
   watershedGroup: '/data/boundaries/BCFWA/watershed_groups.geojson',
   assessmentWatershed: '/data/boundaries/BCFWA/assessment_watersheds.geojson',
 }
+const NR_ADMIN_FILE_BY_LEVEL: Record<NrAdminBoundaryLevel, string> = {
+  nrArea: '/data/boundaries/BCNR/nr_areas.geojson',
+  nrRegion: '/data/boundaries/BCNR/nr_regions.geojson',
+  nrDistrict: '/data/boundaries/BCNR/nr_districts.geojson',
+}
+const UWR_FILE_BY_LEVEL: Record<UwrBoundaryLevel, string> = {
+  ungulateWinterRange: '/data/boundaries/BCUWR/ungulate_winter_range.geojson',
+}
+const CROWN_TENURE_FILE_BY_LEVEL: Record<CrownTenureBoundaryLevel, string> = {
+  crownTenure: '/data/boundaries/BCTantalis/crown_tenures.geojson',
+}
+const RANGE_TENURE_FILE_BY_LEVEL: Record<RangeTenureBoundaryLevel, string> = {
+  rangeTenurePolygon: '/data/boundaries/BCRange/range_tenures.geojson',
+  rangePasture: '/data/boundaries/BCRange/range_pastures.geojson',
+}
+const MINERAL_TENURE_FILE_BY_LEVEL: Record<MineralTenureBoundaryLevel, string> = {
+  mineralTenure: '/data/boundaries/BCMineral/mineral_tenures.geojson',
+}
 
 const HEALTH_LEVEL_SET = new Set<BoundaryLevel>(['healthAuthority', 'hsda', 'lha', 'chsa'])
 const REGIONAL_DISTRICT_LEVEL_SET = new Set<RegionalDistrictBoundaryLevel>(['regionalDistrict'])
@@ -61,6 +84,11 @@ const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
   'watershedGroup',
   'assessmentWatershed',
 ])
+const NR_ADMIN_LEVEL_SET = new Set<NrAdminBoundaryLevel>(['nrArea', 'nrRegion', 'nrDistrict'])
+const UWR_LEVEL_SET = new Set<UwrBoundaryLevel>(['ungulateWinterRange'])
+const CROWN_TENURE_LEVEL_SET = new Set<CrownTenureBoundaryLevel>(['crownTenure'])
+const RANGE_TENURE_LEVEL_SET = new Set<RangeTenureBoundaryLevel>(['rangeTenurePolygon', 'rangePasture'])
+const MINERAL_TENURE_LEVEL_SET = new Set<MineralTenureBoundaryLevel>(['mineralTenure'])
 
 let boundaryIndexCache: BoundaryIndex | null = null
 const boundaryRegionCache = new Map<string, StudyAreaRegion[]>()
@@ -103,6 +131,26 @@ function isCityBoundaryLevel(level: RegionLevel): level is CityBoundaryLevel {
 
 function isWatershedBoundaryLevel(level: RegionLevel): level is WatershedBoundaryLevel {
   return WATERSHED_LEVEL_SET.has(level as WatershedBoundaryLevel)
+}
+
+function isNrAdminBoundaryLevel(level: RegionLevel): level is NrAdminBoundaryLevel {
+  return NR_ADMIN_LEVEL_SET.has(level as NrAdminBoundaryLevel)
+}
+
+function isUwrBoundaryLevel(level: RegionLevel): level is UwrBoundaryLevel {
+  return UWR_LEVEL_SET.has(level as UwrBoundaryLevel)
+}
+
+function isCrownTenureBoundaryLevel(level: RegionLevel): level is CrownTenureBoundaryLevel {
+  return CROWN_TENURE_LEVEL_SET.has(level as CrownTenureBoundaryLevel)
+}
+
+function isRangeTenureBoundaryLevel(level: RegionLevel): level is RangeTenureBoundaryLevel {
+  return RANGE_TENURE_LEVEL_SET.has(level as RangeTenureBoundaryLevel)
+}
+
+function isMineralTenureBoundaryLevel(level: RegionLevel): level is MineralTenureBoundaryLevel {
+  return MINERAL_TENURE_LEVEL_SET.has(level as MineralTenureBoundaryLevel)
 }
 
 function toPolygonFeature(feature: RawBoundaryFeature): BoundaryFeature | null {
@@ -328,6 +376,48 @@ async function loadWatershedRegions(level: WatershedBoundaryLevel): Promise<Stud
   return sortedRegions
 }
 
+async function loadStandardBoundaryRegions(
+  source: BoundarySource,
+  level: RegionLevel,
+  filePath: string,
+): Promise<StudyAreaRegion[]> {
+  const cacheKey = `${source}:${level}`
+  const cached = boundaryRegionCache.get(cacheKey)
+  if (cached) return cached
+
+  const geometry = await fetchJson<BoundaryFeatureCollection>(filePath)
+
+  const regions = geometry.features
+    .map<StudyAreaRegion | null>((rawFeature) => {
+      const feature = toPolygonFeature(rawFeature)
+      if (!feature) return null
+
+      const properties = (feature.properties ?? {}) as Record<string, unknown>
+      const code = String(properties.boundaryCode ?? properties.OBJECTID ?? '').trim()
+      if (!code) return null
+
+      const displayName = String(properties.boundaryName ?? code).trim() || code
+      const areaKm2 = area(feature) / 1_000_000
+      const bounds = bbox(feature) as [number, number, number, number]
+
+      return {
+        id: `${source}:${level}:${code}`,
+        code,
+        name: displayName,
+        source,
+        level,
+        feature,
+        bounds,
+        areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+      } satisfies StudyAreaRegion
+    })
+    .filter((region): region is StudyAreaRegion => region !== null)
+
+  const sortedRegions = sortRegions(regions)
+  boundaryRegionCache.set(cacheKey, sortedRegions)
+  return sortedRegions
+}
+
 export async function loadStudyAreaRegions(
   source: BoundarySource,
   level: RegionLevel,
@@ -358,6 +448,41 @@ export async function loadStudyAreaRegions(
       throw new Error(`Invalid regional district boundary level: ${level}`)
     }
     return loadRegionalDistrictRegions(level)
+  }
+
+  if (source === 'nrAdmin') {
+    if (!isNrAdminBoundaryLevel(level)) {
+      throw new Error(`Invalid Natural Resource admin level: ${level}`)
+    }
+    return loadStandardBoundaryRegions(source, level, NR_ADMIN_FILE_BY_LEVEL[level])
+  }
+
+  if (source === 'uwr') {
+    if (!isUwrBoundaryLevel(level)) {
+      throw new Error(`Invalid Ungulate Winter Range level: ${level}`)
+    }
+    return loadStandardBoundaryRegions(source, level, UWR_FILE_BY_LEVEL[level])
+  }
+
+  if (source === 'crownTenure') {
+    if (!isCrownTenureBoundaryLevel(level)) {
+      throw new Error(`Invalid Crown tenure level: ${level}`)
+    }
+    return loadStandardBoundaryRegions(source, level, CROWN_TENURE_FILE_BY_LEVEL[level])
+  }
+
+  if (source === 'rangeTenure') {
+    if (!isRangeTenureBoundaryLevel(level)) {
+      throw new Error(`Invalid range tenure level: ${level}`)
+    }
+    return loadStandardBoundaryRegions(source, level, RANGE_TENURE_FILE_BY_LEVEL[level])
+  }
+
+  if (source === 'mineralTenure') {
+    if (!isMineralTenureBoundaryLevel(level)) {
+      throw new Error(`Invalid mineral tenure level: ${level}`)
+    }
+    return loadStandardBoundaryRegions(source, level, MINERAL_TENURE_FILE_BY_LEVEL[level])
   }
 
   if (!isWatershedBoundaryLevel(level)) {

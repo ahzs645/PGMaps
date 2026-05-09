@@ -5,9 +5,14 @@ export type {
   BoundarySource,
   CensusBoundaryLevel,
   CityBoundaryLevel,
+  CrownTenureBoundaryLevel,
+  MineralTenureBoundaryLevel,
+  NrAdminBoundaryLevel,
+  RangeTenureBoundaryLevel,
   RegionLevel,
   RegionalDistrictBoundaryLevel,
   SelectedBoundaryRegion,
+  UwrBoundaryLevel,
   WatershedBoundaryLevel,
 } from '@/maps/airquality/types'
 

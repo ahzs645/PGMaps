@@ -23,11 +23,13 @@ interface AirQualityMapProps {
   selectedRegionFeature?: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
   browseBoundaryFeatures?: GeoJSON.FeatureCollection<
     GeoJSON.Polygon | GeoJSON.MultiPolygon,
-    { code: string; name: string }
+    { code: string; name: string; monitorCount?: number }
   > | null
   browseBoundariesVisible?: boolean
   selectedBrowseBoundaryCode?: string | null
+  maxBrowseBoundaryMonitorCount?: number
   showHeatmap: boolean
+  showPoints: boolean
   basemap: AirQualityBasemap
   correctionModel: AirQualityCorrectionModel
   onBoundsChange?: (bounds: AirQualityMapBounds) => void
@@ -245,11 +247,13 @@ function BoundaryBrowseLayer({
   features,
   visible,
   selectedCode,
+  maxMonitorCount,
   onBoundaryClick
 }: {
-  features: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, { code: string; name: string }> | null | undefined
+  features: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, { code: string; name: string; monitorCount?: number }> | null | undefined
   visible: boolean
   selectedCode: string | null | undefined
+  maxMonitorCount: number
   onBoundaryClick?: (feature: { code: string; name: string }) => void
 }) {
   const { map, isLoaded } = useMap()
@@ -350,16 +354,26 @@ function BoundaryBrowseLayer({
     const hasFeatures = Boolean(features && features.features.length > 0)
     const layerVisibility = visible && hasFeatures ? 'visible' : 'none'
 
+    const maxStop = Math.max(1, maxMonitorCount)
+    const midStop = Math.max(1, Math.round(maxStop / 2))
+
     if (map.getLayer(fillLayerId)) {
       map.setLayoutProperty(fillLayerId, 'visibility', layerVisibility)
       map.setPaintProperty(
         fillLayerId,
         'fill-color',
         [
-          'case',
-          ['==', ['to-string', ['get', 'code']], selectedCode ?? '__none__'],
-          '#f97316',
-          '#0ea5e9'
+          'interpolate',
+          ['linear'],
+          ['to-number', ['get', 'monitorCount'], 0],
+          0,
+          '#e0f2fe',
+          1,
+          '#7dd3fc',
+          midStop,
+          '#0ea5e9',
+          maxStop,
+          '#0369a1'
         ] as never
       )
       map.setPaintProperty(
@@ -368,7 +382,9 @@ function BoundaryBrowseLayer({
         [
           'case',
           ['==', ['to-string', ['get', 'code']], selectedCode ?? '__none__'],
-          0.25,
+          0.42,
+          ['>', ['to-number', ['get', 'monitorCount'], 0], 0],
+          0.26,
           0.1
         ] as never
       )
@@ -397,7 +413,7 @@ function BoundaryBrowseLayer({
         ] as never
       )
     }
-  }, [features, fillLayerId, isLoaded, lineLayerId, map, selectedCode, sourceId, visible])
+  }, [features, fillLayerId, isLoaded, lineLayerId, map, maxMonitorCount, selectedCode, sourceId, visible])
 
   return null
 }
@@ -409,7 +425,9 @@ export function AirQualityMap({
   browseBoundaryFeatures,
   browseBoundariesVisible = false,
   selectedBrowseBoundaryCode,
+  maxBrowseBoundaryMonitorCount = 0,
   showHeatmap,
+  showPoints,
   basemap,
   correctionModel,
   onBoundsChange,
@@ -561,12 +579,13 @@ export function AirQualityMap({
           features={browseBoundaryFeatures}
           visible={browseBoundariesVisible}
           selectedCode={selectedBrowseBoundaryCode}
+          maxMonitorCount={maxBrowseBoundaryMonitorCount}
           onBoundaryClick={onBrowseBoundaryClick}
         />
-        <RegionBoundaryLayer feature={selectedRegionFeature} visible={!showHeatmap} />
+        <RegionBoundaryLayer feature={selectedRegionFeature} visible={Boolean(selectedRegionFeature)} />
         <AirQualityHeatmapLayer monitors={monitors} visible={showHeatmap} />
 
-        {!showHeatmap && collectionsByNetwork.map(([network, collection]) => {
+        {showPoints && collectionsByNetwork.map(([network, collection]) => {
           const color = getNetworkColor(network)
           const clusterColors: [string, string, string] = [
             hexToRgba(color, 0.65),

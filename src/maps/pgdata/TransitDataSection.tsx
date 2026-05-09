@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Bus, MapPin, Route } from 'lucide-react'
+import { Bus, Eye, EyeOff, MapPin, Route } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -9,31 +9,34 @@ import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useTransitData, type TransitStop } from '@/maps/scorebuilder/hooks/useTransitData'
+import { bundleRoutes, type BundledFeatureCollection, type RouteInput } from './lib/transitiveBundling'
+import { useTransitiveZoom } from './hooks/useTransitiveZoom'
 
 type TransitLayerId = 'stops' | 'routes'
+type StopCategory = 'shelter' | 'accessible' | 'other'
+
+function stopCategory(stop: TransitStop): StopCategory {
+  if (stop.hasShelter) return 'shelter'
+  if (stop.accessible) return 'accessible'
+  return 'other'
+}
 
 interface RouteFeatureProperties {
-  segmentKey?: string
   routeId: string
   routeShortName: string
   routeLongName: string
   routeColor: string
   routeTextColor: string
-  shapeId?: string
-  shapeIds?: string[]
+  shapeId: string
   headsigns: string[]
   directions: string[]
-  sharedRouteCount?: number
-  segmentOffset?: number
-  snappedToRoad?: boolean
-  snappedPointCount?: number
   pointCount?: number
-  bundledSegmentCount?: number
+  snappedPointCount?: number
 }
 
 type RouteFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.LineString, RouteFeatureProperties>
 
-const ROUTES_PATH = '/data/transit/prince_george_gtfs_route_bundles.geojson?v=edge-bundle-2'
+const ROUTES_PATH = '/data/transit/prince_george_gtfs_routes.geojson'
 const LAYER_OPTIONS: Array<{ id: TransitLayerId; label: string }> = [
   { id: 'stops', label: 'Stops' },
   { id: 'routes', label: 'Routes' },
@@ -147,6 +150,8 @@ export default function TransitDataSection() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'shelter' | 'accessible'>('all')
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
+  const [hiddenRoutes, setHiddenRoutes] = useState<Set<string>>(new Set())
+  const [hiddenStopCategories, setHiddenStopCategories] = useState<Set<StopCategory>>(new Set())
 
   const filteredStops = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -154,10 +159,11 @@ export default function TransitDataSection() {
       if (statusFilter === 'active' && stop.status !== 'ACT') return false
       if (statusFilter === 'shelter' && !stop.hasShelter) return false
       if (statusFilter === 'accessible' && !stop.accessible) return false
+      if (hiddenStopCategories.has(stopCategory(stop))) return false
       if (!query) return true
       return [stop.name, stop.id, stop.status, subtypeLabel(stop.subtype)].join(' ').toLowerCase().includes(query)
     })
-  }, [searchQuery, statusFilter, stops])
+  }, [hiddenStopCategories, searchQuery, statusFilter, stops])
 
   const selectedStop = useMemo(
     () => filteredStops.find((stop) => stop.id === selectedStopId) ?? stops.find((stop) => stop.id === selectedStopId) ?? null,
@@ -175,23 +181,22 @@ export default function TransitDataSection() {
     return { routes: routeIds.size, shapes }
   }, [routes])
 
-  const routeLayerData = useMemo<RouteFeatureCollection | null>(() => {
+  const visibleRouteInputs = useMemo<RouteInput[] | null>(() => {
     if (!routes) return null
-    const features = routes.features
+    return routes.features
       .filter((feature) => DISPLAYED_ROUTES.has(feature.properties.routeShortName))
+      .filter((feature) => !hiddenRoutes.has(feature.properties.routeShortName))
       .map((feature) => ({
-        ...feature,
-        properties: {
-          ...feature.properties,
-          segmentKey: String(feature.id ?? `${feature.properties.routeId}:${feature.properties.segmentOffset ?? 0}`),
-          routeColor: routeColor(feature.properties.routeShortName, feature.properties.routeColor),
+        routeShortName: feature.properties.routeShortName,
+        shapeId: feature.properties.shapeId,
+        color: routeColor(feature.properties.routeShortName, feature.properties.routeColor),
+        coordinates: feature.geometry.coordinates as [number, number][],
+        extra: {
+          routeId: feature.properties.routeId,
+          routeLongName: feature.properties.routeLongName,
         },
       }))
-    return {
-      type: 'FeatureCollection',
-      features,
-    }
-  }, [routes])
+  }, [hiddenRoutes, routes])
 
   const routeLegendItems = useMemo(() => {
     const grouped = new Map<string, RouteFeatureProperties>()
@@ -216,6 +221,33 @@ export default function TransitDataSection() {
 
   const toggleLayer = (layer: TransitLayerId) => {
     setActiveLayers((current) => (current.includes(layer) ? current.filter((id) => id !== layer) : [...current, layer]))
+  }
+
+  const toggleRoute = (routeId: string) => {
+    setHiddenRoutes((current) => {
+      const next = new Set(current)
+      if (next.has(routeId)) next.delete(routeId)
+      else next.add(routeId)
+      return next
+    })
+  }
+
+  const toggleStopCategory = (category: StopCategory) => {
+    setHiddenStopCategories((current) => {
+      const next = new Set(current)
+      if (next.has(category)) next.delete(category)
+      else next.add(category)
+      return next
+    })
+  }
+
+  const allRoutesHidden = routeLegendItems.length > 0 && routeLegendItems.every((item) => hiddenRoutes.has(item.id))
+  const toggleAllRoutes = () => {
+    if (allRoutesHidden) {
+      setHiddenRoutes(new Set())
+    } else {
+      setHiddenRoutes(new Set(routeLegendItems.map((item) => item.id)))
+    }
   }
 
   return (
@@ -322,7 +354,7 @@ export default function TransitDataSection() {
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{filteredStops.length.toLocaleString()} visible stops</span>
-                <span>{routeCounts.shapes.toLocaleString()} bundled corridors</span>
+                <span>{routeCounts.shapes.toLocaleString()} route variants</span>
               </div>
               <div className="max-h-[42vh] space-y-1 overflow-y-auto pr-1">
                 {filteredStops.slice(0, 120).map((stop) => (
@@ -361,27 +393,11 @@ export default function TransitDataSection() {
           styles={MAP_STYLES}
         >
           <MapControls position="top-right" />
-          {routeLayerData && (
-            <>
-              <MapLineLayer
-                data={routeLayerData}
-                idProperty="segmentKey"
-                color="#ffffff"
-                width={6}
-                offset={['get', 'segmentOffset']}
-                opacity={0.95}
-                visible={activeLayers.includes('routes')}
-              />
-              <MapLineLayer
-                data={routeLayerData}
-                idProperty="segmentKey"
-                color={['get', 'routeColor']}
-                width={3.2}
-                offset={['get', 'segmentOffset']}
-                opacity={0.92}
-                visible={activeLayers.includes('routes')}
-              />
-            </>
+          {visibleRouteInputs && (
+            <TransitRouteLayers
+              routes={visibleRouteInputs}
+              visible={activeLayers.includes('routes')}
+            />
           )}
           {activeLayers.includes('stops') &&
             filteredStops.map((stop) => (
@@ -422,21 +438,136 @@ export default function TransitDataSection() {
         </PgMap>
 
         <div className="absolute bottom-6 right-6 z-10 rounded-md border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-            <Route className="h-3.5 w-3.5" />
-            Transit layers
+          <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-foreground">
+            <div className="flex items-center gap-2">
+              <Route className="h-3.5 w-3.5" />
+              Transit layers
+            </div>
+            {routeLegendItems.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleAllRoutes}
+                className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
+              >
+                {allRoutesHidden ? 'Show all' : 'Hide all'}
+              </button>
+            )}
           </div>
           <div className="max-h-[34vh] space-y-1 overflow-y-auto pr-1 text-xs text-muted-foreground">
             {routeLegendItems.map((item) => (
-              <LegendItem key={item.id} color={item.color} label={item.label} />
+              <LegendItem
+                key={item.id}
+                color={item.color}
+                label={item.label}
+                hidden={hiddenRoutes.has(item.id)}
+                onToggle={() => toggleRoute(item.id)}
+              />
             ))}
-            <LegendItem color="#0891b2" label="Shelter / exchange" />
-            <LegendItem color="#0d9488" label="Accessible / sidewalk proxy" />
-            <LegendItem color="#64748b" label="Other stop" />
+            <LegendItem
+              color="#0891b2"
+              label="Shelter / exchange"
+              hidden={hiddenStopCategories.has('shelter')}
+              onToggle={() => toggleStopCategory('shelter')}
+            />
+            <LegendItem
+              color="#0d9488"
+              label="Accessible / sidewalk proxy"
+              hidden={hiddenStopCategories.has('accessible')}
+              onToggle={() => toggleStopCategory('accessible')}
+            />
+            <LegendItem
+              color="#64748b"
+              label="Other stop"
+              hidden={hiddenStopCategories.has('other')}
+              onToggle={() => toggleStopCategory('other')}
+            />
           </div>
         </div>
       </div>
     </MapSectionLayout>
+  )
+}
+
+// Lives inside <Map> so it can subscribe to the MapLibre zoom stream via
+// useTransitiveZoom. Mirrors transitive.js's render pipeline:
+//   1. zoom changes -> updateActiveZoomFactors picks a ZoomFactor partition,
+//   2. rebuild the network with that factor's grid/angle/spacing config,
+//   3. emit the offset GeoJSON for MapLibre to draw.
+// Visual width/opacity are also zoom-interpolated so segments look like a
+// schematic at far zoom and like cleanly-spaced lanes up close.
+function TransitRouteLayers({
+  routes,
+  visible,
+}: {
+  routes: RouteInput[]
+  visible: boolean
+}) {
+  const { factor } = useTransitiveZoom()
+
+  const bundled = useMemo<BundledFeatureCollection>(
+    () => bundleRoutes(routes, factor),
+    [routes, factor],
+  )
+
+  // MapLibre interpolate-on-zoom expressions for the visual responsiveness
+  // transitive.js styles via `pixels(zoom, min, normal, max)`.
+  const widthExpr = useMemo(
+    () => [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      10, 1.6,
+      12, 2.4,
+      14, 3.2,
+      16, 4.5,
+      18, 6,
+    ],
+    [],
+  )
+  const haloWidthExpr = useMemo(
+    () => [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      10, 3,
+      12, 4.5,
+      14, 6,
+      16, 8.5,
+      18, 11,
+    ],
+    [],
+  )
+  const opacityExpr = useMemo(
+    () => [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      10, 0.65,
+      13, 0.85,
+      16, 0.95,
+    ],
+    [],
+  )
+
+  return (
+    <>
+      <MapLineLayer
+        data={bundled}
+        idProperty="shapeId"
+        color="#ffffff"
+        width={haloWidthExpr}
+        opacity={0.95}
+        visible={visible}
+      />
+      <MapLineLayer
+        data={bundled}
+        idProperty="shapeId"
+        color={['get', 'routeColor']}
+        width={widthExpr}
+        opacity={opacityExpr}
+        visible={visible}
+      />
+    </>
   )
 }
 
@@ -449,11 +580,46 @@ function StatCard({ label, value, loading }: { label: string; value: string; loa
   )
 }
 
-function LegendItem({ color, label }: { color: string; label: string }) {
+function LegendItem({
+  color,
+  label,
+  hidden,
+  onToggle,
+}: {
+  color: string
+  label: string
+  hidden?: boolean
+  onToggle?: () => void
+}) {
+  if (!onToggle) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+        <span>{label}</span>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex items-center gap-2">
-      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-      <span>{label}</span>
-    </div>
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={!hidden}
+      className={cn(
+        'group flex w-full items-center gap-2 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-muted',
+        hidden && 'opacity-50',
+      )}
+    >
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-full"
+        style={{ backgroundColor: color, ...(hidden ? { opacity: 0.35 } : null) }}
+      />
+      <span className={cn('flex-1 truncate', hidden && 'line-through')}>{label}</span>
+      {hidden ? (
+        <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />
+      ) : (
+        <Eye className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      )}
+    </button>
   )
 }

@@ -1,6 +1,15 @@
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, Copy, Database, Download, ExternalLink } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Copy, Database, Download, ExternalLink, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
 
 export interface DatasetInfoRecord {
   title: string
@@ -34,34 +43,45 @@ function copyText(value: string) {
 }
 
 export function DatasetInfo({ dataset, className, defaultOpen = false }: DatasetInfoProps) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [toolbarSlot, setToolbarSlot] = useState<HTMLElement | null>(null)
   const primaryUrl = dataset.downloadUrl || dataset.apiUrl
 
-  return (
-    <div className={cn('border-b border-border bg-background/95 px-4 py-2', className)}>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center gap-2 text-left"
-      >
-        <Database className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-medium text-foreground">{dataset.title}</div>
-          <div className="truncate text-[11px] text-muted-foreground">
-            {dataset.source} | Updated {formatUpdated(dataset.updated)}
-          </div>
-        </div>
-        {open ? (
-          <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-        )}
-      </button>
+  useEffect(() => {
+    setToolbarSlot(document.getElementById('dataset-info-toolbar-slot'))
+  }, [])
 
-      {open && (
-        <div className="mt-2 space-y-2 text-[11px] text-muted-foreground">
-          <p className="leading-4">{dataset.description}</p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+  const content = (
+    <Dialog defaultOpen={defaultOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'inline-flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            className
+          )}
+          aria-label={`Open dataset information for ${dataset.title}`}
+          title="Dataset information"
+        >
+          <Info className="h-5 w-5" />
+        </button>
+      </DialogTrigger>
+
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <div className="flex items-start gap-2 pr-8">
+            <Database className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <DialogTitle className="leading-6">{dataset.title}</DialogTitle>
+              <DialogDescription className="mt-1">
+                {dataset.source} | Updated {formatUpdated(dataset.updated)}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4 text-sm text-muted-foreground">
+          <p className="leading-6">{dataset.description}</p>
+          <div className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] gap-x-4 gap-y-2 text-xs">
             <span>Coverage</span>
             <span className="text-right text-foreground">{dataset.coverage}</span>
             <span>License</span>
@@ -70,7 +90,7 @@ export function DatasetInfo({ dataset, className, defaultOpen = false }: Dataset
             <span className="text-right text-foreground">{dataset.formats.join(', ')}</span>
           </div>
           {dataset.fields && dataset.fields.length > 0 && (
-            <div className="line-clamp-2">
+            <div className="text-xs leading-5">
               <span className="font-medium text-foreground">Fields:</span> {dataset.fields.join(', ')}
             </div>
           )}
@@ -80,9 +100,9 @@ export function DatasetInfo({ dataset, className, defaultOpen = false }: Dataset
                 <a
                   href={dataset.downloadUrl}
                   download
-                  className="inline-flex items-center gap-1 rounded border border-input px-2 py-1 text-[11px] font-medium text-foreground hover:bg-accent"
+                  className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
                 >
-                  <Download className="h-3 w-3" />
+                  <Download className="h-3.5 w-3.5" />
                   Download
                 </a>
               )}
@@ -91,24 +111,28 @@ export function DatasetInfo({ dataset, className, defaultOpen = false }: Dataset
                   href={dataset.apiUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 rounded border border-input px-2 py-1 text-[11px] font-medium text-foreground hover:bg-accent"
+                  className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
                 >
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-3.5 w-3.5" />
                   API
                 </a>
               )}
               <button
                 type="button"
                 onClick={() => copyText(primaryUrl)}
-                className="inline-flex items-center gap-1 rounded border border-input px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
               >
-                <Copy className="h-3 w-3" />
+                <Copy className="h-3.5 w-3.5" />
                 Copy link
               </button>
             </div>
           )}
         </div>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   )
+
+  if (!toolbarSlot) return null
+
+  return createPortal(content, toolbarSlot)
 }

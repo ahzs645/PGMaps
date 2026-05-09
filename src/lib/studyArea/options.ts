@@ -4,8 +4,13 @@ import type {
   BoundarySource,
   CensusBoundaryLevel,
   CityBoundaryLevel,
+  CrownTenureBoundaryLevel,
+  MineralTenureBoundaryLevel,
+  NrAdminBoundaryLevel,
+  RangeTenureBoundaryLevel,
   RegionLevel,
   RegionalDistrictBoundaryLevel,
+  UwrBoundaryLevel,
   WatershedBoundaryLevel,
 } from '@/maps/airquality/types'
 
@@ -46,6 +51,31 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     label: 'Watershed boundaries',
     description: 'BC Freshwater Atlas hierarchy',
   },
+  {
+    value: 'nrAdmin',
+    label: 'Natural Resource admin',
+    description: 'BC NR Areas, Regions, and Districts',
+  },
+  {
+    value: 'uwr',
+    label: 'Ungulate Winter Range',
+    description: 'Approved UWR legal orders',
+  },
+  {
+    value: 'crownTenure',
+    label: 'Crown tenures',
+    description: 'TANTALIS current Crown Land tenures',
+  },
+  {
+    value: 'rangeTenure',
+    label: 'Range tenures + pastures',
+    description: 'Active range tenures and management pastures',
+  },
+  {
+    value: 'mineralTenure',
+    label: 'Mineral / placer / coal tenures',
+    description: 'Active mineral, placer, and coal tenures',
+  },
 ]
 
 export const HEALTH_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<BoundaryLevel>[] = [
@@ -75,6 +105,29 @@ export const WATERSHED_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<WatershedBoun
   { value: 'assessmentWatershed', label: 'Assessment Watershed' },
 ]
 
+export const NR_ADMIN_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<NrAdminBoundaryLevel>[] = [
+  { value: 'nrArea', label: 'NR Area' },
+  { value: 'nrRegion', label: 'NR Region' },
+  { value: 'nrDistrict', label: 'NR District' },
+]
+
+export const UWR_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<UwrBoundaryLevel>[] = [
+  { value: 'ungulateWinterRange', label: 'Ungulate Winter Range' },
+]
+
+export const CROWN_TENURE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CrownTenureBoundaryLevel>[] = [
+  { value: 'crownTenure', label: 'Crown Tenure' },
+]
+
+export const RANGE_TENURE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<RangeTenureBoundaryLevel>[] = [
+  { value: 'rangeTenurePolygon', label: 'Range Tenure' },
+  { value: 'rangePasture', label: 'Range Pasture' },
+]
+
+export const MINERAL_TENURE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<MineralTenureBoundaryLevel>[] = [
+  { value: 'mineralTenure', label: 'Mineral / Placer / Coal Tenure' },
+]
+
 export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelOption[] {
   switch (source) {
     case 'bcHealth':
@@ -87,6 +140,16 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return CITY_BOUNDARY_LEVEL_OPTIONS
     case 'watershed':
       return WATERSHED_BOUNDARY_LEVEL_OPTIONS
+    case 'nrAdmin':
+      return NR_ADMIN_BOUNDARY_LEVEL_OPTIONS
+    case 'uwr':
+      return UWR_BOUNDARY_LEVEL_OPTIONS
+    case 'crownTenure':
+      return CROWN_TENURE_BOUNDARY_LEVEL_OPTIONS
+    case 'rangeTenure':
+      return RANGE_TENURE_BOUNDARY_LEVEL_OPTIONS
+    case 'mineralTenure':
+      return MINERAL_TENURE_BOUNDARY_LEVEL_OPTIONS
   }
 }
 

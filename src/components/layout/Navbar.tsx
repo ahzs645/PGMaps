@@ -124,6 +124,7 @@ export function Navbar() {
 
         <div className="flex items-center gap-1">
           <GlobalSearch />
+          <div id="dataset-info-toolbar-slot" className="contents" />
           <Button
             variant="ghost"
             size="icon"

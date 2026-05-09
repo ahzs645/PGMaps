@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
 
@@ -16,7 +17,16 @@ export interface StudyAreaLevelOption<TLevel extends string = string> {
 
 export type StudyAreaScope = 'pg' | 'province' | 'mixed'
 
-export type CanonicalStudyAreaSource = 'bcHealth' | 'census' | 'cityPG' | 'watershed'
+export type CanonicalStudyAreaSource =
+  | 'bcHealth'
+  | 'census'
+  | 'cityPG'
+  | 'watershed'
+  | 'nrAdmin'
+  | 'uwr'
+  | 'crownTenure'
+  | 'rangeTenure'
+  | 'mineralTenure'
 
 const CANONICAL_SOURCE_DEFS: Record<
   CanonicalStudyAreaSource,
@@ -41,6 +51,31 @@ const CANONICAL_SOURCE_DEFS: Record<
     label: 'Watershed boundaries',
     description: 'BC Freshwater Atlas hierarchy',
     provincial: false,
+  },
+  nrAdmin: {
+    label: 'Natural Resource admin',
+    description: 'BC NR Areas, Regions, and Districts',
+    provincial: true,
+  },
+  uwr: {
+    label: 'Ungulate Winter Range',
+    description: 'Approved UWR legal orders',
+    provincial: true,
+  },
+  crownTenure: {
+    label: 'Crown tenures',
+    description: 'TANTALIS current Crown Land tenures',
+    provincial: true,
+  },
+  rangeTenure: {
+    label: 'Range tenures + pastures',
+    description: 'Active range tenures and management pastures',
+    provincial: true,
+  },
+  mineralTenure: {
+    label: 'Mineral / placer / coal tenures',
+    description: 'Active mineral, placer, and coal tenures',
+    provincial: true,
   },
 }
 
@@ -75,6 +110,7 @@ interface StudyAreaSelectorProps<TSource extends string = string, TLevel extends
   onTogglePoints?: () => void
   toggleOnLabel?: string
   toggleOffLabel?: string
+  extraLevelControls?: ReactNode
   title?: string
   levelLabel?: string
   sectionClassName?: string
@@ -93,6 +129,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
   onTogglePoints,
   toggleOnLabel = 'Hide points',
   toggleOffLabel = 'Show points',
+  extraLevelControls,
   title = 'Study area',
   levelLabel = 'Boundary level',
   sectionClassName,
@@ -138,20 +175,23 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
         <label htmlFor={levelSelectId} className="text-[11px] font-medium text-muted-foreground">
           {levelLabel}
         </label>
-        {onTogglePoints && typeof showPoints === 'boolean' && (
-          <button
-            type="button"
-            onClick={onTogglePoints}
-            className={cn(
-              'rounded border px-2 py-1 text-[11px] transition-colors',
-              showPoints
-                ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                : 'border-input text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {showPoints ? toggleOnLabel : toggleOffLabel}
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {onTogglePoints && typeof showPoints === 'boolean' && (
+            <button
+              type="button"
+              onClick={onTogglePoints}
+              className={cn(
+                'rounded border px-2 py-1 text-[11px] transition-colors',
+                showPoints
+                  ? 'border-sky-500 text-sky-600 dark:text-sky-400'
+                  : 'border-input text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {showPoints ? toggleOnLabel : toggleOffLabel}
+            </button>
+          )}
+          {extraLevelControls}
+        </div>
       </div>
       <AppSelect
         id={levelSelectId}

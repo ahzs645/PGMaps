@@ -126,12 +126,12 @@ export function ScorePresetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] overflow-hidden p-0 sm:max-w-3xl">
+      <DialogContent className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-0 sm:max-w-3xl">
         <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
           <DialogTitle>Browse Presets</DialogTitle>
           <DialogDescription>Pick a recipe to reset the active weights and required data sources.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 overflow-y-auto px-6 pb-6">
+        <div className="min-h-0 space-y-4 overflow-y-auto px-6 pb-6">
           <div className="relative pt-1">
             <Search className="pointer-events-none absolute left-3 top-[1.05rem] h-4 w-4 text-muted-foreground" />
             <input

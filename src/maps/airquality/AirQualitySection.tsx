@@ -11,6 +11,7 @@ import { AirQualityMap } from './components/AirQualityMap'
 import { AirQualitySidebar } from './components/AirQualitySidebar'
 import { getNetworkColor } from './constants'
 import { useAirQualityData } from './hooks/useAirQualityData'
+import { calculateCorrectedPm25 } from './lib/corrections'
 import {
   getDefaultLevelForSource,
   getLevelOptionsForSource,
@@ -19,6 +20,7 @@ import {
 } from '@/lib/studyArea'
 import type {
   AirMonitor,
+  AirQualityAreaStats,
   AirQualityBasemap,
   AirQualityCorrectionModel,
   AirQualityObservationLayer,
@@ -44,6 +46,14 @@ const REGION_LEVEL_LABELS: Record<RegionLevel, string> = {
   majorWatershed: 'Major River Basin',
   watershedGroup: 'Watershed Group',
   assessmentWatershed: 'Assessment Watershed',
+  nrArea: 'NR Area',
+  nrRegion: 'NR Region',
+  nrDistrict: 'NR District',
+  ungulateWinterRange: 'Ungulate Winter Range',
+  crownTenure: 'Crown Tenure',
+  rangeTenurePolygon: 'Range Tenure',
+  rangePasture: 'Range Pasture',
+  mineralTenure: 'Mineral / Placer / Coal Tenure',
 }
 
 function normalizeLongitude(lon: number): number {
@@ -79,8 +89,16 @@ type BoundaryPickerFeature = GeoJSON.Feature<
   {
     code: string
     name: string
+    monitorCount: number
   }
 >
+
+interface BoundaryLegendStats {
+  areaCount: number
+  monitoredAreaCount: number
+  totalMonitors: number
+  maxMonitorCount: number
+}
 
 function isBoundarySource(value: string | null): value is BoundarySource {
   return (
@@ -124,6 +142,26 @@ function monitorMatchesObservationLayers(
   return true
 }
 
+function isMonitorInFeatureBounds(monitor: AirMonitor, bounds: [number, number, number, number]): boolean {
+  const [west, south, east, north] = bounds
+  return (
+    monitor.latitude >= south &&
+    monitor.latitude <= north &&
+    monitor.longitude >= west &&
+    monitor.longitude <= east
+  )
+}
+
+function isMonitorInRegionFeature(
+  monitor: AirMonitor,
+  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+): boolean {
+  return booleanPointInPolygon(
+    point([monitor.longitude, monitor.latitude]),
+    feature
+  )
+}
+
 function calculateDensityStats(monitors: AirMonitor[], areaKm2: number): SensorDensityStats | null {
   if (!Number.isFinite(areaKm2) || areaKm2 <= 0) return null
 
@@ -161,6 +199,35 @@ function calculateDensityStats(monitors: AirMonitor[], areaKm2: number): SensorD
   }
 }
 
+function average(values: number[]): number | null {
+  if (values.length === 0) return null
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function calculateAreaStats(
+  monitors: AirMonitor[],
+  correctionModel: AirQualityCorrectionModel
+): AirQualityAreaStats {
+  const rawValues: number[] = []
+  const correctedValues: number[] = []
+
+  monitors.forEach((monitor) => {
+    const correction = calculateCorrectedPm25(monitor, correctionModel)
+    if (correction.rawPm25 !== null) rawValues.push(correction.rawPm25)
+    if (correction.correctedPm25 !== null) correctedValues.push(correction.correctedPm25)
+  })
+
+  return {
+    monitorCount: monitors.length,
+    pm25MonitorCount: correctedValues.length,
+    rawPm25Average: average(rawValues),
+    correctedPm25Average: average(correctedValues),
+    correctedPm25Min: correctedValues.length ? Math.min(...correctedValues) : null,
+    correctedPm25Max: correctedValues.length ? Math.max(...correctedValues) : null,
+    networkCount: new Set(monitors.map((monitor) => monitor.network)).size,
+  }
+}
+
 export default function AirQualitySection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { monitors, loading, error } = useAirQualityData()
@@ -181,16 +248,16 @@ export default function AirQualitySection() {
   const [networksInitialized, setNetworksInitialized] = useState(false)
   const [boundarySource, setBoundarySource] = useState<BoundarySource>(initialBoundarySource)
   const [selectedRegionLevel, setSelectedRegionLevel] = useState<RegionLevel>(initialBoundaryLevel)
-  const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(null)
+  const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(() => searchParams.get('region'))
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
+  const [showPoints, setShowPoints] = useState(() => searchParams.get('points') !== '0')
   const [basemap, setBasemap] = useState<AirQualityBasemap>(() => (searchParams.get('basemap') as AirQualityBasemap) || 'light')
   const [correctionModel, setCorrectionModel] = useState<AirQualityCorrectionModel>(() => (searchParams.get('model') as AirQualityCorrectionModel) || 'epaBarkjohn')
   const [observationLayers, setObservationLayers] = useState<AirQualityObservationLayer[]>(DEFAULT_OBSERVATION_LAYERS)
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [mapBounds, setMapBounds] = useState<AirQualityMapBounds | null>(null)
-  const [mapBoundaryPickerEnabled, setMapBoundaryPickerEnabled] = useState(true)
 
   const {
     regions: studyAreaRegions,
@@ -223,16 +290,20 @@ export default function AirQualitySection() {
     else params.delete('q')
     if (showHeatmap) params.set('heatmap', '1')
     else params.delete('heatmap')
+    if (!showPoints) params.set('points', '0')
+    else params.delete('points')
     if (basemap !== 'light') params.set('basemap', basemap)
     else params.delete('basemap')
     if (correctionModel !== 'epaBarkjohn') params.set('model', correctionModel)
     else params.delete('model')
     if (selectedMonitor) params.set('monitor', selectedMonitor.id)
     else params.delete('monitor')
+    if (selectedRegionCode) params.set('region', selectedRegionCode)
+    else params.delete('region')
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [basemap, boundarySource, correctionModel, searchParams, searchQuery, selectedMonitor, selectedRegionLevel, setSearchParams, showHeatmap])
+  }, [basemap, boundarySource, correctionModel, searchParams, searchQuery, selectedMonitor, selectedRegionCode, selectedRegionLevel, setSearchParams, showHeatmap, showPoints])
 
   const regionLevelOptions = useMemo(() => {
     return getLevelOptionsForSource(boundarySource).map((option) => ({
@@ -241,46 +312,50 @@ export default function AirQualitySection() {
     }))
   }, [boundarySource])
 
-  const mapBoundaryFeatures = useMemo<BoundaryPickerFeature[]>(() => {
-    if (!mapBoundaryPickerEnabled) return []
-    return studyAreaRegions.map((region) => ({
-      type: 'Feature',
-      geometry: region.feature.geometry,
-      properties: {
-        code: region.code,
-        name: region.name,
-      },
-    }))
-  }, [mapBoundaryPickerEnabled, studyAreaRegions])
-
-  const mapBoundaryFeatureCollection = useMemo(() => {
-    return {
-      type: 'FeatureCollection',
-      features: mapBoundaryFeatures
-    } satisfies GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, { code: string; name: string }>
-  }, [mapBoundaryFeatures])
-
   const selectedRegionBounds = useMemo(() => {
     if (!selectedRegionFeature) return null
     return bbox(selectedRegionFeature)
   }, [selectedRegionFeature])
 
-  const monitorsInRegionScope = useMemo(() => {
-    if (!selectedRegionFeature || !selectedRegionBounds) return monitors
+  const boundaryScopeFeature = useMemo<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null>(() => {
+    if (studyAreaRegions.length === 0) return null
+    return {
+      type: 'FeatureCollection',
+      features: studyAreaRegions.map((region) => region.feature),
+    }
+  }, [studyAreaRegions])
 
-    const [west, south, east, north] = selectedRegionBounds
+  const boundaryScopeBounds = useMemo<[number, number, number, number] | null>(() => {
+    if (studyAreaRegions.length === 0) return null
+    return studyAreaRegions.reduce<[number, number, number, number]>(
+      (bounds, region) => [
+        Math.min(bounds[0], region.bounds[0]),
+        Math.min(bounds[1], region.bounds[1]),
+        Math.max(bounds[2], region.bounds[2]),
+        Math.max(bounds[3], region.bounds[3]),
+      ],
+      [Infinity, Infinity, -Infinity, -Infinity]
+    )
+  }, [studyAreaRegions])
+
+  const monitorsInRegionScope = useMemo(() => {
+    if (selectedRegionFeature && selectedRegionBounds) {
+      return monitors
+        .filter((monitor) => isMonitorInFeatureBounds(monitor, selectedRegionBounds))
+        .filter((monitor) => isMonitorInRegionFeature(monitor, selectedRegionFeature))
+    }
+
+    if (studyAreaRegions.length > 0 && boundaryScopeBounds) {
+      return monitors
+        .filter((monitor) => isMonitorInFeatureBounds(monitor, boundaryScopeBounds))
+        .filter((monitor) => studyAreaRegions.some((region) => (
+          isMonitorInFeatureBounds(monitor, region.bounds) &&
+          isMonitorInRegionFeature(monitor, region.feature)
+        )))
+    }
+
     return monitors
-      .filter((monitor) => (
-        monitor.latitude >= south &&
-        monitor.latitude <= north &&
-        monitor.longitude >= west &&
-        monitor.longitude <= east
-      ))
-      .filter((monitor) => booleanPointInPolygon(
-        point([monitor.longitude, monitor.latitude]),
-        selectedRegionFeature
-      ))
-  }, [monitors, selectedRegionBounds, selectedRegionFeature])
+  }, [boundaryScopeBounds, monitors, selectedRegionBounds, selectedRegionFeature, studyAreaRegions])
 
   const allNetworks = useMemo(() => {
     return Array.from(new Set(monitorsInRegionScope.map((monitor) => monitor.network))).sort((a, b) => a.localeCompare(b))
@@ -292,6 +367,66 @@ export default function AirQualitySection() {
       setNetworksInitialized(true)
     }
   }, [allNetworks, networksInitialized])
+
+  const boundaryFilteredMonitors = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+    return monitors.filter((monitor) => {
+      const matchesNetwork = selectedNetworks.includes(monitor.network)
+      const matchesObservationLayer = monitorMatchesObservationLayers(monitor, observationLayers)
+      const matchesSearch = !normalizedQuery || getMonitorSearchText(monitor).includes(normalizedQuery)
+      return matchesNetwork && matchesObservationLayer && matchesSearch
+    })
+  }, [monitors, observationLayers, searchQuery, selectedNetworks])
+
+  const boundaryMonitorCountByCode = useMemo(() => {
+    const counts = new Map<string, number>()
+    studyAreaRegions.forEach((region) => counts.set(region.code, 0))
+    if (studyAreaRegions.length === 0 || !boundaryScopeBounds) return counts
+
+    boundaryFilteredMonitors
+      .filter((monitor) => isMonitorInFeatureBounds(monitor, boundaryScopeBounds))
+      .forEach((monitor) => {
+        const region = studyAreaRegions.find((candidate) => (
+          isMonitorInFeatureBounds(monitor, candidate.bounds) &&
+          isMonitorInRegionFeature(monitor, candidate.feature)
+        ))
+        if (region) {
+          counts.set(region.code, (counts.get(region.code) ?? 0) + 1)
+        }
+      })
+
+    return counts
+  }, [boundaryFilteredMonitors, boundaryScopeBounds, studyAreaRegions])
+
+  const boundaryLegendStats = useMemo<BoundaryLegendStats | null>(() => {
+    if (studyAreaRegions.length === 0) return null
+    const counts = studyAreaRegions.map((region) => boundaryMonitorCountByCode.get(region.code) ?? 0)
+    return {
+      areaCount: studyAreaRegions.length,
+      monitoredAreaCount: counts.filter((count) => count > 0).length,
+      totalMonitors: counts.reduce((sum, count) => sum + count, 0),
+      maxMonitorCount: Math.max(0, ...counts),
+    }
+  }, [boundaryMonitorCountByCode, studyAreaRegions])
+
+  const mapBoundaryFeatures = useMemo<BoundaryPickerFeature[]>(() => {
+    return studyAreaRegions.map((region) => ({
+      type: 'Feature',
+      geometry: region.feature.geometry,
+      properties: {
+        code: region.code,
+        name: region.name,
+        monitorCount: boundaryMonitorCountByCode.get(region.code) ?? 0,
+      },
+    }))
+  }, [boundaryMonitorCountByCode, studyAreaRegions])
+
+  const mapBoundaryFeatureCollection = useMemo(() => {
+    return {
+      type: 'FeatureCollection',
+      features: mapBoundaryFeatures
+    } satisfies GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, { code: string; name: string; monitorCount: number }>
+  }, [mapBoundaryFeatures])
 
   const filteredMonitors = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
@@ -315,22 +450,38 @@ export default function AirQualitySection() {
     return bboxPolygon([west, mapBounds.south, east, mapBounds.north]) as GeoJSON.Feature<GeoJSON.Polygon>
   }, [mapBounds])
 
-  const densityScopeArea = selectedRegionFeature ?? boundsAreaFeature
+  const densityScopeAreaKm2 = useMemo(() => {
+    if (selectedRegionFeature) return area(selectedRegionFeature) / 1_000_000
+    if (boundaryScopeFeature) {
+      return studyAreaRegions.reduce((sum, region) => sum + region.areaKm2, 0)
+    }
+    if (boundsAreaFeature) return area(boundsAreaFeature) / 1_000_000
+    return null
+  }, [boundaryScopeFeature, boundsAreaFeature, selectedRegionFeature, studyAreaRegions])
 
   const densityScopeMonitors = useMemo(() => {
     if (selectedRegionFeature) return filteredMonitors
+    if (boundaryScopeFeature) return filteredMonitors
     return visibleMonitorsInView
-  }, [filteredMonitors, selectedRegionFeature, visibleMonitorsInView])
+  }, [boundaryScopeFeature, filteredMonitors, selectedRegionFeature, visibleMonitorsInView])
 
   const densityStats = useMemo(() => {
-    if (!densityScopeArea) return null
-    const areaKm2 = area(densityScopeArea) / 1_000_000
-    return calculateDensityStats(densityScopeMonitors, areaKm2)
-  }, [densityScopeArea, densityScopeMonitors])
+    if (densityScopeAreaKm2 === null) return null
+    return calculateDensityStats(densityScopeMonitors, densityScopeAreaKm2)
+  }, [densityScopeAreaKm2, densityScopeMonitors])
+
+  const areaStats = useMemo(() => {
+    return calculateAreaStats(densityScopeMonitors, correctionModel)
+  }, [correctionModel, densityScopeMonitors])
 
   const densityScopeLabel = selectedRegion
     ? `${selectedRegion.levelLabel}: ${selectedRegion.name}`
-    : 'Current map view'
+    : boundaryScopeFeature
+      ? `${REGION_LEVEL_LABELS[selectedRegionLevel] ?? selectedRegionLevel} boundaries`
+      : 'Current map view'
+
+  const sidebarMonitors = selectedRegion || boundaryScopeFeature ? filteredMonitors : visibleMonitorsInView
+  const sidebarMonitorCountLabel = selectedRegion || boundaryScopeFeature ? 'monitors in study area' : 'monitors in view'
 
   useEffect(() => {
     if (!selectedMonitor) return
@@ -365,9 +516,11 @@ export default function AirQualitySection() {
     })
   }, [])
 
-  const selectedLegendNetworks = useMemo(() => {
-    return allNetworks.filter((network) => selectedNetworks.includes(network)).slice(0, 8)
-  }, [allNetworks, selectedNetworks])
+  const visibleLegendNetworks = useMemo(() => {
+    return Array.from(new Set(visibleMonitorsInView.map((monitor) => monitor.network)))
+      .filter((network) => selectedNetworks.includes(network))
+      .sort((a, b) => a.localeCompare(b))
+  }, [selectedNetworks, visibleMonitorsInView])
 
   const handleBoundsChange = useCallback((bounds: AirQualityMapBounds) => {
     setMapBounds(bounds)
@@ -376,7 +529,6 @@ export default function AirQualitySection() {
   const handleRegionLevelChange = useCallback((level: RegionLevel) => {
     setSelectedRegionLevel(level)
     setSelectedRegionCode(null)
-    setMapBoundaryPickerEnabled(true)
   }, [])
 
   const handleBoundarySourceChange = useCallback((source: BoundarySource) => {
@@ -385,13 +537,15 @@ export default function AirQualitySection() {
       isValidLevelForSource(source, current) ? current : getDefaultLevelForSource(source)
     ))
     setSelectedRegionCode(null)
-    setMapBoundaryPickerEnabled(true)
   }, [])
 
   const handleMapBoundarySelect = useCallback((code: string) => {
     setSelectedRegionCode(code)
-    setMapBoundaryPickerEnabled(false)
   }, [])
+
+  const handleBrowseBoundaryClick = useCallback((feature: { code: string }) => {
+    handleMapBoundarySelect(feature.code)
+  }, [handleMapBoundarySelect])
 
   return (
     <MapSectionLayout
@@ -410,9 +564,10 @@ export default function AirQualitySection() {
       sidebar={(
         <AirQualitySidebar
           className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
-          monitors={monitors}
-          filteredMonitors={visibleMonitorsInView}
-          visibleMonitorCount={visibleMonitorsInView.length}
+          monitors={monitorsInRegionScope}
+          filteredMonitors={sidebarMonitors}
+          visibleMonitorCount={sidebarMonitors.length}
+          visibleMonitorCountLabel={sidebarMonitorCountLabel}
           selectedMonitor={selectedMonitor}
           selectedNetworks={selectedNetworks}
           boundarySource={boundarySource}
@@ -421,9 +576,11 @@ export default function AirQualitySection() {
           boundaryLoading={boundaryLoading}
           boundaryError={boundaryError}
           densityStats={densityStats}
+          areaStats={areaStats}
           densityScopeLabel={densityScopeLabel}
           searchQuery={searchQuery}
           showHeatmap={showHeatmap}
+          showPoints={showPoints}
           basemap={basemap}
           correctionModel={correctionModel}
           observationLayers={observationLayers}
@@ -436,6 +593,7 @@ export default function AirQualitySection() {
           onRegionLevelChange={handleRegionLevelChange}
           onSearchQueryChange={setSearchQuery}
           onToggleHeatmap={() => setShowHeatmap((prev) => !prev)}
+          onTogglePoints={() => setShowPoints((prev) => !prev)}
           onToggleNetwork={toggleNetwork}
           onSelectAllNetworks={() => setSelectedNetworks(allNetworks)}
           onClearNetworks={() => setSelectedNetworks([])}
@@ -450,52 +608,82 @@ export default function AirQualitySection() {
           selectedMonitor={selectedMonitor}
           selectedRegionFeature={selectedRegionFeature}
           browseBoundaryFeatures={mapBoundaryFeatureCollection}
-          browseBoundariesVisible={mapBoundaryPickerEnabled && !showHeatmap}
+          browseBoundariesVisible={mapBoundaryFeatures.length > 0}
           selectedBrowseBoundaryCode={
             selectedRegion?.source === boundarySource && selectedRegion?.level === selectedRegionLevel
               ? selectedRegion.code
               : null
           }
+          maxBrowseBoundaryMonitorCount={boundaryLegendStats?.maxMonitorCount ?? 0}
           showHeatmap={showHeatmap}
+          showPoints={showPoints}
           basemap={basemap}
           correctionModel={correctionModel}
           onBoundsChange={handleBoundsChange}
           onMonitorClick={setSelectedMonitor}
-          onBrowseBoundaryClick={(feature) => handleMapBoundarySelect(feature.code)}
+          onBrowseBoundaryClick={handleBrowseBoundaryClick}
           onMonitorClear={() => setSelectedMonitor(null)}
         />
 
-        <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
-          <h4 className="mb-2 text-xs font-semibold text-foreground">
-            {showHeatmap ? 'Heatmap (Monitor Density)' : `Networks (${selectedNetworks.length})`}
-          </h4>
-          <div className="space-y-1">
-            {showHeatmap ? (
-              <>
-                <div className="h-2 w-40 rounded bg-gradient-to-r from-sky-500 via-green-500 via-60% to-red-500" />
+        <div className="absolute bottom-36 right-4 z-10 max-w-[240px] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+          <div className="space-y-3">
+            {boundaryLegendStats && (
+              <div className="space-y-1">
+                <h4 className="text-xs font-semibold text-foreground">
+                  {REGION_LEVEL_LABELS[selectedRegionLevel] ?? 'Study'} areas ({boundaryLegendStats.areaCount})
+                </h4>
+                <div
+                  className="h-2 w-40 rounded"
+                  style={{
+                    background: 'linear-gradient(90deg, #e0f2fe 0%, #7dd3fc 35%, #0ea5e9 70%, #0369a1 100%)',
+                  }}
+                />
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>0 monitors</span>
+                  <span>{boundaryLegendStats.maxMonitorCount.toLocaleString()} max</span>
+                </div>
+                <div className="pt-1 text-xs text-muted-foreground">
+                  {boundaryLegendStats.monitoredAreaCount.toLocaleString()} of {boundaryLegendStats.areaCount.toLocaleString()} areas have monitors
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {boundaryLegendStats.totalMonitors.toLocaleString()} monitors in study area
+                </div>
+              </div>
+            )}
+
+            {showHeatmap && (
+              <div className="space-y-1 border-t border-border pt-3 first:border-t-0 first:pt-0">
+                <h4 className="text-xs font-semibold text-foreground">Heatmap</h4>
+                <div
+                  className="h-2 w-40 rounded"
+                  style={{
+                    background: 'linear-gradient(90deg, #0ea5e9 0%, #22c55e 60%, #ef4444 100%)',
+                  }}
+                />
                 <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                   <span>Low</span>
                   <span>High</span>
                 </div>
-              </>
-            ) : (
-              <>
-                {selectedLegendNetworks.map((network) => (
-                  <div key={network} className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: getNetworkColor(network) }} />
-                    <span className="text-xs text-muted-foreground">{network}</span>
-                  </div>
-                ))}
-                {selectedNetworks.length > selectedLegendNetworks.length && (
-                  <div className="pt-1 text-xs text-muted-foreground">
-                    +{selectedNetworks.length - selectedLegendNetworks.length} more
-                  </div>
-                )}
-              </>
+              </div>
             )}
-            {showHeatmap && (
-              <div className="pt-1 text-xs text-muted-foreground">
-                Network points are hidden while heatmap is enabled
+
+            {showPoints && (
+              <div className="space-y-1 border-t border-border pt-3 first:border-t-0 first:pt-0">
+                <h4 className="text-xs font-semibold text-foreground">
+                  Networks in view ({visibleLegendNetworks.length})
+                </h4>
+                {visibleLegendNetworks.length > 0 ? (
+                  <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                    {visibleLegendNetworks.map((network) => (
+                      <div key={network} className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: getNetworkColor(network) }} />
+                        <span className="text-xs text-muted-foreground">{network}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground">No visible network points</div>
+                )}
               </div>
             )}
           </div>

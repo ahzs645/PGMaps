@@ -1,10 +1,20 @@
 import { useMemo } from 'react'
-import type { Property, PropertyCategory, BoundaryLevel, BoundaryAggregate } from '../types'
+import type { Property, PropertyCategory, BoundaryLevel, BoundaryAggregate, AssessmentBoundaryLevel } from '../types'
 
-const BOUNDARY_LABEL: Record<Exclude<BoundaryLevel, 'none'>, string> = {
+const BOUNDARY_LABEL: Record<AssessmentBoundaryLevel, string> = {
+  healthAuthority: 'Health Authority',
+  hsda: 'HSDA',
+  lha: 'LHA',
+  chsa: 'CHSA',
+  regionalDistrict: 'Regional District',
   ct: 'Census Tract',
   da: 'Dissemination Area',
   db: 'Dissemination Block',
+  elementarySchoolCatchment: 'Elementary School Catchment',
+  secondarySchoolCatchment: 'Secondary School Catchment',
+  majorWatershed: 'Major Watershed',
+  watershedGroup: 'Watershed Group',
+  assessmentWatershed: 'Assessment Watershed',
 }
 
 /**

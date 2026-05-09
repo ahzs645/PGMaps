@@ -1,3 +1,30 @@
+import type {
+  BoundaryLevel as HealthBoundaryLevel,
+  CityBoundaryLevel,
+  RegionalDistrictBoundaryLevel,
+  WatershedBoundaryLevel,
+} from '@/lib/studyArea'
+
+// BC Assessment property data is only spatially joined against the boundary
+// systems that existed before the BC GIS overlays were added. The newer
+// nrAdmin / uwr / crownTenure / rangeTenure / mineralTenure sources do not
+// have aggregate data and are excluded here.
+export type AssessmentBoundaryLevel =
+  | HealthBoundaryLevel
+  | RegionalDistrictBoundaryLevel
+  | 'ct'
+  | 'da'
+  | 'db'
+  | CityBoundaryLevel
+  | WatershedBoundaryLevel
+export type AssessmentBoundarySelection = AssessmentBoundaryLevel | 'none'
+export type AssessmentBoundarySource =
+  | 'bcHealth'
+  | 'regionalDistrict'
+  | 'census'
+  | 'cityPG'
+  | 'watershed'
+
 export interface Property {
   id: string
   address: string
@@ -20,6 +47,17 @@ export interface Property {
   ct: string | null
   da: string | null
   db: string | null
+  /** Study-area boundary IDs (assigned via spatial join) */
+  healthAuthority: string | null
+  hsda: string | null
+  lha: string | null
+  chsa: string | null
+  regionalDistrict: string | null
+  elementarySchoolCatchment: string | null
+  secondarySchoolCatchment: string | null
+  majorWatershed: string | null
+  watershedGroup: string | null
+  assessmentWatershed: string | null
   longitude: number
   latitude: number
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
@@ -49,4 +87,4 @@ export type PropertyCategory =
 
 export type ColorMetric = 'totalAssessed' | 'totalLand' | 'totalBuilding' | 'yearBuilt'
 
-export type BoundaryLevel = 'none' | 'ct' | 'da' | 'db'
+export type BoundaryLevel = AssessmentBoundarySelection
