@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Copy, Database, Download, ExternalLink, Info } from 'lucide-react'
+import { Copy, Database, Download, ExternalLink, Flame, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Dialog,
@@ -26,6 +26,7 @@ export interface DatasetInfoRecord {
 
 interface DatasetInfoProps {
   dataset: DatasetInfoRecord
+  sourceNotes?: ReactNode
   className?: string
   defaultOpen?: boolean
 }
@@ -42,13 +43,9 @@ function copyText(value: string) {
   void navigator.clipboard.writeText(value)
 }
 
-export function DatasetInfo({ dataset, className, defaultOpen = false }: DatasetInfoProps) {
-  const [toolbarSlot, setToolbarSlot] = useState<HTMLElement | null>(null)
+export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = false }: DatasetInfoProps) {
+  const toolbarSlot = typeof document === 'undefined' ? null : document.getElementById('dataset-info-toolbar-slot')
   const primaryUrl = dataset.downloadUrl || dataset.apiUrl
-
-  useEffect(() => {
-    setToolbarSlot(document.getElementById('dataset-info-toolbar-slot'))
-  }, [])
 
   const content = (
     <Dialog defaultOpen={defaultOpen}>
@@ -92,6 +89,15 @@ export function DatasetInfo({ dataset, className, defaultOpen = false }: Dataset
           {dataset.fields && dataset.fields.length > 0 && (
             <div className="text-xs leading-5">
               <span className="font-medium text-foreground">Fields:</span> {dataset.fields.join(', ')}
+            </div>
+          )}
+          {sourceNotes && (
+            <div className="rounded-md border border-border bg-muted/20 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <Flame className="h-4 w-4 text-orange-600" />
+                <h3 className="text-sm font-semibold text-foreground">Source Notes</h3>
+              </div>
+              <div className="space-y-2 text-xs leading-5">{sourceNotes}</div>
             </div>
           )}
           {primaryUrl && (

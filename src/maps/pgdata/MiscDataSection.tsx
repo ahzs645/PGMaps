@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ElementType } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Database, Flame, Footprints, PawPrint, Satellite, ShieldAlert, Trees } from 'lucide-react'
+import { Database, Footprints, PawPrint, Satellite, ShieldAlert, Trees } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -24,7 +24,8 @@ import {
   useWalkabilityData,
 } from './walkability'
 import { IcbcLayer, IcbcLegend, IcbcSidebar, IcbcSourceNotes, useIcbcData } from './icbc'
-import { WarsLayer, WarsLegend, WarsSidebar, WarsSourceNotes, useWarsData } from './wars'
+import { WARS_TIMELINE_WINDOW_OPTIONS, WarsLayer, WarsLegend, WarsSidebar, WarsSourceNotes, useWarsData } from './wars'
+import { Timeline } from '@/components/ui/timeline'
 
 interface HeatShadeManifestSource {
   id: string
@@ -708,7 +709,12 @@ export default function MiscDataSection() {
   const canueBoundaryConfig = CANUE_BOUNDARY_CONFIG[canueBoundaryLevel]
   const canueBoundaries = useJsonManifest<BoundaryFeatureCollection>(canueBoundaryConfig.path)
   const icbc = useIcbcData(activeTab === 'icbc', searchParams.get('icbcDataset'), searchParams.get('icbcView'))
-  const wars = useWarsData(activeTab === 'wars', searchParams.get('warsSpecies'), searchParams.get('warsView'))
+  const wars = useWarsData(
+    activeTab === 'wars',
+    searchParams.get('warsSpecies'),
+    searchParams.get('warsPoints'),
+    searchParams.get('warsHeatmap'),
+  )
   const walkability = useWalkabilityData(
     activeTab === 'walkability',
     searchParams.get('walkability') || WALKABILITY_DEFAULT_VARIANT,
@@ -743,8 +749,10 @@ export default function MiscDataSection() {
     else params.delete('icbcView')
     if (activeTab === 'wars' && wars.selectedSpecies !== 'all') params.set('warsSpecies', wars.selectedSpecies)
     else params.delete('warsSpecies')
-    if (activeTab === 'wars' && wars.displayMode === 'heatmap') params.set('warsView', 'heatmap')
-    else params.delete('warsView')
+    if (activeTab === 'wars' && !wars.showPoints) params.set('warsPoints', '0')
+    else params.delete('warsPoints')
+    if (activeTab === 'wars' && wars.showHeatmap) params.set('warsHeatmap', '1')
+    else params.delete('warsHeatmap')
     if (activeTab === 'walkability' && walkability.selectedVariantId !== WALKABILITY_DEFAULT_VARIANT) params.set('walkability', walkability.selectedVariantId)
     else params.delete('walkability')
     if (activeTab === 'walkability' && walkability.displayMode !== WALKABILITY_DEFAULT_DISPLAY_MODE) params.set('walkabilityMode', walkability.displayMode)
@@ -757,7 +765,7 @@ export default function MiscDataSection() {
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.displayMode, icbc.selectedDatasetId, wars.displayMode, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.displayMode, icbc.selectedDatasetId, wars.showHeatmap, wars.showPoints, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -930,6 +938,19 @@ export default function MiscDataSection() {
     )
   }
 
+  const sourceNotes = (
+    <>
+      {activeTab === 'heatShade' && <p>Heat/shade updated {formatDate(heatShadeManifest.data?.generatedAt)}.</p>}
+      {activeTab === 'canue' && <p>CANUE raw extracts updated {formatDate(canueManifest.data?.generatedAt)}.</p>}
+      {activeTab === 'icbc' && <IcbcSourceNotes icbc={icbc} />}
+      {activeTab === 'wars' && <WarsSourceNotes wars={wars} />}
+      {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
+      {activeTab === 'heatShade' && (heatShadeManifest.data?.caveats ?? []).slice(0, 2).map((caveat) => (
+        <p key={caveat}>{caveat}</p>
+      ))}
+    </>
+  )
+
   const sidebar = (
     <div className="z-10 flex h-full w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
       <div className="border-b border-border bg-background/95 p-4">
@@ -957,6 +978,7 @@ export default function MiscDataSection() {
                 ? walkability.manifest.data?.generatedAt
                 : canueManifest.data?.generatedAt,
         }}
+        sourceNotes={sourceNotes}
       />
 
       <div className="flex-1 overflow-y-auto">
@@ -1227,22 +1249,6 @@ export default function MiscDataSection() {
 
         {activeTab === 'walkability' && <WalkabilitySidebar walkability={walkability} />}
 
-        <div className="p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <Flame className="h-4 w-4 text-orange-600" />
-            <h2 className="text-sm font-semibold text-foreground">Source Notes</h2>
-          </div>
-          <div className="space-y-2 text-xs leading-5 text-muted-foreground">
-            {activeTab === 'heatShade' && <p>Heat/shade updated {formatDate(heatShadeManifest.data?.generatedAt)}.</p>}
-            {activeTab === 'canue' && <p>CANUE raw extracts updated {formatDate(canueManifest.data?.generatedAt)}.</p>}
-            {activeTab === 'icbc' && <IcbcSourceNotes icbc={icbc} />}
-            {activeTab === 'wars' && <WarsSourceNotes wars={wars} />}
-            {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
-            {activeTab === 'heatShade' && (heatShadeManifest.data?.caveats ?? []).slice(0, 2).map((caveat) => (
-              <p key={caveat}>{caveat}</p>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   )
@@ -1349,7 +1355,29 @@ export default function MiscDataSection() {
           {activeTab === 'wars' && <WarsLayer wars={wars} />}
         </PgMap>
 
-        <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+        {activeTab === 'wars' && wars.timelineEnabled && wars.timelineDate && (
+          <Timeline
+            startDate={wars.accidentDateRange.start}
+            endDate={wars.accidentDateRange.end}
+            currentDate={wars.timelineDate}
+            onDateChange={wars.setTimelineDate}
+            onClose={wars.handleTimelineDisable}
+            monthCounts={wars.featureMonthCounts}
+            windowMode={{
+              size: wars.timelineWindowSize,
+              onSizeChange: wars.setTimelineWindowSize,
+              options: WARS_TIMELINE_WINDOW_OPTIONS,
+            }}
+            statsLabel={`${wars.filteredFeatures.length.toLocaleString()} records`}
+          />
+        )}
+
+        <div
+          className={cn(
+            'absolute right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:right-6',
+            activeTab === 'wars' && wars.timelineEnabled ? 'bottom-40 md:bottom-28' : 'bottom-36 md:bottom-6',
+          )}
+        >
           <h4 className="mb-2 text-xs font-semibold text-foreground">
             {activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : 'MISC Layers'}
           </h4>
