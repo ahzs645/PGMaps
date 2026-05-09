@@ -276,7 +276,7 @@ function BoundaryBrowseLayer({
     const hasFeatures = Boolean(features && features.features.length > 0)
     const layerVisibility = visible && hasFeatures ? 'visible' : 'none'
 
-    const maxStop = Math.max(1, maxColorValue)
+    const maxStop = maxColorValue > 0 ? maxColorValue : 1
     const lowStop = maxStop * 0.25
     const midStop = maxStop * 0.6
     const colorStops = colorMetric === 'correctedPm25' || colorMetric === 'rawPm25'

@@ -148,11 +148,11 @@ export function ExplorerSidebar({
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stat.dataset.color }} />
                     <span className="font-medium">{stat.dataset.label}</span>
                   </div>
-                  <span>{stat.count.toLocaleString()}</span>
+                  <span>{active ? stat.count.toLocaleString() : 'Off'}</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px]">
                   <span>{GEOMETRY_TYPE_LABEL[stat.dataset.geometryType]}</span>
-                  <span>avg relevance {formatRelevance(stat.averageRelevance)}</span>
+                  <span>{active ? `avg relevance ${formatRelevance(stat.averageRelevance)}` : 'click to load'}</span>
                 </div>
               </button>
             )
