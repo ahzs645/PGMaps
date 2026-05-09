@@ -1,5 +1,4 @@
-import { useRef, useMemo } from 'react'
-import { useVirtualizer } from '@tanstack/react-virtual'
+import { useMemo } from 'react'
 import { Download } from 'lucide-react'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
@@ -40,6 +39,8 @@ interface ExplorerSidebarProps {
   onExport: (format: 'csv' | 'geojson') => void
 }
 
+const MAX_VISIBLE_ROWS = 250
+
 function formatRelevance(value: number): string {
   return `${Math.round(value)}`
 }
@@ -78,14 +79,7 @@ export function ExplorerSidebar({
     polygon: items.filter((item) => item.geometryType === 'polygon').length
   }), [items])
 
-  // Virtual scrolling
-  const listRef = useRef<HTMLDivElement>(null)
-  const virtualizer = useVirtualizer({
-    count: items.length,
-    getScrollElement: () => listRef.current,
-    estimateSize: () => 60,
-    overscan: 10
-  })
+  const displayedItems = useMemo(() => items.slice(0, MAX_VISIBLE_ROWS), [items])
 
   return (
     <div className={cn('z-10 flex h-full min-h-0 w-[370px] flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
@@ -96,6 +90,7 @@ export function ExplorerSidebar({
 
       <DatasetInfo dataset={DATASETS.explorer} />
 
+      <div className="min-h-0 flex-1 overflow-y-auto">
       {/* Geometry filters */}
       <div className="border-b border-border bg-background/95 p-4">
         <h2 className="mb-2 text-sm font-semibold text-foreground">Geometry Types</h2>
@@ -247,7 +242,7 @@ export function ExplorerSidebar({
 
       {/* Selected item panel */}
       {selectedItem && (
-        <div className="max-h-48 shrink-0 overflow-y-auto border-b border-cyan-300/50 bg-cyan-50 p-3 dark:border-cyan-900/70 dark:bg-cyan-950/25">
+        <div className="border-b border-cyan-300/50 bg-cyan-50 p-3 dark:border-cyan-900/70 dark:bg-cyan-950/25">
           <div className="mb-2 flex items-start justify-between gap-2">
             <div>
               <div className="text-sm font-semibold text-cyan-900 dark:text-cyan-100">{selectedItem.name}</div>
@@ -296,9 +291,10 @@ export function ExplorerSidebar({
       {loading ? (
         <div className="p-4 text-sm text-muted-foreground">Loading explorer datasets...</div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
+        <div>
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
             <span>{items.length.toLocaleString()} items visible</span>
+            {items.length > MAX_VISIBLE_ROWS && <span>Showing {MAX_VISIBLE_ROWS}</span>}
           </div>
 
           {errors.length > 0 && (
@@ -309,57 +305,40 @@ export function ExplorerSidebar({
             </div>
           )}
 
-          {/* Virtual scrolling list */}
-          <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto">
-            <div style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-              {virtualizer.getVirtualItems().map((virtualRow) => {
-                const item = items[virtualRow.index]
-                if (!item) return null
+          <div className="divide-y divide-border">
+              {displayedItems.map((item) => {
                 const isSelected = selectedItem?.id === item.id
                 return (
-                  <div
-                    key={virtualRow.key}
-                    data-index={virtualRow.index}
-                    ref={virtualizer.measureElement}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${virtualRow.start}px)`
-                    }}
+                  <button
+                    key={item.id}
+                    onClick={() => onSelectItem(item.id)}
+                    className={cn(
+                      'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
+                      isSelected && 'bg-cyan-50 dark:bg-cyan-950/35'
+                    )}
                   >
-                    <button
-                      onClick={() => onSelectItem(item.id)}
-                      className={cn(
-                        'w-full border-b border-border px-4 py-3 text-left transition-colors hover:bg-accent',
-                        isSelected && 'bg-cyan-50 dark:bg-cyan-950/35'
-                      )}
-                    >
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <span className="line-clamp-1 text-sm font-medium text-foreground">{item.name}</span>
-                        {/* Relevance score with hover tooltip */}
-                        <span className="group/rel relative text-xs font-semibold text-cyan-700 dark:text-cyan-300 cursor-help">
-                          {formatRelevance(item.relevance)}
-                          <span className="absolute right-0 top-full z-30 mt-1 hidden w-48 rounded border border-border bg-background p-2 shadow-lg group-hover/rel:block">
-                            {item.relevanceBreakdown.map((e, i) => (
-                              <span key={i} className="flex justify-between text-[10px] text-muted-foreground">
-                                <span>{e.label}</span>
-                                <span className="font-medium text-foreground">+{e.points}</span>
-                              </span>
-                            ))}
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="line-clamp-1 text-sm font-medium text-foreground">{item.name}</span>
+                      <span className="group/rel relative cursor-help text-xs font-semibold text-cyan-700 dark:text-cyan-300">
+                        {formatRelevance(item.relevance)}
+                        <span className="absolute right-0 top-full z-30 mt-1 hidden w-48 rounded border border-border bg-background p-2 shadow-lg group-hover/rel:block">
+                          {item.relevanceBreakdown.map((e, i) => (
+                            <span key={i} className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>{e.label}</span>
+                              <span className="font-medium text-foreground">+{e.points}</span>
+                            </span>
+                          ))}
                           </span>
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">{item.subtitle}</div>
-                    </button>
-                  </div>
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">{item.subtitle}</div>
+                  </button>
                 )
               })}
-            </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

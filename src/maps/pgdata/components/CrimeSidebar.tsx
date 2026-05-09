@@ -169,7 +169,7 @@ export function CrimeSidebar({
 
       <DatasetInfo dataset={DATASETS.crime} />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {/* Data Layers */}
         <div className="border-b border-border bg-background/95 p-4">
           <h2 className="mb-3 text-sm font-semibold text-foreground">Data Layers</h2>
