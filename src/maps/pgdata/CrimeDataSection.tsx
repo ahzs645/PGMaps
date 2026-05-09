@@ -93,23 +93,14 @@ export default function CrimeDataSection() {
     }
   }, [timelineEnabled, timelineDate, incidents.length, incidentDateRange.end])
 
-  const incidentMonthCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const inc of baseFilteredIncidents) {
-      const key = `${inc.date.getFullYear()}-${String(inc.date.getMonth()).padStart(2, '0')}`
-      counts.set(key, (counts.get(key) ?? 0) + 1)
-    }
-    return counts
-  }, [baseFilteredIncidents])
-
-  const timelineFilterRange = useMemo(() => {
-    if (!timelineEnabled || !timelineDate) return null
+  const filteredIncidents = useMemo(() => {
+    if (!timelineEnabled || !timelineDate) return baseFilteredIncidents
     const isCumulative = timelineWindowSize === -1
-    const startMonth = isCumulative
-      ? new Date(incidentDateRange.start.getFullYear(), incidentDateRange.start.getMonth(), 1)
-      : new Date(timelineDate.getFullYear(), timelineDate.getMonth(), 1)
+    const startMs = isCumulative
+      ? new Date(incidentDateRange.start.getFullYear(), incidentDateRange.start.getMonth(), 1).getTime()
+      : new Date(timelineDate.getFullYear(), timelineDate.getMonth(), 1).getTime()
     const monthsForward = isCumulative ? 1 : timelineWindowSize
-    const endMonth = new Date(
+    const endMs = new Date(
       timelineDate.getFullYear(),
       timelineDate.getMonth() + monthsForward,
       0,
@@ -117,18 +108,12 @@ export default function CrimeDataSection() {
       59,
       59,
       999,
-    )
-    return { start: startMonth.getTime(), end: endMonth.getTime() }
-  }, [timelineEnabled, timelineDate, timelineWindowSize, incidentDateRange.start])
-
-  const filteredIncidents = useMemo(() => {
-    if (!timelineFilterRange) return baseFilteredIncidents
-    const { start, end } = timelineFilterRange
+    ).getTime()
     return baseFilteredIncidents.filter((inc) => {
       const t = inc.date.getTime()
-      return t >= start && t <= end
+      return t >= startMs && t <= endMs
     })
-  }, [baseFilteredIncidents, timelineFilterRange])
+  }, [baseFilteredIncidents, timelineEnabled, timelineDate, timelineWindowSize, incidentDateRange.start])
 
   // Sync filters to URL for shareable links
   useEffect(() => {
@@ -271,12 +256,10 @@ export default function CrimeDataSection() {
             currentDate={timelineDate}
             onDateChange={setTimelineDate}
             onClose={handleTimelineDisable}
-            monthCounts={incidentMonthCounts}
             windowMode={{
               size: timelineWindowSize,
               onSizeChange: setTimelineWindowSize,
             }}
-            statsLabel={`${filteredIncidents.length.toLocaleString()} incidents`}
           />
         )}
 

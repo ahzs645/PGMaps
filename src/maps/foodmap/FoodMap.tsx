@@ -133,7 +133,6 @@ export default function FoodMap() {
       })
     })
 
-    // Add some padding
     const start = new Date(minDate)
     start.setMonth(start.getMonth() - 1)
     const end = new Date()

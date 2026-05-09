@@ -512,44 +512,38 @@ function TransitRouteLayers({
     [routes],
   )
 
-  // Pixels per lane index, interpolated on zoom. Mirrors the two-zone
-  // scale model in transitive.js (lib/display/display.js zoom factors:
-  // `mergeVertexThreshold` 200 at low scale, 0 at scale >= 1.5). Below
-  // the high-scale threshold all overlapping routes collapse onto a
-  // shared corridor (offset = 0); above it, each lane separates by
-  // ~1.2 px (the constant `lw` in lib/graph/graph.js apply2DOffsets).
-  // We translate Leaflet scale 1.5 -> MapLibre zoom ~14.5, hold the
-  // offset at 0 below that, then ramp up to clear lane separation by
-  // street-level zooms.
+  // Pixels per lane index, interpolated on zoom. Matches transitive.js's
+  // storybook configuration (stories/transitive-overlay.js
+  // DEFAULT_ZOOM_FACTORS: a single zone with `mergeVertexThreshold: 0`),
+  // where lanes are ALWAYS separated and never collapse. lw stays roughly
+  // proportional to line width so the visual relationship between stroke
+  // and lane spacing holds across zooms — the sample's `lw = 1.2 px` at a
+  // ~6 px stroke is the high-zoom anchor here.
   const offsetExpr = useMemo(
     () => [
       'interpolate',
       ['linear'],
       ['zoom'],
-      // Heavily merged: every route on the corridor centerline.
-      10, ['*', ['get', 'offsetIndex'], 0],
-      14, ['*', ['get', 'offsetIndex'], 0],
-      // Cross the high-scale threshold: lanes begin to peel apart.
-      15, ['*', ['get', 'offsetIndex'], 0.9],
-      // Street level: clearly separated parallel lanes (~1.2 px lw).
-      16, ['*', ['get', 'offsetIndex'], 1.8],
-      17, ['*', ['get', 'offsetIndex'], 2.6],
+      10, ['*', ['get', 'offsetIndex'], 1.1],
+      12, ['*', ['get', 'offsetIndex'], 1.3],
+      14, ['*', ['get', 'offsetIndex'], 1.6],
+      16, ['*', ['get', 'offsetIndex'], 2.4],
       18, ['*', ['get', 'offsetIndex'], 3.4],
     ],
     [],
   )
 
-  // Keep widths tight at low zoom so the merged stack reads as one bold
-  // corridor; thicken at street level once lanes have separated.
+  // Lines stay thin at low zoom so the wiggly road-following geometry
+  // doesn't look chunky at city overview, then bulk up to schematic-bold
+  // at street level — like the sample's stroke weight.
   const widthExpr = useMemo(
     () => [
       'interpolate',
       ['linear'],
       ['zoom'],
-      10, 1.4,
-      12, 1.8,
-      14, 2.2,
-      15, 2.6,
+      10, 1,
+      12, 1.4,
+      14, 2,
       16, 3.4,
       18, 4.5,
     ],
@@ -560,12 +554,11 @@ function TransitRouteLayers({
       'interpolate',
       ['linear'],
       ['zoom'],
-      10, 2.6,
-      12, 3.4,
-      14, 4,
-      15, 4.6,
-      16, 6,
-      18, 8,
+      10, 1.8,
+      12, 2.6,
+      14, 3.6,
+      16, 5.6,
+      18, 7.5,
     ],
     [],
   )
@@ -574,8 +567,8 @@ function TransitRouteLayers({
       'interpolate',
       ['linear'],
       ['zoom'],
-      10, 0.65,
-      13, 0.85,
+      10, 0.75,
+      13, 0.9,
       16, 0.95,
     ],
     [],

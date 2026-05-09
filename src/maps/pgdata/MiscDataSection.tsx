@@ -708,7 +708,12 @@ export default function MiscDataSection() {
   const canueMembership = useJsonManifest<CanuePostalMembership>('/data/canue/bc/postal-boundary-membership.json')
   const canueBoundaryConfig = CANUE_BOUNDARY_CONFIG[canueBoundaryLevel]
   const canueBoundaries = useJsonManifest<BoundaryFeatureCollection>(canueBoundaryConfig.path)
-  const icbc = useIcbcData(activeTab === 'icbc', searchParams.get('icbcDataset'), searchParams.get('icbcView'))
+  const icbc = useIcbcData(
+    activeTab === 'icbc',
+    searchParams.get('icbcDataset'),
+    searchParams.get('icbcPoints'),
+    searchParams.get('icbcHeatmap'),
+  )
   const wars = useWarsData(
     activeTab === 'wars',
     searchParams.get('warsSpecies'),
@@ -745,8 +750,10 @@ export default function MiscDataSection() {
     }
     if (activeTab === 'icbc' && icbc.selectedDatasetId) params.set('icbcDataset', icbc.selectedDatasetId)
     else params.delete('icbcDataset')
-    if (activeTab === 'icbc' && icbc.displayMode === 'heatmap') params.set('icbcView', 'heatmap')
-    else params.delete('icbcView')
+    if (activeTab === 'icbc' && !icbc.showPoints) params.set('icbcPoints', '0')
+    else params.delete('icbcPoints')
+    if (activeTab === 'icbc' && icbc.showHeatmap) params.set('icbcHeatmap', '1')
+    else params.delete('icbcHeatmap')
     if (activeTab === 'wars' && wars.selectedSpecies !== 'all') params.set('warsSpecies', wars.selectedSpecies)
     else params.delete('warsSpecies')
     if (activeTab === 'wars' && !wars.showPoints) params.set('warsPoints', '0')
@@ -765,7 +772,7 @@ export default function MiscDataSection() {
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.displayMode, icbc.selectedDatasetId, wars.showHeatmap, wars.showPoints, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.showHeatmap, icbc.showPoints, icbc.selectedDatasetId, wars.showHeatmap, wars.showPoints, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -1362,13 +1369,11 @@ export default function MiscDataSection() {
             currentDate={wars.timelineDate}
             onDateChange={wars.setTimelineDate}
             onClose={wars.handleTimelineDisable}
-            monthCounts={wars.featureMonthCounts}
             windowMode={{
               size: wars.timelineWindowSize,
               onSizeChange: wars.setTimelineWindowSize,
               options: WARS_TIMELINE_WINDOW_OPTIONS,
             }}
-            statsLabel={`${wars.filteredFeatures.length.toLocaleString()} records`}
           />
         )}
 

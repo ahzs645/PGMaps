@@ -37,7 +37,6 @@ interface IcbcCrashProperties {
 }
 
 type IcbcCrashFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, IcbcCrashProperties>
-type IcbcDisplayMode = 'points' | 'heatmap'
 
 const ICBC_DATASET_LABELS: Record<string, string> = {
   all_crashes: 'All crashes',
@@ -64,9 +63,15 @@ function getIcbcMarkerSize(crashCount: number, maxCrashCount: number): number {
   return Math.max(8, Math.min(28, 7 + Math.sqrt(crashCount / maxCrashCount) * 22))
 }
 
-export function useIcbcData(active: boolean, initialDatasetId: string | null, initialDisplayMode: string | null = null) {
+export function useIcbcData(
+  active: boolean,
+  initialDatasetId: string | null,
+  initialShowPoints: string | null = null,
+  initialShowHeatmap: string | null = null,
+) {
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(initialDatasetId)
-  const [displayMode, setDisplayMode] = useState<IcbcDisplayMode>(initialDisplayMode === 'heatmap' ? 'heatmap' : 'points')
+  const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
+  const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const manifest = useJsonManifest<IcbcManifest>(active ? '/data/icbc/manifest.json' : null)
   const datasets = manifest.data?.datasets ?? []
@@ -124,8 +129,10 @@ export function useIcbcData(active: boolean, initialDatasetId: string | null, in
     selectedDataset,
     selectedDatasetId,
     setSelectedDatasetId,
-    displayMode,
-    setDisplayMode,
+    showPoints,
+    setShowPoints,
+    showHeatmap,
+    setShowHeatmap,
     selectedLocation,
     setSelectedLocation,
     crashFeatures,
@@ -161,25 +168,31 @@ export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
             />
           </label>
 
-          <div className="grid grid-cols-2 gap-1 rounded-md border border-border bg-muted/30 p-1">
-            {[
-              { value: 'points' as const, label: 'Points' },
-              { value: 'heatmap' as const, label: 'Heatmap' },
-            ].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => icbc.setDisplayMode(option.value)}
-                className={cn(
-                  'h-8 rounded px-2 text-xs font-medium transition-colors',
-                  icbc.displayMode === option.value
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => icbc.setShowPoints(!icbc.showPoints)}
+              className={cn(
+                'rounded border px-2 py-1 text-[11px] transition-colors',
+                icbc.showPoints
+                  ? 'border-sky-500 text-sky-600 dark:text-sky-400'
+                  : 'border-input text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {icbc.showPoints ? 'Hide points' : 'Show points'}
+            </button>
+            <button
+              type="button"
+              onClick={() => icbc.setShowHeatmap(!icbc.showHeatmap)}
+              className={cn(
+                'rounded border px-2 py-1 text-[11px] transition-colors',
+                icbc.showHeatmap
+                  ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                  : 'border-input text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Heatmap
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center">
@@ -246,7 +259,7 @@ export function IcbcSourceNotes({ icbc }: { icbc: IcbcState }) {
 export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
   return (
     <>
-      {icbc.displayMode === 'heatmap' && (
+      {icbc.showHeatmap && (
         <MapHeatmapLayer
           data={icbc.heatmapData}
           weight={['interpolate', ['linear'], ['coalesce', ['get', 'weight'], 1], 1, 0.15, Math.max(icbc.maxCrashCount, 1), 1]}
@@ -268,7 +281,7 @@ export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
         />
       )}
 
-      {icbc.displayMode === 'points' && icbc.crashFeatures.map((feature) => {
+      {icbc.showPoints && icbc.crashFeatures.map((feature) => {
         const [longitude, latitude] = feature.geometry.coordinates
         const size = getIcbcMarkerSize(feature.properties.crashCount, icbc.maxCrashCount)
         const selected = icbc.selectedLocation === feature.properties.location
@@ -301,7 +314,7 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
   return (
     <div className="w-52 space-y-2 text-xs text-muted-foreground">
       <div className="font-medium text-foreground">{getIcbcDatasetLabel(icbc.selectedDataset)}</div>
-      {icbc.displayMode === 'points' ? (
+      {icbc.showPoints && (
         <div className="flex items-center justify-between gap-2">
           <span>Small</span>
           <div className="flex items-center gap-1.5">
@@ -311,14 +324,18 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
           </div>
           <span>High</span>
         </div>
-      ) : (
-        <div>
+      )}
+      {icbc.showHeatmap && (
+        <div className={cn(icbc.showPoints && 'border-t border-border pt-2')}>
           <div className="h-3 w-full rounded-sm border border-border bg-gradient-to-r from-sky-300 via-yellow-300 to-red-600" aria-hidden="true" />
           <div className="mt-1 flex justify-between text-[10px]">
             <span>Lower density</span>
             <span>Higher density</span>
           </div>
         </div>
+      )}
+      {!icbc.showPoints && !icbc.showHeatmap && (
+        <div className="text-[10px] italic">Both layers are hidden.</div>
       )}
       <div>{icbc.crashFeatures.length.toLocaleString()} mapped locations</div>
     </div>

@@ -12,6 +12,7 @@ export interface TimelineWindowMode {
   size: number
   onSizeChange: (size: number) => void
   options?: TimelineWindowOption[]
+  anchor?: 'start' | 'end'
 }
 
 interface TimelineProps {
@@ -90,6 +91,7 @@ export function Timeline({
 
   const isCumulative = windowMode?.size === -1
   const windowSize = windowMode && !isCumulative ? windowMode.size : 1
+  const windowAnchor = windowMode?.anchor ?? 'start'
 
   const currentIndex = useMemo(() => {
     const currentKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth()).padStart(2, '0')}`
@@ -98,11 +100,12 @@ export function Timeline({
   }, [buckets, currentDate])
 
   const maxPosition = useMemo(() => {
-    if (!windowMode || isCumulative) return Math.max(0, buckets.length - 1)
+    if (!windowMode || isCumulative || windowAnchor === 'end') {
+      return Math.max(0, buckets.length - 1)
+    }
     return Math.max(0, buckets.length - windowSize)
-  }, [buckets.length, windowMode, isCumulative, windowSize])
+  }, [buckets.length, windowMode, isCumulative, windowAnchor, windowSize])
 
-  // Clamp currentIndex back inside range when window size grows
   useEffect(() => {
     if (currentIndex > maxPosition && buckets[maxPosition]) {
       onDateChange(buckets[maxPosition].start)
@@ -128,9 +131,15 @@ export function Timeline({
     if (windowSize === 1) {
       return buckets[currentIndex]?.label ?? ''
     }
+    if (windowAnchor === 'end') {
+      const startIdx = Math.max(0, currentIndex - windowSize + 1)
+      if (startIdx === currentIndex) return buckets[currentIndex]?.label ?? ''
+      return `${buckets[startIdx]?.label ?? ''} – ${buckets[currentIndex]?.label ?? ''}`
+    }
     const endIdx = Math.min(currentIndex + windowSize - 1, buckets.length - 1)
+    if (endIdx === currentIndex) return buckets[currentIndex]?.label ?? ''
     return `${buckets[currentIndex]?.label ?? ''} – ${buckets[endIdx]?.label ?? ''}`
-  }, [currentDate, windowMode, isCumulative, windowSize, buckets, currentIndex])
+  }, [currentDate, windowMode, isCumulative, windowSize, windowAnchor, buckets, currentIndex])
 
   const stepForward = useCallback(() => {
     const newDate = new Date(currentDate)
@@ -184,9 +193,12 @@ export function Timeline({
     (i: number) => {
       if (!windowMode) return i === currentIndex
       if (isCumulative) return i <= currentIndex
+      if (windowAnchor === 'end') {
+        return i > currentIndex - windowSize && i <= currentIndex
+      }
       return i >= currentIndex && i < currentIndex + windowSize
     },
-    [windowMode, isCumulative, windowSize, currentIndex]
+    [windowMode, isCumulative, windowAnchor, windowSize, currentIndex]
   )
 
   if (buckets.length === 0) return null

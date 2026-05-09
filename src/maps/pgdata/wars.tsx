@@ -165,17 +165,6 @@ export function useWarsData(
     }
   }, [timelineEnabled, timelineDate, features.length, accidentDateRange.end])
 
-  const featureMonthCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const feature of baseFilteredFeatures) {
-      const date = parseAccidentDate(feature.properties)
-      if (!date) continue
-      const key = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
-      counts.set(key, (counts.get(key) ?? 0) + 1)
-    }
-    return counts
-  }, [baseFilteredFeatures])
-
   const timelineFilterRange = useMemo(() => {
     if (!timelineEnabled || !timelineDate) return null
     const isCumulative = timelineWindowSize === -1
@@ -274,7 +263,6 @@ export function useWarsData(
     timelineWindowSize,
     setTimelineWindowSize,
     accidentDateRange,
-    featureMonthCounts,
     handleTimelineDisable,
   }
 }
