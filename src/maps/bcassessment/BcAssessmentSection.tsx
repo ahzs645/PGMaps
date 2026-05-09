@@ -183,6 +183,7 @@ export default function BcAssessmentSection() {
           filteredProperties={filteredProperties}
           selectedCategories={selectedCategories}
           selectedProperty={selectedProperty}
+          boundaryAggregates={boundaryAggregates}
           searchQuery={searchQuery}
           colorMetric={colorMetric}
           boundarySource={boundarySource}
@@ -206,6 +207,7 @@ export default function BcAssessmentSection() {
           colorMetric={colorMetric}
           selectedProperty={selectedProperty}
           selectedBoundaryId={selectedBoundaryId}
+          boundaryLevel={boundaryLevel}
           boundaryData={boundaryData}
           boundaryAggregates={boundaryAggregates}
           onPropertyClick={handlePropertyClick}

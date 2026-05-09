@@ -32,6 +32,7 @@ interface AirQualitySidebarProps {
   visibleMonitorCountLabel: string
   selectedMonitor: AirMonitor | null
   selectedNetworks: string[]
+  boundariesVisible: boolean
   boundarySource: BoundarySource
   selectedRegionLevel: RegionLevel
   regionLevelOptions: Array<{ value: RegionLevel; label: string }>
@@ -54,6 +55,7 @@ interface AirQualitySidebarProps {
   onCorrectionModelChange: (model: AirQualityCorrectionModel) => void
   onToggleObservationLayer: (layer: AirQualityObservationLayer) => void
   onBoundarySourceChange: (source: BoundarySource) => void
+  onClearBoundaries: () => void
   onRegionLevelChange: (level: RegionLevel) => void
   onSearchQueryChange: (query: string) => void
   onToggleHeatmap: () => void
@@ -99,6 +101,7 @@ export function AirQualitySidebar({
   visibleMonitorCountLabel,
   selectedMonitor,
   selectedNetworks,
+  boundariesVisible,
   boundarySource,
   selectedRegionLevel,
   regionLevelOptions,
@@ -115,6 +118,7 @@ export function AirQualitySidebar({
   loading,
   error,
   onBoundarySourceChange,
+  onClearBoundaries,
   onRegionLevelChange,
   onSearchQueryChange,
   onToggleHeatmap,
@@ -196,11 +200,12 @@ export function AirQualitySidebar({
 
       <div className="flex-1 overflow-y-auto">
         <StudyAreaSelector<BoundarySource, RegionLevel>
-          source={boundarySource}
+          source={boundariesVisible ? boundarySource : undefined}
           sourceOptions={BOUNDARY_SOURCE_OPTIONS}
           level={selectedRegionLevel}
-          levelOptions={regionLevelOptions}
+          levelOptions={boundariesVisible ? regionLevelOptions : []}
           onSourceChange={onBoundarySourceChange}
+          onSelectedSourceClick={onClearBoundaries}
           onLevelChange={onRegionLevelChange}
           levelSelectId="air-quality-study-area-level"
         />

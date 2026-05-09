@@ -15,15 +15,18 @@ export interface TimelineWindowMode {
   anchor?: 'start' | 'end'
 }
 
+export type TimelineGranularity = 'month' | 'year'
+
 interface TimelineProps {
   startDate: Date
   endDate: Date
   currentDate: Date
   onDateChange: (date: Date) => void
   onClose?: () => void
-  monthCounts?: Map<string, number>
+  bucketCounts?: Map<string, number>
   windowMode?: TimelineWindowMode
   statsLabel?: string
+  granularity?: TimelineGranularity
 }
 
 const SPEED_OPTIONS = [
@@ -42,40 +45,63 @@ const DEFAULT_WINDOW_OPTIONS: TimelineWindowOption[] = [
 
 // When the timeline has more buckets than this, the visible bars virtualize
 // and the view shifts as the scrub crosses the threshold.
-const MAX_VISIBLE_MONTHS = 84
+const MAX_VISIBLE_BUCKETS = 84
 const VIEW_SHIFT_TRIGGER = 0.8
 const VIEW_SHIFT_TARGET = 0.3
 
-function snapToMonth(date: Date): Date {
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+interface Bucket {
+  key: string
+  label: string
+  shortLabel: string
+  start: Date
+  end: Date
+}
+
+function snapToBucket(date: Date, granularity: TimelineGranularity): Date {
+  if (granularity === 'year') return new Date(date.getFullYear(), 0, 1)
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
-function buildMonthBuckets(startDate: Date, endDate: Date) {
-  const buckets: { key: string; label: string; shortLabel: string; start: Date; end: Date }[] = []
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+function bucketKeyFromDate(date: Date, granularity: TimelineGranularity): string {
+  if (granularity === 'year') return String(date.getFullYear())
+  return `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
+}
 
+function buildBuckets(startDate: Date, endDate: Date, granularity: TimelineGranularity): Bucket[] {
+  const buckets: Bucket[] = []
   const startYear = startDate.getFullYear()
-  const startMonth = startDate.getMonth()
   const endYear = endDate.getFullYear()
-  const endMonth = endDate.getMonth()
 
+  if (granularity === 'year') {
+    for (let y = startYear; y <= endYear; y++) {
+      buckets.push({
+        key: String(y),
+        label: String(y),
+        shortLabel: String(y),
+        start: new Date(y, 0, 1),
+        end: new Date(y, 11, 31, 23, 59, 59, 999),
+      })
+    }
+    return buckets
+  }
+
+  const startMonth = startDate.getMonth()
+  const endMonth = endDate.getMonth()
   for (let y = startYear; y <= endYear; y++) {
     const mStart = y === startYear ? startMonth : 0
     const mEnd = y === endYear ? endMonth : 11
     for (let m = mStart; m <= mEnd; m++) {
-      const key = `${y}-${String(m).padStart(2, '0')}`
-      const start = new Date(y, m, 1)
-      const end = new Date(y, m + 1, 0, 23, 59, 59, 999)
       buckets.push({
-        key,
-        label: `${monthNames[m]} ${y}`,
-        shortLabel: m === 0 ? `${y}` : monthNames[m],
-        start,
-        end,
+        key: `${y}-${String(m).padStart(2, '0')}`,
+        label: `${MONTH_NAMES[m]} ${y}`,
+        shortLabel: m === 0 ? String(y) : MONTH_NAMES[m],
+        start: new Date(y, m, 1),
+        end: new Date(y, m + 1, 0, 23, 59, 59, 999),
       })
     }
   }
-
   return buckets
 }
 
@@ -85,25 +111,27 @@ export function Timeline({
   currentDate,
   onDateChange,
   onClose,
-  monthCounts,
+  bucketCounts,
   windowMode,
   statsLabel,
+  granularity = 'month',
 }: TimelineProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(1000)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const buckets = useMemo(() => buildMonthBuckets(startDate, endDate), [startDate, endDate])
+  const buckets = useMemo(() => buildBuckets(startDate, endDate, granularity), [startDate, endDate, granularity])
 
   const isCumulative = windowMode?.size === -1
   const windowSize = windowMode && !isCumulative ? windowMode.size : 1
   const windowAnchor = windowMode?.anchor ?? 'start'
+  const unitLabel = granularity === 'year' ? 'year' : 'month'
 
   const currentIndex = useMemo(() => {
-    const currentKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth()).padStart(2, '0')}`
+    const currentKey = bucketKeyFromDate(currentDate, granularity)
     const idx = buckets.findIndex((b) => b.key === currentKey)
     return idx >= 0 ? idx : 0
-  }, [buckets, currentDate])
+  }, [buckets, currentDate, granularity])
 
   const maxPosition = useMemo(() => {
     if (!windowMode || isCumulative || windowAnchor === 'end') {
@@ -118,8 +146,8 @@ export function Timeline({
     }
   }, [maxPosition, currentIndex, onDateChange, buckets])
 
-  const isVirtualized = buckets.length > MAX_VISIBLE_MONTHS
-  const visibleSize = isVirtualized ? MAX_VISIBLE_MONTHS : buckets.length
+  const isVirtualized = buckets.length > MAX_VISIBLE_BUCKETS
+  const visibleSize = isVirtualized ? MAX_VISIBLE_BUCKETS : buckets.length
   const [visibleStart, setVisibleStart] = useState(0)
 
   useEffect(() => {
@@ -148,17 +176,17 @@ export function Timeline({
   const visibleOffset = isVirtualized ? visibleStart : 0
 
   const maxCount = useMemo(() => {
-    if (!monthCounts) return 1
+    if (!bucketCounts) return 1
     let max = 1
-    for (const v of monthCounts.values()) {
+    for (const v of bucketCounts.values()) {
       if (v > max) max = v
     }
     return max
-  }, [monthCounts])
+  }, [bucketCounts])
 
   const formattedDate = useMemo(() => {
     if (!windowMode) {
-      return currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+      return buckets[currentIndex]?.label ?? ''
     }
     if (isCumulative) {
       return `Through ${buckets[currentIndex]?.label ?? ''}`
@@ -174,32 +202,42 @@ export function Timeline({
     const endIdx = Math.min(currentIndex + windowSize - 1, buckets.length - 1)
     if (endIdx === currentIndex) return buckets[currentIndex]?.label ?? ''
     return `${buckets[currentIndex]?.label ?? ''} – ${buckets[endIdx]?.label ?? ''}`
-  }, [currentDate, windowMode, isCumulative, windowSize, windowAnchor, buckets, currentIndex])
+  }, [windowMode, isCumulative, windowSize, windowAnchor, buckets, currentIndex])
 
   const stepForward = useCallback(() => {
     const newDate = new Date(currentDate)
-    newDate.setMonth(newDate.getMonth() + 1)
+    if (granularity === 'year') {
+      newDate.setFullYear(newDate.getFullYear() + 1)
+      newDate.setMonth(0)
+    } else {
+      newDate.setMonth(newDate.getMonth() + 1)
+    }
     newDate.setDate(1)
     if (newDate <= endDate && currentIndex < maxPosition) {
       onDateChange(newDate)
     } else {
       setIsPlaying(false)
     }
-  }, [currentDate, endDate, onDateChange, currentIndex, maxPosition])
+  }, [currentDate, endDate, onDateChange, currentIndex, maxPosition, granularity])
 
   const stepBackward = useCallback(() => {
     const newDate = new Date(currentDate)
-    newDate.setMonth(newDate.getMonth() - 1)
+    if (granularity === 'year') {
+      newDate.setFullYear(newDate.getFullYear() - 1)
+      newDate.setMonth(0)
+    } else {
+      newDate.setMonth(newDate.getMonth() - 1)
+    }
     newDate.setDate(1)
     if (newDate >= startDate) {
       onDateChange(newDate)
     }
-  }, [currentDate, startDate, onDateChange])
+  }, [currentDate, startDate, onDateChange, granularity])
 
   const reset = useCallback(() => {
-    onDateChange(snapToMonth(startDate))
+    onDateChange(snapToBucket(startDate, granularity))
     setIsPlaying(false)
-  }, [startDate, onDateChange])
+  }, [startDate, onDateChange, granularity])
 
   const handleSliderChange = useCallback(
     ([idx]: number[]) => {
@@ -299,10 +337,10 @@ export function Timeline({
           </div>
         </div>
 
-        {monthCounts ? (
+        {bucketCounts ? (
           <div className="mb-1 flex h-10 items-end gap-px">
             {visibleBuckets.map((bucket, i) => {
-              const count = monthCounts.get(bucket.key) ?? 0
+              const count = bucketCounts.get(bucket.key) ?? 0
               const height = Math.max(2, (count / maxCount) * 100)
               const inWindow = isInWindow(visibleOffset + i)
               return (
@@ -371,7 +409,7 @@ export function Timeline({
             onClick={stepBackward}
             disabled={currentIndex === 0}
             className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
-            aria-label="Previous month"
+            aria-label={`Previous ${unitLabel}`}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
@@ -391,7 +429,7 @@ export function Timeline({
             onClick={stepForward}
             disabled={currentIndex >= maxPosition}
             className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
-            aria-label="Next month"
+            aria-label={`Next ${unitLabel}`}
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>

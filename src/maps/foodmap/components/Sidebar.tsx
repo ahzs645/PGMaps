@@ -116,7 +116,7 @@ export function Sidebar({
   }, [selectedFacilityTypes, onFacilityTypesChange])
 
   return (
-    <div className={cn('z-10 flex h-full w-full flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
+    <div className={cn('z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       {/* Header */}
       <div className="border-b border-border bg-background/95 p-4">
         <div className="flex items-center justify-between">
@@ -154,6 +154,7 @@ export function Sidebar({
 
       <DatasetInfo dataset={DATASETS.foodSafety} />
 
+      <div className="min-h-0 flex-1 overflow-y-auto">
       {/* Visualization Mode Toggle */}
       <div className="border-b border-border bg-background/95 p-3">
         <div className="flex rounded-lg bg-secondary p-1">
@@ -385,7 +386,7 @@ export function Sidebar({
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div>
           <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
             <span>{restaurants.length} restaurants</span>
             <span className="text-muted-foreground">Click for details</span>
@@ -403,6 +404,7 @@ export function Sidebar({
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

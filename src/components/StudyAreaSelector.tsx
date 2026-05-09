@@ -105,6 +105,7 @@ interface StudyAreaSelectorProps<TSource extends string = string, TLevel extends
   level: TLevel
   levelOptions: Array<StudyAreaLevelOption<TLevel>>
   onSourceChange?: (source: TSource) => void
+  onSelectedSourceClick?: () => void
   onLevelChange: (level: TLevel) => void
   showPoints?: boolean
   onTogglePoints?: () => void
@@ -124,6 +125,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
   level,
   levelOptions,
   onSourceChange,
+  onSelectedSourceClick,
   onLevelChange,
   showPoints,
   onTogglePoints,
@@ -162,7 +164,12 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
                 disabled={option.disabled}
                 title={option.disabled ? option.disabledReason : undefined}
                 onClick={() => {
-                  if (!option.disabled) onSourceChange?.(option.value)
+                  if (option.disabled) return
+                  if (selected && onSelectedSourceClick) {
+                    onSelectedSourceClick()
+                    return
+                  }
+                  onSourceChange?.(option.value)
                 }}
                 className={cn(
                   'w-full rounded-md border px-3 py-2 text-left transition-colors',

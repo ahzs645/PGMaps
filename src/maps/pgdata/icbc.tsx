@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { AppSelect } from '@/components/ui/select'
+import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 import { formatDate, useJsonManifest } from './shared'
+
+export const ICBC_TIMELINE_WINDOW_OPTIONS: TimelineWindowOption[] = [
+  { value: 1, label: '1 yr' },
+  { value: 2, label: '2 yr' },
+  { value: 5, label: '5 yr' },
+  { value: -1, label: 'Cumul.' },
+]
 
 interface IcbcManifestDataset {
   id: string
@@ -14,6 +22,8 @@ interface IcbcManifestDataset {
   geojson: string
   rows: number
   geocodedRows: number
+  yearStart?: number
+  yearEnd?: number
   fields: string[]
 }
 
@@ -22,6 +32,8 @@ export interface IcbcManifest {
   sourceProfile: string
   sourceLicense: string
   city: string
+  yearStart?: number
+  yearEnd?: number
   generatedAt: string
   datasets: IcbcManifestDataset[]
 }
@@ -29,6 +41,7 @@ export interface IcbcManifest {
 interface IcbcCrashProperties {
   dataset: string
   datasetTitle: string
+  year: number
   location: string
   municipality: string
   crashCount: number
@@ -40,13 +53,15 @@ type IcbcCrashFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, IcbcC
 
 const ICBC_DATASET_LABELS: Record<string, string> = {
   all_crashes: 'All crashes',
+  car_crashes: 'Car crashes',
   pedestrian_crashes: 'Person crashes',
   cyclist_crashes: 'Bike crashes',
   motorcycle_crashes: 'Motorcycle crashes',
 }
 
 const ICBC_DATASET_HELP: Record<string, string> = {
-  all_crashes: 'All ICBC reported crash locations. ICBC does not expose a car-only field in this downloaded layer.',
+  all_crashes: 'All ICBC reported crash locations.',
+  car_crashes: 'Derived from all crashes by subtracting pedestrian, cyclist, and motorcycle crash counts at matching locations.',
   pedestrian_crashes: 'Crashes involving pedestrians.',
   cyclist_crashes: 'Crashes involving cyclists.',
   motorcycle_crashes: 'Crashes involving motorcycles.',
@@ -73,6 +88,9 @@ export function useIcbcData(
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
+  const [timelineEnabled, setTimelineEnabled] = useState(false)
+  const [timelineDate, setTimelineDate] = useState<Date | null>(null)
+  const [timelineWindowSize, setTimelineWindowSize] = useState(1)
   const manifest = useJsonManifest<IcbcManifest>(active ? '/data/icbc/manifest.json' : null)
   const datasets = manifest.data?.datasets ?? []
   const selectedDataset = useMemo(() => {
@@ -86,7 +104,72 @@ export function useIcbcData(
   const crashes = useJsonManifest<IcbcCrashFeatureCollection>(
     active && selectedDataset ? selectedDataset.geojson : null,
   )
-  const crashFeatures = crashes.data?.features ?? []
+  const rawCrashFeatures = crashes.data?.features ?? []
+
+  const yearStart = manifest.data?.yearStart ?? selectedDataset?.yearStart ?? null
+  const yearEnd = manifest.data?.yearEnd ?? selectedDataset?.yearEnd ?? null
+
+  const crashDateRange = useMemo(() => {
+    if (yearStart != null && yearEnd != null) {
+      return {
+        start: new Date(yearStart, 0, 1),
+        end: new Date(yearEnd, 0, 1),
+      }
+    }
+    const now = new Date()
+    return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 0, 1) }
+  }, [yearStart, yearEnd])
+
+  // Default the scrub to the most recent available year when the timeline opens.
+  useEffect(() => {
+    if (timelineEnabled && !timelineDate && yearEnd != null) {
+      setTimelineDate(new Date(yearEnd, 0, 1))
+    }
+  }, [timelineEnabled, timelineDate, yearEnd])
+
+  // Aggregate per-(location, year) source rows down to per-location markers, summing crashCount
+  // within the timeline window (or across all years when the timeline is off).
+  const crashFeatures = useMemo(() => {
+    let filtered = rawCrashFeatures
+    if (timelineEnabled && timelineDate) {
+      const currentYear = timelineDate.getFullYear()
+      const isCumulative = timelineWindowSize === -1
+      const rangeStart = isCumulative ? (yearStart ?? currentYear) : currentYear
+      const rangeEnd = isCumulative ? currentYear : currentYear + timelineWindowSize - 1
+      filtered = rawCrashFeatures.filter((feature) => {
+        const year = feature.properties.year
+        return year >= rangeStart && year <= rangeEnd
+      })
+    }
+
+    const byLocation = new Map<string, typeof rawCrashFeatures[number]>()
+    for (const feature of filtered) {
+      const existing = byLocation.get(feature.properties.location)
+      if (existing) {
+        existing.properties = {
+          ...existing.properties,
+          crashCount: existing.properties.crashCount + feature.properties.crashCount,
+        }
+      } else {
+        byLocation.set(feature.properties.location, {
+          ...feature,
+          properties: { ...feature.properties },
+        })
+      }
+    }
+    return Array.from(byLocation.values())
+  }, [rawCrashFeatures, timelineEnabled, timelineDate, timelineWindowSize, yearStart])
+
+  // Per-year totals across the dataset (regardless of current scrub) — used to render the histogram.
+  const yearCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const feature of rawCrashFeatures) {
+      const key = String(feature.properties.year)
+      counts.set(key, (counts.get(key) ?? 0) + (Number(feature.properties.crashCount) || 0))
+    }
+    return counts
+  }, [rawCrashFeatures])
+
   const selectedCrash = useMemo(() => {
     if (!selectedLocation) return null
     return crashFeatures.find((feature) => feature.properties.location === selectedLocation) ?? null
@@ -122,6 +205,11 @@ export function useIcbcData(
     setSelectedLocation(null)
   }, [selectedDatasetId])
 
+  const handleTimelineDisable = useCallback(() => {
+    setTimelineEnabled(false)
+    setTimelineDate(null)
+  }, [])
+
   return {
     manifest,
     crashes,
@@ -140,6 +228,15 @@ export function useIcbcData(
     selectedCrash,
     maxCrashCount,
     totalCrashes,
+    timelineEnabled,
+    setTimelineEnabled,
+    timelineDate,
+    setTimelineDate,
+    timelineWindowSize,
+    setTimelineWindowSize,
+    crashDateRange,
+    yearCounts,
+    handleTimelineDisable,
   }
 }
 
@@ -168,7 +265,7 @@ export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
             />
           </label>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => icbc.setShowPoints(!icbc.showPoints)}
@@ -192,6 +289,18 @@ export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
               )}
             >
               Heatmap
+            </button>
+            <button
+              type="button"
+              onClick={() => icbc.setTimelineEnabled(!icbc.timelineEnabled)}
+              className={cn(
+                'rounded border px-2 py-1 text-[11px] transition-colors',
+                icbc.timelineEnabled
+                  ? 'border-sky-500 text-sky-600 dark:text-sky-400'
+                  : 'border-input text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Timeline
             </button>
           </div>
 

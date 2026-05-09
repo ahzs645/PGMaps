@@ -360,6 +360,7 @@ export default function AirQualitySection() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
   const [showPoints, setShowPoints] = useState(() => searchParams.get('points') !== '0')
+  const [showBoundaries, setShowBoundaries] = useState(() => searchParams.get('boundaries') !== '0')
   const [basemap, setBasemap] = useState<AirQualityBasemap>(() => (searchParams.get('basemap') as AirQualityBasemap) || 'light')
   const [correctionModel, setCorrectionModel] = useState<AirQualityCorrectionModel>(() => (searchParams.get('model') as AirQualityCorrectionModel) || 'epaBarkjohn')
   const [boundaryColorMetric, setBoundaryColorMetric] = useState<AirQualityBoundaryColorMetric>(() => {
@@ -377,10 +378,15 @@ export default function AirQualitySection() {
     error: boundaryError,
   } = useStudyAreaRegions(boundarySource, selectedRegionLevel)
 
+  const activeStudyAreaRegions = useMemo(
+    () => (showBoundaries ? studyAreaRegions : []),
+    [showBoundaries, studyAreaRegions]
+  )
+
   const selectedStudyAreaRegion = useMemo(() => {
     if (!selectedRegionCode) return null
-    return studyAreaRegions.find((region) => region.code === selectedRegionCode) ?? null
-  }, [selectedRegionCode, studyAreaRegions])
+    return activeStudyAreaRegions.find((region) => region.code === selectedRegionCode) ?? null
+  }, [activeStudyAreaRegions, selectedRegionCode])
 
   const selectedRegionFeature = selectedStudyAreaRegion?.feature ?? null
   const selectedRegion: SelectedBoundaryRegion | null = selectedStudyAreaRegion
@@ -397,7 +403,10 @@ export default function AirQualitySection() {
     const params = new URLSearchParams(searchParams)
     if (boundarySource !== 'bcHealth') params.set('src', boundarySource)
     else params.delete('src')
-    params.set('level', selectedRegionLevel)
+    if (showBoundaries) params.set('level', selectedRegionLevel)
+    else params.delete('level')
+    if (!showBoundaries) params.set('boundaries', '0')
+    else params.delete('boundaries')
     if (searchQuery.trim()) params.set('q', searchQuery.trim())
     else params.delete('q')
     if (showHeatmap) params.set('heatmap', '1')
@@ -412,12 +421,12 @@ export default function AirQualitySection() {
     else params.delete('poly')
     if (selectedMonitor) params.set('monitor', selectedMonitor.id)
     else params.delete('monitor')
-    if (selectedRegionCode) params.set('region', selectedRegionCode)
+    if (showBoundaries && selectedRegionCode) params.set('region', selectedRegionCode)
     else params.delete('region')
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [basemap, boundaryColorMetric, boundarySource, correctionModel, searchParams, searchQuery, selectedMonitor, selectedRegionCode, selectedRegionLevel, setSearchParams, showHeatmap, showPoints])
+  }, [basemap, boundaryColorMetric, boundarySource, correctionModel, searchParams, searchQuery, selectedMonitor, selectedRegionCode, selectedRegionLevel, setSearchParams, showBoundaries, showHeatmap, showPoints])
 
   const regionLevelOptions = useMemo(() => {
     return getLevelOptionsForSource(boundarySource).map((option) => ({
@@ -432,16 +441,16 @@ export default function AirQualitySection() {
   }, [selectedRegionFeature])
 
   const boundaryScopeFeature = useMemo<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null>(() => {
-    if (studyAreaRegions.length === 0) return null
+    if (activeStudyAreaRegions.length === 0) return null
     return {
       type: 'FeatureCollection',
-      features: studyAreaRegions.map((region) => region.feature),
+      features: activeStudyAreaRegions.map((region) => region.feature),
     }
-  }, [studyAreaRegions])
+  }, [activeStudyAreaRegions])
 
   const boundaryScopeBounds = useMemo<[number, number, number, number] | null>(() => {
-    if (studyAreaRegions.length === 0) return null
-    return studyAreaRegions.reduce<[number, number, number, number]>(
+    if (activeStudyAreaRegions.length === 0) return null
+    return activeStudyAreaRegions.reduce<[number, number, number, number]>(
       (bounds, region) => [
         Math.min(bounds[0], region.bounds[0]),
         Math.min(bounds[1], region.bounds[1]),
@@ -450,7 +459,7 @@ export default function AirQualitySection() {
       ],
       [Infinity, Infinity, -Infinity, -Infinity]
     )
-  }, [studyAreaRegions])
+  }, [activeStudyAreaRegions])
 
   const monitorsInRegionScope = useMemo(() => {
     if (selectedRegionFeature && selectedRegionBounds) {
@@ -459,17 +468,17 @@ export default function AirQualitySection() {
         .filter((monitor) => isMonitorInRegionFeature(monitor, selectedRegionFeature))
     }
 
-    if (studyAreaRegions.length > 0 && boundaryScopeBounds) {
+    if (activeStudyAreaRegions.length > 0 && boundaryScopeBounds) {
       return monitors
         .filter((monitor) => isMonitorInFeatureBounds(monitor, boundaryScopeBounds))
-        .filter((monitor) => studyAreaRegions.some((region) => (
+        .filter((monitor) => activeStudyAreaRegions.some((region) => (
           isMonitorInFeatureBounds(monitor, region.bounds) &&
           isMonitorInRegionFeature(monitor, region.feature)
         )))
     }
 
     return monitors
-  }, [boundaryScopeBounds, monitors, selectedRegionBounds, selectedRegionFeature, studyAreaRegions])
+  }, [activeStudyAreaRegions, boundaryScopeBounds, monitors, selectedRegionBounds, selectedRegionFeature])
 
   const allNetworks = useMemo(() => {
     return Array.from(new Set(monitorsInRegionScope.map((monitor) => monitor.network))).sort((a, b) => a.localeCompare(b))
@@ -498,18 +507,18 @@ export default function AirQualitySection() {
     const correctedValuesByCode = new Map<string, number[]>()
     const networksByCode = new Map<string, Set<string>>()
 
-    studyAreaRegions.forEach((region) => {
+    activeStudyAreaRegions.forEach((region) => {
       statsByCode.set(region.code, createEmptyBoundaryStats(region.areaKm2))
       rawValuesByCode.set(region.code, [])
       correctedValuesByCode.set(region.code, [])
       networksByCode.set(region.code, new Set<string>())
     })
-    if (studyAreaRegions.length === 0 || !boundaryScopeBounds) return statsByCode
+    if (activeStudyAreaRegions.length === 0 || !boundaryScopeBounds) return statsByCode
 
     boundaryFilteredMonitors
       .filter((monitor) => isMonitorInFeatureBounds(monitor, boundaryScopeBounds))
       .forEach((monitor) => {
-        const region = studyAreaRegions.find((candidate) => (
+        const region = activeStudyAreaRegions.find((candidate) => (
           isMonitorInFeatureBounds(monitor, candidate.bounds) &&
           isMonitorInRegionFeature(monitor, candidate.feature)
         ))
@@ -537,24 +546,24 @@ export default function AirQualitySection() {
     })
 
     return statsByCode
-  }, [boundaryFilteredMonitors, boundaryScopeBounds, correctionModel, studyAreaRegions])
+  }, [activeStudyAreaRegions, boundaryFilteredMonitors, boundaryScopeBounds, correctionModel])
 
   const boundaryLegendStats = useMemo<BoundaryLegendStats | null>(() => {
-    if (studyAreaRegions.length === 0) return null
-    const stats = studyAreaRegions.map((region) => boundaryStatsByCode.get(region.code) ?? createEmptyBoundaryStats(region.areaKm2))
+    if (activeStudyAreaRegions.length === 0) return null
+    const stats = activeStudyAreaRegions.map((region) => boundaryStatsByCode.get(region.code) ?? createEmptyBoundaryStats(region.areaKm2))
     const colorValues = stats
       .map((item) => getBoundaryColorValue(item, boundaryColorMetric))
       .filter((value): value is number => value !== null && Number.isFinite(value))
     return {
-      areaCount: studyAreaRegions.length,
+      areaCount: activeStudyAreaRegions.length,
       monitoredAreaCount: stats.filter((item) => item.monitorCount > 0).length,
       totalMonitors: stats.reduce((sum, item) => sum + item.monitorCount, 0),
       maxColorValue: Math.max(0, ...colorValues),
     }
-  }, [boundaryColorMetric, boundaryStatsByCode, studyAreaRegions])
+  }, [activeStudyAreaRegions, boundaryColorMetric, boundaryStatsByCode])
 
   const mapBoundaryFeatures = useMemo<BoundaryPickerFeature[]>(() => {
-    return studyAreaRegions.map((region) => {
+    return activeStudyAreaRegions.map((region) => {
       const stats = boundaryStatsByCode.get(region.code) ?? createEmptyBoundaryStats(region.areaKm2)
       const colorValue = getBoundaryColorValue(stats, boundaryColorMetric)
       const hasColorValue = colorValue !== null && Number.isFinite(colorValue)
@@ -576,7 +585,7 @@ export default function AirQualitySection() {
         },
       }
     })
-  }, [boundaryColorMetric, boundaryStatsByCode, studyAreaRegions])
+  }, [activeStudyAreaRegions, boundaryColorMetric, boundaryStatsByCode])
 
   const mapBoundaryFeatureCollection = useMemo(() => {
     return {
@@ -610,11 +619,11 @@ export default function AirQualitySection() {
   const densityScopeAreaKm2 = useMemo(() => {
     if (selectedRegionFeature) return area(selectedRegionFeature) / 1_000_000
     if (boundaryScopeFeature) {
-      return studyAreaRegions.reduce((sum, region) => sum + region.areaKm2, 0)
+      return activeStudyAreaRegions.reduce((sum, region) => sum + region.areaKm2, 0)
     }
     if (boundsAreaFeature) return area(boundsAreaFeature) / 1_000_000
     return null
-  }, [boundaryScopeFeature, boundsAreaFeature, selectedRegionFeature, studyAreaRegions])
+  }, [activeStudyAreaRegions, boundaryScopeFeature, boundsAreaFeature, selectedRegionFeature])
 
   const densityScopeMonitors = useMemo(() => {
     if (selectedRegionFeature) return filteredMonitors
@@ -684,15 +693,22 @@ export default function AirQualitySection() {
   }, [])
 
   const handleRegionLevelChange = useCallback((level: RegionLevel) => {
+    setShowBoundaries(true)
     setSelectedRegionLevel(level)
     setSelectedRegionCode(null)
   }, [])
 
   const handleBoundarySourceChange = useCallback((source: BoundarySource) => {
+    setShowBoundaries(true)
     setBoundarySource(source)
     setSelectedRegionLevel((current) => (
       isValidLevelForSource(source, current) ? current : getDefaultLevelForSource(source)
     ))
+    setSelectedRegionCode(null)
+  }, [])
+
+  const handleClearBoundaries = useCallback(() => {
+    setShowBoundaries(false)
     setSelectedRegionCode(null)
   }, [])
 
@@ -727,11 +743,12 @@ export default function AirQualitySection() {
           visibleMonitorCountLabel={sidebarMonitorCountLabel}
           selectedMonitor={selectedMonitor}
           selectedNetworks={selectedNetworks}
+          boundariesVisible={showBoundaries}
           boundarySource={boundarySource}
           selectedRegionLevel={selectedRegionLevel}
           regionLevelOptions={regionLevelOptions}
-          boundaryLoading={boundaryLoading}
-          boundaryError={boundaryError}
+          boundaryLoading={showBoundaries && boundaryLoading}
+          boundaryError={showBoundaries ? boundaryError : null}
           densityStats={densityStats}
           areaStats={areaStats}
           densityScopeLabel={densityScopeLabel}
@@ -749,6 +766,7 @@ export default function AirQualitySection() {
           onCorrectionModelChange={setCorrectionModel}
           onToggleObservationLayer={toggleObservationLayer}
           onBoundarySourceChange={handleBoundarySourceChange}
+          onClearBoundaries={handleClearBoundaries}
           onRegionLevelChange={handleRegionLevelChange}
           onSearchQueryChange={setSearchQuery}
           onToggleHeatmap={() => setShowHeatmap((prev) => !prev)}

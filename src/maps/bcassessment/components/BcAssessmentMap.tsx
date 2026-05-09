@@ -12,13 +12,14 @@ import {
   YEAR_STOPS,
   formatCurrency,
 } from '../constants'
-import type { Property, ColorMetric, BoundaryAggregate } from '../types'
+import type { Property, ColorMetric, BoundaryAggregate, BoundaryLevel } from '../types'
 
 interface BcAssessmentMapProps {
   properties: Property[]
   colorMetric: ColorMetric
   selectedProperty: Property | null
   selectedBoundaryId: string | null
+  boundaryLevel: BoundaryLevel
   boundaryData: GeoJSON.FeatureCollection | null
   boundaryAggregates: Map<string, BoundaryAggregate>
   onPropertyClick: (property: Property) => void
@@ -38,11 +39,25 @@ function getAggregateValue(agg: BoundaryAggregate, metric: ColorMetric): number 
   }
 }
 
+function getBoundaryLineStyle(level: BoundaryLevel): { lineWidth: number; selectionWidth: number } {
+  switch (level) {
+    case 'db':
+      return { lineWidth: 0.45, selectionWidth: 1.6 }
+    case 'da':
+      return { lineWidth: 0.9, selectionWidth: 2.4 }
+    case 'ct':
+      return { lineWidth: 1.8, selectionWidth: 3.2 }
+    default:
+      return { lineWidth: 2.5, selectionWidth: 4 }
+  }
+}
+
 export function BcAssessmentMap({
   properties,
   colorMetric,
   selectedProperty,
   selectedBoundaryId,
+  boundaryLevel,
   boundaryData,
   boundaryAggregates,
   onPropertyClick,
@@ -87,15 +102,12 @@ export function BcAssessmentMap({
   }, [properties])
 
   // Build boundary choropleth GeoJSON — color each boundary by its aggregate value
-  const indexToBoundaryId = useRef(new globalThis.Map<number, string>())
   const boundaryGeojson = useMemo<GeoJSON.FeatureCollection>(() => {
     if (!boundaryData || boundaryAggregates.size === 0) return EMPTY_FC
 
-    const idxMap = new globalThis.Map<number, string>()
     const stops = colorMetric === 'yearBuilt' ? YEAR_STOPS : VALUE_STOPS
     const features = boundaryData.features.map((feat, idx) => {
       const bid = String(feat.properties?.id ?? '')
-      idxMap.set(idx, bid)
       const agg = boundaryAggregates.get(bid)
       let color = '#d4d4d4'
       let label = ''
@@ -121,7 +133,6 @@ export function BcAssessmentMap({
         geometry: feat.geometry,
       }
     })
-    indexToBoundaryId.current = idxMap
 
     return { type: 'FeatureCollection', features }
   }, [boundaryData, boundaryAggregates, colorMetric])
@@ -143,14 +154,7 @@ export function BcAssessmentMap({
     return idx >= 0 ? idx : null
   }, [properties, selectedProperty])
 
-  // Find selected boundary index
-  const selectedBoundaryIdx = useMemo(() => {
-    if (!selectedBoundaryId || !boundaryData) return null
-    const idx = boundaryData.features.findIndex(
-      (f) => String(f.properties?.id ?? '') === selectedBoundaryId
-    )
-    return idx >= 0 ? idx : null
-  }, [selectedBoundaryId, boundaryData])
+  const boundaryLineStyle = getBoundaryLineStyle(boundaryLevel)
 
   return (
     <div className="h-full w-full">
@@ -183,22 +187,20 @@ export function BcAssessmentMap({
 
         {/* Census boundary choropleth */}
         <MapFillLayer
+          key={`assessment-boundaries-${boundaryLevel}`}
           data={boundaryGeojson}
           fillColor={['get', 'color']}
           fillOpacity={0.6}
           lineColor="#f97316"
-          lineWidth={2.5}
+          lineWidth={boundaryLineStyle.lineWidth}
           lineOpacity={0.9}
-          idProperty="idx"
-          selectedId={selectedBoundaryIdx}
+          idProperty="id"
+          selectedId={selectedBoundaryId}
           selectionStyle="line"
           selectionColor="#ffffff"
-          selectionWidth={4}
+          selectionWidth={boundaryLineStyle.selectionWidth}
           visible={showBoundaries}
-          onFeatureClick={(id) => {
-            const bid = indexToBoundaryId.current.get(Number(id))
-            if (bid) onBoundaryClick(bid)
-          }}
+          onFeatureClick={onBoundaryClick}
         />
       </PgMap>
     </div>

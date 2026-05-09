@@ -23,7 +23,7 @@ import {
   WalkabilitySourceNotes,
   useWalkabilityData,
 } from './walkability'
-import { IcbcLayer, IcbcLegend, IcbcSidebar, IcbcSourceNotes, useIcbcData } from './icbc'
+import { ICBC_TIMELINE_WINDOW_OPTIONS, IcbcLayer, IcbcLegend, IcbcSidebar, IcbcSourceNotes, useIcbcData } from './icbc'
 import { WARS_TIMELINE_WINDOW_OPTIONS, WarsLayer, WarsLegend, WarsSidebar, WarsSourceNotes, useWarsData } from './wars'
 import { Timeline } from '@/components/ui/timeline'
 
@@ -959,7 +959,7 @@ export default function MiscDataSection() {
   )
 
   const sidebar = (
-    <div className="z-10 flex h-full w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
+    <div className="z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">MISC Data</h1>
       </div>
@@ -988,7 +988,7 @@ export default function MiscDataSection() {
         sourceNotes={sourceNotes}
       />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {activeTab === 'heatShade' && (
         <>
         <div className="border-b border-border p-4">
@@ -1063,20 +1063,18 @@ export default function MiscDataSection() {
         {activeTab === 'canue' && (
         <>
         <StudyAreaSelector<string, CanueBoundaryLevel>
-          source={canueBoundarySource}
+          source={showCanueBoundaries ? canueBoundarySource : undefined}
           sourceOptions={CANUE_BOUNDARY_SOURCE_OPTIONS}
           level={canueBoundaryLevel}
-          levelOptions={canueBoundaryLevelOptions}
+          levelOptions={showCanueBoundaries ? canueBoundaryLevelOptions : []}
           onSourceChange={(value) => {
             if (CANUE_SUPPORTED_SOURCES.has(value)) {
+              setShowCanueBoundaries(true)
               handleCanueBoundarySourceChange(value as CanueBoundarySource)
             }
           }}
+          onSelectedSourceClick={() => setShowCanueBoundaries(false)}
           onLevelChange={setCanueBoundaryLevel}
-          showPoints={showCanueBoundaries}
-          onTogglePoints={() => setShowCanueBoundaries((current) => !current)}
-          toggleOnLabel="Hide boundaries"
-          toggleOffLabel="Show boundaries"
           levelSelectId="canue-study-area-level"
         />
 
@@ -1377,10 +1375,31 @@ export default function MiscDataSection() {
           />
         )}
 
+        {activeTab === 'icbc' && icbc.timelineEnabled && icbc.timelineDate && (
+          <Timeline
+            startDate={icbc.crashDateRange.start}
+            endDate={icbc.crashDateRange.end}
+            currentDate={icbc.timelineDate}
+            onDateChange={icbc.setTimelineDate}
+            onClose={icbc.handleTimelineDisable}
+            granularity="year"
+            bucketCounts={icbc.yearCounts}
+            windowMode={{
+              size: icbc.timelineWindowSize,
+              onSizeChange: icbc.setTimelineWindowSize,
+              options: ICBC_TIMELINE_WINDOW_OPTIONS,
+              anchor: 'end',
+            }}
+            statsLabel={`${icbc.totalCrashes.toLocaleString()} crashes`}
+          />
+        )}
+
         <div
           className={cn(
             'absolute right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:right-6',
-            activeTab === 'wars' && wars.timelineEnabled ? 'bottom-40 md:bottom-28' : 'bottom-36 md:bottom-6',
+            (activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled)
+              ? 'bottom-40 md:bottom-28'
+              : 'bottom-36 md:bottom-6',
           )}
         >
           <h4 className="mb-2 text-xs font-semibold text-foreground">

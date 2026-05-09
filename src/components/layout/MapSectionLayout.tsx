@@ -399,7 +399,7 @@ export function MapSectionLayout({
           <div
             ref={contentRef}
             className={cn(
-              'min-h-0 flex-1 overscroll-y-contain md:h-full md:!touch-auto',
+              'min-h-0 flex-1 overflow-hidden overscroll-y-contain md:h-full md:!touch-auto',
               mobileSheetState === 'full' ? 'touch-auto' : 'touch-none',
             )}
           >

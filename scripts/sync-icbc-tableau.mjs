@@ -4,6 +4,10 @@ import path from 'node:path'
 const OUTPUT_DIR = 'public/data/icbc'
 const INTERSECTIONS_PATH = 'public/data/citypg/road_intersections.geojson'
 
+// ICBC's NC/cyclist/pedestrian/motorcycle dashboards accept a Year= URL filter
+// returning per-intersection counts for that year. Coverage observed: 2020–2024.
+const YEARS = [2020, 2021, 2022, 2023, 2024]
+
 const TABLEAU_EXPORTS = [
   {
     id: 'all_crashes',
@@ -43,8 +47,18 @@ const TABLEAU_EXPORTS = [
   },
 ]
 
-function tableauCsvUrl({ workbook, view }) {
-  return `https://public.tableau.com/views/${workbook}/${view}.csv?:showVizHome=no`
+const DERIVED_CAR_CRASHES = {
+  id: 'car_crashes',
+  title: 'Car crashes',
+  outputCsv: 'prince_george_car_crashes.csv',
+  outputGeojson: 'prince_george_car_crashes.geojson',
+  sourceDatasetId: 'all_crashes',
+  excludedDatasetIds: ['pedestrian_crashes', 'cyclist_crashes', 'motorcycle_crashes'],
+}
+
+function tableauCsvUrl({ workbook, view }, year) {
+  const base = `https://public.tableau.com/views/${workbook}/${view}.csv?:showVizHome=no`
+  return year == null ? base : `${base}&Year=${year}`
 }
 
 function isPrinceGeorgeRow(row) {
@@ -216,13 +230,14 @@ function geocodeRow(row, intersectionIndex) {
   return null
 }
 
-function normalizeRow(row, dataset, intersectionIndex) {
+function normalizeRow(row, dataset, year, intersectionIndex) {
   const match = geocodeRow(row, intersectionIndex)
   const crashCount = Number(row.CrashCount ?? row['Crash Count'] ?? row['Real Count'] ?? 0)
 
   return {
     dataset: dataset.id,
     datasetTitle: dataset.title,
+    year,
     location: row.Location ?? '',
     municipality: row.Municipality || 'PRINCE GEORGE',
     crashCount,
@@ -231,6 +246,34 @@ function normalizeRow(row, dataset, intersectionIndex) {
     latitude: match?.coordinates?.[1] ?? '',
     geocodeMatchType: match?.matchType ?? '',
   }
+}
+
+function rowLocationKey(row) {
+  return `${row.municipality ?? ''}|${row.location ?? ''}|${row.year ?? ''}`.toUpperCase()
+}
+
+function buildCarCrashRows(rowsByDataset) {
+  const allRows = rowsByDataset.get(DERIVED_CAR_CRASHES.sourceDatasetId) ?? []
+  const excludedCounts = new Map()
+
+  for (const datasetId of DERIVED_CAR_CRASHES.excludedDatasetIds) {
+    for (const row of rowsByDataset.get(datasetId) ?? []) {
+      const key = rowLocationKey(row)
+      excludedCounts.set(key, (excludedCounts.get(key) ?? 0) + (Number(row.crashCount) || 0))
+    }
+  }
+
+  return allRows
+    .map((row) => {
+      const crashCount = Math.max(0, (Number(row.crashCount) || 0) - (excludedCounts.get(rowLocationKey(row)) ?? 0))
+      return {
+        ...row,
+        dataset: DERIVED_CAR_CRASHES.id,
+        datasetTitle: DERIVED_CAR_CRASHES.title,
+        crashCount,
+      }
+    })
+    .filter((row) => row.crashCount > 0)
 }
 
 function toGeoJson(rows) {
@@ -247,6 +290,7 @@ function toGeoJson(rows) {
         properties: {
           dataset: row.dataset,
           datasetTitle: row.datasetTitle,
+          year: row.year,
           location: row.location,
           municipality: row.municipality,
           crashCount: row.crashCount,
@@ -266,20 +310,34 @@ async function fetchCsv(url) {
 async function main() {
   await mkdir(OUTPUT_DIR, { recursive: true })
   const intersectionIndex = await loadIntersectionIndex()
+  const rowsByDataset = new Map()
+  const sourceUrlByDataset = new Map()
   const manifest = {
     source: 'ICBC Tableau Public',
     sourceProfile: 'https://public.tableau.com/app/profile/icbc/vizzes#!/',
     sourceLicense: 'ICBC Open Data Licence',
     city: 'Prince George',
+    yearStart: YEARS[0],
+    yearEnd: YEARS[YEARS.length - 1],
     generatedAt: new Date().toISOString(),
     datasets: [],
   }
 
   for (const dataset of TABLEAU_EXPORTS) {
-    const sourceUrl = tableauCsvUrl(dataset)
-    const rawRows = parseCsv(await fetchCsv(sourceUrl))
-    const rows = rawRows.filter(dataset.rowFilter).map((row) => normalizeRow(row, dataset, intersectionIndex))
+    sourceUrlByDataset.set(dataset.id, tableauCsvUrl(dataset))
+
+    const rows = []
+    for (const year of YEARS) {
+      const url = tableauCsvUrl(dataset, year)
+      const rawRows = parseCsv(await fetchCsv(url))
+      for (const raw of rawRows) {
+        if (!dataset.rowFilter(raw)) continue
+        rows.push(normalizeRow(raw, dataset, year, intersectionIndex))
+      }
+    }
+
     const geojson = toGeoJson(rows)
+    rowsByDataset.set(dataset.id, rows)
 
     await writeFile(path.join(OUTPUT_DIR, dataset.outputCsv), toCsv(rows))
     await writeFile(path.join(OUTPUT_DIR, dataset.outputGeojson), `${JSON.stringify(geojson)}\n`)
@@ -287,16 +345,38 @@ async function main() {
     manifest.datasets.push({
       id: dataset.id,
       title: dataset.title,
-      sourceUrl,
+      sourceUrl: sourceUrlByDataset.get(dataset.id),
       csv: `/data/icbc/${dataset.outputCsv}`,
       geojson: `/data/icbc/${dataset.outputGeojson}`,
       rows: rows.length,
       geocodedRows: geojson.features.length,
+      yearStart: YEARS[0],
+      yearEnd: YEARS[YEARS.length - 1],
       fields: rows.length > 0 ? Object.keys(rows[0]) : [],
     })
 
-    console.log(`${dataset.title}: wrote ${rows.length} rows, ${geojson.features.length} geocoded`)
+    console.log(`${dataset.title}: wrote ${rows.length} rows across ${YEARS.length} years, ${geojson.features.length} geocoded`)
   }
+
+  const carRows = buildCarCrashRows(rowsByDataset)
+  const carGeojson = toGeoJson(carRows)
+  await writeFile(path.join(OUTPUT_DIR, DERIVED_CAR_CRASHES.outputCsv), toCsv(carRows))
+  await writeFile(path.join(OUTPUT_DIR, DERIVED_CAR_CRASHES.outputGeojson), `${JSON.stringify(carGeojson)}\n`)
+
+  manifest.datasets.splice(1, 0, {
+    id: DERIVED_CAR_CRASHES.id,
+    title: DERIVED_CAR_CRASHES.title,
+    sourceUrl: sourceUrlByDataset.get(DERIVED_CAR_CRASHES.sourceDatasetId) ?? '',
+    csv: `/data/icbc/${DERIVED_CAR_CRASHES.outputCsv}`,
+    geojson: `/data/icbc/${DERIVED_CAR_CRASHES.outputGeojson}`,
+    rows: carRows.length,
+    geocodedRows: carGeojson.features.length,
+    yearStart: YEARS[0],
+    yearEnd: YEARS[YEARS.length - 1],
+    fields: carRows.length > 0 ? Object.keys(carRows[0]) : [],
+  })
+
+  console.log(`${DERIVED_CAR_CRASHES.title}: wrote ${carRows.length} rows, ${carGeojson.features.length} geocoded`)
 
   await writeFile(path.join(OUTPUT_DIR, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
 }

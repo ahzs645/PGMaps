@@ -155,7 +155,7 @@ export function ParksSidebar({
   }, [filteredTrails])
 
   return (
-    <div className={cn('z-10 flex h-full w-full flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
+    <div className={cn('z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       {/* Header */}
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">Parks & Trails</h1>
@@ -164,6 +164,7 @@ export function ParksSidebar({
 
       <DatasetInfo dataset={DATASETS.parks} />
 
+      <div className="min-h-0 flex-1 overflow-y-auto">
       {/* Stats & Search */}
       <div className="border-b border-border bg-background/95 p-4">
         <div className="mb-3 flex items-end justify-between">
@@ -421,7 +422,7 @@ export function ParksSidebar({
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div>
           {showParks && (
             <>
               <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur">
@@ -502,6 +503,7 @@ export function ParksSidebar({
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }

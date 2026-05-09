@@ -52,6 +52,7 @@ interface BcAssessmentSidebarProps {
   selectedCategories: PropertyCategory[]
   selectedProperty: Property | null
   selectedBoundary: BoundaryAggregate | null
+  boundaryAggregates: Map<string, BoundaryAggregate>
   searchQuery: string
   colorMetric: ColorMetric
   boundarySource: AssessmentBoundarySource
@@ -217,6 +218,7 @@ export function BcAssessmentSidebar({
   selectedCategories,
   selectedProperty,
   selectedBoundary,
+  boundaryAggregates,
   searchQuery,
   colorMetric,
   boundarySource,
@@ -243,10 +245,22 @@ export function BcAssessmentSidebar({
     return filteredProperties.reduce((sum, p) => sum + p.totalAssessed, 0)
   }, [filteredProperties])
 
+  const blockAverageValue = useMemo(() => {
+    if (boundaryAggregates.size === 0) return 0
+    const aggregates = Array.from(boundaryAggregates.values())
+    return Math.round(
+      aggregates.reduce((sum, boundary) => sum + boundary.avgAssessed, 0) / aggregates.length
+    )
+  }, [boundaryAggregates])
+
+  const showingBlockOverview =
+    !selectedProperty && !selectedBoundary && boundaryLevel !== 'none' && boundaryAggregates.size > 0
+
   const avgValue = useMemo(() => {
+    if (showingBlockOverview) return blockAverageValue
     if (filteredProperties.length === 0) return 0
     return Math.round(totalValue / filteredProperties.length)
-  }, [totalValue, filteredProperties.length])
+  }, [blockAverageValue, filteredProperties.length, showingBlockOverview, totalValue])
 
   const [filtersOpen, setFiltersOpen] = useState(false)
   const levelOptions = REGION_LEVEL_OPTIONS[boundarySource]
@@ -271,7 +285,7 @@ export function BcAssessmentSidebar({
   })()
 
   return (
-    <div className={cn('z-10 flex h-full w-full flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
+    <div className={cn('z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       {/* Header */}
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">BC Assessment</h1>
@@ -280,17 +294,15 @@ export function BcAssessmentSidebar({
 
       <DatasetInfo dataset={DATASETS.bcAssessment} />
 
+      <div className="min-h-0 flex-1 overflow-y-auto">
       <StudyAreaSelector<AssessmentBoundarySource, AssessmentBoundaryLevel>
-        source={boundarySource}
+        source={boundaryLevel === 'none' ? undefined : boundarySource}
         sourceOptions={REGION_SOURCE_OPTIONS}
         level={activeRegionLevel}
-        levelOptions={levelOptions}
+        levelOptions={boundaryLevel === 'none' ? [] : levelOptions}
         onSourceChange={onBoundarySourceChange}
+        onSelectedSourceClick={() => onBoundaryLevelChange('none')}
         onLevelChange={(level) => onBoundaryLevelChange(level)}
-        showPoints={boundaryLevel !== 'none'}
-        onTogglePoints={() => onBoundaryLevelChange(boundaryLevel === 'none' ? activeRegionLevel : 'none')}
-        toggleOnLabel="Hide boundaries"
-        toggleOffLabel="Show boundaries"
         levelSelectId="bc-assessment-study-area-level"
       />
 
@@ -298,13 +310,17 @@ export function BcAssessmentSidebar({
       <div className="border-b border-border bg-background/95 p-4">
         <div className="mb-3 flex items-end justify-between">
           <div>
-            <div className="text-xs text-muted-foreground">Properties</div>
+            <div className="text-xs text-muted-foreground">
+              {showingBlockOverview ? 'Blocks' : 'Properties'}
+            </div>
             <div className="text-xl font-bold text-foreground">
-              {formatNumber(filteredProperties.length)}
+              {formatNumber(showingBlockOverview ? boundaryAggregates.size : filteredProperties.length)}
             </div>
           </div>
           <div className="text-center">
-            <div className="text-xs text-muted-foreground">Avg Value</div>
+            <div className="text-xs text-muted-foreground">
+              {showingBlockOverview ? 'Avg Block' : 'Avg Value'}
+            </div>
             <div className="text-xl font-bold text-foreground">
               {formatCurrency(avgValue)}
             </div>
@@ -316,6 +332,146 @@ export function BcAssessmentSidebar({
             </div>
           </div>
         </div>
+
+        {selectedBoundary && (
+          <div className="mb-3 border-t border-orange-300/60 pt-3">
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs text-orange-700 dark:text-orange-300">Active block</div>
+                <div className="truncate text-sm font-semibold text-orange-900 dark:text-orange-200">
+                  {selectedBoundary.boundaryName}
+                </div>
+                <div className="text-xs text-orange-700 dark:text-orange-300">
+                  {formatNumber(selectedBoundary.count)} properties
+                </div>
+              </div>
+              <button
+                onClick={onClearSelection}
+                className="shrink-0 text-orange-700 hover:text-orange-900 dark:text-orange-300 dark:hover:text-orange-100"
+                aria-label="Clear selection"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+              <div>
+                <span className="text-orange-600 dark:text-orange-400">Avg Assessed</span>
+                <div className="font-semibold text-orange-900 dark:text-orange-200">
+                  ${formatNumber(selectedBoundary.avgAssessed)}
+                </div>
+              </div>
+              <div>
+                <span className="text-orange-600 dark:text-orange-400">Avg Land</span>
+                <div className="font-semibold text-orange-900 dark:text-orange-200">
+                  ${formatNumber(selectedBoundary.avgLand)}
+                </div>
+              </div>
+              <div>
+                <span className="text-orange-600 dark:text-orange-400">Avg Building</span>
+                <div className="font-semibold text-orange-900 dark:text-orange-200">
+                  ${formatNumber(selectedBoundary.avgBuilding)}
+                </div>
+              </div>
+              {selectedBoundary.avgYearBuilt && (
+                <div>
+                  <span className="text-orange-600 dark:text-orange-400">Avg Year Built</span>
+                  <div className="font-semibold text-orange-900 dark:text-orange-200">
+                    {selectedBoundary.avgYearBuilt}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {Object.keys(selectedBoundary.categoryCounts).length > 0 && (
+              <div className="mt-3">
+                <div className="mb-1.5 text-xs text-orange-600 dark:text-orange-400">
+                  Property Types
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {ALL_CATEGORIES.map((cat) => {
+                    const count = selectedBoundary.categoryCounts[cat]
+                    if (!count) return null
+                    const pct = Math.round((count / selectedBoundary.count) * 100)
+                    return (
+                      <span
+                        key={cat}
+                        className="flex items-center gap-1 rounded-full border border-orange-300/60 px-2 py-0.5 text-[10px] text-orange-800 dark:border-orange-700/60 dark:text-orange-300"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getCategoryColor(cat) }} />
+                        {CATEGORY_LABELS[cat]} {pct}%
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {selectedBoundary.avgHistory && selectedBoundary.avgHistory.length > 1 && (
+              <BoundaryHistorySparkline values={selectedBoundary.avgHistory} />
+            )}
+          </div>
+        )}
+
+        {selectedProperty && (
+          <div className="mb-3 border-t border-blue-300/60 pt-3">
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs text-blue-700 dark:text-blue-300">Active property</div>
+                <div className="truncate text-sm font-semibold text-blue-900 dark:text-blue-200">
+                  {selectedProperty.address}
+                </div>
+                <div className="truncate text-xs text-blue-700 dark:text-blue-300">
+                  {selectedProperty.description}
+                </div>
+              </div>
+              <button
+                onClick={onClearSelection}
+                className="shrink-0 text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+                aria-label="Clear selection"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+              <div>
+                <span className="text-blue-600 dark:text-blue-400">Total Assessed</span>
+                <div className="font-semibold text-blue-900 dark:text-blue-200">
+                  ${formatNumber(selectedProperty.totalAssessed)}
+                </div>
+              </div>
+              <div>
+                <span className="text-blue-600 dark:text-blue-400">Land</span>
+                <div className="font-semibold text-blue-900 dark:text-blue-200">
+                  ${formatNumber(selectedProperty.totalLand)}
+                </div>
+              </div>
+              <div>
+                <span className="text-blue-600 dark:text-blue-400">Building</span>
+                <div className="font-semibold text-blue-900 dark:text-blue-200">
+                  ${formatNumber(selectedProperty.totalBuilding)}
+                </div>
+              </div>
+              {selectedProperty.yearBuilt && (
+                <div>
+                  <span className="text-blue-600 dark:text-blue-400">Year Built</span>
+                  <div className="font-semibold text-blue-900 dark:text-blue-200">
+                    {selectedProperty.yearBuilt}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {selectedProperty.histValues && selectedProperty.histValues.length > 1 && (
+              <HistorySparkline values={selectedProperty.histValues} />
+            )}
+          </div>
+        )}
 
         <input
           type="text"
@@ -448,195 +604,7 @@ export function BcAssessmentSidebar({
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
-          {/* Selected Boundary Detail */}
-          {selectedBoundary && (
-            <div className="border-b border-orange-300/60 bg-orange-50 p-4 dark:border-orange-800/60 dark:bg-orange-950/30">
-              <div className="mb-2 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-orange-900 dark:text-orange-200">
-                    {selectedBoundary.boundaryName}
-                  </div>
-                  <div className="text-xs text-orange-700 dark:text-orange-300">
-                    {formatNumber(selectedBoundary.count)} properties
-                  </div>
-                </div>
-                <button
-                  onClick={onClearSelection}
-                  className="shrink-0 text-orange-700 hover:text-orange-900 dark:text-orange-300 dark:hover:text-orange-100"
-                  aria-label="Clear selection"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                <div>
-                  <span className="text-orange-600 dark:text-orange-400">Avg Assessed</span>
-                  <div className="font-semibold text-orange-900 dark:text-orange-200">
-                    ${formatNumber(selectedBoundary.avgAssessed)}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-orange-600 dark:text-orange-400">Avg Land</span>
-                  <div className="font-semibold text-orange-900 dark:text-orange-200">
-                    ${formatNumber(selectedBoundary.avgLand)}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-orange-600 dark:text-orange-400">Avg Building</span>
-                  <div className="font-semibold text-orange-900 dark:text-orange-200">
-                    ${formatNumber(selectedBoundary.avgBuilding)}
-                  </div>
-                </div>
-                {selectedBoundary.avgYearBuilt && (
-                  <div>
-                    <span className="text-orange-600 dark:text-orange-400">Avg Year Built</span>
-                    <div className="font-semibold text-orange-900 dark:text-orange-200">
-                      {selectedBoundary.avgYearBuilt}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {Object.keys(selectedBoundary.categoryCounts).length > 0 && (
-                <div className="mt-3">
-                  <div className="mb-1.5 text-xs text-orange-600 dark:text-orange-400">
-                    Property Types
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ALL_CATEGORIES.map((cat) => {
-                      const count = selectedBoundary.categoryCounts[cat]
-                      if (!count) return null
-                      const pct = Math.round((count / selectedBoundary.count) * 100)
-                      return (
-                        <span
-                          key={cat}
-                          className="flex items-center gap-1 rounded-full border border-orange-300/60 px-2 py-0.5 text-[10px] text-orange-800 dark:border-orange-700/60 dark:text-orange-300"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getCategoryColor(cat) }} />
-                          {CATEGORY_LABELS[cat]} {pct}%
-                        </span>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {selectedBoundary.avgHistory && selectedBoundary.avgHistory.length > 1 && (
-                <BoundaryHistorySparkline values={selectedBoundary.avgHistory} />
-              )}
-            </div>
-          )}
-
-          {/* Selected Property Detail */}
-          {selectedProperty && (
-            <div className="border-b border-blue-300/60 bg-blue-50 p-4 dark:border-blue-800/60 dark:bg-blue-950/30">
-              <div className="mb-2 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-blue-900 dark:text-blue-200">
-                    {selectedProperty.address}
-                  </div>
-                  <div className="text-xs text-blue-700 dark:text-blue-300">
-                    {selectedProperty.description}
-                  </div>
-                </div>
-                <button
-                  onClick={onClearSelection}
-                  className="shrink-0 text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
-                  aria-label="Clear selection"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                <div>
-                  <span className="text-blue-600 dark:text-blue-400">Total Assessed</span>
-                  <div className="font-semibold text-blue-900 dark:text-blue-200">
-                    ${formatNumber(selectedProperty.totalAssessed)}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-blue-600 dark:text-blue-400">Land</span>
-                  <div className="font-semibold text-blue-900 dark:text-blue-200">
-                    ${formatNumber(selectedProperty.totalLand)}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-blue-600 dark:text-blue-400">Building</span>
-                  <div className="font-semibold text-blue-900 dark:text-blue-200">
-                    ${formatNumber(selectedProperty.totalBuilding)}
-                  </div>
-                </div>
-                {selectedProperty.yearBuilt && (
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-400">Year Built</span>
-                    <div className="font-semibold text-blue-900 dark:text-blue-200">
-                      {selectedProperty.yearBuilt}
-                    </div>
-                  </div>
-                )}
-                {selectedProperty.bedrooms != null && (
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-400">Bedrooms</span>
-                    <div className="font-semibold text-blue-900 dark:text-blue-200">
-                      {selectedProperty.bedrooms}
-                    </div>
-                  </div>
-                )}
-                {selectedProperty.bathrooms != null && (
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-400">Bathrooms</span>
-                    <div className="font-semibold text-blue-900 dark:text-blue-200">
-                      {selectedProperty.bathrooms}
-                    </div>
-                  </div>
-                )}
-                {selectedProperty.landSize && (
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-400">Land Size</span>
-                    <div className="font-semibold text-blue-900 dark:text-blue-200">
-                      {selectedProperty.landSize}
-                    </div>
-                  </div>
-                )}
-                {selectedProperty.totalFinishedArea && (
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-400">Finished Area</span>
-                    <div className="font-semibold text-blue-900 dark:text-blue-200">
-                      {formatNumber(selectedProperty.totalFinishedArea)} sqft
-                    </div>
-                  </div>
-                )}
-                {selectedProperty.salePrice && (
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-400">Last Sale</span>
-                    <div className="font-semibold text-blue-900 dark:text-blue-200">
-                      ${formatNumber(selectedProperty.salePrice)}
-                    </div>
-                  </div>
-                )}
-                {selectedProperty.pid && (
-                  <div>
-                    <span className="text-blue-600 dark:text-blue-400">PID</span>
-                    <div className="font-semibold text-blue-900 dark:text-blue-200">
-                      {selectedProperty.pid}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {selectedProperty.histValues && selectedProperty.histValues.length > 1 && (
-                <HistorySparkline values={selectedProperty.histValues} />
-              )}
-            </div>
-          )}
-
+        <div>
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur">
             <span>Properties ({formatNumber(filteredProperties.length)})</span>
           </div>
@@ -677,6 +645,7 @@ export function BcAssessmentSidebar({
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

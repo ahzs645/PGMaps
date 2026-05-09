@@ -1,93 +1,105 @@
-dataset,datasetTitle,location,municipality,crashCount,sourceLocationName,longitude,latitude,geocodeMatchType
-pedestrian_crashes,Crashes involving pedestrians,10TH AVE & CENTRAL ST E & CENTRAL ST W & HWY 97 S & TURNING LANE,PRINCE GEORGE,8,Hwy 97 S & 10th Ave ,-122.78177628409276,53.915447860379075,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,MASSEY DR & WESTWOOD DR & TURNING LANE,PRINCE GEORGE,4,Massey Dr  & Westwood Dr ,-122.78220102448,53.89962927490321,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,15TH AVE & SPRUCE ST & MALL ACCESS & TURNING LANE,PRINCE GEORGE,3,15th Ave  & Spruce St ,-122.75787971344289,53.90985047665654,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & AHBAU ST & LYON ST,PRINCE GEORGE,3,5th Ave  & Lyon St ,-122.78432072548367,53.92061615056932,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & CARNEY ST,PRINCE GEORGE,3,5th Ave  & Carney St ,-122.76929406084285,53.92067066923,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,DAVIS RD & OSPIKA BLVD,PRINCE GEORGE,3,Ospika Blvd  & Davis Rd ,-122.78461387765036,53.8765979093368,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,10TH AVE & CARNEY ST,PRINCE GEORGE,2,Carney St  & 10th Ave ,-122.76929725602113,53.91542380304837,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,15TH AVE & FOOTHILLS BLVD & UNIVERSITY WAY,PRINCE GEORGE,2,Foothills Blvd  & 15th Ave ,-122.81162073426202,53.91037359785447,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,15TH AVE & PATRICIA BLVD & VICTORIA ST & TURNING LANE,PRINCE GEORGE,2,Victoria St  & 15th Ave ,-122.7548642990933,53.910532795614444,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,8TH AVE & CENTRAL ST W,PRINCE GEORGE,2,Central St W & 8th Ave ,-122.78235595670778,53.917630084074865,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,11TH AVE & VICTORIA ST,PRINCE GEORGE,1,Victoria St  & 11th Ave ,-122.75417675866784,53.91174693952662,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,4TH AVE & VICTORIA ST,PRINCE GEORGE,2,Victoria St  & 4th Ave ,-122.74972703343879,53.91710796548883,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,10TH AVE & IRWIN ST,PRINCE GEORGE,1,10th Ave  & Irwin St ,-122.77824800077009,53.915412695085884,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,10TH AVE & JOHNSON ST,PRINCE GEORGE,1,10th Ave  & Johnson St ,-122.77969206448486,53.91540913918963,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,10TH AVE & LAURIER CRES,PRINCE GEORGE,1,10th Ave  & Laurier Cres ,-122.76421963643598,53.91561757570119,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,10TH AVE & VANCOUVER ST,PRINCE GEORGE,1,10th Ave  & Vancouver St ,-122.75530225694244,53.91298866011439,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,11TH AVE & WINNIPEG ST,PRINCE GEORGE,1,Winnipeg St  & 11th Ave ,-122.75948721738919,53.91324681464521,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,12TH AVE # 002348 TO 002399,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,13TH AVE & WINNIPEG ST & MALL ACCESS,PRINCE GEORGE,1,Winnipeg St  & 13th Ave ,-122.76080205044619,53.91176246775332,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,15TH AVE # 001600 TO 001708,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,15TH AVE & EDMONTON ST,PRINCE GEORGE,1,15th Ave  & Edmonton St ,-122.76394479751441,53.9103781471734,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,15TH AVE & IRWIN ST,PRINCE GEORGE,1,15th Ave  & Irwin St ,-122.77823624459764,53.910375069358345,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,17TH AVE & QUEENSWAY,PRINCE GEORGE,1,Queensway   & 17th Ave ,-122.74230240093378,53.908467530371524,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,17TH AVE & SPRUCE ST,PRINCE GEORGE,1,Spruce St  & 17th Ave ,-122.7579380281123,53.908453412529106,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,17TH AVE & UPLAND ST,PRINCE GEORGE,1,17th Ave  & Upland St ,-122.76063153281947,53.90845408832176,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,17TH AVE & VICTORIA ST,PRINCE GEORGE,1,Victoria St  & 17th Ave ,-122.75513359039593,53.90845467368114,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,1ST AVE & FREIMULLER AVE,PRINCE GEORGE,1,1st Ave  & Freimuller Ave ,-122.8128201023635,53.929938259176396,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,1ST AVE & MCLEAN DR,PRINCE GEORGE,1,1st Ave  & McLean Dr ,-122.80196815565053,53.92697623755192,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,1ST AVE & N OSPIKA BLVD & OSPIKA BLVD,PRINCE GEORGE,1,Ospika Blvd  & 1st Ave ,-122.79410008018007,53.92484505980793,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,20TH AVE & REDWOOD ST & VICTORIA ST,PRINCE GEORGE,1,20th Ave  & Redwood St ,-122.75656169384115,53.90543882115238,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,20TH AVE & SPRUCE ST,PRINCE GEORGE,1,20th Ave  & Spruce St ,-122.7579191232894,53.90543509971525,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,20TH AVE & TAMARACK ST,PRINCE GEORGE,1,20th Ave  & Tamarack St ,-122.75924862052311,53.9054295712836,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,20TH AVE & UPLAND ST,PRINCE GEORGE,1,20th Ave  & Upland St ,-122.76059629140936,53.905422296840946,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,22ND AVE & CENTRAL ST E & GRIFFITHS AVE & HWY 97 S & WESTWOOD DR & TURNING LANE,PRINCE GEORGE,1,Hwy 97 S & 22nd Ave ,-122.78180081482267,53.90360164570181,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,2ND AVE & GEORGE ST,PRINCE GEORGE,1,2nd Ave  & George St ,-122.7421151472134,53.916865043930706,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,2ND AVE & RUGGLES ST,PRINCE GEORGE,1,2nd Ave  & Ruggles St,-122.79325382316797,53.92366904081929,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,3RD AVE # 001138 TO 001199,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,3RD AVE & CARNEY ST,PRINCE GEORGE,1,Carney St  & 3rd Ave ,-122.76932051435493,53.92264142525402,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,3RD AVE & WINNIPEG ST,PRINCE GEORGE,1,Winnipeg St  & 3rd Ave ,-122.75452021595378,53.91936710897583,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,4TH AVE & DOMINION ST,PRINCE GEORGE,1,Dominion St  & 4th Ave ,-122.74509519618428,53.91579619569099,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,4TH AVE & ONTARIO ST,PRINCE GEORGE,1,Ontario St  & 4th Ave ,-122.74012988917454,53.914390134744096,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,4TH AVE & QUEBEC ST,PRINCE GEORGE,1,4th Ave  & Quebec St ,-122.74664790186657,53.91623581218647,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & FREEMAN ST,PRINCE GEORGE,1,5th Ave  & Freeman St ,-122.77379464931148,53.92065187840538,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & GILLETT ST,PRINCE GEORGE,1,5th Ave  & Gillett St ,-122.77526836576813,53.92073540891626,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & HARPER ST,PRINCE GEORGE,1,5th Ave  & Harper St ,-122.77671707651508,53.920625853155975,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & LACOMA ST & VOYAGEUR DR,PRINCE GEORGE,1,5th Ave  & Voyageur Dr ,-122.80282158157223,53.92063510921243,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & OGILVIE ST,PRINCE GEORGE,1,5th Ave  & Ogilvie St ,-122.78876938244193,53.920638880894835,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & OSPIKA BLVD & TURNING LANE,PRINCE GEORGE,1,Ospika Blvd  & 5th Ave ,-122.79417553362454,53.92053592860853,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & PATTERSON ST,PRINCE GEORGE,1,5th Ave  & Patterson St ,-122.79026534946196,53.92062300453895,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,5TH AVE & VICTORIA ST,PRINCE GEORGE,1,Victoria St  & 5th Ave ,-122.7503456963153,53.916345551852956,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,7TH AVE & VANCOUVER ST,PRINCE GEORGE,1,7th Ave  & Vancouver St ,-122.7534248898273,53.91530569396242,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,ARNETT AVE & BOND ST,PRINCE GEORGE,1,Bond St  & Arnett Ave ,-122.79014987436604,53.896525297029925,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,AUSTIN RD E & AUSTIN RD W & HART HWY & HART HWY FRTG & TURNING LANE,PRINCE GEORGE,1,Hart Hwy  & Austin Rd W,-122.78698619107912,53.98951914251626,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,AUSTIN RD W & DELISLE CRT,PRINCE GEORGE,1,Austin Rd W & Delisle Crt ,-122.80665435847567,53.988803986050215,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,BAKER RD & GANNETT RD & TYNER BLVD,PRINCE GEORGE,1,Tyner Blvd  & Baker Rd ,-122.78559180190067,53.86986585776354,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,BELLAMY RD & HART HWY & HART HWY FRTG,PRINCE GEORGE,1,Hart Hwy  & Bellamy Rd ,-122.76404226514991,53.952809513486244,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,BELLAMY RD & NORANDA RD E,PRINCE GEORGE,1,Noranda Rd E & Bellamy Rd ,-122.75424721289501,53.9636316031451,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,CAMERON ST & CAMERON ST BRIDGE,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,CARLE DR & NORTH NECHAKO RD & TOOMBS DR,PRINCE GEORGE,1,North Nechako Rd  & Toombs Dr ,-122.84944231861391,53.96746363264754,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,CENTRAL ST W & COMMERCIAL CRES,PRINCE GEORGE,1,Central St W & Commercial Cres ,-122.7823933346945,53.91150036073327,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,FERRY AVE # 002120 TO 002218,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,FERRY AVE & OSPIKA BLVD,PRINCE GEORGE,1,Ospika Blvd  & Ferry Ave ,-122.78723029011171,53.888222873019025,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,FERRY AVE & RECPLACE DR,PRINCE GEORGE,1,Ferry Ave  & Recplace Dr ,-122.7708357032018,53.888759334056346,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,FERRY AVE & UPLAND ST,PRINCE GEORGE,1,Ferry Ave  & Upland St ,-122.76072558033358,53.88881653718363,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,FOOTHILLS BLVD & OCHAKWIN CRES,PRINCE GEORGE,1,Foothills Blvd  & Ochakwin Cres ,-122.81927023793749,53.91825961718918,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,GOHEEN ST & PINEWOOD AVE,PRINCE GEORGE,1,Pinewood Ave  & Goheen St ,-122.79432819316787,53.892124096401936,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,HART HWY & HART HWY FRTG & NORTHWOOD PULPMILL RD & NORTHWOOD PULPMILL RD OFFRAMP,PRINCE GEORGE,1,Hart Hwy  & Northwood Pulpmill Rd ,-122.76126102811199,53.94364981867475,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,HART HWY & HART HWY FRTG & PERRIN HTS & SHADY LANE,PRINCE GEORGE,1,Hart Hwy  & Shady Lane ,-122.7656637163083,53.957084070516785,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,HART HWY & KENWORTH RD E & KENWORTH RD W,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,HWY 16 W & HWY 97 S & INDUSTRIAL ACCESS ROAD & TURNING LANE,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,HWY 16 W & RANGE RD & CHAINUP & TURNING LANE,PRINCE GEORGE,1,Hwy 16 W & Range Rd ,-122.76905843798687,53.88447169816131,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,HWY 97 S & MASSEY DR & PINE CENTRE RD & PINE CENTRE RD OFFRAMP & MALL ACCESS & TURNING LANE,PRINCE GEORGE,1,Hwy 97 S & Pine Centre Rd ,-122.77435190570137,53.89909187852446,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,KIM PL & WINSLOW DR,PRINCE GEORGE,1,Winslow Dr  & Kim Pl ,-122.78805562160147,53.98437700798129,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,LORNE CRES & WESTWOOD DR & MALL ACCESS,PRINCE GEORGE,1,Westwood Dr  & Lorne Cres ,-122.78077899070674,53.89738393057166,subset_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,MASSEY DR & NICHOLSON ST,PRINCE GEORGE,1,Massey Dr  & Nicholson St ,-122.78890013154833,53.899613928664735,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,MASSEY DR & OSPIKA BLVD & TURNING LANE,PRINCE GEORGE,1,Ospika Blvd  & Massey Dr ,-122.79101461008624,53.89892833157825,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,MERTON CRES & NESS AVE,PRINCE GEORGE,1,Merton Cres  & Ness Ave ,-122.8063157622014,53.91776255212085,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,MONTGOMERY CRES # 004250 TO 004399,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,MOSS AVE # 002400 TO 002699,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,OSPIKA BLVD # 000619 TO 000799,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,OSPIKA BLVD & RANGE RD,PRINCE GEORGE,1,Ospika Blvd  & Range Rd ,-122.78494957948514,53.884560801882536,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,PATRICIA BLVD & QUEENSWAY & TURNING LANE,PRINCE GEORGE,1,Queensway   & Patricia Blvd ,-122.74238920198624,53.91168899631086,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,PINEWOOD AVE & WESTWOOD DR,PRINCE GEORGE,1,Westwood Dr  & Pinewood Ave ,-122.7796791963073,53.89208116098949,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,RANGE RD # 002460 TO 002599,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,SANDERSON RD & WIEBE RD,PRINCE GEORGE,1,Wiebe Rd  & Sanderson Rd ,-122.77356883340921,53.88277646468507,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,UPLAND ST # 002101 TO 002142,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,VANCE RD & WIEBE RD,PRINCE GEORGE,1,Wiebe Rd  & Vance Rd ,-122.77345590858994,53.88100074036664,exact_intersection_name
-pedestrian_crashes,Crashes involving pedestrians,VICTORIA ST # 000100 TO 000199,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,VICTORIA ST # 000300 TO 000399,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,VICTORIA ST # 000900 TO 000951,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,VICTORIA ST # 001501 TO 001699,PRINCE GEORGE,1,,,,
-pedestrian_crashes,Crashes involving pedestrians,VICTORIA ST # 001900 TO 001999,PRINCE GEORGE,1,,,,
+dataset,datasetTitle,year,location,municipality,crashCount,sourceLocationName,longitude,latitude,geocodeMatchType
+pedestrian_crashes,Crashes involving pedestrians,2020,10TH AVE & CENTRAL ST E & CENTRAL ST W & HWY 97 S & TURNING LANE,PRINCE GEORGE,1,Hwy 97 S & 10th Ave ,-122.78177628409276,53.915447860379075,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,17TH AVE & UPLAND ST,PRINCE GEORGE,1,17th Ave  & Upland St ,-122.76063153281947,53.90845408832176,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,1ST AVE & N OSPIKA BLVD & OSPIKA BLVD,PRINCE GEORGE,1,Ospika Blvd  & 1st Ave ,-122.79410008018007,53.92484505980793,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,2ND AVE & RUGGLES ST,PRINCE GEORGE,1,2nd Ave  & Ruggles St,-122.79325382316797,53.92366904081929,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,3RD AVE & CARNEY ST,PRINCE GEORGE,1,Carney St  & 3rd Ave ,-122.76932051435493,53.92264142525402,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,4TH AVE & VICTORIA ST,PRINCE GEORGE,1,Victoria St  & 4th Ave ,-122.74972703343879,53.91710796548883,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,AUSTIN RD E & AUSTIN RD W & HART HWY & HART HWY FRTG & TURNING LANE,PRINCE GEORGE,1,Hart Hwy  & Austin Rd W,-122.78698619107912,53.98951914251626,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,DAVIS RD & OSPIKA BLVD,PRINCE GEORGE,1,Ospika Blvd  & Davis Rd ,-122.78461387765036,53.8765979093368,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,HWY 97 S & MASSEY DR & PINE CENTRE RD & PINE CENTRE RD OFFRAMP & MALL ACCESS & TURNING LANE,PRINCE GEORGE,1,Hwy 97 S & Pine Centre Rd ,-122.77435190570137,53.89909187852446,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,LORNE CRES & WESTWOOD DR & MALL ACCESS,PRINCE GEORGE,1,Westwood Dr  & Lorne Cres ,-122.78077899070674,53.89738393057166,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,MASSEY DR & WESTWOOD DR & TURNING LANE,PRINCE GEORGE,1,Massey Dr  & Westwood Dr ,-122.78220102448,53.89962927490321,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2020,MONTGOMERY CRES # 004250 TO 004399,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2020,SANDERSON RD & WIEBE RD,PRINCE GEORGE,1,Wiebe Rd  & Sanderson Rd ,-122.77356883340921,53.88277646468507,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,10TH AVE & CARNEY ST,PRINCE GEORGE,1,Carney St  & 10th Ave ,-122.76929725602113,53.91542380304837,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,10TH AVE & VANCOUVER ST,PRINCE GEORGE,1,10th Ave  & Vancouver St ,-122.75530225694244,53.91298866011439,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,15TH AVE & IRWIN ST,PRINCE GEORGE,1,15th Ave  & Irwin St ,-122.77823624459764,53.910375069358345,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,17TH AVE & QUEENSWAY,PRINCE GEORGE,1,Queensway   & 17th Ave ,-122.74230240093378,53.908467530371524,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,1ST AVE & FREIMULLER AVE,PRINCE GEORGE,1,1st Ave  & Freimuller Ave ,-122.8128201023635,53.929938259176396,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,1ST AVE & MCLEAN DR,PRINCE GEORGE,1,1st Ave  & McLean Dr ,-122.80196815565053,53.92697623755192,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,20TH AVE & REDWOOD ST & VICTORIA ST,PRINCE GEORGE,1,20th Ave  & Redwood St ,-122.75656169384115,53.90543882115238,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,20TH AVE & UPLAND ST,PRINCE GEORGE,1,20th Ave  & Upland St ,-122.76059629140936,53.905422296840946,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,2ND AVE & GEORGE ST,PRINCE GEORGE,1,2nd Ave  & George St ,-122.7421151472134,53.916865043930706,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,5TH AVE & HARPER ST,PRINCE GEORGE,1,5th Ave  & Harper St ,-122.77671707651508,53.920625853155975,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,CAMERON ST & CAMERON ST BRIDGE,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2021,CARLE DR & NORTH NECHAKO RD & TOOMBS DR,PRINCE GEORGE,1,North Nechako Rd  & Toombs Dr ,-122.84944231861391,53.96746363264754,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,FERRY AVE & OSPIKA BLVD,PRINCE GEORGE,1,Ospika Blvd  & Ferry Ave ,-122.78723029011171,53.888222873019025,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,FERRY AVE & RECPLACE DR,PRINCE GEORGE,1,Ferry Ave  & Recplace Dr ,-122.7708357032018,53.888759334056346,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,HART HWY & HART HWY FRTG & NORTHWOOD PULPMILL RD & NORTHWOOD PULPMILL RD OFFRAMP,PRINCE GEORGE,1,Hart Hwy  & Northwood Pulpmill Rd ,-122.76126102811199,53.94364981867475,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,HART HWY & HART HWY FRTG & PERRIN HTS & SHADY LANE,PRINCE GEORGE,1,Hart Hwy  & Shady Lane ,-122.7656637163083,53.957084070516785,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,HWY 16 W & RANGE RD & CHAINUP & TURNING LANE,PRINCE GEORGE,1,Hwy 16 W & Range Rd ,-122.76905843798687,53.88447169816131,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,PATRICIA BLVD & QUEENSWAY & TURNING LANE,PRINCE GEORGE,1,Queensway   & Patricia Blvd ,-122.74238920198624,53.91168899631086,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2021,VICTORIA ST # 001501 TO 001699,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2021,VICTORIA ST # 001900 TO 001999,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2022,10TH AVE & CENTRAL ST E & CENTRAL ST W & HWY 97 S & TURNING LANE,PRINCE GEORGE,5,Hwy 97 S & 10th Ave ,-122.78177628409276,53.915447860379075,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,15TH AVE & FOOTHILLS BLVD & UNIVERSITY WAY,PRINCE GEORGE,2,Foothills Blvd  & 15th Ave ,-122.81162073426202,53.91037359785447,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,5TH AVE & CARNEY ST,PRINCE GEORGE,2,5th Ave  & Carney St ,-122.76929406084285,53.92067066923,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,DAVIS RD & OSPIKA BLVD,PRINCE GEORGE,2,Ospika Blvd  & Davis Rd ,-122.78461387765036,53.8765979093368,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,10TH AVE & JOHNSON ST,PRINCE GEORGE,1,10th Ave  & Johnson St ,-122.77969206448486,53.91540913918963,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,10TH AVE & LAURIER CRES,PRINCE GEORGE,1,10th Ave  & Laurier Cres ,-122.76421963643598,53.91561757570119,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,15TH AVE & EDMONTON ST,PRINCE GEORGE,1,15th Ave  & Edmonton St ,-122.76394479751441,53.9103781471734,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,15TH AVE & SPRUCE ST & MALL ACCESS & TURNING LANE,PRINCE GEORGE,1,15th Ave  & Spruce St ,-122.75787971344289,53.90985047665654,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,17TH AVE & SPRUCE ST,PRINCE GEORGE,1,Spruce St  & 17th Ave ,-122.7579380281123,53.908453412529106,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,17TH AVE & VICTORIA ST,PRINCE GEORGE,1,Victoria St  & 17th Ave ,-122.75513359039593,53.90845467368114,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,20TH AVE & SPRUCE ST,PRINCE GEORGE,1,20th Ave  & Spruce St ,-122.7579191232894,53.90543509971525,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,22ND AVE & CENTRAL ST E & GRIFFITHS AVE & HWY 97 S & WESTWOOD DR & TURNING LANE,PRINCE GEORGE,1,Hwy 97 S & 22nd Ave ,-122.78180081482267,53.90360164570181,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,3RD AVE # 001138 TO 001199,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2022,5TH AVE & AHBAU ST & LYON ST,PRINCE GEORGE,1,5th Ave  & Lyon St ,-122.78432072548367,53.92061615056932,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,5TH AVE & FREEMAN ST,PRINCE GEORGE,1,5th Ave  & Freeman St ,-122.77379464931148,53.92065187840538,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,5TH AVE & GILLETT ST,PRINCE GEORGE,1,5th Ave  & Gillett St ,-122.77526836576813,53.92073540891626,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,5TH AVE & OGILVIE ST,PRINCE GEORGE,1,5th Ave  & Ogilvie St ,-122.78876938244193,53.920638880894835,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,5TH AVE & PATTERSON ST,PRINCE GEORGE,1,5th Ave  & Patterson St ,-122.79026534946196,53.92062300453895,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,5TH AVE & VICTORIA ST,PRINCE GEORGE,1,Victoria St  & 5th Ave ,-122.7503456963153,53.916345551852956,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,ARNETT AVE & BOND ST,PRINCE GEORGE,1,Bond St  & Arnett Ave ,-122.79014987436604,53.896525297029925,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,BAKER RD & GANNETT RD & TYNER BLVD,PRINCE GEORGE,1,Tyner Blvd  & Baker Rd ,-122.78559180190067,53.86986585776354,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,FOOTHILLS BLVD & OCHAKWIN CRES,PRINCE GEORGE,1,Foothills Blvd  & Ochakwin Cres ,-122.81927023793749,53.91825961718918,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,GOHEEN ST & PINEWOOD AVE,PRINCE GEORGE,1,Pinewood Ave  & Goheen St ,-122.79432819316787,53.892124096401936,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,HART HWY & KENWORTH RD E & KENWORTH RD W,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2022,MASSEY DR & OSPIKA BLVD & TURNING LANE,PRINCE GEORGE,1,Ospika Blvd  & Massey Dr ,-122.79101461008624,53.89892833157825,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,OSPIKA BLVD # 000619 TO 000799,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2022,PINEWOOD AVE & WESTWOOD DR,PRINCE GEORGE,1,Westwood Dr  & Pinewood Ave ,-122.7796791963073,53.89208116098949,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2022,UPLAND ST # 002101 TO 002142,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2023,8TH AVE & CENTRAL ST W,PRINCE GEORGE,2,Central St W & 8th Ave ,-122.78235595670778,53.917630084074865,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,11TH AVE & VICTORIA ST,PRINCE GEORGE,1,Victoria St  & 11th Ave ,-122.75417675866784,53.91174693952662,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,10TH AVE & CARNEY ST,PRINCE GEORGE,1,Carney St  & 10th Ave ,-122.76929725602113,53.91542380304837,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,10TH AVE & CENTRAL ST E & CENTRAL ST W & HWY 97 S & TURNING LANE,PRINCE GEORGE,1,Hwy 97 S & 10th Ave ,-122.78177628409276,53.915447860379075,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,13TH AVE & WINNIPEG ST & MALL ACCESS,PRINCE GEORGE,1,Winnipeg St  & 13th Ave ,-122.76080205044619,53.91176246775332,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,20TH AVE & TAMARACK ST,PRINCE GEORGE,1,20th Ave  & Tamarack St ,-122.75924862052311,53.9054295712836,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,3RD AVE & WINNIPEG ST,PRINCE GEORGE,1,Winnipeg St  & 3rd Ave ,-122.75452021595378,53.91936710897583,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,4TH AVE & DOMINION ST,PRINCE GEORGE,1,Dominion St  & 4th Ave ,-122.74509519618428,53.91579619569099,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,4TH AVE & ONTARIO ST,PRINCE GEORGE,1,Ontario St  & 4th Ave ,-122.74012988917454,53.914390134744096,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,5TH AVE & AHBAU ST & LYON ST,PRINCE GEORGE,1,5th Ave  & Lyon St ,-122.78432072548367,53.92061615056932,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,5TH AVE & OSPIKA BLVD & TURNING LANE,PRINCE GEORGE,1,Ospika Blvd  & 5th Ave ,-122.79417553362454,53.92053592860853,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,7TH AVE & VANCOUVER ST,PRINCE GEORGE,1,7th Ave  & Vancouver St ,-122.7534248898273,53.91530569396242,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,AUSTIN RD W & DELISLE CRT,PRINCE GEORGE,1,Austin Rd W & Delisle Crt ,-122.80665435847567,53.988803986050215,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,BELLAMY RD & HART HWY & HART HWY FRTG,PRINCE GEORGE,1,Hart Hwy  & Bellamy Rd ,-122.76404226514991,53.952809513486244,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,BELLAMY RD & NORANDA RD E,PRINCE GEORGE,1,Noranda Rd E & Bellamy Rd ,-122.75424721289501,53.9636316031451,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,CENTRAL ST W & COMMERCIAL CRES,PRINCE GEORGE,1,Central St W & Commercial Cres ,-122.7823933346945,53.91150036073327,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,FERRY AVE # 002120 TO 002218,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2023,HWY 16 W & HWY 97 S & INDUSTRIAL ACCESS ROAD & TURNING LANE,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2023,MASSEY DR & WESTWOOD DR & TURNING LANE,PRINCE GEORGE,1,Massey Dr  & Westwood Dr ,-122.78220102448,53.89962927490321,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2023,RANGE RD # 002460 TO 002599,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2023,VICTORIA ST # 000100 TO 000199,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2023,VICTORIA ST # 000900 TO 000951,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2024,15TH AVE & PATRICIA BLVD & VICTORIA ST & TURNING LANE,PRINCE GEORGE,2,Victoria St  & 15th Ave ,-122.7548642990933,53.910532795614444,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,15TH AVE & SPRUCE ST & MALL ACCESS & TURNING LANE,PRINCE GEORGE,2,15th Ave  & Spruce St ,-122.75787971344289,53.90985047665654,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,MASSEY DR & WESTWOOD DR & TURNING LANE,PRINCE GEORGE,2,Massey Dr  & Westwood Dr ,-122.78220102448,53.89962927490321,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,10TH AVE & CENTRAL ST E & CENTRAL ST W & HWY 97 S & TURNING LANE,PRINCE GEORGE,1,Hwy 97 S & 10th Ave ,-122.78177628409276,53.915447860379075,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,10TH AVE & IRWIN ST,PRINCE GEORGE,1,10th Ave  & Irwin St ,-122.77824800077009,53.915412695085884,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,11TH AVE & WINNIPEG ST,PRINCE GEORGE,1,Winnipeg St  & 11th Ave ,-122.75948721738919,53.91324681464521,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,12TH AVE # 002348 TO 002399,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2024,15TH AVE # 001600 TO 001708,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2024,4TH AVE & QUEBEC ST,PRINCE GEORGE,1,4th Ave  & Quebec St ,-122.74664790186657,53.91623581218647,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,4TH AVE & VICTORIA ST,PRINCE GEORGE,1,Victoria St  & 4th Ave ,-122.74972703343879,53.91710796548883,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,5TH AVE & AHBAU ST & LYON ST,PRINCE GEORGE,1,5th Ave  & Lyon St ,-122.78432072548367,53.92061615056932,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,5TH AVE & CARNEY ST,PRINCE GEORGE,1,5th Ave  & Carney St ,-122.76929406084285,53.92067066923,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,5TH AVE & LACOMA ST & VOYAGEUR DR,PRINCE GEORGE,1,5th Ave  & Voyageur Dr ,-122.80282158157223,53.92063510921243,subset_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,FERRY AVE & UPLAND ST,PRINCE GEORGE,1,Ferry Ave  & Upland St ,-122.76072558033358,53.88881653718363,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,KIM PL & WINSLOW DR,PRINCE GEORGE,1,Winslow Dr  & Kim Pl ,-122.78805562160147,53.98437700798129,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,MASSEY DR & NICHOLSON ST,PRINCE GEORGE,1,Massey Dr  & Nicholson St ,-122.78890013154833,53.899613928664735,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,MERTON CRES & NESS AVE,PRINCE GEORGE,1,Merton Cres  & Ness Ave ,-122.8063157622014,53.91776255212085,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,MOSS AVE # 002400 TO 002699,PRINCE GEORGE,1,,,,
+pedestrian_crashes,Crashes involving pedestrians,2024,OSPIKA BLVD & RANGE RD,PRINCE GEORGE,1,Ospika Blvd  & Range Rd ,-122.78494957948514,53.884560801882536,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,VANCE RD & WIEBE RD,PRINCE GEORGE,1,Wiebe Rd  & Vance Rd ,-122.77345590858994,53.88100074036664,exact_intersection_name
+pedestrian_crashes,Crashes involving pedestrians,2024,VICTORIA ST # 000300 TO 000399,PRINCE GEORGE,1,,,,

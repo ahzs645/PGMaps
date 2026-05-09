@@ -265,7 +265,7 @@ export default function TransitDataSection() {
         </div>
       )}
       sidebar={
-        <aside className="flex h-full w-full flex-col border-0 bg-background shadow-none md:w-[350px] md:border-r md:shadow-xl">
+        <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden border-0 bg-background shadow-none md:w-[350px] md:border-r md:shadow-xl">
           <div className="border-b border-border p-4">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300">

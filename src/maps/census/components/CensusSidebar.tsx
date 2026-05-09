@@ -191,7 +191,7 @@ export function CensusSidebar({
   }, [catalog])
 
   return (
-    <div className={cn('z-10 flex h-full w-full flex-col border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
+    <div className={cn('z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
       <div className="border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">Census Data Explorer</h1>
         <p className="text-sm text-muted-foreground">
@@ -202,6 +202,7 @@ export function CensusSidebar({
 
       <DatasetInfo dataset={DATASETS.census} />
 
+      <div className="min-h-0 flex-1 overflow-y-auto">
       <StudyAreaSelector<string, CensusHierarchyLevel>
         level={selectedHierarchy}
         levelOptions={CENSUS_HIERARCHIES.map((level) => ({ value: level.key, label: level.label }))}
@@ -277,10 +278,10 @@ export function CensusSidebar({
 
       {/* Variable browser panel */}
       {showVariableBrowser && catalog && selectedHierarchy !== 'db' && (
-        <div className="flex max-h-[50vh] flex-col border-b border-border bg-muted/30">
+        <div className="border-b border-border bg-muted/30">
           {!selectedCategoryId ? (
             // Category list
-            <div className="flex-1 overflow-y-auto">
+            <div>
               {categoryGroups.map((group) => (
                 <div key={group.name}>
                   <div className="sticky top-0 z-10 bg-muted/80 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur">
@@ -309,7 +310,7 @@ export function CensusSidebar({
             </div>
           ) : (
             // Variable list within selected category
-            <div className="flex flex-1 flex-col">
+            <div>
               <div className="border-b border-border px-4 py-2">
                 <div className="mb-2 flex items-center gap-2">
                   <button
@@ -347,7 +348,7 @@ export function CensusSidebar({
                   ))}
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div>
                 {variableLoading && (
                   <div className="px-4 py-2 text-xs text-muted-foreground">Loading data...</div>
                 )}
@@ -473,7 +474,7 @@ export function CensusSidebar({
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div>
           <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
             <span>
               Top units by {isVariableMode ? (activeVariableLabel || 'variable') : selectedMetricDef.label.toLowerCase()}
@@ -511,6 +512,7 @@ export function CensusSidebar({
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
