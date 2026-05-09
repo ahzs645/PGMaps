@@ -63,7 +63,7 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
         </button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-h-[calc(100vh-2rem)] max-w-xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
         <DialogHeader>
           <div className="flex items-start gap-2 pr-8">
             <Database className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -76,7 +76,7 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 text-sm text-muted-foreground">
+        <div className="min-h-0 space-y-4 overflow-y-auto pr-1 text-sm text-muted-foreground">
           <p className="leading-6">{dataset.description}</p>
           <div className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] gap-x-4 gap-y-2 text-xs">
             <span>Coverage</span>

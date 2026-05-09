@@ -40,6 +40,12 @@ const DEFAULT_WINDOW_OPTIONS: TimelineWindowOption[] = [
   { value: -1, label: 'Cumul.' },
 ]
 
+// When the timeline has more buckets than this, the visible bars virtualize
+// and the view shifts as the scrub crosses the threshold.
+const MAX_VISIBLE_MONTHS = 84
+const VIEW_SHIFT_TRIGGER = 0.8
+const VIEW_SHIFT_TARGET = 0.3
+
 function snapToMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
@@ -111,6 +117,35 @@ export function Timeline({
       onDateChange(buckets[maxPosition].start)
     }
   }, [maxPosition, currentIndex, onDateChange, buckets])
+
+  const isVirtualized = buckets.length > MAX_VISIBLE_MONTHS
+  const visibleSize = isVirtualized ? MAX_VISIBLE_MONTHS : buckets.length
+  const [visibleStart, setVisibleStart] = useState(0)
+
+  useEffect(() => {
+    if (!isVirtualized) {
+      if (visibleStart !== 0) setVisibleStart(0)
+      return
+    }
+    const maxStart = Math.max(0, buckets.length - visibleSize)
+    const positionInView = currentIndex - visibleStart
+    let nextStart: number | null = null
+    if (positionInView > visibleSize * VIEW_SHIFT_TRIGGER) {
+      nextStart = currentIndex - Math.floor(visibleSize * VIEW_SHIFT_TARGET)
+    } else if (positionInView < visibleSize * (1 - VIEW_SHIFT_TRIGGER)) {
+      nextStart = currentIndex - Math.floor(visibleSize * (1 - VIEW_SHIFT_TARGET))
+    }
+    if (nextStart === null) return
+    nextStart = Math.max(0, Math.min(maxStart, nextStart))
+    if (nextStart !== visibleStart) setVisibleStart(nextStart)
+  }, [currentIndex, isVirtualized, visibleSize, buckets.length, visibleStart])
+
+  const visibleBuckets = useMemo(() => {
+    if (!isVirtualized) return buckets
+    return buckets.slice(visibleStart, visibleStart + visibleSize)
+  }, [buckets, isVirtualized, visibleStart, visibleSize])
+
+  const visibleOffset = isVirtualized ? visibleStart : 0
 
   const maxCount = useMemo(() => {
     if (!monthCounts) return 1
@@ -266,10 +301,10 @@ export function Timeline({
 
         {monthCounts ? (
           <div className="mb-1 flex h-10 items-end gap-px">
-            {buckets.map((bucket, i) => {
+            {visibleBuckets.map((bucket, i) => {
               const count = monthCounts.get(bucket.key) ?? 0
               const height = Math.max(2, (count / maxCount) * 100)
-              const inWindow = isInWindow(i)
+              const inWindow = isInWindow(visibleOffset + i)
               return (
                 <div
                   key={bucket.key}
@@ -292,8 +327,8 @@ export function Timeline({
           </div>
         ) : (
           <div className="mb-1 flex h-4 items-end">
-            {buckets.map((bucket, i) => {
-              const inWindow = isInWindow(i)
+            {visibleBuckets.map((bucket, i) => {
+              const inWindow = isInWindow(visibleOffset + i)
               const isJanuary = bucket.start.getMonth() === 0
               return (
                 <div

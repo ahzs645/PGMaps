@@ -60,6 +60,7 @@ interface WarsCrashProperties {
 type WarsFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, WarsCrashProperties>
 
 const ALL_SPECIES = 'all'
+const ALL_YEARS = 'all'
 const RECENT_YEARS = 'recent'
 
 const SPECIES_COLORS: Record<string, string> = {
@@ -120,7 +121,7 @@ export function useWarsData(
   const [selectedSpecies, setSelectedSpecies] = useState<string>(initialSpecies || ALL_SPECIES)
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
-  const [yearMode, setYearMode] = useState<string>(RECENT_YEARS)
+  const [yearMode, setYearMode] = useState<string>(ALL_YEARS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [timelineEnabled, setTimelineEnabled] = useState(false)
   const [timelineDate, setTimelineDate] = useState<Date | null>(null)
@@ -323,7 +324,7 @@ export function WarsSidebar({ wars }: { wars: WarsState }) {
               onValueChange={wars.setYearMode}
               options={[
                 { value: RECENT_YEARS, label: 'Most recent 10 years' },
-                { value: 'all', label: 'All years' },
+                { value: ALL_YEARS, label: 'All years' },
               ]}
               className="mt-1"
               triggerClassName="h-8 rounded-md text-xs"
