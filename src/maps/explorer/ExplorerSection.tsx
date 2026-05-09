@@ -37,6 +37,13 @@ import type {
 
 const ALL_GEOMETRY_TYPES: ExplorerGeometryType[] = ['point', 'line', 'polygon']
 const ALL_DATASET_IDS: ExplorerDatasetId[] = EXPLORER_DATASETS.map((dataset) => dataset.id)
+const DEFAULT_ACTIVE_DATASET_IDS: ExplorerDatasetId[] = [
+  'restaurants',
+  'parkAmenities',
+  'transitStops',
+  'trails',
+  'parks',
+]
 const EXPLORER_SESSION_NOW = Date.now()
 
 interface TransitRouteProperties {
@@ -190,9 +197,11 @@ export default function ExplorerSection() {
     return values.length ? values.filter((value) => ALL_GEOMETRY_TYPES.includes(value)) : ALL_GEOMETRY_TYPES
   })
   const [activeDatasetIds, setActiveDatasetIds] = useState<ExplorerDatasetId[]>(() => {
-    const values = (searchParams.get('datasets') || '').split(',').filter(Boolean) as ExplorerDatasetId[]
+    const datasetParam = searchParams.get('datasets') || ''
+    if (datasetParam === 'all') return ALL_DATASET_IDS
+    const values = datasetParam.split(',').filter(Boolean) as ExplorerDatasetId[]
     const valid = values.filter((value) => ALL_DATASET_IDS.includes(value))
-    return valid.length ? valid : ALL_DATASET_IDS
+    return valid.length ? valid : DEFAULT_ACTIVE_DATASET_IDS
   })
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [sortMode, setSortMode] = useState<SortMode>(() => searchParams.get('sort') === 'name' ? 'name' : 'relevance')
@@ -205,27 +214,50 @@ export default function ExplorerSection() {
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
   const [neighborhoodPoint, setNeighborhoodPoint] = useState<{ lat: number; lng: number } | null>(null)
 
-  const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData()
-  const { restaurants, loading: loadingRestaurants, error: restaurantsError } = useRestaurantData()
-  const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData()
-  const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData()
-  const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData()
-  const { stops: transitStops, loading: loadingTransit, error: transitError } = useTransitData()
+  const activeDatasetSetForLoading = useMemo(() => new Set(activeDatasetIds), [activeDatasetIds])
+  const parksDataEnabled = (
+    activeDatasetSetForLoading.has('parks') ||
+    activeDatasetSetForLoading.has('trails') ||
+    activeDatasetSetForLoading.has('parkAmenities')
+  )
+  const censusDataEnabled = (
+    activeDatasetSetForLoading.has('censusDa') ||
+    activeDatasetSetForLoading.has('censusCt') ||
+    activeDatasetSetForLoading.has('censusCsd') ||
+    activeDatasetSetForLoading.has('censusCd') ||
+    activeDatasetSetForLoading.has('censusDb')
+  )
+
+  const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData(activeDatasetSetForLoading.has('airMonitors'))
+  const { restaurants, loading: loadingRestaurants, error: restaurantsError } = useRestaurantData(activeDatasetSetForLoading.has('restaurants'))
+  const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData([], parksDataEnabled)
+  const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(censusDataEnabled)
+  const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData(activeDatasetSetForLoading.has('crime'))
+  const { stops: transitStops, loading: loadingTransit, error: transitError } = useTransitData(activeDatasetSetForLoading.has('transitStops'))
   const transitRoutesState = useExplorerGeoJson<GeoJSON.LineString, TransitRouteProperties>(
     '/data/transit/prince_george_gtfs_routes.geojson',
+    activeDatasetSetForLoading.has('transitRoutes'),
   )
   const icbcCrashesState = useExplorerGeoJson<GeoJSON.Point, IcbcCrashProperties>(
     '/data/icbc/prince_george_crash_locations.geojson',
+    activeDatasetSetForLoading.has('icbcCrashes'),
   )
   const wildlifeState = useExplorerGeoJson<GeoJSON.Point, WildlifeAccidentProperties>(
     '/data/wars/prince_george_wildlife_accidents.geojson',
+    activeDatasetSetForLoading.has('wildlifeAccidents'),
   )
   const bcAssessmentEnabled = activeDatasetIds.includes('bcAssessment')
   const { properties: bcParcels, loading: loadingBcAssessment, error: bcAssessmentError } = useBcAssessmentData(bcAssessmentEnabled)
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
-    const datasetValue = activeDatasetIds.length === ALL_DATASET_IDS.length ? '' : activeDatasetIds.join(',')
+    const defaultDatasetsActive = (
+      activeDatasetIds.length === DEFAULT_ACTIVE_DATASET_IDS.length &&
+      DEFAULT_ACTIVE_DATASET_IDS.every((datasetId) => activeDatasetIds.includes(datasetId))
+    )
+    const datasetValue = activeDatasetIds.length === ALL_DATASET_IDS.length
+      ? 'all'
+      : defaultDatasetsActive ? '' : activeDatasetIds.join(',')
     const geomValue = geometryFilters.length === ALL_GEOMETRY_TYPES.length ? '' : geometryFilters.join(',')
     if (datasetValue) params.set('datasets', datasetValue)
     else params.delete('datasets')
