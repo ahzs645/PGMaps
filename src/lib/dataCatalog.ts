@@ -72,6 +72,17 @@ export const DATASETS = {
     downloadUrl: '/data/icbc/manifest.json',
     fields: ['location', 'municipality', 'crashCount', 'longitude', 'latitude', 'geocodeMatchType'],
   },
+  wars: {
+    title: 'Wildlife accident records',
+    description: 'Wildlife Accident Reporting System records filtered to Prince George nearest-town rows with source coordinates.',
+    source: 'BC Ministry of Transportation and Transit Wildlife Accident Reporting System',
+    coverage: 'Prince George nearest-town wildlife accident records',
+    license: 'WARS Data Use Licence Agreement 2026',
+    formats: ['XLSX source', 'CSV', 'GeoJSON', 'JSON manifest'],
+    downloadUrl: '/data/wars/manifest.json',
+    apiUrl: 'https://www2.gov.bc.ca/gov/content/transportation/transportation-infrastructure/engineering-standards-guidelines/environmental-management/wildlife-management/wildlife-accident-reporting-system',
+    fields: ['accidentDate', 'year', 'nearestTown', 'species', 'quantity', 'longitude', 'latitude'],
+  },
   heatShade: {
     title: 'Heat and shade proxy layers',
     description: 'Tree, forest, facility, and remote-sensing metadata used as shade, heat, and cooling-access proxies.',

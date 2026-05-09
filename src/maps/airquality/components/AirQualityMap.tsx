@@ -154,95 +154,6 @@ function SelectedMonitorDetails({
   )
 }
 
-function RegionBoundaryLayer({
-  feature,
-  visible
-}: {
-  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null | undefined
-  visible: boolean
-}) {
-  const { map, isLoaded } = useMap()
-  const sourceId = 'airq-region-boundary-source'
-  const fillLayerId = 'airq-region-boundary-fill'
-  const lineLayerId = 'airq-region-boundary-line'
-
-  useEffect(() => {
-    if (!isLoaded || !map) return
-
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: []
-        }
-      } as never)
-    }
-
-    if (!map.getLayer(fillLayerId)) {
-      map.addLayer({
-        id: fillLayerId,
-        type: 'fill',
-        source: sourceId,
-        paint: {
-          'fill-color': '#0ea5e9',
-          'fill-opacity': 0
-        },
-        layout: {
-          visibility: visible ? 'visible' : 'none'
-        }
-      } as never)
-    }
-
-    if (!map.getLayer(lineLayerId)) {
-      map.addLayer({
-        id: lineLayerId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#0284c7',
-          'line-width': 2,
-          'line-opacity': 0.95
-        },
-        layout: {
-          visibility: visible ? 'visible' : 'none'
-        }
-      } as never)
-    }
-
-    return () => {
-      try {
-        if (!map || !map.getStyle()) return
-        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
-        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
-        if (map.getSource(sourceId)) map.removeSource(sourceId)
-      } catch {
-        // Map already destroyed during unmount.
-      }
-    }
-  }, [fillLayerId, isLoaded, lineLayerId, map, sourceId, visible])
-
-  useEffect(() => {
-    if (!isLoaded || !map) return
-
-    const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
-    source?.setData({
-      type: 'FeatureCollection',
-      features: feature ? [feature] : []
-    })
-
-    const layerVisibility = visible && feature ? 'visible' : 'none'
-    if (map.getLayer(fillLayerId)) {
-      map.setLayoutProperty(fillLayerId, 'visibility', layerVisibility)
-    }
-    if (map.getLayer(lineLayerId)) {
-      map.setLayoutProperty(lineLayerId, 'visibility', layerVisibility)
-    }
-  }, [feature, fillLayerId, isLoaded, lineLayerId, map, sourceId, visible])
-
-  return null
-}
-
 function BoundaryBrowseLayer({
   features,
   visible,
@@ -580,7 +491,6 @@ export function AirQualityMap({
           maxMonitorCount={maxBrowseBoundaryMonitorCount}
           onBoundaryClick={onBrowseBoundaryClick}
         />
-        <RegionBoundaryLayer feature={selectedRegionFeature} visible={Boolean(selectedRegionFeature)} />
         <AirQualityHeatmapLayer monitors={monitors} visible={showHeatmap} />
 
         {showPoints && collectionsByNetwork.map(([network, collection]) => {

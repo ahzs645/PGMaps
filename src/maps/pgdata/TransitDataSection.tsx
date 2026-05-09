@@ -488,13 +488,13 @@ export default function TransitDataSection() {
   )
 }
 
-// Lives inside <Map> so it can subscribe to the MapLibre zoom stream via
-// useTransitiveZoom. Mirrors transitive.js's render pipeline:
-//   1. zoom changes -> updateActiveZoomFactors picks a ZoomFactor partition,
-//   2. rebuild the network with that factor's grid/angle/spacing config,
-//   3. emit the offset GeoJSON for MapLibre to draw.
-// Visual width/opacity are also zoom-interpolated so segments look like a
-// schematic at far zoom and like cleanly-spaced lanes up close.
+// Lives inside <Map> so it can subscribe to MapLibre zoom events via
+// useTransitiveZoom. Mirrors transitive.js's `apply2DOffsets`:
+//   1. assign each route a stable lane index (bundleRoutes),
+//   2. let MapLibre apply line-offset = laneIndex * spacing in PIXELS so
+//      overlapping routes sit side-by-side instead of stacked.
+// Width / spacing / opacity are zoom-interpolated, the way transitive.js
+// scales styling values via `pixels(zoom, min, normal, max)`.
 function TransitRouteLayers({
   routes,
   visible,
@@ -502,15 +502,41 @@ function TransitRouteLayers({
   routes: RouteInput[]
   visible: boolean
 }) {
-  const { factor } = useTransitiveZoom()
+  // Subscribed for the side effect of forcing a re-render when the zoom
+  // partition crosses a tier boundary — useful if we ever want to swap
+  // bundling strategies per tier (transitive.js does this on scale change).
+  useTransitiveZoom()
 
   const bundled = useMemo<BundledFeatureCollection>(
-    () => bundleRoutes(routes, factor),
-    [routes, factor],
+    () => bundleRoutes(routes),
+    [routes],
   )
 
-  // MapLibre interpolate-on-zoom expressions for the visual responsiveness
-  // transitive.js styles via `pixels(zoom, min, normal, max)`.
+  // Pixels per lane index, interpolated on zoom. Mirrors the way
+  // transitive.js varies bundling severity by zoom factor: at low scale
+  // the network is heavily merged so overlapping routes collapse onto a
+  // shared corridor; as scale increases, bundling relaxes and routes
+  // separate into distinct lanes (see lib/display/display.js zoom
+  // factors `mergeVertexThreshold` 200 -> 0). MapLibre requires the
+  // zoom interpolation to live at the outermost level when combined with
+  // feature-data lookups, so we multiply inside each zoom stop.
+  const offsetExpr = useMemo(
+    () => [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      // Zoomed way out: every route on the road centerline.
+      10, ['*', ['get', 'offsetIndex'], 0],
+      12, ['*', ['get', 'offsetIndex'], 0],
+      // Mid zoom: lanes start to fan out.
+      14, ['*', ['get', 'offsetIndex'], 1.6],
+      // Street level: clearly separated parallel lanes.
+      16, ['*', ['get', 'offsetIndex'], 3.4],
+      18, ['*', ['get', 'offsetIndex'], 5],
+    ],
+    [],
+  )
+
   const widthExpr = useMemo(
     () => [
       'interpolate',
@@ -556,6 +582,7 @@ function TransitRouteLayers({
         idProperty="shapeId"
         color="#ffffff"
         width={haloWidthExpr}
+        offset={offsetExpr}
         opacity={0.95}
         visible={visible}
       />
@@ -564,6 +591,7 @@ function TransitRouteLayers({
         idProperty="shapeId"
         color={['get', 'routeColor']}
         width={widthExpr}
+        offset={offsetExpr}
         opacity={opacityExpr}
         visible={visible}
       />

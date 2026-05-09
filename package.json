@@ -18,6 +18,7 @@
     "crown-tenures:sync": "node scripts/sync-bc-crown-tenures.mjs",
     "range-tenures:sync": "node scripts/sync-bc-range-tenures.mjs",
     "mineral-tenures:sync": "node scripts/sync-bc-mineral-tenures.mjs",
+    "wars:sync": "python3 scripts/sync-bc-wars.py",
     "cimd:sync": "node scripts/sync-cimd.mjs",
     "canue:bc:sync": "node scripts/sync-canue-bc.mjs",
     "canue:bc:sync:all-years": "node scripts/sync-canue-bc.mjs --all-years true",

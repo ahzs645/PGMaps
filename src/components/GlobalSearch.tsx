@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin, Database, Building2 } from 'lucide-react'
+import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin, Database, Building2, PawPrint } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 
@@ -61,6 +61,7 @@ async function buildIndex(): Promise<SearchItem[]> {
     addDatasetItem('dataset-crime', 'Property crime incidents API', 'crime', '/pgdata', ShieldAlert, 'text-red-500', { tab: 'crime' })
     addDatasetItem('dataset-canue', 'CANUE BC annual extracts', 'canue', '/misc', Database, 'text-violet-600')
     addDatasetItem('dataset-heat-shade', 'Heat and shade proxy layers', 'heatShade', '/misc', Database, 'text-violet-600')
+    addDatasetItem('dataset-wars', 'Wildlife accident records', 'wars', '/misc', PawPrint, 'text-amber-700', { tab: 'wars' })
     addDatasetItem('dataset-assessment', 'BC Assessment parcels dataset', 'bcAssessment', '/bc-assessment', Building2, 'text-slate-500')
 
     // Load restaurants
@@ -215,7 +216,7 @@ async function buildIndex(): Promise<SearchItem[]> {
       { id: 'nav-parks', label: 'Parks & Trails', sublabel: 'Parks, trails, and amenities', section: 'Maps', sectionPath: '/pgdata', icon: Trees, iconColor: 'text-green-500', params: { tab: 'parks' } },
       { id: 'nav-census', label: 'Census Data', sublabel: 'Choropleth census patterns', section: 'Maps', sectionPath: '/census', icon: BarChart3, iconColor: 'text-amber-600' },
       { id: 'nav-pgdata', label: 'PG Data', sublabel: 'City PG crime, parks, trails, and amenities', section: 'Maps', sectionPath: '/pgdata', icon: ShieldAlert, iconColor: 'text-red-500' },
-      { id: 'nav-misc', label: 'MISC Data', sublabel: 'Canopy, heat-shade, CANUE, and other non-City PG datasets', section: 'Maps', sectionPath: '/misc', icon: Database, iconColor: 'text-violet-600' },
+      { id: 'nav-misc', label: 'MISC Data', sublabel: 'Canopy, heat-shade, CANUE, WARS, and other non-City PG datasets', section: 'Maps', sectionPath: '/misc', icon: Database, iconColor: 'text-violet-600' },
       { id: 'nav-scorebuilder', label: 'Index Lab', sublabel: 'Transparent weighted civic indices', section: 'Maps', sectionPath: '/score-builder', icon: MapPin, iconColor: 'text-cyan-600' },
     ]
     items.push(...sections)

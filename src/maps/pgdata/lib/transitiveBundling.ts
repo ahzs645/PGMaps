@@ -1,25 +1,28 @@
-// Port of transitive.js overlap/bundling logic for MapLibre GeoJSON layers.
+// Port of transitive.js (https://github.com/conveyal/transitive.js) overlap
+// handling for MapLibre GeoJSON layers.
 //
-// Background — see https://github.com/conveyal/transitive.js
+// Transitive's `apply2DOffsets` (lib/graph/graph.js) groups RenderedEdges
+// that share an alignment into AlignmentBundles, sorts them, and offsets
+// each member perpendicular to the shared line by `(i - bundleWidth/2) * lw`.
+// The offsets land on the underlying graph edges, NOT on per-coordinate
+// segments — i.e. one offset per rendered edge, applied uniformly along it.
 //
-// Transitive's `apply2DOffsets` (lib/graph/graph.js) groups RenderedEdges that
-// share an "alignment" (same line in 2D space) into AlignmentBundles, then
-// offsets each member perpendicular to the shared line so overlapping route
-// patterns appear side-by-side instead of stacked. The original library
-// computes alignments from full edge directions and elbow geometry; for
-// MapLibre LineStrings we operate on a discretised version: each route is
-// split into segment pairs, each segment is hashed by its snapped midpoint
-// and quantised bearing, and segments sharing that key form a bundle.
+// MapLibre's `line-offset` paint property does the equivalent at draw time:
+// shift the entire feature perpendicular to its direction by N pixels. So
+// instead of mutating coordinates, we annotate each route feature with a
+// stable `offsetIndex` (its position in a sorted-route list, centered on
+// zero) and let MapLibre apply `offsetIndex * spacing` as the offset.
 //
-// The bundle key is the GeoJSON-equivalent of transitive.js's
-// `alignmentId` (lib/graph/edge.js#calculateAlignmentId). The grid snap and
-// angle quantum mirror the per-zoom `gridCellSize` / `angleConstraint` from
-// the `ZoomFactor` config.
+// Trade-off: the offset is per-route, not context-aware (a route keeps the
+// same offset whether it's running solo or beside three others). This loses
+// transitive's per-edge re-bundling at intersections, but the result is
+// continuous geometry that renders cleanly at every zoom level — no
+// fragmentation, no jumps where bundles change composition.
 
 export interface RouteInput {
-  /** Route short name (e.g. "1", "10"). Used as a stable sort key inside a bundle. */
+  /** Route short name (e.g. "1", "10"). Drives the lane assignment. */
   routeShortName: string
-  /** Stable identifier for the rendered shape (one route may have multiple shapes). */
+  /** Stable identifier for the rendered shape. */
   shapeId: string
   /** Route color, propagated to output features. */
   color: string
@@ -29,42 +32,14 @@ export interface RouteInput {
   extra?: Record<string, unknown>
 }
 
-export interface BundlingOptions {
-  /**
-   * Cell size for snapping midpoints, in degrees. Smaller -> stricter
-   * alignment matching (fewer false positives but more visual chatter at
-   * curves). transitive.js uses meters in SphericalMercator; we use degrees
-   * directly because the data is already in lng/lat and the city is small.
-   */
-  gridCellDegrees: number
-  /**
-   * Bearing quantisation in degrees. Two segments are considered the same
-   * alignment if their bearings round to the same multiple of this value.
-   * Mirrors `angleConstraint` in transitive.js zoomFactors.
-   */
-  angleConstraintDegrees: number
-  /**
-   * Perpendicular spacing between bundled lanes, in degrees. Roughly
-   * lng/lat units; small enough to remain readable at the typical zoom
-   * range used for the transit map.
-   */
-  laneSpacingDegrees: number
-}
-
 export interface BundledFeatureProperties {
   routeShortName: string
   shapeId: string
   routeColor: string
-  /** Index of this lane within its bundle, 0-based. */
-  laneIndex: number
-  /** Total lanes in the bundle this feature belongs to. */
+  /** Lane offset relative to the bundle center, in lane-units. */
+  offsetIndex: number
+  /** Total lanes assigned across all visible routes. */
   laneCount: number
-  /**
-   * Pre-computed perpendicular offset in degrees. Useful when MapLibre's
-   * line-offset (which is in pixels) is not desired and instead we shift the
-   * geometry directly during a feature pass.
-   */
-  offsetDegrees: number
   [key: string]: unknown
 }
 
@@ -73,275 +48,164 @@ export type BundledFeatureCollection = GeoJSON.FeatureCollection<
   BundledFeatureProperties
 >
 
-interface SegmentRecord {
-  routeShortName: string
-  shapeId: string
-  color: string
-  extra: Record<string, unknown>
-  /** Index of this segment within its source route. */
-  index: number
-  /** Snapped + quantised key — segments sharing this key form a bundle. */
-  bundleKey: string
-  /** Per-segment unit perpendicular vector (right-hand side of travel direction). */
-  perpendicular: [number, number]
+function routeOrderValue(name: string): number {
+  const numeric = Number(name)
+  return Number.isFinite(numeric) ? numeric : Number.MAX_SAFE_INTEGER
 }
 
-interface SegmentInBundle extends SegmentRecord {
-  laneIndex: number
-  laneCount: number
-}
+/** Cell size (degrees) used to detect when two routes share a road. */
+const OVERLAP_CELL_DEGREES = 0.0008
 
-function snap(value: number, cell: number): number {
-  return Math.round(value / cell) * cell
-}
-
-function quantiseBearing(degrees: number, quantum: number): number {
-  // Bearings differing by 180° represent the same alignment line.
-  let normalised = ((degrees % 180) + 180) % 180
-  normalised = Math.round(normalised / quantum) * quantum
-  return normalised % 180
-}
-
-function bearingDegrees(a: [number, number], b: [number, number]): number {
-  const dx = b[0] - a[0]
-  const dy = b[1] - a[1]
-  return (Math.atan2(dy, dx) * 180) / Math.PI
-}
-
-function buildBundleKey(
-  midpoint: [number, number],
-  bearing: number,
-  cell: number,
-  angleQuantum: number,
-): string {
-  const sx = snap(midpoint[0], cell)
-  const sy = snap(midpoint[1], cell)
-  const sb = quantiseBearing(bearing, angleQuantum)
-  return `${sx.toFixed(5)}|${sy.toFixed(5)}|${sb}`
-}
-
-function perpendicularUnit(a: [number, number], b: [number, number]): [number, number] {
-  const dx = b[0] - a[0]
-  const dy = b[1] - a[1]
-  const len = Math.hypot(dx, dy)
-  if (len === 0) return [0, 0]
-  // 90° clockwise rotation -> right-hand perpendicular
-  return [dy / len, -dx / len]
+function overlapCellsForRoute(coords: [number, number][]): Set<string> {
+  const cells = new Set<string>()
+  for (let i = 0; i < coords.length - 1; i++) {
+    const a = coords[i]
+    const b = coords[i + 1]
+    const mx = (a[0] + b[0]) / 2
+    const my = (a[1] + b[1]) / 2
+    const sx = Math.round(mx / OVERLAP_CELL_DEGREES)
+    const sy = Math.round(my / OVERLAP_CELL_DEGREES)
+    cells.add(`${sx}|${sy}`)
+  }
+  return cells
 }
 
 /**
- * Build per-segment records for every input route. One record per
- * consecutive coordinate pair.
+ * Build the route-overlap graph: an edge between two routes whenever they
+ * share at least one road cell. This is the GeoJSON analogue of the
+ * AlignmentBundle membership in transitive.js — we don't care about the
+ * exact alignment, only "do these two routes co-occupy any road?"
  */
-function explodeSegments(
+function buildOverlapAdjacency(
   routes: RouteInput[],
-  options: BundlingOptions,
-): SegmentRecord[] {
-  const records: SegmentRecord[] = []
+): Map<string, Set<string>> {
+  const cellsByRoute = new Map<string, Set<string>>()
   for (const route of routes) {
-    const coords = route.coordinates
-    for (let i = 0; i < coords.length - 1; i++) {
-      const a = coords[i]
-      const b = coords[i + 1]
-      if (a[0] === b[0] && a[1] === b[1]) continue
-      const midpoint: [number, number] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
-      const bearing = bearingDegrees(a, b)
-      const bundleKey = buildBundleKey(
-        midpoint,
-        bearing,
-        options.gridCellDegrees,
-        options.angleConstraintDegrees,
-      )
-      records.push({
-        routeShortName: route.routeShortName,
-        shapeId: route.shapeId,
-        color: route.color,
-        extra: route.extra ?? {},
-        index: i,
-        bundleKey,
-        perpendicular: perpendicularUnit(a, b),
-      })
+    const existing = cellsByRoute.get(route.routeShortName)
+    const cells = overlapCellsForRoute(route.coordinates)
+    if (existing) {
+      cells.forEach((c) => existing.add(c))
+    } else {
+      cellsByRoute.set(route.routeShortName, cells)
     }
   }
-  return records
+
+  const adjacency = new Map<string, Set<string>>()
+  const names = Array.from(cellsByRoute.keys())
+  for (const name of names) adjacency.set(name, new Set())
+
+  for (let i = 0; i < names.length; i++) {
+    const a = names[i]
+    const aCells = cellsByRoute.get(a)!
+    for (let j = i + 1; j < names.length; j++) {
+      const b = names[j]
+      const bCells = cellsByRoute.get(b)!
+      let shared = false
+      for (const cell of aCells) {
+        if (bCells.has(cell)) {
+          shared = true
+          break
+        }
+      }
+      if (shared) {
+        adjacency.get(a)!.add(b)
+        adjacency.get(b)!.add(a)
+      }
+    }
+  }
+  return adjacency
 }
 
 /**
- * Group records by bundle key and assign lane indices. The sort order
- * within a bundle keeps colocated routes in a stable visual sequence
- * (same convention transitive.js uses via patternId comparisons).
+ * Greedy graph-coloring: process routes in ascending number order, assign
+ * each the smallest lane index not used by any of its overlap neighbours.
+ * Routes that never overlap any other route keep lane 0 (centerline) —
+ * they're not displaced from their actual road. This is the per-route
+ * approximation of transitive.js's per-edge re-bundling: lane assignment
+ * is global rather than context-dependent, but the maximum offset is the
+ * graph's chromatic number rather than the total route count.
  */
-function assignLanes(records: SegmentRecord[]): Map<string, SegmentInBundle> {
-  const byBundle = new Map<string, SegmentRecord[]>()
-  for (const record of records) {
-    const list = byBundle.get(record.bundleKey)
-    if (list) list.push(record)
-    else byBundle.set(record.bundleKey, [record])
+function assignLanesByGreedyColoring(
+  routes: RouteInput[],
+): { laneByRoute: Map<string, number>; laneCount: number } {
+  const adjacency = buildOverlapAdjacency(routes)
+  const orderedNames = Array.from(adjacency.keys()).sort((a, b) => {
+    const av = routeOrderValue(a)
+    const bv = routeOrderValue(b)
+    return av === bv ? (a < b ? -1 : a > b ? 1 : 0) : av - bv
+  })
+
+  const laneByRoute = new Map<string, number>()
+  let maxLane = 0
+  for (const name of orderedNames) {
+    const used = new Set<number>()
+    for (const neighbour of adjacency.get(name) ?? []) {
+      const lane = laneByRoute.get(neighbour)
+      if (lane !== undefined) used.add(lane)
+    }
+    let lane = 0
+    while (used.has(lane)) lane++
+    laneByRoute.set(name, lane)
+    if (lane > maxLane) maxLane = lane
   }
 
-  const out = new Map<string, SegmentInBundle>()
-  byBundle.forEach((list) => {
-    // Within a bundle, dedupe by shape so a single route shape only
-    // claims one lane regardless of how many segments it contributes.
-    const shapesInBundle: string[] = []
-    list.forEach((record) => {
-      if (!shapesInBundle.includes(record.shapeId)) shapesInBundle.push(record.shapeId)
-    })
-    shapesInBundle.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-
-    const laneCount = shapesInBundle.length
-    const shapeLane = new Map<string, number>()
-    shapesInBundle.forEach((shapeId, idx) => shapeLane.set(shapeId, idx))
-
-    list.forEach((record) => {
-      const laneIndex = shapeLane.get(record.shapeId) ?? 0
-      const key = `${record.shapeId}#${record.index}`
-      out.set(key, { ...record, laneIndex, laneCount })
-    })
-  })
-  return out
+  return { laneByRoute, laneCount: maxLane + 1 }
 }
 
 /**
- * Walk each route in order, emit one feature per maximal run of segments
- * that share the same lane signature inside their bundle. Each emitted
- * LineString is offset perpendicular to its travel direction by
- * `(laneIndex - (laneCount - 1) / 2) * laneSpacing`. This matches the
- * spread `-bundleWidth / 2 + i * lw` used in apply2DOffsets.
+ * Assign each visible route a lane index (smallest possible, given the
+ * overlap graph) and emit one feature per input shape with the centered
+ * offset stamped on. Renders correctly with
+ * `line-offset = ['*', ['get', 'offsetIndex'], spacingPx]` because
+ * MapLibre handles the perpendicular projection per pixel.
  */
-export function bundleRoutes(
-  routes: RouteInput[],
-  options: BundlingOptions,
-): BundledFeatureCollection {
-  const records = explodeSegments(routes, options)
-  const lanes = assignLanes(records)
+export function bundleRoutes(routes: RouteInput[]): BundledFeatureCollection {
+  const { laneByRoute, laneCount } = assignLanesByGreedyColoring(routes)
+  const center = (laneCount - 1) / 2
 
-  const features: GeoJSON.Feature<GeoJSON.LineString, BundledFeatureProperties>[] = []
-
-  for (const route of routes) {
-    const coords = route.coordinates
-    if (coords.length < 2) continue
-
-    type RunSegment = SegmentInBundle & { from: [number, number]; to: [number, number] }
-
-    let activeRun: RunSegment[] = []
-    let runIndex = 0
-
-    const flushRun = () => {
-      if (activeRun.length === 0) return
-      const first = activeRun[0]
-      const offsetDegrees =
-        (first.laneIndex - (first.laneCount - 1) / 2) * options.laneSpacingDegrees
-
-      // For each vertex along the run, use the bisector of adjacent
-      // segment perpendiculars so the offset polyline doesn't kink at
-      // every coordinate. transitive.js has a TODO for this in
-      // renderededge.js#getGeometricCoords; we just do it here.
-      const offsetCoords: [number, number][] = []
-      const perpAt = (idx: number, fallback: [number, number]): [number, number] => {
-        const seg = activeRun[idx]
-        if (!seg) return fallback
-        return seg.perpendicular
-      }
-      for (let i = 0; i <= activeRun.length; i++) {
-        const prev = perpAt(i - 1, activeRun[i]?.perpendicular ?? [0, 0])
-        const next = perpAt(i, activeRun[i - 1]?.perpendicular ?? [0, 0])
-        const px = (prev[0] + next[0]) / 2
-        const py = (prev[1] + next[1]) / 2
-        const len = Math.hypot(px, py) || 1
-        const ox = (px / len) * offsetDegrees
-        const oy = (py / len) * offsetDegrees
-        const vertex = i === 0 ? activeRun[0].from : activeRun[i - 1].to
-        offsetCoords.push([vertex[0] + ox, vertex[1] + oy])
-      }
-
-      features.push({
+  const features: GeoJSON.Feature<GeoJSON.LineString, BundledFeatureProperties>[] =
+    routes.map((route) => {
+      const lane = laneByRoute.get(route.routeShortName) ?? 0
+      return {
         type: 'Feature',
-        id: `${route.shapeId}#${runIndex++}`,
-        geometry: { type: 'LineString', coordinates: offsetCoords },
+        id: route.shapeId,
+        geometry: { type: 'LineString', coordinates: route.coordinates },
         properties: {
-          ...route.extra,
+          ...(route.extra ?? {}),
           routeShortName: route.routeShortName,
           shapeId: route.shapeId,
           routeColor: route.color,
-          laneIndex: first.laneIndex,
-          laneCount: first.laneCount,
-          offsetDegrees,
+          offsetIndex: lane - center,
+          laneCount,
         },
-      })
-      activeRun = []
-    }
-
-    for (let i = 0; i < coords.length - 1; i++) {
-      const lane = lanes.get(`${route.shapeId}#${i}`)
-      if (!lane) continue
-      const segment: RunSegment = {
-        ...lane,
-        from: coords[i],
-        to: coords[i + 1],
       }
-      if (activeRun.length === 0) {
-        activeRun.push(segment)
-        continue
-      }
-      const head = activeRun[0]
-      // Same lane signature -> chain. Different signature -> flush and start new run.
-      if (head.laneIndex === segment.laneIndex && head.laneCount === segment.laneCount) {
-        activeRun.push(segment)
-      } else {
-        flushRun()
-        activeRun.push(segment)
-      }
-    }
-    flushRun()
-  }
+    })
 
   return { type: 'FeatureCollection', features }
 }
 
 /**
- * Equivalent of transitive.js `ZoomFactor`. Each entry kicks in once the
- * map zoom is greater-than-or-equal to `minZoom`, taking precedence over
- * earlier (lower-zoom) entries. The lookup mirrors `updateActiveZoomFactors`
- * in lib/display/display.js — find the highest-minimum-zoom factor we are
- * still above.
- *
- * Higher zoom -> finer grid + tighter angle quantum + smaller spacing,
- * because at street-level we want to see distinct routes; lower zoom
- * groups more aggressively so the network reads as a clean schematic.
+ * Equivalent of transitive.js `ZoomFactor`. The active factor changes the
+ * lane spacing applied to `line-offset`, mirroring the way transitive.js
+ * varies `lw` (lane width) inside `apply2DOffsets` based on scale. Smaller
+ * spacing at low zoom keeps the bundle compact (schematic-feel); larger
+ * spacing at high zoom spreads lanes out so individual routes are clear.
  */
-export interface TransitiveZoomFactor extends BundlingOptions {
+export interface TransitiveZoomFactor {
   minZoom: number
+  /** Pixel spacing between adjacent lanes at this zoom tier. */
+  laneSpacingPx: number
+  /** Base line width in pixels at this zoom tier. */
+  lineWidthPx: number
+  /** Halo width in pixels at this zoom tier. */
+  haloWidthPx: number
 }
 
 export const DEFAULT_TRANSITIVE_ZOOM_FACTORS: TransitiveZoomFactor[] = [
-  // Schematic / regional view: aggressive bundling, wide lane spread.
-  {
-    minZoom: 0,
-    gridCellDegrees: 0.0035,
-    angleConstraintDegrees: 30,
-    laneSpacingDegrees: 0.0008,
-  },
-  {
-    minZoom: 12,
-    gridCellDegrees: 0.0018,
-    angleConstraintDegrees: 20,
-    laneSpacingDegrees: 0.0005,
-  },
-  // Street level: finer bundles, smaller offsets so they feel like
-  // adjacent paint stripes rather than separate routes.
-  {
-    minZoom: 14,
-    gridCellDegrees: 0.0008,
-    angleConstraintDegrees: 12,
-    laneSpacingDegrees: 0.00025,
-  },
-  {
-    minZoom: 16,
-    gridCellDegrees: 0.00035,
-    angleConstraintDegrees: 8,
-    laneSpacingDegrees: 0.00012,
-  },
+  { minZoom: 0, laneSpacingPx: 1.4, lineWidthPx: 1.6, haloWidthPx: 3 },
+  { minZoom: 12, laneSpacingPx: 1.8, lineWidthPx: 2.4, haloWidthPx: 4.5 },
+  { minZoom: 14, laneSpacingPx: 2.4, lineWidthPx: 3.2, haloWidthPx: 6 },
+  { minZoom: 16, laneSpacingPx: 3.2, lineWidthPx: 4.5, haloWidthPx: 8.5 },
 ]
 
 export function selectZoomFactor(
