@@ -417,13 +417,11 @@ export function AirQualityMap({
   useEffect(() => {
     if (!selectedRegionFeature || !mapRef.current) return
     const [minLon, minLat, maxLon, maxLat] = bbox(selectedRegionFeature)
-    mapRef.current.fitBounds(
-      [
-        [minLon, minLat],
-        [maxLon, maxLat]
-      ],
-      { padding: 50, duration: 800, maxZoom: 9 }
-    )
+    mapRef.current.flyTo({
+      center: [(minLon + maxLon) / 2, (minLat + maxLat) / 2],
+      zoom: mapRef.current.getZoom(),
+      duration: 800
+    })
   }, [selectedRegionFeature])
 
   useEffect(() => {

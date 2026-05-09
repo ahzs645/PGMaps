@@ -512,41 +512,46 @@ function TransitRouteLayers({
     [routes],
   )
 
-  // Pixels per lane index, interpolated on zoom. Mirrors the way
-  // transitive.js varies bundling severity by zoom factor: at low scale
-  // the network is heavily merged so overlapping routes collapse onto a
-  // shared corridor; as scale increases, bundling relaxes and routes
-  // separate into distinct lanes (see lib/display/display.js zoom
-  // factors `mergeVertexThreshold` 200 -> 0). MapLibre requires the
-  // zoom interpolation to live at the outermost level when combined with
-  // feature-data lookups, so we multiply inside each zoom stop.
+  // Pixels per lane index, interpolated on zoom. Mirrors the two-zone
+  // scale model in transitive.js (lib/display/display.js zoom factors:
+  // `mergeVertexThreshold` 200 at low scale, 0 at scale >= 1.5). Below
+  // the high-scale threshold all overlapping routes collapse onto a
+  // shared corridor (offset = 0); above it, each lane separates by
+  // ~1.2 px (the constant `lw` in lib/graph/graph.js apply2DOffsets).
+  // We translate Leaflet scale 1.5 -> MapLibre zoom ~14.5, hold the
+  // offset at 0 below that, then ramp up to clear lane separation by
+  // street-level zooms.
   const offsetExpr = useMemo(
     () => [
       'interpolate',
       ['linear'],
       ['zoom'],
-      // Zoomed way out: every route on the road centerline.
+      // Heavily merged: every route on the corridor centerline.
       10, ['*', ['get', 'offsetIndex'], 0],
-      12, ['*', ['get', 'offsetIndex'], 0],
-      // Mid zoom: lanes start to fan out.
-      14, ['*', ['get', 'offsetIndex'], 1.6],
-      // Street level: clearly separated parallel lanes.
-      16, ['*', ['get', 'offsetIndex'], 3.4],
-      18, ['*', ['get', 'offsetIndex'], 5],
+      14, ['*', ['get', 'offsetIndex'], 0],
+      // Cross the high-scale threshold: lanes begin to peel apart.
+      15, ['*', ['get', 'offsetIndex'], 0.9],
+      // Street level: clearly separated parallel lanes (~1.2 px lw).
+      16, ['*', ['get', 'offsetIndex'], 1.8],
+      17, ['*', ['get', 'offsetIndex'], 2.6],
+      18, ['*', ['get', 'offsetIndex'], 3.4],
     ],
     [],
   )
 
+  // Keep widths tight at low zoom so the merged stack reads as one bold
+  // corridor; thicken at street level once lanes have separated.
   const widthExpr = useMemo(
     () => [
       'interpolate',
       ['linear'],
       ['zoom'],
-      10, 1.6,
-      12, 2.4,
-      14, 3.2,
-      16, 4.5,
-      18, 6,
+      10, 1.4,
+      12, 1.8,
+      14, 2.2,
+      15, 2.6,
+      16, 3.4,
+      18, 4.5,
     ],
     [],
   )
@@ -555,11 +560,12 @@ function TransitRouteLayers({
       'interpolate',
       ['linear'],
       ['zoom'],
-      10, 3,
-      12, 4.5,
-      14, 6,
-      16, 8.5,
-      18, 11,
+      10, 2.6,
+      12, 3.4,
+      14, 4,
+      15, 4.6,
+      16, 6,
+      18, 8,
     ],
     [],
   )
