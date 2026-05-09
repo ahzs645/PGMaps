@@ -5,6 +5,8 @@ import type { RestaurantWithStats, HazardRating, Inspection } from '../types'
 
 interface InspectionPanelProps {
   restaurant: RestaurantWithStats
+  periodLabel?: string
+  useFilteredInspections?: boolean
   onClose: () => void
 }
 
@@ -42,10 +44,11 @@ function getRiskCategoryClass(category: string): string {
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 
-export function InspectionPanel({ restaurant, onClose }: InspectionPanelProps) {
+export function InspectionPanel({ restaurant, periodLabel, useFilteredInspections = false, onClose }: InspectionPanelProps) {
   const inspections = useMemo(() => {
-    return restaurant.inspections || []
-  }, [restaurant])
+    const source = useFilteredInspections ? restaurant.filteredInspections : restaurant.inspections
+    return source || []
+  }, [restaurant, useFilteredInspections])
 
   const totalViolations = useMemo(() => {
     return inspections.reduce((sum, insp) => {
@@ -90,6 +93,11 @@ export function InspectionPanel({ restaurant, onClose }: InspectionPanelProps) {
               <p className="mt-1 text-sm text-muted-foreground">
                 {restaurant.full_address || restaurant.address}
               </p>
+              {useFilteredInspections && periodLabel && (
+                <p className="mt-1 text-xs font-medium text-sky-600 dark:text-sky-400">
+                  Showing inspections for {periodLabel}
+                </p>
+              )}
             </div>
             <button
               onClick={onClose}
@@ -145,6 +153,7 @@ export function InspectionPanel({ restaurant, onClose }: InspectionPanelProps) {
           {inspections.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               No inspection records available
+              {useFilteredInspections && periodLabel ? ` for ${periodLabel}` : ''}
             </div>
           ) : (
             <div className="space-y-6">

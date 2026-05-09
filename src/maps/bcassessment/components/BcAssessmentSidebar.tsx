@@ -69,10 +69,8 @@ interface BcAssessmentSidebarProps {
 
 const ASSESSMENT_BOUNDARY_SOURCES = new Set<AssessmentBoundarySource>([
   'bcHealth',
-  'regionalDistrict',
   'census',
   'cityPG',
-  'watershed',
 ])
 
 function isAssessmentBoundarySource(value: string): value is AssessmentBoundarySource {

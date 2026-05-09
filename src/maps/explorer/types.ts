@@ -5,11 +5,18 @@ export type ExplorerDatasetId =
   | 'crime'
   | 'restaurants'
   | 'parkAmenities'
+  | 'transitStops'
+  | 'icbcCrashes'
+  | 'wildlifeAccidents'
   | 'trails'
+  | 'transitRoutes'
   | 'parks'
+  | 'bcAssessment'
   | 'censusDa'
   | 'censusCt'
   | 'censusCsd'
+  | 'censusCd'
+  | 'censusDb'
 
 export interface GeometryBounds {
   minLng: number

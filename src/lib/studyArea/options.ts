@@ -56,11 +56,6 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     label: 'Natural Resource admin',
     description: 'BC NR Areas, Regions, and Districts',
   },
-  {
-    value: 'uwr',
-    label: 'Ungulate Winter Range',
-    description: 'Approved UWR legal orders',
-  },
   // crownTenure / rangeTenure / mineralTenure are intentionally hidden from
   // the sidebar: at PG-region scale they return 6k-8k polygons each (~7MB
   // geojson), which the client-side fetch + render pipeline can't handle

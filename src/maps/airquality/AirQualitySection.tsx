@@ -22,6 +22,7 @@ import type {
   AirMonitor,
   AirQualityAreaStats,
   AirQualityBasemap,
+  AirQualityBoundaryColorMetric,
   AirQualityCorrectionModel,
   AirQualityObservationLayer,
   BoundarySource,
@@ -90,6 +91,14 @@ type BoundaryPickerFeature = GeoJSON.Feature<
     code: string
     name: string
     monitorCount: number
+    lowCostDensity: number
+    otherDensity: number
+    overallDensity: number
+    correctedPm25Average: number | null
+    rawPm25Average: number | null
+    networkCount: number
+    colorValue: number | null
+    hasColorValue: boolean
   }
 >
 
@@ -97,7 +106,20 @@ interface BoundaryLegendStats {
   areaCount: number
   monitoredAreaCount: number
   totalMonitors: number
-  maxMonitorCount: number
+  maxColorValue: number
+}
+
+interface BoundaryRegionStats {
+  monitorCount: number
+  lowCostCount: number
+  otherCount: number
+  areaKm2: number
+  lowCostDensity: number
+  otherDensity: number
+  overallDensity: number
+  rawPm25Average: number | null
+  correctedPm25Average: number | null
+  networkCount: number
 }
 
 function isBoundarySource(value: string | null): value is BoundarySource {
@@ -109,6 +131,18 @@ function isBoundarySource(value: string | null): value is BoundarySource {
     value === 'watershed' ||
     value === 'nrAdmin' ||
     value === 'uwr'
+  )
+}
+
+function isBoundaryColorMetric(value: string | null): value is AirQualityBoundaryColorMetric {
+  return (
+    value === 'sensorCount' ||
+    value === 'overallDensity' ||
+    value === 'lowCostDensity' ||
+    value === 'otherDensity' ||
+    value === 'correctedPm25' ||
+    value === 'rawPm25' ||
+    value === 'networkCount'
   )
 }
 
@@ -230,6 +264,78 @@ function calculateAreaStats(
   }
 }
 
+function createEmptyBoundaryStats(areaKm2: number): BoundaryRegionStats {
+  return {
+    monitorCount: 0,
+    lowCostCount: 0,
+    otherCount: 0,
+    areaKm2,
+    lowCostDensity: 0,
+    otherDensity: 0,
+    overallDensity: 0,
+    rawPm25Average: null,
+    correctedPm25Average: null,
+    networkCount: 0,
+  }
+}
+
+function getBoundaryColorValue(
+  stats: BoundaryRegionStats,
+  metric: AirQualityBoundaryColorMetric
+): number | null {
+  switch (metric) {
+    case 'sensorCount':
+      return stats.monitorCount
+    case 'overallDensity':
+      return stats.overallDensity
+    case 'lowCostDensity':
+      return stats.lowCostDensity
+    case 'otherDensity':
+      return stats.otherDensity
+    case 'correctedPm25':
+      return stats.correctedPm25Average
+    case 'rawPm25':
+      return stats.rawPm25Average
+    case 'networkCount':
+      return stats.networkCount
+  }
+}
+
+function getBoundaryMetricLabel(metric: AirQualityBoundaryColorMetric): string {
+  switch (metric) {
+    case 'sensorCount':
+      return 'Total sensors'
+    case 'overallDensity':
+      return 'Sensors per km²'
+    case 'lowCostDensity':
+      return 'Low-cost sensors per km²'
+    case 'otherDensity':
+      return 'Other sensors per km²'
+    case 'correctedPm25':
+      return 'Corrected PM2.5'
+    case 'rawPm25':
+      return 'Raw PM2.5'
+    case 'networkCount':
+      return 'Networks'
+  }
+}
+
+function formatBoundaryMetricValue(value: number, metric: AirQualityBoundaryColorMetric): string {
+  if (!Number.isFinite(value)) return 'No data'
+  switch (metric) {
+    case 'sensorCount':
+    case 'networkCount':
+      return Math.round(value).toLocaleString()
+    case 'overallDensity':
+    case 'lowCostDensity':
+    case 'otherDensity':
+      return value > 0 ? `1 per ${(1 / value).toFixed(1)} km²` : '0'
+    case 'correctedPm25':
+    case 'rawPm25':
+      return `${value.toFixed(1)} ug/m3`
+  }
+}
+
 export default function AirQualitySection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { monitors, loading, error } = useAirQualityData()
@@ -256,6 +362,10 @@ export default function AirQualitySection() {
   const [showPoints, setShowPoints] = useState(() => searchParams.get('points') !== '0')
   const [basemap, setBasemap] = useState<AirQualityBasemap>(() => (searchParams.get('basemap') as AirQualityBasemap) || 'light')
   const [correctionModel, setCorrectionModel] = useState<AirQualityCorrectionModel>(() => (searchParams.get('model') as AirQualityCorrectionModel) || 'epaBarkjohn')
+  const [boundaryColorMetric, setBoundaryColorMetric] = useState<AirQualityBoundaryColorMetric>(() => {
+    const candidate = searchParams.get('poly')
+    return isBoundaryColorMetric(candidate) ? candidate : 'sensorCount'
+  })
   const [observationLayers, setObservationLayers] = useState<AirQualityObservationLayer[]>(DEFAULT_OBSERVATION_LAYERS)
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
@@ -298,6 +408,8 @@ export default function AirQualitySection() {
     else params.delete('basemap')
     if (correctionModel !== 'epaBarkjohn') params.set('model', correctionModel)
     else params.delete('model')
+    if (boundaryColorMetric !== 'sensorCount') params.set('poly', boundaryColorMetric)
+    else params.delete('poly')
     if (selectedMonitor) params.set('monitor', selectedMonitor.id)
     else params.delete('monitor')
     if (selectedRegionCode) params.set('region', selectedRegionCode)
@@ -305,7 +417,7 @@ export default function AirQualitySection() {
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [basemap, boundarySource, correctionModel, searchParams, searchQuery, selectedMonitor, selectedRegionCode, selectedRegionLevel, setSearchParams, showHeatmap, showPoints])
+  }, [basemap, boundaryColorMetric, boundarySource, correctionModel, searchParams, searchQuery, selectedMonitor, selectedRegionCode, selectedRegionLevel, setSearchParams, showHeatmap, showPoints])
 
   const regionLevelOptions = useMemo(() => {
     return getLevelOptionsForSource(boundarySource).map((option) => ({
@@ -380,10 +492,19 @@ export default function AirQualitySection() {
     })
   }, [monitors, observationLayers, searchQuery, selectedNetworks])
 
-  const boundaryMonitorCountByCode = useMemo(() => {
-    const counts = new Map<string, number>()
-    studyAreaRegions.forEach((region) => counts.set(region.code, 0))
-    if (studyAreaRegions.length === 0 || !boundaryScopeBounds) return counts
+  const boundaryStatsByCode = useMemo(() => {
+    const statsByCode = new Map<string, BoundaryRegionStats>()
+    const rawValuesByCode = new Map<string, number[]>()
+    const correctedValuesByCode = new Map<string, number[]>()
+    const networksByCode = new Map<string, Set<string>>()
+
+    studyAreaRegions.forEach((region) => {
+      statsByCode.set(region.code, createEmptyBoundaryStats(region.areaKm2))
+      rawValuesByCode.set(region.code, [])
+      correctedValuesByCode.set(region.code, [])
+      networksByCode.set(region.code, new Set<string>())
+    })
+    if (studyAreaRegions.length === 0 || !boundaryScopeBounds) return statsByCode
 
     boundaryFilteredMonitors
       .filter((monitor) => isMonitorInFeatureBounds(monitor, boundaryScopeBounds))
@@ -393,41 +514,75 @@ export default function AirQualitySection() {
           isMonitorInRegionFeature(monitor, candidate.feature)
         ))
         if (region) {
-          counts.set(region.code, (counts.get(region.code) ?? 0) + 1)
+          const stats = statsByCode.get(region.code)
+          if (!stats) return
+
+          const correction = calculateCorrectedPm25(monitor, correctionModel)
+          stats.monitorCount += 1
+          if (LOW_COST_NETWORKS.has(monitor.network)) stats.lowCostCount += 1
+          else stats.otherCount += 1
+          if (correction.rawPm25 !== null) rawValuesByCode.get(region.code)?.push(correction.rawPm25)
+          if (correction.correctedPm25 !== null) correctedValuesByCode.get(region.code)?.push(correction.correctedPm25)
+          networksByCode.get(region.code)?.add(monitor.network)
         }
       })
 
-    return counts
-  }, [boundaryFilteredMonitors, boundaryScopeBounds, studyAreaRegions])
+    statsByCode.forEach((stats, code) => {
+      stats.lowCostDensity = stats.areaKm2 > 0 ? stats.lowCostCount / stats.areaKm2 : 0
+      stats.otherDensity = stats.areaKm2 > 0 ? stats.otherCount / stats.areaKm2 : 0
+      stats.overallDensity = stats.areaKm2 > 0 ? stats.monitorCount / stats.areaKm2 : 0
+      stats.rawPm25Average = average(rawValuesByCode.get(code) ?? [])
+      stats.correctedPm25Average = average(correctedValuesByCode.get(code) ?? [])
+      stats.networkCount = networksByCode.get(code)?.size ?? 0
+    })
+
+    return statsByCode
+  }, [boundaryFilteredMonitors, boundaryScopeBounds, correctionModel, studyAreaRegions])
 
   const boundaryLegendStats = useMemo<BoundaryLegendStats | null>(() => {
     if (studyAreaRegions.length === 0) return null
-    const counts = studyAreaRegions.map((region) => boundaryMonitorCountByCode.get(region.code) ?? 0)
+    const stats = studyAreaRegions.map((region) => boundaryStatsByCode.get(region.code) ?? createEmptyBoundaryStats(region.areaKm2))
+    const colorValues = stats
+      .map((item) => getBoundaryColorValue(item, boundaryColorMetric))
+      .filter((value): value is number => value !== null && Number.isFinite(value))
     return {
       areaCount: studyAreaRegions.length,
-      monitoredAreaCount: counts.filter((count) => count > 0).length,
-      totalMonitors: counts.reduce((sum, count) => sum + count, 0),
-      maxMonitorCount: Math.max(0, ...counts),
+      monitoredAreaCount: stats.filter((item) => item.monitorCount > 0).length,
+      totalMonitors: stats.reduce((sum, item) => sum + item.monitorCount, 0),
+      maxColorValue: Math.max(0, ...colorValues),
     }
-  }, [boundaryMonitorCountByCode, studyAreaRegions])
+  }, [boundaryColorMetric, boundaryStatsByCode, studyAreaRegions])
 
   const mapBoundaryFeatures = useMemo<BoundaryPickerFeature[]>(() => {
-    return studyAreaRegions.map((region) => ({
-      type: 'Feature',
-      geometry: region.feature.geometry,
-      properties: {
-        code: region.code,
-        name: region.name,
-        monitorCount: boundaryMonitorCountByCode.get(region.code) ?? 0,
-      },
-    }))
-  }, [boundaryMonitorCountByCode, studyAreaRegions])
+    return studyAreaRegions.map((region) => {
+      const stats = boundaryStatsByCode.get(region.code) ?? createEmptyBoundaryStats(region.areaKm2)
+      const colorValue = getBoundaryColorValue(stats, boundaryColorMetric)
+      const hasColorValue = colorValue !== null && Number.isFinite(colorValue)
+      return {
+        type: 'Feature',
+        geometry: region.feature.geometry,
+        properties: {
+          code: region.code,
+          name: region.name,
+          monitorCount: stats.monitorCount,
+          lowCostDensity: stats.lowCostDensity,
+          otherDensity: stats.otherDensity,
+          overallDensity: stats.overallDensity,
+          correctedPm25Average: stats.correctedPm25Average,
+          rawPm25Average: stats.rawPm25Average,
+          networkCount: stats.networkCount,
+          colorValue,
+          hasColorValue,
+        },
+      }
+    })
+  }, [boundaryColorMetric, boundaryStatsByCode, studyAreaRegions])
 
   const mapBoundaryFeatureCollection = useMemo(() => {
     return {
       type: 'FeatureCollection',
       features: mapBoundaryFeatures
-    } satisfies GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, { code: string; name: string; monitorCount: number }>
+    } satisfies GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, BoundaryPickerFeature['properties']>
   }, [mapBoundaryFeatures])
 
   const filteredMonitors = useMemo(() => {
@@ -584,11 +739,13 @@ export default function AirQualitySection() {
           showHeatmap={showHeatmap}
           showPoints={showPoints}
           basemap={basemap}
+          boundaryColorMetric={boundaryColorMetric}
           correctionModel={correctionModel}
           observationLayers={observationLayers}
           loading={loading}
           error={error}
           onBasemapChange={setBasemap}
+          onBoundaryColorMetricChange={setBoundaryColorMetric}
           onCorrectionModelChange={setCorrectionModel}
           onToggleObservationLayer={toggleObservationLayer}
           onBoundarySourceChange={handleBoundarySourceChange}
@@ -616,7 +773,8 @@ export default function AirQualitySection() {
               ? selectedRegion.code
               : null
           }
-          maxBrowseBoundaryMonitorCount={boundaryLegendStats?.maxMonitorCount ?? 0}
+          browseBoundaryColorMetric={boundaryColorMetric}
+          maxBrowseBoundaryColorValue={boundaryLegendStats?.maxColorValue ?? 0}
           showHeatmap={showHeatmap}
           showPoints={showPoints}
           basemap={basemap}
@@ -637,12 +795,14 @@ export default function AirQualitySection() {
                 <div
                   className="h-2 w-40 rounded"
                   style={{
-                    background: 'linear-gradient(90deg, #e0f2fe 0%, #7dd3fc 35%, #0ea5e9 70%, #0369a1 100%)',
+                    background: boundaryColorMetric === 'correctedPm25' || boundaryColorMetric === 'rawPm25'
+                      ? 'linear-gradient(90deg, #dcfce7 0%, #fde047 35%, #fb923c 70%, #b91c1c 100%)'
+                      : 'linear-gradient(90deg, #e0f2fe 0%, #7dd3fc 35%, #0ea5e9 70%, #0369a1 100%)',
                   }}
                 />
                 <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>0 monitors</span>
-                  <span>{boundaryLegendStats.maxMonitorCount.toLocaleString()} max</span>
+                  <span>{getBoundaryMetricLabel(boundaryColorMetric)}</span>
+                  <span>{formatBoundaryMetricValue(boundaryLegendStats.maxColorValue, boundaryColorMetric)} max</span>
                 </div>
                 <div className="pt-1 text-xs text-muted-foreground">
                   {boundaryLegendStats.monitoredAreaCount.toLocaleString()} of {boundaryLegendStats.areaCount.toLocaleString()} areas have monitors

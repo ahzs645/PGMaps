@@ -53,6 +53,7 @@ export type EstablishmentType =
   | 'Community Kitchen' | 'Social Services' | 'Gas Station' | 'Hotel'
   | 'Recreation' | 'Farm' | 'Institutional Kitchen' | 'Store' | 'Other' | 'Unknown'
 export type VisualizationMode = 'violations' | 'hazard'
+export type ViolationTimelineMode = 'period' | 'cumulative'
 
 export interface Restaurant {
   name: string

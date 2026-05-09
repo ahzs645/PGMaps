@@ -4,6 +4,8 @@ import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { HeatmapMashupLayer, type HeatmapDataset } from '@/components/HeatmapMashupLayer'
 import { NeighborhoodReport } from '@/components/NeighborhoodReport'
 import { useAirQualityData } from '@/maps/airquality'
+import { useBcAssessmentData } from '@/maps/bcassessment/hooks/useBcAssessmentData'
+import type { PropertyCategory } from '@/maps/bcassessment/types'
 import { useCensusData } from '@/maps/census/hooks/useCensusData'
 import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
 import type { HazardRating, Inspection } from '@/maps/foodmap/types'
@@ -11,6 +13,8 @@ import { useParksData } from '@/maps/parks/hooks/useParksData'
 import type { ParkClassification, TrailUserClass } from '@/maps/parks/types'
 import { getCrimeCategory } from '@/maps/pgdata/constants'
 import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
+import { useTransitData } from '@/maps/scorebuilder/hooks/useTransitData'
+import { useExplorerGeoJson } from './hooks/useExplorerGeoJson'
 import {
   datasetById,
   EXPLORER_DATASETS,
@@ -34,6 +38,49 @@ import type {
 const ALL_GEOMETRY_TYPES: ExplorerGeometryType[] = ['point', 'line', 'polygon']
 const ALL_DATASET_IDS: ExplorerDatasetId[] = EXPLORER_DATASETS.map((dataset) => dataset.id)
 const EXPLORER_SESSION_NOW = Date.now()
+
+interface TransitRouteProperties {
+  routeId: string
+  routeShortName: string
+  routeLongName: string
+  routeColor: string
+  shapeId: string
+  headsigns?: string[]
+  directions?: string[]
+  pointCount?: number
+}
+
+interface IcbcCrashProperties {
+  dataset: string
+  datasetTitle: string
+  location: string
+  municipality: string
+  crashCount: number
+  sourceLocationName: string
+  geocodeMatchType: string
+}
+
+interface WildlifeAccidentProperties {
+  id: string
+  accidentDate: string
+  year: number
+  timeOfKill: string
+  nearestTown: string
+  species: string
+  quantity: number
+  sourceFile: string
+}
+
+const PROPERTY_CATEGORY_WEIGHT: Record<PropertyCategory, number> = {
+  residential: 6,
+  'multi-family': 10,
+  commercial: 12,
+  industrial: 11,
+  institutional: 10,
+  vacant: 4,
+  farm: 6,
+  other: 5
+}
 
 type SortMode = 'relevance' | 'name'
 
@@ -163,6 +210,18 @@ export default function ExplorerSection() {
   const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData()
   const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData()
   const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData()
+  const { stops: transitStops, loading: loadingTransit, error: transitError } = useTransitData()
+  const transitRoutesState = useExplorerGeoJson<GeoJSON.LineString, TransitRouteProperties>(
+    '/data/transit/prince_george_gtfs_routes.geojson',
+  )
+  const icbcCrashesState = useExplorerGeoJson<GeoJSON.Point, IcbcCrashProperties>(
+    '/data/icbc/prince_george_crash_locations.geojson',
+  )
+  const wildlifeState = useExplorerGeoJson<GeoJSON.Point, WildlifeAccidentProperties>(
+    '/data/wars/prince_george_wildlife_accidents.geojson',
+  )
+  const bcAssessmentEnabled = activeDatasetIds.includes('bcAssessment')
+  const { properties: bcParcels, loading: loadingBcAssessment, error: bcAssessmentError } = useBcAssessmentData(bcAssessmentEnabled)
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -601,13 +660,326 @@ export default function ExplorerSection() {
     return items
   }, [censusCsdRange, unitsByLevel.csd])
 
+  // Census CD items
+  const censusCdRange = useMemo(() => {
+    const cdUnits = unitsByLevel.cd
+    const populations = cdUnits.map((u) => u.population || 0).filter(Number.isFinite)
+    const densities = cdUnits.map((u) => u.populationDensity || 0).filter(Number.isFinite)
+    return {
+      populationMin: populations.length ? Math.min(...populations) : 0,
+      populationMax: populations.length ? Math.max(...populations) : 1,
+      densityMin: densities.length ? Math.min(...densities) : 0,
+      densityMax: densities.length ? Math.max(...densities) : 1
+    }
+  }, [unitsByLevel.cd])
+
+  const censusCdItems = useMemo<ExplorerItem[]>(() => {
+    const items: ExplorerItem[] = []
+    unitsByLevel.cd.forEach((unit) => {
+      const population = unit.population || 0
+      const density = unit.populationDensity || 0
+      const popNorm = normalize(population, censusCdRange.populationMin, censusCdRange.populationMax)
+      const densityNorm = normalize(density, censusCdRange.densityMin, censusCdRange.densityMax)
+      const densityPts = Math.round(densityNorm * 44)
+      const popPts = Math.round(popNorm * 32)
+      const relevance = clampScore(22 + densityPts + popPts)
+      const bounds = geometryBounds(unit.geometry)
+      if (!bounds) return
+      items.push({
+        id: `census-cd:${unit.id}`, datasetId: 'censusCd', geometryType: 'polygon',
+        name: unit.name, subtitle: `CD ${unit.id}`, relevance,
+        relevanceBreakdown: [
+          { label: 'Base', points: 22 },
+          { label: 'Pop. density (norm)', points: densityPts },
+          { label: 'Population (norm)', points: popPts }
+        ],
+        summary: `Population ${population.toLocaleString()} with density ${density.toLocaleString(undefined, { maximumFractionDigits: 1 })} /km².`,
+        bounds, geometry: unit.geometry,
+        details: [
+          { label: 'Population', value: population.toLocaleString() },
+          { label: 'Density', value: density.toLocaleString(undefined, { maximumFractionDigits: 1 }) },
+          { label: 'Households', value: (unit.households || 0).toLocaleString() },
+          { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString() },
+          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }
+        ]
+      })
+    })
+    return items
+  }, [censusCdRange, unitsByLevel.cd])
+
+  // Census DB items
+  const censusDbRange = useMemo(() => {
+    const dbUnits = unitsByLevel.db
+    const populations = dbUnits.map((u) => u.population || 0).filter(Number.isFinite)
+    return {
+      populationMin: populations.length ? Math.min(...populations) : 0,
+      populationMax: populations.length ? Math.max(...populations) : 1
+    }
+  }, [unitsByLevel.db])
+
+  const censusDbItems = useMemo<ExplorerItem[]>(() => {
+    const items: ExplorerItem[] = []
+    unitsByLevel.db.forEach((unit) => {
+      const population = unit.population || 0
+      const popNorm = normalize(population, censusDbRange.populationMin, censusDbRange.populationMax)
+      const popPts = Math.round(popNorm * 60)
+      const relevance = clampScore(20 + popPts)
+      const bounds = geometryBounds(unit.geometry)
+      if (!bounds) return
+      items.push({
+        id: `census-db:${unit.id}`, datasetId: 'censusDb', geometryType: 'polygon',
+        name: unit.name, subtitle: `DB ${unit.id}`, relevance,
+        relevanceBreakdown: [
+          { label: 'Base', points: 20 },
+          { label: 'Population (norm)', points: popPts }
+        ],
+        summary: `Census block with population ${population.toLocaleString()}.`,
+        bounds, geometry: unit.geometry,
+        details: [
+          { label: 'Population', value: population.toLocaleString() },
+          { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString() },
+          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 4 }) }
+        ]
+      })
+    })
+    return items
+  }, [censusDbRange, unitsByLevel.db])
+
+  // Transit stops (point)
+  const transitStopItems = useMemo<ExplorerItem[]>(() => {
+    return transitStops
+      .filter((stop) => Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude))
+      .map((stop) => {
+        const shelterPts = stop.hasShelter ? 16 : 4
+        const accessPts = stop.accessible ? 12 : 4
+        const tripsPts = Math.min(Math.round(stop.weekdayTrips / 4), 24)
+        const frequentPts = stop.frequent ? 10 : 0
+        const relevance = clampScore(20 + shelterPts + accessPts + tripsPts + frequentPts)
+        const geometry: GeoJSON.Point = { type: 'Point', coordinates: [stop.longitude, stop.latitude] }
+        return {
+          id: `transit-stop:${stop.id}`,
+          datasetId: 'transitStops' as const,
+          geometryType: 'point' as const,
+          name: stop.name,
+          subtitle: stop.frequent ? 'Frequent service' : `${stop.weekdayTrips} weekday trips`,
+          relevance,
+          relevanceBreakdown: [
+            { label: 'Base', points: 20 },
+            { label: stop.hasShelter ? 'Has shelter' : 'No shelter', points: shelterPts },
+            { label: stop.accessible ? 'Accessible' : 'Not accessible', points: accessPts },
+            { label: 'Weekday trips', points: tripsPts },
+            { label: stop.frequent ? 'Frequent service' : 'Standard service', points: frequentPts }
+          ],
+          summary: `${stop.weekdayTrips} weekday trips across ${stop.serviceSpanHours.toFixed(1)} hr service span.`,
+          bounds: createPointBounds(stop.longitude, stop.latitude),
+          geometry,
+          details: [
+            { label: 'Stop ID', value: stop.id },
+            { label: 'Shelter', value: stop.hasShelter ? 'Yes' : 'No' },
+            { label: 'Accessible', value: stop.accessible ? 'Yes' : 'No' },
+            { label: 'Weekday trips', value: stop.weekdayTrips.toLocaleString() },
+            { label: 'Service span (hr)', value: stop.serviceSpanHours.toFixed(1) },
+            { label: 'Status', value: formatNullableText(stop.status, 'Unknown') }
+          ]
+        }
+      })
+  }, [transitStops])
+
+  // Transit routes (line)
+  const transitRouteItems = useMemo<ExplorerItem[]>(() => {
+    const items: ExplorerItem[] = []
+    transitRoutesState.features.forEach((feature) => {
+      const geometry = feature.geometry
+      if (geometry.type !== 'LineString') return
+      const props = feature.properties
+      const bounds = geometryBounds(geometry)
+      if (!bounds) return
+      const pointCount = props.pointCount ?? geometry.coordinates.length
+      const lengthPts = Math.min(Math.round(pointCount / 12), 40)
+      const headsignPts = (props.headsigns && props.headsigns.length > 1) ? 10 : 5
+      const directionPts = (props.directions && props.directions.length > 1) ? 8 : 4
+      const relevance = clampScore(28 + lengthPts + headsignPts + directionPts)
+      items.push({
+        id: `transit-route:${props.routeId}-${props.shapeId}`,
+        datasetId: 'transitRoutes',
+        geometryType: 'line',
+        name: `Route ${props.routeShortName} | ${props.routeLongName}`,
+        subtitle: (props.headsigns && props.headsigns[0]) || props.routeLongName,
+        relevance,
+        relevanceBreakdown: [
+          { label: 'Base', points: 28 },
+          { label: 'Shape length', points: lengthPts },
+          { label: 'Headsigns', points: headsignPts },
+          { label: 'Directions', points: directionPts }
+        ],
+        summary: `Bus route ${props.routeShortName} (${props.routeLongName}) with ${pointCount} shape points.`,
+        bounds, geometry,
+        details: [
+          { label: 'Route', value: props.routeShortName },
+          { label: 'Long name', value: props.routeLongName },
+          { label: 'Headsigns', value: (props.headsigns || []).join(', ') || 'N/A' },
+          { label: 'Shape ID', value: props.shapeId }
+        ]
+      })
+    })
+    return items
+  }, [transitRoutesState.features])
+
+  // ICBC crashes (point)
+  const icbcMaxCount = useMemo(() => {
+    return icbcCrashesState.features.reduce((max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0), 0)
+  }, [icbcCrashesState.features])
+
+  const icbcItems = useMemo<ExplorerItem[]>(() => {
+    return icbcCrashesState.features
+      .filter((feature) => feature.geometry.type === 'Point')
+      .map((feature) => {
+        const [longitude, latitude] = feature.geometry.coordinates
+        const props = feature.properties
+        const crashCount = Number(props.crashCount) || 0
+        const countNorm = icbcMaxCount > 0 ? crashCount / icbcMaxCount : 0
+        const countPts = Math.round(countNorm * 60)
+        const matchPts = props.geocodeMatchType?.includes('intersection') ? 10 : 5
+        const relevance = clampScore(20 + countPts + matchPts)
+        return {
+          id: `icbc:${props.dataset}-${props.location}`,
+          datasetId: 'icbcCrashes' as const,
+          geometryType: 'point' as const,
+          name: props.location || 'Crash location',
+          subtitle: `${crashCount.toLocaleString()} crashes | ${props.datasetTitle}`,
+          relevance,
+          relevanceBreakdown: [
+            { label: 'Base', points: 20 },
+            { label: 'Crash count (norm)', points: countPts },
+            { label: 'Geocode quality', points: matchPts }
+          ],
+          summary: `${crashCount} crashes reported at this location (${props.datasetTitle}).`,
+          bounds: createPointBounds(longitude, latitude),
+          geometry: feature.geometry,
+          details: [
+            { label: 'Location', value: formatNullableText(props.location, 'Unknown') },
+            { label: 'Municipality', value: formatNullableText(props.municipality, 'Unknown') },
+            { label: 'Crashes', value: crashCount.toLocaleString() },
+            { label: 'Dataset', value: formatNullableText(props.datasetTitle, 'Unknown') },
+            { label: 'Match type', value: formatNullableText(props.geocodeMatchType, 'Unknown') }
+          ]
+        }
+      })
+  }, [icbcCrashesState.features, icbcMaxCount])
+
+  // Wildlife accidents (point)
+  const wildlifeItems = useMemo<ExplorerItem[]>(() => {
+    return wildlifeState.features
+      .filter((feature) => feature.geometry.type === 'Point')
+      .filter((feature) => {
+        if (!dateFrom && !dateTo) return true
+        const dateStr = feature.properties.accidentDate
+        if (!dateStr) return false
+        const ts = new Date(dateStr).getTime()
+        if (dateFrom && ts < dateFrom) return false
+        if (dateTo && ts > dateTo) return false
+        return true
+      })
+      .map((feature) => {
+        const [longitude, latitude] = feature.geometry.coordinates
+        const props = feature.properties
+        const quantity = Number(props.quantity) || 1
+        const ageYears = Math.max(0, (new Date().getFullYear() - props.year))
+        const recencyPts = Math.round(Math.max(0, 30 - Math.min(ageYears * 1.5, 30)))
+        const quantityPts = Math.min(quantity * 6, 24)
+        const speciesPts = props.species && props.species !== 'UNKNOWN' ? 10 : 4
+        const relevance = clampScore(22 + recencyPts + quantityPts + speciesPts)
+        return {
+          id: `wars:${props.sourceFile}-${props.id}`,
+          datasetId: 'wildlifeAccidents' as const,
+          geometryType: 'point' as const,
+          name: `${props.species || 'Wildlife'} (${props.year})`,
+          subtitle: `${formatNullableText(props.nearestTown, 'Unknown town')} | ${quantity} animal(s)`,
+          relevance,
+          relevanceBreakdown: [
+            { label: 'Base', points: 22 },
+            { label: 'Recency', points: recencyPts },
+            { label: 'Quantity', points: quantityPts },
+            { label: 'Species known', points: speciesPts }
+          ],
+          summary: `${quantity} ${props.species || 'wildlife'} struck near ${formatNullableText(props.nearestTown, 'an unknown town')} on ${props.accidentDate}.`,
+          bounds: createPointBounds(longitude, latitude),
+          geometry: feature.geometry,
+          details: [
+            { label: 'Species', value: formatNullableText(props.species, 'Unknown') },
+            { label: 'Year', value: String(props.year) },
+            { label: 'Date', value: formatNullableText(props.accidentDate, 'Unknown') },
+            { label: 'Town', value: formatNullableText(props.nearestTown, 'Unknown') },
+            { label: 'Quantity', value: quantity.toLocaleString() },
+            { label: 'Time', value: formatNullableText(props.timeOfKill, 'Unknown') }
+          ],
+          timestamp: props.accidentDate ? new Date(props.accidentDate).getTime() : undefined
+        }
+      })
+  }, [dateFrom, dateTo, wildlifeState.features])
+
+  // BC Assessment parcels (polygon)
+  const bcAssessmentRange = useMemo(() => {
+    const values = bcParcels.map((p) => p.totalAssessed || 0).filter((v) => v > 0)
+    return {
+      min: values.length ? Math.min(...values) : 0,
+      max: values.length ? Math.max(...values) : 1
+    }
+  }, [bcParcels])
+
+  const bcAssessmentItems = useMemo<ExplorerItem[]>(() => {
+    const items: ExplorerItem[] = []
+    bcParcels.forEach((property) => {
+      const bounds = geometryBounds(property.geometry)
+      if (!bounds) return
+      const valueNorm = normalize(property.totalAssessed, bcAssessmentRange.min, bcAssessmentRange.max)
+      const valuePts = Math.round(valueNorm * 38)
+      const categoryPts = PROPERTY_CATEGORY_WEIGHT[property.category] ?? 5
+      const yearPts = property.yearBuilt ? Math.min(Math.max(property.yearBuilt - 1950, 0) / 2, 16) : 0
+      const relevance = clampScore(20 + valuePts + categoryPts + Math.round(yearPts))
+      items.push({
+        id: `parcel:${property.id || property.roll}`,
+        datasetId: 'bcAssessment',
+        geometryType: 'polygon',
+        name: property.address || property.roll || 'Parcel',
+        subtitle: `${property.category} | $${(property.totalAssessed || 0).toLocaleString()}`,
+        relevance,
+        relevanceBreakdown: [
+          { label: 'Base', points: 20 },
+          { label: 'Assessed value (norm)', points: valuePts },
+          { label: `${property.category}`, points: categoryPts },
+          { label: 'Year built', points: Math.round(yearPts) }
+        ],
+        summary: `${property.category} parcel assessed at $${(property.totalAssessed || 0).toLocaleString()}.`,
+        bounds, geometry: property.geometry,
+        details: [
+          { label: 'Address', value: formatNullableText(property.address, 'Unknown') },
+          { label: 'Category', value: property.category },
+          { label: 'Total assessed', value: `$${(property.totalAssessed || 0).toLocaleString()}` },
+          { label: 'Land', value: `$${(property.totalLand || 0).toLocaleString()}` },
+          { label: 'Building', value: `$${(property.totalBuilding || 0).toLocaleString()}` },
+          { label: 'Year built', value: property.yearBuilt ? String(property.yearBuilt) : 'Unknown' },
+          { label: 'Roll', value: formatNullableText(property.roll, 'Unknown') }
+        ]
+      })
+    })
+    return items
+  }, [bcParcels, bcAssessmentRange.max, bcAssessmentRange.min])
+
   const allItems = useMemo(() => {
     return [
       ...monitorItems, ...crimeItems, ...restaurantItems, ...amenityItems,
-      ...trailItems, ...parkItems,
-      ...censusDaItems, ...censusCtItems, ...censusCsdItems
+      ...transitStopItems, ...icbcItems, ...wildlifeItems,
+      ...trailItems, ...transitRouteItems,
+      ...parkItems, ...bcAssessmentItems,
+      ...censusDaItems, ...censusCtItems, ...censusCsdItems,
+      ...censusCdItems, ...censusDbItems
     ]
-  }, [amenityItems, censusDaItems, censusCtItems, censusCsdItems, crimeItems, monitorItems, parkItems, restaurantItems, trailItems])
+  }, [
+    amenityItems, bcAssessmentItems, censusCdItems, censusCsdItems, censusCtItems,
+    censusDaItems, censusDbItems, crimeItems, icbcItems, monitorItems, parkItems,
+    restaurantItems, trailItems, transitRouteItems, transitStopItems, wildlifeItems
+  ])
 
   const datasetStats = useMemo<ExplorerDatasetStat[]>(() => {
     return EXPLORER_DATASETS.map((dataset) => {
@@ -715,10 +1087,22 @@ export default function ExplorerSection() {
     if (parksError) errors.push(`Parks data: ${parksError}`)
     if (censusError) errors.push(`Census data: ${censusError}`)
     if (crimeError) errors.push(`Property crime: ${crimeError}`)
+    if (transitError) errors.push(`Transit stops: ${transitError}`)
+    if (transitRoutesState.error) errors.push(`Transit routes: ${transitRoutesState.error}`)
+    if (icbcCrashesState.error) errors.push(`ICBC crashes: ${icbcCrashesState.error}`)
+    if (wildlifeState.error) errors.push(`Wildlife accidents: ${wildlifeState.error}`)
+    if (bcAssessmentError) errors.push(`BC Assessment: ${bcAssessmentError}`)
     return errors
-  }, [censusError, crimeError, monitorsError, parksError, restaurantsError])
+  }, [
+    bcAssessmentError, censusError, crimeError, icbcCrashesState.error, monitorsError,
+    parksError, restaurantsError, transitError, transitRoutesState.error, wildlifeState.error
+  ])
 
-  const loading = loadingMonitors || loadingRestaurants || loadingParks || loadingCensus || loadingCrime
+  const loading = (
+    loadingMonitors || loadingRestaurants || loadingParks || loadingCensus || loadingCrime
+    || loadingTransit || transitRoutesState.loading || icbcCrashesState.loading || wildlifeState.loading
+    || (bcAssessmentEnabled && loadingBcAssessment)
+  )
 
   const legendDatasets = useMemo(() => {
     return EXPLORER_DATASETS.filter((dataset) => (
@@ -728,10 +1112,7 @@ export default function ExplorerSection() {
 
   const toggleGeometry = useCallback((geometryType: ExplorerGeometryType) => {
     setGeometryFilters((current) => {
-      if (current.includes(geometryType)) {
-        const next = current.filter((entry) => entry !== geometryType)
-        return next.length > 0 ? next : current
-      }
+      if (current.includes(geometryType)) return current.filter((entry) => entry !== geometryType)
       return [...current, geometryType]
     })
   }, [])
@@ -788,8 +1169,41 @@ export default function ExplorerSection() {
         color: ['#bbf7d0', '#4ade80', '#16a34a', '#14532d'],
       })
     }
+    if (datasetSet.has('transitStops')) {
+      datasets.push({
+        id: 'transit',
+        label: 'Transit Stops',
+        points: transitStops
+          .filter((s) => Number.isFinite(s.latitude) && Number.isFinite(s.longitude))
+          .map((s) => ({ lng: s.longitude, lat: s.latitude })),
+        color: ['#bfdbfe', '#60a5fa', '#2563eb', '#1e3a8a'],
+      })
+    }
+    if (datasetSet.has('icbcCrashes')) {
+      datasets.push({
+        id: 'icbc',
+        label: 'ICBC Crashes',
+        points: icbcCrashesState.features
+          .filter((f) => f.geometry.type === 'Point')
+          .map((f) => ({ lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] })),
+        color: ['#fee2e2', '#fca5a5', '#dc2626', '#7f1d1d'],
+      })
+    }
+    if (datasetSet.has('wildlifeAccidents')) {
+      datasets.push({
+        id: 'wars',
+        label: 'Wildlife Accidents',
+        points: wildlifeState.features
+          .filter((f) => f.geometry.type === 'Point')
+          .map((f) => ({ lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] })),
+        color: ['#fef3c7', '#fbbf24', '#a16207', '#713f12'],
+      })
+    }
     return datasets
-  }, [datasetSet, monitors, restaurants, incidents, amenities])
+  }, [
+    datasetSet, monitors, restaurants, incidents, amenities, transitStops,
+    icbcCrashesState.features, wildlifeState.features
+  ])
 
   const handleExport = useCallback((format: 'csv' | 'geojson') => {
     if (format === 'csv') {

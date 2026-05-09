@@ -35,6 +35,15 @@ export type AirQualityObservationLayer =
   | 'correctedEGG'
   | 'agencyFEM'
 
+export type AirQualityBoundaryColorMetric =
+  | 'sensorCount'
+  | 'overallDensity'
+  | 'lowCostDensity'
+  | 'otherDensity'
+  | 'correctedPm25'
+  | 'rawPm25'
+  | 'networkCount'
+
 export type BoundarySource =
   | 'bcHealth'
   | 'regionalDistrict'

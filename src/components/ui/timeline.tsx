@@ -3,12 +3,26 @@ import { ChevronLeft, ChevronRight, Pause, Play, SkipBack } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 
+export interface TimelineWindowOption {
+  value: number
+  label: string
+}
+
+export interface TimelineWindowMode {
+  size: number
+  onSizeChange: (size: number) => void
+  options?: TimelineWindowOption[]
+}
+
 interface TimelineProps {
   startDate: Date
   endDate: Date
   currentDate: Date
   onDateChange: (date: Date) => void
   onClose?: () => void
+  monthCounts?: Map<string, number>
+  windowMode?: TimelineWindowMode
+  statsLabel?: string
 }
 
 const SPEED_OPTIONS = [
@@ -16,6 +30,13 @@ const SPEED_OPTIONS = [
   { value: 1000, label: '1x' },
   { value: 500, label: '2x' },
   { value: 250, label: '4x' },
+]
+
+const DEFAULT_WINDOW_OPTIONS: TimelineWindowOption[] = [
+  { value: 1, label: '1 mo' },
+  { value: 3, label: '3 mo' },
+  { value: 6, label: '6 mo' },
+  { value: -1, label: 'Cumul.' },
 ]
 
 function snapToMonth(date: Date): Date {
@@ -51,12 +72,24 @@ function buildMonthBuckets(startDate: Date, endDate: Date) {
   return buckets
 }
 
-export function Timeline({ startDate, endDate, currentDate, onDateChange, onClose }: TimelineProps) {
+export function Timeline({
+  startDate,
+  endDate,
+  currentDate,
+  onDateChange,
+  onClose,
+  monthCounts,
+  windowMode,
+  statsLabel,
+}: TimelineProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(1000)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const buckets = useMemo(() => buildMonthBuckets(startDate, endDate), [startDate, endDate])
+
+  const isCumulative = windowMode?.size === -1
+  const windowSize = windowMode && !isCumulative ? windowMode.size : 1
 
   const currentIndex = useMemo(() => {
     const currentKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth()).padStart(2, '0')}`
@@ -64,25 +97,51 @@ export function Timeline({ startDate, endDate, currentDate, onDateChange, onClos
     return idx >= 0 ? idx : 0
   }, [buckets, currentDate])
 
-  const maxPosition = Math.max(0, buckets.length - 1)
+  const maxPosition = useMemo(() => {
+    if (!windowMode || isCumulative) return Math.max(0, buckets.length - 1)
+    return Math.max(0, buckets.length - windowSize)
+  }, [buckets.length, windowMode, isCumulative, windowSize])
+
+  // Clamp currentIndex back inside range when window size grows
+  useEffect(() => {
+    if (currentIndex > maxPosition && buckets[maxPosition]) {
+      onDateChange(buckets[maxPosition].start)
+    }
+  }, [maxPosition, currentIndex, onDateChange, buckets])
+
+  const maxCount = useMemo(() => {
+    if (!monthCounts) return 1
+    let max = 1
+    for (const v of monthCounts.values()) {
+      if (v > max) max = v
+    }
+    return max
+  }, [monthCounts])
 
   const formattedDate = useMemo(() => {
-    return currentDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-    })
-  }, [currentDate])
+    if (!windowMode) {
+      return currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+    }
+    if (isCumulative) {
+      return `Through ${buckets[currentIndex]?.label ?? ''}`
+    }
+    if (windowSize === 1) {
+      return buckets[currentIndex]?.label ?? ''
+    }
+    const endIdx = Math.min(currentIndex + windowSize - 1, buckets.length - 1)
+    return `${buckets[currentIndex]?.label ?? ''} – ${buckets[endIdx]?.label ?? ''}`
+  }, [currentDate, windowMode, isCumulative, windowSize, buckets, currentIndex])
 
   const stepForward = useCallback(() => {
     const newDate = new Date(currentDate)
     newDate.setMonth(newDate.getMonth() + 1)
     newDate.setDate(1)
-    if (newDate <= endDate) {
+    if (newDate <= endDate && currentIndex < maxPosition) {
       onDateChange(newDate)
     } else {
       setIsPlaying(false)
     }
-  }, [currentDate, endDate, onDateChange])
+  }, [currentDate, endDate, onDateChange, currentIndex, maxPosition])
 
   const stepBackward = useCallback(() => {
     const newDate = new Date(currentDate)
@@ -108,7 +167,6 @@ export function Timeline({ startDate, endDate, currentDate, onDateChange, onClos
     [buckets, onDateChange]
   )
 
-  // Auto-play
   useEffect(() => {
     if (!isPlaying) {
       if (intervalRef.current) clearInterval(intervalRef.current)
@@ -122,17 +180,50 @@ export function Timeline({ startDate, endDate, currentDate, onDateChange, onClos
     }
   }, [isPlaying, speed, stepForward])
 
+  const isInWindow = useCallback(
+    (i: number) => {
+      if (!windowMode) return i === currentIndex
+      if (isCumulative) return i <= currentIndex
+      return i >= currentIndex && i < currentIndex + windowSize
+    },
+    [windowMode, isCumulative, windowSize, currentIndex]
+  )
+
   if (buckets.length === 0) return null
+
+  const windowOptions = windowMode?.options ?? DEFAULT_WINDOW_OPTIONS
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-border bg-background/95 backdrop-blur">
       <div className="px-4 py-3">
-        {/* Top row: label + controls */}
         <div className="mb-2 flex items-center justify-between gap-3">
-          <div className="text-sm font-semibold text-foreground">{formattedDate}</div>
+          <div className="flex items-center gap-3">
+            <div className="text-sm font-semibold text-foreground">{formattedDate}</div>
+            {statsLabel && (
+              <div className="text-xs text-muted-foreground">{statsLabel}</div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
-            {/* Speed */}
+            {windowMode && (
+              <div className="flex items-center gap-1 rounded-md border border-input p-0.5">
+                {windowOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => windowMode.onSizeChange(opt.value)}
+                    className={cn(
+                      'rounded px-2 py-0.5 text-[10px] font-medium transition-colors',
+                      windowMode.size === opt.value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="hidden items-center gap-1 rounded-md border border-input p-0.5 sm:flex">
               {SPEED_OPTIONS.map((opt) => (
                 <button
@@ -150,7 +241,6 @@ export function Timeline({ startDate, endDate, currentDate, onDateChange, onClos
               ))}
             </div>
 
-            {/* Close */}
             {onClose && (
               <button
                 onClick={onClose}
@@ -162,36 +252,66 @@ export function Timeline({ startDate, endDate, currentDate, onDateChange, onClos
           </div>
         </div>
 
-        {/* Year tick marks */}
-        <div className="mb-1 flex h-4 items-end">
-          {buckets.map((bucket, i) => {
-            const isCurrentMonth = i === currentIndex
-            const isJanuary = bucket.start.getMonth() === 0
-            return (
-              <div
-                key={bucket.key}
-                className="flex flex-1 cursor-pointer flex-col items-center"
-                onClick={() => {
-                  onDateChange(bucket.start)
-                  setIsPlaying(false)
-                }}
-              >
-                {isJanuary && (
-                  <span className="text-[9px] text-muted-foreground">{bucket.start.getFullYear()}</span>
-                )}
+        {monthCounts ? (
+          <div className="mb-1 flex h-10 items-end gap-px">
+            {buckets.map((bucket, i) => {
+              const count = monthCounts.get(bucket.key) ?? 0
+              const height = Math.max(2, (count / maxCount) * 100)
+              const inWindow = isInWindow(i)
+              return (
                 <div
-                  className={cn(
-                    'w-full transition-colors',
-                    isCurrentMonth ? 'h-3 bg-primary' : isJanuary ? 'h-2 bg-muted-foreground/30' : 'h-1 bg-muted-foreground/15'
-                  )}
-                  style={{ borderRadius: '1px 1px 0 0', minWidth: '2px' }}
+                  key={bucket.key}
+                  className="flex-1 cursor-pointer transition-colors"
+                  style={{
+                    height: `${height}%`,
+                    backgroundColor: inWindow ? 'var(--color-primary)' : 'var(--color-muted-foreground)',
+                    opacity: inWindow ? 1 : 0.2,
+                    borderRadius: '1px 1px 0 0',
+                    minWidth: '2px',
+                  }}
+                  title={`${bucket.label}: ${count}`}
+                  onClick={() => {
+                    onDateChange(bucket.start)
+                    setIsPlaying(false)
+                  }}
                 />
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="mb-1 flex h-4 items-end">
+            {buckets.map((bucket, i) => {
+              const inWindow = isInWindow(i)
+              const isJanuary = bucket.start.getMonth() === 0
+              return (
+                <div
+                  key={bucket.key}
+                  className="flex flex-1 cursor-pointer flex-col items-center"
+                  onClick={() => {
+                    onDateChange(bucket.start)
+                    setIsPlaying(false)
+                  }}
+                >
+                  {isJanuary && (
+                    <span className="text-[9px] text-muted-foreground">{bucket.start.getFullYear()}</span>
+                  )}
+                  <div
+                    className={cn(
+                      'w-full transition-colors',
+                      inWindow
+                        ? 'h-3 bg-primary'
+                        : isJanuary
+                          ? 'h-2 bg-muted-foreground/30'
+                          : 'h-1 bg-muted-foreground/15'
+                    )}
+                    style={{ borderRadius: '1px 1px 0 0', minWidth: '2px' }}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        )}
 
-        {/* Slider + play controls */}
         <div className="flex items-center gap-2">
           <button
             onClick={reset}
@@ -233,7 +353,7 @@ export function Timeline({ startDate, endDate, currentDate, onDateChange, onClos
             min={0}
             max={maxPosition}
             step={1}
-            value={[currentIndex]}
+            value={[Math.min(currentIndex, maxPosition)]}
             onValueChange={handleSliderChange}
             className="flex-1 py-2"
           />

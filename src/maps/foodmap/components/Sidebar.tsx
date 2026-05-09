@@ -10,7 +10,8 @@ import type {
   TimelineStats,
   HazardStatsAtDate,
   HazardRating,
-  VisualizationMode
+  VisualizationMode,
+  ViolationTimelineMode
 } from '../types'
 
 interface SidebarProps {
@@ -27,11 +28,14 @@ interface SidebarProps {
   selectedHazardRatings: HazardRating[]
   selectedFacilityTypes: string[]
   timelineMonths: number
+  violationTimelineMode: ViolationTimelineMode
+  violationTimelineLabel: string
   visualizationMode: VisualizationMode
   onSearchQueryChange: (query: string) => void
   onHazardRatingsChange: (ratings: HazardRating[]) => void
   onFacilityTypesChange: (types: string[]) => void
   onTimelineMonthsChange: (months: number) => void
+  onViolationTimelineModeChange: (mode: ViolationTimelineMode) => void
   onVisualizationModeChange: (mode: VisualizationMode) => void
   onRestaurantClick: (restaurant: RestaurantWithStats) => void
   onClearSelection: () => void
@@ -71,11 +75,14 @@ export function Sidebar({
   selectedHazardRatings,
   selectedFacilityTypes,
   timelineMonths,
+  violationTimelineMode,
+  violationTimelineLabel,
   visualizationMode,
   onSearchQueryChange,
   onHazardRatingsChange,
   onFacilityTypesChange,
   onTimelineMonthsChange,
+  onViolationTimelineModeChange,
   onVisualizationModeChange,
   onRestaurantClick,
   onClearSelection,
@@ -190,6 +197,38 @@ export function Sidebar({
           />
         )}
       </div>
+
+      {visualizationMode === 'violations' && (
+        <div className="border-b border-border bg-background/95 px-4 py-2">
+          <div className="mb-2 flex rounded-md bg-secondary p-0.5">
+            <button
+              onClick={() => onViolationTimelineModeChange('period')}
+              className={cn(
+                'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+                violationTimelineMode === 'period'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Period
+            </button>
+            <button
+              onClick={() => onViolationTimelineModeChange('cumulative')}
+              className={cn(
+                'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+                violationTimelineMode === 'cumulative'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Cumulative
+            </button>
+          </div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {violationTimelineLabel}
+          </div>
+        </div>
+      )}
 
       {/* Timeline Stats (violations mode) */}
       {visualizationMode === 'violations' ? (

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { AppSelect } from '@/components/ui/select'
 import { BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
 import { DATASETS } from '@/lib/dataCatalog'
 import { cn } from '@/lib/utils'
@@ -15,6 +16,7 @@ import type {
   AirMonitor,
   AirQualityAreaStats,
   AirQualityBasemap,
+  AirQualityBoundaryColorMetric,
   AirQualityCorrectionModel,
   AirQualityObservationLayer,
   BoundarySource,
@@ -42,11 +44,13 @@ interface AirQualitySidebarProps {
   showHeatmap: boolean
   showPoints: boolean
   basemap: AirQualityBasemap
+  boundaryColorMetric: AirQualityBoundaryColorMetric
   correctionModel: AirQualityCorrectionModel
   observationLayers: AirQualityObservationLayer[]
   loading: boolean
   error: string | null
   onBasemapChange: (basemap: AirQualityBasemap) => void
+  onBoundaryColorMetricChange: (metric: AirQualityBoundaryColorMetric) => void
   onCorrectionModelChange: (model: AirQualityCorrectionModel) => void
   onToggleObservationLayer: (layer: AirQualityObservationLayer) => void
   onBoundarySourceChange: (source: BoundarySource) => void
@@ -62,6 +66,16 @@ interface AirQualitySidebarProps {
 }
 
 const MAX_VISIBLE_ROWS = 250
+
+const BOUNDARY_COLOR_OPTIONS: Array<{ value: AirQualityBoundaryColorMetric; label: string }> = [
+  { value: 'sensorCount', label: 'Total sensors' },
+  { value: 'overallDensity', label: 'Sensors per km²' },
+  { value: 'lowCostDensity', label: 'Low-cost sensors per km²' },
+  { value: 'otherDensity', label: 'Other sensors per km²' },
+  { value: 'correctedPm25', label: 'Corrected PM2.5' },
+  { value: 'rawPm25', label: 'Raw PM2.5' },
+  { value: 'networkCount', label: 'Networks' },
+]
 
 function uniqueParameters(parameters: string[]): string[] {
   return Array.from(new Set(parameters.map((parameter) => parameter.trim()).filter(Boolean)))
@@ -96,6 +110,7 @@ export function AirQualitySidebar({
   searchQuery,
   showHeatmap,
   showPoints,
+  boundaryColorMetric,
   correctionModel,
   loading,
   error,
@@ -104,6 +119,7 @@ export function AirQualitySidebar({
   onSearchQueryChange,
   onToggleHeatmap,
   onTogglePoints,
+  onBoundaryColorMetricChange,
   onToggleNetwork,
   onSelectAllNetworks,
   onClearNetworks,
@@ -200,6 +216,18 @@ export function AirQualitySidebar({
           <div className="border-b border-border bg-background/95 p-4">
             <h3 className="mb-3 text-sm font-semibold text-foreground">Area Summary</h3>
             <div className="space-y-2 text-sm">
+              <div>
+                <label htmlFor="air-quality-boundary-color" className="mb-1.5 block text-xs font-medium text-foreground">
+                  Polygon color
+                </label>
+                <AppSelect
+                  id="air-quality-boundary-color"
+                  value={boundaryColorMetric}
+                  onValueChange={(value) => onBoundaryColorMetricChange(value as AirQualityBoundaryColorMetric)}
+                  options={BOUNDARY_COLOR_OPTIONS}
+                  triggerClassName="h-8 text-xs"
+                />
+              </div>
               {areaStats && (
                 <>
                   <div className="grid grid-cols-2 gap-2 rounded-md border border-border bg-muted/25 p-3 text-xs">

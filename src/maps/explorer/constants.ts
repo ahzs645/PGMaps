@@ -34,6 +34,30 @@ export const EXPLORER_DATASETS: ExplorerDatasetDefinition[] = [
     source: 'City open data'
   },
   {
+    id: 'transitStops',
+    label: 'Transit Stops',
+    geometryType: 'point',
+    color: '#2563eb',
+    description: 'BC Transit bus stops with shelter, accessibility, and service-frequency attributes.',
+    source: 'City open data + GTFS'
+  },
+  {
+    id: 'icbcCrashes',
+    label: 'ICBC Crashes',
+    geometryType: 'point',
+    color: '#dc2626',
+    description: 'ICBC reported crash locations aggregated by intersection.',
+    source: 'ICBC open data'
+  },
+  {
+    id: 'wildlifeAccidents',
+    label: 'Wildlife Accidents',
+    geometryType: 'point',
+    color: '#a16207',
+    description: 'Wildlife-vehicle collisions reported via WARS.',
+    source: 'BC WARS'
+  },
+  {
     id: 'trails',
     label: 'Trails',
     geometryType: 'line',
@@ -42,12 +66,28 @@ export const EXPLORER_DATASETS: ExplorerDatasetDefinition[] = [
     source: 'City open data'
   },
   {
+    id: 'transitRoutes',
+    label: 'Transit Routes',
+    geometryType: 'line',
+    color: '#1d4ed8',
+    description: 'BC Transit GTFS route shapes (bus lines).',
+    source: 'BC Transit GTFS'
+  },
+  {
     id: 'parks',
     label: 'Parks',
     geometryType: 'polygon',
     color: '#15803d',
     description: 'Parks and open-space boundaries with classification metadata.',
     source: 'City open data'
+  },
+  {
+    id: 'bcAssessment',
+    label: 'BC Assessment Parcels',
+    geometryType: 'polygon',
+    color: '#9333ea',
+    description: 'Property parcels with assessed values and category. Loads on first activation.',
+    source: 'BC Assessment'
   },
   {
     id: 'censusDa',
@@ -71,6 +111,22 @@ export const EXPLORER_DATASETS: ExplorerDatasetDefinition[] = [
     geometryType: 'polygon',
     color: '#0d9488',
     description: 'Census subdivision (municipal) boundaries with population data.',
+    source: 'Statistics Canada 2021'
+  },
+  {
+    id: 'censusCd',
+    label: 'Census Divisions',
+    geometryType: 'polygon',
+    color: '#be123c',
+    description: 'Regional district / census division boundaries with population data.',
+    source: 'Statistics Canada 2021'
+  },
+  {
+    id: 'censusDb',
+    label: 'Census Blocks',
+    geometryType: 'polygon',
+    color: '#475569',
+    description: 'Smallest census geography (dissemination blocks) with population data.',
     source: 'Statistics Canada 2021'
   }
 ]

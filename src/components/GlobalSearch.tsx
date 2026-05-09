@@ -404,17 +404,14 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     <>
       <button
         aria-label="Open search"
+        title="Search (⌘K)"
         onClick={() => setOpen(true)}
         className={cn(
-          'flex items-center gap-2 rounded-lg border border-input bg-background/80 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+          'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-input bg-background/80 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
           className,
         )}
       >
         <Search className="h-4 w-4" />
-        <span className="hidden sm:inline">Search...</span>
-        <kbd className="ml-2 hidden rounded border border-input bg-muted px-1.5 py-0.5 text-[10px] font-mono sm:inline">
-          ⌘K
-        </kbd>
       </button>
 
       {searchOverlay}

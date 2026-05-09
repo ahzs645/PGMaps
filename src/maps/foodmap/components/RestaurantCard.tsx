@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import { createEmptyViolationRiskSummary, getRiskBandLabel } from '../risk'
+import { createEmptyViolationRiskSummary } from '../risk'
 import type { RestaurantWithStats, HazardRating, VisualizationMode, ViolationRiskBand } from '../types'
 
 interface RestaurantCardProps {
@@ -64,7 +64,6 @@ export function RestaurantCard({
 
   const hasViolations = violationStats.total > 0
   const riskBand = hasViolations ? violationStats.risk.worstBand : 'Unknown'
-  const riskLabel = getRiskBandLabel(riskBand, hasViolations)
 
   const dotColorClass = useMemo(() => {
     if (visualizationMode === 'violations') {
@@ -112,9 +111,6 @@ export function RestaurantCard({
             </span>
             <span className={cn('text-xs px-2 py-0.5 rounded text-white', getRiskBadgeClass(riskBand, hasViolations))}>
               {violationStats.total} violation{violationStats.total !== 1 ? 's' : ''}
-            </span>
-            <span className={cn('text-xs px-2 py-0.5 rounded text-white', getRiskBadgeClass(riskBand, hasViolations))}>
-              {riskLabel}
             </span>
             {violationStats.critical > 0 && (
               <span className="text-xs text-red-600 dark:text-red-400 font-medium">
