@@ -61,21 +61,12 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     label: 'Ungulate Winter Range',
     description: 'Approved UWR legal orders',
   },
-  {
-    value: 'crownTenure',
-    label: 'Crown tenures',
-    description: 'TANTALIS current Crown Land tenures',
-  },
-  {
-    value: 'rangeTenure',
-    label: 'Range tenures + pastures',
-    description: 'Active range tenures and management pastures',
-  },
-  {
-    value: 'mineralTenure',
-    label: 'Mineral / placer / coal tenures',
-    description: 'Active mineral, placer, and coal tenures',
-  },
+  // crownTenure / rangeTenure / mineralTenure are intentionally hidden from
+  // the sidebar: at PG-region scale they return 6k-8k polygons each (~7MB
+  // geojson), which the client-side fetch + render pipeline can't handle
+  // without crashing. Sync scripts, types, and loader entries are kept so the
+  // sources can be re-enabled once vector tiles or server-side filtering
+  // exists. To bring one back, add its entry here.
 ]
 
 export const HEALTH_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<BoundaryLevel>[] = [

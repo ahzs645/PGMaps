@@ -186,7 +186,7 @@ function RegionBoundaryLayer({
         source: sourceId,
         paint: {
           'fill-color': '#0ea5e9',
-          'fill-opacity': 0.12
+          'fill-opacity': 0
         },
         layout: {
           visibility: visible ? 'visible' : 'none'

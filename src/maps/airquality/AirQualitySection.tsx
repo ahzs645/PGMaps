@@ -106,7 +106,9 @@ function isBoundarySource(value: string | null): value is BoundarySource {
     value === 'regionalDistrict' ||
     value === 'census' ||
     value === 'cityPG' ||
-    value === 'watershed'
+    value === 'watershed' ||
+    value === 'nrAdmin' ||
+    value === 'uwr'
   )
 }
 
