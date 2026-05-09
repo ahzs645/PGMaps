@@ -381,8 +381,6 @@ function BoundaryBrowseLayer({
         'fill-opacity',
         [
           'case',
-          ['==', ['to-string', ['get', 'code']], selectedCode ?? '__none__'],
-          0.42,
           ['>', ['to-number', ['get', 'monitorCount'], 0], 0],
           0.26,
           0.1
