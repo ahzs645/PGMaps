@@ -64,7 +64,9 @@ function getComparisonUniverseLabel(
       ? 'BC health regions'
       : source === 'cityPG'
         ? 'CityPG school catchments'
-        : 'Prince George census regions'
+        : source === 'watershed'
+          ? 'BC Freshwater Atlas watershed boundaries'
+          : 'Prince George census regions'
   return `HealthyPlan-style priority ranks one vulnerability metric against one built-environment metric within ${sourceLabel} at the currently loaded ${level} boundary level.`
 }
 

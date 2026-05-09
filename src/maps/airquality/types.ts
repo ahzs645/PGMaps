@@ -35,11 +35,18 @@ export type AirQualityObservationLayer =
   | 'correctedEGG'
   | 'agencyFEM'
 
-export type BoundarySource = 'bcHealth' | 'census' | 'cityPG'
+export type BoundarySource = 'bcHealth' | 'regionalDistrict' | 'census' | 'cityPG' | 'watershed'
 export type BoundaryLevel = 'healthAuthority' | 'hsda' | 'lha' | 'chsa'
+export type RegionalDistrictBoundaryLevel = 'regionalDistrict'
 export type CensusBoundaryLevel = 'cd' | 'csd' | 'ct' | 'da'
 export type CityBoundaryLevel = 'elementarySchoolCatchment' | 'secondarySchoolCatchment'
-export type RegionLevel = BoundaryLevel | CensusBoundaryLevel | CityBoundaryLevel
+export type WatershedBoundaryLevel = 'majorWatershed' | 'watershedGroup' | 'assessmentWatershed'
+export type RegionLevel =
+  | BoundaryLevel
+  | RegionalDistrictBoundaryLevel
+  | CensusBoundaryLevel
+  | CityBoundaryLevel
+  | WatershedBoundaryLevel
 
 export interface BoundaryRegionRecord {
   id: string

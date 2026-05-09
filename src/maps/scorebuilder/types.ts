@@ -1,4 +1,4 @@
-import type { BoundarySource, RegionLevel } from '@/maps/airquality'
+import type { BoundarySource, RegionLevel, StudyAreaRegion } from '@/lib/studyArea'
 
 export type ScoreMetricCategory =
   | 'airQuality'
@@ -169,16 +169,7 @@ export type ScoreMetricWeightMap = Record<ScoreMetricKey, number>
 export type ScoreMetricValueMap = Record<ScoreMetricKey, number>
 export type ScoreMetricRangeMap = Record<ScoreMetricKey, { min: number; max: number }>
 
-export interface ScoreBuilderRegion {
-  id: string
-  code: string
-  name: string
-  source: BoundarySource
-  level: RegionLevel
-  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
-  bounds: [number, number, number, number]
-  areaKm2: number
-}
+export type ScoreBuilderRegion = StudyAreaRegion
 
 export interface ScorePreset {
   key: string

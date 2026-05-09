@@ -8,6 +8,7 @@ import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector, type StudyAreaLevelOption, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
+import { BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
@@ -134,23 +135,22 @@ const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = 
   { id: 'walkability', label: 'Walkability', icon: Footprints },
 ]
 
-const CANUE_BOUNDARY_SOURCE_OPTIONS: Array<StudyAreaSourceOption<CanueBoundarySource>> = [
-  {
-    value: 'bcHealth',
-    label: 'CHSA health boundaries',
-    description: 'Community Health Service Areas',
+const CANUE_SUPPORTED_SOURCES = new Set<string>(['bcHealth', 'census', 'cityPG'])
+
+const CANUE_BOUNDARY_SOURCE_OPTIONS: Array<StudyAreaSourceOption<string>> = ALL_BOUNDARY_SOURCE_OPTIONS.map(
+  (option) => {
+    const supported = CANUE_SUPPORTED_SOURCES.has(option.value)
+    return {
+      value: option.value,
+      label: option.label,
+      description: option.description,
+      disabled: !supported,
+      disabledReason: supported
+        ? undefined
+        : 'Postal-code-to-boundary aggregation is not yet generated for this boundary type.',
+    }
   },
-  {
-    value: 'census',
-    label: 'Census boundaries',
-    description: 'PG census tract -> dissemination area',
-  },
-  {
-    value: 'cityPG',
-    label: 'School catchments',
-    description: 'Elementary and secondary catchments',
-  },
-]
+)
 
 const CANUE_HEALTH_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
   { value: 'healthAuthority', label: 'Health Authority' },
@@ -1022,12 +1022,16 @@ export default function MiscDataSection() {
 
         {activeTab === 'canue' && (
         <>
-        <StudyAreaSelector<CanueBoundarySource, CanueBoundaryLevel>
+        <StudyAreaSelector<string, CanueBoundaryLevel>
           source={canueBoundarySource}
           sourceOptions={CANUE_BOUNDARY_SOURCE_OPTIONS}
           level={canueBoundaryLevel}
           levelOptions={canueBoundaryLevelOptions}
-          onSourceChange={handleCanueBoundarySourceChange}
+          onSourceChange={(value) => {
+            if (CANUE_SUPPORTED_SOURCES.has(value)) {
+              handleCanueBoundarySourceChange(value as CanueBoundarySource)
+            }
+          }}
           onLevelChange={setCanueBoundaryLevel}
           showPoints={showCanueBoundaries}
           onTogglePoints={() => setShowCanueBoundaries((current) => !current)}

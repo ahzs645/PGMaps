@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { DatasetInfo } from '@/components/DatasetInfo'
-import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { StudyAreaSelector, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
+import { BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import {
@@ -39,17 +40,22 @@ interface BcAssessmentSidebarProps {
   onClearSelection: () => void
 }
 
-const REGION_SOURCE_OPTIONS: Array<{
-  value: 'census'
-  label: string
-  description: string
-}> = [
-  {
-    value: 'census',
-    label: 'Census Boundaries',
-    description: 'CT -> DA -> DB'
+const REGION_SOURCE_OPTIONS: Array<StudyAreaSourceOption<string>> = BOUNDARY_SOURCE_OPTIONS.map((option) => {
+  if (option.value === 'census') {
+    return {
+      value: option.value,
+      label: 'Census Boundaries',
+      description: 'CT -> DA -> DB',
+    }
   }
-]
+  return {
+    value: option.value,
+    label: option.label,
+    description: option.description,
+    disabled: true,
+    disabledReason: 'BC Assessment parcels are aggregated to census boundaries only.',
+  }
+})
 
 const REGION_LEVEL_OPTIONS: Array<{ value: Exclude<BoundaryLevel, 'none'>; label: string }> = [
   { value: 'ct', label: 'Census Tracts' },
@@ -211,7 +217,7 @@ export function BcAssessmentSidebar({
 
       <DatasetInfo dataset={DATASETS.bcAssessment} />
 
-      <StudyAreaSelector<'census', Exclude<BoundaryLevel, 'none'>>
+      <StudyAreaSelector<string, Exclude<BoundaryLevel, 'none'>>
         source="census"
         sourceOptions={REGION_SOURCE_OPTIONS}
         level={activeRegionLevel}

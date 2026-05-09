@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Footprints } from 'lucide-react'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
@@ -176,6 +176,14 @@ const HEATMAP_EMPTY_OPTIONS: HeatmapOptionState = {
   tightBuffer: false,
 }
 
+const HEATMAP_REPORT_FIDELITY_OPTIONS: HeatmapOptionState = {
+  ...HEATMAP_EMPTY_OPTIONS,
+  dropGtfsHf: true,
+  narrowCivic: true,
+  narrowGrowth: true,
+  dropPopAge: true,
+}
+
 const HEATMAP_OPTIONS: Array<{ key: HeatmapOptionKey; label: string; description: string }> = [
   { key: 'dropGtfsHf', label: 'Remove GTFS high-frequency bonus', description: 'Drops the extra band 4-5 transit stop bonus.' },
   { key: 'narrowCivic', label: 'Narrow civic factors', description: 'Keeps Cultural, Aquatic, and Administration only.' },
@@ -211,54 +219,8 @@ function optionsForHeatmapVariant(variant?: WalkabilityGridVariant | null): Heat
   }
 }
 
-function normalizeHeatmapOptions(options: HeatmapOptionState, changedKey?: HeatmapOptionKey): HeatmapOptionState {
-  const next = { ...options }
-  if (changedKey === 'dropGtfsHf' && !next.dropGtfsHf) {
-    next.narrowCivic = false
-    next.narrowGrowth = false
-    next.dropPopAge = false
-    next.dropF0 = false
-    next.dropC0 = false
-    next.dropF8 = false
-    next.dropSuppPoi = false
-    next.tightBuffer = false
-  }
-  if (changedKey === 'narrowCivic' && !next.narrowCivic) {
-    next.narrowGrowth = false
-    next.dropPopAge = false
-    next.dropF0 = false
-    next.dropC0 = false
-    next.dropF8 = false
-    next.dropSuppPoi = false
-    next.tightBuffer = false
-  }
-  if (changedKey === 'narrowGrowth' && !next.narrowGrowth) {
-    next.dropPopAge = false
-    next.dropF0 = false
-    next.dropC0 = false
-    next.dropF8 = false
-    next.dropSuppPoi = false
-    next.tightBuffer = false
-  }
-  if (changedKey === 'dropPopAge' && !next.dropPopAge) {
-    next.dropF0 = false
-    next.dropC0 = false
-    next.dropF8 = false
-    next.dropSuppPoi = false
-    next.tightBuffer = false
-  }
-  if (next.narrowCivic) next.dropGtfsHf = true
-  if (next.narrowGrowth) {
-    next.dropGtfsHf = true
-    next.narrowCivic = true
-  }
-  if (next.dropPopAge || next.dropF0 || next.dropC0 || next.dropF8 || next.dropSuppPoi || next.tightBuffer) {
-    next.dropGtfsHf = true
-    next.narrowCivic = true
-    next.narrowGrowth = true
-    next.dropPopAge = true
-  }
-  return next
+function normalizeHeatmapOptions(options: HeatmapOptionState): HeatmapOptionState {
+  return { ...HEATMAP_EMPTY_OPTIONS, ...options }
 }
 
 function variantKeyForHeatmapOptions(options: HeatmapOptionState): string {
@@ -290,8 +252,9 @@ export function useWalkabilityData(
   )
   const [selectedHeatmapVariantId, setSelectedHeatmapVariantId] = useState<string>(initialHeatmapVariantId || WALKABILITY_DEFAULT_HEATMAP_VARIANT)
   const [heatmapOptionState, setHeatmapOptionState] = useState<HeatmapOptionState>(() => (
-    normalizeHeatmapOptions(optionsForHeatmapVariant(null))
+    normalizeHeatmapOptions(HEATMAP_REPORT_FIDELITY_OPTIONS)
   ))
+  const initializedHeatmapOptionsRef = useRef(false)
   const [liveHeatmap, setLiveHeatmap] = useState<WalkabilityLiveHeatmapState>({
     status: 'idle',
     requestKey: '',
@@ -324,7 +287,7 @@ export function useWalkabilityData(
       ?? heatmapVariants[0]
   }, [gridHeatmap.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
   const setHeatmapOption = (key: HeatmapOptionKey, checked: boolean) => {
-    const requested = normalizeHeatmapOptions({ ...heatmapOptionState, [key]: checked }, key)
+    const requested = normalizeHeatmapOptions({ ...heatmapOptionState, [key]: checked })
     const nextVariantKey = variantKeyForHeatmapOptions(requested)
     setHeatmapOptionState(requested)
     if (heatmapVariants.some((variant) => variant.key === nextVariantKey)) {
@@ -394,12 +357,14 @@ export function useWalkabilityData(
   }, [gridHeatmap.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
 
   useEffect(() => {
-    if (!heatmapVariants.length) return
+    if (!heatmapVariants.length || initializedHeatmapOptionsRef.current) return
     const initialKey = initialHeatmapVariantId || gridHeatmap.data?.defaultVariant || WALKABILITY_DEFAULT_HEATMAP_VARIANT
     const initialVariant = heatmapVariants.find((variant) => variant.key === initialKey)
+      ?? heatmapVariants.find((variant) => variant.key === WALKABILITY_DEFAULT_HEATMAP_VARIANT)
       ?? heatmapVariants.find((variant) => variant.key === gridHeatmap.data?.defaultVariant)
       ?? heatmapVariants[0]
     setHeatmapOptionState(normalizeHeatmapOptions(optionsForHeatmapVariant(initialVariant)))
+    initializedHeatmapOptionsRef.current = true
   }, [gridHeatmap.data?.defaultVariant, heatmapVariants, initialHeatmapVariantId])
 
   useEffect(() => {

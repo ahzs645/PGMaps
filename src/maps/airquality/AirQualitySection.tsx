@@ -11,20 +11,40 @@ import { AirQualityMap } from './components/AirQualityMap'
 import { AirQualitySidebar } from './components/AirQualitySidebar'
 import { getNetworkColor } from './constants'
 import { useAirQualityData } from './hooks/useAirQualityData'
-import { useBoundaryData } from './hooks/useBoundaryData'
-import { useCensusBoundaryData } from './hooks/useCensusBoundaryData'
+import {
+  getDefaultLevelForSource,
+  getLevelOptionsForSource,
+  isValidLevelForSource,
+  useStudyAreaRegions,
+} from '@/lib/studyArea'
 import type {
   AirMonitor,
   AirQualityBasemap,
   AirQualityCorrectionModel,
   AirQualityObservationLayer,
-  BoundaryLevel,
   BoundarySource,
-  CensusBoundaryLevel,
   RegionLevel,
-  SensorDensityStats
+  SelectedBoundaryRegion,
+  SensorDensityStats,
 } from './types'
 import type { AirQualityMapBounds } from './components/AirQualityMap'
+
+const REGION_LEVEL_LABELS: Record<RegionLevel, string> = {
+  healthAuthority: 'Health Authority',
+  hsda: 'Health Service Delivery Area',
+  lha: 'Local Health Area',
+  chsa: 'Community Health Service Area',
+  regionalDistrict: 'Regional District',
+  cd: 'Census Division',
+  csd: 'Census Subdivision',
+  ct: 'Census Tract',
+  da: 'Dissemination Area',
+  elementarySchoolCatchment: 'Elementary School Catchment',
+  secondarySchoolCatchment: 'Secondary School Catchment',
+  majorWatershed: 'Major River Basin',
+  watershedGroup: 'Watershed Group',
+  assessmentWatershed: 'Assessment Watershed',
+}
 
 function normalizeLongitude(lon: number): number {
   return ((lon + 540) % 360) - 180
@@ -54,12 +74,6 @@ const DEFAULT_OBSERVATION_LAYERS: AirQualityObservationLayer[] = [
   'correctedEGG',
   'agencyFEM'
 ]
-const HEALTH_REGION_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }> = [
-  { value: 'healthAuthority', label: 'Health Authority' },
-  { value: 'hsda', label: 'HSDA' },
-  { value: 'lha', label: 'LHA' },
-  { value: 'chsa', label: 'CHSA' }
-]
 type BoundaryPickerFeature = GeoJSON.Feature<
   GeoJSON.Polygon | GeoJSON.MultiPolygon,
   {
@@ -67,6 +81,16 @@ type BoundaryPickerFeature = GeoJSON.Feature<
     name: string
   }
 >
+
+function isBoundarySource(value: string | null): value is BoundarySource {
+  return (
+    value === 'bcHealth' ||
+    value === 'regionalDistrict' ||
+    value === 'census' ||
+    value === 'cityPG' ||
+    value === 'watershed'
+  )
+}
 
 function getMonitorSearchText(monitor: AirMonitor): string {
   return [
@@ -140,22 +164,24 @@ function calculateDensityStats(monitors: AirMonitor[], areaKm2: number): SensorD
 export default function AirQualitySection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { monitors, loading, error } = useAirQualityData()
-  const healthBoundary = useBoundaryData()
-  const censusBoundary = useCensusBoundaryData()
-  const {
-    selectRegion: selectHealthRegion,
-    getFeaturesForLevel: getHealthFeaturesForLevel
-  } = healthBoundary
-  const {
-    selectRegion: selectCensusRegion,
-    getFeaturesForLevel: getCensusFeaturesForLevel
-  } = censusBoundary
+
+  const initialBoundarySource: BoundarySource = (() => {
+    const candidate = searchParams.get('src')
+    return isBoundarySource(candidate) ? candidate : 'bcHealth'
+  })()
+  const initialBoundaryLevel: RegionLevel = (() => {
+    const candidate = searchParams.get('level') as RegionLevel | null
+    if (candidate && isValidLevelForSource(initialBoundarySource, candidate)) return candidate
+    if (initialBoundarySource === 'bcHealth') return 'lha'
+    if (initialBoundarySource === 'census') return 'da'
+    return getDefaultLevelForSource(initialBoundarySource)
+  })()
 
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
   const [networksInitialized, setNetworksInitialized] = useState(false)
-  const [boundarySource, setBoundarySource] = useState<BoundarySource>(() => (searchParams.get('src') as BoundarySource) || 'bcHealth')
-  const [healthRegionLevel, setHealthRegionLevel] = useState<BoundaryLevel>(() => (searchParams.get('level') as BoundaryLevel) || 'lha')
-  const [censusRegionLevel, setCensusRegionLevel] = useState<CensusBoundaryLevel>(() => (searchParams.get('level') as CensusBoundaryLevel) || 'csd')
+  const [boundarySource, setBoundarySource] = useState<BoundarySource>(initialBoundarySource)
+  const [selectedRegionLevel, setSelectedRegionLevel] = useState<RegionLevel>(initialBoundaryLevel)
+  const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
   const [basemap, setBasemap] = useState<AirQualityBasemap>(() => (searchParams.get('basemap') as AirQualityBasemap) || 'light')
@@ -165,27 +191,28 @@ export default function AirQualitySection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [mapBounds, setMapBounds] = useState<AirQualityMapBounds | null>(null)
   const [mapBoundaryPickerEnabled, setMapBoundaryPickerEnabled] = useState(true)
-  const [mapBoundaryFeatures, setMapBoundaryFeatures] = useState<BoundaryPickerFeature[]>([])
 
-  const boundaryLoading = boundarySource === 'bcHealth'
-    ? healthBoundary.loading
-    : censusBoundary.loading
+  const {
+    regions: studyAreaRegions,
+    loading: boundaryLoading,
+    error: boundaryError,
+  } = useStudyAreaRegions(boundarySource, selectedRegionLevel)
 
-  const boundaryError = boundarySource === 'bcHealth'
-    ? healthBoundary.error
-    : censusBoundary.error
+  const selectedStudyAreaRegion = useMemo(() => {
+    if (!selectedRegionCode) return null
+    return studyAreaRegions.find((region) => region.code === selectedRegionCode) ?? null
+  }, [selectedRegionCode, studyAreaRegions])
 
-  const selectedRegion = boundarySource === 'bcHealth'
-    ? healthBoundary.selectedRegion
-    : censusBoundary.selectedRegion
-
-  const selectedRegionFeature = boundarySource === 'bcHealth'
-    ? healthBoundary.selectedRegionFeature
-    : censusBoundary.selectedRegionFeature
-
-  const selectedRegionLevel: RegionLevel = boundarySource === 'bcHealth'
-    ? healthRegionLevel
-    : censusRegionLevel
+  const selectedRegionFeature = selectedStudyAreaRegion?.feature ?? null
+  const selectedRegion: SelectedBoundaryRegion | null = selectedStudyAreaRegion
+    ? {
+        source: selectedStudyAreaRegion.source,
+        level: selectedStudyAreaRegion.level,
+        code: selectedStudyAreaRegion.code,
+        name: selectedStudyAreaRegion.name,
+        levelLabel: REGION_LEVEL_LABELS[selectedStudyAreaRegion.level] ?? selectedStudyAreaRegion.level,
+      }
+    : null
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -208,15 +235,23 @@ export default function AirQualitySection() {
   }, [basemap, boundarySource, correctionModel, searchParams, searchQuery, selectedMonitor, selectedRegionLevel, setSearchParams, showHeatmap])
 
   const regionLevelOptions = useMemo(() => {
-    if (boundarySource === 'bcHealth') {
-      return HEALTH_REGION_LEVEL_OPTIONS
-    }
-
-    return censusBoundary.levelOptions.map((option) => ({
+    return getLevelOptionsForSource(boundarySource).map((option) => ({
       value: option.value as RegionLevel,
-      label: option.label
+      label: option.label,
     }))
-  }, [boundarySource, censusBoundary.levelOptions])
+  }, [boundarySource])
+
+  const mapBoundaryFeatures = useMemo<BoundaryPickerFeature[]>(() => {
+    if (!mapBoundaryPickerEnabled) return []
+    return studyAreaRegions.map((region) => ({
+      type: 'Feature',
+      geometry: region.feature.geometry,
+      properties: {
+        code: region.code,
+        name: region.name,
+      },
+    }))
+  }, [mapBoundaryPickerEnabled, studyAreaRegions])
 
   const mapBoundaryFeatureCollection = useMemo(() => {
     return {
@@ -298,56 +333,6 @@ export default function AirQualitySection() {
     : 'Current map view'
 
   useEffect(() => {
-    let cancelled = false
-
-    const loadMapBoundaries = async () => {
-      if (!mapBoundaryPickerEnabled) {
-        setMapBoundaryFeatures([])
-        return
-      }
-
-      const rawFeatures = boundarySource === 'bcHealth'
-        ? await getHealthFeaturesForLevel(healthRegionLevel)
-        : await getCensusFeaturesForLevel(censusRegionLevel)
-
-      if (cancelled) return
-
-      const normalized = rawFeatures
-        .map((feature) => {
-          const properties = (feature.properties ?? {}) as Record<string, unknown>
-          const code = String(properties.code ?? properties.id ?? '').trim()
-          if (!code) return null
-
-          const name = String(properties.name ?? code).trim() || code
-          return {
-            type: 'Feature',
-            geometry: feature.geometry,
-            properties: {
-              code,
-              name
-            }
-          } satisfies BoundaryPickerFeature
-        })
-        .filter((feature): feature is BoundaryPickerFeature => Boolean(feature))
-
-      setMapBoundaryFeatures(normalized)
-    }
-
-    void loadMapBoundaries()
-
-    return () => {
-      cancelled = true
-    }
-  }, [
-    boundarySource,
-    censusRegionLevel,
-    getCensusFeaturesForLevel,
-    getHealthFeaturesForLevel,
-    healthRegionLevel,
-    mapBoundaryPickerEnabled
-  ])
-
-  useEffect(() => {
     if (!selectedMonitor) return
     const stillVisible = filteredMonitors.some((monitor) => monitor.id === selectedMonitor.id)
     if (!stillVisible) {
@@ -389,31 +374,24 @@ export default function AirQualitySection() {
   }, [])
 
   const handleRegionLevelChange = useCallback((level: RegionLevel) => {
-    if (boundarySource === 'bcHealth') {
-      setHealthRegionLevel(level as BoundaryLevel)
-      setMapBoundaryPickerEnabled(true)
-      return
-    }
-
-    setCensusRegionLevel(level as CensusBoundaryLevel)
+    setSelectedRegionLevel(level)
+    setSelectedRegionCode(null)
     setMapBoundaryPickerEnabled(true)
-  }, [boundarySource])
+  }, [])
 
   const handleBoundarySourceChange = useCallback((source: BoundarySource) => {
     setBoundarySource(source)
+    setSelectedRegionLevel((current) => (
+      isValidLevelForSource(source, current) ? current : getDefaultLevelForSource(source)
+    ))
+    setSelectedRegionCode(null)
     setMapBoundaryPickerEnabled(true)
   }, [])
 
   const handleMapBoundarySelect = useCallback((code: string) => {
-    if (boundarySource === 'bcHealth') {
-      void selectHealthRegion(healthRegionLevel, code)
-      setMapBoundaryPickerEnabled(false)
-      return
-    }
-
-    void selectCensusRegion(censusRegionLevel, code)
+    setSelectedRegionCode(code)
     setMapBoundaryPickerEnabled(false)
-  }, [boundarySource, censusRegionLevel, healthRegionLevel, selectCensusRegion, selectHealthRegion])
+  }, [])
 
   return (
     <MapSectionLayout

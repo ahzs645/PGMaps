@@ -60,7 +60,9 @@ function getComparisonUniverseLabel(source: RegionMetricRow['region']['source'],
       ? 'BC health regions'
       : source === 'cityPG'
         ? 'CityPG school catchments'
-        : 'Prince George census regions'
+        : source === 'watershed'
+          ? 'BC Freshwater Atlas watershed boundaries'
+          : 'Prince George census regions'
   return `EJI-style percentile ranks are relative to ${sourceLabel} at the currently loaded ${level} boundary level; filters do not redefine percentiles.`
 }
 

@@ -1,10 +1,3 @@
-import type {
-  BoundaryIndex,
-  BoundaryLevel,
-  BoundarySource,
-  CensusBoundaryLevel,
-  CityBoundaryLevel,
-} from '@/maps/airquality'
 import { METRIC_CATEGORY_LABELS } from './types'
 import type {
   ScoreDataSource,
@@ -2492,75 +2485,22 @@ export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
 
 export const LOW_COST_NETWORKS = new Set(['PA', 'EGG'])
 
-export const BOUNDARY_SOURCE_OPTIONS: Array<{
-  value: BoundarySource
-  label: string
-  description: string
-}> = [
-  {
-    value: 'bcHealth',
-    label: 'CHSA health boundaries',
-    description: 'Community Health Service Areas',
-  },
-  {
-    value: 'census',
-    label: 'Census boundaries',
-    description: 'PG census tract -> dissemination area',
-  },
-  {
-    value: 'cityPG',
-    label: 'School catchments',
-    description: 'Elementary and secondary catchments',
-  },
-]
-
-export const HEALTH_BOUNDARY_LEVEL_OPTIONS: Array<{ value: BoundaryLevel; label: string }> = [
-  { value: 'healthAuthority', label: 'Health Authority' },
-  { value: 'hsda', label: 'HSDA' },
-  { value: 'lha', label: 'LHA' },
-  { value: 'chsa', label: 'CHSA' },
-]
+export {
+  BOUNDARY_SOURCE_OPTIONS,
+  HEALTH_BOUNDARY_LEVEL_OPTIONS,
+  CENSUS_BOUNDARY_LEVEL_OPTIONS,
+  REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
+  CITY_BOUNDARY_LEVEL_OPTIONS,
+  WATERSHED_BOUNDARY_LEVEL_OPTIONS,
+  BOUNDARY_FILE_BY_LEVEL,
+  BOUNDARY_INDEX_KEY_BY_LEVEL,
+  BOUNDARY_CODE_PROPERTY_BY_LEVEL,
+  BOUNDARY_NAME_PROPERTY_BY_LEVEL,
+} from '@/lib/studyArea'
+import { HEALTH_BOUNDARY_LEVEL_OPTIONS as _SCORE_BUILDER_HEALTH_BOUNDARY_LEVEL_OPTIONS } from '@/lib/studyArea'
 
 // Backward-compatible alias used by existing imports.
-export const BOUNDARY_LEVEL_OPTIONS = HEALTH_BOUNDARY_LEVEL_OPTIONS
-
-export const CENSUS_BOUNDARY_LEVEL_OPTIONS: Array<{ value: CensusBoundaryLevel; label: string }> = [
-  { value: 'ct', label: 'Census Tract' },
-  { value: 'da', label: 'Dissemination Area' },
-]
-
-export const CITY_BOUNDARY_LEVEL_OPTIONS: Array<{ value: CityBoundaryLevel; label: string }> = [
-  { value: 'elementarySchoolCatchment', label: 'Elementary School Catchment' },
-  { value: 'secondarySchoolCatchment', label: 'Secondary School Catchment' },
-]
-
-export const BOUNDARY_FILE_BY_LEVEL: Record<BoundaryLevel, string> = {
-  healthAuthority: 'simplified/health_authorities.json',
-  hsda: 'simplified/health_service_delivery_areas.json',
-  lha: 'simplified/local_health_areas.json',
-  chsa: 'simplified/community_health_service_areas.json',
-}
-
-export const BOUNDARY_INDEX_KEY_BY_LEVEL: Record<BoundaryLevel, keyof BoundaryIndex> = {
-  healthAuthority: 'healthAuthorities',
-  hsda: 'healthServiceDeliveryAreas',
-  lha: 'localHealthAreas',
-  chsa: 'communityHealthServiceAreas',
-}
-
-export const BOUNDARY_CODE_PROPERTY_BY_LEVEL: Record<BoundaryLevel, string> = {
-  healthAuthority: 'HLTH_AUTHORITY_CODE',
-  hsda: 'HLTH_SERVICE_DLVR_AREA_CODE',
-  lha: 'LOCAL_HLTH_AREA_CODE',
-  chsa: 'CMNTY_HLTH_SERV_AREA_CODE',
-}
-
-export const BOUNDARY_NAME_PROPERTY_BY_LEVEL: Record<BoundaryLevel, string> = {
-  healthAuthority: 'HLTH_AUTHORITY_NAME',
-  hsda: 'HLTH_SERVICE_DLVR_AREA_NAME',
-  lha: 'LOCAL_HLTH_AREA_NAME',
-  chsa: 'CMNTY_HLTH_SERV_AREA_NAME',
-}
+export const BOUNDARY_LEVEL_OPTIONS = _SCORE_BUILDER_HEALTH_BOUNDARY_LEVEL_OPTIONS
 
 export function createDefaultWeights(): ScoreMetricWeightMap {
   return { ...DEFAULT_SCORE_WEIGHTS }

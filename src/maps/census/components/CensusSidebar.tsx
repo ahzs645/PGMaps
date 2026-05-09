@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { DatasetInfo } from '@/components/DatasetInfo'
-import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { StudyAreaSelector, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
+import { BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
 import { DATASETS } from '@/lib/dataCatalog'
 import { cn } from '@/lib/utils'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from '../constants'
@@ -39,17 +40,22 @@ interface CensusSidebarProps {
 }
 
 const MAX_ROWS = 140
-const CENSUS_REGION_SOURCE_OPTIONS: Array<{
-  value: 'census'
-  label: string
-  description: string
-}> = [
-  {
-    value: 'census',
-    label: 'Census Boundaries',
-    description: 'CD -> CSD -> CT -> DA -> DB'
+const CENSUS_REGION_SOURCE_OPTIONS: Array<StudyAreaSourceOption<string>> = BOUNDARY_SOURCE_OPTIONS.map((option) => {
+  if (option.value === 'census') {
+    return {
+      value: option.value,
+      label: 'Census Boundaries',
+      description: 'CD -> CSD -> CT -> DA -> DB',
+    }
   }
-]
+  return {
+    value: option.value,
+    label: option.label,
+    description: option.description,
+    disabled: true,
+    disabledReason: 'Census variables are only available on the Statistics Canada census hierarchy.',
+  }
+})
 
 function formatUnitLabel(unit: CensusUnit): string {
   switch (unit.level) {
@@ -213,7 +219,7 @@ export function CensusSidebar({
 
       <DatasetInfo dataset={DATASETS.census} />
 
-      <StudyAreaSelector<'census', CensusHierarchyLevel>
+      <StudyAreaSelector<string, CensusHierarchyLevel>
         source="census"
         sourceOptions={CENSUS_REGION_SOURCE_OPTIONS}
         level={selectedHierarchy}

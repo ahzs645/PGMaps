@@ -15,7 +15,9 @@ import {
   type BoundarySource,
   type CensusBoundaryLevel,
   type CityBoundaryLevel,
+  type RegionalDistrictBoundaryLevel,
   type RegionLevel,
+  type WatershedBoundaryLevel,
 } from '@/maps/airquality'
 import { useCensusData } from '@/maps/census/hooks/useCensusData'
 import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
@@ -26,6 +28,8 @@ import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   CITY_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
+  REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
+  WATERSHED_BOUNDARY_LEVEL_OPTIONS,
   SCORE_BUILDER_EXAMPLES,
   SCORE_METRICS,
   createDefaultWeights,
@@ -321,9 +325,21 @@ const CENSUS_BOUNDARY_LEVEL_VALUES = new Set<CensusBoundaryLevel>(
   CENSUS_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
 const CITY_BOUNDARY_LEVEL_VALUES = new Set<CityBoundaryLevel>(CITY_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value))
+const REGIONAL_DISTRICT_BOUNDARY_LEVEL_VALUES = new Set<RegionalDistrictBoundaryLevel>(
+  REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
+const WATERSHED_BOUNDARY_LEVEL_VALUES = new Set<WatershedBoundaryLevel>(
+  WATERSHED_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
 
 function parseBoundarySource(value: string | null): BoundarySource {
-  return value === 'bcHealth' || value === 'census' || value === 'cityPG' ? value : 'census'
+  return value === 'bcHealth' ||
+    value === 'regionalDistrict' ||
+    value === 'census' ||
+    value === 'cityPG' ||
+    value === 'watershed'
+    ? value
+    : 'census'
 }
 
 function parseHealthBoundaryLevel(value: string | null): BoundaryLevel {
@@ -338,6 +354,18 @@ function parseCityBoundaryLevel(value: string | null): CityBoundaryLevel {
   return CITY_BOUNDARY_LEVEL_VALUES.has(value as CityBoundaryLevel)
     ? (value as CityBoundaryLevel)
     : 'elementarySchoolCatchment'
+}
+
+function parseRegionalDistrictBoundaryLevel(value: string | null): RegionalDistrictBoundaryLevel {
+  return REGIONAL_DISTRICT_BOUNDARY_LEVEL_VALUES.has(value as RegionalDistrictBoundaryLevel)
+    ? (value as RegionalDistrictBoundaryLevel)
+    : 'regionalDistrict'
+}
+
+function parseWatershedBoundaryLevel(value: string | null): WatershedBoundaryLevel {
+  return WATERSHED_BOUNDARY_LEVEL_VALUES.has(value as WatershedBoundaryLevel)
+    ? (value as WatershedBoundaryLevel)
+    : 'watershedGroup'
 }
 
 function parseNormalizationMethod(value: string | null): ScoreMethodSettings['normalization'] {
@@ -417,6 +445,12 @@ export default function ScoreBuilderSection() {
   )
   const [cityBoundaryLevel, setCityBoundaryLevel] = useState<CityBoundaryLevel>(() =>
     parseCityBoundaryLevel(searchParams.get('level')),
+  )
+  const [regionalDistrictBoundaryLevel, setRegionalDistrictBoundaryLevel] = useState<RegionalDistrictBoundaryLevel>(() =>
+    parseRegionalDistrictBoundaryLevel(searchParams.get('level')),
+  )
+  const [watershedBoundaryLevel, setWatershedBoundaryLevel] = useState<WatershedBoundaryLevel>(() =>
+    parseWatershedBoundaryLevel(searchParams.get('level')),
   )
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
   const [regionInsightRegionId, setRegionInsightRegionId] = useState<string | null>(null)
@@ -511,9 +545,13 @@ export default function ScoreBuilderSection() {
       'level',
       boundarySource === 'bcHealth'
         ? healthBoundaryLevel
+        : boundarySource === 'regionalDistrict'
+          ? regionalDistrictBoundaryLevel
         : boundarySource === 'census'
           ? censusBoundaryLevel
-          : cityBoundaryLevel,
+          : boundarySource === 'cityPG'
+            ? cityBoundaryLevel
+            : watershedBoundaryLevel,
     )
     params.set('w', encodeWeightsToParams(weights))
     params.set('ds', enabledDataSources.join(','))
@@ -532,8 +570,10 @@ export default function ScoreBuilderSection() {
   }, [
     boundarySource,
     healthBoundaryLevel,
+    regionalDistrictBoundaryLevel,
     censusBoundaryLevel,
     cityBoundaryLevel,
+    watershedBoundaryLevel,
     weights,
     enabledDataSources,
     methodSettings,
@@ -543,9 +583,13 @@ export default function ScoreBuilderSection() {
   const selectedRegionLevel: RegionLevel =
     boundarySource === 'bcHealth'
       ? healthBoundaryLevel
+      : boundarySource === 'regionalDistrict'
+        ? regionalDistrictBoundaryLevel
       : boundarySource === 'census'
         ? censusBoundaryLevel
-        : cityBoundaryLevel
+        : boundarySource === 'cityPG'
+          ? cityBoundaryLevel
+          : watershedBoundaryLevel
 
   const boundaryLevelOptions = useMemo<Array<{ value: RegionLevel; label: string }>>(() => {
     if (boundarySource === 'bcHealth') {
@@ -554,8 +598,20 @@ export default function ScoreBuilderSection() {
         label: option.label,
       }))
     }
+    if (boundarySource === 'regionalDistrict') {
+      return REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+      }))
+    }
     if (boundarySource === 'cityPG') {
       return CITY_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+      }))
+    }
+    if (boundarySource === 'watershed') {
+      return WATERSHED_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
         value: option.value,
         label: option.label,
       }))
@@ -1627,10 +1683,14 @@ export default function ScoreBuilderSection() {
       setBoundarySource(example.boundarySource)
       if (example.boundarySource === 'bcHealth') {
         setHealthBoundaryLevel(example.boundaryLevel as BoundaryLevel)
+      } else if (example.boundarySource === 'regionalDistrict') {
+        setRegionalDistrictBoundaryLevel(parseRegionalDistrictBoundaryLevel(example.boundaryLevel))
       } else if (example.boundarySource === 'census') {
         setCensusBoundaryLevel(example.boundaryLevel as CensusBoundaryLevel)
-      } else {
+      } else if (example.boundarySource === 'cityPG') {
         setCityBoundaryLevel(example.boundaryLevel as CityBoundaryLevel)
+      } else {
+        setWatershedBoundaryLevel(parseWatershedBoundaryLevel(example.boundaryLevel))
       }
       setEnabledDataSources([...example.dataSources])
       setWeights({ ...example.weights })
@@ -1662,6 +1722,8 @@ export default function ScoreBuilderSection() {
         setHealthBoundaryLevel(parseHealthBoundaryLevel(state.healthBoundaryLevel))
         setCensusBoundaryLevel(parseCensusBoundaryLevel(state.censusBoundaryLevel))
         setCityBoundaryLevel(parseCityBoundaryLevel(state.cityBoundaryLevel ?? null))
+        setRegionalDistrictBoundaryLevel(parseRegionalDistrictBoundaryLevel(state.regionalDistrictBoundaryLevel ?? null))
+        setWatershedBoundaryLevel(parseWatershedBoundaryLevel(state.watershedBoundaryLevel ?? null))
         setEnabledDataSources([...state.enabledDataSources])
         setSelectedNetworks([...state.selectedNetworks])
         setWeights({ ...createDefaultWeights(), ...state.weights })
@@ -1707,10 +1769,14 @@ export default function ScoreBuilderSection() {
       if (preset.recommendedBoundaryLevel) {
         if (preset.recommendedBoundarySource === 'bcHealth') {
           setHealthBoundaryLevel(parseHealthBoundaryLevel(preset.recommendedBoundaryLevel))
+        } else if (preset.recommendedBoundarySource === 'regionalDistrict') {
+          setRegionalDistrictBoundaryLevel(parseRegionalDistrictBoundaryLevel(preset.recommendedBoundaryLevel))
         } else if (preset.recommendedBoundarySource === 'census') {
           setCensusBoundaryLevel(parseCensusBoundaryLevel(preset.recommendedBoundaryLevel))
         } else if (preset.recommendedBoundarySource === 'cityPG') {
           setCityBoundaryLevel(parseCityBoundaryLevel(preset.recommendedBoundaryLevel))
+        } else if (preset.recommendedBoundarySource === 'watershed') {
+          setWatershedBoundaryLevel(parseWatershedBoundaryLevel(preset.recommendedBoundaryLevel))
         }
       }
       const neededSources = getScoreDataSourcesForWeights(preset.weights)
@@ -1765,7 +1831,9 @@ export default function ScoreBuilderSection() {
       boundarySource,
       healthBoundaryLevel,
       censusBoundaryLevel,
+      regionalDistrictBoundaryLevel,
       cityBoundaryLevel,
+      watershedBoundaryLevel,
       enabledDataSources,
       selectedNetworks,
       weights,
@@ -1788,7 +1856,9 @@ export default function ScoreBuilderSection() {
     enabledDataSources,
     healthBoundaryLevel,
     methodSettings,
+    regionalDistrictBoundaryLevel,
     selectedNetworks,
+    watershedBoundaryLevel,
     weights,
   ])
 
@@ -1809,8 +1879,10 @@ export default function ScoreBuilderSection() {
   const handleRegionLevelChange = useCallback(
     (level: RegionLevel) => {
       if (boundarySource === 'bcHealth') setHealthBoundaryLevel(parseHealthBoundaryLevel(level))
+      else if (boundarySource === 'regionalDistrict') setRegionalDistrictBoundaryLevel(parseRegionalDistrictBoundaryLevel(level))
       else if (boundarySource === 'census') setCensusBoundaryLevel(parseCensusBoundaryLevel(level))
-      else setCityBoundaryLevel(parseCityBoundaryLevel(level))
+      else if (boundarySource === 'cityPG') setCityBoundaryLevel(parseCityBoundaryLevel(level))
+      else setWatershedBoundaryLevel(parseWatershedBoundaryLevel(level))
     },
     [boundarySource],
   )

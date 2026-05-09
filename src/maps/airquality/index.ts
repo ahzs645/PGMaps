@@ -1,5 +1,3 @@
 export { default as AirQualitySection } from './AirQualitySection'
 export * from './types'
 export * from './hooks/useAirQualityData'
-export * from './hooks/useBoundaryData'
-export * from './hooks/useCensusBoundaryData'

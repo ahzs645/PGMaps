@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
 import { DATASETS } from '@/lib/dataCatalog'
 import { cn } from '@/lib/utils'
 import { getNetworkColor } from '../constants'
@@ -56,22 +57,6 @@ interface AirQualitySidebarProps {
 }
 
 const MAX_VISIBLE_ROWS = 250
-const REGION_SOURCE_OPTIONS: Array<{
-  value: BoundarySource
-  label: string
-  description: string
-}> = [
-  {
-    value: 'bcHealth',
-    label: 'CHSA health boundaries',
-    description: 'Community Health Service Areas'
-  },
-  {
-    value: 'census',
-    label: 'Census boundaries',
-    description: 'PG census tract -> dissemination area'
-  }
-]
 
 function uniqueParameters(parameters: string[]): string[] {
   return Array.from(new Set(parameters.map((parameter) => parameter.trim()).filter(Boolean)))
@@ -288,7 +273,7 @@ export function AirQualitySidebar({
 
         <StudyAreaSelector<BoundarySource, RegionLevel>
           source={boundarySource}
-          sourceOptions={REGION_SOURCE_OPTIONS}
+          sourceOptions={BOUNDARY_SOURCE_OPTIONS}
           level={selectedRegionLevel}
           levelOptions={regionLevelOptions}
           onSourceChange={onBoundarySourceChange}

@@ -16,7 +16,7 @@ export interface StudyAreaLevelOption<TLevel extends string = string> {
 
 export type StudyAreaScope = 'pg' | 'province' | 'mixed'
 
-export type CanonicalStudyAreaSource = 'bcHealth' | 'census' | 'cityPG'
+export type CanonicalStudyAreaSource = 'bcHealth' | 'census' | 'cityPG' | 'watershed'
 
 const CANONICAL_SOURCE_DEFS: Record<
   CanonicalStudyAreaSource,
@@ -37,6 +37,11 @@ const CANONICAL_SOURCE_DEFS: Record<
     description: 'Elementary and secondary catchments',
     provincial: false,
   },
+  watershed: {
+    label: 'Watershed boundaries',
+    description: 'BC Freshwater Atlas hierarchy',
+    provincial: false,
+  },
 }
 
 // PG-only data has no meaningful breakdown across provincial health-region
@@ -44,7 +49,7 @@ const CANONICAL_SOURCE_DEFS: Record<
 // surface them as disabled rather than hide them.
 export function getStudyAreaSources(
   scope: StudyAreaScope,
-  sources: CanonicalStudyAreaSource[] = ['bcHealth', 'census', 'cityPG'],
+  sources: CanonicalStudyAreaSource[] = ['bcHealth', 'census', 'cityPG', 'watershed'],
 ): Array<StudyAreaSourceOption<CanonicalStudyAreaSource>> {
   return sources.map((value) => {
     const def = CANONICAL_SOURCE_DEFS[value]

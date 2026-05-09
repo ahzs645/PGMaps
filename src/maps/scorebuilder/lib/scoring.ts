@@ -175,7 +175,16 @@ export function scoreRegionRows({
 }
 
 function getComparisonUniverseLabel(source: ScoreBuilderRegion['source'], level: ScoreBuilderRegion['level']): string {
-  const sourceLabel = source === 'bcHealth' ? 'BC health regions' : source === 'cityPG' ? 'CityPG school catchments' : 'Prince George census regions'
+  const sourceLabel =
+    source === 'bcHealth'
+      ? 'BC health regions'
+      : source === 'regionalDistrict'
+        ? 'BC regional districts'
+      : source === 'cityPG'
+        ? 'CityPG school catchments'
+        : source === 'watershed'
+          ? 'BC Freshwater Atlas watershed boundaries'
+          : 'Prince George census regions'
   return `Scores are relative to ${sourceLabel} at the currently loaded ${level} boundary level; filters do not redefine percentiles.`
 }
 
