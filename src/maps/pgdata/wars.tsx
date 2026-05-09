@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PawPrint } from 'lucide-react'
-import { MapMarker, MarkerContent } from '@/components/ui/map'
+import { MapClusterLayer, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
@@ -57,6 +57,10 @@ interface WarsCrashProperties {
   sourceFile: string
 }
 
+type WarsPointProperties = WarsCrashProperties & {
+  featureKey: string
+}
+
 type WarsFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, WarsCrashProperties>
 
 const ALL_SPECIES = 'all'
@@ -90,6 +94,18 @@ function hashSpeciesName(name: string): number {
 function getSpeciesColor(species: string): string {
   if (SPECIES_COLORS[species]) return SPECIES_COLORS[species]
   return SPECIES_FALLBACK_COLORS[hashSpeciesName(species) % SPECIES_FALLBACK_COLORS.length]
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const cleaned = hex.replace('#', '')
+  const full = cleaned.length === 3
+    ? cleaned.split('').map((char) => char + char).join('')
+    : cleaned
+
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function getWarsMarkerSize(quantity: number): number {
@@ -422,6 +438,31 @@ export function WarsSourceNotes({ wars }: { wars: WarsState }) {
 }
 
 export function WarsLayer({ wars }: { wars: WarsState }) {
+  const collectionsBySpecies = useMemo(() => {
+    const grouped = new Map<string, GeoJSON.FeatureCollection<GeoJSON.Point, WarsPointProperties>>()
+
+    wars.filteredFeatures.forEach((feature, index) => {
+      const species = feature.properties.species || 'Unknown'
+      if (!grouped.has(species)) {
+        grouped.set(species, {
+          type: 'FeatureCollection',
+          features: [],
+        })
+      }
+
+      grouped.get(species)?.features.push({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          species,
+          featureKey: getWarsFeatureKey(feature, index),
+        },
+      })
+    })
+
+    return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [wars.filteredFeatures])
+
   return (
     <>
       {wars.showHeatmap && (
@@ -446,33 +487,49 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
         />
       )}
 
-      {wars.showPoints && wars.filteredFeatures.map((feature, index) => {
-        const [longitude, latitude] = feature.geometry.coordinates
-        const featureKey = getWarsFeatureKey(feature, index)
-        const selected = wars.selectedId === featureKey
-        const size = getWarsMarkerSize(feature.properties.quantity)
-        const color = getSpeciesColor(feature.properties.species || 'Unknown')
+      {wars.showPoints && collectionsBySpecies.map(([species, collection]) => {
+        const color = getSpeciesColor(species)
+        const clusterColors: [string, string, string] = [
+          hexToRgba(color, 0.65),
+          hexToRgba(color, 0.8),
+          color,
+        ]
+
+        return (
+          <MapClusterLayer<WarsPointProperties>
+            key={species}
+            data={collection}
+            pointColor={color}
+            clusterColors={clusterColors}
+            clusterThresholds={[25, 100]}
+            onPointClick={(feature) => {
+              const featureKey = feature.properties?.featureKey
+              if (featureKey) wars.setSelectedId(featureKey)
+            }}
+          />
+        )
+      })}
+
+      {wars.showPoints && wars.selectedCrash && (() => {
+        const [longitude, latitude] = wars.selectedCrash.geometry.coordinates
+        const size = getWarsMarkerSize(wars.selectedCrash.properties.quantity)
+        const color = getSpeciesColor(wars.selectedCrash.properties.species || 'Unknown')
 
         return (
           <MapMarker
-            key={featureKey}
             longitude={longitude}
             latitude={latitude}
-            onClick={() => wars.setSelectedId(featureKey)}
           >
             <MarkerContent>
               <div
-                className={cn(
-                  'rounded-full border-2 border-white shadow-md transition-transform',
-                  selected ? 'scale-125 ring-2 ring-cyan-400' : 'opacity-90 hover:opacity-100',
-                )}
+                className="rounded-full border-2 border-white shadow-md ring-2 ring-cyan-400"
                 style={{ width: size, height: size, backgroundColor: color }}
-                title={`${feature.properties.species}: ${feature.properties.accidentDate || feature.properties.year}`}
+                title={`${wars.selectedCrash.properties.species}: ${wars.selectedCrash.properties.accidentDate || wars.selectedCrash.properties.year}`}
               />
             </MarkerContent>
           </MapMarker>
         )
-      })}
+      })()}
     </>
   )
 }
