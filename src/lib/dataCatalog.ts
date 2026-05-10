@@ -113,6 +113,16 @@ export const DATASETS = {
     downloadUrl: '/data/walkability/manifest.json',
     fields: ['communityName', 'balancedScore', 'infrastructureScore', 'accessScore', 'safetyAdjustedScore'],
   },
+  water: {
+    title: 'Drinking water facilities, samples, and notices',
+    description: 'Drinking water facilities with bacteriological sample rows, chemical result rows, active water notices, reference metadata, and download manifest.',
+    source: 'BC drinking water public data extracts',
+    coverage: 'British Columbia drinking water facilities, mapped where coordinates are available',
+    license: 'Source-dependent open data',
+    formats: ['JSON', 'JSON manifest'],
+    downloadUrl: '/data/water/water_download_manifest.json',
+    fields: ['facility_id', 'facility_name', 'latitude', 'longitude', 'sample_date', 'parameter', 'result', 'notice_type'],
+  },
   bcAssessment: {
     title: 'BC Assessment properties',
     description: 'Parcel/property assessment extracts with value, year built, category, and location attributes.',

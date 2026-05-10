@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ElementType } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Database, Footprints, PawPrint, Satellite, ShieldAlert, Trees } from 'lucide-react'
+import { Database, Droplets, Footprints, PawPrint, Satellite, ShieldAlert, Trees } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -25,6 +25,7 @@ import {
 } from './walkability'
 import { ICBC_TIMELINE_WINDOW_OPTIONS, IcbcLayer, IcbcLegend, IcbcSidebar, IcbcSourceNotes, useIcbcData } from './icbc'
 import { WARS_TIMELINE_WINDOW_OPTIONS, WarsLayer, WarsLegend, WarsSidebar, WarsSourceNotes, useWarsData } from './wars'
+import { WATER_TIMELINE_WINDOW_OPTIONS, WaterLayer, WaterLegend, WaterSidebar, WaterSourceNotes, useWaterData } from './water'
 import { Timeline } from '@/components/ui/timeline'
 
 interface HeatShadeManifestSource {
@@ -45,7 +46,7 @@ interface HeatShadeManifest {
 type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
 
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
-type MiscDataTab = 'heatShade' | 'canue' | 'icbc' | 'wars' | 'walkability'
+type MiscDataTab = 'heatShade' | 'canue' | 'icbc' | 'wars' | 'walkability' | 'water'
 type CanueYearMode = 'single' | 'month' | 'all' | 'range'
 type CanueBoundarySource = 'bcHealth' | 'census' | 'cityPG'
 type CanueBoundaryLevel =
@@ -136,6 +137,7 @@ const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = 
   { id: 'icbc', label: 'ICBC', icon: ShieldAlert },
   { id: 'wars', label: 'WARS', icon: PawPrint },
   { id: 'walkability', label: 'Walkability', icon: Footprints },
+  { id: 'water', label: 'Water', icon: Droplets },
 ]
 
 const CANUE_SUPPORTED_SOURCES = new Set<string>(['bcHealth', 'census', 'cityPG'])
@@ -682,7 +684,7 @@ export default function MiscDataSection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [activeTab, setActiveTab] = useState<MiscDataTab>(() => {
     const tab = searchParams.get('tab')
-    return tab === 'heatShade' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' ? tab : 'canue'
+    return tab === 'heatShade' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' ? tab : 'canue'
   })
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
   const [canueBoundarySource, setCanueBoundarySource] = useState<CanueBoundarySource>('bcHealth')
@@ -726,6 +728,7 @@ export default function MiscDataSection() {
     searchParams.get('walkabilityMode') || WALKABILITY_DEFAULT_DISPLAY_MODE,
     searchParams.get('walkabilityHeatmap'),
   )
+  const water = useWaterData(activeTab === 'water')
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -901,8 +904,8 @@ export default function MiscDataSection() {
   const canueMapCenter = canueBoundarySource === 'bcHealth' ? BC_CENTER : PG_CENTER
   const canueMapZoom = canueBoundarySource === 'bcHealth' ? 4.4 : canueBoundarySource === 'cityPG' ? 10.2 : 9.4
   const mapCenter = activeTab === 'canue' ? canueMapCenter : PG_CENTER
-  const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'icbc' || activeTab === 'wars' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
-  const mapKey = activeTab === 'canue' ? `${activeTab}-${canueBoundarySource}` : activeTab
+  const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'icbc' || activeTab === 'wars' || activeTab === 'water' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
+  const mapKey = activeTab === 'canue' ? `${activeTab}-${canueBoundarySource}` : activeTab === 'water' ? `${activeTab}-${water.boundarySource}` : activeTab
 
   useEffect(() => {
     if (!selectedCanueDataset || !selectedCanueFile) return
@@ -952,6 +955,7 @@ export default function MiscDataSection() {
       {activeTab === 'icbc' && <IcbcSourceNotes icbc={icbc} />}
       {activeTab === 'wars' && <WarsSourceNotes wars={wars} />}
       {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
+      {activeTab === 'water' && <WaterSourceNotes water={water} />}
       {activeTab === 'heatShade' && (heatShadeManifest.data?.caveats ?? []).slice(0, 2).map((caveat) => (
         <p key={caveat}>{caveat}</p>
       ))}
@@ -974,6 +978,8 @@ export default function MiscDataSection() {
                 ? DATASETS.wars
               : activeTab === 'walkability'
                 ? DATASETS.walkability
+              : activeTab === 'water'
+                ? DATASETS.water
                 : DATASETS.canue),
           updated: activeTab === 'heatShade'
             ? heatShadeManifest.data?.generatedAt
@@ -983,6 +989,8 @@ export default function MiscDataSection() {
                 ? wars.manifest.data?.generatedAt
               : activeTab === 'walkability'
                 ? walkability.manifest.data?.generatedAt
+              : activeTab === 'water'
+                ? water.manifest.data?.generatedAt
                 : canueManifest.data?.generatedAt,
         }}
         sourceNotes={sourceNotes}
@@ -1254,6 +1262,8 @@ export default function MiscDataSection() {
 
         {activeTab === 'walkability' && <WalkabilitySidebar walkability={walkability} />}
 
+        {activeTab === 'water' && <WaterSidebar water={water} />}
+
       </div>
     </div>
   )
@@ -1288,7 +1298,7 @@ export default function MiscDataSection() {
       mobilePeek={(
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">
-            MISC Data | {activeTab === 'canue' ? 'CANUE' : activeTab === 'icbc' ? 'ICBC' : activeTab === 'wars' ? 'WARS' : activeTab === 'walkability' ? 'Walkability' : 'Heat/shade'}
+            MISC Data | {activeTab === 'canue' ? 'CANUE' : activeTab === 'icbc' ? 'ICBC' : activeTab === 'wars' ? 'WARS' : activeTab === 'walkability' ? 'Walkability' : activeTab === 'water' ? 'Water' : 'Heat/shade'}
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
             {activeTab === 'canue'
@@ -1301,6 +1311,8 @@ export default function MiscDataSection() {
                   ? walkability.displayMode === 'heatmap'
                     ? `${walkability.selectedHeatmapVariant?.label || 'Citywide MI grid'}`
                     : `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString()} communities`
+                  : activeTab === 'water'
+                    ? `${water.visibleFacilities.length.toLocaleString()} facilities | ${water.filteredSamples.length.toLocaleString()} sample rows`
                   : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
           </div>
         </div>
@@ -1355,6 +1367,8 @@ export default function MiscDataSection() {
 
           {activeTab === 'walkability' && <WalkabilityLayer walkability={walkability} />}
 
+          {activeTab === 'water' && <WaterLayer water={water} />}
+
           {activeTab === 'icbc' && <IcbcLayer icbc={icbc} />}
 
           {activeTab === 'wars' && <WarsLayer wars={wars} />}
@@ -1394,16 +1408,33 @@ export default function MiscDataSection() {
           />
         )}
 
+        {activeTab === 'water' && water.timelineEnabled && water.timelineDate && (
+          <Timeline
+            startDate={water.sampleDateRange.start}
+            endDate={water.sampleDateRange.end}
+            currentDate={water.timelineDate}
+            onDateChange={water.setTimelineDate}
+            onClose={water.handleTimelineDisable}
+            bucketCounts={water.bucketCounts}
+            windowMode={{
+              size: water.timelineWindowSize,
+              onSizeChange: water.setTimelineWindowSize,
+              options: WATER_TIMELINE_WINDOW_OPTIONS,
+            }}
+            statsLabel={`${water.filteredSamples.length.toLocaleString()} sample rows`}
+          />
+        )}
+
         <div
           className={cn(
             'absolute right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:right-6',
-            (activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled)
+            (activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled) || (activeTab === 'water' && water.timelineEnabled)
               ? 'bottom-40 md:bottom-28'
               : 'bottom-36 md:bottom-6',
           )}
         >
           <h4 className="mb-2 text-xs font-semibold text-foreground">
-            {activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : 'MISC Layers'}
+            {activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : 'MISC Layers'}
           </h4>
           <div className="space-y-1">
             {activeTab === 'heatShade' && MISC_LAYERS.filter((layer) => activeLayers.includes(layer.id)).map((layer) => (
@@ -1435,6 +1466,7 @@ export default function MiscDataSection() {
             {activeTab === 'icbc' && <IcbcLegend icbc={icbc} />}
             {activeTab === 'wars' && <WarsLegend wars={wars} />}
             {activeTab === 'walkability' && <WalkabilityLegend walkability={walkability} />}
+            {activeTab === 'water' && <WaterLegend water={water} />}
           </div>
         </div>
       </div>

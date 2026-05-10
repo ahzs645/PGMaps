@@ -121,7 +121,7 @@ const mapProjects: MapCardProps[] = [
   },
   {
     title: 'MISC Data',
-    description: 'Explore datasets that do not come from the City PG data site, including canopy proxies, heat-shade layers, CANUE, WARS, and remote sensing metadata.',
+    description: 'Explore datasets that do not come from the City PG data site, including canopy proxies, heat-shade layers, CANUE, WARS, drinking water, and remote sensing metadata.',
     icon: Database,
     href: '/misc',
     color: 'bg-violet-600',
