@@ -7,7 +7,7 @@ interface ShellProps {
 
 export function Shell({ children }: ShellProps) {
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       <Navbar />
       <main className="flex-1 overflow-auto">
         {children}
