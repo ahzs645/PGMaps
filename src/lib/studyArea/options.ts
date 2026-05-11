@@ -28,8 +28,8 @@ export interface BoundaryLevelOption<T extends RegionLevel = RegionLevel> {
 export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
   {
     value: 'bcHealth',
-    label: 'CHSA health boundaries',
-    description: 'Community Health Service Areas',
+    label: 'Health boundaries',
+    description: 'Health Authority -> CHSA hierarchy',
   },
   {
     value: 'regionalDistrict',

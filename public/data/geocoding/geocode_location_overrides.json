@@ -1,0 +1,69 @@
+[
+  {
+    "name": "Seeley Lake Provincial Park Water System",
+    "city": "Hazelton",
+    "latitude": 55.1982434,
+    "longitude": -127.6899543,
+    "formatted_address": "Seeley Lake Provincial Park, Yellowhead Hwy / BC-16, Hazelton, BC V0J 1Y0, Canada",
+    "location_type": "GEOMETRIC_CENTER",
+    "quality": "ok",
+    "notes": "Google facility-name query resolves to Seeley Lake Provincial Park near Hazelton; replaces generic Yellowhead Highway result near Alberta.",
+    "sources": [
+      "https://bcparks.ca/seeley-lake-park/",
+      "https://www.google.com/maps/search/?api=1&query=Seeley+Lake+Provincial+Park+Hazelton+BC"
+    ]
+  },
+  {
+    "name": "Northern Experience RV Park",
+    "city": "Prince George",
+    "latitude": 53.843615,
+    "longitude": -122.691976,
+    "formatted_address": "9180 Cariboo Hwy, Prince George, BC V2N 6E2, Canada",
+    "location_type": "ROOFTOP",
+    "quality": "ok",
+    "notes": "Google facility-name/address query resolves to the Prince George address; replaces incorrect Kamloops Highway 97 partial match.",
+    "sources": [
+      "https://www.google.com/maps/search/?api=1&query=Northern+Experience+RV+Park+9180+Cariboo+Hwy+Prince+George+BC",
+      "https://www.campgroundreviews.com/regions/british-columbia/prince-george/northern-experience-rv-park-267733"
+    ]
+  },
+  {
+    "name": "MSJV Meter Station First Aid Trailer",
+    "city": "Kitimat",
+    "latitude": 53.9777054,
+    "longitude": -128.6450924,
+    "formatted_address": "Wathl Creek Rd, Kitimat-Stikine, BC V8C 9B2, Canada",
+    "location_type": "GEOMETRIC_CENTER",
+    "quality": "review",
+    "notes": "Approximate Kitimat-area fix using South Hirsch Creek/Wathl Creek road context; replaces incorrect Chilliwack partial match. Keep as review because the exact trailer point was not found.",
+    "sources": [
+      "https://www.google.com/maps/search/?api=1&query=South+Hirsch+Creek+FSR+Wathl+Creek+FSR+Kitimat+BC"
+    ]
+  },
+  {
+    "name": "Eagle Pointe Lodge",
+    "city": "North Coast Regional District",
+    "latitude": 54.7883311,
+    "longitude": -130.5507473,
+    "formatted_address": "Wales Island, Kitimat-Stikine, BC V0V 1H0, Canada",
+    "location_type": "GEOMETRIC_CENTER",
+    "quality": "review",
+    "notes": "Google facility-name plus Wales Island query resolves to Wales Island; replaces generic North Coast regional point. Keep as review because lodge-level coordinates were not found.",
+    "sources": [
+      "https://www.google.com/maps/search/?api=1&query=Eagle+Pointe+Lodge+Wales+Island+BC"
+    ]
+  },
+  {
+    "name": "Petronas C-65-G (Altares)",
+    "city": "Hudson's Hope",
+    "latitude": 56.38925,
+    "longitude": -122.18596,
+    "formatted_address": "Altares C-65-G Gas Plant, Peace River Regional District, BC, Canada",
+    "location_type": "MANUAL_SOURCE",
+    "quality": "ok",
+    "notes": "NPRI facility coordinates for PETRONAS Energy Canada Ltd. Altares C-65-G Gas Plant; replaces incorrect Kamloops Highway 97 partial match.",
+    "sources": [
+      "https://pollution-waste.canada.ca/national-release-inventory/archives/index.cfm?do=facility_substance_summary&facility=0000024900&lang=en&opt_npri_id=0000024900&opt_report_year=2020"
+    ]
+  }
+]

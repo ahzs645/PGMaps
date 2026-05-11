@@ -1,0 +1,7 @@
+[
+  {
+    "dataset": "bacteriological",
+    "status": "error",
+    "error": "405 Client Error: Not Allowed for url: https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Water-Samples-CityList?OpenView&Count=1000"
+  }
+]

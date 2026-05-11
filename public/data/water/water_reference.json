@@ -1,0 +1,443 @@
+{
+  "bacteriological_definitions": {
+    "total_coliforms": "Total coliforms are organisms found in the environment, including on plants, animals, and humans. Northern Health uses them as indicator organisms; if present, other organisms may also be present.",
+    "fecal_coliforms": "Bacterial contamination from human or animal waste (feces).",
+    "escherichia_coli": "Bacterial contamination from human or animal waste (feces)."
+  },
+  "bacteriological_codes": {
+    "A": {
+      "meaning": "Not tested; likely sample is too long in transit to the lab.",
+      "status": "not_tested"
+    },
+    "BG": {
+      "meaning": "Non-coliform background bacteria colonies.",
+      "status": "background_growth"
+    },
+    "B#": {
+      "meaning": "Number of non-coliform background bacteria colonies; high numbers (>200) may indicate deteriorating water quality.",
+      "status": "background_growth"
+    },
+    "CFU": {
+      "meaning": "Colony forming units.",
+      "status": "unit"
+    },
+    "E. COLI": {
+      "meaning": "Escherichia coli.",
+      "status": "organism"
+    },
+    "EST": {
+      "meaning": "Estimated count.",
+      "status": "estimated"
+    },
+    "L1": {
+      "meaning": "Less than 1 (<1), essentially 0. Satisfactory.",
+      "status": "satisfactory"
+    },
+    "LT1": {
+      "meaning": "Less than 1 (<1), essentially 0. Satisfactory.",
+      "status": "satisfactory"
+    },
+    "OG": {
+      "meaning": "Overgrowth of bacterial colonies; not possible to count coliform bacteria.",
+      "status": "unsatisfactory"
+    },
+    "R": {
+      "meaning": "Not tested; resample is likely required.",
+      "status": "resample_required"
+    },
+    "T": {
+      "meaning": "Not tested; likely sample is too long in transit to the lab.",
+      "status": "not_tested"
+    },
+    "TNTC": {
+      "meaning": "Too numerous to count; similar to OG.",
+      "status": "unsatisfactory"
+    }
+  },
+  "bacteriological_guidelines": [
+    {
+      "parameter": "E.Coli",
+      "result": "< 1",
+      "description": "If exceeded, water is unsafe to use for drinking, washing vegetables, or oral hygiene."
+    },
+    {
+      "parameter": "Total Coliform",
+      "result": "< 1",
+      "description": "If exceeded, water is suspect and further investigation is needed to determine safety of water system."
+    },
+    {
+      "parameter": "Background Growth",
+      "result": "> 200",
+      "description": "Although not pathogenic, exceedance suggests flushing/disinfection of distribution system."
+    }
+  ],
+  "chemical_parameter_guidelines": [
+    {
+      "parameter": "Alkalinity",
+      "result": "No limit",
+      "description": "Affects water treatment"
+    },
+    {
+      "parameter": "Aluminum",
+      "result": "No limit",
+      "description": "Affects water treatment coagulation"
+    },
+    {
+      "parameter": "Ammonia",
+      "result": "No limit",
+      "description": "Aesthetic objective"
+    },
+    {
+      "parameter": "Antimony",
+      "result": "0.006 mg/L",
+      "description": "Significant health risk"
+    },
+    {
+      "parameter": "Arsenic",
+      "result": "0.01 mg/L",
+      "description": "High health risk (ALARA - as low as reasonably achievable)"
+    },
+    {
+      "parameter": "Barium",
+      "result": "1 mg/L",
+      "description": "Low health risk"
+    },
+    {
+      "parameter": "Benzene",
+      "result": "0.005 mg/L",
+      "description": "High health risk"
+    },
+    {
+      "parameter": "Boron",
+      "result": "5 mg/L",
+      "description": "Low health risk"
+    },
+    {
+      "parameter": "Cadmium",
+      "result": "0.005 mg/L",
+      "description": "Low health risk"
+    },
+    {
+      "parameter": "Calcium",
+      "result": "No limit",
+      "description": "Contributes to hardness"
+    },
+    {
+      "parameter": "Chloride",
+      "result": "<= 250 mg/L",
+      "description": "Aesthetic objective"
+    },
+    {
+      "parameter": "Chromium",
+      "result": "0.05 mg/L",
+      "description": "Low health risk"
+    },
+    {
+      "parameter": "Colour",
+      "result": "<= 5 TCU",
+      "description": "Aesthetic objective"
+    },
+    {
+      "parameter": "Conductivity",
+      "result": "No limit",
+      "description": ""
+    },
+    {
+      "parameter": "Copper",
+      "result": "<= 1.0 mg/L",
+      "description": "Aesthetic objective. Causes green staining of laundry and plumbing fixtures"
+    },
+    {
+      "parameter": "Corrosivity",
+      "result": "No limit",
+      "description": "Risk from dissolution of heavy metals, especially lead and copper"
+    },
+    {
+      "parameter": "Ethylbenzene",
+      "result": "<= 0.14 mg/L",
+      "description": "Aesthetic objective"
+    },
+    {
+      "parameter": "Fluoride",
+      "result": "1.5 mg/L",
+      "description": "0.8-1.0 mg/L recommended"
+    },
+    {
+      "parameter": "Hardness",
+      "result": "80-100 mg/L",
+      "description": "Aesthetic objective"
+    },
+    {
+      "parameter": "Iron",
+      "result": "<= 0.3 mg/L",
+      "description": "Undesirable tastes, stains laundry and plumbing fixtures."
+    },
+    {
+      "parameter": "Langelier Saturation Index",
+      "result": "No Health Canada limit",
+      "description": "Operational scaling indicator described in the Health Canada pH technical document; not a corrosion index and not assigned a drinking-water limit."
+    },
+    {
+      "parameter": "Lead",
+      "result": "0.005 mg/L",
+      "description": "Chronic health effects (ALARA - as low as reasonably achievable)"
+    },
+    {
+      "parameter": "Bromide",
+      "result": "No Health Canada limit",
+      "description": "NOM/DBP operational monitoring parameter; Health Canada discusses bromide as affecting disinfection by-product formation, but does not establish a direct bromide guideline value."
+    },
+    {
+      "parameter": "Chlorine Demand",
+      "result": "No Health Canada limit",
+      "description": "Operational indicator used to assess NOM character and disinfectant demand; no numeric Health Canada drinking-water limit."
+    },
+    {
+      "parameter": "Lignin",
+      "result": "No Health Canada limit",
+      "description": "Natural organic matter component and disinfection by-product precursor; no numeric Health Canada drinking-water limit."
+    },
+    {
+      "parameter": "Magnesium",
+      "result": "No limit",
+      "description": ""
+    },
+    {
+      "parameter": "Manganese",
+      "result": "<= 0.12 mg/L",
+      "description": "Health risk"
+    },
+    {
+      "parameter": "Mercury",
+      "result": "0.001 mg/L",
+      "description": "Health Canada MAC. Health basis: irreversible neurological symptoms."
+    },
+    {
+      "parameter": "Molybdenum",
+      "result": "No limit",
+      "description": ""
+    },
+    {
+      "parameter": "Nickel",
+      "result": "No limit",
+      "description": ""
+    },
+    {
+      "parameter": "Nitrate NO3",
+      "result": "45 mg/L",
+      "description": "Some labs report as N, which is equal to 10 mg/L as nitrate-nitrogen"
+    },
+    {
+      "parameter": "Nitrite NO2",
+      "result": "3.2 mg/L",
+      "description": "Some labs report as N, which is equal to 1 mg/L as nitrite-nitrogen"
+    },
+    {
+      "parameter": "Nitrogen, organic",
+      "result": "No limit",
+      "description": ""
+    },
+    {
+      "parameter": "Nitrogen",
+      "result": "No Health Canada limit",
+      "description": "Generic nitrogen result; Health Canada guideline values apply to nitrate and nitrite separately."
+    },
+    {
+      "parameter": "pH",
+      "result": "7.0-10.5",
+      "description": "Goal is to produce water in which corrosion and incrustation are minimized"
+    },
+    {
+      "parameter": "Phosphorus",
+      "result": "No limit",
+      "description": ""
+    },
+    {
+      "parameter": "Potassium",
+      "result": "No limit",
+      "description": ""
+    },
+    {
+      "parameter": "Selenium",
+      "result": "0.01 mg/L",
+      "description": "Nutritional considerations"
+    },
+    {
+      "parameter": "Silica",
+      "result": "No Health Canada limit",
+      "description": "No Health Canada drinking-water guideline value identified."
+    },
+    {
+      "parameter": "Silver",
+      "result": "No limit",
+      "description": ""
+    },
+    {
+      "parameter": "Sodium",
+      "result": "<= 200 mg/L",
+      "description": "Aesthetic objective. Tastes are offensive, diets may be sodium restricted"
+    },
+    {
+      "parameter": "Strontium",
+      "result": "7.0 mg/L",
+      "description": "Health Canada MAC. Health basis: bone effects."
+    },
+    {
+      "parameter": "Solids - Suspended",
+      "result": "No Health Canada limit",
+      "description": "No Health Canada drinking-water guideline value identified; turbidity is the related guideline parameter, but TSS is not equivalent."
+    },
+    {
+      "parameter": "Tannins",
+      "result": "No Health Canada limit",
+      "description": "Natural organic matter component and disinfection by-product precursor; no numeric Health Canada drinking-water limit."
+    },
+    {
+      "parameter": "Sulphate",
+      "result": "<= 500 mg/L",
+      "description": "Aesthetic objective. May have laxative effect"
+    },
+    {
+      "parameter": "Sulphide",
+      "result": "<= 0.05 mg/L",
+      "description": "Disagreeable tastes and odours."
+    },
+    {
+      "parameter": "Toluene",
+      "result": "<= 0.06 mg/L",
+      "description": "Health risk"
+    },
+    {
+      "parameter": "Total Dissolved Solids",
+      "result": "<= 500 mg/L",
+      "description": "Aesthetic objective. At higher levels, excessive hardness, unpalatability, mineral deposition and corrosion may occur"
+    },
+    {
+      "parameter": "Total Organic Carbon",
+      "result": "No limit",
+      "description": "Degree of carbon loading for treatment considerations"
+    },
+    {
+      "parameter": "Turbidity",
+      "result": "<= 1 NTU",
+      "description": "Limits effectiveness of UV disinfection"
+    },
+    {
+      "parameter": "Haloacetic Acids",
+      "result": "0.08 mg/L",
+      "description": "Health Canada MAC for total HAAs, expressed as a locational running annual average of quarterly samples."
+    },
+    {
+      "parameter": "Bromochloroacetic Acid",
+      "result": "No current Health Canada limit",
+      "description": "Haloacetic acid component. Health Canada has proposed including bromochloroacetic acid in HAA6, but the current established guideline is for total HAAs/HAA5."
+    },
+    {
+      "parameter": "Tribromoacetic Acid",
+      "result": "No current Health Canada limit",
+      "description": "Haloacetic acid component without a current individual Health Canada drinking-water guideline value."
+    },
+    {
+      "parameter": "Bromodichloracetic Acid",
+      "result": "No current Health Canada limit",
+      "description": "Haloacetic acid component without a current individual Health Canada drinking-water guideline value."
+    },
+    {
+      "parameter": "Chlorodibromoacetic Acid",
+      "result": "No current Health Canada limit",
+      "description": "Haloacetic acid component without a current individual Health Canada drinking-water guideline value."
+    },
+    {
+      "parameter": "Trihalomethanes",
+      "result": "0.1 mg/L",
+      "description": "Health Canada MAC for total THMs, expressed as a locational running annual average of quarterly samples."
+    },
+    {
+      "parameter": "Odour",
+      "result": "Inoffensive",
+      "description": "Health Canada aesthetic objective."
+    },
+    {
+      "parameter": "Dalapon",
+      "result": "No Health Canada limit",
+      "description": "No current Health Canada drinking-water guideline value identified."
+    },
+    {
+      "parameter": "Styrene",
+      "result": "No Health Canada limit",
+      "description": "No current Health Canada drinking-water guideline value identified."
+    },
+    {
+      "parameter": "Giardia",
+      "result": "Minimum 3 log removal/inactivation",
+      "description": "Health Canada treatment goal for enteric protozoa."
+    },
+    {
+      "parameter": "Cryptosporidium",
+      "result": "Minimum 3 log removal/inactivation",
+      "description": "Health Canada treatment goal for enteric protozoa."
+    },
+    {
+      "parameter": "Uranium",
+      "result": "0.02 mg/L",
+      "description": "Health Canada MAC. Health basis: kidney effects."
+    },
+    {
+      "parameter": "Silicon",
+      "result": "No Health Canada limit",
+      "description": "No Health Canada drinking-water guideline value identified."
+    },
+    {
+      "parameter": "Vanadium",
+      "result": "No Health Canada limit",
+      "description": "Listed by Health Canada for guideline prioritization, but no current drinking-water guideline value identified."
+    },
+    {
+      "parameter": "2,3-Dibromopropionic acid",
+      "result": "No Health Canada limit",
+      "description": "No current Health Canada drinking-water guideline value identified."
+    },
+    {
+      "parameter": "Bromofluorobenzene",
+      "result": "No Health Canada limit",
+      "description": "Laboratory surrogate/recovery compound; no Health Canada drinking-water guideline value identified."
+    },
+    {
+      "parameter": "Dibromofluoromethane",
+      "result": "No Health Canada limit",
+      "description": "Laboratory surrogate/recovery compound; no Health Canada drinking-water guideline value identified."
+    },
+    {
+      "parameter": "Toluene-d8",
+      "result": "No Health Canada limit",
+      "description": "Laboratory surrogate/recovery compound; no Health Canada drinking-water guideline value identified."
+    },
+    {
+      "parameter": "UV Transmittance",
+      "result": "Min 85%",
+      "description": "Ultimately depends on the manufacturer specification of certified (NSF) model. Low UV Transmittance limits effectiveness of UV disinfection"
+    },
+    {
+      "parameter": "Xylene (total)",
+      "result": "<= 0.09 mg/L",
+      "description": "Health risk"
+    },
+    {
+      "parameter": "Zinc",
+      "result": "<= 5.0 mg/L",
+      "description": "Undesirable astringent taste"
+    }
+  ],
+  "sources": [
+    {
+      "name": "Northern Health Authority Chemical Samples & Results",
+      "url": "https://www.healthspace.ca/Clients/NHA/NHA_Website.nsf/Water-Samples-Frameset?OpenPage",
+      "notes": "Quick-reference table last updated September 2019."
+    },
+    {
+      "name": "Health Canada Guidelines for Canadian Drinking Water Quality - Summary Tables",
+      "url": "https://www.canada.ca/en/health-canada/services/environmental-workplace-health/reports-publications/water-quality/guidelines-canadian-drinking-water-quality-summary-table.html",
+      "notes": "Used for scraped parameters missing from the Northern Health quick-reference table."
+    }
+  ]
+}

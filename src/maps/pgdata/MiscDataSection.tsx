@@ -1312,7 +1312,7 @@ export default function MiscDataSection() {
                     ? `${walkability.selectedHeatmapVariant?.label || 'Citywide MI grid'}`
                     : `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString()} communities`
                   : activeTab === 'water'
-                    ? `${water.visibleFacilities.length.toLocaleString()} facilities | ${water.filteredSamples.length.toLocaleString()} sample rows`
+                    ? `${water.facilities.length.toLocaleString()} facilities | ${water.filteredSamples.length.toLocaleString()} sample rows`
                   : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
           </div>
         </div>

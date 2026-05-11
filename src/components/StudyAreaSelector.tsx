@@ -19,6 +19,7 @@ export type StudyAreaScope = 'pg' | 'province' | 'mixed'
 
 export type CanonicalStudyAreaSource =
   | 'bcHealth'
+  | 'regionalDistrict'
   | 'census'
   | 'cityPG'
   | 'watershed'
@@ -33,8 +34,13 @@ const CANONICAL_SOURCE_DEFS: Record<
   { label: string; description: string; provincial: boolean }
 > = {
   bcHealth: {
-    label: 'CHSA health boundaries',
-    description: 'Community Health Service Areas',
+    label: 'Health boundaries',
+    description: 'Health Authority -> CHSA hierarchy',
+    provincial: true,
+  },
+  regionalDistrict: {
+    label: 'Regional district',
+    description: 'Large local-government region',
     provincial: true,
   },
   census: {
