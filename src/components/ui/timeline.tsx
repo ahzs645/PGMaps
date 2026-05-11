@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react'
 import { ChevronLeft, ChevronRight, Pause, Play, SkipBack } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
@@ -313,25 +313,29 @@ export function Timeline({
   const shouldUseCompactBars = compactBars || granularity === 'week'
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-border bg-background/95 backdrop-blur">
+    <div
+      data-map-timeline="true"
+      className="absolute left-0 right-0 z-20 border-t border-border bg-background/95 backdrop-blur"
+      style={{ bottom: 'var(--map-mobile-sheet-visible-height, 0px)' } as CSSProperties}
+    >
       <div className="px-4 py-3">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="text-sm font-semibold text-foreground">{formattedDate}</div>
+        <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <div className="flex w-full min-w-0 items-baseline justify-between gap-3 sm:w-auto sm:justify-start">
+            <div className="min-w-0 truncate text-sm font-semibold text-foreground">{formattedDate}</div>
             {statsLabel && (
-              <div className="text-xs text-muted-foreground">{statsLabel}</div>
+              <div className="shrink-0 text-xs text-muted-foreground">{statsLabel}</div>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             {windowMode && (
-              <div className="flex items-center gap-1 rounded-md border border-input p-0.5">
+              <div className="grid flex-1 grid-cols-4 gap-1 rounded-md border border-input p-0.5 sm:flex sm:flex-none sm:items-center">
                 {windowOptions.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => windowMode.onSizeChange(opt.value)}
                     className={cn(
-                      'rounded px-2 py-0.5 text-[10px] font-medium transition-colors',
+                      'whitespace-nowrap rounded px-2 py-1 text-[10px] font-medium transition-colors sm:py-0.5',
                       windowMode.size === opt.value
                         ? 'bg-primary text-primary-foreground'
                         : 'text-muted-foreground hover:text-foreground'
@@ -363,7 +367,7 @@ export function Timeline({
             {onClose && (
               <button
                 onClick={onClose}
-                className="rounded border border-input px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="shrink-0 rounded border border-input px-3 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:px-2 sm:py-0.5"
               >
                 Close
               </button>
