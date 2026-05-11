@@ -9,9 +9,9 @@ import { cn } from '@/lib/utils'
 import { formatDate, useJsonManifest } from './shared'
 
 export const WARS_TIMELINE_WINDOW_OPTIONS: TimelineWindowOption[] = [
-  { value: 1, label: '1 mo' },
-  { value: 12, label: '1 yr' },
-  { value: 60, label: '5 yr' },
+  { value: 1, label: '1 yr' },
+  { value: 2, label: '2 yr' },
+  { value: 5, label: '5 yr' },
   { value: -1, label: 'Cumul.' },
 ]
 
@@ -142,7 +142,7 @@ export function useWarsData(
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [timelineEnabled, setTimelineEnabled] = useState(false)
   const [timelineDate, setTimelineDate] = useState<Date | null>(null)
-  const [timelineWindowSize, setTimelineWindowSize] = useState(12)
+  const [timelineWindowSize, setTimelineWindowSize] = useState(1)
   const manifest = useJsonManifest<WarsManifest>(active ? '/data/wars/manifest.json' : null)
   const crashes = useJsonManifest<WarsFeatureCollection>(active && manifest.data ? manifest.data.geojson : null)
   const features = crashes.data?.features ?? []
@@ -179,27 +179,19 @@ export function useWarsData(
 
   useEffect(() => {
     if (timelineEnabled && !timelineDate && features.length > 0) {
-      setTimelineDate(new Date(accidentDateRange.end.getFullYear(), accidentDateRange.end.getMonth(), 1))
+      setTimelineDate(new Date(accidentDateRange.end.getFullYear(), 0, 1))
     }
   }, [timelineEnabled, timelineDate, features.length, accidentDateRange.end])
 
   const timelineFilterRange = useMemo(() => {
     if (!timelineEnabled || !timelineDate) return null
     const isCumulative = timelineWindowSize === -1
-    const startMonth = isCumulative
-      ? new Date(accidentDateRange.start.getFullYear(), accidentDateRange.start.getMonth(), 1)
-      : new Date(timelineDate.getFullYear(), timelineDate.getMonth(), 1)
-    const monthsForward = isCumulative ? 1 : timelineWindowSize
-    const endMonth = new Date(
-      timelineDate.getFullYear(),
-      timelineDate.getMonth() + monthsForward,
-      0,
-      23,
-      59,
-      59,
-      999,
-    )
-    return { start: startMonth.getTime(), end: endMonth.getTime() }
+    const startYear = isCumulative ? accidentDateRange.start.getFullYear() : timelineDate.getFullYear()
+    const endYear = isCumulative ? timelineDate.getFullYear() : timelineDate.getFullYear() + timelineWindowSize - 1
+    return {
+      start: new Date(startYear, 0, 1).getTime(),
+      end: new Date(endYear, 11, 31, 23, 59, 59, 999).getTime(),
+    }
   }, [timelineEnabled, timelineDate, timelineWindowSize, accidentDateRange.start])
 
   const filteredFeatures = useMemo(() => {
@@ -243,7 +235,7 @@ export function useWarsData(
     for (const feature of baseFilteredFeatures) {
       const date = parseAccidentDate(feature.properties)
       if (!date) continue
-      const key = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
+      const key = String(date.getFullYear())
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
     return counts

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react'
 import { ChevronLeft, ChevronRight, Pause, Play, SkipBack } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
@@ -148,6 +148,7 @@ export function Timeline({
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(1000)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timelineRef = useRef<HTMLDivElement>(null)
 
   const buckets = useMemo(() => buildBuckets(startDate, endDate, granularity), [startDate, endDate, granularity])
 
@@ -307,6 +308,27 @@ export function Timeline({
     [windowMode, isCumulative, windowAnchor, windowSize, currentIndex]
   )
 
+  useLayoutEffect(() => {
+    const timeline = timelineRef.current
+    const container = timeline?.parentElement
+    if (!timeline || !container) return
+
+    const syncTimelineHeight = () => {
+      container.style.setProperty('--map-timeline-height', `${timeline.getBoundingClientRect().height}px`)
+    }
+
+    syncTimelineHeight()
+    const observer = new ResizeObserver(syncTimelineHeight)
+    observer.observe(timeline)
+    window.addEventListener('resize', syncTimelineHeight)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', syncTimelineHeight)
+      container.style.removeProperty('--map-timeline-height')
+    }
+  }, [])
+
   if (buckets.length === 0) return null
 
   const windowOptions = windowMode?.options ?? DEFAULT_WINDOW_OPTIONS
@@ -314,6 +336,7 @@ export function Timeline({
 
   return (
     <div
+      ref={timelineRef}
       data-map-timeline="true"
       className="absolute left-0 right-0 z-20 border-t border-border bg-background/95 backdrop-blur"
       style={{ bottom: 'var(--map-mobile-sheet-visible-height, 0px)' } as CSSProperties}

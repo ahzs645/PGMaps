@@ -43,7 +43,7 @@ export default function PGDataSection() {
   }, [activeTab])
 
   const setActiveTab = (tab: PGDataTab) => {
-    const params = new URLSearchParams(searchParams)
+    const params = new URLSearchParams()
     params.set('tab', tab)
     setSearchParams(params)
   }

@@ -1,0 +1,21 @@
+{
+  "combined_count": 711,
+  "healthspace_count": 151,
+  "watertoday_count": 588,
+  "record_type_counts": {
+    "combined_notice": 151,
+    "watertoday_only_notice": 560
+  },
+  "merge_bucket_counts": {
+    "same_notice": 22,
+    "watertoday_only": 560,
+    "no_clear_match": 121,
+    "same_facility_possible": 8
+  },
+  "primary_source_counts": {
+    "HealthSpace": 151,
+    "WaterToday": 560
+  },
+  "with_coordinates": 711,
+  "with_multiple_sources": 30
+}

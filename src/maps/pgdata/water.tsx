@@ -66,6 +66,11 @@ interface WaterFacility {
   lastSampleDate: Date | null
   geocodedAddress?: string
   geocodePartialMatch?: boolean
+  noticeOnly?: boolean
+  noticeIds?: string[]
+  primarySource?: string
+  mergeBucket?: string
+  sourceCount?: number
   source: Record<string, unknown>
 }
 
@@ -87,6 +92,12 @@ interface WaterNoticeRow {
   type: string
   status: string
   date: Date | null
+  latitude: number | null
+  longitude: number | null
+  locationSummary: string
+  primarySource: string
+  mergeBucket: string
+  sourceCount: number
   source: Record<string, unknown>
 }
 
@@ -96,6 +107,17 @@ interface WaterManifest {
   source?: string
   sourcePage?: string
   sourceLicense?: string
+}
+
+interface CombinedWaterNoticesSummary {
+  combined_count?: number
+  healthspace_count?: number
+  watertoday_count?: number
+  with_coordinates?: number
+  with_multiple_sources?: number
+  record_type_counts?: Record<string, number>
+  merge_bucket_counts?: Record<string, number>
+  primary_source_counts?: Record<string, number>
 }
 
 interface GeocodedLocation {
@@ -150,6 +172,35 @@ const WATER_HAZARD_COLORS: Record<string, string> = {
   Moderate: 'bg-amber-500',
   High: 'bg-red-600',
   Unknown: 'bg-gray-500',
+}
+
+const WATER_DATE_MIN_YEAR = 1900
+const WATER_DATE_MAX_YEAR = new Date().getFullYear() + 1
+const WATER_MONTH_INDEX: Record<string, number> = {
+  jan: 0,
+  january: 0,
+  feb: 1,
+  february: 1,
+  mar: 2,
+  march: 2,
+  apr: 3,
+  april: 3,
+  may: 4,
+  jun: 5,
+  june: 5,
+  jul: 6,
+  july: 6,
+  aug: 7,
+  august: 7,
+  sep: 8,
+  sept: 8,
+  september: 8,
+  oct: 9,
+  october: 9,
+  nov: 10,
+  november: 10,
+  dec: 11,
+  december: 11,
 }
 
 const WATER_SOURCE_OPTIONS: Array<StudyAreaSourceOption<WaterBoundarySource>> = [
@@ -308,12 +359,53 @@ function firstNumber(record: Record<string, unknown>, keys: string[]): number | 
   return null
 }
 
+function isExpectedWaterDate(date: Date): boolean {
+  const year = date.getFullYear()
+  return year >= WATER_DATE_MIN_YEAR && year <= WATER_DATE_MAX_YEAR
+}
+
+function exactDate(year: number, month: number, day: number): Date | null {
+  if (year < WATER_DATE_MIN_YEAR || year > WATER_DATE_MAX_YEAR) return null
+  const date = new Date(year, month, day)
+  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null
+  return date
+}
+
+function parseWaterDate(value: unknown): Date | null {
+  if (value instanceof Date) return isExpectedWaterDate(value) ? value : null
+  if (value == null || value === '') return null
+
+  const text = String(value).trim()
+  if (!text) return null
+
+  const dayMonthYear = text.match(/^(\d{1,2})[-\s/]([A-Za-z]{3,9})[-\s/](\d{4})$/)
+  if (dayMonthYear) {
+    const month = WATER_MONTH_INDEX[dayMonthYear[2].toLowerCase()]
+    if (month == null) return null
+    return exactDate(Number(dayMonthYear[3]), month, Number(dayMonthYear[1]))
+  }
+
+  const isoDate = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/)
+  if (isoDate) {
+    return exactDate(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]))
+  }
+
+  const slashDate = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (slashDate) {
+    return exactDate(Number(slashDate[3]), Number(slashDate[1]) - 1, Number(slashDate[2]))
+  }
+
+  if (!/\b\d{4}\b/.test(text)) return null
+  const parsed = new Date(text)
+  if (Number.isNaN(parsed.getTime()) || !isExpectedWaterDate(parsed)) return null
+  return parsed
+}
+
 function firstDate(record: Record<string, unknown>, keys: string[]): Date | null {
   for (const key of keys) {
     const value = record[key]
-    if (value == null || value === '') continue
-    const parsed = new Date(String(value))
-    if (!Number.isNaN(parsed.getTime())) return parsed
+    const parsed = parseWaterDate(value)
+    if (parsed) return parsed
   }
   return null
 }
@@ -409,18 +501,30 @@ function normalizeSample(record: Record<string, unknown>, index: number, kind: W
 }
 
 function normalizeNotice(record: Record<string, unknown>, index: number): WaterNoticeRow {
+  const latitude = firstNumber(record, ['latitude', 'lat', 'facilityLatitude', 'facility_latitude', 'gpsLatitude', 'y'])
+  const longitude = firstNumber(record, ['longitude', 'lon', 'lng', 'facilityLongitude', 'facility_longitude', 'gpsLongitude', 'x'])
+  const validLatitude = latitude != null && Math.abs(latitude) <= 90 ? latitude : null
+  const validLongitude = longitude != null && Math.abs(longitude) <= 180 ? longitude : null
+
   return {
     id: firstString(record, ['noticeId', 'notice_id', 'id'], `notice-${index}`),
     facilityId: firstString(record, ['facilityId', 'facility_id', 'pwsid', 'waterSystemNumber', 'water_system_number', 'systemId', 'system_id', 'details_url']),
     facilityName: firstString(record, ['facilityName', 'facility_name', 'waterSystemName', 'water_system_name', 'name']),
     type: firstString(record, ['noticeType', 'notice_type', 'type', 'advisoryType', 'advisory_type'], 'Active notice'),
     status: firstString(record, ['status', 'noticeStatus', 'notice_status'], 'Active'),
-    date: firstDate(record, ['issuedDate', 'issued_date', 'effectiveDate', 'effective_date', 'startDate', 'start_date', 'date']),
+    date: firstDate(record, ['issuedDate', 'issued_date', 'effectiveDate', 'effective_date', 'startDate', 'start_date', 'start_date_iso', 'date']),
+    latitude: validLatitude,
+    longitude: validLongitude,
+    locationSummary: firstString(record, ['location_summary', 'community', 'city', 'locality']),
+    primarySource: firstString(record, ['primary_source', 'source']),
+    mergeBucket: firstString(record, ['merge_bucket', 'record_type']),
+    sourceCount: firstNumber(record, ['source_count']) ?? 1,
     source: record,
   }
 }
 
 function sameFacility(sample: WaterSampleRow | WaterNoticeRow, facility: WaterFacility): boolean {
+  if ('noticeIds' in facility && facility.noticeIds?.includes(sample.id)) return true
   if (sample.facilityId && sample.facilityId === facility.id) return true
   return Boolean(sample.facilityName && sample.facilityName.toLowerCase() === facility.name.toLowerCase())
 }
@@ -488,13 +592,42 @@ function formatUnknown(value: unknown): string {
 }
 
 function getInspectionRows(facility: WaterFacility): Record<string, unknown>[] {
-  const inspections = facility.source.inspections
+  const healthSpaceSource = getNoticeSourceRecord(facility.source, 'HealthSpace')
+  const rawHealthSpace = isRecord(healthSpaceSource?.raw) ? healthSpaceSource.raw : null
+  const inspections = facility.source.inspections ?? healthSpaceSource?.inspections ?? rawHealthSpace?.inspections
   return Array.isArray(inspections) ? inspections.filter(isRecord) : []
 }
 
+function getNoticeSourceRecord(record: Record<string, unknown>, sourceName: string): Record<string, unknown> | null {
+  const sources = record.sources
+  if (!Array.isArray(sources)) return null
+  return sources
+    .filter(isRecord)
+    .find((source) => String(source.source ?? '').toLowerCase() === sourceName.toLowerCase()) ?? null
+}
+
 function getNoticeDetail(notice: WaterNoticeRow, key: string): string {
-  const value = notice.source[key] ?? (isRecord(notice.source.notice_details) ? notice.source.notice_details[key] : undefined)
+  const healthSpaceSource = getNoticeSourceRecord(notice.source, 'HealthSpace')
+  const waterTodaySource = getNoticeSourceRecord(notice.source, 'WaterToday')
+  const rawHealthSpace = isRecord(healthSpaceSource?.raw) ? healthSpaceSource.raw : null
+  const rawWaterToday = isRecord(waterTodaySource?.raw) ? waterTodaySource.raw : null
+  const noticeDetails = isRecord(notice.source.notice_details) ? notice.source.notice_details : null
+  const value = notice.source[key]
+    ?? healthSpaceSource?.[key]
+    ?? rawHealthSpace?.[key]
+    ?? waterTodaySource?.[key]
+    ?? rawWaterToday?.[key]
+    ?? noticeDetails?.[key]
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function getNoticeDetailsUrl(record: Record<string, unknown>): string {
+  const direct = firstString(record, ['details_url', 'source_id'])
+  if (direct) return direct
+  const primarySource = firstString(record, ['primary_source'])
+  const preferredSource = primarySource ? getNoticeSourceRecord(record, primarySource) : null
+  const anySource = Array.isArray(record.sources) ? record.sources.filter(isRecord)[0] : null
+  return firstString(preferredSource ?? anySource ?? {}, ['details_url', 'source_id'])
 }
 
 function getBoundaryName(properties: GeoJSON.GeoJsonProperties | undefined, config: BoundaryLevelConfig): string {
@@ -544,6 +677,8 @@ export function useWaterData(active: boolean) {
   const bacteriologicalJson = useWaterJson<unknown>(active, 'bacteriological_samples.json')
   const chemicalJson = useWaterJson<unknown>(active, 'chemical_samples.json')
   const noticesJson = useWaterJson<unknown>(active, 'active_water_notices.json')
+  const combinedNoticesJson = useWaterJson<unknown>(active, 'combined_water_notices.json')
+  const combinedNoticesSummary = useWaterJson<CombinedWaterNoticesSummary>(active, 'combined_water_notices_summary.json')
   const referenceJson = useWaterJson<unknown>(active, 'water_reference.json')
   const geocodedLocations = useJsonManifest<GeocodedLocationsFile>(active ? '/data/geocoding/geocoded_locations.json' : null)
   const boundaryConfig = WATER_BOUNDARY_CONFIG[boundaryLevel]
@@ -594,9 +729,16 @@ export function useWaterData(active: boolean) {
   }, [bacteriologicalJson.data, chemicalJson.data])
 
   const notices = useMemo(() => (
+    findArray(combinedNoticesJson.data, ['notices', 'activeNotices', 'records', 'rows'])
+      .map(normalizeNotice)
+  ), [combinedNoticesJson.data])
+
+  const fallbackNotices = useMemo(() => (
     findArray(noticesJson.data, ['notices', 'activeNotices', 'records', 'rows'])
       .map(normalizeNotice)
   ), [noticesJson.data])
+
+  const activeNotices = notices.length > 0 ? notices : fallbackNotices
 
   const facilities = useMemo(() => {
     const geocodedByIndex = new Map(
@@ -634,17 +776,50 @@ export function useWaterData(active: boolean) {
       if (sample.date && (!facility.lastSampleDate || sample.date > facility.lastSampleDate)) facility.lastSampleDate = sample.date
     }
 
-    for (const notice of notices) {
+    const matchedNoticeIds = new Set<string>()
+
+    for (const notice of activeNotices) {
       const facility = (notice.facilityId && byId.get(notice.facilityId)) || (notice.facilityName && byName.get(notice.facilityName.toLowerCase()))
-      if (facility) facility.activeNotices += 1
+      if (!facility) continue
+      facility.activeNotices += 1
+      facility.noticeIds = [...(facility.noticeIds ?? []), notice.id]
+      matchedNoticeIds.add(notice.id)
+    }
+
+    for (const notice of activeNotices) {
+      if (matchedNoticeIds.has(notice.id) || notice.latitude == null || notice.longitude == null) continue
+      const id = `notice-point:${notice.id}`
+      byId.set(id, {
+        id,
+        name: notice.facilityName || `Notice ${notice.id}`,
+        operator: '',
+        type: notice.primarySource || 'Notice',
+        status: notice.status,
+        hazardRating: 'Unknown',
+        address: '',
+        community: notice.locationSummary,
+        latitude: notice.latitude,
+        longitude: notice.longitude,
+        bacteriologicalSamples: 0,
+        chemicalResults: 0,
+        activeNotices: 1,
+        lastSampleDate: null,
+        noticeOnly: true,
+        noticeIds: [notice.id],
+        primarySource: notice.primarySource,
+        mergeBucket: notice.mergeBucket,
+        sourceCount: notice.sourceCount,
+        source: notice.source,
+      })
     }
 
     return Array.from(byId.values()).sort((left, right) => right.activeNotices - left.activeNotices || right.bacteriologicalSamples + right.chemicalResults - left.bacteriologicalSamples - left.chemicalResults)
-  }, [facilitiesJson.data, geocodedLocations.data, notices, samples])
+  }, [activeNotices, facilitiesJson.data, geocodedLocations.data, samples])
 
   const hazardCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const facility of facilities) {
+      if (facility.noticeOnly) continue
       const rating = facility.hazardRating || 'Unknown'
       counts[rating] = (counts[rating] ?? 0) + 1
     }
@@ -658,6 +833,7 @@ export function useWaterData(active: boolean) {
   const facilityTypeCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const facility of facilities) {
+      if (facility.noticeOnly) continue
       const type = facility.type || 'Unknown'
       counts[type] = (counts[type] ?? 0) + 1
     }
@@ -779,10 +955,11 @@ export function useWaterData(active: boolean) {
   const visibleFacilities = useMemo(() => {
     const modeFiltered = facilities.filter((facility) => {
       if (layerMode === 'notices') return facility.activeNotices > 0
-      if (layerMode === 'samples') return facility.bacteriologicalSamples + facility.chemicalResults > 0
-      return true
+      if (layerMode === 'samples') return !facility.noticeOnly && facility.bacteriologicalSamples + facility.chemicalResults > 0
+      return !facility.noticeOnly
     })
     const facetFiltered = modeFiltered.filter((facility) => {
+      if (facility.noticeOnly) return true
       const matchesHazard = !selectedHazardRatings || selectedHazardRatings.includes(facility.hazardRating || 'Unknown')
       const matchesType = !selectedFacilityTypes || selectedFacilityTypes.includes(facility.type || 'Unknown')
       return matchesHazard && matchesType
@@ -813,11 +990,11 @@ export function useWaterData(active: boolean) {
 
   const selectedFacilityNotices = useMemo(() => (
     selectedFacility
-      ? notices
+      ? activeNotices
         .filter((notice) => sameFacility(notice, selectedFacility))
         .sort((left, right) => (right.date?.getTime() ?? 0) - (left.date?.getTime() ?? 0))
       : []
-  ), [notices, selectedFacility])
+  ), [activeNotices, selectedFacility])
 
   const selectedFacilityInspections = useMemo(() => (
     selectedFacility ? getInspectionRows(selectedFacility) : []
@@ -960,6 +1137,8 @@ export function useWaterData(active: boolean) {
     bacteriologicalJson,
     chemicalJson,
     noticesJson,
+    combinedNoticesJson,
+    combinedNoticesSummary,
     referenceJson,
     geocodedLocations,
     boundaryJson,
@@ -1001,7 +1180,8 @@ export function useWaterData(active: boolean) {
     mappedFacilities,
     samples,
     filteredSamples,
-    notices,
+    notices: activeNotices,
+    combinedNoticeCount: notices.length,
     selectedFacility,
     selectedFacilitySamples,
     selectedFacilityNotices,
@@ -1106,7 +1286,7 @@ export function WaterSidebar({ water }: { water: WaterState }) {
           <StatGrid
             columns={2}
             stats={[
-              { label: 'visible facilities', value: water.visibleFacilities.length.toLocaleString() },
+              { label: water.layerMode === 'notices' ? 'visible notices' : 'visible facilities', value: water.visibleFacilities.length.toLocaleString() },
               { label: 'sample rows', value: water.filteredSamples.length.toLocaleString() },
               { label: 'active notices', value: water.visibleNoticeCount.toLocaleString() },
               { label: 'mapped now', value: water.mappedFacilities.length.toLocaleString() },
@@ -1289,7 +1469,7 @@ function WaterFacilityPopupCard({ facility, onOpenReport }: { facility: WaterFac
         onClick={onOpenReport}
         className="mt-3 w-full rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700"
       >
-        Open sampling report
+        {facility.noticeOnly ? 'Open notice details' : 'Open sampling report'}
       </button>
     </div>
   )
@@ -1338,7 +1518,7 @@ function WaterFacilityDetailCard({ water }: { water: WaterState }) {
         className="mt-3 w-full rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700"
         onClick={() => water.setShowSelectedFacilityReport(true)}
       >
-        Open sampling report
+        {facility.noticeOnly ? 'Open notice details' : 'Open sampling report'}
       </button>
 
       <WaterDetailSection title="Active notices" count={water.selectedFacilityNotices.length}>
@@ -1417,6 +1597,8 @@ function WaterNoticeCard({ notice, compact = false }: { notice: WaterNoticeRow; 
   const underlyingProblems = getNoticeDetail(notice, 'underlying_problems')
   const stepsTaken = getNoticeDetail(notice, 'steps_taken_to_remedy')
   const correctiveActions = getNoticeDetail(notice, 'corrective_actions_remaining')
+  const waterTodayDetails = getNoticeDetail(notice, 'details') || getNoticeDetail(notice, 'map_details')
+  const detailsUrl = getNoticeDetailsUrl(notice.source)
 
   return (
     <div className={cn('rounded border border-border bg-background', compact ? 'p-2' : 'p-3 text-sm')}>
@@ -1427,10 +1609,10 @@ function WaterNoticeCard({ notice, compact = false }: { notice: WaterNoticeRow; 
         </div>
       </div>
       <div className="mt-1 flex justify-between gap-2 text-muted-foreground">
-        <span>{notice.status}</span>
+        <span>{notice.primarySource || notice.status}{notice.sourceCount > 1 ? ` +${notice.sourceCount - 1}` : ''}</span>
         <span>Started {formatDate(notice.date?.toISOString())}</span>
       </div>
-      {(underlyingProblems || stepsTaken || correctiveActions) && (
+      {(underlyingProblems || stepsTaken || correctiveActions || waterTodayDetails || detailsUrl) && (
         <div className={cn('mt-2 space-y-2 border-t border-border pt-2', compact ? 'text-[11px]' : 'text-xs')}>
           {underlyingProblems && (
             <div>
@@ -1449,6 +1631,22 @@ function WaterNoticeCard({ notice, compact = false }: { notice: WaterNoticeRow; 
               <div className="font-medium text-foreground">Corrective actions remaining</div>
               <div className="mt-0.5 leading-relaxed text-muted-foreground">{correctiveActions}</div>
             </div>
+          )}
+          {!underlyingProblems && waterTodayDetails && (
+            <div>
+              <div className="font-medium text-foreground">Notice details</div>
+              <div className="mt-0.5 whitespace-pre-line leading-relaxed text-muted-foreground">{waterTodayDetails}</div>
+            </div>
+          )}
+          {detailsUrl && (
+            <a
+              href={detailsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex text-[11px] font-medium text-sky-700 hover:text-sky-950 dark:text-sky-300 dark:hover:text-sky-100"
+            >
+              View source
+            </a>
           )}
         </div>
       )}
@@ -1469,7 +1667,7 @@ function WaterSamplingReportModal({ water, onClose }: { water: WaterState; onClo
 
   if (!facility) return null
 
-  const detailsUrl = firstString(facility.source, ['details_url'])
+  const detailsUrl = getNoticeDetailsUrl(facility.source) || firstString(facility.source, ['details_url'])
   const sampleRows = facility.bacteriologicalSamples + facility.chemicalResults
 
   return createPortal(
@@ -1573,7 +1771,9 @@ function WaterSamplingReportModal({ water, onClose }: { water: WaterState; onClo
 
         <div className="shrink-0 border-t border-border bg-background/90 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs text-muted-foreground">Data from Northern Health Authority HealthSpace</div>
+            <div className="text-xs text-muted-foreground">
+              Data from {facility.primarySource || (facility.noticeOnly ? 'WaterToday / HealthSpace combined notices' : 'Northern Health Authority HealthSpace')}
+            </div>
             <div className="flex flex-wrap gap-2">
               {detailsUrl && (
                 <a
@@ -1582,7 +1782,7 @@ function WaterSamplingReportModal({ water, onClose }: { water: WaterState; onClo
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
                 >
-                  View on HealthSpace
+                  View source
                 </a>
               )}
               <button
@@ -1833,10 +2033,14 @@ export function WaterLegend({ water }: { water: WaterState }) {
 }
 
 export function WaterSourceNotes({ water }: { water: WaterState }) {
+  const summary = water.combinedNoticesSummary.data
   return (
     <>
       <p>Drinking water extracts updated {formatDate(water.manifest.data?.generatedAt)}.</p>
-      <p>Includes facilities, bacteriological samples, chemical results, active notices, reference metadata, and download manifest files.</p>
+      <p>
+        Includes facilities, bacteriological samples, chemical results, and a combined active notices layer from HealthSpace and WaterToday
+        {summary?.combined_count ? ` (${summary.combined_count.toLocaleString()} canonical notices, ${summary.with_coordinates?.toLocaleString() ?? 'all'} mapped).` : '.'}
+      </p>
     </>
   )
 }

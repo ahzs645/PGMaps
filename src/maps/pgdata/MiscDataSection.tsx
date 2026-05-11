@@ -775,6 +775,9 @@ export default function MiscDataSection() {
     } else {
       params.delete('walkabilityHeatmap')
     }
+    if (activeTab !== 'drought') {
+      params.delete('droughtYear')
+    }
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
@@ -906,8 +909,8 @@ export default function MiscDataSection() {
   const landsatSource = heatShadeSources.find((source) => source.kind === 'historicalNdviLst')
   const canueMapCenter = canueBoundarySource === 'bcHealth' ? BC_CENTER : PG_CENTER
   const canueMapZoom = canueBoundarySource === 'bcHealth' ? 4.4 : canueBoundarySource === 'cityPG' ? 10.2 : 9.4
-  const mapCenter = activeTab === 'canue' ? canueMapCenter : PG_CENTER
-  const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'icbc' || activeTab === 'wars' || activeTab === 'water' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
+  const mapCenter = activeTab === 'canue' ? canueMapCenter : activeTab === 'water' ? BC_CENTER : PG_CENTER
+  const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'water' ? 4.4 : activeTab === 'icbc' || activeTab === 'wars' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
   const mapKey = activeTab === 'canue' ? `${activeTab}-${canueBoundarySource}` : activeTab === 'water' ? `${activeTab}-${water.boundarySource}` : activeTab
 
   useEffect(() => {
@@ -1402,7 +1405,9 @@ export default function MiscDataSection() {
             currentDate={wars.timelineDate}
             onDateChange={wars.setTimelineDate}
             onClose={wars.handleTimelineDisable}
+            granularity="year"
             bucketCounts={wars.bucketCounts}
+            compactBars
             windowMode={{
               size: wars.timelineWindowSize,
               onSizeChange: wars.setTimelineWindowSize,
@@ -1449,8 +1454,8 @@ export default function MiscDataSection() {
           className={cn(
             'absolute right-3 z-10 w-[min(16.5rem,calc(100vw-2rem))] rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:w-auto md:rounded-xl md:p-4',
             (activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled) || (activeTab === 'water' && water.timelineEnabled)
-              ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+5.5rem)] md:bottom-28'
-              : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6',
+              ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
+              : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] md:bottom-6',
           )}
         >
           <div className="flex items-center justify-between gap-2 md:mb-2">

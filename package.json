@@ -13,6 +13,7 @@
     "heat-shade:sync": "node scripts/sync-heat-shade-data.mjs",
     "transit:gtfs:sync": "node scripts/sync-transit-gtfs.mjs",
     "watersheds:sync": "node scripts/sync-bc-fwa-watersheds.mjs",
+    "watersheds:dev": "node scripts/build-dev-bc-fwa-watersheds.mjs",
     "nr-admin:sync": "node scripts/sync-bc-nr-admin.mjs",
     "uwr:sync": "node scripts/sync-bc-uwr.mjs",
     "drought:sync": "node scripts/sync-bc-drought.mjs",

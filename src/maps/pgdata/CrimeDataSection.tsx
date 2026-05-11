@@ -268,8 +268,8 @@ export default function CrimeDataSection() {
           className={cn(
             'absolute right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:right-6',
             timelineEnabled
-              ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+5.5rem)] md:bottom-28'
-              : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6'
+              ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
+              : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] md:bottom-6'
           )}
         >
           {showCrimeLayer && showHeatmap ? (
