@@ -238,6 +238,17 @@ export function useWarsData(
       .sort((a, b) => b.count - a.count)
   }, [filteredFeatures])
 
+  const bucketCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const feature of baseFilteredFeatures) {
+      const date = parseAccidentDate(feature.properties)
+      if (!date) continue
+      const key = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return counts
+  }, [baseFilteredFeatures])
+
   const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
     type: 'FeatureCollection',
     features: filteredFeatures.map((feature) => ({
@@ -273,6 +284,7 @@ export function useWarsData(
     selectedCrash,
     totalQuantity,
     speciesBreakdown,
+    bucketCounts,
     recentYearStart,
     timelineEnabled,
     setTimelineEnabled,

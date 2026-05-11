@@ -27,6 +27,7 @@ import { ICBC_TIMELINE_WINDOW_OPTIONS, IcbcLayer, IcbcLayerControls, IcbcLegend,
 import { WARS_TIMELINE_WINDOW_OPTIONS, WarsLayer, WarsLayerControls, WarsLegend, WarsSidebar, WarsSourceNotes, useWarsData } from './wars'
 import { WATER_TIMELINE_WINDOW_OPTIONS, WaterLayer, WaterLayerControls, WaterLegend, WaterSidebar, WaterSourceNotes, useWaterData } from './water'
 import { Timeline } from '@/components/ui/timeline'
+import { DroughtSection } from '@/maps/drought'
 
 interface HeatShadeManifestSource {
   id: string
@@ -46,7 +47,7 @@ interface HeatShadeManifest {
 type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
 
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
-type MiscDataTab = 'heatShade' | 'canue' | 'icbc' | 'wars' | 'walkability' | 'water'
+type MiscDataTab = 'heatShade' | 'canue' | 'icbc' | 'wars' | 'walkability' | 'water' | 'drought'
 type CanueYearMode = 'single' | 'month' | 'all' | 'range'
 type CanueBoundarySource = 'bcHealth' | 'census' | 'cityPG'
 type CanueBoundaryLevel =
@@ -138,6 +139,7 @@ const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = 
   { id: 'wars', label: 'WARS', icon: PawPrint },
   { id: 'walkability', label: 'Walkability', icon: Footprints },
   { id: 'water', label: 'Water', icon: Droplets },
+  { id: 'drought', label: 'Drought', icon: Droplets },
 ]
 
 const CANUE_SUPPORTED_SOURCES = new Set<string>(['bcHealth', 'census', 'cityPG'])
@@ -684,7 +686,7 @@ export default function MiscDataSection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [activeTab, setActiveTab] = useState<MiscDataTab>(() => {
     const tab = searchParams.get('tab')
-    return tab === 'heatShade' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' ? tab : 'canue'
+    return tab === 'heatShade' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'drought' ? tab : 'canue'
   })
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
   const [showMobileLegend, setShowMobileLegend] = useState(false)
@@ -1272,29 +1274,44 @@ export default function MiscDataSection() {
     </div>
   )
 
-  return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur md:px-4">
-        <div className="flex w-max rounded-lg border border-border bg-muted/40 p-1">
-          {MISC_TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveTab(id)}
-              className={cn(
-                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3',
-                activeTab === id
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              <span className={id === 'heatShade' ? 'hidden sm:inline' : ''}>{label}</span>
-              {id === 'heatShade' && <span className="sm:hidden">Shade</span>}
-            </button>
-          ))}
+  const tabsBar = (
+    <div className="min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur md:px-4">
+      <div className="flex w-max rounded-lg border border-border bg-muted/40 p-1">
+        {MISC_TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActiveTab(id)}
+            className={cn(
+              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3',
+              activeTab === id
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span className={id === 'heatShade' ? 'hidden sm:inline' : ''}>{label}</span>
+            {id === 'heatShade' && <span className="sm:hidden">Shade</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  if (activeTab === 'drought') {
+    return (
+      <div className="flex h-full min-h-0 flex-col bg-background">
+        {tabsBar}
+        <div className="min-h-0 flex-1">
+          <DroughtSection yearParam="droughtYear" />
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      {tabsBar}
       <div className="min-h-0 flex-1">
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
@@ -1385,6 +1402,7 @@ export default function MiscDataSection() {
             currentDate={wars.timelineDate}
             onDateChange={wars.setTimelineDate}
             onClose={wars.handleTimelineDisable}
+            bucketCounts={wars.bucketCounts}
             windowMode={{
               size: wars.timelineWindowSize,
               onSizeChange: wars.setTimelineWindowSize,
@@ -1401,14 +1419,11 @@ export default function MiscDataSection() {
             onDateChange={icbc.setTimelineDate}
             onClose={icbc.handleTimelineDisable}
             granularity="year"
-            bucketCounts={icbc.yearCounts}
             windowMode={{
               size: icbc.timelineWindowSize,
               onSizeChange: icbc.setTimelineWindowSize,
               options: ICBC_TIMELINE_WINDOW_OPTIONS,
-              anchor: 'end',
             }}
-            statsLabel={`${icbc.totalCrashes.toLocaleString()} crashes`}
           />
         )}
 

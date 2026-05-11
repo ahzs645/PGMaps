@@ -1,4 +1,5 @@
-import { CalendarDays, Database, ExternalLink, Layers } from 'lucide-react'
+import { ExternalLink, Layers } from 'lucide-react'
+import { InlineAlert, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { DROUGHT_LEVELS } from '../constants'
@@ -14,8 +15,10 @@ interface DroughtSidebarProps {
   loading: boolean
   error: string | null
   selectedFeature: DroughtFeature | null
+  timelineEnabled: boolean
   onYearChange: (year: number) => void
   onClearSelection: () => void
+  onToggleTimeline: () => void
 }
 
 export function DroughtSidebar({
@@ -28,125 +31,111 @@ export function DroughtSidebar({
   loading,
   error,
   selectedFeature,
+  timelineEnabled,
   onYearChange,
   onClearSelection,
+  onToggleTimeline,
 }: DroughtSidebarProps) {
   const selectedYearInfo = manifest?.years.find((item) => item.year === selectedYear)
 
   return (
     <aside className={cn('flex h-full flex-col overflow-hidden bg-background', className)}>
-      <div className="border-b border-border p-4">
-        <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          <Layers className="h-3.5 w-3.5" />
-          B.C. Drought Portal
-        </div>
-        <h1 className="text-xl font-semibold text-foreground">Historical Drought Levels</h1>
-        <p className="mt-2 text-sm leading-5 text-muted-foreground">
-          Drought basin polygons from the provincial time-lapse services, normalized for PGMaps.
-        </p>
-      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <SidebarSection
+          title="Historical Drought Levels"
+          icon={Layers}
+          iconClassName="text-amber-600"
+          actions={(
+            <ToggleChip active={timelineEnabled} onClick={onToggleTimeline} tone="amber">
+              Timeline
+            </ToggleChip>
+          )}
+        >
+          <div className="space-y-3">
+            <label className="block text-xs font-medium text-foreground" htmlFor="drought-year">
+              Year
+              <AppSelect
+                id="drought-year"
+                value={String(selectedYear)}
+                onValueChange={(value) => onYearChange(Number(value))}
+                options={availableYears.map((year) => ({ value: String(year), label: year }))}
+                disabled={availableYears.length === 0}
+                className="mt-1"
+                triggerClassName="h-8 rounded-md text-xs"
+              />
+            </label>
 
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
-        <section className="space-y-2">
-          <label className="text-xs font-semibold text-foreground" htmlFor="drought-year">
-            Year
-          </label>
-          <AppSelect
-            id="drought-year"
-            value={String(selectedYear)}
-            onValueChange={(value) => onYearChange(Number(value))}
-            options={availableYears.map((year) => ({ value: String(year), label: year }))}
-            disabled={availableYears.length === 0}
-          />
-        </section>
+            <StatGrid
+              stats={[
+                { label: 'visible', value: visibleCount.toLocaleString() },
+                { label: 'year rows', value: totalCount.toLocaleString() },
+                { label: 'year', value: selectedYear },
+              ]}
+            />
 
-        <section className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg border border-border bg-muted/30 p-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Database className="h-3.5 w-3.5" />
-              Visible
-            </div>
-            <div className="mt-1 text-lg font-semibold text-foreground">{visibleCount.toLocaleString()}</div>
+            <InlineAlert>
+              Drought basin polygons from the provincial time-lapse services, normalized for PGMaps.
+            </InlineAlert>
+
+            {loading && <InlineAlert>Loading drought polygons...</InlineAlert>}
+            {error && <InlineAlert tone="error">{error}</InlineAlert>}
           </div>
-          <div className="rounded-lg border border-border bg-muted/30 p-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <CalendarDays className="h-3.5 w-3.5" />
-              Year rows
-            </div>
-            <div className="mt-1 text-lg font-semibold text-foreground">{totalCount.toLocaleString()}</div>
-          </div>
-        </section>
+        </SidebarSection>
 
-        <section>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Legend</h2>
-          <div className="space-y-2">
+        <SidebarSection title="Legend">
+          <div className="space-y-1.5">
             {DROUGHT_LEVELS.map((item) => (
               <div key={item.level} className="flex items-center gap-3">
                 <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-black/10 text-sm font-bold text-black"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-black/10 text-xs font-bold text-black"
                   style={{ backgroundColor: item.color }}
                 >
                   {item.level}
                 </span>
-                <span className="text-sm text-foreground">{item.label}</span>
+                <span className="text-xs text-foreground">{item.label}</span>
               </div>
             ))}
             <div className="flex items-center gap-3">
               <span
-                className="h-8 w-8 shrink-0 rounded-md border border-black/10"
+                className="h-6 w-6 shrink-0 rounded border border-black/10"
                 style={{ backgroundColor: '#8a8f98' }}
               />
-              <span className="text-sm text-foreground">Not updated / no numeric level</span>
+              <span className="text-xs text-foreground">Not updated / no numeric level</span>
             </div>
           </div>
-        </section>
+        </SidebarSection>
 
         {selectedFeature && (
-          <section className="rounded-lg border border-border bg-muted/30 p-3">
-            <div className="mb-2 flex items-start justify-between gap-3">
-              <h2 className="text-sm font-semibold text-foreground">{selectedFeature.properties.basinName || 'Drought basin'}</h2>
-              <button
-                type="button"
-                onClick={onClearSelection}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground"
-              >
-                Clear
-              </button>
-            </div>
-            <dl className="space-y-1 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Level</dt>
-                <dd className="font-medium text-foreground">{selectedFeature.properties.droughtLevelRaw ?? 'Not updated'}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Start</dt>
-                <dd className="font-medium text-foreground">{selectedFeature.properties.startDate ?? 'Unknown'}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">End</dt>
-                <dd className="font-medium text-foreground">{selectedFeature.properties.endDate ?? 'Unknown'}</dd>
-              </div>
-            </dl>
-          </section>
+          <SidebarSection title="Selected Basin">
+            <SelectedItemCard
+              title={selectedFeature.properties.basinName || 'Drought basin'}
+              onClear={onClearSelection}
+              rows={[
+                { label: 'Level', value: selectedFeature.properties.droughtLevelRaw ?? 'Not updated' },
+                { label: 'Start', value: selectedFeature.properties.startDate ?? 'Unknown' },
+                { label: 'End', value: selectedFeature.properties.endDate ?? 'Unknown' },
+              ]}
+            />
+          </SidebarSection>
         )}
 
         {selectedYearInfo && (
-          <section className="space-y-2 text-xs text-muted-foreground">
-            <div>Source range: {selectedYearInfo.startDate ?? 'unknown'} to {selectedYearInfo.endDate ?? 'unknown'}</div>
-            <a
-              href={selectedYearInfo.layerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-            >
-              ArcGIS REST layer
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </section>
+          <SidebarSection title="Source">
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <div>Source range: {selectedYearInfo.startDate ?? 'unknown'} to {selectedYearInfo.endDate ?? 'unknown'}</div>
+              <div>{selectedYearInfo.featureCount.toLocaleString()} source rows for {selectedYear}.</div>
+              <a
+                href={selectedYearInfo.layerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+              >
+                ArcGIS REST layer
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </SidebarSection>
         )}
-
-        {loading && <div className="text-sm text-muted-foreground">Loading drought polygons...</div>}
-        {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       </div>
     </aside>
   )

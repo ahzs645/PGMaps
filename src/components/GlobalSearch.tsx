@@ -64,7 +64,7 @@ async function buildIndex(): Promise<SearchItem[]> {
     addDatasetItem('dataset-wars', 'Wildlife accident records', 'wars', '/misc', PawPrint, 'text-amber-700', { tab: 'wars' })
     addDatasetItem('dataset-water', 'Drinking water facilities, samples, and notices', 'water', '/misc', Database, 'text-sky-600', { tab: 'water' })
     addDatasetItem('dataset-assessment', 'BC Assessment parcels dataset', 'bcAssessment', '/bc-assessment', Building2, 'text-slate-500')
-    addDatasetItem('dataset-drought', 'B.C. drought levels time lapse', 'drought', '/drought', Droplets, 'text-amber-600')
+    addDatasetItem('dataset-drought', 'B.C. drought levels time lapse', 'drought', '/misc', Droplets, 'text-amber-600', { tab: 'drought' })
 
     // Load restaurants
     try {

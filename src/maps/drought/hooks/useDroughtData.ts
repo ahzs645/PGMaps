@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import type { DroughtFeatureCollection, DroughtManifest } from '../types'
+import type { DroughtFeatureCollection, DroughtManifest, DroughtTimeSeries, DroughtTimeSeriesRecord, DroughtTimeSeriesYearInfo } from '../types'
 
 const BASE_PATH = '/data/drought'
 
 interface DroughtDataState {
   manifest: DroughtManifest | null
   collection: DroughtFeatureCollection | null
+  records: DroughtTimeSeriesRecord[]
+  yearInfo: DroughtTimeSeriesYearInfo | null
+  timeseries: DroughtTimeSeries | null
   loading: boolean
   error: string | null
 }
@@ -22,6 +25,9 @@ export function useDroughtData(year: number) {
   const [state, setState] = useState<DroughtDataState>({
     manifest: null,
     collection: null,
+    records: [],
+    yearInfo: null,
+    timeseries: null,
     loading: true,
     error: null,
   })
@@ -33,19 +39,24 @@ export function useDroughtData(year: number) {
       setState((current) => ({ ...current, loading: true, error: null }))
       try {
         const manifest = state.manifest ?? await fetchJson<DroughtManifest>(`${BASE_PATH}/manifest.json`)
-        const yearInfo = manifest.years.find((item) => item.year === year)
+        const basinFile = manifest.canonical?.basinFile ?? 'basins.geojson'
+        const timeseriesFile = manifest.canonical?.timeseriesFile ?? 'timeseries.json'
+        const collection = state.collection ?? await fetchJson<DroughtFeatureCollection>(`${BASE_PATH}/${basinFile}`)
+        const timeseries = state.timeseries ?? await fetchJson<DroughtTimeSeries>(`${BASE_PATH}/${timeseriesFile}`)
+        const yearInfo = timeseries.years.find((item) => item.year === year)
         if (!yearInfo) {
-          throw new Error(`No drought file is listed for ${year}`)
+          throw new Error(`No drought records are listed for ${year}`)
         }
-        const collection = await fetchJson<DroughtFeatureCollection>(`${BASE_PATH}/${yearInfo.file}`)
+        const records = timeseries.records.filter((record) => record.year === year)
         if (!cancelled) {
-          setState({ manifest, collection, loading: false, error: null })
+          setState({ manifest, collection, timeseries, records, yearInfo, loading: false, error: null })
         }
       } catch (error) {
         if (!cancelled) {
           setState((current) => ({
             ...current,
-            collection: null,
+            records: [],
+            yearInfo: null,
             loading: false,
             error: error instanceof Error ? error.message : 'Failed to load drought data',
           }))

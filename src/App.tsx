@@ -12,7 +12,6 @@ const ExplorerSection = lazy(() => import('@/maps/explorer').then(m => ({ defaul
 const PGDataSection = lazy(() => import('@/maps/pgdata').then(m => ({ default: m.PGDataSection })))
 const MiscDataSection = lazy(() => import('@/maps/pgdata/MiscDataSection'))
 const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then(m => ({ default: m.BcAssessmentSection })))
-const DroughtSection = lazy(() => import('@/maps/drought').then(m => ({ default: m.DroughtSection })))
 
 function App() {
   return (
@@ -31,7 +30,6 @@ function App() {
           <Route path="/pgdata" element={<PGDataSection />} />
           <Route path="/misc" element={<MiscDataSection />} />
           <Route path="/bc-assessment" element={<BcAssessmentSection />} />
-          <Route path="/drought" element={<DroughtSection />} />
         </Routes>
       </Suspense>
       </ErrorBoundary>

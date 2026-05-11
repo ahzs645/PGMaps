@@ -68,15 +68,72 @@ const ICBC_DATASET_HELP: Record<string, string> = {
   motorcycle_crashes: 'Crashes involving motorcycles.',
 }
 
+const ICBC_CRASH_TYPE_LEGEND = [
+  { id: 'car_crashes', label: 'Car crashes', color: '#2563eb' },
+  { id: 'pedestrian_crashes', label: 'Person crashes', color: '#dc2626' },
+  { id: 'cyclist_crashes', label: 'Bike crashes', color: '#16a34a' },
+  { id: 'motorcycle_crashes', label: 'Motorcycle crashes', color: '#9333ea' },
+]
+
 function getIcbcDatasetLabel(dataset: IcbcManifestDataset | null | undefined): string {
   if (!dataset) return 'Crash locations'
   return ICBC_DATASET_LABELS[dataset.id] ?? dataset.title
+}
+
+function getIcbcDatasetLabelById(datasetId: string, fallback: string): string {
+  return ICBC_DATASET_LABELS[datasetId] ?? fallback
+}
+
+function getIcbcCrashTypeColor(datasetId: string): string {
+  return ICBC_CRASH_TYPE_LEGEND.find((item) => item.id === datasetId)?.color ?? '#f97316'
 }
 
 function getIcbcMarkerSize(crashCount: number, maxCrashCount: number): number {
   if (!Number.isFinite(crashCount) || crashCount <= 0) return 8
   if (!Number.isFinite(maxCrashCount) || maxCrashCount <= 0) return 8
   return Math.max(8, Math.min(28, 7 + Math.sqrt(crashCount / maxCrashCount) * 22))
+}
+
+function getIcbcLocationKey(feature: GeoJSON.Feature<GeoJSON.Point, IcbcCrashProperties>): string {
+  return `${feature.properties.dataset}:${feature.properties.location}`
+}
+
+function aggregateIcbcCrashFeatures(
+  features: Array<GeoJSON.Feature<GeoJSON.Point, IcbcCrashProperties>>,
+  timelineEnabled: boolean,
+  timelineDate: Date | null,
+  timelineWindowSize: number,
+  yearStart: number | null,
+) {
+  let filtered = features
+  if (timelineEnabled && timelineDate) {
+    const currentYear = timelineDate.getFullYear()
+    const isCumulative = timelineWindowSize === -1
+    const rangeStart = isCumulative ? (yearStart ?? currentYear) : currentYear
+    const rangeEnd = isCumulative ? currentYear : currentYear + timelineWindowSize - 1
+    filtered = features.filter((feature) => {
+      const year = feature.properties.year
+      return year >= rangeStart && year <= rangeEnd
+    })
+  }
+
+  const byLocation = new Map<string, typeof features[number]>()
+  for (const feature of filtered) {
+    const key = getIcbcLocationKey(feature)
+    const existing = byLocation.get(key)
+    if (existing) {
+      existing.properties = {
+        ...existing.properties,
+        crashCount: existing.properties.crashCount + feature.properties.crashCount,
+      }
+    } else {
+      byLocation.set(key, {
+        ...feature,
+        properties: { ...feature.properties },
+      })
+    }
+  }
+  return Array.from(byLocation.values())
 }
 
 export function useIcbcData(
@@ -105,6 +162,18 @@ export function useIcbcData(
   const crashes = useJsonManifest<IcbcCrashFeatureCollection>(
     active && selectedDataset ? selectedDataset.geojson : null,
   )
+  const carCrashes = useJsonManifest<IcbcCrashFeatureCollection>(
+    active && selectedDataset?.id === 'all_crashes' ? '/data/icbc/prince_george_car_crashes.geojson' : null,
+  )
+  const pedestrianCrashes = useJsonManifest<IcbcCrashFeatureCollection>(
+    active && selectedDataset?.id === 'all_crashes' ? '/data/icbc/prince_george_pedestrian_crashes.geojson' : null,
+  )
+  const cyclistCrashes = useJsonManifest<IcbcCrashFeatureCollection>(
+    active && selectedDataset?.id === 'all_crashes' ? '/data/icbc/prince_george_cyclist_crashes.geojson' : null,
+  )
+  const motorcycleCrashes = useJsonManifest<IcbcCrashFeatureCollection>(
+    active && selectedDataset?.id === 'all_crashes' ? '/data/icbc/prince_george_motorcycle_crashes.geojson' : null,
+  )
   const rawCrashFeatures = crashes.data?.features ?? []
 
   const yearStart = manifest.data?.yearStart ?? selectedDataset?.yearStart ?? null
@@ -128,38 +197,30 @@ export function useIcbcData(
     }
   }, [timelineEnabled, timelineDate, yearEnd])
 
-  // Aggregate per-(location, year) source rows down to per-location markers, summing crashCount
-  // within the timeline window (or across all years when the timeline is off).
   const crashFeatures = useMemo(() => {
-    let filtered = rawCrashFeatures
-    if (timelineEnabled && timelineDate) {
-      const currentYear = timelineDate.getFullYear()
-      const isCumulative = timelineWindowSize === -1
-      const rangeStart = isCumulative ? (yearStart ?? currentYear) : currentYear
-      const rangeEnd = isCumulative ? currentYear : currentYear + timelineWindowSize - 1
-      filtered = rawCrashFeatures.filter((feature) => {
-        const year = feature.properties.year
-        return year >= rangeStart && year <= rangeEnd
-      })
-    }
-
-    const byLocation = new Map<string, typeof rawCrashFeatures[number]>()
-    for (const feature of filtered) {
-      const existing = byLocation.get(feature.properties.location)
-      if (existing) {
-        existing.properties = {
-          ...existing.properties,
-          crashCount: existing.properties.crashCount + feature.properties.crashCount,
-        }
-      } else {
-        byLocation.set(feature.properties.location, {
-          ...feature,
-          properties: { ...feature.properties },
-        })
-      }
-    }
-    return Array.from(byLocation.values())
+    return aggregateIcbcCrashFeatures(rawCrashFeatures, timelineEnabled, timelineDate, timelineWindowSize, yearStart)
   }, [rawCrashFeatures, timelineEnabled, timelineDate, timelineWindowSize, yearStart])
+
+  const typedCrashFeatures = useMemo(() => {
+    if (selectedDataset?.id !== 'all_crashes') return crashFeatures
+    return [
+      ...aggregateIcbcCrashFeatures(carCrashes.data?.features ?? [], timelineEnabled, timelineDate, timelineWindowSize, yearStart),
+      ...aggregateIcbcCrashFeatures(pedestrianCrashes.data?.features ?? [], timelineEnabled, timelineDate, timelineWindowSize, yearStart),
+      ...aggregateIcbcCrashFeatures(cyclistCrashes.data?.features ?? [], timelineEnabled, timelineDate, timelineWindowSize, yearStart),
+      ...aggregateIcbcCrashFeatures(motorcycleCrashes.data?.features ?? [], timelineEnabled, timelineDate, timelineWindowSize, yearStart),
+    ]
+  }, [
+    carCrashes.data?.features,
+    crashFeatures,
+    cyclistCrashes.data?.features,
+    motorcycleCrashes.data?.features,
+    pedestrianCrashes.data?.features,
+    selectedDataset?.id,
+    timelineDate,
+    timelineEnabled,
+    timelineWindowSize,
+    yearStart,
+  ])
 
   // Per-year totals across the dataset (regardless of current scrub) — used to render the histogram.
   const yearCounts = useMemo(() => {
@@ -173,8 +234,8 @@ export function useIcbcData(
 
   const selectedCrash = useMemo(() => {
     if (!selectedLocation) return null
-    return crashFeatures.find((feature) => feature.properties.location === selectedLocation) ?? null
-  }, [crashFeatures, selectedLocation])
+    return typedCrashFeatures.find((feature) => getIcbcLocationKey(feature) === selectedLocation) ?? null
+  }, [selectedLocation, typedCrashFeatures])
   const maxCrashCount = useMemo(() => (
     crashFeatures.reduce((max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0), 0)
   ), [crashFeatures])
@@ -225,6 +286,7 @@ export function useIcbcData(
     selectedLocation,
     setSelectedLocation,
     crashFeatures,
+    typedCrashFeatures,
     heatmapData,
     selectedCrash,
     maxCrashCount,
@@ -310,6 +372,7 @@ export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
             title={icbc.selectedCrash.properties.location}
             onClear={() => icbc.setSelectedLocation(null)}
             rows={[
+              { label: 'Crash type', value: getIcbcDatasetLabelById(icbc.selectedCrash.properties.dataset, icbc.selectedCrash.properties.datasetTitle) },
               { label: 'Crash count', value: icbc.selectedCrash.properties.crashCount.toLocaleString() },
               { label: 'Matched to', value: icbc.selectedCrash.properties.sourceLocationName },
             ]}
@@ -356,25 +419,27 @@ export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
         />
       )}
 
-      {icbc.showPoints && icbc.crashFeatures.map((feature) => {
+      {icbc.showPoints && icbc.typedCrashFeatures.map((feature) => {
         const [longitude, latitude] = feature.geometry.coordinates
         const size = getIcbcMarkerSize(feature.properties.crashCount, icbc.maxCrashCount)
-        const selected = icbc.selectedLocation === feature.properties.location
+        const color = getIcbcCrashTypeColor(feature.properties.dataset)
+        const locationKey = getIcbcLocationKey(feature)
+        const selected = icbc.selectedLocation === locationKey
 
         return (
           <MapMarker
-            key={`${feature.properties.dataset}-${feature.properties.location}`}
+            key={locationKey}
             longitude={longitude}
             latitude={latitude}
-            onClick={() => icbc.setSelectedLocation(feature.properties.location)}
+            onClick={() => icbc.setSelectedLocation(locationKey)}
           >
             <MarkerContent>
               <div
                 className={cn(
                   'rounded-full border-2 border-white shadow-md transition-transform',
-                  selected ? 'scale-125 bg-rose-700 ring-2 ring-rose-300' : 'bg-rose-500/85 hover:bg-rose-600',
+                  selected ? 'scale-125 ring-2 ring-sky-300' : 'hover:brightness-110',
                 )}
-                style={{ width: size, height: size }}
+                style={{ width: size, height: size, backgroundColor: color, opacity: selected ? 1 : 0.9 }}
                 title={`${feature.properties.location}: ${feature.properties.crashCount.toLocaleString()} crashes`}
               />
             </MarkerContent>
@@ -390,14 +455,30 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
     <div className="w-52 space-y-2 text-xs text-muted-foreground">
       <div className="font-medium text-foreground">{getIcbcDatasetLabel(icbc.selectedDataset)}</div>
       {icbc.showPoints && (
-        <div className="flex items-center justify-between gap-2">
-          <span>Small</span>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full border border-white bg-rose-500 shadow-sm" />
-            <span className="h-4 w-4 rounded-full border border-white bg-rose-500 shadow-sm" />
-            <span className="h-7 w-7 rounded-full border border-white bg-rose-500 shadow-sm" />
+        <div className="space-y-2">
+          <div>
+            <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Crash type</div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+              {ICBC_CRASH_TYPE_LEGEND.map((item) => (
+                <div key={item.label} className="flex items-center gap-1.5">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full border border-white shadow-sm"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <span>High</span>
+          <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+            <span>Small</span>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full border border-white bg-slate-400 shadow-sm" />
+              <span className="h-4 w-4 rounded-full border border-white bg-slate-400 shadow-sm" />
+              <span className="h-7 w-7 rounded-full border border-white bg-slate-400 shadow-sm" />
+            </div>
+            <span>High</span>
+          </div>
         </div>
       )}
       {icbc.showHeatmap && (

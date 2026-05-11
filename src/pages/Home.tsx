@@ -9,7 +9,6 @@ import {
   ShieldAlert,
   ArrowRight,
   Database,
-  Droplets,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -126,14 +125,6 @@ const mapProjects: MapCardProps[] = [
     icon: Database,
     href: '/misc',
     color: 'bg-violet-600',
-    status: 'available',
-  },
-  {
-    title: 'Drought Levels',
-    description: 'Replay B.C. drought basin levels from 2015 through 2025 with the provincial legend and a weekly timeline.',
-    icon: Droplets,
-    href: '/drought',
-    color: 'bg-amber-600',
     status: 'available',
   },
   {
