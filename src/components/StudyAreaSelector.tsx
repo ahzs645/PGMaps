@@ -56,7 +56,7 @@ const CANONICAL_SOURCE_DEFS: Record<
   watershed: {
     label: 'Watershed boundaries',
     description: 'BC Freshwater Atlas hierarchy',
-    provincial: false,
+    provincial: true,
   },
   nrAdmin: {
     label: 'Natural Resource admin',

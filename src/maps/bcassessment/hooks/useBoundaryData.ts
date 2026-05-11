@@ -12,8 +12,8 @@ const BOUNDARY_FILES: Record<AssessmentBoundaryLevel, string> = {
   db: '/data/census/prince_george_db.geo.json',
   elementarySchoolCatchment: '/data/boundaries/CityPG/elementary_school_catchments.geojson',
   secondarySchoolCatchment: '/data/boundaries/CityPG/secondary_school_catchments.geojson',
-  majorWatershed: '/data/boundaries/BCFWA/major_watersheds.geojson',
-  watershedGroup: '/data/boundaries/BCFWA/watershed_groups.geojson',
+  majorWatershed: '/data/boundaries/BCFWA/major_watersheds_province_simplified.geojson',
+  watershedGroup: '/data/boundaries/BCFWA/watershed_groups_province_simplified.geojson',
   assessmentWatershed: '/data/boundaries/BCFWA/assessment_watersheds.geojson',
 }
 

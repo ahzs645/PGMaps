@@ -52,8 +52,8 @@ const CITY_NAME_PROPERTY_BY_LEVEL: Record<CityBoundaryLevel, string> = {
   secondarySchoolCatchment: 'SchoolNam',
 }
 const WATERSHED_FILE_BY_LEVEL: Record<WatershedBoundaryLevel, string> = {
-  majorWatershed: '/data/boundaries/BCFWA/major_watersheds.geojson',
-  watershedGroup: '/data/boundaries/BCFWA/watershed_groups.geojson',
+  majorWatershed: '/data/boundaries/BCFWA/major_watersheds_province_simplified.geojson',
+  watershedGroup: '/data/boundaries/BCFWA/watershed_groups_province_simplified.geojson',
   assessmentWatershed: '/data/boundaries/BCFWA/assessment_watersheds.geojson',
 }
 const NR_ADMIN_FILE_BY_LEVEL: Record<NrAdminBoundaryLevel, string> = {
@@ -496,9 +496,9 @@ export function getWatershedLevelSourceNote(level: WatershedBoundaryLevel): stri
     return 'BC Freshwater Atlas assessment watersheds clipped to the Prince George regional viewport.'
   }
   if (level === 'watershedGroup') {
-    return 'BC Freshwater Atlas watershed groups clipped to the Prince George regional viewport.'
+    return 'BC Freshwater Atlas watershed groups, province-wide topology-preserved simplified geometry.'
   }
-  return 'BC major watershed basins clipped to the Prince George regional viewport.'
+  return 'BC major watershed basins, province-wide topology-preserved simplified geometry.'
 }
 
 /*

@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Calculator, Footprints } from 'lucide-react'
+import { Calculator, Footprints, RotateCcw } from 'lucide-react'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
 import { InlineAlert, KeyValueRows, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
@@ -164,6 +164,7 @@ type HeatmapOptionKey =
   | 'tightBuffer'
 
 type HeatmapOptionState = Record<HeatmapOptionKey, boolean>
+type HeatmapFactorWeightState = Record<string, number>
 
 const HEATMAP_EMPTY_OPTIONS: HeatmapOptionState = {
   dropGtfsHf: false,
@@ -205,28 +206,56 @@ const WALKABILITY_SCORE_FIELD_BY_VARIANT: Record<string, keyof WalkabilityProper
   supplementedLocal: 'supplementedLocalScore',
 }
 
-const WALKABILITY_EQUATION_ROWS = [
-  {
-    label: 'Original MI value',
-    equation: 'MI(asset) = SUM(proximity factor points + area/line association points)',
-  },
-  {
-    label: 'Proximity factor',
-    equation: 'points = 1[d <= 400m] + 2[d <= 250m] + 2[d <= 100m]',
-  },
-  {
-    label: 'Area / line factor',
-    equation: 'points = factor score when asset intersects buffered source geometry',
-  },
-  {
-    label: 'Report score band',
-    equation: '1:<27.4, 2:<45.7, 3:<63.9, 4:<82.2, 5:>=82.2',
-  },
-  {
-    label: 'Priority formula',
-    equation: 'Benefit / Risk Reduction = Contribution to Service x Impact of Activity',
-  },
+const WALKABILITY_FACTOR_GROUPS = [
+  { ref: 'A0', label: 'Community space', group: 'Community activities', method: '400/250/100m proximity' },
+  { ref: 'A1', label: 'Entertainment', group: 'Community activities', method: '400/250/100m proximity' },
+  { ref: 'A2', label: 'Parks', group: 'Community activities', method: '400/250/100m proximity' },
+  { ref: 'A3', label: 'Activity areas', group: 'Community activities', method: '400/250/100m proximity' },
+  { ref: 'A4', label: 'Playgrounds', group: 'Community activities', method: '400/250/100m proximity' },
+  { ref: 'A5', label: 'Recreation facilities', group: 'Community activities', method: '400/250/100m proximity' },
+  { ref: 'B0', label: 'Community centres', group: 'Community facilities', method: '400/250/100m proximity' },
+  { ref: 'B1', label: 'Future community facility', group: 'Community facilities', method: '400/250/100m proximity' },
+  { ref: 'B2', label: 'Religious assembly', group: 'Community facilities', method: '400/250/100m proximity' },
+  { ref: 'B3', label: 'Schools', group: 'Community facilities', method: '400/250/100m proximity' },
+  { ref: 'C0', label: 'Daycares', group: 'Community services', method: '400/250/100m proximity' },
+  { ref: 'C1', label: 'Government services', group: 'Community services', method: '400/250/100m proximity' },
+  { ref: 'C2', label: 'Health centres', group: 'Community services', method: '400/250/100m proximity' },
+  { ref: 'C3', label: 'Commercial land use', group: 'Community services', method: 'area association' },
+  { ref: 'C4', label: 'Recreation/institutional', group: 'Community services', method: 'area association' },
+  { ref: 'C5', label: 'Business industrial', group: 'Community services', method: 'area association' },
+  { ref: 'C6', label: 'Residential land use', group: 'Community services', method: 'area association' },
+  { ref: 'D0', label: 'Downtown commercial', group: 'Economic commerce', method: '400/250/100m proximity' },
+  { ref: 'D1', label: 'Service commercial', group: 'Economic commerce', method: '400/250/100m proximity' },
+  { ref: 'D2', label: 'Corridor commercial', group: 'Economic commerce', method: '400/250/100m proximity' },
+  { ref: 'D3', label: 'Commercial recreation', group: 'Economic commerce', method: '400/250/100m proximity' },
+  { ref: 'D4', label: 'Regional commercial', group: 'Economic commerce', method: '400/250/100m proximity' },
+  { ref: 'E0', label: 'Low-income housing', group: 'Economic housing', method: '400/250/100m proximity' },
+  { ref: 'E1', label: 'Apartment buildings', group: 'Economic housing', method: '400/250/100m proximity' },
+  { ref: 'E2', label: 'Assisted housing', group: 'Economic housing', method: '400/250/100m proximity' },
+  { ref: 'E3', label: 'Senior housing', group: 'Economic housing', method: '400/250/100m proximity' },
+  { ref: 'E4', label: 'Growth priority areas', group: 'Economic housing', method: 'area association' },
+  { ref: 'E5', label: 'Future growth areas', group: 'Economic housing', method: 'area association' },
+  { ref: 'E6', label: 'Intensive residential', group: 'Economic housing', method: 'area association' },
+  { ref: 'F0', label: 'Crosswalks', group: 'Environment mobility', method: '400/250/100m proximity' },
+  { ref: 'F1', label: 'Traffic signals', group: 'Environment mobility', method: '400/250/100m proximity' },
+  { ref: 'F2', label: 'High population density', group: 'Environment mobility', method: 'area association' },
+  { ref: 'F3', label: 'Medium population density', group: 'Environment mobility', method: 'area association' },
+  { ref: 'F4', label: 'Low population density', group: 'Environment mobility', method: 'area association' },
+  { ref: 'F6', label: 'Senior density', group: 'Environment mobility', method: 'area association' },
+  { ref: 'F7', label: 'Youth density', group: 'Environment mobility', method: 'area association' },
+  { ref: 'F8', label: 'Intercity bus', group: 'Environment mobility', method: '400/250/100m proximity' },
+  { ref: 'F9', label: 'Transit stops', group: 'Environment mobility', method: '400/250/100m proximity' },
+  { ref: 'G0', label: 'Transit corridors', group: 'Environment routes', method: '400/250/100m proximity' },
+  { ref: 'G1', label: 'Active corridors', group: 'Environment routes', method: 'line association' },
+  { ref: 'G2', label: 'Arterial/freeway roads', group: 'Environment routes', method: 'line association' },
+  { ref: 'G3', label: 'Major collectors', group: 'Environment routes', method: 'line association' },
+  { ref: 'G4', label: 'Minor collectors', group: 'Environment routes', method: 'line association' },
+  { ref: 'G5', label: 'Local roads', group: 'Environment routes', method: 'line association' },
 ]
+
+const HEATMAP_DEFAULT_FACTOR_WEIGHTS: HeatmapFactorWeightState = Object.fromEntries(
+  WALKABILITY_FACTOR_GROUPS.map((factor) => [factor.ref, 1]),
+)
 
 const WALKABILITY_HEATMAP_BASE_LOGIC = [
   'Uses all report factor references A0-G5 where public or reconstructed layers are available.',
@@ -246,6 +275,21 @@ function describeHeatmapLogic(options: HeatmapOptionState): string[] {
   if (options.dropSuppPoi) logic.push('A1/E0/E1/E2/E3 supplemental housing and entertainment POIs are excluded.')
   if (options.tightBuffer) logic.push('Area and line association buffer is 10m instead of 20m.')
   return logic
+}
+
+function isFactorDroppedByOptions(ref: string, options: HeatmapOptionState): boolean {
+  if (options.dropPopAge && ['F2', 'F3', 'F4', 'F6', 'F7'].includes(ref)) return true
+  if (options.dropF0 && ref === 'F0') return true
+  if (options.dropC0 && ref === 'C0') return true
+  if (options.dropF8 && ref === 'F8') return true
+  if (options.dropSuppPoi && ['A1', 'E0', 'E1', 'E2', 'E3'].includes(ref)) return true
+  return false
+}
+
+function factorWeightKey(weights: HeatmapFactorWeightState): string {
+  return WALKABILITY_FACTOR_GROUPS
+    .map((factor) => `${factor.ref}:${Number(weights[factor.ref] ?? 1).toFixed(2)}`)
+    .join('|')
 }
 
 function optionsForHeatmapVariant(variant?: WalkabilityGridVariant | null): HeatmapOptionState {
@@ -298,6 +342,9 @@ export function useWalkabilityData(
   const [heatmapOptionState, setHeatmapOptionState] = useState<HeatmapOptionState>(() => (
     normalizeHeatmapOptions(HEATMAP_REPORT_FIDELITY_OPTIONS)
   ))
+  const [heatmapFactorWeights, setHeatmapFactorWeights] = useState<HeatmapFactorWeightState>(() => ({
+    ...HEATMAP_DEFAULT_FACTOR_WEIGHTS,
+  }))
   const initializedHeatmapOptionsRef = useRef(false)
   const [liveHeatmap, setLiveHeatmap] = useState<WalkabilityLiveHeatmapState>({
     status: 'idle',
@@ -338,9 +385,19 @@ export function useWalkabilityData(
       setSelectedHeatmapVariantId(nextVariantKey)
     }
   }
+  const setHeatmapFactorWeight = (ref: string, value: number) => {
+    const normalizedValue = Math.max(0, Math.min(2, Number.isFinite(value) ? value : 1))
+    setHeatmapFactorWeights((current) => ({ ...current, [ref]: normalizedValue }))
+  }
+  const resetHeatmapFactorWeights = () => {
+    setHeatmapFactorWeights({ ...HEATMAP_DEFAULT_FACTOR_WEIGHTS })
+  }
   const heatmapOptionKey = useMemo(() => (
-    JSON.stringify(heatmapOptionState)
-  ), [heatmapOptionState])
+    JSON.stringify({
+      options: heatmapOptionState,
+      factorWeights: factorWeightKey(heatmapFactorWeights),
+    })
+  ), [heatmapFactorWeights, heatmapOptionState])
   const selectedHeatmapBandCounts = liveHeatmap.status === 'ready' && liveHeatmap.requestKey === heatmapOptionKey
     ? liveHeatmap.grid?.bandCounts
     : selectedHeatmapVariant?.bandCounts
@@ -467,7 +524,7 @@ export function useWalkabilityData(
         error: event.message || 'Live heat map calculation failed',
       })
     }
-    worker.postMessage({ type: 'compute', requestKey, options: heatmapOptionState })
+    worker.postMessage({ type: 'compute', requestKey, options: { ...heatmapOptionState, factorWeights: heatmapFactorWeights } })
     return () => {
       cancelled = true
       worker.terminate()
@@ -488,6 +545,9 @@ export function useWalkabilityData(
     heatmapVariants,
     heatmapOptionState,
     setHeatmapOption,
+    heatmapFactorWeights,
+    setHeatmapFactorWeight,
+    resetHeatmapFactorWeights,
     heatmapOptionKey,
     liveHeatmap,
     selectedHeatmapBandCounts,
@@ -618,33 +678,98 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
         </div>
       </SidebarSection>
 
-      <SidebarSection title="Equation Logic" icon={Calculator} iconClassName="text-cyan-600">
-        <div className="space-y-3 text-xs">
-          <div className="space-y-2">
-            {WALKABILITY_EQUATION_ROWS.map((row) => (
-              <div key={row.label} className="rounded border border-border bg-background px-2.5 py-2">
-                <div className="text-[10px] font-semibold uppercase text-muted-foreground">{row.label}</div>
-                <div className="mt-1 break-words font-mono text-[11px] leading-4 text-foreground">{row.equation}</div>
+      <SidebarSection title="Equation Builder" icon={Calculator} iconClassName="text-cyan-600">
+        {walkability.displayMode === 'heatmap' ? (
+          <div className="space-y-3 text-xs">
+            <div className="rounded border border-border bg-background px-2.5 py-2">
+              <div className="break-words font-mono text-[11px] leading-5 text-foreground">
+                MI(cell) = SUM(weight_ref x term_ref)
               </div>
-            ))}
-          </div>
-          <div className="rounded border border-border bg-muted/30 px-2.5 py-2">
-            <div className="text-[10px] font-semibold uppercase text-muted-foreground">
-              Active variant logic
+              <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                proximity term = 1[d &lt;= 400m] + 2[d &lt;= 250m] + 2[d &lt;= 100m]; association term = report points inside the source buffer.
+              </div>
+              <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                Bands: 1 &lt;27.4, 2 &lt;45.7, 3 &lt;63.9, 4 &lt;82.2, 5 &gt;=82.2.
+              </div>
             </div>
-            <ul className="mt-1.5 space-y-1 leading-4 text-muted-foreground">
-              {walkability.displayMode === 'heatmap' ? (
-                heatmapLogic.map((item) => <li key={item}>{item}</li>)
-              ) : (
-                <>
-                  <li>{walkability.selectedVariant?.description ?? 'Community score uses the selected normalized metric weights.'}</li>
-                  <li>Community variant equation is a weighted average of normalized community metrics.</li>
-                  <li>Community polygons are a planning summary; the report MI equation is asset/grid based.</li>
-                </>
-              )}
-            </ul>
+
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="font-medium text-foreground">Live factor weights</div>
+                <div className="text-[10px] leading-4 text-muted-foreground">
+                  0 disables a report factor; 1 is report weight; 2 doubles it.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={walkability.resetHeatmapFactorWeights}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:text-foreground"
+                title="Reset factor weights"
+                aria-label="Reset factor weights"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div className="max-h-[24rem] space-y-1.5 overflow-y-auto pr-1">
+              {WALKABILITY_FACTOR_GROUPS.map((factor) => {
+                const dropped = isFactorDroppedByOptions(factor.ref, walkability.heatmapOptionState)
+                const value = walkability.heatmapFactorWeights[factor.ref] ?? 1
+                return (
+                  <label
+                    key={factor.ref}
+                    className="block rounded border border-border bg-background px-2 py-1.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="min-w-0">
+                        <span className="block font-medium leading-4 text-foreground">
+                          {factor.ref} · {factor.label}
+                        </span>
+                        <span className="block leading-4 text-muted-foreground">
+                          {factor.group} · {factor.method}
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                        {dropped ? 'off' : `${value.toFixed(2)}x`}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.25"
+                      disabled={dropped}
+                      value={value}
+                      onChange={(event) => walkability.setHeatmapFactorWeight(factor.ref, Number(event.target.value))}
+                      className="mt-1.5 h-2 w-full accent-emerald-600 disabled:opacity-40"
+                    />
+                  </label>
+                )
+              })}
+            </div>
+
+            <div className="rounded border border-border bg-muted/30 px-2.5 py-2">
+              <div className="font-medium text-foreground">Active variant rules</div>
+              <ul className="mt-1.5 space-y-1 leading-4 text-muted-foreground">
+                {heatmapLogic.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-2 text-xs">
+            <div className="rounded border border-border bg-background px-2.5 py-2">
+              <div className="break-words font-mono text-[11px] leading-5 text-foreground">
+                score(community) = SUM(weight_metric x normalized_metric) / SUM(weight_metric)
+              </div>
+              <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                Community polygons are a planning summary; switch to Raw MI heat map for the report-style live equation.
+              </div>
+            </div>
+            <InlineAlert>
+              {walkability.selectedVariant?.description ?? 'Community score uses the selected normalized metric weights.'}
+            </InlineAlert>
+          </div>
+        )}
       </SidebarSection>
 
       {selectedCommunity && (

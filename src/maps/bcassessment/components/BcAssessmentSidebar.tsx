@@ -69,7 +69,7 @@ interface BcAssessmentSidebarProps {
   onClearSelection: () => void
 }
 
-const ASSESSMENT_BOUNDARY_SOURCES = new Set<AssessmentBoundarySource>(['bcHealth', 'census', 'cityPG'])
+const ASSESSMENT_BOUNDARY_SOURCES = new Set<AssessmentBoundarySource>(['bcHealth', 'census', 'cityPG', 'watershed'])
 
 function isAssessmentBoundarySource(value: string): value is AssessmentBoundarySource {
   return ASSESSMENT_BOUNDARY_SOURCES.has(value as AssessmentBoundarySource)

@@ -307,19 +307,19 @@ const WATER_BOUNDARY_CONFIG: Record<WaterBoundaryLevel, BoundaryLevelConfig> = {
     nameField: 'name',
   },
   majorWatershed: {
-    path: '/data/boundaries/BCFWA/major_watersheds.geojson',
-    idField: 'WATERSHED_KEY',
-    nameField: 'WATERSHED_GROUP_NAME',
+    path: '/data/boundaries/BCFWA/major_watersheds_province_simplified.geojson',
+    idField: 'boundaryCode',
+    nameField: 'boundaryName',
   },
   watershedGroup: {
-    path: '/data/boundaries/BCFWA/watershed_groups.geojson',
-    idField: 'WATERSHED_GROUP_CODE',
-    nameField: 'WATERSHED_GROUP_NAME',
+    path: '/data/boundaries/BCFWA/watershed_groups_province_simplified.geojson',
+    idField: 'boundaryCode',
+    nameField: 'boundaryName',
   },
   assessmentWatershed: {
     path: '/data/boundaries/BCFWA/assessment_watersheds.geojson',
-    idField: 'ASSESSMENT_WATERSHED_CODE',
-    nameField: 'ASSESSMENT_WATERSHED_NAME',
+    idField: 'boundaryCode',
+    nameField: 'boundaryName',
   },
   nrArea: {
     path: '/data/boundaries/BCNR/nr_areas.geojson',

@@ -23,6 +23,7 @@ type DevBoundaryCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON
   metadata?: {
     generatedAt?: string
     simplifyTolerance?: number
+    simplifyKeep?: string
     numberMatched?: number
     sourceLayer?: string
   }
@@ -41,7 +42,7 @@ const LAYER_CONFIG: Record<WatershedLayerKey, {
 }> = {
   major: {
     label: 'Major watersheds',
-    path: '/data/dev/bc-fwa/major_watersheds_province_simplified.geojson',
+    path: '/data/boundaries/BCFWA/major_watersheds_province_simplified.geojson',
     typeName: 'WHSE_BASEMAPPING.BC_MAJOR_WATERSHEDS',
     color: '#0ea5e9',
     lineColor: '#075985',
@@ -50,7 +51,7 @@ const LAYER_CONFIG: Record<WatershedLayerKey, {
   },
   groups: {
     label: 'Watershed groups',
-    path: '/data/dev/bc-fwa/watershed_groups_province_simplified.geojson',
+    path: '/data/boundaries/BCFWA/watershed_groups_province_simplified.geojson',
     typeName: 'WHSE_BASEMAPPING.FWA_WATERSHED_GROUPS_POLY',
     color: '#22c55e',
     lineColor: '#166534',
@@ -274,6 +275,7 @@ function DevWatersheds() {
         loaded: collection.features.length > 0,
         sourceCount: collection.metadata?.numberMatched,
         tolerance: collection.metadata?.simplifyTolerance,
+        simplifyKeep: collection.metadata?.simplifyKeep,
       }
     })
   ), [collections, detail, sizes])
@@ -387,7 +389,7 @@ function DevWatersheds() {
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 {summary.loaded
-                  ? `${summary.features.toLocaleString()} features${summary.sourceCount ? ` from ${summary.sourceCount.toLocaleString()} source records` : ''}${detail === 'simplified' && summary.tolerance ? ` · tolerance ${summary.tolerance}` : ''}`
+                  ? `${summary.features.toLocaleString()} features${summary.sourceCount ? ` from ${summary.sourceCount.toLocaleString()} source records` : ''}${detail === 'simplified' && summary.simplifyKeep ? ` · mapshaper ${summary.simplifyKeep}` : ''}${detail === 'simplified' && !summary.simplifyKeep && summary.tolerance ? ` · tolerance ${summary.tolerance}` : ''}`
                   : 'Switch to this layer to fetch the full WFS payload.'}
               </div>
             </div>

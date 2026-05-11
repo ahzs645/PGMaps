@@ -1,9 +1,14 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import simplify from '@turf/simplify'
+import { execFile } from 'node:child_process'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { promisify } from 'node:util'
 
-const OUTPUT_DIR = 'public/data/dev/bc-fwa'
+const execFileAsync = promisify(execFile)
+
+const SIMPLIFIED_OUTPUT_DIR = 'public/data/boundaries/BCFWA'
+const FULL_OUTPUT_DIR = process.env.FWA_FULL_OUTPUT_DIR
+  ?? '/Users/ahmadjalil/Library/CloudStorage/GoogleDrive-ahzs645@gmail.com/My Drive/University/Research/Grad/Data/Boundaries'
 const WFS_BASE = 'https://openmaps.gov.bc.ca/geo/pub'
-const TOLERANCE = Number(process.env.FWA_SIMPLIFY_TOLERANCE ?? '0.002')
+const SIMPLIFY_KEEP = process.env.FWA_SIMPLIFY_KEEP ?? '3%'
 
 const LAYERS = [
   {
@@ -39,7 +44,7 @@ function getWfsUrl(typeName) {
 function pickProperties(properties, layer) {
   const next = {
     sourceLayer: layer.typeName,
-    boundaryCode: String(properties[layer.codeField] ?? '').trim(),
+    boundaryCode: String(properties[layer.codeField] ?? properties.OBJECTID ?? '').trim(),
     boundaryName: String(properties[layer.nameField] ?? properties.OBJECTID ?? '').trim(),
   }
 
@@ -52,35 +57,49 @@ function pickProperties(properties, layer) {
   return next
 }
 
-function normalizeFeature(feature, layer) {
-  if (!feature.geometry || (feature.geometry.type !== 'Polygon' && feature.geometry.type !== 'MultiPolygon')) {
-    return null
-  }
-
-  const normalized = {
-    type: 'Feature',
-    id: feature.id,
-    properties: pickProperties(feature.properties ?? {}, layer),
-    geometry: feature.geometry,
-  }
-
-  return simplify(normalized, {
-    tolerance: TOLERANCE,
-    highQuality: false,
-    mutate: true,
-  })
-}
-
-async function syncLayer(layer) {
+async function fetchFullLayer(layer) {
   const response = await fetch(getWfsUrl(layer.typeName))
   if (!response.ok) {
     throw new Error(`Failed to fetch ${layer.typeName}: ${response.status}`)
   }
 
-  const source = await response.json()
+  const payload = Buffer.from(await response.arrayBuffer())
+  const fullPath = `${FULL_OUTPUT_DIR}/${layer.id}_province_full.geojson`
+  await writeFile(fullPath, payload)
+  console.log(`${layer.id}: wrote full WFS source to ${fullPath} (${payload.byteLength.toLocaleString()} bytes)`)
+  return fullPath
+}
+
+async function simplifyLayer(layer, fullPath) {
+  const tempPath = `${SIMPLIFIED_OUTPUT_DIR}/${layer.id}_mapshaper_tmp.geojson`
+  const outputPath = `${SIMPLIFIED_OUTPUT_DIR}/${layer.id}_province_simplified.geojson`
+
+  await execFileAsync('npx', [
+    '-y',
+    'mapshaper',
+    fullPath,
+    '-clean',
+    '-simplify',
+    SIMPLIFY_KEEP,
+    'keep-shapes',
+    '-o',
+    'force',
+    'format=geojson',
+    tempPath,
+  ], {
+    maxBuffer: 1024 * 1024 * 20,
+  })
+
+  const source = JSON.parse(await readFile(tempPath, 'utf8'))
   const features = source.features
-    .map((feature) => normalizeFeature(feature, layer))
-    .filter((feature) => feature && feature.properties.boundaryCode)
+    .filter((feature) => feature.geometry && (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon'))
+    .map((feature) => ({
+      type: 'Feature',
+      id: feature.id,
+      properties: pickProperties(feature.properties ?? {}, layer),
+      geometry: feature.geometry,
+    }))
+    .filter((feature) => feature.properties.boundaryCode)
 
   const collection = {
     type: 'FeatureCollection',
@@ -89,19 +108,26 @@ async function syncLayer(layer) {
       source: 'BC Freshwater Atlas / BC Geographic Warehouse',
       sourceLayer: layer.typeName,
       scope: 'Province-wide',
-      simplifyTolerance: TOLERANCE,
+      simplifier: 'mapshaper',
+      simplifyKeep: SIMPLIFY_KEEP,
+      topologyPreserving: true,
       generatedAt: new Date().toISOString(),
-      numberMatched: source.numberMatched ?? source.totalFeatures ?? features.length,
+      numberMatched: source.features?.length ?? features.length,
+      fullSourcePath: fullPath,
     },
     features,
   }
 
   const payload = `${JSON.stringify(collection)}\n`
-  await writeFile(`${OUTPUT_DIR}/${layer.id}_province_simplified.geojson`, payload)
-  console.log(`${layer.id}: wrote ${features.length} features (${Buffer.byteLength(payload).toLocaleString()} bytes)`)
+  await writeFile(outputPath, payload)
+  await rm(tempPath, { force: true })
+  console.log(`${layer.id}: wrote topology-preserving simplified file (${Buffer.byteLength(payload).toLocaleString()} bytes)`)
 }
 
-await mkdir(OUTPUT_DIR, { recursive: true })
+await mkdir(SIMPLIFIED_OUTPUT_DIR, { recursive: true })
+await mkdir(FULL_OUTPUT_DIR, { recursive: true })
+
 for (const layer of LAYERS) {
-  await syncLayer(layer)
+  const fullPath = await fetchFullLayer(layer)
+  await simplifyLayer(layer, fullPath)
 }

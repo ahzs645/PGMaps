@@ -126,8 +126,11 @@ async function computeLiveGrid(requestKey, options) {
     drop_supp_poi: Boolean(options.dropSuppPoi),
   }
   const areaBufferM = options.tightBuffer ? 10 : 20
+  const factorWeights = normalizeFactorWeights(options.factorWeights)
   const activeFactors = applyVariant(FACTORS, config)
-  const grid = new Uint16Array(inputs.rows * inputs.cols)
+    .map((factor) => ({ ...factor, multiplier: factorWeights[factor.ref] ?? 1 }))
+    .filter((factor) => factor.multiplier > 0)
+  const grid = new Float32Array(inputs.rows * inputs.cols)
 
   for (let index = 0; index < activeFactors.length; index += 1) {
     const factor = activeFactors[index]
@@ -142,7 +145,7 @@ async function computeLiveGrid(requestKey, options) {
           const buffered = bufferProjectedGeometry(feature, distance)
           if (buffered) addGeometryInteriorToMask(mask, inputs.rows, inputs.cols, inputs.bounds, buffered)
         }
-        addMaskScoreToGrid(grid, mask, score)
+        addMaskScoreToGrid(grid, mask, score * factor.multiplier)
       }
     } else {
       const mask = new Uint8Array(inputs.rows * inputs.cols)
@@ -150,7 +153,7 @@ async function computeLiveGrid(requestKey, options) {
         const buffered = bufferProjectedGeometry(feature, areaBufferM)
         if (buffered) addGeometryInteriorToMask(mask, inputs.rows, inputs.cols, inputs.bounds, buffered)
       }
-      addMaskScoreToGrid(grid, mask, factor.score)
+      addMaskScoreToGrid(grid, mask, factor.score * factor.multiplier)
     }
   }
 
@@ -464,6 +467,17 @@ function applyVariant(factors, config) {
     }
     return [factor]
   })
+}
+
+function normalizeFactorWeights(rawWeights) {
+  const weights = {}
+  if (!rawWeights || typeof rawWeights !== 'object') return weights
+  for (const [ref, value] of Object.entries(rawWeights)) {
+    const numericValue = Number(value)
+    if (!Number.isFinite(numericValue)) continue
+    weights[ref] = Math.max(0, Math.min(2, numericValue))
+  }
+  return weights
 }
 
 function activeSourceFeatures(layerFeatures, factor) {
