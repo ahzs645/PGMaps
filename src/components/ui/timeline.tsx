@@ -368,7 +368,7 @@ export function Timeline({
           </div>
         </div>
 
-        {bucketCounts ? (
+        {bucketCounts && granularity !== 'week' ? (
           <div className="mb-1 flex h-10 items-end gap-px">
             {visibleBuckets.map((bucket, i) => {
               const count = bucketCounts.get(bucket.key) ?? 0
@@ -402,10 +402,12 @@ export function Timeline({
               const isPeriodStart = granularity === 'week'
                 ? bucket.start.getDate() <= 7
                 : isJanuary
+              const count = bucketCounts?.get(bucket.key) ?? 0
               return (
                 <div
                   key={bucket.key}
                   className="flex flex-1 cursor-pointer flex-col items-center"
+                  title={bucketCounts ? `${bucket.label}: ${count}` : undefined}
                   onClick={() => {
                     onDateChange(bucket.start)
                     setIsPlaying(false)
