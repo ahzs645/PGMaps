@@ -1,6 +1,79 @@
 import type { ElementType, HTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { DatasetInfo, type DatasetInfoRecord } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
+
+type MapSidebarShellProps = HTMLAttributes<HTMLDivElement> & {
+  title: ReactNode
+  subtitle?: ReactNode
+  actions?: ReactNode
+  dataset?: DatasetInfoRecord
+  children: ReactNode
+  scrollClassName?: string
+  headerClassName?: string
+  titleClassName?: string
+  contentProps?: HTMLAttributes<HTMLDivElement>
+}
+
+export function MapSidebarShell({
+  title,
+  subtitle,
+  actions,
+  dataset,
+  children,
+  className,
+  scrollClassName,
+  headerClassName,
+  titleClassName,
+  contentProps,
+  ...props
+}: MapSidebarShellProps) {
+  const { className: contentClassName, ...restContentProps } = contentProps ?? {}
+
+  return (
+    <div
+      className={cn(
+        'z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur',
+        className,
+      )}
+      {...props}
+    >
+      <MapSidebarHeader
+        title={title}
+        subtitle={subtitle}
+        actions={actions}
+        className={headerClassName}
+        titleClassName={titleClassName}
+      />
+      {dataset && <DatasetInfo dataset={dataset} />}
+      <div className={cn('min-h-0 flex-1 overflow-y-auto', scrollClassName, contentClassName)} {...restContentProps}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+type MapSidebarHeaderProps = {
+  title: ReactNode
+  subtitle?: ReactNode
+  actions?: ReactNode
+  className?: string
+  titleClassName?: string
+}
+
+export function MapSidebarHeader({ title, subtitle, actions, className, titleClassName }: MapSidebarHeaderProps) {
+  return (
+    <div className={cn('border-b border-border bg-background/95 p-4', className)}>
+      <div className={cn(actions && 'flex items-start justify-between gap-3')}>
+        <div className="min-w-0">
+          <h1 className={cn('truncate text-xl font-bold text-foreground', titleClassName)}>{title}</h1>
+          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        </div>
+        {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
+      </div>
+    </div>
+  )
+}
 
 type SidebarSectionProps = HTMLAttributes<HTMLDivElement> & {
   title?: ReactNode
@@ -131,6 +204,80 @@ export function SearchInput({ className, ...props }: InputHTMLAttributes<HTMLInp
   )
 }
 
+type FilterChipGroupItem<TValue extends string> = {
+  value: TValue
+  label: ReactNode
+  count?: ReactNode
+  color?: string
+  disabled?: boolean
+}
+
+type FilterChipGroupProps<TValue extends string> = {
+  items: Array<FilterChipGroupItem<TValue>>
+  selectedValues: readonly TValue[]
+  onToggle: (value: TValue) => void
+  layout?: 'wrap' | 'scroll' | 'grid'
+  columns?: 2 | 3
+  className?: string
+  chipClassName?: string
+  selectedClassName?: string
+  showDot?: boolean
+}
+
+export function FilterChipGroup<TValue extends string>({
+  items,
+  selectedValues,
+  onToggle,
+  layout = 'wrap',
+  columns = 3,
+  className,
+  chipClassName,
+  selectedClassName,
+  showDot = true,
+}: FilterChipGroupProps<TValue>) {
+  const selectedSet = new Set(selectedValues)
+
+  return (
+    <div
+      className={cn(
+        layout === 'wrap' && 'flex flex-wrap gap-1.5',
+        layout === 'scroll' && 'flex gap-1.5 overflow-x-auto pb-1 pr-1',
+        layout === 'grid' && 'grid gap-2',
+        layout === 'grid' && columns === 2 && 'grid-cols-2',
+        layout === 'grid' && columns === 3 && 'grid-cols-3',
+        className,
+      )}
+    >
+      {items.map((item) => {
+        const selected = selectedSet.has(item.value)
+        return (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => onToggle(item.value)}
+            disabled={item.disabled}
+            aria-pressed={selected}
+            className={cn(
+              'flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-colors disabled:pointer-events-none disabled:opacity-50',
+              layout === 'scroll' && 'shrink-0',
+              selected ? 'bg-background' : 'border-input text-muted-foreground hover:bg-accent',
+              selected && selectedClassName,
+              chipClassName,
+            )}
+            style={selected && item.color ? { borderColor: item.color, color: item.color } : undefined}
+          >
+            {showDot && item.color && (
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+            )}
+            <span className="truncate">{item.label}</span>
+            {item.count !== undefined && <span className="shrink-0 tabular-nums opacity-70">{item.count}</span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 type InlineAlertProps = {
   children: ReactNode
   tone?: 'info' | 'warning' | 'error'
@@ -143,7 +290,8 @@ export function InlineAlert({ children, tone = 'info', className }: InlineAlertP
       className={cn(
         'rounded-md border p-2 text-xs leading-5',
         tone === 'info' && 'border-border bg-muted/20 text-muted-foreground',
-        tone === 'warning' && 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100',
+        tone === 'warning' &&
+          'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100',
         tone === 'error' && 'border-destructive/30 bg-destructive/10 text-destructive',
         className,
       )}
@@ -171,9 +319,38 @@ export function KeyValueRows({ rows, className }: KeyValueRowsProps) {
   )
 }
 
+type SelectedItemTone = 'default' | 'sky' | 'cyan' | 'green' | 'amber' | 'orange' | 'blue'
+
+const selectedItemToneClasses: Record<SelectedItemTone, string> = {
+  default: 'border-border bg-background text-foreground',
+  sky: 'border-sky-300/60 bg-sky-50 text-sky-900 dark:border-sky-800/60 dark:bg-sky-950/30 dark:text-sky-100',
+  cyan: 'border-cyan-300/50 bg-cyan-50 text-cyan-900 dark:border-cyan-900/70 dark:bg-cyan-950/25 dark:text-cyan-100',
+  green:
+    'border-green-300/60 bg-green-50 text-green-900 dark:border-green-800/60 dark:bg-green-950/30 dark:text-green-100',
+  amber:
+    'border-amber-300/60 bg-amber-50 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/25 dark:text-amber-100',
+  orange:
+    'border-orange-300/60 bg-orange-50 text-orange-900 dark:border-orange-800/60 dark:bg-orange-950/25 dark:text-orange-100',
+  blue: 'border-blue-300/60 bg-blue-50 text-blue-900 dark:border-blue-800/60 dark:bg-blue-950/25 dark:text-blue-100',
+}
+
+const selectedItemSubtleTextClasses: Record<SelectedItemTone, string> = {
+  default: 'text-muted-foreground',
+  sky: 'text-sky-700 dark:text-sky-300',
+  cyan: 'text-cyan-700 dark:text-cyan-300',
+  green: 'text-green-700 dark:text-green-300',
+  amber: 'text-amber-700 dark:text-amber-300',
+  orange: 'text-orange-700 dark:text-orange-300',
+  blue: 'text-blue-700 dark:text-blue-300',
+}
+
 type SelectedItemCardProps = {
   title: ReactNode
   eyebrow?: ReactNode
+  subtitle?: ReactNode
+  tone?: SelectedItemTone
+  badges?: ReactNode
+  actions?: ReactNode
   rows?: KeyValueRowsProps['rows']
   onClear?: () => void
   clearLabel?: string
@@ -184,6 +361,10 @@ type SelectedItemCardProps = {
 export function SelectedItemCard({
   title,
   eyebrow,
+  subtitle,
+  tone = 'default',
+  badges,
+  actions,
   rows,
   onClear,
   clearLabel = 'Clear selection',
@@ -191,23 +372,30 @@ export function SelectedItemCard({
   className,
 }: SelectedItemCardProps) {
   return (
-    <div className={cn('rounded-md border border-border bg-background p-3 text-xs', className)}>
+    <div className={cn('rounded-md border p-3 text-xs', selectedItemToneClasses[tone], className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          {eyebrow && <div className="mb-0.5 text-[10px] font-medium text-muted-foreground">{eyebrow}</div>}
-          <div className="font-semibold leading-5 text-foreground">{title}</div>
+          {eyebrow && (
+            <div className={cn('mb-0.5 text-[10px] font-medium', selectedItemSubtleTextClasses[tone])}>{eyebrow}</div>
+          )}
+          <div className="font-semibold leading-5">{title}</div>
+          {subtitle && <div className={cn('text-xs', selectedItemSubtleTextClasses[tone])}>{subtitle}</div>}
         </div>
-        {onClear && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-            aria-label={clearLabel}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {actions}
+          {onClear && (
+            <button
+              type="button"
+              onClick={onClear}
+              className={cn('shrink-0 transition-colors hover:text-foreground', selectedItemSubtleTextClasses[tone])}
+              aria-label={clearLabel}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
+      {badges && <div className="mt-2 flex flex-wrap items-center gap-1.5">{badges}</div>}
       {rows && <KeyValueRows rows={rows} className="mt-2" />}
       {children}
     </div>

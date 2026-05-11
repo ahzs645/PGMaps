@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
+import { MapSidebarShell, SearchInput, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import { DATASETS } from '@/lib/dataCatalog'
 import { cn } from '@/lib/utils'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from '../constants'
@@ -11,7 +11,7 @@ import type {
   CensusMetricKey,
   CensusMetricOption,
   CensusUnit,
-  CensusVariableSelection
+  CensusVariableSelection,
 } from '../types'
 
 interface CensusSidebarProps {
@@ -88,7 +88,7 @@ export function CensusSidebar({
   onUnitClick,
   onClearSelection,
   onVariableSelect,
-  onClearVariable
+  onClearVariable,
 }: CensusSidebarProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [variableSearch, setVariableSearch] = useState('')
@@ -96,14 +96,12 @@ export function CensusSidebar({
   const [showVariableBrowser, setShowVariableBrowser] = useState(false)
 
   const selectedMetricDef = useMemo(
-    () => availableMetrics.find((metric) => metric.key === selectedMetric)
-      || availableMetrics[0]
-      || CENSUS_METRICS[0],
-    [availableMetrics, selectedMetric]
+    () => availableMetrics.find((metric) => metric.key === selectedMetric) || availableMetrics[0] || CENSUS_METRICS[0],
+    [availableMetrics, selectedMetric],
   )
   const selectedHierarchyDef = useMemo(
     () => CENSUS_HIERARCHIES.find((level) => level.key === selectedHierarchy) || CENSUS_HIERARCHIES[0],
-    [selectedHierarchy]
+    [selectedHierarchy],
   )
 
   const selectedCategory = useMemo(() => {
@@ -119,10 +117,7 @@ export function CensusSidebar({
     }
     const query = variableSearch.trim().toLowerCase()
     if (query) {
-      vars = vars.filter((v) =>
-        v.label.toLowerCase().includes(query)
-        || v.id.toLowerCase().includes(query)
-      )
+      vars = vars.filter((v) => v.label.toLowerCase().includes(query) || v.id.toLowerCase().includes(query))
     }
     return vars
   }, [selectedCategory, typeFilter, variableSearch])
@@ -191,18 +186,12 @@ export function CensusSidebar({
   }, [catalog])
 
   return (
-    <div className={cn('z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
-      <div className="border-b border-border bg-background/95 p-4">
-        <h1 className="text-xl font-bold text-foreground">Census Data Explorer</h1>
-        <p className="text-sm text-muted-foreground">
-          {catalog ? `${catalog.totalVariables.toLocaleString()} variables` : 'Loading catalog...'}
-          {' across '}5 geographic levels
-        </p>
-      </div>
-
-      <DatasetInfo dataset={DATASETS.census} />
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
+    <MapSidebarShell
+      className={className}
+      title="Census Data Explorer"
+      subtitle={`${catalog ? `${catalog.totalVariables.toLocaleString()} variables` : 'Loading catalog...'} across 5 geographic levels`}
+      dataset={DATASETS.census}
+    >
       <StudyAreaSelector<string, CensusHierarchyLevel>
         level={selectedHierarchy}
         levelOptions={CENSUS_HIERARCHIES.map((level) => ({ value: level.key, label: level.label }))}
@@ -248,7 +237,9 @@ export function CensusSidebar({
               <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 dark:border-amber-800/60 dark:bg-amber-950/25">
                 <div className="min-w-0">
                   <div className="text-[10px] font-medium text-amber-700 dark:text-amber-300">{activeCategoryName}</div>
-                  <div className="truncate text-xs font-semibold text-amber-900 dark:text-amber-200">{activeVariableLabel}</div>
+                  <div className="truncate text-xs font-semibold text-amber-900 dark:text-amber-200">
+                    {activeVariableLabel}
+                  </div>
                 </div>
                 <button
                   onClick={onClearVariable}
@@ -267,7 +258,7 @@ export function CensusSidebar({
                 'w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors',
                 showVariableBrowser
                   ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200'
-                  : 'border-input bg-background text-foreground hover:bg-accent'
+                  : 'border-input bg-background text-foreground hover:bg-accent',
               )}
             >
               {showVariableBrowser ? 'Hide Variable Browser' : 'Browse Census Variables...'}
@@ -296,7 +287,7 @@ export function CensusSidebar({
                       }}
                       className={cn(
                         'w-full px-4 py-2.5 text-left transition-colors hover:bg-accent',
-                        variableSelection?.categoryId === cat.id && 'bg-amber-50 dark:bg-amber-950/30'
+                        variableSelection?.categoryId === cat.id && 'bg-amber-50 dark:bg-amber-950/30',
                       )}
                     >
                       <div className="flex items-center justify-between">
@@ -338,9 +329,7 @@ export function CensusSidebar({
                       onClick={() => setTypeFilter(t)}
                       className={cn(
                         'rounded px-2 py-0.5 text-[10px] font-medium transition-colors',
-                        typeFilter === t
-                          ? 'bg-amber-500 text-white'
-                          : 'bg-muted text-muted-foreground hover:bg-accent'
+                        typeFilter === t ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground hover:bg-accent',
                       )}
                     >
                       {t === 'all' ? 'All' : t}
@@ -349,9 +338,7 @@ export function CensusSidebar({
                 </div>
               </div>
               <div>
-                {variableLoading && (
-                  <div className="px-4 py-2 text-xs text-muted-foreground">Loading data...</div>
-                )}
+                {variableLoading && <div className="px-4 py-2 text-xs text-muted-foreground">Loading data...</div>}
                 {filteredVariables.map((v) => {
                   const isActive = variableSelection?.variableId === v.id
                   return (
@@ -362,7 +349,7 @@ export function CensusSidebar({
                       }}
                       className={cn(
                         'w-full px-4 py-2 text-left text-xs transition-colors hover:bg-accent',
-                        isActive && 'bg-amber-50 font-medium dark:bg-amber-950/30'
+                        isActive && 'bg-amber-50 font-medium dark:bg-amber-950/30',
                       )}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -384,81 +371,62 @@ export function CensusSidebar({
       )}
 
       {/* Search */}
-      <div className="border-b border-border bg-background/95 p-4">
-        <input
-          type="text"
+      <SidebarSection>
+        <SearchInput
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
           placeholder={`Search ${selectedHierarchyDef.label}...`}
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-amber-500"
+          className="focus:ring-amber-500"
         />
-      </div>
+      </SidebarSection>
 
       {/* Summary stats */}
-      <div className="border-b border-border bg-background/95 px-4 py-3">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <div className="text-base font-bold text-foreground">{filteredUnits.length.toLocaleString()}</div>
-            <div className="text-[10px] text-muted-foreground">units</div>
-          </div>
-          <div>
-            <div className="text-base font-bold text-foreground">{totals.population.toLocaleString()}</div>
-            <div className="text-[10px] text-muted-foreground">population</div>
-          </div>
-          <div>
-            <div className="text-base font-bold text-foreground">{formatArea(totals.areaSqKm)}</div>
-            <div className="text-[10px] text-muted-foreground">km² area</div>
-          </div>
-        </div>
-      </div>
+      <SidebarSection className="px-4 py-3">
+        <StatGrid
+          stats={[
+            { label: 'units', value: filteredUnits.length.toLocaleString(), valueClassName: 'text-base' },
+            { label: 'population', value: totals.population.toLocaleString(), valueClassName: 'text-base' },
+            { label: 'km² area', value: formatArea(totals.areaSqKm), valueClassName: 'text-base' },
+          ]}
+        />
+      </SidebarSection>
 
       {/* Selected unit detail */}
       {selectedUnit && (
-        <div className="border-b border-amber-300/60 bg-amber-50 p-4 dark:border-amber-800/60 dark:bg-amber-950/25">
-          <div className="mb-2 flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                {formatUnitLabel(selectedUnit)}
+        <SidebarSection>
+          <SelectedItemCard
+            tone="amber"
+            title={formatUnitLabel(selectedUnit)}
+            subtitle={selectedHierarchyDef.label}
+            onClear={onClearSelection}
+            clearLabel="Clear selected unit"
+          >
+            {isVariableMode ? (
+              <div>
+                <div className="text-[10px] text-amber-700 dark:text-amber-300">{activeCategoryName}</div>
+                <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
+                  {formatValue(getUnitVariableValue(selectedUnit))}
+                </div>
+                <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{activeVariableLabel}</div>
               </div>
-              <div className="text-xs text-amber-700 dark:text-amber-300">
-                {selectedHierarchyDef.label}
+            ) : (
+              <div>
+                <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
+                  {formatMetricValue(selectedUnit[selectedMetric], selectedMetricDef.format)}
+                </div>
+                <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{selectedMetricDef.label}</div>
               </div>
+            )}
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-amber-800 dark:text-amber-300">
+              <div>Area: {formatArea(selectedUnit.areaSqKm || 0)} km²</div>
+              <div>Pop: {(selectedUnit.population || 0).toLocaleString()}</div>
+              <div>Households: {(selectedUnit.households || 0).toLocaleString()}</div>
+              <div>Dwellings: {(selectedUnit.dwellings || 0).toLocaleString()}</div>
+              <div>DA count: {selectedUnit.daCount.toLocaleString()}</div>
+              <div>DB count: {selectedUnit.dbCount.toLocaleString()}</div>
             </div>
-            <button
-              onClick={onClearSelection}
-              className="text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
-              aria-label="Clear selected unit"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          {isVariableMode ? (
-            <div>
-              <div className="text-[10px] text-amber-700 dark:text-amber-300">{activeCategoryName}</div>
-              <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
-                {formatValue(getUnitVariableValue(selectedUnit))}
-              </div>
-              <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{activeVariableLabel}</div>
-            </div>
-          ) : (
-            <div>
-              <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
-                {formatMetricValue(selectedUnit[selectedMetric], selectedMetricDef.format)}
-              </div>
-              <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{selectedMetricDef.label}</div>
-            </div>
-          )}
-          <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-amber-800 dark:text-amber-300">
-            <div>Area: {formatArea(selectedUnit.areaSqKm || 0)} km²</div>
-            <div>Pop: {(selectedUnit.population || 0).toLocaleString()}</div>
-            <div>Households: {(selectedUnit.households || 0).toLocaleString()}</div>
-            <div>Dwellings: {(selectedUnit.dwellings || 0).toLocaleString()}</div>
-            <div>DA count: {selectedUnit.daCount.toLocaleString()}</div>
-            <div>DB count: {selectedUnit.dbCount.toLocaleString()}</div>
-          </div>
-        </div>
+          </SelectedItemCard>
+        </SidebarSection>
       )}
 
       {/* Unit list */}
@@ -477,7 +445,7 @@ export function CensusSidebar({
         <div>
           <div className="sticky top-0 flex items-center justify-between border-b border-border bg-background/95 p-2 text-xs text-muted-foreground backdrop-blur">
             <span>
-              Top units by {isVariableMode ? (activeVariableLabel || 'variable') : selectedMetricDef.label.toLowerCase()}
+              Top units by {isVariableMode ? activeVariableLabel || 'variable' : selectedMetricDef.label.toLowerCase()}
             </span>
             {filteredUnits.length > MAX_ROWS && <span>Showing {MAX_ROWS}</span>}
           </div>
@@ -494,14 +462,12 @@ export function CensusSidebar({
                   onClick={() => onUnitClick(unit)}
                   className={cn(
                     'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
-                    isSelected && 'bg-amber-50 dark:bg-amber-950/30'
+                    isSelected && 'bg-amber-50 dark:bg-amber-950/30',
                   )}
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span className="text-sm font-medium text-foreground">{formatUnitLabel(unit)}</span>
-                    <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-                      {displayValue}
-                    </span>
+                    <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">{displayValue}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Area {formatArea(unit.areaSqKm || 0)} km² | DA {unit.daCount} | DB {unit.dbCount}
@@ -512,7 +478,6 @@ export function CensusSidebar({
           </div>
         </div>
       )}
-      </div>
-    </div>
+    </MapSidebarShell>
   )
 }

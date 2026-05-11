@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { RestaurantCard } from './RestaurantCard'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
-import { DatasetInfo } from '@/components/DatasetInfo'
+import { FilterChipGroup, MapSidebarShell, SearchInput, SelectedItemCard } from '@/components/ui/map-panels'
 import { DATASETS } from '@/lib/dataCatalog'
 import type {
   RestaurantWithStats,
@@ -11,7 +11,7 @@ import type {
   HazardStatsAtDate,
   HazardRating,
   VisualizationMode,
-  ViolationTimelineMode
+  ViolationTimelineMode,
 } from '../types'
 
 interface SidebarProps {
@@ -52,13 +52,13 @@ const timelineOptions = [
   { value: 6, label: '6 months' },
   { value: 12, label: '1 year' },
   { value: 24, label: '2 years' },
-  { value: 0, label: 'All time' }
+  { value: 0, label: 'All time' },
 ]
 
-const hazardColors: Record<HazardRating, string> = {
-  Low: 'bg-green-500',
-  Moderate: 'bg-amber-500',
-  Unknown: 'bg-gray-500'
+const hazardChipColors: Record<HazardRating, string> = {
+  Low: '#22c55e',
+  Moderate: '#f59e0b',
+  Unknown: '#6b7280',
 }
 
 export function Sidebar({
@@ -89,72 +89,80 @@ export function Sidebar({
   onOpenInspectionPanel,
   showTimeline,
   onToggleTimeline,
-  onOpenRoulette
+  onOpenRoulette,
 }: SidebarProps) {
   const [showFilters, setShowFilters] = useState(false)
 
-  const toggleHazard = useCallback((hazard: HazardRating) => {
-    const current = [...selectedHazardRatings]
-    const index = current.indexOf(hazard)
-    if (index > -1) {
-      current.splice(index, 1)
-    } else {
-      current.push(hazard)
-    }
-    onHazardRatingsChange(current)
-  }, [selectedHazardRatings, onHazardRatingsChange])
+  const toggleHazard = useCallback(
+    (hazard: HazardRating) => {
+      const current = [...selectedHazardRatings]
+      const index = current.indexOf(hazard)
+      if (index > -1) {
+        current.splice(index, 1)
+      } else {
+        current.push(hazard)
+      }
+      onHazardRatingsChange(current)
+    },
+    [selectedHazardRatings, onHazardRatingsChange],
+  )
 
-  const toggleFacility = useCallback((facility: string) => {
-    const current = [...selectedFacilityTypes]
-    const index = current.indexOf(facility)
-    if (index > -1) {
-      current.splice(index, 1)
-    } else {
-      current.push(facility)
-    }
-    onFacilityTypesChange(current)
-  }, [selectedFacilityTypes, onFacilityTypesChange])
+  const toggleFacility = useCallback(
+    (facility: string) => {
+      const current = [...selectedFacilityTypes]
+      const index = current.indexOf(facility)
+      if (index > -1) {
+        current.splice(index, 1)
+      } else {
+        current.push(facility)
+      }
+      onFacilityTypesChange(current)
+    },
+    [selectedFacilityTypes, onFacilityTypesChange],
+  )
 
   return (
-    <div className={cn('z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur', className)}>
-      {/* Header */}
-      <div className="border-b border-border bg-background/95 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Food Safety</h1>
-            <p className="text-sm text-muted-foreground">Restaurant Inspections</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onOpenRoulette}
-              className="p-2 rounded-lg bg-purple-500 hover:bg-purple-600 transition-colors"
-              title="Restaurant Roulette"
+    <MapSidebarShell
+      className={className}
+      title="Food Safety"
+      subtitle="Restaurant Inspections"
+      dataset={DATASETS.foodSafety}
+      actions={
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenRoulette}
+            className="p-2 rounded-lg bg-purple-500 hover:bg-purple-600 transition-colors"
+            title="Restaurant Roulette"
+          >
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" strokeWidth="2" />
+              <path strokeWidth="2" d="M12 2v10l7 7" />
+            </svg>
+          </button>
+          <button
+            onClick={onToggleTimeline}
+            className={`p-2 rounded-lg transition-colors ${
+              showTimeline ? 'bg-sky-500 hover:bg-sky-600' : 'bg-secondary hover:bg-accent'
+            }`}
+            title={showTimeline ? 'Hide Timeline' : 'Show Timeline'}
+          >
+            <svg
+              className={`w-5 h-5 ${showTimeline ? 'text-white' : 'text-muted-foreground'}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" strokeWidth="2"/>
-                <path strokeWidth="2" d="M12 2v10l7 7"/>
-              </svg>
-            </button>
-            <button
-              onClick={onToggleTimeline}
-              className={`p-2 rounded-lg transition-colors ${
-                showTimeline
-                  ? 'bg-sky-500 hover:bg-sky-600'
-                  : 'bg-secondary hover:bg-accent'
-              }`}
-              title={showTimeline ? 'Hide Timeline' : 'Show Timeline'}
-            >
-              <svg className={`w-5 h-5 ${showTimeline ? 'text-white' : 'text-muted-foreground'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </button>
-          </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </button>
         </div>
-      </div>
-
-      <DatasetInfo dataset={DATASETS.foodSafety} />
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      }
+    >
       {/* Visualization Mode Toggle */}
       <div className="border-b border-border bg-background/95 p-3">
         <div className="flex rounded-lg bg-secondary p-1">
@@ -164,7 +172,7 @@ export function Sidebar({
               'flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors',
               visualizationMode === 'violations'
                 ? 'bg-background text-foreground shadow'
-                : 'text-muted-foreground hover:text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             Violations
@@ -175,7 +183,7 @@ export function Sidebar({
               'flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors',
               visualizationMode === 'hazard'
                 ? 'bg-background text-foreground shadow'
-                : 'text-muted-foreground hover:text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             Hazard Rating
@@ -208,7 +216,7 @@ export function Sidebar({
                 'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
                 violationTimelineMode === 'period'
                   ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               Period
@@ -219,15 +227,13 @@ export function Sidebar({
                 'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
                 violationTimelineMode === 'cumulative'
                   ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               Cumulative
             </button>
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">
-            {violationTimelineLabel}
-          </div>
+          <div className="truncate text-[11px] text-muted-foreground">{violationTimelineLabel}</div>
         </div>
       )}
 
@@ -244,7 +250,9 @@ export function Sidebar({
               <div className="text-[10px] text-muted-foreground">critical</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-sky-600 dark:text-sky-400">{timelineStats?.totalInspections || 0}</div>
+              <div className="text-lg font-bold text-sky-600 dark:text-sky-400">
+                {timelineStats?.totalInspections || 0}
+              </div>
               <div className="text-[10px] text-muted-foreground">inspections</div>
             </div>
             <div>
@@ -274,12 +282,11 @@ export function Sidebar({
 
       {/* Search */}
       <div className="border-b border-border p-4">
-        <input
-          type="text"
+        <SearchInput
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           placeholder="Search restaurants..."
-          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+          className="focus:ring-sky-500"
         />
       </div>
 
@@ -305,45 +312,34 @@ export function Sidebar({
           {/* Hazard Rating Filter */}
           <div>
             <h3 className="mb-2 text-sm font-medium text-foreground">Hazard Rating</h3>
-            <div className="flex flex-wrap gap-2">
-              {hazardOptions.map((hazard) => (
-                <button
-                  key={hazard}
-                  onClick={() => toggleHazard(hazard)}
-                  className={cn(
-                    'px-3 py-1 text-xs rounded-full border transition-colors',
-                    selectedHazardRatings.includes(hazard)
-                      ? `${hazardColors[hazard]} text-white border-transparent`
-                      : 'border-input bg-background text-foreground hover:bg-accent'
-                  )}
-                >
-                  {hazard}
-                  <span className="ml-1 opacity-75">({stats?.byHazard?.[hazard] || 0})</span>
-                </button>
-              ))}
-            </div>
+            <FilterChipGroup
+              items={hazardOptions.map((hazard) => ({
+                value: hazard,
+                label: hazard,
+                count: stats?.byHazard?.[hazard] || 0,
+                color: hazardChipColors[hazard],
+              }))}
+              selectedValues={selectedHazardRatings}
+              onToggle={toggleHazard}
+              chipClassName="px-3 py-1"
+            />
           </div>
 
           {/* Facility Type Filter */}
           <div>
             <h3 className="mb-2 text-sm font-medium text-foreground">Facility Type</h3>
-            <div className="flex flex-wrap gap-2">
-              {facilityOptions.map((facility) => (
-                <button
-                  key={facility}
-                  onClick={() => toggleFacility(facility)}
-                  className={cn(
-                    'px-3 py-1 text-xs rounded-full border transition-colors',
-                    selectedFacilityTypes.includes(facility)
-                      ? 'bg-sky-500 text-white border-transparent'
-                      : 'border-input bg-background text-foreground hover:bg-accent'
-                  )}
-                >
-                  {facility}
-                  <span className="ml-1 opacity-75">({stats?.byFacilityType?.[facility] || 0})</span>
-                </button>
-              ))}
-            </div>
+            <FilterChipGroup
+              items={facilityOptions.map((facility) => ({
+                value: facility,
+                label: facility,
+                count: stats?.byFacilityType?.[facility] || 0,
+                color: '#0ea5e9',
+              }))}
+              selectedValues={selectedFacilityTypes}
+              onToggle={toggleFacility}
+              chipClassName="px-3 py-1"
+              showDot={false}
+            />
           </div>
         </div>
       )}
@@ -351,22 +347,20 @@ export function Sidebar({
       {/* Selected restaurant detail */}
       {selectedRestaurant && (
         <div className="flex max-h-[40vh] shrink-0 flex-col border-b border-sky-300/60 bg-sky-50 dark:border-sky-800/60 dark:bg-sky-950/30">
-          <div className="flex items-center justify-between p-3 shrink-0 gap-2">
-            <span className="text-sm font-medium text-sky-900 dark:text-sky-200">Selected</span>
-            <div className="flex items-center gap-2">
+          <SelectedItemCard
+            tone="sky"
+            title="Selected"
+            onClear={onClearSelection}
+            actions={
               <button
                 onClick={onOpenInspectionPanel}
                 className="rounded-lg bg-sky-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-sky-700"
               >
                 View Inspections
               </button>
-              <button onClick={onClearSelection} className="text-sky-600 hover:text-sky-800 dark:text-sky-400 dark:hover:text-sky-300">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
+            }
+            className="m-3 shrink-0"
+          />
           <div className="overflow-y-auto px-3 min-h-0 flex-1">
             <RestaurantCard restaurant={selectedRestaurant} expanded visualizationMode={visualizationMode} />
           </div>
@@ -404,7 +398,6 @@ export function Sidebar({
           </div>
         </div>
       )}
-      </div>
-    </div>
+    </MapSidebarShell>
   )
 }
