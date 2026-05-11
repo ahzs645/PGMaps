@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin, Database, Building2, PawPrint } from 'lucide-react'
+import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin, Database, Building2, PawPrint, Droplets } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 
@@ -64,6 +64,7 @@ async function buildIndex(): Promise<SearchItem[]> {
     addDatasetItem('dataset-wars', 'Wildlife accident records', 'wars', '/misc', PawPrint, 'text-amber-700', { tab: 'wars' })
     addDatasetItem('dataset-water', 'Drinking water facilities, samples, and notices', 'water', '/misc', Database, 'text-sky-600', { tab: 'water' })
     addDatasetItem('dataset-assessment', 'BC Assessment parcels dataset', 'bcAssessment', '/bc-assessment', Building2, 'text-slate-500')
+    addDatasetItem('dataset-drought', 'B.C. drought levels time lapse', 'drought', '/drought', Droplets, 'text-amber-600')
 
     // Load restaurants
     try {

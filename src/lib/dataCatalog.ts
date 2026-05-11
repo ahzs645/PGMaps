@@ -133,6 +133,17 @@ export const DATASETS = {
     downloadUrl: '/data/bc-assessment/parcels.geojson',
     fields: ['address', 'category', 'totalAssessed', 'yearBuilt', 'latitude', 'longitude'],
   },
+  drought: {
+    title: 'B.C. drought levels time lapse',
+    description: 'Historical drought basin polygons from the BC Drought Information Portal for 2015 through 2025.',
+    source: 'BC Drought Information Portal / ArcGIS Hub',
+    coverage: 'British Columbia drought basins',
+    license: 'BC Government open data / ArcGIS Hub source terms',
+    formats: ['GeoJSON', 'JSON manifest'],
+    downloadUrl: '/data/drought/manifest.json',
+    apiUrl: 'https://droughtportal.gov.bc.ca/search',
+    fields: ['basinName', 'droughtLevel', 'startDate', 'endDate', 'geometry'],
+  },
   explorer: {
     title: 'Explorer catalogue',
     description: 'Unified searchable layer catalogue combining point, line, and polygon datasets across PGMaps.',

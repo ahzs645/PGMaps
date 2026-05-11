@@ -15,6 +15,7 @@
     "watersheds:sync": "node scripts/sync-bc-fwa-watersheds.mjs",
     "nr-admin:sync": "node scripts/sync-bc-nr-admin.mjs",
     "uwr:sync": "node scripts/sync-bc-uwr.mjs",
+    "drought:sync": "node scripts/sync-bc-drought.mjs",
     "crown-tenures:sync": "node scripts/sync-bc-crown-tenures.mjs",
     "range-tenures:sync": "node scripts/sync-bc-range-tenures.mjs",
     "mineral-tenures:sync": "node scripts/sync-bc-mineral-tenures.mjs",

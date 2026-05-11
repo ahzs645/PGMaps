@@ -15,7 +15,7 @@ export interface TimelineWindowMode {
   anchor?: 'start' | 'end'
 }
 
-export type TimelineGranularity = 'month' | 'year'
+export type TimelineGranularity = 'week' | 'month' | 'year'
 
 interface TimelineProps {
   startDate: Date
@@ -61,11 +61,17 @@ interface Bucket {
 
 function snapToBucket(date: Date, granularity: TimelineGranularity): Date {
   if (granularity === 'year') return new Date(date.getFullYear(), 0, 1)
+  if (granularity === 'week') {
+    const next = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    next.setDate(next.getDate() - next.getDay())
+    return next
+  }
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
 function bucketKeyFromDate(date: Date, granularity: TimelineGranularity): string {
   if (granularity === 'year') return String(date.getFullYear())
+  if (granularity === 'week') return snapToBucket(date, 'week').toISOString().slice(0, 10)
   return `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
 }
 
@@ -83,6 +89,27 @@ function buildBuckets(startDate: Date, endDate: Date, granularity: TimelineGranu
         start: new Date(y, 0, 1),
         end: new Date(y, 11, 31, 23, 59, 59, 999),
       })
+    }
+    return buckets
+  }
+
+  if (granularity === 'week') {
+    const cursor = snapToBucket(startDate, 'week')
+    const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+    while (cursor <= end) {
+      const bucketStart = new Date(cursor)
+      const bucketEnd = new Date(cursor)
+      bucketEnd.setDate(bucketEnd.getDate() + 6)
+      bucketEnd.setHours(23, 59, 59, 999)
+      const label = bucketStart.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
+      buckets.push({
+        key: bucketStart.toISOString().slice(0, 10),
+        label,
+        shortLabel: bucketStart.getDate() <= 7 ? `${MONTH_NAMES[bucketStart.getMonth()]} ${bucketStart.getFullYear()}` : String(bucketStart.getDate()),
+        start: bucketStart,
+        end: bucketEnd,
+      })
+      cursor.setDate(cursor.getDate() + 7)
     }
     return buckets
   }
@@ -125,7 +152,7 @@ export function Timeline({
   const isCumulative = windowMode?.size === -1
   const windowSize = windowMode && !isCumulative ? windowMode.size : 1
   const windowAnchor = windowMode?.anchor ?? 'start'
-  const unitLabel = granularity === 'year' ? 'year' : 'month'
+  const unitLabel = granularity === 'year' ? 'year' : granularity === 'week' ? 'week' : 'month'
 
   const currentIndex = useMemo(() => {
     const currentKey = bucketKeyFromDate(currentDate, granularity)
@@ -209,10 +236,12 @@ export function Timeline({
     if (granularity === 'year') {
       newDate.setFullYear(newDate.getFullYear() + 1)
       newDate.setMonth(0)
+    } else if (granularity === 'week') {
+      newDate.setDate(newDate.getDate() + 7)
     } else {
       newDate.setMonth(newDate.getMonth() + 1)
     }
-    newDate.setDate(1)
+    if (granularity !== 'week') newDate.setDate(1)
     if (newDate <= endDate && currentIndex < maxPosition) {
       onDateChange(newDate)
     } else {
@@ -225,10 +254,12 @@ export function Timeline({
     if (granularity === 'year') {
       newDate.setFullYear(newDate.getFullYear() - 1)
       newDate.setMonth(0)
+    } else if (granularity === 'week') {
+      newDate.setDate(newDate.getDate() - 7)
     } else {
       newDate.setMonth(newDate.getMonth() - 1)
     }
-    newDate.setDate(1)
+    if (granularity !== 'week') newDate.setDate(1)
     if (newDate >= startDate) {
       onDateChange(newDate)
     }
@@ -368,6 +399,9 @@ export function Timeline({
             {visibleBuckets.map((bucket, i) => {
               const inWindow = isInWindow(visibleOffset + i)
               const isJanuary = bucket.start.getMonth() === 0
+              const isPeriodStart = granularity === 'week'
+                ? bucket.start.getDate() <= 7
+                : isJanuary
               return (
                 <div
                   key={bucket.key}
@@ -377,15 +411,17 @@ export function Timeline({
                     setIsPlaying(false)
                   }}
                 >
-                  {isJanuary && (
-                    <span className="text-[9px] text-muted-foreground">{bucket.start.getFullYear()}</span>
+                  {isPeriodStart && (
+                    <span className="text-[9px] text-muted-foreground">
+                      {granularity === 'week' ? bucket.shortLabel : bucket.start.getFullYear()}
+                    </span>
                   )}
                   <div
                     className={cn(
                       'w-full transition-colors',
                       inWindow
                         ? 'h-3 bg-primary'
-                        : isJanuary
+                        : isPeriodStart
                           ? 'h-2 bg-muted-foreground/30'
                           : 'h-1 bg-muted-foreground/15'
                     )}

@@ -1,0 +1,145 @@
+{
+  "title": "B.C. Drought Levels Time Lapse",
+  "source": "BC Drought Information Portal / ArcGIS Hub",
+  "catalogUrl": "https://droughtportal.gov.bc.ca/search",
+  "sourceGroup": "20aab1139c5d4e38b7cddf16d8a7cd44",
+  "generatedAt": "2026-05-11T05:21:08.852Z",
+  "legend": {
+    "0": {
+      "label": "Normal or wetter than normal",
+      "color": "#e7f0bd"
+    },
+    "1": {
+      "label": "Abnormally dry",
+      "color": "#f5f000"
+    },
+    "2": {
+      "label": "Level 2",
+      "color": "#ffd17a"
+    },
+    "3": {
+      "label": "Level 3",
+      "color": "#e4aa28"
+    },
+    "4": {
+      "label": "Level 4",
+      "color": "#ed1c24"
+    },
+    "5": {
+      "label": "Level 5",
+      "color": "#7b0d0d"
+    }
+  },
+  "years": [
+    {
+      "year": 2015,
+      "file": "2015.geojson",
+      "sourceUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2015/FeatureServer",
+      "layerUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2015/FeatureServer/0",
+      "featureCount": 325,
+      "expectedFeatureCount": 325,
+      "startDate": "2015-05-15",
+      "endDate": "2015-09-26"
+    },
+    {
+      "year": 2016,
+      "file": "2016.geojson",
+      "sourceUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2016/FeatureServer",
+      "layerUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2016/FeatureServer/0",
+      "featureCount": 563,
+      "expectedFeatureCount": 563,
+      "startDate": "2016-04-27",
+      "endDate": "2016-10-12"
+    },
+    {
+      "year": 2017,
+      "file": "2017.geojson",
+      "sourceUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/Drought_Levels_Over_Time_2017/FeatureServer",
+      "layerUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/Drought_Levels_Over_Time_2017/FeatureServer/0",
+      "featureCount": 493,
+      "expectedFeatureCount": 493,
+      "startDate": "2017-05-31",
+      "endDate": "2017-10-26"
+    },
+    {
+      "year": 2018,
+      "file": "2018.geojson",
+      "sourceUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Archive_2018_Compiled_1/FeatureServer",
+      "layerUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Archive_2018_Compiled_1/FeatureServer/0",
+      "featureCount": 435,
+      "expectedFeatureCount": 435,
+      "startDate": "2018-06-14",
+      "endDate": "2018-11-15"
+    },
+    {
+      "year": 2019,
+      "file": "2019.geojson",
+      "sourceUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2019/FeatureServer",
+      "layerUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2019/FeatureServer/0",
+      "featureCount": 480,
+      "expectedFeatureCount": 480,
+      "startDate": "2019-05-30",
+      "endDate": "2019-11-04"
+    },
+    {
+      "year": 2020,
+      "file": "2020.geojson",
+      "sourceUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2020/FeatureServer",
+      "layerUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2020/FeatureServer/0",
+      "featureCount": 384,
+      "expectedFeatureCount": 384,
+      "startDate": "2020-06-24",
+      "endDate": "2020-10-21"
+    },
+    {
+      "year": 2021,
+      "file": "2021.geojson",
+      "sourceUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2021/FeatureServer",
+      "layerUrl": "https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2021/FeatureServer/0",
+      "featureCount": 704,
+      "expectedFeatureCount": 704,
+      "startDate": "2021-05-26",
+      "endDate": "2021-11-08"
+    },
+    {
+      "year": 2022,
+      "file": "2022.geojson",
+      "sourceUrl": "https://services1.arcgis.com/xeMpV7tU1t4KD3Ei/arcgis/rest/services/BC_Drought_Level_Archive_2022/FeatureServer",
+      "layerUrl": "https://services1.arcgis.com/xeMpV7tU1t4KD3Ei/arcgis/rest/services/BC_Drought_Level_Archive_2022/FeatureServer/0",
+      "featureCount": 646,
+      "expectedFeatureCount": 646,
+      "startDate": "2022-06-30",
+      "endDate": "2022-12-02"
+    },
+    {
+      "year": 2023,
+      "file": "2023.geojson",
+      "sourceUrl": "https://services1.arcgis.com/xeMpV7tU1t4KD3Ei/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2023/FeatureServer",
+      "layerUrl": "https://services1.arcgis.com/xeMpV7tU1t4KD3Ei/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2023/FeatureServer/0",
+      "featureCount": 918,
+      "expectedFeatureCount": 918,
+      "startDate": "2023-06-01",
+      "endDate": "2023-12-01"
+    },
+    {
+      "year": 2024,
+      "file": "2024.geojson",
+      "sourceUrl": "https://services1.arcgis.com/xeMpV7tU1t4KD3Ei/arcgis/rest/services/Drought_Levels_2024/FeatureServer",
+      "layerUrl": "https://services1.arcgis.com/xeMpV7tU1t4KD3Ei/arcgis/rest/services/Drought_Levels_2024/FeatureServer/0",
+      "featureCount": 864,
+      "expectedFeatureCount": 864,
+      "startDate": "2024-05-02",
+      "endDate": "2024-11-01"
+    },
+    {
+      "year": 2025,
+      "file": "2025.geojson",
+      "sourceUrl": "https://services1.arcgis.com/xeMpV7tU1t4KD3Ei/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2025/FeatureServer",
+      "layerUrl": "https://services1.arcgis.com/xeMpV7tU1t4KD3Ei/arcgis/rest/services/BC_Drought_Levels_Time_Lapse_2025/FeatureServer/0",
+      "featureCount": 1000,
+      "expectedFeatureCount": 1000,
+      "startDate": "2025-05-15",
+      "endDate": "2025-11-06"
+    }
+  ]
+}
