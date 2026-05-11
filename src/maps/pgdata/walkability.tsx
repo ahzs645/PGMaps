@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Footprints } from 'lucide-react'
+import { Calculator, Footprints } from 'lucide-react'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
 import { InlineAlert, KeyValueRows, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
@@ -203,6 +203,49 @@ const WALKABILITY_SCORE_FIELD_BY_VARIANT: Record<string, keyof WalkabilityProper
   access: 'accessScore',
   safetyAdjusted: 'safetyAdjustedScore',
   supplementedLocal: 'supplementedLocalScore',
+}
+
+const WALKABILITY_EQUATION_ROWS = [
+  {
+    label: 'Original MI value',
+    equation: 'MI(asset) = SUM(proximity factor points + area/line association points)',
+  },
+  {
+    label: 'Proximity factor',
+    equation: 'points = 1[d <= 400m] + 2[d <= 250m] + 2[d <= 100m]',
+  },
+  {
+    label: 'Area / line factor',
+    equation: 'points = factor score when asset intersects buffered source geometry',
+  },
+  {
+    label: 'Report score band',
+    equation: '1:<27.4, 2:<45.7, 3:<63.9, 4:<82.2, 5:>=82.2',
+  },
+  {
+    label: 'Priority formula',
+    equation: 'Benefit / Risk Reduction = Contribution to Service x Impact of Activity',
+  },
+]
+
+const WALKABILITY_HEATMAP_BASE_LOGIC = [
+  'Uses all report factor references A0-G5 where public or reconstructed layers are available.',
+  'Proximity layers use cumulative 400m / 250m / 100m buffers worth 1 / 2 / 2 points.',
+  'Area and line layers use source geometry buffers, defaulting to 20m unless the tight-buffer option is active.',
+]
+
+function describeHeatmapLogic(options: HeatmapOptionState): string[] {
+  const logic = [...WALKABILITY_HEATMAP_BASE_LOGIC]
+  if (options.dropGtfsHf) logic.push('F9 high-frequency GTFS bonus is removed.')
+  if (options.narrowCivic) logic.push('A0/A5/C1 civic groups are narrowed to the closest report-matching facility classes.')
+  if (options.narrowGrowth) logic.push('E4/E5 growth-area groups are narrowed to Growth Priority and Future growth classes.')
+  if (options.dropPopAge) logic.push('F2/F3/F4 population-density and F6/F7 age-density factors are dropped for report fidelity.')
+  if (options.dropF0) logic.push('F0 crosswalk proximity is excluded.')
+  if (options.dropC0) logic.push('C0 daycare proximity is excluded.')
+  if (options.dropF8) logic.push('F8 intercity bus proximity is excluded.')
+  if (options.dropSuppPoi) logic.push('A1/E0/E1/E2/E3 supplemental housing and entertainment POIs are excluded.')
+  if (options.tightBuffer) logic.push('Area and line association buffer is 10m instead of 20m.')
+  return logic
 }
 
 function optionsForHeatmapVariant(variant?: WalkabilityGridVariant | null): HeatmapOptionState {
@@ -466,6 +509,10 @@ export type WalkabilityState = ReturnType<typeof useWalkabilityData>
 
 export function WalkabilitySidebar({ walkability }: { walkability: WalkabilityState }) {
   const selectedCommunity = walkability.selectedCommunity
+  const heatmapLogic = useMemo(
+    () => describeHeatmapLogic(walkability.heatmapOptionState),
+    [walkability.heatmapOptionState],
+  )
 
   return (
     <>
@@ -568,6 +615,35 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
           {walkability.gridHeatmap.error && <InlineAlert tone="error">{walkability.gridHeatmap.error}</InlineAlert>}
           {walkability.manifest.error && <InlineAlert tone="error">{walkability.manifest.error}</InlineAlert>}
           {walkability.data.error && <InlineAlert tone="error">{walkability.data.error}</InlineAlert>}
+        </div>
+      </SidebarSection>
+
+      <SidebarSection title="Equation Logic" icon={Calculator} iconClassName="text-cyan-600">
+        <div className="space-y-3 text-xs">
+          <div className="space-y-2">
+            {WALKABILITY_EQUATION_ROWS.map((row) => (
+              <div key={row.label} className="rounded border border-border bg-background px-2.5 py-2">
+                <div className="text-[10px] font-semibold uppercase text-muted-foreground">{row.label}</div>
+                <div className="mt-1 break-words font-mono text-[11px] leading-4 text-foreground">{row.equation}</div>
+              </div>
+            ))}
+          </div>
+          <div className="rounded border border-border bg-muted/30 px-2.5 py-2">
+            <div className="text-[10px] font-semibold uppercase text-muted-foreground">
+              Active variant logic
+            </div>
+            <ul className="mt-1.5 space-y-1 leading-4 text-muted-foreground">
+              {walkability.displayMode === 'heatmap' ? (
+                heatmapLogic.map((item) => <li key={item}>{item}</li>)
+              ) : (
+                <>
+                  <li>{walkability.selectedVariant?.description ?? 'Community score uses the selected normalized metric weights.'}</li>
+                  <li>Community variant equation is a weighted average of normalized community metrics.</li>
+                  <li>Community polygons are a planning summary; the report MI equation is asset/grid based.</li>
+                </>
+              )}
+            </ul>
+          </div>
         </div>
       </SidebarSection>
 

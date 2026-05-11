@@ -1370,6 +1370,29 @@ export const SCORE_PRESETS: ScorePreset[] = [
     methodSettings: PERCENTILE_METHOD,
   },
   {
+    key: 'pedestrianNetworkStudyMi',
+    label: 'Pedestrian Network Study MI',
+    description:
+      'Boundary-level proxy for the 2017 pedestrian-network Mobility Index: active routes, transit, parks, service access, density, and lower safety pressure.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      trailDensity: 18,
+      transitStopDensity: 12,
+      frequentTransitStopAccess: 12,
+      accessibleFrequentTransitAccess: 8,
+      parkWalk10Access: 12,
+      amenityDensity: 8,
+      serviceAccessComposite: 14,
+      populationDensity: 8,
+      commercialShare: 4,
+      crimePerCapita: -4,
+    },
+    methodSettings: PERCENTILE_METHOD,
+  },
+  {
     key: 'hbeNaturalEnvironmentAccess',
     label: 'HBE Nature + Cooling Access',
     description:
@@ -1712,7 +1735,7 @@ function formatPresetNormalization(method: Partial<ScoreMethodSettings> | undefi
 }
 
 function isProxyPreset(preset: ScorePreset): boolean {
-  return /proxy|climate|heat|shade|retrofit|school|equity|justice/i.test(
+  return /proxy|climate|heat|shade|retrofit|school|equity|justice|pedestrian|walkability|mobility index/i.test(
     `${preset.key} ${preset.label} ${preset.description}`,
   )
 }
@@ -1741,6 +1764,10 @@ function getPresetDataNeeded(preset: ScorePreset): string[] {
   }
   if (/hbe|built environment|linkages|active transportation|nature/.test(text)) {
     needed.add('HBE evidence crosswalk linking each proxy metric to toolkit feature, planning principle, and evidence direction')
+  }
+  if (/pedestrian|walkability|mobility index/.test(text)) {
+    needed.add('Original asset-level sidewalk, walkway, trail, crosswalk, condition, and 44-factor Mobility Index source layers')
+    needed.add('Network walking distances for schools, parks, transit, civic services, commerce, housing, and route classes')
   }
   if (/redevelopment/.test(text)) {
     needed.add('Development applications, zoning, tenure, displacement-risk, and parcel transaction data')
@@ -2065,6 +2092,31 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       serviceAccessComposite: 8,
     },
     methodSettings: MODULE_PERCENTILE_METHOD,
+  },
+  {
+    key: 'pedestrianNetworkStudyMiDa',
+    label: 'Pedestrian Network Study MI (DA)',
+    question: 'Which small areas look strongest under a walkability equation inspired by the 2017 report?',
+    description:
+      'Adapts the report Mobility Index to the Index Lab boundary model using active-route density, transit access, parks, service access, density, and lower safety pressure.',
+    boundarySource: 'census',
+    boundaryLevel: 'da',
+    dataSources: ['parks', 'census', 'transit', 'crime', 'bcAssessment'],
+    networkFilter: 'none',
+    weights: {
+      ...ZERO_WEIGHTS,
+      trailDensity: 18,
+      transitStopDensity: 12,
+      frequentTransitStopAccess: 12,
+      accessibleFrequentTransitAccess: 8,
+      parkWalk10Access: 12,
+      amenityDensity: 8,
+      serviceAccessComposite: 14,
+      populationDensity: 8,
+      commercialShare: 4,
+      crimePerCapita: -4,
+    },
+    methodSettings: PERCENTILE_METHOD,
   },
   {
     key: 'heatShadeNeedDa',
@@ -2627,6 +2679,7 @@ const SCORE_PRESET_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
   hbeLinkagesIndex: 'benefit',
   hbeCompleteNeighbourhood: 'benefit',
   hbeActiveTransportation: 'benefit',
+  pedestrianNetworkStudyMi: 'benefit',
   hbeNaturalEnvironmentAccess: 'benefit',
   hbeFoodAccessResilience: 'benefit',
   hbeHousingQualityHazards: 'affordability',
@@ -2649,6 +2702,7 @@ const SCORE_EXAMPLE_PALETTE_KEYS: Record<string, ScorePaletteKey> = {
   foodAccessDa: 'benefit',
   livabilityDa: 'benefit',
   pgClimateHealthVulnerabilityDa: 'riskPressure',
+  pedestrianNetworkStudyMiDa: 'benefit',
   heatShadeNeedDa: 'riskPressure',
   shadeGapHeatMapDa: 'riskPressure',
   canopyCoolingHeatMapDa: 'benefit',
