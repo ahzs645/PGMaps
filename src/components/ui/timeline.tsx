@@ -27,6 +27,7 @@ interface TimelineProps {
   windowMode?: TimelineWindowMode
   statsLabel?: string
   granularity?: TimelineGranularity
+  compactBars?: boolean
 }
 
 const SPEED_OPTIONS = [
@@ -142,6 +143,7 @@ export function Timeline({
   windowMode,
   statsLabel,
   granularity = 'month',
+  compactBars = false,
 }: TimelineProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(1000)
@@ -308,6 +310,7 @@ export function Timeline({
   if (buckets.length === 0) return null
 
   const windowOptions = windowMode?.options ?? DEFAULT_WINDOW_OPTIONS
+  const shouldUseCompactBars = compactBars || granularity === 'week'
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-border bg-background/95 backdrop-blur">
@@ -368,7 +371,7 @@ export function Timeline({
           </div>
         </div>
 
-        {bucketCounts && granularity !== 'week' ? (
+        {bucketCounts && !shouldUseCompactBars ? (
           <div className="mb-1 flex h-10 items-end gap-px">
             {visibleBuckets.map((bucket, i) => {
               const count = bucketCounts.get(bucket.key) ?? 0

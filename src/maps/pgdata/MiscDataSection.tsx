@@ -1435,6 +1435,7 @@ export default function MiscDataSection() {
             onDateChange={water.setTimelineDate}
             onClose={water.handleTimelineDisable}
             bucketCounts={water.bucketCounts}
+            compactBars
             windowMode={{
               size: water.timelineWindowSize,
               onSizeChange: water.setTimelineWindowSize,
