@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PawPrint } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
+import { InlineAlert, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -286,6 +287,26 @@ export function useWarsData(
 
 export type WarsState = ReturnType<typeof useWarsData>
 
+export function WarsLayerControls({ wars }: { wars: WarsState }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <ToggleChip
+        active={wars.showPoints}
+        onClick={() => wars.setShowPoints(!wars.showPoints)}
+      >
+        {wars.showPoints ? 'Hide points' : 'Show points'}
+      </ToggleChip>
+      <ToggleChip
+        active={wars.showHeatmap}
+        onClick={() => wars.setShowHeatmap(!wars.showHeatmap)}
+        tone="orange"
+      >
+        Heatmap
+      </ToggleChip>
+    </div>
+  )
+}
+
 export function WarsSidebar({ wars }: { wars: WarsState }) {
   const manifest = wars.manifest.data
   const yearLabel = wars.yearMode === RECENT_YEARS && wars.recentYearStart && manifest?.yearEnd
@@ -296,25 +317,19 @@ export function WarsSidebar({ wars }: { wars: WarsState }) {
 
   return (
     <>
-      <div className="border-b border-border p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <PawPrint className="h-4 w-4 text-amber-700" />
-            <h2 className="text-sm font-semibold text-foreground">Wildlife Accident Records</h2>
-          </div>
-          <button
-            type="button"
+      <SidebarSection
+        title="Wildlife Accident Records"
+        icon={PawPrint}
+        iconClassName="text-amber-700"
+        actions={(
+          <ToggleChip
+            active={wars.timelineEnabled}
             onClick={() => wars.setTimelineEnabled(!wars.timelineEnabled)}
-            className={cn(
-              'rounded border px-2 py-1 text-xs transition-colors',
-              wars.timelineEnabled
-                ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                : 'border-input text-muted-foreground hover:text-foreground'
-            )}
           >
             Timeline
-          </button>
-        </div>
+          </ToggleChip>
+        )}
+      >
         <div className="space-y-3">
           <label className="block text-xs font-medium text-foreground">
             Species
@@ -347,82 +362,34 @@ export function WarsSidebar({ wars }: { wars: WarsState }) {
             />
           </label>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => wars.setShowPoints(!wars.showPoints)}
-              className={cn(
-                'rounded border px-2 py-1 text-[11px] transition-colors',
-                wars.showPoints
-                  ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                  : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {wars.showPoints ? 'Hide points' : 'Show points'}
-            </button>
-            <button
-              type="button"
-              onClick={() => wars.setShowHeatmap(!wars.showHeatmap)}
-              className={cn(
-                'rounded border px-2 py-1 text-[11px] transition-colors',
-                wars.showHeatmap
-                  ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                  : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Heatmap
-            </button>
-          </div>
+          <StatGrid
+            stats={[
+              { label: 'records', value: wars.filteredFeatures.length.toLocaleString() },
+              { label: 'animals', value: wars.totalQuantity.toLocaleString() },
+              { label: 'period', value: yearLabel },
+            ]}
+          />
 
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{wars.filteredFeatures.length.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">records</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{wars.totalQuantity.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">animals</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{yearLabel}</div>
-              <div className="text-[10px] text-muted-foreground">period</div>
-            </div>
-          </div>
-
-          {wars.crashes.error && <div className="text-xs text-red-500">{wars.crashes.error}</div>}
-          {wars.manifest.error && <div className="text-xs text-red-500">{wars.manifest.error}</div>}
-          <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
+          {wars.crashes.error && <InlineAlert tone="error">{wars.crashes.error}</InlineAlert>}
+          {wars.manifest.error && <InlineAlert tone="error">{wars.manifest.error}</InlineAlert>}
+          <InlineAlert>
             Records are filtered to WARS rows whose nearest town is Prince George and include mapped coordinates from the source spreadsheets.
-          </div>
+          </InlineAlert>
         </div>
-      </div>
+      </SidebarSection>
 
       {wars.selectedCrash && (
-        <div className="border-b border-border p-4">
-          <div className="mb-2 text-sm font-semibold text-foreground">Selected Record</div>
-          <div className="rounded-md border border-border bg-background p-3 text-xs">
-            <div className="font-semibold leading-5 text-foreground">{wars.selectedCrash.properties.species}</div>
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Date</span>
-              <span className="font-semibold text-foreground">{wars.selectedCrash.properties.accidentDate || 'Unknown'}</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Quantity</span>
-              <span className="font-semibold text-foreground">{wars.selectedCrash.properties.quantity.toLocaleString()}</span>
-            </div>
-            <div className="mt-1 flex items-start justify-between gap-3">
-              <span className="text-muted-foreground">Nearest town</span>
-              <span className="max-w-[12rem] text-right text-foreground">{wars.selectedCrash.properties.nearestTown}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => wars.setSelectedId(null)}
-              className="mt-3 text-xs font-medium text-amber-700 hover:text-amber-800 dark:text-amber-400"
-            >
-              Clear selection
-            </button>
-          </div>
-        </div>
+        <SidebarSection title="Selected Record">
+          <SelectedItemCard
+            title={wars.selectedCrash.properties.species}
+            onClear={() => wars.setSelectedId(null)}
+            rows={[
+              { label: 'Date', value: wars.selectedCrash.properties.accidentDate || 'Unknown' },
+              { label: 'Quantity', value: wars.selectedCrash.properties.quantity.toLocaleString() },
+              { label: 'Nearest town', value: wars.selectedCrash.properties.nearestTown },
+            ]}
+          />
+        </SidebarSection>
       )}
     </>
   )
@@ -536,7 +503,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
 
 export function WarsLegend({ wars }: { wars: WarsState }) {
   return (
-    <div className="w-56 space-y-2 text-xs text-muted-foreground">
+    <div className="w-full space-y-1.5 text-[11px] text-muted-foreground md:w-56 md:space-y-2 md:text-xs">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-foreground">
           {wars.selectedSpecies === ALL_SPECIES ? 'Species' : wars.selectedSpecies}
@@ -548,12 +515,12 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
           {wars.speciesBreakdown.length === 0 ? (
             <div className="text-[10px] italic">No records in current filter.</div>
           ) : (
-            <ul className="max-h-44 space-y-1 overflow-y-auto pr-1">
+            <ul className="max-h-32 space-y-0.5 overflow-y-auto pr-1 md:max-h-44 md:space-y-1">
               {wars.speciesBreakdown.map((entry) => (
                 <li key={entry.name} className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
                     <span
-                      className="h-3 w-3 shrink-0 rounded-full border border-white shadow-sm"
+                      className="h-2.5 w-2.5 shrink-0 rounded-full border border-white shadow-sm md:h-3 md:w-3"
                       style={{ backgroundColor: entry.color }}
                     />
                     <span className="truncate text-foreground">{entry.name}</span>
@@ -563,7 +530,7 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
               ))}
             </ul>
           )}
-          <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+          <div className="flex items-center justify-between gap-2 border-t border-border pt-1.5 md:pt-2">
             <span>Single</span>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full border border-white bg-muted-foreground/60 shadow-sm" />

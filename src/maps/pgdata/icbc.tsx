@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
+import { InlineAlert, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -242,14 +243,36 @@ export function useIcbcData(
 
 export type IcbcState = ReturnType<typeof useIcbcData>
 
+export function IcbcLayerControls({ icbc }: { icbc: IcbcState }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <ToggleChip
+        active={icbc.showPoints}
+        onClick={() => icbc.setShowPoints(!icbc.showPoints)}
+      >
+        {icbc.showPoints ? 'Hide points' : 'Show points'}
+      </ToggleChip>
+      <ToggleChip
+        active={icbc.showHeatmap}
+        onClick={() => icbc.setShowHeatmap(!icbc.showHeatmap)}
+        tone="orange"
+      >
+        Heatmap
+      </ToggleChip>
+      <ToggleChip
+        active={icbc.timelineEnabled}
+        onClick={() => icbc.setTimelineEnabled(!icbc.timelineEnabled)}
+      >
+        Timeline
+      </ToggleChip>
+    </div>
+  )
+}
+
 export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
   return (
     <>
-      <div className="border-b border-border p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <ShieldAlert className="h-4 w-4 text-rose-600" />
-          <h2 className="text-sm font-semibold text-foreground">ICBC Crash Locations</h2>
-        </div>
+      <SidebarSection title="ICBC Crash Locations" icon={ShieldAlert} iconClassName="text-rose-600">
         <div className="space-y-3">
           <label className="block text-xs font-medium text-foreground">
             Crash type
@@ -265,90 +288,33 @@ export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
             />
           </label>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => icbc.setShowPoints(!icbc.showPoints)}
-              className={cn(
-                'rounded border px-2 py-1 text-[11px] transition-colors',
-                icbc.showPoints
-                  ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                  : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {icbc.showPoints ? 'Hide points' : 'Show points'}
-            </button>
-            <button
-              type="button"
-              onClick={() => icbc.setShowHeatmap(!icbc.showHeatmap)}
-              className={cn(
-                'rounded border px-2 py-1 text-[11px] transition-colors',
-                icbc.showHeatmap
-                  ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                  : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Heatmap
-            </button>
-            <button
-              type="button"
-              onClick={() => icbc.setTimelineEnabled(!icbc.timelineEnabled)}
-              className={cn(
-                'rounded border px-2 py-1 text-[11px] transition-colors',
-                icbc.timelineEnabled
-                  ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                  : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Timeline
-            </button>
-          </div>
+          <StatGrid
+            stats={[
+              { label: 'rows', value: icbc.selectedDataset?.rows.toLocaleString() ?? '0' },
+              { label: 'mapped', value: icbc.crashFeatures.length.toLocaleString() },
+              { label: 'crashes', value: icbc.totalCrashes.toLocaleString() },
+            ]}
+          />
 
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{icbc.selectedDataset?.rows.toLocaleString() ?? '0'}</div>
-              <div className="text-[10px] text-muted-foreground">rows</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{icbc.crashFeatures.length.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">mapped</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{icbc.totalCrashes.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">crashes</div>
-            </div>
-          </div>
-
-          {icbc.crashes.error && <div className="text-xs text-red-500">{icbc.crashes.error}</div>}
-          {icbc.manifest.error && <div className="text-xs text-red-500">{icbc.manifest.error}</div>}
-          <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
+          {icbc.crashes.error && <InlineAlert tone="error">{icbc.crashes.error}</InlineAlert>}
+          {icbc.manifest.error && <InlineAlert tone="error">{icbc.manifest.error}</InlineAlert>}
+          <InlineAlert>
             {icbc.selectedDataset ? ICBC_DATASET_HELP[icbc.selectedDataset.id] : 'ICBC crash-location summaries.'} Locations are matched to CityPG road-intersection centroids where possible.
-          </div>
+          </InlineAlert>
         </div>
-      </div>
+      </SidebarSection>
 
       {icbc.selectedCrash && (
-        <div className="border-b border-border p-4">
-          <div className="mb-2 text-sm font-semibold text-foreground">Selected Location</div>
-          <div className="rounded-md border border-border bg-background p-3 text-xs">
-            <div className="font-semibold leading-5 text-foreground">{icbc.selectedCrash.properties.location}</div>
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Crash count</span>
-              <span className="font-semibold text-foreground">{icbc.selectedCrash.properties.crashCount.toLocaleString()}</span>
-            </div>
-            <div className="mt-1 flex items-start justify-between gap-3">
-              <span className="text-muted-foreground">Matched to</span>
-              <span className="max-w-[12rem] text-right text-foreground">{icbc.selectedCrash.properties.sourceLocationName}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => icbc.setSelectedLocation(null)}
-              className="mt-3 text-xs font-medium text-rose-600 hover:text-rose-700 dark:text-rose-400"
-            >
-              Clear selection
-            </button>
-          </div>
-        </div>
+        <SidebarSection title="Selected Location">
+          <SelectedItemCard
+            title={icbc.selectedCrash.properties.location}
+            onClear={() => icbc.setSelectedLocation(null)}
+            rows={[
+              { label: 'Crash count', value: icbc.selectedCrash.properties.crashCount.toLocaleString() },
+              { label: 'Matched to', value: icbc.selectedCrash.properties.sourceLocationName },
+            ]}
+          />
+        </SidebarSection>
       )}
     </>
   )

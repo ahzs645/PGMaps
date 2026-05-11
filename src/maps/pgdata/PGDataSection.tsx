@@ -50,15 +50,15 @@ export default function PGDataSection() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex shrink-0 items-center justify-start gap-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur md:px-4">
-        <div className="flex shrink-0 rounded-lg border border-border bg-muted/40 p-1">
+      <div className="min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur md:px-4">
+        <div className="flex w-max rounded-lg border border-border bg-muted/40 p-1">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
               className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3',
+                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3',
                 activeTab === id
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MapLegendPanel } from '@/components/ui/map-panels'
 import { BcAssessmentMap } from './components/BcAssessmentMap'
 import { BcAssessmentSidebar } from './components/BcAssessmentSidebar'
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
@@ -216,7 +217,7 @@ export default function BcAssessmentSection() {
 
         {/* Legend */}
         {legendItems.length > 0 && (
-          <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+          <MapLegendPanel>
             <h4 className="mb-2 text-xs font-semibold text-foreground">
               {boundaryLevel !== 'none' ? 'Avg ' : ''}
               {colorMetric === 'yearBuilt' ? 'Year Built' : 'Assessed Value'}
@@ -229,7 +230,7 @@ export default function BcAssessmentSection() {
                 </div>
               ))}
             </div>
-          </div>
+          </MapLegendPanel>
         )}
       </div>
     </MapSectionLayout>

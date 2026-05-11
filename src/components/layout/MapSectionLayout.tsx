@@ -97,6 +97,7 @@ export function MapSectionLayout({
   const [mobileSheetState, setMobileSheetState] = useState<MobileSheetState>(mobileInitialSheetState)
 
   // DOM refs
+  const rootRef = useRef<HTMLDivElement>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -123,12 +124,14 @@ export function MapSectionLayout({
   const applyTransform = useCallback((y: number, animate: boolean) => {
     const sheet = sheetRef.current
     if (!sheet) return
+    const sheetHeight = getSheetHeight()
     sheet.style.transition = animate ? SPRING : 'none'
     sheet.style.transform = `translateY(${y}px)`
     curY.current = y
+    rootRef.current?.style.setProperty('--map-mobile-sheet-visible-height', `${Math.max(0, sheetHeight - y)}px`)
 
     // Scrim opacity (0 at collapsed → 0.4 at full)
-    const snaps = getSnapPositions(getSheetHeight())
+    const snaps = getSnapPositions(sheetHeight)
     const range = snaps.collapsed - snaps.full
     const t = Math.max(0, Math.min(1, 1 - (y - snaps.full) / range))
     if (scrimRef.current) {
@@ -157,6 +160,7 @@ export function MapSectionLayout({
         sheetRef.current.style.transition = 'none'
       }
       curY.current = y
+      rootRef.current?.style.setProperty('--map-mobile-sheet-visible-height', `${Math.max(0, getSheetHeight() - y)}px`)
       if (scrimRef.current) {
         scrimRef.current.style.opacity = '0'
         scrimRef.current.style.pointerEvents = 'none'
@@ -174,6 +178,7 @@ export function MapSectionLayout({
           sheetRef.current.style.transform = ''
           sheetRef.current.style.transition = ''
         }
+        rootRef.current?.style.removeProperty('--map-mobile-sheet-visible-height')
         if (scrimRef.current) {
           scrimRef.current.style.opacity = '0'
           scrimRef.current.style.pointerEvents = 'none'
@@ -336,7 +341,7 @@ export function MapSectionLayout({
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className={cn('relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
+    <div ref={rootRef} className={cn('relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
       {/* Sidebar wrapper */}
       <div
         className={cn(

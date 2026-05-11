@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MapLegendPanel } from '@/components/ui/map-panels'
 import { CensusMap } from './components/CensusMap'
 import { CensusSidebar } from './components/CensusSidebar'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS } from './constants'
@@ -180,7 +181,7 @@ export default function CensusSection() {
           variableValuesByGeoUid={variableValuesByGeoUid}
         />
 
-        <div className="absolute bottom-36 right-4 z-10 max-w-[220px] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+        <MapLegendPanel className="max-w-[220px]">
           <h4 className="mb-1 text-xs font-semibold text-foreground">{selectedHierarchyLabel}</h4>
           <h5 className="mb-2 line-clamp-2 text-xs text-muted-foreground">{selectedMetricLabel}</h5>
           {variableLoading && (
@@ -199,7 +200,7 @@ export default function CensusSection() {
             <span>Low</span>
             <span>High</span>
           </div>
-        </div>
+        </MapLegendPanel>
       </div>
     </MapSectionLayout>
   )

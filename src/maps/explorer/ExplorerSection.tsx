@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { ChevronDown, ChevronUp, Layers } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { HeatmapMashupLayer, type HeatmapDataset } from '@/components/HeatmapMashupLayer'
 import { NeighborhoodReport } from '@/components/NeighborhoodReport'
@@ -14,6 +15,7 @@ import type { ParkClassification, TrailUserClass } from '@/maps/parks/types'
 import { getCrimeCategory } from '@/maps/pgdata/constants'
 import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
 import { useTransitData } from '@/maps/scorebuilder/hooks/useTransitData'
+import { cn } from '@/lib/utils'
 import { useExplorerGeoJson } from './hooks/useExplorerGeoJson'
 import {
   datasetById,
@@ -212,6 +214,7 @@ export default function ExplorerSection() {
     to: searchParams.get('to') || '',
   }))
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
+  const [showMobileLegend, setShowMobileLegend] = useState(false)
   const [neighborhoodPoint, setNeighborhoodPoint] = useState<{ lat: number; lng: number } | null>(null)
 
   const activeDatasetSetForLoading = useMemo(() => new Set(activeDatasetIds), [activeDatasetIds])
@@ -1326,12 +1329,27 @@ export default function ExplorerSection() {
           />
         )}
 
-        <div className="absolute bottom-24 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h4 className="text-xs font-semibold text-foreground">Active Layers</h4>
+        <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-3 z-10 w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:bottom-6 md:right-6 md:w-auto md:rounded-xl md:p-4">
+          <div className="flex items-center justify-between gap-2 md:mb-2 md:gap-3">
+            <h4 className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground">
+              <Layers className="h-3.5 w-3.5 shrink-0" />
+              <span>Active Layers</span>
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground md:hidden">
+                {legendDatasets.length}
+              </span>
+            </h4>
+            <button
+              type="button"
+              onClick={() => setShowMobileLegend((current) => !current)}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground md:hidden"
+              aria-label={showMobileLegend ? 'Hide active layer legend' : 'Show active layer legend'}
+              aria-expanded={showMobileLegend}
+            >
+              {showMobileLegend ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+            </button>
             <button
               onClick={() => setShowHeatmap((v) => !v)}
-              className={`rounded border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+              className={`hidden rounded border px-2 py-0.5 text-[10px] font-medium transition-colors md:inline-flex ${
                 showHeatmap
                   ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
                   : 'border-input text-muted-foreground hover:text-foreground'
@@ -1340,13 +1358,23 @@ export default function ExplorerSection() {
               {showHeatmap ? 'Heatmap ON' : 'Heatmap'}
             </button>
           </div>
-          <div className="space-y-1">
+          <div className={cn('mt-2 space-y-1 md:mt-0 md:block', showMobileLegend ? 'block' : 'hidden')}>
+            <button
+              onClick={() => setShowHeatmap((v) => !v)}
+              className={`mb-1 inline-flex rounded border px-2 py-0.5 text-[10px] font-medium transition-colors md:hidden ${
+                showHeatmap
+                  ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
+                  : 'border-input text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {showHeatmap ? 'Heatmap ON' : 'Heatmap'}
+            </button>
             {legendDatasets.slice(0, 8).map((dataset) => {
               const stat = datasetStats.find((entry) => entry.dataset.id === dataset.id)
               return (
-                <div key={dataset.id} className="flex items-center justify-between gap-3 text-xs">
+                <div key={dataset.id} className="flex items-center justify-between gap-2 text-[11px] md:gap-3 md:text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: dataset.color }} />
+                    <span className="h-2.5 w-2.5 rounded-full md:h-3 md:w-3" style={{ backgroundColor: dataset.color }} />
                     <span className="text-foreground">{dataset.label}</span>
                   </div>
                   <span className="text-muted-foreground">{GEOMETRY_TYPE_LABEL[dataset.geometryType]} | {stat?.count.toLocaleString() || 0}</span>

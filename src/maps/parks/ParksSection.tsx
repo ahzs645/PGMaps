@@ -239,7 +239,7 @@ export default function ParksSection() {
 
         {/* Legend */}
         {legendItems.length > 0 && (
-          <div className="absolute bottom-36 right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+          <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
             <h4 className="mb-2 text-xs font-semibold text-foreground">
               Legend
             </h4>

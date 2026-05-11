@@ -5,6 +5,7 @@ import { point } from '@turf/helpers'
 import { Droplets } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
+import { InlineAlert, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { StudyAreaSelector, type StudyAreaLevelOption, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
@@ -1029,6 +1030,33 @@ export function useWaterData(active: boolean) {
 
 export type WaterState = ReturnType<typeof useWaterData>
 
+export function WaterLayerControls({ water }: { water: WaterState }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <ToggleChip
+        active={water.showPoints}
+        onClick={() => water.setShowPoints((current) => !current)}
+      >
+        {water.showPoints ? 'Hide points' : 'Show points'}
+      </ToggleChip>
+      <ToggleChip
+        active={water.showHeatmap}
+        onClick={() => water.setShowHeatmap((current) => !current)}
+        tone="cyan"
+      >
+        {water.showHeatmap ? 'Hide heatmap' : 'Show heatmap'}
+      </ToggleChip>
+      <ToggleChip
+        active={water.timelineEnabled}
+        onClick={() => water.setTimelineEnabled((current) => !current)}
+        tone="violet"
+      >
+        {water.timelineEnabled ? 'Hide timeline' : 'Show timeline'}
+      </ToggleChip>
+    </div>
+  )
+}
+
 export function WaterSidebar({ water }: { water: WaterState }) {
   return (
     <>
@@ -1075,72 +1103,31 @@ export function WaterSidebar({ water }: { water: WaterState }) {
               />
             </label>
           )}
-          <div className="grid grid-cols-2 gap-2 text-center">
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{water.visibleFacilities.length.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">visible facilities</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{water.filteredSamples.length.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">sample rows</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{water.visibleNoticeCount.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">active notices</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{water.mappedFacilities.length.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">mapped now</div>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => water.setShowPoints((current) => !current)}
-              className={cn(
-                'rounded border px-2 py-1 text-[11px] transition-colors',
-                water.showPoints ? 'border-sky-500 text-sky-600 dark:text-sky-400' : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {water.showPoints ? 'Hide points' : 'Show points'}
-            </button>
-            <button
-              type="button"
-              onClick={() => water.setShowHeatmap((current) => !current)}
-              className={cn(
-                'rounded border px-2 py-1 text-[11px] transition-colors',
-                water.showHeatmap ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400' : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {water.showHeatmap ? 'Hide heatmap' : 'Show heatmap'}
-            </button>
-            <button
-              type="button"
-              onClick={() => water.setTimelineEnabled((current) => !current)}
-              className={cn(
-                'rounded border px-2 py-1 text-[11px] transition-colors',
-                water.timelineEnabled ? 'border-violet-500 text-violet-600 dark:text-violet-400' : 'border-input text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {water.timelineEnabled ? 'Hide timeline' : 'Show timeline'}
-            </button>
-          </div>
+          <StatGrid
+            columns={2}
+            stats={[
+              { label: 'visible facilities', value: water.visibleFacilities.length.toLocaleString() },
+              { label: 'sample rows', value: water.filteredSamples.length.toLocaleString() },
+              { label: 'active notices', value: water.visibleNoticeCount.toLocaleString() },
+              { label: 'mapped now', value: water.mappedFacilities.length.toLocaleString() },
+            ]}
+          />
           {water.selectedBoundary && <WaterBoundarySummary water={water} />}
           {water.selectedFacility && <WaterFacilityDetailCard water={water} />}
           {water.facilities.length === 0 && (water.facilitiesJson.error || water.bacteriologicalJson.error || water.chemicalJson.error || water.noticesJson.error) && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs leading-5 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100">
+            <InlineAlert tone="warning">
               Water JSON files were not found at {WATER_ROOT}. Copy the downloaded files into public/data/water to populate this section.
-            </div>
+            </InlineAlert>
           )}
           {!water.facilitiesJson.error && water.facilities.length > 0 && water.mappedFacilities.length === 0 && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs leading-5 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-100">
+            <InlineAlert tone="warning">
               The copied water facility records do not include coordinates, so this section can summarize the files and timeline but cannot place facility markers yet.
-            </div>
+            </InlineAlert>
           )}
           {!water.geocodedLocations.error && water.facilities.length > 0 && water.mappedFacilities.length > 0 && (
-            <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
+            <InlineAlert>
               Using consolidated Google geocodes for mapped water locations.
-            </div>
+            </InlineAlert>
           )}
         </div>
       </div>
@@ -1278,9 +1265,11 @@ function WaterBoundarySummary({ water }: { water: WaterState }) {
 function WaterFacilityPopupCard({ facility, onOpenReport }: { facility: WaterFacility; onOpenReport: () => void }) {
   const sampleRows = facility.bacteriologicalSamples + facility.chemicalResults
   return (
-    <div className="w-72 pr-6 text-xs">
-      <div className="font-semibold leading-snug text-foreground">{facility.name}</div>
-      <div className="mt-1 text-muted-foreground">{facility.community || facility.address || 'No locality provided'}</div>
+    <div className="w-72 text-xs">
+      <div className="pr-6">
+        <div className="font-semibold leading-snug text-foreground">{facility.name}</div>
+        <div className="mt-1 text-muted-foreground">{facility.community || facility.address || 'No locality provided'}</div>
+      </div>
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div className="rounded border border-border p-2">
           <div className="font-semibold text-foreground">{sampleRows.toLocaleString()}</div>
@@ -1809,7 +1798,7 @@ export function WaterLayer({ water }: { water: WaterState }) {
 
 export function WaterLegend({ water }: { water: WaterState }) {
   return (
-    <div className="w-56 space-y-2 text-xs text-muted-foreground">
+    <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-foreground">Drinking water</span>
         <span className="tabular-nums text-[10px]">{water.mappedFacilities.length.toLocaleString()} mapped</span>

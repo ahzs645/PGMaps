@@ -803,7 +803,7 @@ export default function AirQualitySection() {
           onMonitorClear={() => setSelectedMonitor(null)}
         />
 
-        <div className="absolute bottom-36 right-4 z-10 max-w-[240px] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+        <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-4 z-10 max-w-[240px] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
           <div className="space-y-3">
             {boundaryLegendStats && (
               <div className="space-y-1">

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ElementType } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Database, Droplets, Footprints, PawPrint, Satellite, ShieldAlert, Trees } from 'lucide-react'
+import { ChevronDown, ChevronUp, Database, Droplets, Footprints, Layers, PawPrint, Satellite, ShieldAlert, Trees } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -23,9 +23,9 @@ import {
   WalkabilitySourceNotes,
   useWalkabilityData,
 } from './walkability'
-import { ICBC_TIMELINE_WINDOW_OPTIONS, IcbcLayer, IcbcLegend, IcbcSidebar, IcbcSourceNotes, useIcbcData } from './icbc'
-import { WARS_TIMELINE_WINDOW_OPTIONS, WarsLayer, WarsLegend, WarsSidebar, WarsSourceNotes, useWarsData } from './wars'
-import { WATER_TIMELINE_WINDOW_OPTIONS, WaterLayer, WaterLegend, WaterSidebar, WaterSourceNotes, useWaterData } from './water'
+import { ICBC_TIMELINE_WINDOW_OPTIONS, IcbcLayer, IcbcLayerControls, IcbcLegend, IcbcSidebar, IcbcSourceNotes, useIcbcData } from './icbc'
+import { WARS_TIMELINE_WINDOW_OPTIONS, WarsLayer, WarsLayerControls, WarsLegend, WarsSidebar, WarsSourceNotes, useWarsData } from './wars'
+import { WATER_TIMELINE_WINDOW_OPTIONS, WaterLayer, WaterLayerControls, WaterLegend, WaterSidebar, WaterSourceNotes, useWaterData } from './water'
 import { Timeline } from '@/components/ui/timeline'
 
 interface HeatShadeManifestSource {
@@ -687,6 +687,7 @@ export default function MiscDataSection() {
     return tab === 'heatShade' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' ? tab : 'canue'
   })
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
+  const [showMobileLegend, setShowMobileLegend] = useState(false)
   const [canueBoundarySource, setCanueBoundarySource] = useState<CanueBoundarySource>('bcHealth')
   const [canueBoundaryLevel, setCanueBoundaryLevel] = useState<CanueBoundaryLevel>('chsa')
   const [showCanueBoundaries, setShowCanueBoundaries] = useState(true)
@@ -964,8 +965,11 @@ export default function MiscDataSection() {
 
   const sidebar = (
     <div className="z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
-      <div className="border-b border-border bg-background/95 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/95 p-4">
         <h1 className="text-xl font-bold text-foreground">MISC Data</h1>
+        {activeTab === 'icbc' && <IcbcLayerControls icbc={icbc} />}
+        {activeTab === 'wars' && <WarsLayerControls wars={wars} />}
+        {activeTab === 'water' && <WaterLayerControls water={water} />}
       </div>
 
       <DatasetInfo
@@ -1270,15 +1274,15 @@ export default function MiscDataSection() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex shrink-0 items-center justify-start gap-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur md:px-4">
-        <div className="flex shrink-0 rounded-lg border border-border bg-muted/40 p-1">
+      <div className="min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur md:px-4">
+        <div className="flex w-max rounded-lg border border-border bg-muted/40 p-1">
           {MISC_TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
               className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3',
+                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3',
                 activeTab === id
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
@@ -1427,16 +1431,30 @@ export default function MiscDataSection() {
 
         <div
           className={cn(
-            'absolute right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:right-6',
+            'absolute right-3 z-10 w-[min(16.5rem,calc(100vw-2rem))] rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:w-auto md:rounded-xl md:p-4',
             (activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled) || (activeTab === 'water' && water.timelineEnabled)
-              ? 'bottom-40 md:bottom-28'
-              : 'bottom-36 md:bottom-6',
+              ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+5.5rem)] md:bottom-28'
+              : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6',
           )}
         >
-          <h4 className="mb-2 text-xs font-semibold text-foreground">
-            {activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : 'MISC Layers'}
-          </h4>
-          <div className="space-y-1">
+          <div className="flex items-center justify-between gap-2 md:mb-2">
+            <h4 className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground">
+              <Layers className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                {activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : 'MISC Layers'}
+              </span>
+            </h4>
+            <button
+              type="button"
+              onClick={() => setShowMobileLegend((current) => !current)}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground md:hidden"
+              aria-label={showMobileLegend ? 'Hide map legend' : 'Show map legend'}
+              aria-expanded={showMobileLegend}
+            >
+              {showMobileLegend ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+          <div className={cn('mt-2 space-y-1 md:mt-0 md:block', showMobileLegend ? 'block' : 'hidden')}>
             {activeTab === 'heatShade' && MISC_LAYERS.filter((layer) => activeLayers.includes(layer.id)).map((layer) => (
               <div key={layer.id} className="flex items-center gap-2">
                 <span className={cn('h-3 w-3', layer.id === 'forests' ? 'rounded-sm' : 'rounded-full')} style={{ backgroundColor: layer.color }} />
@@ -1444,7 +1462,7 @@ export default function MiscDataSection() {
               </div>
             ))}
             {activeTab === 'canue' && (
-              <div className="w-56 space-y-2 text-xs text-muted-foreground">
+              <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
                 <div>
                   <div className="mb-1 flex items-center justify-between gap-3">
                     <span className="min-w-0 truncate font-medium text-foreground">

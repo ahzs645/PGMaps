@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Footprints } from 'lucide-react'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
+import { InlineAlert, KeyValueRows, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
 
@@ -468,11 +469,7 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
 
   return (
     <>
-      <div className="border-b border-border p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Footprints className="h-4 w-4 text-emerald-600" />
-          <h2 className="text-sm font-semibold text-foreground">Walkability Variants</h2>
-        </div>
+      <SidebarSection title="Walkability Variants" icon={Footprints} iconClassName="text-emerald-600">
         <div className="space-y-3">
           <label className="block text-xs font-medium text-foreground">
             Display
@@ -533,44 +530,31 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
           </label>}
 
           {walkability.displayMode === 'heatmap' ? (
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">
-                {Object.values(walkability.selectedHeatmapBandCounts ?? {}).reduce((sum, count) => sum + count, 0).toLocaleString()}
-              </div>
-              <div className="text-[10px] text-muted-foreground">cells</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">5</div>
-              <div className="text-[10px] text-muted-foreground">bins</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{formatNullableNumber(walkability.heatmapManifest.data?.cellSizeM ?? walkability.gridHeatmap.data?.cellSizeM)}</div>
-              <div className="text-[10px] text-muted-foreground">metres</div>
-            </div>
-          </div>
+          <StatGrid
+            stats={[
+              {
+                label: 'cells',
+                value: Object.values(walkability.selectedHeatmapBandCounts ?? {}).reduce((sum, count) => sum + count, 0).toLocaleString(),
+              },
+              { label: 'bins', value: '5' },
+              { label: 'metres', value: formatNullableNumber(walkability.heatmapManifest.data?.cellSizeM ?? walkability.gridHeatmap.data?.cellSizeM) },
+            ]}
+          />
           ) : (
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{walkability.features.length.toLocaleString()}</div>
-              <div className="text-[10px] text-muted-foreground">communities</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{formatNullableNumber(walkability.minScore)}</div>
-              <div className="text-[10px] text-muted-foreground">low score</div>
-            </div>
-            <div className="rounded border border-border p-2">
-              <div className="text-sm font-bold text-foreground">{formatNullableNumber(walkability.maxScore)}</div>
-              <div className="text-[10px] text-muted-foreground">high score</div>
-            </div>
-          </div>
+          <StatGrid
+            stats={[
+              { label: 'communities', value: walkability.features.length.toLocaleString() },
+              { label: 'low score', value: formatNullableNumber(walkability.minScore) },
+              { label: 'high score', value: formatNullableNumber(walkability.maxScore) },
+            ]}
+          />
           )}
 
-          <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
+          <InlineAlert>
             {walkability.displayMode === 'heatmap'
               ? 'Citywide binned Mobility Index grid recalculated in a browser Web Worker from projected JSTS source layers. The prebuilt grid remains visible while live scoring runs.'
               : walkability.selectedVariant?.description ?? 'Community walkability is recalculated from web-source layers.'}
-          </div>
+          </InlineAlert>
           {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'loading' && (
             <div className="text-xs text-muted-foreground">{walkability.liveHeatmap.progress || 'Live heat map recalculating'}</div>
           )}
@@ -578,55 +562,43 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
             <div className="text-xs text-emerald-600 dark:text-emerald-400">Live browser-calculated grid active.</div>
           )}
           {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'error' && (
-            <div className="text-xs text-red-500">{walkability.liveHeatmap.error}</div>
+            <InlineAlert tone="error">{walkability.liveHeatmap.error}</InlineAlert>
           )}
-          {walkability.heatmapManifest.error && <div className="text-xs text-red-500">{walkability.heatmapManifest.error}</div>}
-          {walkability.gridHeatmap.error && <div className="text-xs text-red-500">{walkability.gridHeatmap.error}</div>}
-          {walkability.manifest.error && <div className="text-xs text-red-500">{walkability.manifest.error}</div>}
-          {walkability.data.error && <div className="text-xs text-red-500">{walkability.data.error}</div>}
+          {walkability.heatmapManifest.error && <InlineAlert tone="error">{walkability.heatmapManifest.error}</InlineAlert>}
+          {walkability.gridHeatmap.error && <InlineAlert tone="error">{walkability.gridHeatmap.error}</InlineAlert>}
+          {walkability.manifest.error && <InlineAlert tone="error">{walkability.manifest.error}</InlineAlert>}
+          {walkability.data.error && <InlineAlert tone="error">{walkability.data.error}</InlineAlert>}
         </div>
-      </div>
+      </SidebarSection>
 
       {selectedCommunity && (
-        <div className="border-b border-border p-4">
-          <div className="mb-2 text-sm font-semibold text-foreground">Selected Community</div>
-          <div className="rounded-md border border-border bg-background p-3 text-xs">
-            <div className="font-semibold leading-5 text-foreground">{selectedCommunity.properties.communityName}</div>
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">{walkability.selectedVariant?.label ?? 'Score'}</span>
-              <span className="font-semibold text-foreground">
-                {formatNullableNumber(Number(selectedCommunity.properties[walkability.selectedScoreField]))}
-              </span>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-muted-foreground">
-              <span>Sidewalk km</span>
-              <span className="text-right text-foreground">{formatNullableNumber(selectedCommunity.properties.sidewalkKm)}</span>
-              <span>Walkway km</span>
-              <span className="text-right text-foreground">{formatNullableNumber(selectedCommunity.properties.walkwayKm)}</span>
-              <span>Intersections</span>
-              <span className="text-right text-foreground">{selectedCommunity.properties.intersectionCount.toLocaleString()}</span>
-              <span>Transit stops</span>
-              <span className="text-right text-foreground">{selectedCommunity.properties.transitStopCount.toLocaleString()}</span>
-              <span>Park amenities</span>
-              <span className="text-right text-foreground">{selectedCommunity.properties.parkAmenityCount.toLocaleString()}</span>
-              <span>Pedestrian crashes</span>
-              <span className="text-right text-foreground">{selectedCommunity.properties.pedestrianCrashCount.toLocaleString()}</span>
-              <span>Supplemental POIs</span>
-              <span className="text-right text-foreground">{selectedCommunity.properties.supplementalPoiCount.toLocaleString()}</span>
-              <span>Crossings</span>
-              <span className="text-right text-foreground">{selectedCommunity.properties.crossingCount.toLocaleString()}</span>
-              <span>Class-3 crosswalks</span>
-              <span className="text-right text-foreground">{selectedCommunity.properties.class3CrosswalkCount.toLocaleString()}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => walkability.setSelectedCommunityId(null)}
-              className="mt-3 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-            >
-              Clear selection
-            </button>
-          </div>
-        </div>
+        <SidebarSection title="Selected Community">
+          <SelectedItemCard
+            title={selectedCommunity.properties.communityName}
+            onClear={() => walkability.setSelectedCommunityId(null)}
+            rows={[
+              {
+                label: walkability.selectedVariant?.label ?? 'Score',
+                value: formatNullableNumber(Number(selectedCommunity.properties[walkability.selectedScoreField])),
+              },
+            ]}
+          >
+            <KeyValueRows
+              className="mt-3"
+              rows={[
+                { label: 'Sidewalk km', value: formatNullableNumber(selectedCommunity.properties.sidewalkKm) },
+                { label: 'Walkway km', value: formatNullableNumber(selectedCommunity.properties.walkwayKm) },
+                { label: 'Intersections', value: selectedCommunity.properties.intersectionCount.toLocaleString() },
+                { label: 'Transit stops', value: selectedCommunity.properties.transitStopCount.toLocaleString() },
+                { label: 'Park amenities', value: selectedCommunity.properties.parkAmenityCount.toLocaleString() },
+                { label: 'Pedestrian crashes', value: selectedCommunity.properties.pedestrianCrashCount.toLocaleString() },
+                { label: 'Supplemental POIs', value: selectedCommunity.properties.supplementalPoiCount.toLocaleString() },
+                { label: 'Crossings', value: selectedCommunity.properties.crossingCount.toLocaleString() },
+                { label: 'Class-3 crosswalks', value: selectedCommunity.properties.class3CrosswalkCount.toLocaleString() },
+              ]}
+            />
+          </SelectedItemCard>
+        </SidebarSection>
       )}
     </>
   )
@@ -756,8 +728,8 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
 export function WalkabilityLegend({ walkability }: { walkability: WalkabilityState }) {
   if (walkability.displayMode === 'heatmap') {
     return (
-      <div className="w-64 space-y-2 text-xs text-muted-foreground">
-        <div className="font-medium text-foreground">
+      <div className="w-full space-y-2 text-xs text-muted-foreground md:w-64">
+        <div className="break-words font-medium leading-4 text-foreground">
           {walkability.liveHeatmap.status === 'ready' ? 'Live recalculated grid' : (walkability.selectedHeatmapVariant?.label ?? 'Citywide MI grid')}
         </div>
         <div className="grid grid-cols-5 overflow-hidden rounded-sm border border-border">
@@ -767,7 +739,7 @@ export function WalkabilityLegend({ walkability }: { walkability: WalkabilitySta
           <span className="block h-3" style={{ backgroundColor: '#e89c4a' }} />
           <span className="block h-3" style={{ backgroundColor: '#d33b3b' }} />
         </div>
-        <div className="flex items-center justify-between gap-2 text-[10px]">
+        <div className="flex items-center justify-between gap-1 text-[9px] tabular-nums sm:text-[10px]">
           <span>1-27</span>
           <span>28-45</span>
           <span>46-63</span>

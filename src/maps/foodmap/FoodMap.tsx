@@ -294,6 +294,12 @@ export default function FoodMap() {
     setShowInspectionPanel(true)
   }, [])
 
+  const handleMapViewInspections = useCallback((restaurant: RestaurantWithStats) => {
+    setSelectedRestaurant(restaurant)
+    setShowSidebar(true)
+    setShowInspectionPanel(true)
+  }, [])
+
   const handleRouletteSelectOnMap = useCallback((restaurant: RestaurantWithStats) => {
     setSelectedRestaurant(restaurant)
     setShowRoulette(false)
@@ -354,6 +360,7 @@ export default function FoodMap() {
           selectedRestaurant={selectedRestaurant}
           visualizationMode={visualizationMode}
           onRestaurantClick={handleMapRestaurantClick}
+          onViewInspections={handleMapViewInspections}
         />
 
         {/* Timeline */}
@@ -370,7 +377,9 @@ export default function FoodMap() {
         {/* Map Legend */}
         <div className={cn(
           'absolute right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:right-6',
-          showTimeline ? 'bottom-40 md:bottom-28' : 'bottom-36 md:bottom-6'
+          showTimeline
+            ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+5.5rem)] md:bottom-28'
+            : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6'
         )}>
           <h4 className="mb-2 text-xs font-semibold text-foreground">
             {visualizationMode === 'violations'

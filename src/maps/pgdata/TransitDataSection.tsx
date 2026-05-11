@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Bus, Eye, EyeOff, MapPin, Route } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
+import { StatTile } from '@/components/ui/map-panels'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -288,10 +289,10 @@ export default function TransitDataSection() {
             )}
 
             <div className="grid grid-cols-2 gap-2">
-              <StatCard label="Stops" value={stops.length.toLocaleString()} loading={stopsLoading} />
-              <StatCard label="Accessible" value={accessibleCount.toLocaleString()} loading={stopsLoading} />
-              <StatCard label="Shelters/exchanges" value={shelterCount.toLocaleString()} loading={stopsLoading} />
-              <StatCard label="Routes" value={routeCounts.routes.toLocaleString()} loading={routesLoading} />
+              <StatTile label="Stops" value={stops.length.toLocaleString()} loading={stopsLoading} valueClassName="text-lg font-semibold" />
+              <StatTile label="Accessible" value={accessibleCount.toLocaleString()} loading={stopsLoading} valueClassName="text-lg font-semibold" />
+              <StatTile label="Shelters/exchanges" value={shelterCount.toLocaleString()} loading={stopsLoading} valueClassName="text-lg font-semibold" />
+              <StatTile label="Routes" value={routeCounts.routes.toLocaleString()} loading={routesLoading} valueClassName="text-lg font-semibold" />
             </div>
 
             <div className="mt-4 rounded-md border border-border bg-muted/30 p-3">
@@ -437,7 +438,7 @@ export default function TransitDataSection() {
             ))}
         </PgMap>
 
-        <div className="absolute bottom-6 right-6 z-10 rounded-md border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
+        <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-4 z-10 rounded-md border border-border bg-background/95 p-3 shadow-lg backdrop-blur md:bottom-6 md:right-6">
           <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-foreground">
             <div className="flex items-center gap-2">
               <Route className="h-3.5 w-3.5" />
@@ -595,15 +596,6 @@ function TransitRouteLayers({
         visible={visible}
       />
     </>
-  )
-}
-
-function StatCard({ label, value, loading }: { label: string; value: string; loading: boolean }) {
-  return (
-    <div className="rounded-md border border-border bg-background p-3">
-      <div className="text-lg font-semibold text-foreground">{loading ? '...' : value}</div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-    </div>
   )
 }
 
