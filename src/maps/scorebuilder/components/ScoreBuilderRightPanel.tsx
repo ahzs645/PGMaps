@@ -96,6 +96,7 @@ interface ScoreBuilderRightPanelProps {
   onApplyPreset: (presetKey: string) => void
   boundarySource: BoundarySource
   activePresetKey: string | null
+  hasActiveBoundarySurface: boolean
   equationPreview: string
   metricRanges: ScoreMetricRangeMap
   scoreSpread: { min: number; max: number; average: number }
@@ -203,6 +204,7 @@ export function ScoreBuilderRightPanel({
   onApplyPreset,
   boundarySource,
   activePresetKey,
+  hasActiveBoundarySurface,
   equationPreview,
   metricRanges,
   scoreSpread,
@@ -253,18 +255,24 @@ export function ScoreBuilderRightPanel({
       return
     }
     setActiveTab((current) => {
-      if (current === 'correlate' || current === 'density') return 'regions'
+      if (current === 'correlate' || current === 'density') return hasActiveBoundarySurface ? 'regions' : 'equation'
       return current
     })
-  }, [correlateMode, densityMode])
+  }, [correlateMode, densityMode, hasActiveBoundarySurface])
 
   const tabOrder = useMemo<RightPanelTab[]>(() => {
     const tabs: RightPanelTab[] = ['equation']
     if (densityMode) tabs.push('density')
     if (correlateMode) tabs.push('correlate')
-    tabs.push('regions')
+    if (hasActiveBoundarySurface) tabs.push('regions')
     return tabs
-  }, [correlateMode, densityMode])
+  }, [correlateMode, densityMode, hasActiveBoundarySurface])
+
+  useEffect(() => {
+    if (!hasActiveBoundarySurface && activeTab === 'regions') {
+      setActiveTab('equation')
+    }
+  }, [activeTab, hasActiveBoundarySurface])
 
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
   const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_ROWS), [filteredRegions])
@@ -377,6 +385,15 @@ export function ScoreBuilderRightPanel({
           </div>
         )}
 
+        {!hasActiveBoundarySurface && (
+          <div className="m-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
+            <p className="font-medium">Source grid mode</p>
+            <p className="mt-1 text-[11px] leading-4">
+              The map is showing the walkability source grid. Choose a study area to turn boundary rankings back on.
+            </p>
+          </div>
+        )}
+
         {activeTab === 'equation' && (
           <EquationTab
             isDesktop={isDesktop}
@@ -425,7 +442,7 @@ export function ScoreBuilderRightPanel({
           />
         )}
 
-        {activeTab === 'regions' && (
+        {hasActiveBoundarySurface && activeTab === 'regions' && (
           <RegionsTab
             loading={loading}
             regions={regions}

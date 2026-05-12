@@ -2275,6 +2275,7 @@ export default function ScoreBuilderSection() {
       onApplyPreset={handleApplyPreset}
       boundarySource={boundarySource}
       activePresetKey={activePresetKey}
+      hasActiveBoundarySurface={!showWalkabilitySourceSurface}
       equationPreview={equationPreview}
       metricRanges={metricRanges}
       scoreSpread={scoreSpread}

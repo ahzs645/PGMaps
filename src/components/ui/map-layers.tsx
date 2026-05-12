@@ -185,6 +185,20 @@ function MapFillLayer({
     }
   }, [visible, isLoaded, map, fillLayerId, lineLayerId, selectedLayerId])
 
+  // Update paint when caller changes choropleth styling without remounting the layer.
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    if (map.getLayer(fillLayerId)) {
+      map.setPaintProperty(fillLayerId, 'fill-color', fillColor as never)
+      map.setPaintProperty(fillLayerId, 'fill-opacity', fillOpacity)
+    }
+    if (map.getLayer(lineLayerId)) {
+      map.setPaintProperty(lineLayerId, 'line-color', lineColor as never)
+      map.setPaintProperty(lineLayerId, 'line-width', lineWidth)
+      map.setPaintProperty(lineLayerId, 'line-opacity', lineOpacity)
+    }
+  }, [fillColor, fillOpacity, fillLayerId, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map])
+
   // Update selection filter
   useEffect(() => {
     if (!isLoaded || !map || !map.getLayer(selectedLayerId)) return

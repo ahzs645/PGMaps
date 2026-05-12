@@ -112,7 +112,7 @@ export function ScoreBuilderMap({
           fillOpacity={walkabilitySourceSurface ? 0 : 0.72}
           lineColor="#0f172a"
           lineWidth={0.7}
-          lineOpacity={walkabilitySourceSurface ? 0.6 : 0.45}
+          lineOpacity={walkabilitySourceSurface ? 0 : 0.45}
           selectedId={selectedRegionId}
           onFeatureClick={onRegionClick}
         />
@@ -169,7 +169,8 @@ function ScoreBuilderWalkabilitySourceGrid() {
     const image = context.createImageData(data.cols, data.rows)
     let pixel = 0
     for (const [value, count] of rle) {
-      const color = hexToRgba(colors[String(value)] ?? fallbackColors[String(value)] ?? '#000000', 217)
+      const sourceColor = colors[String(value)] ?? fallbackColors[String(value)]
+      const color = sourceColor ? hexToRgba(sourceColor, 217) : [0, 0, 0, 0] as [number, number, number, number]
       for (let index = 0; index < count; index += 1) {
         const offset = pixel * 4
         image.data[offset] = color[0]
