@@ -1,5 +1,5 @@
 import { getEquityPriorityColor } from '@/lib/healthyplan'
-import { SCORE_METRICS, createMetricValueMap, getScorePaletteColor, type ScorePaletteProfile } from '../constants'
+import { SCORE_METRICS, createMetricValueMap, getScorePaletteOutputColor, type ScorePaletteProfile } from '../constants'
 import type {
   ScoredBoundaryRegion,
   ScoreMetricKey,
@@ -34,7 +34,8 @@ function isEnvironmentCandidate(metric: (typeof SCORE_METRICS)[number]): boolean
     metric.category === 'airQuality' ||
     metric.category === 'parksRec' ||
     metric.category === 'heatShade' ||
-    metric.category === 'transit'
+    metric.category === 'transit' ||
+    metric.category === 'walkability'
   )
 }
 
@@ -100,7 +101,7 @@ export function scoreRegionRowsWithHealthyPlanPriority({
       normalizedMetrics: createMetricValueMap(0),
       contributions: createMetricValueMap(0),
       score: 0,
-      scoreColor: getScorePaletteColor(0, paletteProfile),
+      scoreColor: getScorePaletteOutputColor(0, paletteProfile, settings.visualOutput),
       rank: index + 1,
       dataCoverageScore: 0,
       rankConfidence: 'Sensitive result' as const,

@@ -3,7 +3,7 @@ import {
   SCORE_INDEX_MODULE_LABELS,
   SCORE_METRICS,
   createMetricValueMap,
-  getScorePaletteColor,
+  getScorePaletteOutputColor,
   type ScorePaletteProfile,
 } from '../constants'
 import type {
@@ -88,7 +88,7 @@ export function scoreRegionRowsWithModulePercentiles({
       normalizedMetrics: createMetricValueMap(0),
       contributions: createMetricValueMap(0),
       score: 50,
-      scoreColor: getScorePaletteColor(50, paletteProfile),
+      scoreColor: getScorePaletteOutputColor(50, paletteProfile, settings.visualOutput),
       rank: index + 1,
       dataCoverageScore: 1,
       rankConfidence: 'Sensitive result',
@@ -247,7 +247,7 @@ export function scoreRegionRowsWithModulePercentiles({
       normalizedMetrics: entry.normalizedMetrics,
       contributions,
       score,
-      scoreColor: getScorePaletteColor(score, paletteProfile),
+      scoreColor: getScorePaletteOutputColor(score, paletteProfile, settings.visualOutput),
       rank: 0,
       dataCoverageScore,
       rankConfidence: missingDataFlags.length

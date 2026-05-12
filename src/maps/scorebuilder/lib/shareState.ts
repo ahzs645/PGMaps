@@ -21,6 +21,7 @@ export interface ScoreBuilderShareState {
   selectedNetworks: string[]
   weights: Partial<ScoreMetricWeightMap>
   methodSettings?: ScoreMethodSettings
+  mapSurface?: 'source' | 'boundary'
 }
 
 const shareEngine = createWebShareEngine<ScoreBuilderShareState>({

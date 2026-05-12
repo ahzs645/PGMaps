@@ -78,7 +78,8 @@ function isHealthyPlanEnvironmentMetric(metric: (typeof SCORE_METRICS)[number]):
     metric.category === 'airQuality' ||
     metric.category === 'parksRec' ||
     metric.category === 'heatShade' ||
-    metric.category === 'transit'
+    metric.category === 'transit' ||
+    metric.category === 'walkability'
   )
 }
 
@@ -151,6 +152,7 @@ function getDataSourceLabel(source: ScoreDataSource): string {
   if (source === 'bcAssessment') return 'Property'
   if (source === 'crime') return 'Crime'
   if (source === 'transit') return 'Transit'
+  if (source === 'walkability') return 'Walk'
   return source
 }
 
@@ -187,6 +189,7 @@ function getCategoryTone(category: string): string {
   if (category === 'property') return 'bg-violet-500'
   if (category === 'safety') return 'bg-rose-500'
   if (category === 'transit') return 'bg-teal-500'
+  if (category === 'walkability') return 'bg-emerald-600'
   return 'bg-cyan-500'
 }
 
@@ -1792,6 +1795,20 @@ export function ModelTab({
               options={[
                 { value: 'zero', label: 'Treat missing as zero' },
                 { value: 'neutral', label: 'Treat missing as neutral' },
+              ]}
+              triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="block font-medium text-muted-foreground">Map output</span>
+            <AppSelect
+              value={methodSettings.visualOutput}
+              onValueChange={(value) =>
+                updateMethodSettings('visualOutput', value as ScoreMethodSettings['visualOutput'])
+              }
+              options={[
+                { value: 'interpolated', label: 'Interpolated ramp' },
+                { value: 'binned', label: '5 score bins' },
               ]}
               triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
             />

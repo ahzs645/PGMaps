@@ -26,6 +26,9 @@ interface ScoreBuilderLeftPanelProps {
   showPoints: boolean
   onTogglePoints: () => void
   regionCount: number
+  canUseWalkabilitySourceSurface: boolean
+  mapSurface: 'source' | 'boundary'
+  onMapSurfaceChange: (surface: 'source' | 'boundary') => void
 }
 
 export function ScoreBuilderLeftPanel({
@@ -45,9 +48,13 @@ export function ScoreBuilderLeftPanel({
   showPoints,
   onTogglePoints,
   regionCount,
+  canUseWalkabilitySourceSurface,
+  mapSurface,
+  onMapSurfaceChange,
 }: ScoreBuilderLeftPanelProps) {
   const enabledSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
+  const displayedBoundarySource = canUseWalkabilitySourceSurface && mapSurface === 'source' ? undefined : boundarySource
 
   return (
     <div
@@ -67,11 +74,17 @@ export function ScoreBuilderLeftPanel({
         <DatasetInfo dataset={DATASETS.scoreBuilder} />
 
         <StudyAreaSelector<BoundarySource, RegionLevel>
-          source={boundarySource}
+          source={displayedBoundarySource}
           sourceOptions={BOUNDARY_SOURCE_OPTIONS}
           level={selectedRegionLevel}
           levelOptions={boundaryLevelOptions}
-          onSourceChange={onBoundarySourceChange}
+          onSourceChange={(source) => {
+            onBoundarySourceChange(source)
+            if (canUseWalkabilitySourceSurface) onMapSurfaceChange('boundary')
+          }}
+          onSelectedSourceClick={
+            canUseWalkabilitySourceSurface ? () => onMapSurfaceChange('source') : undefined
+          }
           onLevelChange={onRegionLevelChange}
           showPoints={showPoints}
           onTogglePoints={onTogglePoints}

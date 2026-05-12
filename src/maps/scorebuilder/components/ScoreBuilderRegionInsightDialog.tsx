@@ -52,6 +52,18 @@ function metricHasRegionData(metric: ScoreMetricKey, region: ScoredBoundaryRegio
   if (definition.category === 'property') return region.counts.parcelCount > 0
   if (definition.category === 'safety') return region.counts.crimeCount > 0
   if (definition.category === 'transit') return region.counts.transitStopCount > 0
+  if (definition.category === 'walkability')
+    return (
+      region.counts.sidewalkLengthKm +
+        region.counts.walkwayLengthKm +
+        region.counts.walkabilityIntersectionCount +
+        region.counts.walkabilityCrossingCount +
+        region.counts.childcareCount +
+        region.counts.walkabilityPoiCount +
+        region.counts.class3CrosswalkCount +
+        region.counts.pedestrianCrashCount >
+      0
+    )
   return true
 }
 

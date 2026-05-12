@@ -71,6 +71,7 @@ function getCategoryDot(category: string): string {
   if (category === 'property') return 'bg-violet-500'
   if (category === 'safety') return 'bg-rose-500'
   if (category === 'transit') return 'bg-teal-500'
+  if (category === 'walkability') return 'bg-emerald-600'
   return 'bg-cyan-500'
 }
 

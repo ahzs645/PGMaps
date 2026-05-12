@@ -1,7 +1,7 @@
 import {
   SCORE_METRICS,
   createMetricValueMap,
-  getScorePaletteColor,
+  getScorePaletteOutputColor,
   type ScorePaletteProfile,
 } from '../constants'
 import type {
@@ -147,7 +147,7 @@ export function scoreRegionRows({
       normalizedMetrics,
       contributions,
       score,
-      scoreColor: getScorePaletteColor(score, paletteProfile),
+      scoreColor: getScorePaletteOutputColor(score, paletteProfile, settings.visualOutput),
       rank: 0,
       dataCoverageScore: computeDataCoverageScore(row.counts, weights),
       rankConfidence: 'Stable priority' as const,

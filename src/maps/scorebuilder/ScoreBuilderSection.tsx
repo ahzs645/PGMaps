@@ -24,6 +24,7 @@ import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
 import { useParksData } from '@/maps/parks/hooks/useParksData'
 import { useBcAssessmentData } from '@/maps/bcassessment/hooks/useBcAssessmentData'
 import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
+import { useJsonManifest } from '@/maps/pgdata/shared'
 import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   CITY_BOUNDARY_LEVEL_OPTIONS,
@@ -135,6 +136,16 @@ interface TransitPointRecord extends PointRecord {
   serviceSpanHours: number
 }
 
+interface WalkabilityLineRecord extends PointRecord {
+  kind: 'sidewalk' | 'walkway'
+  lengthKm: number
+}
+
+interface WalkabilityPointRecord extends PointRecord {
+  kind: 'intersection' | 'crossing' | 'childcare' | 'poi' | 'class3Crosswalk' | 'pedestrianCrash'
+  count: number
+}
+
 interface HeatShadeTreePointRecord extends PointRecord {
   mature: boolean
   canopyAreaSqKm: number
@@ -208,6 +219,13 @@ function bboxCenter(geometry: GeoJSON.Geometry): [number, number] | null {
   return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2]
 }
 
+function featurePoint(feature: GeoJSON.Feature): GeoJSON.Feature<GeoJSON.Point> | null {
+  if (!feature.geometry) return null
+  if (feature.geometry.type === 'Point') return feature as GeoJSON.Feature<GeoJSON.Point>
+  const center = bboxCenter(feature.geometry)
+  return center ? point(center) : null
+}
+
 function regionCenter(region: ScoreBuilderRegion): [number, number] {
   return [(region.bounds[0] + region.bounds[2]) / 2, (region.bounds[1] + region.bounds[3]) / 2]
 }
@@ -230,6 +248,17 @@ function catchmentAccess(origin: [number, number], points: Array<{ lng: number; 
   }, Infinity)
   if (!Number.isFinite(best) || best > maxKm) return 0
   return Math.max(0, Math.min(1, 1 - best / maxKm))
+}
+
+function featureLengthKm(feature: GeoJSON.Feature): number {
+  const propertyLength = Number(feature.properties?.Shape__Length)
+  if (Number.isFinite(propertyLength) && propertyLength > 0) return propertyLength / 1000
+  return 0
+}
+
+function featureCount(feature: GeoJSON.Feature): number {
+  const crashCount = Number(feature.properties?.crashCount ?? feature.properties?.Crashes ?? feature.properties?.count)
+  return Number.isFinite(crashCount) && crashCount > 0 ? crashCount : 1
 }
 
 function boundsOverlap(a: [number, number, number, number], b: [number, number, number, number]): boolean {
@@ -311,6 +340,7 @@ const ALL_DATA_SOURCES: ScoreDataSource[] = [
   'bcAssessment',
   'crime',
   'transit',
+  'walkability',
   'deprivation',
 ]
 const CURRENT_YEAR = new Date().getFullYear()
@@ -387,6 +417,14 @@ function parseAggregationMethod(value: string | null): ScoreMethodSettings['aggr
 
 function parseMissingDataMethod(value: string | null): ScoreMethodSettings['missingData'] {
   return value === 'neutral' ? 'neutral' : 'zero'
+}
+
+function parseVisualOutputMode(value: string | null): ScoreMethodSettings['visualOutput'] {
+  return value === 'binned' ? 'binned' : 'interpolated'
+}
+
+function parseMapSurface(value: string | null): 'source' | 'boundary' {
+  return value === 'source' ? 'source' : 'boundary'
 }
 
 function parseScoreMetricKey(value: string | null, fallback: ScoreMetricKey): ScoreMetricKey {
@@ -469,18 +507,25 @@ export default function ScoreBuilderSection() {
   const [densityMode, setDensityMode] = useState(false)
   const [correlateMode, setCorrelateMode] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [mapSurface, setMapSurface] = useState<'source' | 'boundary'>(() => parseMapSurface(searchParams.get('surface')))
 
   const handleToggleCorrelateMode = useCallback(() => {
     setCorrelateMode((current) => {
       const next = !current
-      if (next) setDensityMode(false)
+      if (next) {
+        setDensityMode(false)
+        setMapSurface('boundary')
+      }
       return next
     })
   }, [])
   const handleToggleDensityMode = useCallback(() => {
     setDensityMode((current) => {
       const next = !current
-      if (next) setCorrelateMode(false)
+      if (next) {
+        setCorrelateMode(false)
+        setMapSurface('boundary')
+      }
       return next
     })
   }, [])
@@ -511,6 +556,7 @@ export default function ScoreBuilderSection() {
     missingData: parseMissingDataMethod(searchParams.get('missing')),
     sensitivity: searchParams.get('sens') === 'off' ? false : true,
     normalizationScope: 'activeBoundaryLevel',
+    visualOutput: parseVisualOutputMode(searchParams.get('vis')),
     healthyPlanPriority: {
       demographicMetric: parseScoreMetricKey(searchParams.get('hpDemo'), 'cimdComposite'),
       environmentMetric: parseScoreMetricKey(searchParams.get('hpEnv'), 'canopyProxyRatio'),
@@ -560,6 +606,8 @@ export default function ScoreBuilderSection() {
     params.set('missing', methodSettings.missingData)
     params.set('sens', methodSettings.sensitivity ? 'on' : 'off')
     params.set('scope', methodSettings.normalizationScope)
+    params.set('vis', methodSettings.visualOutput)
+    params.set('surface', mapSurface)
     if (methodSettings.healthyPlanPriority.demographicMetric) {
       params.set('hpDemo', methodSettings.healthyPlanPriority.demographicMetric)
     }
@@ -576,6 +624,7 @@ export default function ScoreBuilderSection() {
     watershedBoundaryLevel,
     weights,
     enabledDataSources,
+    mapSurface,
     methodSettings,
     setSearchParams,
   ])
@@ -651,6 +700,17 @@ export default function ScoreBuilderSection() {
     loading: loadingCimd,
     error: cimdError,
   } = useCimdData(enabledSourceSet.has('deprivation'))
+  const walkabilityEnabled = enabledSourceSet.has('walkability')
+  const walkabilitySidewalks = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/citypg/sidewalks.geojson' : null)
+  const walkabilityWalkways = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/citypg/walkways.geojson' : null)
+  const walkabilityIntersections = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/citypg/road_intersections.geojson' : null)
+  const walkabilityCrossings = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/osm_crossings.geojson' : null)
+  const walkabilityChildcare = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/bc_childcare_locations.geojson' : null)
+  const walkabilityOsmDaycares = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/osm_daycares.geojson' : null)
+  const walkabilityClass3Crosswalks = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/report_class3_crosswalks_geocoded.geojson' : null)
+  const walkabilitySupplementalPoi = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/missing_poi_supplement.geojson' : null)
+  const walkabilityIntercityStops = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/intercity_bus_stops.geojson' : null)
+  const walkabilityPedestrianCrashes = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/icbc/prince_george_pedestrian_crashes.geojson' : null)
 
   const networkCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -871,6 +931,68 @@ export default function ScoreBuilderSection() {
       }))
   }, [enabledSourceSet, transitStops])
 
+  const walkabilityLineRecords = useMemo<WalkabilityLineRecord[]>(() => {
+    if (!enabledSourceSet.has('walkability')) return []
+    const buildLineRecords = (
+      collection: GeoJSON.FeatureCollection | null | undefined,
+      kind: WalkabilityLineRecord['kind'],
+    ): WalkabilityLineRecord[] =>
+      (collection?.features ?? [])
+        .map((feature) => {
+          if (!feature.geometry) return null
+          const center = bboxCenter(feature.geometry)
+          if (!center) return null
+          return {
+            lng: center[0],
+            lat: center[1],
+            feature: point(center),
+            kind,
+            lengthKm: featureLengthKm(feature),
+          }
+        })
+        .filter((record): record is WalkabilityLineRecord => record !== null)
+    return [
+      ...buildLineRecords(walkabilitySidewalks.data, 'sidewalk'),
+      ...buildLineRecords(walkabilityWalkways.data, 'walkway'),
+    ]
+  }, [enabledSourceSet, walkabilitySidewalks.data, walkabilityWalkways.data])
+
+  const walkabilityPointRecords = useMemo<WalkabilityPointRecord[]>(() => {
+    if (!enabledSourceSet.has('walkability')) return []
+    const buildPointRecords = (
+      collection: GeoJSON.FeatureCollection | null | undefined,
+      kind: WalkabilityPointRecord['kind'],
+    ): WalkabilityPointRecord[] =>
+      (collection?.features ?? [])
+        .map((feature) => {
+          const pointFeature = featurePoint(feature)
+          if (!pointFeature?.geometry || pointFeature.geometry.type !== 'Point') return null
+          const [lng, lat] = pointFeature.geometry.coordinates
+          return { lng, lat, feature: pointFeature, kind, count: featureCount(feature) }
+        })
+        .filter((record): record is WalkabilityPointRecord => record !== null)
+    return [
+      ...buildPointRecords(walkabilityIntersections.data, 'intersection'),
+      ...buildPointRecords(walkabilityCrossings.data, 'crossing'),
+      ...buildPointRecords(walkabilityChildcare.data, 'childcare'),
+      ...buildPointRecords(walkabilityOsmDaycares.data, 'childcare'),
+      ...buildPointRecords(walkabilityClass3Crosswalks.data, 'class3Crosswalk'),
+      ...buildPointRecords(walkabilitySupplementalPoi.data, 'poi'),
+      ...buildPointRecords(walkabilityIntercityStops.data, 'poi'),
+      ...buildPointRecords(walkabilityPedestrianCrashes.data, 'pedestrianCrash'),
+    ]
+  }, [
+    enabledSourceSet,
+    walkabilityChildcare.data,
+    walkabilityClass3Crosswalks.data,
+    walkabilityCrossings.data,
+    walkabilityIntercityStops.data,
+    walkabilityIntersections.data,
+    walkabilityOsmDaycares.data,
+    walkabilityPedestrianCrashes.data,
+    walkabilitySupplementalPoi.data,
+  ])
+
   const heatShadeTreePointRecords = useMemo<HeatShadeTreePointRecord[]>(() => {
     if (!enabledSourceSet.has('heatShade')) return []
     return heatShadeTrees.map((tree) => ({
@@ -966,6 +1088,14 @@ export default function ScoreBuilderSection() {
         accessibleFrequentTransitStopCount: 0,
         transitTripCount: 0,
         transitServiceSpanSum: 0,
+        sidewalkLengthKm: 0,
+        walkwayLengthKm: 0,
+        walkabilityIntersectionCount: 0,
+        walkabilityCrossingCount: 0,
+        childcareCount: 0,
+        walkabilityPoiCount: 0,
+        class3CrosswalkCount: 0,
+        pedestrianCrashCount: 0,
         treeCount: 0,
         matureTreeCount: 0,
         forestAreaSqKm: 0,
@@ -1075,6 +1205,23 @@ export default function ScoreBuilderSection() {
         if (rec.frequent && rec.accessible) counts.accessibleFrequentTransitStopCount += 1
         counts.transitTripCount += rec.weekdayTrips
         counts.transitServiceSpanSum += rec.serviceSpanHours
+      })
+
+      // Walkability / Pedestrian Network Study
+      walkabilityLineRecords.forEach((rec) => {
+        if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+        if (rec.kind === 'sidewalk') counts.sidewalkLengthKm += rec.lengthKm
+        else counts.walkwayLengthKm += rec.lengthKm
+      })
+
+      walkabilityPointRecords.forEach((rec) => {
+        if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+        if (rec.kind === 'intersection') counts.walkabilityIntersectionCount += rec.count
+        else if (rec.kind === 'crossing') counts.walkabilityCrossingCount += rec.count
+        else if (rec.kind === 'childcare') counts.childcareCount += rec.count
+        else if (rec.kind === 'poi') counts.walkabilityPoiCount += rec.count
+        else if (rec.kind === 'class3Crosswalk') counts.class3CrosswalkCount += rec.count
+        else counts.pedestrianCrashCount += rec.count
       })
 
       // Heat and shade
@@ -1194,6 +1341,14 @@ export default function ScoreBuilderSection() {
       metricValues.transitTripsPerStop =
         counts.transitStopCount > 0 ? counts.transitTripCount / counts.transitStopCount : 0
       metricValues.accessibleFrequentTransitAccess = accessibleFrequentTransitAccess
+      metricValues.sidewalkDensity = counts.sidewalkLengthKm / safeArea
+      metricValues.walkwayDensity = counts.walkwayLengthKm / safeArea
+      metricValues.walkabilityIntersectionDensity = counts.walkabilityIntersectionCount / safeArea
+      metricValues.walkabilityCrossingDensity = counts.walkabilityCrossingCount / safeArea
+      metricValues.childcareDensity = counts.childcareCount / safeArea
+      metricValues.walkabilityPoiDensity = counts.walkabilityPoiCount / safeArea
+      metricValues.class3CrosswalkDensity = counts.class3CrosswalkCount / safeArea
+      metricValues.pedestrianCrashDensity = counts.pedestrianCrashCount / safeArea
       metricValues.parkWalk10Access = parkWalk10Access
       metricValues.parkWalk20Access = parkWalk20Access
       metricValues.coolingWalk15Access = coolingWalk15Access
@@ -1225,6 +1380,8 @@ export default function ScoreBuilderSection() {
     propertyPointRecords,
     crimePointRecords,
     transitPointRecords,
+    walkabilityLineRecords,
+    walkabilityPointRecords,
     heatShadeTreePointRecords,
     heatShadeForestRecords,
     heatShadeFacilityPointRecords,
@@ -1285,6 +1442,15 @@ export default function ScoreBuilderSection() {
     : densityMode
       ? densityRegionFillColors
       : null
+
+  const canUseWalkabilitySourceSurface = enabledSourceSet.has('walkability') && !correlateMode && !densityMode
+  const showWalkabilitySourceSurface = canUseWalkabilitySourceSurface && mapSurface === 'source'
+
+  useEffect(() => {
+    if (!enabledSourceSet.has('walkability') && mapSurface === 'source') {
+      setMapSurface('boundary')
+    }
+  }, [enabledSourceSet, mapSurface])
 
   const activePresetKey = useMemo(() => {
     return getActivePresetKey(weights, enabledDataSources, boundarySource)
@@ -1693,6 +1859,7 @@ export default function ScoreBuilderSection() {
         setWatershedBoundaryLevel(parseWatershedBoundaryLevel(example.boundaryLevel))
       }
       setEnabledDataSources([...example.dataSources])
+      setMapSurface(example.dataSources.includes('walkability') ? 'source' : 'boundary')
       setWeights({ ...example.weights })
       setMethodSettings((current) => ({ ...current, ...example.methodSettings }))
       if (example.networkFilter === 'all') {
@@ -1730,6 +1897,7 @@ export default function ScoreBuilderSection() {
         if (state.methodSettings) {
           setMethodSettings((current) => ({ ...current, ...state.methodSettings }))
         }
+        if (state.mapSurface) setMapSurface(parseMapSurface(state.mapSurface))
       })
       .catch(() => {
         // Malformed share tokens should not block the regular score builder.
@@ -1763,6 +1931,7 @@ export default function ScoreBuilderSection() {
       setActiveExampleKey(null)
       setWeights({ ...preset.weights })
       setMethodSettings((current) => ({ ...current, ...preset.methodSettings }))
+      setMapSurface(getScoreDataSourcesForWeights(preset.weights).includes('walkability') ? 'source' : 'boundary')
       if (preset.recommendedBoundarySource) {
         setBoundarySource(preset.recommendedBoundarySource)
       }
@@ -1838,6 +2007,7 @@ export default function ScoreBuilderSection() {
       selectedNetworks,
       weights,
       methodSettings,
+      mapSurface,
     })
     const url = new URL(window.location.href)
     url.search = ''
@@ -1856,6 +2026,7 @@ export default function ScoreBuilderSection() {
     enabledDataSources,
     healthBoundaryLevel,
     methodSettings,
+    mapSurface,
     regionalDistrictBoundaryLevel,
     selectedNetworks,
     watershedBoundaryLevel,
@@ -1911,6 +2082,19 @@ export default function ScoreBuilderSection() {
       if (current.length >= 3) return current
       return [...current, regionId]
     })
+  }, [])
+
+  const handleMapRegionClick = useCallback(
+    (regionId: string) => {
+      setSelectedRegionId(regionId)
+      if (showWalkabilitySourceSurface) setMapSurface('boundary')
+    },
+    [showWalkabilitySourceSurface],
+  )
+
+  const handleMapSurfaceChange = useCallback((surface: 'source' | 'boundary') => {
+    setMapSurface(surface)
+    if (surface === 'source') setSelectedRegionId(null)
   }, [])
 
   const clearComparison = useCallback(() => {
@@ -2024,6 +2208,16 @@ export default function ScoreBuilderSection() {
     if (heatShadeError) errors.push(heatShadeError)
     if (transitError) errors.push(transitError)
     if (cimdError) errors.push(cimdError)
+    if (walkabilitySidewalks.error) errors.push(walkabilitySidewalks.error)
+    if (walkabilityWalkways.error) errors.push(walkabilityWalkways.error)
+    if (walkabilityIntersections.error) errors.push(walkabilityIntersections.error)
+    if (walkabilityCrossings.error) errors.push(walkabilityCrossings.error)
+    if (walkabilityChildcare.error) errors.push(walkabilityChildcare.error)
+    if (walkabilityOsmDaycares.error) errors.push(walkabilityOsmDaycares.error)
+    if (walkabilityClass3Crosswalks.error) errors.push(walkabilityClass3Crosswalks.error)
+    if (walkabilitySupplementalPoi.error) errors.push(walkabilitySupplementalPoi.error)
+    if (walkabilityIntercityStops.error) errors.push(walkabilityIntercityStops.error)
+    if (walkabilityPedestrianCrashes.error) errors.push(walkabilityPedestrianCrashes.error)
     return errors
   }, [
     monitorsError,
@@ -2036,6 +2230,16 @@ export default function ScoreBuilderSection() {
     heatShadeError,
     transitError,
     cimdError,
+    walkabilitySidewalks.error,
+    walkabilityWalkways.error,
+    walkabilityIntersections.error,
+    walkabilityCrossings.error,
+    walkabilityChildcare.error,
+    walkabilityOsmDaycares.error,
+    walkabilityClass3Crosswalks.error,
+    walkabilitySupplementalPoi.error,
+    walkabilityIntercityStops.error,
+    walkabilityPedestrianCrashes.error,
   ])
 
   const desktopLeftPanel = (
@@ -2055,6 +2259,9 @@ export default function ScoreBuilderSection() {
       showPoints={showPoints}
       onTogglePoints={() => setShowPoints((current) => !current)}
       regionCount={scoredRegions.length}
+      canUseWalkabilitySourceSurface={canUseWalkabilitySourceSurface}
+      mapSurface={mapSurface}
+      onMapSurfaceChange={handleMapSurfaceChange}
     />
   )
 
@@ -2127,6 +2334,9 @@ export default function ScoreBuilderSection() {
       onClearNetworks={clearNetworks}
       showPoints={showPoints}
       onTogglePoints={() => setShowPoints((current) => !current)}
+      canUseWalkabilitySourceSurface={canUseWalkabilitySourceSurface}
+      mapSurface={mapSurface}
+      onMapSurfaceChange={handleMapSurfaceChange}
       enabledDataSources={enabledDataSources}
       onToggleDataSource={toggleDataSource}
       weights={weights}
@@ -2227,8 +2437,9 @@ export default function ScoreBuilderSection() {
               selectedRegionId={selectedRegionId}
               monitors={filteredMonitors}
               showPoints={showPoints}
-              onRegionClick={setSelectedRegionId}
+              onRegionClick={handleMapRegionClick}
               regionFillColors={mapRegionFillColors}
+              walkabilitySourceSurface={showWalkabilitySourceSurface}
             />
 
             <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-4 z-10 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
@@ -2247,11 +2458,32 @@ export default function ScoreBuilderSection() {
               ) : (
                 <>
               <h4 className="mb-2 text-xs font-semibold text-foreground">
-                {methodSettings.aggregation === 'healthyPlanPairwisePriority'
+                {showWalkabilitySourceSurface
+                  ? 'Walkability source MI grid'
+                  : methodSettings.aggregation === 'healthyPlanPairwisePriority'
                   ? 'HealthyPlan priority'
                   : scorePaletteProfile.label}
               </h4>
-              {methodSettings.aggregation === 'healthyPlanPairwisePriority' ? (
+              {showWalkabilitySourceSurface ? (
+                <>
+                  <div className="grid grid-cols-5 overflow-hidden rounded border border-border">
+                    {['#4f9ad6', '#9ec99c', '#f5e451', '#e89c4a', '#d33b3b'].map((color) => (
+                      <div key={color} className="h-3" style={{ backgroundColor: color }} />
+                    ))}
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-1 text-[9px] text-muted-foreground">
+                    <span>1-27</span>
+                    <span>28-45</span>
+                    <span>46-63</span>
+                    <span>64-82</span>
+                    <span>83+</span>
+                  </div>
+                  <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                    Showing the report-style citywide source grid. Click a boundary, or switch Map surface to Boundary
+                    map in Study area, to map the Index Lab equation by selected regions.
+                  </div>
+                </>
+              ) : methodSettings.aggregation === 'healthyPlanPairwisePriority' ? (
                 <>
                   <div className="grid grid-cols-9 overflow-hidden rounded border border-border">
                     {HEALTHYPLAN_EQUITY_PRIORITY_RAMP.map((color, index) => (
@@ -2269,13 +2501,26 @@ export default function ScoreBuilderSection() {
                 </>
               ) : (
                 <>
-                  <div
-                    className="h-2 w-full rounded"
-                    style={{ background: `linear-gradient(to right, ${scorePaletteProfile.colors.join(', ')})` }}
-                  />
+                  {methodSettings.visualOutput === 'binned' ? (
+                    <div className="grid grid-cols-5 overflow-hidden rounded border border-border">
+                      {scorePaletteProfile.colors.map((color, index) => (
+                        <div key={`${color}-${index}`} className="h-3" style={{ backgroundColor: color }} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className="h-2 w-full rounded"
+                      style={{ background: `linear-gradient(to right, ${scorePaletteProfile.colors.join(', ')})` }}
+                    />
+                  )}
                   <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
                     <span>{scorePaletteProfile.legend.low}</span>
                     <span>{scorePaletteProfile.legend.high}</span>
+                  </div>
+                  <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                    {methodSettings.visualOutput === 'binned'
+                      ? 'Map output uses five fixed score classes: 0-20, 20-40, 40-60, 60-80, 80-100.'
+                      : 'Map output uses continuous color interpolation between palette stops.'}
                   </div>
                 </>
               )}

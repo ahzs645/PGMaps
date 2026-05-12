@@ -9,6 +9,7 @@ export type ScoreMetricCategory =
   | 'property'
   | 'safety'
   | 'transit'
+  | 'walkability'
   | 'deprivation'
 
 export type ScoreIndexModule =
@@ -87,6 +88,15 @@ export type ScoreMetricKey =
   | 'transitServiceSpan'
   | 'transitTripsPerStop'
   | 'accessibleFrequentTransitAccess'
+  // Walkability / Pedestrian Network Study
+  | 'sidewalkDensity'
+  | 'walkwayDensity'
+  | 'walkabilityIntersectionDensity'
+  | 'walkabilityCrossingDensity'
+  | 'childcareDensity'
+  | 'walkabilityPoiDensity'
+  | 'class3CrosswalkDensity'
+  | 'pedestrianCrashDensity'
   // Accessibility
   | 'parkWalk10Access'
   | 'parkWalk20Access'
@@ -104,6 +114,7 @@ export type ScoreMetricKey =
 
 export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
 export type ScoreNormalizationMethod = 'minMax' | 'winsorizedMinMax' | 'percentile' | 'zScore'
+export type ScoreVisualOutputMode = 'interpolated' | 'binned'
 export type ScoreAggregationMethod =
   | 'additive'
   | 'geometric'
@@ -135,6 +146,7 @@ export interface ScoreMethodSettings {
   missingData: 'zero' | 'neutral'
   sensitivity: boolean
   normalizationScope: ScoreNormalizationScope
+  visualOutput: ScoreVisualOutputMode
   healthyPlanPriority: {
     demographicMetric: ScoreMetricKey | null
     environmentMetric: ScoreMetricKey | null
@@ -241,6 +253,14 @@ export interface RegionDataCounts {
   accessibleFrequentTransitStopCount: number
   transitTripCount: number
   transitServiceSpanSum: number
+  sidewalkLengthKm: number
+  walkwayLengthKm: number
+  walkabilityIntersectionCount: number
+  walkabilityCrossingCount: number
+  childcareCount: number
+  walkabilityPoiCount: number
+  class3CrosswalkCount: number
+  pedestrianCrashCount: number
   treeCount: number
   matureTreeCount: number
   forestAreaSqKm: number
@@ -342,6 +362,7 @@ export type ScoreDataSource =
   | 'bcAssessment'
   | 'crime'
   | 'transit'
+  | 'walkability'
   | 'deprivation'
 
 export type ScoreFilterKey = 'requirePopulation' | 'requireParks' | 'limitCrime' | 'limitFoodRisk'
@@ -378,6 +399,7 @@ export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; des
   { id: 'bcAssessment', label: 'BC Assessment', description: 'Parcel values, housing mix, age, and growth' },
   { id: 'crime', label: 'Crime', description: 'Prince George crime density, per-capita risk, and recency' },
   { id: 'transit', label: 'Transit', description: 'City of Prince George transit stops and stop amenities' },
+  { id: 'walkability', label: 'Walkability', description: 'Pedestrian network study layers and public-data supplements' },
   { id: 'deprivation', label: 'Deprivation', description: 'Statistics Canada CIMD deprivation context' },
 ]
 
@@ -390,5 +412,6 @@ export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
   property: 'Property & Housing',
   safety: 'Safety',
   transit: 'Transit',
+  walkability: 'Walkability',
   deprivation: 'Deprivation',
 }

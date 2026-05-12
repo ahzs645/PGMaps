@@ -76,7 +76,8 @@ function isHealthyPlanEnvironmentMetric(metric: (typeof SCORE_METRICS)[number]):
     metric.category === 'airQuality' ||
     metric.category === 'parksRec' ||
     metric.category === 'heatShade' ||
-    metric.category === 'transit'
+    metric.category === 'transit' ||
+    metric.category === 'walkability'
   )
 }
 
@@ -96,6 +97,9 @@ interface ScoreBuilderSidebarProps {
   onClearNetworks: () => void
   showPoints: boolean
   onTogglePoints: () => void
+  canUseWalkabilitySourceSurface: boolean
+  mapSurface: 'source' | 'boundary'
+  onMapSurfaceChange: (surface: 'source' | 'boundary') => void
   enabledDataSources: ScoreDataSource[]
   onToggleDataSource: (source: ScoreDataSource) => void
   weights: ScoreMetricWeightMap
@@ -198,6 +202,7 @@ function getDataSourceLabel(source: ScoreDataSource): string {
   if (source === 'bcAssessment') return 'Property'
   if (source === 'crime') return 'Crime'
   if (source === 'transit') return 'Transit'
+  if (source === 'walkability') return 'Walk'
   return source
 }
 
@@ -244,6 +249,9 @@ export function ScoreBuilderSidebar({
   onClearNetworks,
   showPoints,
   onTogglePoints,
+  canUseWalkabilitySourceSurface,
+  mapSurface,
+  onMapSurfaceChange,
   enabledDataSources,
   onToggleDataSource,
   weights,
@@ -289,6 +297,7 @@ export function ScoreBuilderSidebar({
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
   const enabledSourceSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
+  const displayedBoundarySource = canUseWalkabilitySourceSurface && mapSurface === 'source' ? undefined : boundarySource
 
   const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_ROWS), [filteredRegions])
   const activeExample = useMemo(
@@ -626,14 +635,23 @@ export function ScoreBuilderSidebar({
           {expandedSections.setup && (
             <div className="pb-4">
               <StudyAreaSelector<BoundarySource, RegionLevel>
-                source={boundarySource}
+                source={displayedBoundarySource}
                 sourceOptions={BOUNDARY_SOURCE_OPTIONS}
                 level={selectedRegionLevel}
                 levelOptions={boundaryLevelOptions}
                 onSourceChange={(source) => {
                   onBoundarySourceChange(source)
+                  if (canUseWalkabilitySourceSurface) onMapSurfaceChange('boundary')
                   onClearRegionSelection()
                 }}
+                onSelectedSourceClick={
+                  canUseWalkabilitySourceSurface
+                    ? () => {
+                        onMapSurfaceChange('source')
+                        onClearRegionSelection()
+                      }
+                    : undefined
+                }
                 onLevelChange={(level) => {
                   onRegionLevelChange(level)
                   onClearRegionSelection()
@@ -1150,6 +1168,20 @@ export function ScoreBuilderSidebar({
                       options={[
                         { value: 'zero', label: 'Treat missing as zero' },
                         { value: 'neutral', label: 'Treat missing as neutral' },
+                      ]}
+                      triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block font-medium text-muted-foreground">Map output</span>
+                    <AppSelect
+                      value={methodSettings.visualOutput}
+                      onValueChange={(value) =>
+                        updateMethodSettings('visualOutput', value as ScoreMethodSettings['visualOutput'])
+                      }
+                      options={[
+                        { value: 'interpolated', label: 'Interpolated ramp' },
+                        { value: 'binned', label: '5 score bins' },
                       ]}
                       triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
                     />

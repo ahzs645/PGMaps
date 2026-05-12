@@ -12,6 +12,7 @@ import type {
   ScoreMetricKey,
   ScoreMetricWeightMap,
   ScoreMethodSettings,
+  ScoreVisualOutputMode,
   ScorePresetMethodology,
   ScoreSpatialMethod,
   ScoreUncertaintyLevel,
@@ -423,6 +424,71 @@ const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
     format: 'percent',
     category: 'transit',
   },
+  // Walkability / Pedestrian Network Study
+  {
+    key: 'sidewalkDensity',
+    label: 'Sidewalk Density',
+    shortLabel: 'Sidewalk density',
+    description: 'Sidewalk kilometres per km² from CityPG pedestrian infrastructure.',
+    format: 'density',
+    category: 'walkability',
+  },
+  {
+    key: 'walkwayDensity',
+    label: 'Walkway Density',
+    shortLabel: 'Walkway density',
+    description: 'Walkway/path kilometres per km² from CityPG pedestrian infrastructure.',
+    format: 'density',
+    category: 'walkability',
+  },
+  {
+    key: 'walkabilityIntersectionDensity',
+    label: 'Intersection Density',
+    shortLabel: 'Intersections',
+    description: 'Road intersections per km², a street-connectivity proxy for walkability.',
+    format: 'density',
+    category: 'walkability',
+  },
+  {
+    key: 'walkabilityCrossingDensity',
+    label: 'Pedestrian Crossing Density',
+    shortLabel: 'Crossings',
+    description: 'Mapped pedestrian crossings per km² from OSM and report supplemental layers.',
+    format: 'density',
+    category: 'walkability',
+  },
+  {
+    key: 'childcareDensity',
+    label: 'Childcare / Daycare Density',
+    shortLabel: 'Childcare',
+    description: 'Childcare/daycare points per km² used as the C0 report factor proxy.',
+    format: 'density',
+    category: 'walkability',
+  },
+  {
+    key: 'walkabilityPoiDensity',
+    label: 'Supplemental POI Density',
+    shortLabel: 'Walk POIs',
+    description: 'Supplemental housing, entertainment, and intercity-service POIs per km².',
+    format: 'density',
+    category: 'walkability',
+  },
+  {
+    key: 'class3CrosswalkDensity',
+    label: 'Class-3 Crosswalk Pressure',
+    shortLabel: 'Class-3 xwalk',
+    description: 'Report class-3 crosswalk locations per km²; higher values indicate more upgrade pressure.',
+    format: 'density',
+    category: 'walkability',
+  },
+  {
+    key: 'pedestrianCrashDensity',
+    label: 'Pedestrian Crash Density',
+    shortLabel: 'Ped crashes',
+    description: 'ICBC pedestrian-crash concentration per km² where mapped crash summaries are available.',
+    format: 'density',
+    category: 'walkability',
+  },
   {
     key: 'parkWalk10Access',
     label: '10-Minute Park Walk Access',
@@ -563,6 +629,14 @@ const METRIC_DIRECTION: Record<ScoreMetricKey, ScoreMetricDirection> = {
   transitServiceSpan: 'higherIsBetter',
   transitTripsPerStop: 'higherIsBetter',
   accessibleFrequentTransitAccess: 'higherIsBetter',
+  sidewalkDensity: 'higherIsBetter',
+  walkwayDensity: 'higherIsBetter',
+  walkabilityIntersectionDensity: 'higherIsBetter',
+  walkabilityCrossingDensity: 'higherIsBetter',
+  childcareDensity: 'higherIsBetter',
+  walkabilityPoiDensity: 'higherIsBetter',
+  class3CrosswalkDensity: 'higherIsWorse',
+  pedestrianCrashDensity: 'higherIsWorse',
   parkWalk10Access: 'higherIsBetter',
   parkWalk20Access: 'higherIsBetter',
   coolingWalk15Access: 'higherIsBetter',
@@ -619,6 +693,14 @@ const METRIC_COMPONENT: Record<ScoreMetricKey, ScoreMetricComponent> = {
   transitServiceSpan: 'serviceAccess',
   transitTripsPerStop: 'serviceAccess',
   accessibleFrequentTransitAccess: 'serviceAccess',
+  sidewalkDensity: 'serviceAccess',
+  walkwayDensity: 'serviceAccess',
+  walkabilityIntersectionDensity: 'serviceAccess',
+  walkabilityCrossingDensity: 'serviceAccess',
+  childcareDensity: 'serviceAccess',
+  walkabilityPoiDensity: 'serviceAccess',
+  class3CrosswalkDensity: 'safetyPressure',
+  pedestrianCrashDensity: 'safetyPressure',
   parkWalk10Access: 'serviceAccess',
   parkWalk20Access: 'serviceAccess',
   coolingWalk15Access: 'adaptiveCapacity',
@@ -675,6 +757,14 @@ const METRIC_SPATIAL_METHOD: Record<ScoreMetricKey, ScoreSpatialMethod> = {
   transitServiceSpan: 'pointInPolygon',
   transitTripsPerStop: 'pointInPolygon',
   accessibleFrequentTransitAccess: 'derivedRatio',
+  sidewalkDensity: 'midpointInPolygon',
+  walkwayDensity: 'midpointInPolygon',
+  walkabilityIntersectionDensity: 'pointInPolygon',
+  walkabilityCrossingDensity: 'pointInPolygon',
+  childcareDensity: 'pointInPolygon',
+  walkabilityPoiDensity: 'pointInPolygon',
+  class3CrosswalkDensity: 'pointInPolygon',
+  pedestrianCrashDensity: 'pointInPolygon',
   parkWalk10Access: 'derivedRatio',
   parkWalk20Access: 'derivedRatio',
   coolingWalk15Access: 'derivedRatio',
@@ -731,6 +821,14 @@ const METRIC_UNCERTAINTY: Record<ScoreMetricKey, ScoreUncertaintyLevel> = {
   transitServiceSpan: 'medium',
   transitTripsPerStop: 'medium',
   accessibleFrequentTransitAccess: 'medium',
+  sidewalkDensity: 'medium',
+  walkwayDensity: 'medium',
+  walkabilityIntersectionDensity: 'medium',
+  walkabilityCrossingDensity: 'medium',
+  childcareDensity: 'medium',
+  walkabilityPoiDensity: 'high',
+  class3CrosswalkDensity: 'medium',
+  pedestrianCrashDensity: 'high',
   parkWalk10Access: 'high',
   parkWalk20Access: 'high',
   coolingWalk15Access: 'high',
@@ -770,6 +868,13 @@ const METRIC_CAVEATS: Partial<Record<ScoreMetricKey, string>> = {
   coolingWalk15Access: 'Cooling/community facility inventory is a proxy until verified public cooling-centre data is loaded.',
   parkTransit20Access: 'Transit-assisted park access is estimated from nearby service, not full itinerary planning.',
   serviceAccessComposite: 'Composite catchment estimate; review component metrics before making site decisions.',
+  sidewalkDensity: 'Line lengths use midpoint assignment to the selected boundary and are not split at boundary edges.',
+  walkwayDensity: 'Line lengths use midpoint assignment to the selected boundary and are not split at boundary edges.',
+  walkabilityCrossingDensity: 'Crossing inventory combines public-data/reconstructed layers and may not match the 2017 geodatabase exactly.',
+  childcareDensity: 'Modern childcare/daycare inventories are used as a public proxy for the report C0 factor.',
+  walkabilityPoiDensity: 'Supplemental POIs are reconstructed from public/open sources and have mixed confidence.',
+  class3CrosswalkDensity: 'Class-3 crosswalk density is treated as pressure rather than a benefit metric.',
+  pedestrianCrashDensity: 'ICBC crash summaries are mapped reported-location concentrations, not exposure-adjusted risk.',
   canopyProxyRatio: 'Derived from tree inventory buffers and forest/open-space proxies, not remote-sensing canopy.',
   shadeGap: 'Screening proxy for planning triage, not a validated heat exposure model.',
   cimdComposite: 'Area-level deprivation context; do not infer individual deprivation.',
@@ -821,6 +926,14 @@ const METRIC_INDEX_MODULE: Record<ScoreMetricKey, ScoreIndexModule> = {
   transitServiceSpan: 'environmentalBurden',
   transitTripsPerStop: 'environmentalBurden',
   accessibleFrequentTransitAccess: 'environmentalBurden',
+  sidewalkDensity: 'environmentalBurden',
+  walkwayDensity: 'environmentalBurden',
+  walkabilityIntersectionDensity: 'environmentalBurden',
+  walkabilityCrossingDensity: 'environmentalBurden',
+  childcareDensity: 'localContext',
+  walkabilityPoiDensity: 'localContext',
+  class3CrosswalkDensity: 'environmentalBurden',
+  pedestrianCrashDensity: 'environmentalBurden',
   parkWalk10Access: 'environmentalBurden',
   parkWalk20Access: 'environmentalBurden',
   coolingWalk15Access: 'climateBurden',
@@ -877,6 +990,14 @@ const METRIC_INDEX_DOMAIN: Record<ScoreMetricKey, ScoreIndexDomain> = {
   transitServiceSpan: 'transportationInfrastructure',
   transitTripsPerStop: 'transportationInfrastructure',
   accessibleFrequentTransitAccess: 'transportationInfrastructure',
+  sidewalkDensity: 'transportationInfrastructure',
+  walkwayDensity: 'transportationInfrastructure',
+  walkabilityIntersectionDensity: 'transportationInfrastructure',
+  walkabilityCrossingDensity: 'transportationInfrastructure',
+  childcareDensity: 'services',
+  walkabilityPoiDensity: 'services',
+  class3CrosswalkDensity: 'transportationInfrastructure',
+  pedestrianCrashDensity: 'publicSafety',
   parkWalk10Access: 'builtEnvironment',
   parkWalk20Access: 'builtEnvironment',
   coolingWalk15Access: 'heat',
@@ -916,6 +1037,12 @@ const METRIC_VALUE_BEHAVIOR: Partial<Record<ScoreMetricKey, ScoreMetricValueBeha
   transitServiceSpan: 'inverseContinuous',
   transitTripsPerStop: 'inverseContinuous',
   accessibleFrequentTransitAccess: 'inverseContinuous',
+  sidewalkDensity: 'inverseContinuous',
+  walkwayDensity: 'inverseContinuous',
+  walkabilityIntersectionDensity: 'inverseContinuous',
+  walkabilityCrossingDensity: 'inverseContinuous',
+  childcareDensity: 'inverseContinuous',
+  walkabilityPoiDensity: 'inverseContinuous',
   parkWalk10Access: 'inverseContinuous',
   parkWalk20Access: 'inverseContinuous',
   coolingWalk15Access: 'inverseContinuous',
@@ -946,12 +1073,14 @@ function metricDataSourceLabel(category: ScoreMetricDefinition['category']): str
   if (category === 'property') return 'BC Assessment parcel data'
   if (category === 'safety') return 'City of Prince George crime incidents'
   if (category === 'transit') return 'City of Prince George transit stop inventory'
+  if (category === 'walkability') return 'Pedestrian Network Study public-data reconstruction'
   if (category === 'deprivation') return 'Statistics Canada CIMD 2021'
   return 'PGMaps data source'
 }
 
 function metricSourceUrl(category: ScoreMetricDefinition['category']): string | undefined {
   if (category === 'transit') return 'https://www.bctransit.com/open-data/'
+  if (category === 'walkability') return 'https://www.princegeorge.ca/city-hall/maps-information-requests/open-data'
   if (category === 'deprivation') return 'https://www150.statcan.gc.ca/n1/pub/45-20-0001/452000012023001-eng.htm'
   if (category === 'heatShade' || category === 'parksRec') return 'https://www.princegeorge.ca/city-hall/maps-information-requests/open-data'
   return undefined
@@ -972,6 +1101,8 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = SCORE_METRIC_BASES.map((me
       ? '2021 Census / CIMD correction 2024'
       : metric.category === 'transit'
         ? 'Latest synced CityPG/BC Transit data'
+        : metric.category === 'walkability'
+          ? 'Latest bundled walkability reconstruction layers'
         : 'Latest bundled PGMaps data',
   comparisonBasis: 'Compared within the currently loaded boundary level',
   indexModule: METRIC_INDEX_MODULE[metric.key],
@@ -1037,6 +1168,14 @@ const ZERO_WEIGHTS: ScoreMetricWeightMap = {
   transitServiceSpan: 0,
   transitTripsPerStop: 0,
   accessibleFrequentTransitAccess: 0,
+  sidewalkDensity: 0,
+  walkwayDensity: 0,
+  walkabilityIntersectionDensity: 0,
+  walkabilityCrossingDensity: 0,
+  childcareDensity: 0,
+  walkabilityPoiDensity: 0,
+  class3CrosswalkDensity: 0,
+  pedestrianCrashDensity: 0,
   parkWalk10Access: 0,
   parkWalk20Access: 0,
   coolingWalk15Access: 0,
@@ -1379,16 +1518,16 @@ export const SCORE_PRESETS: ScorePreset[] = [
     recommendedBoundaryLevel: 'da',
     weights: {
       ...ZERO_WEIGHTS,
-      trailDensity: 18,
-      transitStopDensity: 12,
-      frequentTransitStopAccess: 12,
-      accessibleFrequentTransitAccess: 8,
-      parkWalk10Access: 12,
-      amenityDensity: 8,
-      serviceAccessComposite: 14,
-      populationDensity: 8,
-      commercialShare: 4,
-      crimePerCapita: -4,
+      sidewalkDensity: 20,
+      walkwayDensity: 12,
+      walkabilityIntersectionDensity: 12,
+      walkabilityCrossingDensity: 10,
+      transitStopDensity: 10,
+      parkWalk10Access: 10,
+      childcareDensity: 8,
+      walkabilityPoiDensity: 10,
+      class3CrosswalkDensity: -4,
+      pedestrianCrashDensity: -4,
     },
     methodSettings: PERCENTILE_METHOD,
   },
@@ -1810,6 +1949,7 @@ const SCORE_DATA_SOURCE_ORDER: ScoreDataSource[] = [
   'bcAssessment',
   'crime',
   'transit',
+  'walkability',
   'deprivation',
 ]
 
@@ -1822,6 +1962,7 @@ function metricCategoryToDataSource(category: string): ScoreDataSource | null {
   if (category === 'property') return 'bcAssessment'
   if (category === 'safety') return 'crime'
   if (category === 'transit') return 'transit'
+  if (category === 'walkability') return 'walkability'
   if (category === 'deprivation') return 'deprivation'
   return null
 }
@@ -2098,23 +2239,23 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
     label: 'Pedestrian Network Study MI (DA)',
     question: 'Which small areas look strongest under a walkability equation inspired by the 2017 report?',
     description:
-      'Adapts the report Mobility Index to the Index Lab boundary model using active-route density, transit access, parks, service access, density, and lower safety pressure.',
+      'Adapts the report Mobility Index to the Index Lab boundary model using sidewalk/walkway density, crossings, transit, parks, childcare, POIs, and lower safety pressure.',
     boundarySource: 'census',
     boundaryLevel: 'da',
-    dataSources: ['parks', 'census', 'transit', 'crime', 'bcAssessment'],
+    dataSources: ['walkability', 'parks', 'transit'],
     networkFilter: 'none',
     weights: {
       ...ZERO_WEIGHTS,
-      trailDensity: 18,
-      transitStopDensity: 12,
-      frequentTransitStopAccess: 12,
-      accessibleFrequentTransitAccess: 8,
-      parkWalk10Access: 12,
-      amenityDensity: 8,
-      serviceAccessComposite: 14,
-      populationDensity: 8,
-      commercialShare: 4,
-      crimePerCapita: -4,
+      sidewalkDensity: 20,
+      walkwayDensity: 12,
+      walkabilityIntersectionDensity: 12,
+      walkabilityCrossingDensity: 10,
+      transitStopDensity: 10,
+      parkWalk10Access: 10,
+      childcareDensity: 8,
+      walkabilityPoiDensity: 10,
+      class3CrosswalkDensity: -4,
+      pedestrianCrashDensity: -4,
     },
     methodSettings: PERCENTILE_METHOD,
   },
@@ -2521,6 +2662,14 @@ export const DENSITY_METRIC_OPTIONS: ScoreMetricKey[] = [
   'transitServiceSpan',
   'transitTripsPerStop',
   'accessibleFrequentTransitAccess',
+  'sidewalkDensity',
+  'walkwayDensity',
+  'walkabilityIntersectionDensity',
+  'walkabilityCrossingDensity',
+  'childcareDensity',
+  'walkabilityPoiDensity',
+  'class3CrosswalkDensity',
+  'pedestrianCrashDensity',
   'parkWalk10Access',
   'parkWalk20Access',
   'coolingWalk15Access',
@@ -2601,6 +2750,14 @@ export function createMetricValueMap(initial = 0): Record<ScoreMetricKey, number
     transitServiceSpan: initial,
     transitTripsPerStop: initial,
     accessibleFrequentTransitAccess: initial,
+    sidewalkDensity: initial,
+    walkwayDensity: initial,
+    walkabilityIntersectionDensity: initial,
+    walkabilityCrossingDensity: initial,
+    childcareDensity: initial,
+    walkabilityPoiDensity: initial,
+    class3CrosswalkDensity: initial,
+    pedestrianCrashDensity: initial,
     parkWalk10Access: initial,
     parkWalk20Access: initial,
     coolingWalk15Access: initial,
@@ -2761,6 +2918,23 @@ export function getScorePaletteColor(score: number, profile: ScorePaletteProfile
   const lowerColor = profile.colors[lowerIndex] || profile.colors[0]
   const upperColor = profile.colors[upperIndex] || lowerColor
   return interpolateHexColor(lowerColor, upperColor, scaledIndex - lowerIndex)
+}
+
+export function getScorePaletteBinIndex(score: number): number {
+  if (!Number.isFinite(score)) return 0
+  return Math.max(0, Math.min(4, Math.floor(Math.max(0, Math.min(99.999, score)) / 20)))
+}
+
+export function getScorePaletteBinnedColor(score: number, profile: ScorePaletteProfile): string {
+  return profile.colors[getScorePaletteBinIndex(score)] || profile.colors[0]
+}
+
+export function getScorePaletteOutputColor(
+  score: number,
+  profile: ScorePaletteProfile,
+  mode: ScoreVisualOutputMode = 'interpolated',
+): string {
+  return mode === 'binned' ? getScorePaletteBinnedColor(score, profile) : getScorePaletteColor(score, profile)
 }
 
 export function encodeWeightsToParams(weights: ScoreMetricWeightMap): string {
