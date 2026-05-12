@@ -24,6 +24,11 @@ const boundaryMatrix = {
     { level: 'elementarySchoolCatchment', label: 'Elementary School Catchment', count: 20 },
     { level: 'secondarySchoolCatchment', label: 'Secondary School Catchment', count: 5 },
   ],
+  nrAdmin: [
+    { level: 'nrArea', label: 'NR Area', count: 3 },
+    { level: 'nrRegion', label: 'NR Region', count: 8 },
+    { level: 'nrDistrict', label: 'NR District', count: 23 },
+  ],
 } as const
 
 async function applyPresetFromDialog(page: Page, presetName: string) {
@@ -48,6 +53,21 @@ function requiredSourcesForWeights(weights: Record<string, number>): ScoreDataSo
     if (metric.key === 'crimePerCapita') sources.add('census')
   })
   return [...sources]
+}
+
+function levelSelectTrigger(page: Page) {
+  return page.locator('[data-score-builder-level-select="true"]').getByRole('combobox')
+}
+
+async function expectLevelOptions(page: Page, labels: string[]) {
+  await levelSelectTrigger(page).click()
+  await expect(page.getByRole('option')).toHaveText(labels)
+  await page.keyboard.press('Escape')
+}
+
+async function selectLevel(page: Page, label: string) {
+  await levelSelectTrigger(page).click()
+  await page.getByRole('option', { name: label }).click()
 }
 
 test.describe('Score Builder preset model', () => {
@@ -129,7 +149,7 @@ test.describe('Score Builder desktop interface', () => {
     await expect(dataSourceButton(page, 'Air Quality')).toContainText('ON')
     await expect(dataSourceButton(page, 'Parks & Trails')).toContainText('OFF')
     await expect(dataSourceButton(page, 'Demographics')).toContainText('ON')
-    await expect(page.locator('[data-score-builder-level-select="true"]')).toHaveValue('ct')
+    await expect(levelSelectTrigger(page)).toContainText('Census Tract')
 
     await page.locator('[data-score-builder-tab="equation"]').click()
     await expect(page.locator('[data-score-builder-equation-term="overallDensity"]')).toBeVisible()
@@ -137,30 +157,31 @@ test.describe('Score Builder desktop interface', () => {
   })
 
   test('boundary levels stay focused and keep region scores available', async ({ page }) => {
-    const levelSelect = page.locator('[data-score-builder-level-select="true"]')
+    const levelTrigger = levelSelectTrigger(page)
     const regionStats = page.locator('[data-score-builder-region-stats="true"]')
     const loadingMessage = page.getByText('Building region scores...')
     const errorMessage = page.getByText('Unable to build scores')
 
     await page.locator('[data-score-builder-tab="regions"]').click()
     await expect(regionStats).toContainText('23 of 23 regions', { timeout: 20_000 })
-    await expect(levelSelect.locator('option')).toHaveText(['Census Tract', 'Dissemination Area'])
+    await expectLevelOptions(page, ['Census Tract', 'Dissemination Area'])
 
-    await levelSelect.selectOption('da')
+    await selectLevel(page, 'Dissemination Area')
+    await expect(levelTrigger).toContainText('Dissemination Area')
     await expect(loadingMessage).toBeHidden({ timeout: 30_000 })
     await expect(errorMessage).toHaveCount(0)
     await expect(regionStats).toContainText('135 of 135 regions')
 
     await page.locator('[data-score-builder-boundary-source="bcHealth"]').click()
-    await expect(levelSelect.locator('option')).toHaveText(['Health Authority', 'HSDA', 'LHA', 'CHSA'])
-    await expect(levelSelect).toHaveValue('chsa')
+    await expectLevelOptions(page, ['Health Authority', 'HSDA', 'LHA', 'CHSA'])
+    await expect(levelTrigger).toContainText('CHSA')
     await expect(loadingMessage).toBeHidden({ timeout: 30_000 })
     await expect(errorMessage).toHaveCount(0)
     await expect(regionStats).toContainText('229 of 229 regions')
   })
 
   test('all boundary levels update options, URL state, and region counts', async ({ page }) => {
-    const levelSelect = page.locator('[data-score-builder-level-select="true"]')
+    const levelTrigger = levelSelectTrigger(page)
     const regionStats = page.locator('[data-score-builder-region-stats="true"]')
     const loadingMessage = page.getByText('Building region scores...')
     const errorMessage = page.getByText('Unable to build scores')
@@ -169,11 +190,11 @@ test.describe('Score Builder desktop interface', () => {
 
     for (const [source, levels] of Object.entries(boundaryMatrix)) {
       await page.locator(`[data-score-builder-boundary-source="${source}"]`).click()
-      await expect(levelSelect.locator('option')).toHaveText(levels.map((entry) => entry.label))
+      await expectLevelOptions(page, levels.map((entry) => entry.label))
 
       for (const entry of levels) {
-        await levelSelect.selectOption(entry.level)
-        await expect(levelSelect).toHaveValue(entry.level)
+        await selectLevel(page, entry.label)
+        await expect(levelTrigger).toContainText(entry.label)
         await expect(loadingMessage).toBeHidden({ timeout: 30_000 })
         await expect(errorMessage).toHaveCount(0)
         await expect(regionStats).toContainText(`${entry.count} of ${entry.count} regions`, { timeout: 30_000 })

@@ -1,0 +1,148 @@
+{
+  "dataset": "aqfpm_01",
+  "sourceZip": "/Volumes/Main/2026 pull/zip/aqfpm_01_2026-05-06_13-34-32_monthly.zip",
+  "valueMember": "pm25_21.csv",
+  "locationMember": "DMTI_SLI_21.csv",
+  "year": 2021,
+  "variable": "allvars",
+  "variables": [
+    "pm25_jan_21",
+    "pm25_feb_21",
+    "pm25_mar_21",
+    "pm25_apr_21",
+    "pm25_may_21",
+    "pm25_jun_21",
+    "pm25_jul_21",
+    "pm25_aug_21",
+    "pm25_sep_21",
+    "pm25_oct_21",
+    "pm25_nov_21",
+    "pm25_dec_21"
+  ],
+  "variableCount": 12,
+  "mode": "grid",
+  "view": "bc",
+  "gridKm": 1.0,
+  "sourceRows": 120350,
+  "features": 6026,
+  "min": null,
+  "max": null,
+  "variableStats": {
+    "pm25_jan_21": {
+      "count": 120350,
+      "min": 3.5,
+      "max": 12.2
+    },
+    "pm25_feb_21": {
+      "count": 120350,
+      "min": 2.6,
+      "max": 11.9
+    },
+    "pm25_mar_21": {
+      "count": 120350,
+      "min": 2.7,
+      "max": 8.1
+    },
+    "pm25_apr_21": {
+      "count": 120350,
+      "min": 1.7,
+      "max": 9.1
+    },
+    "pm25_may_21": {
+      "count": 120350,
+      "min": 1.1,
+      "max": 8.3
+    },
+    "pm25_jun_21": {
+      "count": 120350,
+      "min": 2.5,
+      "max": 56.3
+    },
+    "pm25_jul_21": {
+      "count": 120350,
+      "min": 3.7,
+      "max": 146.1
+    },
+    "pm25_aug_21": {
+      "count": 120350,
+      "min": 2.0,
+      "max": 100.6
+    },
+    "pm25_sep_21": {
+      "count": 120350,
+      "min": 2.1,
+      "max": 10.9
+    },
+    "pm25_oct_21": {
+      "count": 120350,
+      "min": 2.4,
+      "max": 33.2
+    },
+    "pm25_nov_21": {
+      "count": 120350,
+      "min": 2.3,
+      "max": 17.6
+    },
+    "pm25_dec_21": {
+      "count": 120350,
+      "min": 2.7,
+      "max": 11.6
+    }
+  },
+  "ndjson": "build/canue-pmtiles/aqfpm_01_2021_allvars_grid_bc.geojsonseq",
+  "mbtiles": "build/canue-pmtiles/aqfpm_01_2021_allvars_grid_bc.mbtiles",
+  "pmtiles": "build/canue-pmtiles/aqfpm_01_2021_allvars_grid_bc.pmtiles",
+  "metadata": {
+    "categories": [
+      "Air Quality"
+    ],
+    "downloadNames": [
+      "Fine Particulate Matter PM2.5 v2",
+      "Fine Particulate Matter PM2.5 v3",
+      "Fine Particulate Matter PM2.5 v4",
+      "Fine Particulate Matter PM2.5 v5",
+      "Fine Particulate Matter PM2.5 v6"
+    ],
+    "portalNames": [
+      "Fine Particulate Matter (PM2.5 v2)",
+      "Fine Particulate Matter (PM2.5 v3)",
+      "Fine Particulate Matter (PM2.5 v4)",
+      "Fine Particulate Matter (PM2.5 v5)",
+      "Fine Particulate Matter (PM2.5 v6)"
+    ],
+    "shortCodes": [
+      "aqfpm_mvb",
+      "aqfpm_mvc",
+      "aqfpm_mvd",
+      "aqfpm_mve",
+      "aqfpm_mvf"
+    ],
+    "yearCoverage": [
+      "1998-2020",
+      "1998-2021",
+      "1998-2023",
+      "2000-2016",
+      "2000-2018"
+    ],
+    "samplingFrequency": [
+      "Monthly"
+    ],
+    "descriptions": [
+      "Estimates of annual and monthly ground-level fine particulate matter (PM2.5) for 1998-2020 by combining Aerosol Optical Depth (AOD) retrievals from the NASA MODIS, MISR, and SeaWIFS instruments with the GEOS-Chem chemical transport model, and subsequently calibrating to global ground-based observations using a Geographically Weighted Regression (GWR), as detailed in the below reference for V5.GL.01. V5.GL.02 follows the methodology of V5.GL.01, but updates the ground-based observations used to calibrate the geophysical PM2.5 estimates for the entire time series, and extends temporal coverage through 2020.",
+      "Estimates of annual and monthly ground-level fine particulate matter (PM2.5) for 1998-2021 by combining Aerosol Optical Depth (AOD) retrievals from the NASA MODIS, MISR, and SeaWIFS instruments with the GEOS-Chem chemical transport model, and subsequently calibrating to global ground-based observations using a Geographically Weighted Regression (GWR), as detailed in the below reference for V5.GL.01. V5.GL.03 follows the methodology of V5.GL.01, but updates the ground-based observations used to calibrate the geophysical PM2.5 estimates for the entire time series, and extends temporal coverage through 2021.",
+      "Estimates of annual and monthly ground-level fine particulate matter (PM2.5) for 1998-2023 by combining Aerosol Optical Depth (AOD) retrievals (Dark Target, Deep Blue, and MAIAC) that use observations from multiple satellite-based NASA instruments (MODIS/Terra, MODIS/Aqua, MISR/Terra, SeaWiFS/SeaStar, VIIRS/SNPP, and VIIRS/NOAA20) with the GEOS-Chem chemical transport model (http://geos-chem.org), and subsequently calibrating to global ground-based observations using a Geographically Weighted Regression (GWR), as detailed in the below reference for V5.GL.01. V5.GL.05.02 follows the methodology of V5.GL.01, but updates the ground-based observations used to calibrate the geophysical PM2.5 estimates for the entire time series, extends temporal coverage through 2023, updates satellite retrieval versions, and includes retrievals from the SNPP/NOAA VIIRS instruments.",
+      "Ground-level fine particulate matter (PM2.5) over North America was estimated by combining a 0.01 degree x 0.01 degree resolution optimal estimate-based Aerosol Optical Depth (AOD) retrieval from the NASA MODIS, MISR, and SeaWIFS instruments with aerosol vertical profile and scattering properties simulated by the GEOS-Chem chemical transport model. A geographically weighted regression (GWR) that incorporates ground-based observations to adjust for any residual bias in the satellite-derived PM2.5 estimates was then applied.The monthly V4.NA.02 PM2.5 total mass are available via anonymous ftp to: ftp://stetson.phys.dal.ca/Aaron/V4NA02/Monthly/. Users are reminded that these datasets are intended for long-term, large-scale studies. Increased uncertainties are expected when used at finer spatial/temporal resolution.These monthly 0.01 x 0.01 degree gridded surface datasets were used by CANUE staff to assign values of monthly mean concentration of PM2.5, for all postal codes in Canada for each year from 2000 to 2016 (DMTI Spatial, 2015).",
+      "Ground-level fine particulate matter (PM2.5) total and compositional mass concentrations over North America were estimated by combining Aerosol Optical Depth (AOD) retrievals from the NASA MODIS, MISR, and SeaWIFS instruments with the GEOS-Chem chemical transport model, and subsequently calibrated to regional ground-based observations of both total and compositional mass using Geographically Weighted Regression (GWR) as detailed in the reference for V4.NA.02. ; V4.NA.03 further modified the V4.NA.02 GWR method with additional developments as part of the MAPLE (Mortality\u2013Air Pollution Associations in Low-Exposure Environments) project, and uses V4.GL.03 PM2.5 estimates as geophysical input. The GWR method of individual components remains unchanged from V4.NA.02, but are provided are percentages to ensure mass closure and recommended to be applied to the V4.NA.03 total PM2.5. ; These annual 0.01 x 0.01 degree gridded surface datasets were used by CANUE staff to assign values of annual mean concentration of PM2.5, for all postal codes in Canada for each year from 2000 to 2018."
+    ],
+    "sharingRestrictions": [
+      "These data files are provided solely for the purposes stated in the CANUE Data Sharing and Use Agreement and should not be re-distributed for any reason. These data also contain proprietary postal code data and may only be used for the project named in the CANUE Data Sharing and Use Agreement. Data can be shared only within a project team for the exclusive purposes of teaching, academic research and publishing, and/or planning of educational services in accordance to DMTI End User Agreement associated with the Spatial Mapping Academic Research Tools (SMART) Program."
+    ],
+    "matchSource": "download_metadata"
+  },
+  "metadataPdfs": [
+    "CANUE_METADATA_PM25DAL_M_YY.pdf",
+    "CANUE_METADATA_POSTALCODES.pdf"
+  ],
+  "publicPath": "canue/pmtiles/aqfpm_01_2021_allvars_grid_bc.pmtiles",
+  "publicUrl": "https://data.map.ahmad.sh/canue/pmtiles/aqfpm_01_2021_allvars_grid_bc.pmtiles"
+}

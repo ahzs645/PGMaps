@@ -5,6 +5,7 @@ import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { useMap } from '@/components/ui/map'
 import { useJsonManifest } from '@/maps/pgdata/shared'
 import type { AirMonitor } from '@/maps/airquality'
+import { WALKABILITY_REPORT_MI_COLORS } from '../constants'
 import type { ScoredBoundaryRegion } from '../types'
 
 interface ScoreBuilderMapProps {
@@ -159,11 +160,11 @@ function ScoreBuilderWalkabilitySourceGrid() {
     if (!context) return
 
     const fallbackColors: Record<string, string> = {
-      1: '#4f9ad6',
-      2: '#9ec99c',
-      3: '#f5e451',
-      4: '#e89c4a',
-      5: '#d33b3b',
+      1: WALKABILITY_REPORT_MI_COLORS[0],
+      2: WALKABILITY_REPORT_MI_COLORS[1],
+      3: WALKABILITY_REPORT_MI_COLORS[2],
+      4: WALKABILITY_REPORT_MI_COLORS[3],
+      5: WALKABILITY_REPORT_MI_COLORS[4],
     }
     const colors = data.bandColors ?? fallbackColors
     const image = context.createImageData(data.cols, data.rows)

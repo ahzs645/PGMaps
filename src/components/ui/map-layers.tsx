@@ -8,9 +8,20 @@ import {
   type HeatmapRampName,
 } from './map-styles'
 import type MapLibreGL from 'maplibre-gl'
+import MapLibreGLRuntime from 'maplibre-gl'
+import { Protocol } from 'pmtiles'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StyleExpression = any
+
+let pmtilesProtocolRegistered = false
+
+function ensurePmtilesProtocol() {
+  if (pmtilesProtocolRegistered) return
+  const protocol = new Protocol()
+  MapLibreGLRuntime.addProtocol('pmtiles', protocol.tile)
+  pmtilesProtocolRegistered = true
+}
 
 // =============================================================================
 // MapFillLayer
@@ -607,10 +618,110 @@ function MapHeatmapLayer({
   return null
 }
 
-export { MapFillLayer, MapLineLayer, MapRasterLayer, MapHeatmapLayer }
+type MapPmtilesFillLayerProps = {
+  url: string
+  sourceLayer: string
+  fillColor: string | StyleExpression
+  fillOpacity?: number
+  lineColor?: string | StyleExpression
+  lineWidth?: number
+  lineOpacity?: number
+  visible?: boolean
+}
+
+function MapPmtilesFillLayer({
+  url,
+  sourceLayer,
+  fillColor,
+  fillOpacity = 0.72,
+  lineColor = BORDER_COLOR,
+  lineWidth = 0.4,
+  lineOpacity = 0.35,
+  visible = true,
+}: MapPmtilesFillLayerProps) {
+  const { map, isLoaded } = useMap()
+  const uid = useId().replace(/:/g, '')
+  const sourceId = `pmtiles-src-${uid}`
+  const fillLayerId = `pmtiles-fill-${uid}`
+  const lineLayerId = `pmtiles-line-${uid}`
+
+  useEffect(() => {
+    if (!isLoaded || !map || !url) return
+    ensurePmtilesProtocol()
+
+    map.addSource(sourceId, {
+      type: 'vector',
+      url: `pmtiles://${url}`,
+    })
+
+    map.addLayer({
+      id: fillLayerId,
+      type: 'fill',
+      source: sourceId,
+      'source-layer': sourceLayer,
+      paint: {
+        'fill-color': fillColor as never,
+        'fill-opacity': fillOpacity,
+      },
+      layout: {
+        visibility: visible ? 'visible' : 'none',
+      },
+    })
+
+    map.addLayer({
+      id: lineLayerId,
+      type: 'line',
+      source: sourceId,
+      'source-layer': sourceLayer,
+      paint: {
+        'line-color': lineColor as never,
+        'line-width': lineWidth,
+        'line-opacity': lineOpacity,
+      },
+      layout: {
+        visibility: visible ? 'visible' : 'none',
+      },
+    })
+
+    return () => {
+      try {
+        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
+        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+        if (map.getSource(sourceId)) map.removeSource(sourceId)
+      } catch {
+        // Map already destroyed during unmount
+      }
+    }
+  }, [fillColor, fillLayerId, fillOpacity, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map, sourceId, sourceLayer, url, visible])
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    const visibility = visible ? 'visible' : 'none'
+    if (map.getLayer(fillLayerId)) map.setLayoutProperty(fillLayerId, 'visibility', visibility)
+    if (map.getLayer(lineLayerId)) map.setLayoutProperty(lineLayerId, 'visibility', visibility)
+  }, [fillLayerId, isLoaded, lineLayerId, map, visible])
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    if (map.getLayer(fillLayerId)) {
+      map.setPaintProperty(fillLayerId, 'fill-color', fillColor as never)
+      map.setPaintProperty(fillLayerId, 'fill-opacity', fillOpacity)
+    }
+    if (map.getLayer(lineLayerId)) {
+      map.setPaintProperty(lineLayerId, 'line-color', lineColor as never)
+      map.setPaintProperty(lineLayerId, 'line-width', lineWidth)
+      map.setPaintProperty(lineLayerId, 'line-opacity', lineOpacity)
+    }
+  }, [fillColor, fillLayerId, fillOpacity, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map])
+
+  return null
+}
+
+export { MapFillLayer, MapLineLayer, MapRasterLayer, MapHeatmapLayer, MapPmtilesFillLayer }
 export type {
   MapFillLayerProps,
   MapLineLayerProps,
   MapRasterLayerProps,
   MapHeatmapLayerProps,
+  MapPmtilesFillLayerProps,
 }

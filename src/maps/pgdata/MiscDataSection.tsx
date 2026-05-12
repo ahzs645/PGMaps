@@ -3,7 +3,7 @@ import type { ElementType } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp, Database, Droplets, Footprints, Layers, PawPrint, Satellite, ShieldAlert, Trees } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
-import { MapFillLayer } from '@/components/ui/map-layers'
+import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
@@ -28,6 +28,13 @@ import { WARS_TIMELINE_WINDOW_OPTIONS, WarsLayer, WarsLayerControls, WarsLegend,
 import { WATER_TIMELINE_WINDOW_OPTIONS, WaterLayer, WaterLayerControls, WaterLegend, WaterSidebar, WaterSourceNotes, useWaterData } from './water'
 import { Timeline } from '@/components/ui/timeline'
 import { DroughtSection } from '@/maps/drought'
+import {
+  CANUE_V2_CATALOG_URL,
+  CANUE_V2_ENABLED,
+  listCanueV2Selections,
+  type CanueV2Catalog,
+  type CanueVariableSelection,
+} from './canueV2'
 
 interface HeatShadeManifestSource {
   id: string
@@ -443,6 +450,43 @@ function getCanuePeriodLabel(files: CanueFile[], mode: CanueYearMode, month: num
   return mode === 'single' ? String(files[0].year) : `${range} average`
 }
 
+function getCanueV2VariableLabel(selection: CanueVariableSelection | null): string {
+  if (!selection) return 'CANUE grid'
+  const variable = selection.variable
+  const suffix = getCanueVariableSuffix(variable)
+  const datasetLabels = CANUE_SUFFIX_LABELS_BY_DATASET[selection.dataset]
+  if (suffix && datasetLabels?.[suffix]) return datasetLabels[suffix]
+  return variable
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function canueV2Paint(selection: CanueVariableSelection | null) {
+  if (!selection) return '#e5e7eb'
+  const low = selection.min ?? 0
+  const high = selection.max != null && selection.max !== low ? selection.max : low + 1
+  const mid = low + ((high - low) / 2)
+
+  return [
+    'case',
+    ['!', ['has', selection.property]],
+    '#e5e7eb',
+    ['==', ['get', selection.property], null],
+    '#e5e7eb',
+    [
+      'interpolate',
+      ['linear'],
+      ['to-number', ['get', selection.property]],
+      low,
+      '#67e8f9',
+      mid,
+      '#facc15',
+      high,
+      '#ef4444',
+    ],
+  ]
+}
+
 function splitCsvLine(line: string): string[] {
   const values: string[] = []
   let value = ''
@@ -695,8 +739,9 @@ export default function MiscDataSection() {
   const [showCanueBoundaries, setShowCanueBoundaries] = useState(true)
   const [selectedCanueDatasetId, setSelectedCanueDatasetId] = useState<string | null>(() => searchParams.get('dataset'))
   const [selectedCanueYear, setSelectedCanueYear] = useState<number | null>(() => {
+    if (!searchParams.has('year')) return null
     const year = Number(searchParams.get('year'))
-    return Number.isFinite(year) ? year : null
+    return Number.isFinite(year) && year > 0 ? year : null
   })
   const [canueYearMode, setCanueYearMode] = useState<CanueYearMode>(() => (searchParams.get('years') as CanueYearMode) || 'single')
   const [canueRangeStartYear, setCanueRangeStartYear] = useState<number | null>(null)
@@ -706,10 +751,18 @@ export default function MiscDataSection() {
     return Number.isFinite(month) && month >= 1 && month <= 12 ? month : 1
   })
   const [selectedCanueVariable, setSelectedCanueVariable] = useState<string | null>(null)
+  const [selectedCanueV2Family, setSelectedCanueV2Family] = useState<string | null>(() => searchParams.get('family'))
+  const [selectedCanueV2Year, setSelectedCanueV2Year] = useState<number | null>(() => {
+    if (!searchParams.has('gridYear')) return null
+    const year = Number(searchParams.get('gridYear'))
+    return Number.isFinite(year) && year > 0 ? year : null
+  })
+  const [selectedCanueV2Property, setSelectedCanueV2Property] = useState<string | null>(() => searchParams.get('property'))
   const [selectedCanueBoundaryId, setSelectedCanueBoundaryId] = useState<string | null>(null)
   const { trees, forests, facilities, loading, error } = useHeatShadeData(activeTab === 'heatShade')
   const heatShadeManifest = useJsonManifest<HeatShadeManifest>(activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null)
   const canueManifest = useJsonManifest<CanueManifest>('/data/canue/bc/annual-gzip/manifest.json')
+  const canueV2Catalog = useJsonManifest<CanueV2Catalog>(CANUE_V2_ENABLED ? CANUE_V2_CATALOG_URL : null)
   const canueMembership = useJsonManifest<CanuePostalMembership>('/data/canue/bc/postal-boundary-membership.json')
   const canueBoundaryConfig = CANUE_BOUNDARY_CONFIG[canueBoundaryLevel]
   const canueBoundaries = useJsonManifest<BoundaryFeatureCollection>(canueBoundaryConfig.path)
@@ -746,12 +799,21 @@ export default function MiscDataSection() {
       else params.delete('years')
       if (canueYearMode === 'month') params.set('month', String(selectedCanueMonth))
       else params.delete('month')
+      if (selectedCanueV2Family) params.set('family', selectedCanueV2Family)
+      else params.delete('family')
+      if (selectedCanueV2Year != null) params.set('gridYear', String(selectedCanueV2Year))
+      else params.delete('gridYear')
+      if (selectedCanueV2Property) params.set('property', selectedCanueV2Property)
+      else params.delete('property')
       params.set('boundary', canueBoundaryLevel)
     } else {
       params.delete('dataset')
       params.delete('year')
       params.delete('years')
       params.delete('month')
+      params.delete('family')
+      params.delete('gridYear')
+      params.delete('property')
       params.delete('boundary')
     }
     if (activeTab === 'icbc' && icbc.selectedDatasetId) params.set('icbcDataset', icbc.selectedDatasetId)
@@ -781,7 +843,7 @@ export default function MiscDataSection() {
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueYear, icbc.showHeatmap, icbc.showPoints, icbc.selectedDatasetId, wars.showHeatmap, wars.showPoints, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueV2Family, selectedCanueV2Property, selectedCanueV2Year, selectedCanueYear, icbc.showHeatmap, icbc.showPoints, icbc.selectedDatasetId, wars.showHeatmap, wars.showPoints, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -861,6 +923,35 @@ export default function MiscDataSection() {
     }
     return selectedCanueFile ? [selectedCanueFile] : []
   }, [canueRangeEndYear, canueRangeStartYear, canueYearMode, selectedCanueDataset, selectedCanueFile])
+  const canueV2Families = canueV2Catalog.data?.families ?? []
+  const selectedCanueV2FamilyEntry = useMemo(() => {
+    if (!canueV2Families.length) return null
+    return canueV2Families.find((family) => family.id === selectedCanueV2Family)
+      ?? canueV2Families.find((family) => family.id === 'air-quality')
+      ?? canueV2Families[0]
+  }, [canueV2Families, selectedCanueV2Family])
+  const selectedCanueV2Layer = useMemo(() => {
+    if (!selectedCanueV2FamilyEntry) return null
+    return selectedCanueV2FamilyEntry.layers.find((layer) => layer.year === selectedCanueV2Year)
+      ?? selectedCanueV2FamilyEntry.layers[selectedCanueV2FamilyEntry.layers.length - 1]
+      ?? null
+  }, [selectedCanueV2FamilyEntry, selectedCanueV2Year])
+  const selectedCanueV2Selection = useMemo<CanueVariableSelection | null>(() => {
+    if (!canueV2Catalog.data || !selectedCanueV2FamilyEntry || !selectedCanueV2Layer) return null
+    const allSelections = listCanueV2Selections(canueV2Catalog.data)
+    return allSelections.find((selection) => (
+      selection.family === selectedCanueV2FamilyEntry.id
+      && selection.year === selectedCanueV2Layer.year
+      && selection.property === selectedCanueV2Property
+    )) ?? allSelections.find((selection) => (
+      selection.family === selectedCanueV2FamilyEntry.id
+      && selection.year === selectedCanueV2Layer.year
+      && selection.variable.toLowerCase().includes('pm25')
+    )) ?? allSelections.find((selection) => (
+      selection.family === selectedCanueV2FamilyEntry.id
+      && selection.year === selectedCanueV2Layer.year
+    )) ?? null
+  }, [canueV2Catalog.data, selectedCanueV2FamilyEntry, selectedCanueV2Layer, selectedCanueV2Property])
   const canuePeriodLabel = getCanuePeriodLabel(selectedCanueFiles, canueYearMode, selectedCanueMonth)
   const canueBoundaryData = useCanueBoundaryData(
     selectedCanueFiles,
@@ -934,6 +1025,20 @@ export default function MiscDataSection() {
     selectedCanueFile,
     selectedCanueVariable,
     selectedCanueYear,
+  ])
+
+  useEffect(() => {
+    if (!selectedCanueV2FamilyEntry || !selectedCanueV2Layer || !selectedCanueV2Selection) return
+    if (selectedCanueV2Family !== selectedCanueV2FamilyEntry.id) setSelectedCanueV2Family(selectedCanueV2FamilyEntry.id)
+    if (selectedCanueV2Year !== selectedCanueV2Layer.year) setSelectedCanueV2Year(selectedCanueV2Layer.year)
+    if (selectedCanueV2Property !== selectedCanueV2Selection.property) setSelectedCanueV2Property(selectedCanueV2Selection.property)
+  }, [
+    selectedCanueV2Family,
+    selectedCanueV2FamilyEntry,
+    selectedCanueV2Layer,
+    selectedCanueV2Property,
+    selectedCanueV2Selection,
+    selectedCanueV2Year,
   ])
 
   useEffect(() => {
@@ -1100,6 +1205,78 @@ export default function MiscDataSection() {
             <Database className="h-4 w-4 text-cyan-600" />
             <h2 className="text-sm font-semibold text-foreground">CANUE Boundary Map</h2>
           </div>
+          {CANUE_V2_ENABLED && selectedCanueV2FamilyEntry && selectedCanueV2Layer && selectedCanueV2Selection && (
+            <div className="mb-4 space-y-3 rounded-md border border-border bg-muted/15 p-3">
+              <div>
+                <div className="text-xs font-semibold text-foreground">R2 PMTiles Grid</div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {canueV2Catalog.data ? `${canueV2Catalog.data.families.length} families from Cloudflare R2` : 'Loading R2 catalog...'}
+                </div>
+              </div>
+              <label className="block text-xs font-medium text-foreground">
+                Family
+                <AppSelect
+                  value={selectedCanueV2FamilyEntry.id}
+                  onValueChange={(familyId) => {
+                    const nextFamily = canueV2Families.find((family) => family.id === familyId)
+                    const nextLayer = nextFamily?.layers[nextFamily.layers.length - 1] ?? null
+                    setSelectedCanueV2Family(familyId)
+                    setSelectedCanueV2Year(nextLayer?.year ?? null)
+                    setSelectedCanueV2Property(nextLayer?.variables[0]?.property ?? null)
+                  }}
+                  options={canueV2Families.map((family) => ({
+                    value: family.id,
+                    label: `${family.label} (${family.layerCount})`,
+                  }))}
+                  className="mt-1"
+                  triggerClassName="h-8 rounded-md text-xs"
+                />
+              </label>
+              <label className="block text-xs font-medium text-foreground">
+                Grid year
+                <AppSelect
+                  value={String(selectedCanueV2Layer.year)}
+                  onValueChange={(year) => {
+                    const nextYear = Number(year)
+                    const nextLayer = selectedCanueV2FamilyEntry.layers.find((layer) => layer.year === nextYear)
+                    setSelectedCanueV2Year(nextYear)
+                    setSelectedCanueV2Property(nextLayer?.variables[0]?.property ?? null)
+                  }}
+                  options={selectedCanueV2FamilyEntry.years.map((year) => ({
+                    value: String(year),
+                    label: String(year),
+                  }))}
+                  className="mt-1"
+                  triggerClassName="h-8 rounded-md text-xs"
+                />
+              </label>
+              <label className="block text-xs font-medium text-foreground">
+                Grid variable
+                <AppSelect
+                  value={selectedCanueV2Selection.property}
+                  onValueChange={setSelectedCanueV2Property}
+                  options={selectedCanueV2Layer.variables.map((variable) => ({
+                    value: variable.property,
+                    label: `${variable.dataset}: ${variable.variable}`,
+                  }))}
+                  className="mt-1"
+                  triggerClassName="h-8 rounded-md text-xs"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="rounded border border-border p-2">
+                  <div className="text-sm font-bold text-foreground">{selectedCanueV2Layer.features.toLocaleString()}</div>
+                  <div className="text-[10px] text-muted-foreground">grid cells</div>
+                </div>
+                <div className="rounded border border-border p-2">
+                  <div className="text-sm font-bold text-foreground">
+                    {formatNullableNumber(selectedCanueV2Selection.min)}-{formatNullableNumber(selectedCanueV2Selection.max)}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">tile range</div>
+                </div>
+              </div>
+            </div>
+          )}
           {selectedCanueFile && (
             <div className="space-y-3">
               <label className="block text-xs font-medium text-foreground">
@@ -1373,6 +1550,19 @@ export default function MiscDataSection() {
             </MapMarker>
           ))}
 
+          {activeTab === 'canue' && CANUE_V2_ENABLED && selectedCanueV2Selection && (
+            <MapPmtilesFillLayer
+              key={`${selectedCanueV2Selection.pmtilesUrl}-${selectedCanueV2Selection.property}`}
+              url={selectedCanueV2Selection.pmtilesUrl}
+              sourceLayer="canue"
+              fillColor={canueV2Paint(selectedCanueV2Selection)}
+              fillOpacity={0.64}
+              lineColor="#0f172a"
+              lineWidth={0.18}
+              lineOpacity={0.22}
+            />
+          )}
+
           {activeTab === 'canue' && showCanueBoundaries && canueBoundaryData.data.features.length > 0 && (
             <MapFillLayer
               data={canueBoundaryData.data}
@@ -1487,7 +1677,7 @@ export default function MiscDataSection() {
                 <div>
                   <div className="mb-1 flex items-center justify-between gap-3">
                     <span className="min-w-0 truncate font-medium text-foreground">
-                      {selectedCanueFile ? getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '') : 'CANUE boundary layer'}
+                      {selectedCanueV2Selection ? getCanueV2VariableLabel(selectedCanueV2Selection) : selectedCanueFile ? getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '') : 'CANUE boundary layer'}
                     </span>
                     {canueBoundaryData.loading && <span className="shrink-0 text-[10px]">Loading</span>}
                   </div>
@@ -1496,8 +1686,8 @@ export default function MiscDataSection() {
                     aria-hidden="true"
                   />
                   <div className="mt-1 flex items-center justify-between gap-2 text-[10px] tabular-nums">
-                    <span>{formatNullableNumber(canueBoundaryData.minValue)}</span>
-                    <span>{formatNullableNumber(canueBoundaryData.maxValue)}</span>
+                    <span>{formatNullableNumber(selectedCanueV2Selection?.min ?? canueBoundaryData.minValue)}</span>
+                    <span>{formatNullableNumber(selectedCanueV2Selection?.max ?? canueBoundaryData.maxValue)}</span>
                   </div>
                 </div>
               </div>

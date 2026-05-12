@@ -1,0 +1,16 @@
+{
+  "dataset": "aqfpm_01",
+  "sourceZip": "/Volumes/Main/2026 pull/zip/aqfpm_01_2026-05-06_13-34-32_monthly.zip",
+  "valueMember": "pm25_21.csv",
+  "locationMember": "DMTI_SLI_21.csv",
+  "year": 2021,
+  "variable": "pm25_jan_21",
+  "mode": "grid",
+  "view": "pg",
+  "gridKm": 1.0,
+  "sourceRows": 3718,
+  "features": 349,
+  "min": 9.5,
+  "max": 12.0,
+  "ndjson": "build/canue-map-layers/aqfpm_01_2021_pm25_jan_21_grid_pg.geojsonseq"
+}

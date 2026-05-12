@@ -15,6 +15,7 @@ import {
   type BoundarySource,
   type CensusBoundaryLevel,
   type CityBoundaryLevel,
+  type NrAdminBoundaryLevel,
   type RegionalDistrictBoundaryLevel,
   type RegionLevel,
   type WatershedBoundaryLevel,
@@ -29,6 +30,7 @@ import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   CITY_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
+  NR_ADMIN_BOUNDARY_LEVEL_OPTIONS,
   REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
   WATERSHED_BOUNDARY_LEVEL_OPTIONS,
   SCORE_BUILDER_EXAMPLES,
@@ -37,8 +39,10 @@ import {
   createMetricValueMap,
   getScorePaletteProfile,
   getScoreDataSourcesForWeights,
+  getWalkabilityReportMiColor,
   LOW_COST_NETWORKS,
   SCORE_PRESETS,
+  WALKABILITY_REPORT_MI_BANDS,
   encodeWeightsToParams,
   decodeWeightsFromParams,
 } from './constants'
@@ -361,13 +365,17 @@ const REGIONAL_DISTRICT_BOUNDARY_LEVEL_VALUES = new Set<RegionalDistrictBoundary
 const WATERSHED_BOUNDARY_LEVEL_VALUES = new Set<WatershedBoundaryLevel>(
   WATERSHED_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
+const NR_ADMIN_BOUNDARY_LEVEL_VALUES = new Set<NrAdminBoundaryLevel>(
+  NR_ADMIN_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
 
 function parseBoundarySource(value: string | null): BoundarySource {
   return value === 'bcHealth' ||
     value === 'regionalDistrict' ||
     value === 'census' ||
     value === 'cityPG' ||
-    value === 'watershed'
+    value === 'watershed' ||
+    value === 'nrAdmin'
     ? value
     : 'census'
 }
@@ -396,6 +404,10 @@ function parseWatershedBoundaryLevel(value: string | null): WatershedBoundaryLev
   return WATERSHED_BOUNDARY_LEVEL_VALUES.has(value as WatershedBoundaryLevel)
     ? (value as WatershedBoundaryLevel)
     : 'watershedGroup'
+}
+
+function parseNrAdminBoundaryLevel(value: string | null): NrAdminBoundaryLevel {
+  return NR_ADMIN_BOUNDARY_LEVEL_VALUES.has(value as NrAdminBoundaryLevel) ? (value as NrAdminBoundaryLevel) : 'nrArea'
 }
 
 function parseNormalizationMethod(value: string | null): ScoreMethodSettings['normalization'] {
@@ -489,6 +501,9 @@ export default function ScoreBuilderSection() {
   )
   const [watershedBoundaryLevel, setWatershedBoundaryLevel] = useState<WatershedBoundaryLevel>(() =>
     parseWatershedBoundaryLevel(searchParams.get('level')),
+  )
+  const [nrAdminBoundaryLevel, setNrAdminBoundaryLevel] = useState<NrAdminBoundaryLevel>(() =>
+    parseNrAdminBoundaryLevel(searchParams.get('level')),
   )
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
   const [regionInsightRegionId, setRegionInsightRegionId] = useState<string | null>(null)
@@ -597,7 +612,9 @@ export default function ScoreBuilderSection() {
           ? censusBoundaryLevel
           : boundarySource === 'cityPG'
             ? cityBoundaryLevel
-            : watershedBoundaryLevel,
+            : boundarySource === 'nrAdmin'
+              ? nrAdminBoundaryLevel
+              : watershedBoundaryLevel,
     )
     params.set('w', encodeWeightsToParams(weights))
     params.set('ds', enabledDataSources.join(','))
@@ -622,6 +639,7 @@ export default function ScoreBuilderSection() {
     censusBoundaryLevel,
     cityBoundaryLevel,
     watershedBoundaryLevel,
+    nrAdminBoundaryLevel,
     weights,
     enabledDataSources,
     mapSurface,
@@ -634,11 +652,13 @@ export default function ScoreBuilderSection() {
       ? healthBoundaryLevel
       : boundarySource === 'regionalDistrict'
         ? regionalDistrictBoundaryLevel
-      : boundarySource === 'census'
-        ? censusBoundaryLevel
-        : boundarySource === 'cityPG'
-          ? cityBoundaryLevel
-          : watershedBoundaryLevel
+        : boundarySource === 'census'
+          ? censusBoundaryLevel
+          : boundarySource === 'cityPG'
+            ? cityBoundaryLevel
+            : boundarySource === 'nrAdmin'
+              ? nrAdminBoundaryLevel
+              : watershedBoundaryLevel
 
   const boundaryLevelOptions = useMemo<Array<{ value: RegionLevel; label: string }>>(() => {
     if (boundarySource === 'bcHealth') {
@@ -661,6 +681,12 @@ export default function ScoreBuilderSection() {
     }
     if (boundarySource === 'watershed') {
       return WATERSHED_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+      }))
+    }
+    if (boundarySource === 'nrAdmin') {
+      return NR_ADMIN_BOUNDARY_LEVEL_OPTIONS.map((option) => ({
         value: option.value,
         label: option.label,
       }))
@@ -1437,12 +1463,6 @@ export default function ScoreBuilderSection() {
     return colors
   }, [densityMode, densityMetric, metricRanges, regionMetricRows])
 
-  const mapRegionFillColors = correlateMode
-    ? correlateRegionFillColors
-    : densityMode
-      ? densityRegionFillColors
-      : null
-
   const canUseWalkabilitySourceSurface = enabledSourceSet.has('walkability') && !correlateMode && !densityMode
   const showWalkabilitySourceSurface = canUseWalkabilitySourceSurface && mapSurface === 'source'
 
@@ -1613,6 +1633,21 @@ export default function ScoreBuilderSection() {
       (entry) => entry.region.name.toLowerCase().includes(query) || entry.region.code.toLowerCase().includes(query),
     )
   }, [scoredRegions, searchQuery])
+
+  const walkabilityBoundaryRegionFillColors = useMemo<Record<string, string> | null>(() => {
+    if (!canUseWalkabilitySourceSurface || showWalkabilitySourceSurface) return null
+    const colors: Record<string, string> = {}
+    for (const region of scoredRegions) {
+      colors[region.region.id] = getWalkabilityReportMiColor(region.score)
+    }
+    return colors
+  }, [canUseWalkabilitySourceSurface, scoredRegions, showWalkabilitySourceSurface])
+
+  const mapRegionFillColors = correlateMode
+    ? correlateRegionFillColors
+    : densityMode
+      ? densityRegionFillColors
+      : walkabilityBoundaryRegionFillColors
 
   const selectedRegion = useMemo(() => {
     if (!selectedRegionId) return null
@@ -2053,6 +2088,7 @@ export default function ScoreBuilderSection() {
       else if (boundarySource === 'regionalDistrict') setRegionalDistrictBoundaryLevel(parseRegionalDistrictBoundaryLevel(level))
       else if (boundarySource === 'census') setCensusBoundaryLevel(parseCensusBoundaryLevel(level))
       else if (boundarySource === 'cityPG') setCityBoundaryLevel(parseCityBoundaryLevel(level))
+      else if (boundarySource === 'nrAdmin') setNrAdminBoundaryLevel(parseNrAdminBoundaryLevel(level))
       else setWatershedBoundaryLevel(parseWatershedBoundaryLevel(level))
     },
     [boundarySource],
@@ -2461,27 +2497,28 @@ export default function ScoreBuilderSection() {
               <h4 className="mb-2 text-xs font-semibold text-foreground">
                 {showWalkabilitySourceSurface
                   ? 'Walkability source MI grid'
+                  : canUseWalkabilitySourceSurface
+                  ? 'Walkability boundary MI bands'
                   : methodSettings.aggregation === 'healthyPlanPairwisePriority'
                   ? 'HealthyPlan priority'
                   : scorePaletteProfile.label}
               </h4>
-              {showWalkabilitySourceSurface ? (
+              {showWalkabilitySourceSurface || canUseWalkabilitySourceSurface ? (
                 <>
                   <div className="grid grid-cols-5 overflow-hidden rounded border border-border">
-                    {['#4f9ad6', '#9ec99c', '#f5e451', '#e89c4a', '#d33b3b'].map((color) => (
-                      <div key={color} className="h-3" style={{ backgroundColor: color }} />
+                    {WALKABILITY_REPORT_MI_BANDS.map((band) => (
+                      <div key={band.label} className="h-3" style={{ backgroundColor: band.color }} />
                     ))}
                   </div>
                   <div className="mt-1 flex items-center justify-between gap-1 text-[9px] text-muted-foreground">
-                    <span>1-27</span>
-                    <span>28-45</span>
-                    <span>46-63</span>
-                    <span>64-82</span>
-                    <span>83+</span>
+                    {WALKABILITY_REPORT_MI_BANDS.map((band) => (
+                      <span key={band.label}>{band.label}</span>
+                    ))}
                   </div>
                   <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
-                    Showing the report-style citywide source grid. Click a boundary, or switch Map surface to Boundary
-                    map in Study area, to map the Index Lab equation by selected regions.
+                    {showWalkabilitySourceSurface
+                      ? 'Showing the report-style citywide source grid. Click a boundary, or switch Map surface to Boundary map in Study area, to map the Index Lab equation by selected regions.'
+                      : 'Boundary polygons use the same report-style Mobility Index bands as the source grid while mapping the Index Lab equation by selected regions.'}
                   </div>
                 </>
               ) : methodSettings.aggregation === 'healthyPlanPairwisePriority' ? (

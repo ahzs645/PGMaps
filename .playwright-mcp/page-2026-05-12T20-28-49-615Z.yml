@@ -1,0 +1,56 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - link "PGMaps" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img [ref=e9]
+          - generic [ref=e11]: PGMaps
+        - navigation [ref=e12]:
+          - link "Home" [ref=e13] [cursor=pointer]:
+            - /url: /
+            - img [ref=e14]
+            - generic [ref=e16]: Home
+          - link "Food Safety" [ref=e17] [cursor=pointer]:
+            - /url: /foodmap
+            - img [ref=e18]
+            - generic [ref=e23]: Food Safety
+          - link "Air Quality" [ref=e24] [cursor=pointer]:
+            - /url: /airquality
+            - img [ref=e25]
+            - generic [ref=e29]: Air Quality
+          - link "Parks & Trails" [ref=e30] [cursor=pointer]:
+            - /url: /pgdata?tab=parks
+            - img [ref=e31]
+            - generic [ref=e34]: Parks & Trails
+          - link "Census" [ref=e35] [cursor=pointer]:
+            - /url: /census
+            - img [ref=e36]
+            - generic [ref=e38]: Census
+          - link "Explorer" [ref=e39] [cursor=pointer]:
+            - /url: /explorer
+            - img [ref=e40]
+            - generic [ref=e44]: Explorer
+          - link "Index Lab" [ref=e45] [cursor=pointer]:
+            - /url: /score-builder
+            - img [ref=e46]
+            - generic [ref=e48]: Index Lab
+          - link "Assessment" [ref=e49] [cursor=pointer]:
+            - /url: /bc-assessment
+            - img [ref=e50]
+            - generic [ref=e54]: Assessment
+          - link "PG Data" [ref=e55] [cursor=pointer]:
+            - /url: /pgdata
+            - img [ref=e56]
+            - generic [ref=e58]: PG Data
+          - link "MISC" [ref=e59] [cursor=pointer]:
+            - /url: /misc
+            - img [ref=e60]
+            - generic [ref=e64]: MISC
+      - generic [ref=e65]:
+        - button "Open search" [ref=e66] [cursor=pointer]:
+          - img [ref=e67]
+        - button "Toggle theme" [ref=e70] [cursor=pointer]:
+          - img
+  - main [ref=e71]:
+    - generic [ref=e72]: Loading…
