@@ -6,7 +6,7 @@ const CANUE_V2_AGGREGATES_BASE_URL = 'https://data.map.ahmad.sh/canue/aggregates
 type BoundaryGeometry = GeoJSON.Polygon | GeoJSON.MultiPolygon
 type BoundaryCollection = GeoJSON.FeatureCollection<BoundaryGeometry>
 
-interface CanueAggregateRow {
+export interface CanueAggregateRow {
   boundaryId: string
   boundaryName: string
   values: Record<string, number>
@@ -37,6 +37,7 @@ export interface CanueV2AggregateResult {
   zoom: number | null
   capped: boolean
   url: string | null
+  aggregateRows: CanueAggregateRow[]
 }
 
 const EMPTY_RESULT: CanueV2AggregateResult = {
@@ -52,6 +53,7 @@ const EMPTY_RESULT: CanueV2AggregateResult = {
   zoom: null,
   capped: false,
   url: null,
+  aggregateRows: [],
 }
 
 function aggregateUrl(source: string, level: string, selection: CanueVariableSelection) {
@@ -63,12 +65,16 @@ export function useCanueV2AggregateData({
   level,
   selection,
   boundaries,
+  idField,
+  nameField,
   enabled,
 }: {
   source: string
   level: string
   selection: CanueVariableSelection | null
   boundaries: BoundaryCollection | null
+  idField: string
+  nameField: string
   enabled: boolean
 }): CanueV2AggregateResult {
   const [result, setResult] = useState<CanueV2AggregateResult>(EMPTY_RESULT)
@@ -97,7 +103,7 @@ export function useCanueV2AggregateData({
         let matchedFeatureCount = 0
 
         const features = activeBoundaries.features.filter((feature) => feature.geometry).map((feature, index) => {
-          const id = String(feature.properties?.boundaryId ?? feature.id ?? index)
+          const id = String(feature.properties?.[idField] ?? feature.properties?.boundaryId ?? feature.id ?? index)
           const row = rowByBoundaryId.get(id)
           const value = row?.values?.[activeSelection.property] ?? null
           if (Number.isFinite(value)) {
@@ -114,7 +120,7 @@ export function useCanueV2AggregateData({
             properties: {
               ...feature.properties,
               boundaryId: id,
-              boundaryName: row?.boundaryName ?? String(feature.properties?.name ?? feature.id ?? index),
+              boundaryName: row?.boundaryName ?? String(feature.properties?.[nameField] ?? feature.properties?.name ?? feature.id ?? index),
               datasetId: activeSelection.dataset,
               datasetLabel: activeSelection.dataset,
               family: activeSelection.family,
@@ -142,6 +148,7 @@ export function useCanueV2AggregateData({
           zoom: null,
           capped: false,
           url,
+          aggregateRows: aggregate.rows,
         })
       } catch (error) {
         if ((error as Error).name === 'AbortError') return
@@ -151,7 +158,7 @@ export function useCanueV2AggregateData({
 
     void load()
     return () => controller.abort()
-  }, [boundaries, enabled, level, selection, source])
+  }, [boundaries, enabled, idField, level, nameField, selection, source])
 
   return result
 }

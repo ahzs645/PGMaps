@@ -149,6 +149,7 @@ type SelectOption = {
   value: string
   label: React.ReactNode
   disabled?: boolean
+  title?: string
 }
 
 type AppSelectProps = {
@@ -196,6 +197,7 @@ function AppSelect({
               key={option.value || EMPTY_SELECT_VALUE}
               value={option.value === '' ? EMPTY_SELECT_VALUE : option.value}
               disabled={option.disabled}
+              title={option.title}
             >
               {option.label}
             </SelectItem>
