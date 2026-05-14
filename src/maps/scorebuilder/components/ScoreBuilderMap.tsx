@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Map as PgMap, MapClusterLayer, MapControls, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -6,7 +6,7 @@ import { useMap } from '@/components/ui/map'
 import { useJsonManifest } from '@/maps/pgdata/shared'
 import type { AirMonitor } from '@/maps/airquality'
 import { WALKABILITY_REPORT_MI_COLORS } from '../constants'
-import type { ScoredBoundaryRegion } from '../types'
+import type { ScoreMetricKey, ScoreMetricWeightMap, ScoredBoundaryRegion } from '../types'
 
 interface ScoreBuilderMapProps {
   regions: ScoredBoundaryRegion[]
@@ -16,6 +16,7 @@ interface ScoreBuilderMapProps {
   onRegionClick: (regionId: string) => void
   regionFillColors?: Record<string, string> | null
   walkabilitySourceSurface?: boolean
+  sourceGridWeights?: ScoreMetricWeightMap
 }
 
 interface WalkabilityGridData {
@@ -25,6 +26,60 @@ interface WalkabilityGridData {
   bandColors?: Record<string, string>
   defaultVariant: string
   grids: Record<string, Array<[number, number]>>
+}
+
+interface WalkabilityLiveGrid {
+  rows: number
+  cols: number
+  imageCoordinates: [[number, number], [number, number], [number, number], [number, number]]
+  rle: Array<[number, number]>
+}
+
+interface WalkabilityLiveGridState {
+  status: 'idle' | 'loading' | 'ready' | 'error'
+  requestKey: string
+  grid: WalkabilityLiveGrid | null
+}
+
+const WALKABILITY_REPORT_FACTOR_REFS = [
+  'A0', 'A1', 'A2', 'A3', 'A4', 'A5',
+  'B0', 'B1', 'B2', 'B3',
+  'C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6',
+  'D0', 'D1', 'D2', 'D3', 'D4',
+  'E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6',
+  'F0', 'F1', 'F2', 'F3', 'F4', 'F6', 'F7', 'F8', 'F9',
+  'G0', 'G1', 'G2', 'G3', 'G4', 'G5',
+]
+
+const SCORE_METRIC_TO_REPORT_REFS: Partial<Record<ScoreMetricKey, string[]>> = {
+  sidewalkDensity: ['G1', 'G5'],
+  walkwayDensity: ['G1'],
+  walkabilityIntersectionDensity: ['F1', 'G2', 'G3', 'G4', 'G5'],
+  walkabilityCrossingDensity: ['F0'],
+  class3CrosswalkDensity: ['F0'],
+  childcareDensity: ['C0'],
+  transitStopDensity: ['F9', 'G0'],
+  accessibleTransitStopDensity: ['F9', 'G0'],
+  frequentTransitStopAccess: ['F9', 'G0'],
+  accessibleFrequentTransitAccess: ['F9', 'G0'],
+  transitServiceSpan: ['F9', 'G0'],
+  transitTripsPerStop: ['F9', 'G0'],
+  parkWalk10Access: ['A2', 'A3', 'A4', 'A5'],
+  parkWalk20Access: ['A2', 'A3', 'A4', 'A5'],
+  parkTransit20Access: ['A2', 'A3', 'A4', 'A5', 'F9', 'G0'],
+  walkabilityPoiDensity: [
+    'A0', 'A1', 'B0', 'B1', 'B2', 'B3',
+    'C1', 'C2', 'C3', 'C4', 'C5', 'C6',
+    'D0', 'D1', 'D2', 'D3', 'D4',
+    'E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6',
+  ],
+}
+
+const LIVE_GRID_OPTIONS = {
+  dropGtfsHf: true,
+  narrowCivic: true,
+  narrowGrowth: true,
+  dropPopAge: true,
 }
 
 const ZOOM = 12
@@ -37,6 +92,7 @@ export function ScoreBuilderMap({
   onRegionClick,
   regionFillColors = null,
   walkabilitySourceSurface = false,
+  sourceGridWeights,
 }: ScoreBuilderMapProps) {
   const mapRef = useRef<MapRef>(null)
 
@@ -105,7 +161,7 @@ export function ScoreBuilderMap({
       <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES}>
         <MapControls position="top-right" showZoom showCompass />
 
-        {walkabilitySourceSurface && <ScoreBuilderWalkabilitySourceGrid />}
+        {walkabilitySourceSurface && <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} />}
 
         <MapFillLayer
           data={featureCollection}
@@ -141,21 +197,88 @@ function hexToRgba(hex: string, alpha = 217): [number, number, number, number] {
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255, alpha]
 }
 
-function ScoreBuilderWalkabilitySourceGrid() {
+function buildSourceGridFactorWeights(weights?: ScoreMetricWeightMap): Record<string, number> {
+  const factorScores = Object.fromEntries(WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, 0])) as Record<string, number>
+  if (!weights) return factorScores
+
+  for (const [metricKey, weight] of Object.entries(weights) as Array<[ScoreMetricKey, number]>) {
+    if (!weight) continue
+    const refs = SCORE_METRIC_TO_REPORT_REFS[metricKey]
+    if (!refs?.length) continue
+    const contribution = weight / refs.length
+    for (const ref of refs) {
+      factorScores[ref] = Math.max(0, (factorScores[ref] ?? 0) + contribution)
+    }
+  }
+
+  const maxScore = Math.max(...Object.values(factorScores))
+  if (maxScore <= 0) return factorScores
+  return Object.fromEntries(
+    WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, Math.max(0, Math.min(2, (factorScores[ref] / maxScore) * 2))]),
+  )
+}
+
+function ScoreBuilderWalkabilitySourceGrid({ weights }: { weights?: ScoreMetricWeightMap }) {
   const { map, isLoaded } = useMap()
   const grid = useJsonManifest<WalkabilityGridData>('/data/walkability/heatmap/citywide_mi_grid.json')
   const sourceId = 'score-builder-walkability-source-grid'
   const layerId = 'score-builder-walkability-source-grid-layer'
+  const factorWeights = useMemo(() => buildSourceGridFactorWeights(weights), [weights])
+  const liveRequestKey = useMemo(
+    () => JSON.stringify({ options: LIVE_GRID_OPTIONS, factorWeights }),
+    [factorWeights],
+  )
+  const [liveGrid, setLiveGrid] = useState<WalkabilityLiveGridState>({
+    status: 'idle',
+    requestKey: '',
+    grid: null,
+  })
+
+  useEffect(() => {
+    if (!grid.data) return
+    let cancelled = false
+    const requestKey = liveRequestKey
+    const worker = new Worker(new URL('../../pgdata/walkabilityLiveHeatmap.worker.js', import.meta.url), {
+      type: 'module',
+    })
+    worker.onmessage = (event: MessageEvent) => {
+      if (cancelled) return
+      const message = event.data as {
+        type: 'result' | 'error' | 'progress'
+        requestKey: string
+        grid?: WalkabilityLiveGrid
+      }
+      if (message.requestKey !== requestKey) return
+      if (message.type === 'result' && message.grid) {
+        setLiveGrid({ status: 'ready', requestKey, grid: message.grid })
+      }
+      if (message.type === 'error') {
+        setLiveGrid({ status: 'error', requestKey, grid: null })
+      }
+    }
+    worker.onerror = () => {
+      if (!cancelled) setLiveGrid({ status: 'error', requestKey, grid: null })
+    }
+    worker.postMessage({ type: 'compute', requestKey, options: { ...LIVE_GRID_OPTIONS, factorWeights } })
+    return () => {
+      cancelled = true
+      worker.terminate()
+    }
+  }, [factorWeights, grid.data, liveRequestKey])
 
   useEffect(() => {
     const data = grid.data
+    const activeLiveGrid = liveGrid.status === 'ready' && liveGrid.requestKey === liveRequestKey ? liveGrid.grid : null
+    const rows = activeLiveGrid?.rows ?? data?.rows
+    const cols = activeLiveGrid?.cols ?? data?.cols
+    const imageCoordinates = activeLiveGrid?.imageCoordinates ?? data?.imageCoordinates
     const variantKey = data?.grids.report_fidelity ? 'report_fidelity' : data?.defaultVariant
-    const rle = variantKey ? data?.grids[variantKey] : null
-    if (!isLoaded || !map || !data || !rle) return
+    const rle = activeLiveGrid?.rle ?? (variantKey ? data?.grids[variantKey] : null)
+    if (!isLoaded || !map || !data || !rows || !cols || !imageCoordinates || !rle) return
 
     const canvas = document.createElement('canvas')
-    canvas.width = data.cols
-    canvas.height = data.rows
+    canvas.width = cols
+    canvas.height = rows
     const context = canvas.getContext('2d')
     if (!context) return
 
@@ -167,7 +290,7 @@ function ScoreBuilderWalkabilitySourceGrid() {
       5: WALKABILITY_REPORT_MI_COLORS[4],
     }
     const colors = data.bandColors ?? fallbackColors
-    const image = context.createImageData(data.cols, data.rows)
+    const image = context.createImageData(cols, rows)
     let pixel = 0
     for (const [value, count] of rle) {
       const sourceColor = colors[String(value)] ?? fallbackColors[String(value)]
@@ -188,7 +311,7 @@ function ScoreBuilderWalkabilitySourceGrid() {
     map.addSource(sourceId, {
       type: 'image',
       url: canvas.toDataURL('image/png'),
-      coordinates: data.imageCoordinates,
+      coordinates: imageCoordinates,
     })
     map.addLayer(
       {
@@ -211,7 +334,7 @@ function ScoreBuilderWalkabilitySourceGrid() {
         // Map may already be tearing down.
       }
     }
-  }, [grid.data, isLoaded, map])
+  }, [grid.data, isLoaded, liveGrid, liveRequestKey, map])
 
   return null
 }

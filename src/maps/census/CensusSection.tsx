@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { MapLegendPanel } from '@/components/ui/map-panels'
+import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { CensusMap } from './components/CensusMap'
 import { CensusSidebar } from './components/CensusSidebar'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS } from './constants'
@@ -181,25 +181,16 @@ export default function CensusSection() {
           variableValuesByGeoUid={variableValuesByGeoUid}
         />
 
-        <MapLegendPanel className="max-w-[220px]">
-          <h4 className="mb-1 text-xs font-semibold text-foreground">{selectedHierarchyLabel}</h4>
-          <h5 className="mb-2 line-clamp-2 text-xs text-muted-foreground">{selectedMetricLabel}</h5>
+        <MapLegendPanel
+          className="max-w-[220px]"
+          title={selectedHierarchyLabel}
+          description={selectedMetricLabel}
+          collapsible
+        >
           {variableLoading && (
             <div className="mb-2 text-[10px] text-amber-600">Loading variable data...</div>
           )}
-          <div className="flex items-center gap-1.5">
-            {LEGEND_SWATCHES.map((color) => (
-              <span
-                key={color}
-                className="h-3 w-6 rounded-sm border border-black/10 dark:border-white/10"
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </div>
-          <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-            <span>Low</span>
-            <span>High</span>
-          </div>
+          <MapGradientLegendItem colors={LEGEND_SWATCHES} minLabel="Low" maxLabel="High" />
         </MapLegendPanel>
       </div>
     </MapSectionLayout>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { MapLegendPanel } from '@/components/ui/map-panels'
+import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { BcAssessmentMap } from './components/BcAssessmentMap'
 import { BcAssessmentSidebar } from './components/BcAssessmentSidebar'
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
@@ -217,17 +217,13 @@ export default function BcAssessmentSection() {
 
         {/* Legend */}
         {legendItems.length > 0 && (
-          <MapLegendPanel>
-            <h4 className="mb-2 text-xs font-semibold text-foreground">
-              {boundaryLevel !== 'none' ? 'Avg ' : ''}
-              {colorMetric === 'yearBuilt' ? 'Year Built' : 'Assessed Value'}
-            </h4>
+          <MapLegendPanel
+            title={`${boundaryLevel !== 'none' ? 'Avg ' : ''}${colorMetric === 'yearBuilt' ? 'Year Built' : 'Assessed Value'}`}
+            collapsible
+          >
             <div className="space-y-1">
               {legendItems.map((item) => (
-                <div key={item.label} className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: item.color }} />
-                  <span className="text-xs text-muted-foreground">{item.label}</span>
-                </div>
+                <LegendItem key={item.label} color={item.color} label={item.label} />
               ))}
             </div>
           </MapLegendPanel>

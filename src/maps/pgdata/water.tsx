@@ -5,7 +5,7 @@ import { point } from '@turf/helpers'
 import { Droplets } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
-import { InlineAlert, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, LegendItem, MapGradientLegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { StudyAreaSelector, type StudyAreaLevelOption, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
@@ -2003,29 +2003,17 @@ export function WaterLegend({ water }: { water: WaterState }) {
         <span className="font-medium text-foreground">Drinking water</span>
         <span className="tabular-nums text-[10px]">{water.mappedFacilities.length.toLocaleString()} mapped</span>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded-full bg-blue-600" />
-        <span>Facility</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded-full bg-cyan-600" />
-        <span>Sampling activity</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded-full bg-red-600" />
-        <span>Active notice</span>
-      </div>
+      <LegendItem color="#2563eb" label="Facility" />
+      <LegendItem color="#0891b2" label="Sampling activity" />
+      <LegendItem color="#dc2626" label="Active notice" />
       {water.showBoundaries && (
         <>
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-sm border border-sky-600 bg-sky-300/30" />
-            <span>{getBoundaryMetricLabel(water.boundaryMetric)}</span>
-          </div>
-          <div className="h-2 rounded bg-gradient-to-r from-sky-100 via-sky-400 to-sky-800" />
-          <div className="flex items-center justify-between text-[10px]">
-            <span>0</span>
-            <span>{formatMetricValue(water.boundaryMaxValue, water.boundaryMetric)}</span>
-          </div>
+          <LegendItem color="#7dd3fc" label={getBoundaryMetricLabel(water.boundaryMetric)} />
+          <MapGradientLegendItem
+            colors={['#e0f2fe', '#38bdf8', '#075985']}
+            minLabel="0"
+            maxLabel={formatMetricValue(water.boundaryMaxValue, water.boundaryMetric)}
+          />
         </>
       )}
     </div>

@@ -113,7 +113,7 @@ function SelectedMonitorDetails({
 
   return (
     <div>
-      <div className="text-sm font-semibold text-foreground">{monitor.name}</div>
+      <div className="pr-5 text-sm font-semibold text-foreground">{monitor.name}</div>
       <div className="text-xs text-muted-foreground">
         {[monitor.city, monitor.province].filter(Boolean).join(', ') || 'Location available'}
       </div>
@@ -555,9 +555,9 @@ export function AirQualityMap({
               onClose={onMonitorClear}
               className={selectedMonitorsAtLocation.length > 1 ? 'max-w-sm' : 'max-w-xs'}
             >
-              <div className="pr-6">
+              <div>
                 {selectedMonitorsAtLocation.length > 1 && (
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <div className="mb-2 pr-5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {selectedMonitorsAtLocation.length} sensors at this location
                   </div>
                 )}

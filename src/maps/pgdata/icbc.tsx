@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { InlineAlert, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, LegendItem, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -460,13 +460,7 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
             <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Crash type</div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
               {ICBC_CRASH_TYPE_LEGEND.map((item) => (
-                <div key={item.label} className="flex items-center gap-1.5">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full border border-white shadow-sm"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span>{item.label}</span>
-                </div>
+                <LegendItem key={item.label} color={item.color} label={item.label} />
               ))}
             </div>
           </div>
@@ -483,11 +477,7 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
       )}
       {icbc.showHeatmap && (
         <div className={cn(icbc.showPoints && 'border-t border-border pt-2')}>
-          <div className="h-3 w-full rounded-sm border border-border bg-gradient-to-r from-sky-300 via-yellow-300 to-red-600" aria-hidden="true" />
-          <div className="mt-1 flex justify-between text-[10px]">
-            <span>Lower density</span>
-            <span>Higher density</span>
-          </div>
+          <MapGradientLegendItem colors={['#7dd3fc', '#fde047', '#dc2626']} minLabel="Lower density" maxLabel="Higher density" />
         </div>
       )}
       {!icbc.showPoints && !icbc.showHeatmap && (

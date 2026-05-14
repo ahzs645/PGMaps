@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import area from '@turf/area'
 import bbox from '@turf/bbox'
@@ -7,6 +7,7 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import convex from '@turf/convex'
 import { featureCollection, point } from '@turf/helpers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { AirQualityMap } from './components/AirQualityMap'
 import { AirQualitySidebar } from './components/AirQualitySidebar'
 import { getNetworkColor } from './constants'
@@ -371,6 +372,7 @@ export default function AirQualitySection() {
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [showSidebar, setShowSidebar] = useState(true)
   const [mapBounds, setMapBounds] = useState<AirQualityMapBounds | null>(null)
+  const closedMonitorIdRef = useRef<string | null>(null)
 
   const {
     regions: studyAreaRegions,
@@ -419,8 +421,11 @@ export default function AirQualitySection() {
     else params.delete('model')
     if (boundaryColorMetric !== 'sensorCount') params.set('poly', boundaryColorMetric)
     else params.delete('poly')
-    if (selectedMonitor) params.set('monitor', selectedMonitor.id)
-    else params.delete('monitor')
+    if (selectedMonitor) {
+      params.set('monitor', selectedMonitor.id)
+    } else if (closedMonitorIdRef.current === params.get('monitor')) {
+      params.delete('monitor')
+    }
     if (showBoundaries && selectedRegionCode) params.set('region', selectedRegionCode)
     else params.delete('region')
     if (params.toString() !== searchParams.toString()) {
@@ -660,9 +665,16 @@ export default function AirQualitySection() {
   useEffect(() => {
     const monitorId = searchParams.get('monitor')
     if (!monitorId || selectedMonitor) return
+    if (closedMonitorIdRef.current === monitorId) return
     const monitor = monitors.find((item) => item.id === monitorId)
     if (monitor) setSelectedMonitor(monitor)
   }, [monitors, searchParams, selectedMonitor])
+
+  useEffect(() => {
+    if (!searchParams.get('monitor')) {
+      closedMonitorIdRef.current = null
+    }
+  }, [searchParams])
 
   const toggleNetwork = useCallback((network: string) => {
     setSelectedNetworks((current) => {
@@ -691,6 +703,14 @@ export default function AirQualitySection() {
   const handleBoundsChange = useCallback((bounds: AirQualityMapBounds) => {
     setMapBounds(bounds)
   }, [])
+
+  const handleMonitorClear = useCallback(() => {
+    closedMonitorIdRef.current = selectedMonitor?.id ?? null
+    setSelectedMonitor(null)
+    const params = new URLSearchParams(searchParams)
+    params.delete('monitor')
+    setSearchParams(params, { replace: true })
+  }, [searchParams, selectedMonitor, setSearchParams])
 
   const handleRegionLevelChange = useCallback((level: RegionLevel) => {
     setShowBoundaries(true)
@@ -800,28 +820,23 @@ export default function AirQualitySection() {
           onBoundsChange={handleBoundsChange}
           onMonitorClick={setSelectedMonitor}
           onBrowseBoundaryClick={handleBrowseBoundaryClick}
-          onMonitorClear={() => setSelectedMonitor(null)}
+          onMonitorClear={handleMonitorClear}
         />
 
-        <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-4 z-10 max-w-[240px] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+        <MapLegendPanel className="max-w-[240px]" title="Legend" collapsible>
           <div className="space-y-3">
             {boundaryLegendStats && (
               <div className="space-y-1">
                 <h4 className="text-xs font-semibold text-foreground">
                   {REGION_LEVEL_LABELS[selectedRegionLevel] ?? 'Study'} areas ({boundaryLegendStats.areaCount})
                 </h4>
-                <div
-                  className="h-2 w-40 rounded"
-                  style={{
-                    background: boundaryColorMetric === 'correctedPm25' || boundaryColorMetric === 'rawPm25'
-                      ? 'linear-gradient(90deg, #dcfce7 0%, #fde047 35%, #fb923c 70%, #b91c1c 100%)'
-                      : 'linear-gradient(90deg, #e0f2fe 0%, #7dd3fc 35%, #0ea5e9 70%, #0369a1 100%)',
-                  }}
+                <MapGradientLegendItem
+                  colors={boundaryColorMetric === 'correctedPm25' || boundaryColorMetric === 'rawPm25'
+                    ? ['#dcfce7', '#fde047', '#fb923c', '#b91c1c']
+                    : ['#e0f2fe', '#7dd3fc', '#0ea5e9', '#0369a1']}
+                  minLabel={getBoundaryMetricLabel(boundaryColorMetric)}
+                  maxLabel={`${formatBoundaryMetricValue(boundaryLegendStats.maxColorValue, boundaryColorMetric)} max`}
                 />
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>{getBoundaryMetricLabel(boundaryColorMetric)}</span>
-                  <span>{formatBoundaryMetricValue(boundaryLegendStats.maxColorValue, boundaryColorMetric)} max</span>
-                </div>
                 <div className="pt-1 text-xs text-muted-foreground">
                   {boundaryLegendStats.monitoredAreaCount.toLocaleString()} of {boundaryLegendStats.areaCount.toLocaleString()} areas have monitors
                 </div>
@@ -834,16 +849,7 @@ export default function AirQualitySection() {
             {showHeatmap && (
               <div className="space-y-1 border-t border-border pt-3 first:border-t-0 first:pt-0">
                 <h4 className="text-xs font-semibold text-foreground">Heatmap</h4>
-                <div
-                  className="h-2 w-40 rounded"
-                  style={{
-                    background: 'linear-gradient(90deg, #0ea5e9 0%, #22c55e 60%, #ef4444 100%)',
-                  }}
-                />
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>Low</span>
-                  <span>High</span>
-                </div>
+                <MapGradientLegendItem colors={['#0ea5e9', '#22c55e', '#ef4444']} minLabel="Low" maxLabel="High" />
               </div>
             )}
 
@@ -855,10 +861,7 @@ export default function AirQualitySection() {
                 {visibleLegendNetworks.length > 0 ? (
                   <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
                     {visibleLegendNetworks.map((network) => (
-                      <div key={network} className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: getNetworkColor(network) }} />
-                        <span className="text-xs text-muted-foreground">{network}</span>
-                      </div>
+                      <LegendItem key={network} color={getNetworkColor(network)} label={network} />
                     ))}
                   </div>
                 ) : (
@@ -867,7 +870,7 @@ export default function AirQualitySection() {
               </div>
             )}
           </div>
-        </div>
+        </MapLegendPanel>
       </div>
     </MapSectionLayout>
   )

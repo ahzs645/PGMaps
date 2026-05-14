@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PawPrint } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { InlineAlert, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -547,11 +547,7 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
       )}
       {wars.showHeatmap && (
         <div className={cn(wars.showPoints && 'border-t border-border pt-2')}>
-          <div className="h-3 w-full rounded-sm border border-border bg-gradient-to-r from-cyan-300 via-yellow-300 to-red-600" aria-hidden="true" />
-          <div className="mt-1 flex justify-between text-[10px]">
-            <span>Lower density</span>
-            <span>Higher density</span>
-          </div>
+          <MapGradientLegendItem colors={['#67e8f9', '#fde047', '#dc2626']} minLabel="Lower density" maxLabel="Higher density" />
           <div className="mt-2 text-[10px]">Heatmap aggregates all selected species.</div>
         </div>
       )}

@@ -692,7 +692,7 @@ function MapPmtilesFillLayer({
         // Map already destroyed during unmount
       }
     }
-  }, [fillColor, fillLayerId, fillOpacity, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map, sourceId, sourceLayer, url, visible])
+  }, [fillLayerId, isLoaded, lineLayerId, map, sourceId, sourceLayer, url])
 
   useEffect(() => {
     if (!isLoaded || !map) return

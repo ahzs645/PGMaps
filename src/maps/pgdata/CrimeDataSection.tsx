@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { CrimeMap } from './components/CrimeMap'
 import { CrimeSidebar } from './components/CrimeSidebar'
 import { Timeline } from '@/components/ui/timeline'
@@ -264,25 +265,17 @@ export default function CrimeDataSection() {
         )}
 
         {/* Legend */}
-        <div
+        <MapLegendPanel
           className={cn(
-            'absolute right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:right-6',
             timelineEnabled
               ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
               : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] md:bottom-6'
           )}
+          title={showCrimeLayer && showHeatmap ? 'Heatmap (Crime Density)' : 'Legend'}
+          collapsible
         >
           {showCrimeLayer && showHeatmap ? (
-            <>
-              <h4 className="mb-2 text-xs font-semibold text-foreground">Heatmap (Crime Density)</h4>
-              <div className="space-y-1">
-                <div className="h-2 w-40 rounded bg-gradient-to-r from-blue-500 via-green-500 via-40% via-yellow-500 via-60% to-red-500" />
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>Low</span>
-                  <span>High</span>
-                </div>
-              </div>
-            </>
+            <MapGradientLegendItem colors={['#3b82f6', '#22c55e', '#eab308', '#ef4444']} minLabel="Low" maxLabel="High" />
           ) : (
             <div className="space-y-2">
               {/* Point legends */}
@@ -291,10 +284,7 @@ export default function CrimeDataSection() {
                   <h4 className="mb-1 text-xs font-semibold text-foreground">Layers</h4>
                   <div className="space-y-1">
                     {legendItems.map((item) => (
-                      <div key={item.label} className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-xs text-muted-foreground">{item.label}</span>
-                      </div>
+                      <LegendItem key={item.label} color={item.color} label={item.label} />
                     ))}
                   </div>
                 </div>
@@ -306,20 +296,16 @@ export default function CrimeDataSection() {
                   <h4 className="mb-1 text-xs font-semibold text-foreground">
                     {selectedVariableLabel}
                   </h4>
-                  <div className="flex h-2 w-40 overflow-hidden rounded">
-                    {COLOR_SCALES.purple.map((color) => (
-                      <div key={color} className="flex-1" style={{ backgroundColor: color }} />
-                    ))}
-                  </div>
-                  <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>{censusOverlay.legendMin.toLocaleString()}</span>
-                    <span>{censusOverlay.legendMax.toLocaleString()}</span>
-                  </div>
+                  <MapGradientLegendItem
+                    colors={[...COLOR_SCALES.purple]}
+                    minLabel={censusOverlay.legendMin.toLocaleString()}
+                    maxLabel={censusOverlay.legendMax.toLocaleString()}
+                  />
                 </div>
               )}
             </div>
           )}
-        </div>
+        </MapLegendPanel>
       </div>
     </MapSectionLayout>
   )

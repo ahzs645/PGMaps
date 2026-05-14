@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react'
-import { ChevronLeft, ChevronRight, Pause, Play, SkipBack } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 
@@ -178,25 +178,14 @@ export function Timeline({
 
   const isVirtualized = buckets.length > MAX_VISIBLE_BUCKETS
   const visibleSize = isVirtualized ? MAX_VISIBLE_BUCKETS : buckets.length
-  const [visibleStart, setVisibleStart] = useState(0)
-
-  useEffect(() => {
-    if (!isVirtualized) {
-      if (visibleStart !== 0) setVisibleStart(0)
-      return
-    }
+  const visibleStart = useMemo(() => {
+    if (!isVirtualized) return 0
     const maxStart = Math.max(0, buckets.length - visibleSize)
-    const positionInView = currentIndex - visibleStart
-    let nextStart: number | null = null
-    if (positionInView > visibleSize * VIEW_SHIFT_TRIGGER) {
-      nextStart = currentIndex - Math.floor(visibleSize * VIEW_SHIFT_TARGET)
-    } else if (positionInView < visibleSize * (1 - VIEW_SHIFT_TRIGGER)) {
-      nextStart = currentIndex - Math.floor(visibleSize * (1 - VIEW_SHIFT_TARGET))
-    }
-    if (nextStart === null) return
-    nextStart = Math.max(0, Math.min(maxStart, nextStart))
-    if (nextStart !== visibleStart) setVisibleStart(nextStart)
-  }, [currentIndex, isVirtualized, visibleSize, buckets.length, visibleStart])
+    const targetIndex = currentIndex > visibleSize * VIEW_SHIFT_TRIGGER
+      ? currentIndex - Math.floor(visibleSize * VIEW_SHIFT_TARGET)
+      : 0
+    return Math.max(0, Math.min(maxStart, targetIndex))
+  }, [buckets.length, currentIndex, isVirtualized, visibleSize])
 
   const visibleBuckets = useMemo(() => {
     if (!isVirtualized) return buckets
@@ -273,6 +262,14 @@ export function Timeline({
     setIsPlaying(false)
   }, [startDate, onDateChange, granularity])
 
+  const jumpToEnd = useCallback(() => {
+    const endBucket = buckets[maxPosition]
+    if (endBucket) {
+      onDateChange(endBucket.start)
+      setIsPlaying(false)
+    }
+  }, [buckets, maxPosition, onDateChange])
+
   const handleSliderChange = useCallback(
     ([idx]: number[]) => {
       if (buckets[idx]) {
@@ -333,24 +330,78 @@ export function Timeline({
 
   const windowOptions = windowMode?.options ?? DEFAULT_WINDOW_OPTIONS
   const shouldUseCompactBars = compactBars || granularity === 'week'
+  const controlButtonClass =
+    'flex size-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30'
 
   return (
     <div
       ref={timelineRef}
       data-map-timeline="true"
-      className="absolute left-0 right-0 z-20 border-t border-border bg-background/95 backdrop-blur"
-      style={{ bottom: 'var(--map-mobile-sheet-visible-height, 0px)' } as CSSProperties}
+      className="absolute inset-x-3 z-20 md:inset-x-6"
+      style={{ bottom: 'calc(var(--map-mobile-sheet-visible-height, 0px) + 0.75rem)' } as CSSProperties}
     >
-      <div className="px-4 py-3">
-        <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div className="flex w-full min-w-0 items-baseline justify-between gap-3 sm:w-auto sm:justify-start">
-            <div className="min-w-0 truncate text-sm font-semibold text-foreground">{formattedDate}</div>
-            {statsLabel && (
-              <div className="shrink-0 text-xs text-muted-foreground">{statsLabel}</div>
-            )}
+      <div className="rounded-xl border border-border/60 bg-background/95 p-3 shadow-xl backdrop-blur-sm md:p-4">
+        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={reset}
+                className={controlButtonClass}
+                aria-label="Reset to start"
+                title="Reset to start"
+              >
+                <SkipBack className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={stepBackward}
+                disabled={currentIndex === 0}
+                className={controlButtonClass}
+                aria-label={`Previous ${unitLabel}`}
+                title={`Previous ${unitLabel}`}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setIsPlaying((p) => !p)}
+                className={cn(
+                  'flex size-9 items-center justify-center rounded-full border transition-colors',
+                  isPlaying
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+                title={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
+              </button>
+              <button
+                onClick={stepForward}
+                disabled={currentIndex >= maxPosition}
+                className={controlButtonClass}
+                aria-label={`Next ${unitLabel}`}
+                title={`Next ${unitLabel}`}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={jumpToEnd}
+                disabled={currentIndex >= maxPosition}
+                className={controlButtonClass}
+                aria-label="Jump to end"
+                title="Jump to end"
+              >
+                <SkipForward className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div className="min-w-0 rounded-md border border-primary/50 bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+              <span className="block truncate">{formattedDate}</span>
+            </div>
+
+            {statsLabel && <div className="text-xs text-muted-foreground">{statsLabel}</div>}
           </div>
 
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 lg:ml-auto lg:justify-end">
             {windowMode && (
               <div className="grid flex-1 grid-cols-4 gap-1 rounded-md border border-input p-0.5 sm:flex sm:flex-none sm:items-center">
                 {windowOptions.map((opt) => (
@@ -370,7 +421,7 @@ export function Timeline({
               </div>
             )}
 
-            <div className="hidden items-center gap-1 rounded-md border border-input p-0.5 sm:flex">
+            <div className="flex items-center gap-1 rounded-md border border-input p-0.5">
               {SPEED_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
@@ -390,9 +441,11 @@ export function Timeline({
             {onClose && (
               <button
                 onClick={onClose}
-                className="shrink-0 rounded border border-input px-3 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:px-2 sm:py-0.5"
+                className="flex size-8 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                aria-label="Close timeline"
+                title="Close timeline"
               >
-                Close
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
@@ -466,42 +519,6 @@ export function Timeline({
         )}
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={reset}
-            className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Reset to start"
-          >
-            <SkipBack className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={stepBackward}
-            disabled={currentIndex === 0}
-            className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
-            aria-label={`Previous ${unitLabel}`}
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => setIsPlaying((p) => !p)}
-            className={cn(
-              'rounded p-1 transition-colors',
-              isPlaying
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            )}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            onClick={stepForward}
-            disabled={currentIndex >= maxPosition}
-            className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30"
-            aria-label={`Next ${unitLabel}`}
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
-
           <Slider
             min={0}
             max={maxPosition}

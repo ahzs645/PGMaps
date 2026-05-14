@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { ElementType } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ElementType, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BarChart3, ChevronDown, ChevronUp, Database, Droplets, Footprints, Layers, PawPrint, Satellite, ShieldAlert, Trees, X } from 'lucide-react'
+import { BarChart3, CalendarDays, ChevronDown, ChevronUp, Database, Droplets, Footprints, Info, Layers, PawPrint, Satellite, ShieldAlert, Trees, X } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -35,7 +35,7 @@ import {
   type CanueV2Catalog,
   type CanueVariableSelection,
 } from './canueV2'
-import { useCanueV2AggregateData, type CanueAggregateRow } from './canueV2Aggregates'
+import { useCanueV2AggregateData, useCanueV2AggregatePrefetch, type CanueAggregateRow } from './canueV2Aggregates'
 import { useCanuePmtilesBoundaryData } from './canuePmtilesAggregate'
 
 interface HeatShadeManifestSource {
@@ -58,6 +58,7 @@ type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | Geo
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
 type MiscDataTab = 'heatShade' | 'canue' | 'icbc' | 'wars' | 'walkability' | 'water' | 'drought'
 type CanueYearMode = 'single' | 'month' | 'all' | 'range'
+type CanueV2Cadence = 'annual' | 'monthly'
 type CanueBoundarySource = 'bcHealth' | 'regionalDistrict' | 'census' | 'cityPG' | 'watershed' | 'nrAdmin'
 type CanueBoundaryLevel =
   | 'healthAuthority'
@@ -150,6 +151,7 @@ interface CanueV2DatasetMetadataEntry {
     shortCodes?: string[]
     yearCoverage?: string[]
     samplingFrequency?: string[]
+    descriptions?: string[]
   }
 }
 
@@ -390,6 +392,24 @@ const CANUE_EXACT_VARIABLE_LABELS: Record<string, string> = {
 }
 
 const CANUE_SUFFIX_LABELS_BY_DATASET: Record<string, Record<string, string>> = {
+  no2lur_a: {
+    '01': 'Original annual NO2 concentration, circa 2006',
+    '02': 'Annual average NO2 concentration for selected year',
+    '03': 'Census division identifier',
+    '05': 'Distance to census division boundary',
+  },
+  aqaix_ava: {
+    '01': 'Index 1 - combustion mixture',
+    '02': 'Index 2 - ozone/ammonia mixture',
+    '03': 'Index 3 - ammonia/agriculture mixture',
+    '04': 'Carbon monoxide (CO)',
+    '05': 'Formaldehyde column (HCHO)',
+    '06': 'Ammonia (NH3)',
+    '07': 'Nitrogen dioxide (NO2)',
+    '08': 'Ozone (O3)',
+    '09': 'Fine particulate matter (PM2.5)',
+    '10': 'Sulfur dioxide (SO2)',
+  },
   pm25dale_a: {
     '01': 'Annual mean PM2.5',
   },
@@ -406,6 +426,210 @@ const CANUE_SUFFIX_LABELS_BY_DATASET: Record<string, Record<string, string>> = {
     '03': 'Smoke PM2.5 minimum',
     '04': 'Smoke PM2.5 maximum',
     '05': 'Smoke PM2.5 standard deviation',
+  },
+  aqsmk_ava: {
+    '01': 'Annual smoke PM2.5',
+    '02': 'Autumn smoke PM2.5',
+    '03': 'Spring smoke PM2.5',
+    '04': 'Summer smoke PM2.5',
+    '05': 'Winter smoke PM2.5',
+  },
+  o3chg_a: {
+    '01': 'Annual average O3',
+    '02': 'Warm-season average O3',
+    '03': 'Annual highest rolling 8-hour O3 average',
+    '04': 'Warm-season highest rolling 8-hour O3 average',
+  },
+  dtw_a: {
+    '02': 'Distance to reservoir, pond, or lake',
+    '03': 'Distance to watercourse, tidal river, or side channel',
+    '04': 'Distance to canal',
+    '05': 'Distance to other water bodies',
+  },
+  wbnrc_a: {
+    '01': 'Annual minimum of monthly lowest daily maximum temperature',
+    '02': 'Annual maximum of monthly highest daily minimum temperature',
+    '03': 'Annual total precipitation',
+    '04': 'Annual total rainfall',
+    '05': 'Annual total snowfall',
+    '06': 'Snow-to-rain ratio',
+    '07': 'Annual total snow melt',
+    '08': 'Maximum monthly snow-pack thickness',
+    '09': 'Days with snowfall',
+    '10': 'Days with snow on the ground',
+    '11': 'Days with precipitation',
+    '12': 'Potential evapotranspiration / water demand',
+    '13': 'Actual evapotranspiration',
+    '14': 'Water surplus',
+    '15': 'Water deficit',
+    '16': 'Days with water surplus',
+    '17': 'Days with water deficit',
+    '18': 'Sum of monthly average soil moisture',
+    '19': 'Average monthly minimum soil moisture',
+    '20': 'Minimum monthly soil moisture',
+    '21': 'Wetness/dryness index',
+  },
+  wthnrc_a: {
+    '01': 'Climate metric 01 - temperature',
+    '02': 'Climate metric 02 - temperature',
+    '03': 'Climate metric 03 - temperature',
+    '04': 'Climate metric 04 - precipitation',
+    '05': 'Climate metric 05 - precipitation',
+    '06': 'Climate metric 06 - precipitation',
+    '07': 'Climate metric 07 - temperature extreme',
+    '08': 'Climate metric 08 - temperature extreme',
+    '09': 'Climate metric 09 - heat days',
+    '10': 'Climate metric 10 - cold days',
+    '11': 'Climate metric 11 - degree days',
+    '12': 'Climate metric 12 - degree days',
+    '13': 'Climate metric 13 - degree days',
+    '14': 'Climate metric 14 - seasonal temperature',
+    '15': 'Climate metric 15 - seasonal temperature',
+    '16': 'Climate metric 16 - wet days',
+    '17': 'Climate metric 17 - heavy precipitation',
+    '18': 'Climate metric 18 - snowfall days',
+    '19': 'Climate metric 19 - rainfall days',
+    '20': 'Climate metric 20 - dry spell',
+    '21': 'Climate metric 21 - wet spell',
+    '22': 'Climate metric 22 - spring temperature',
+    '23': 'Climate metric 23 - summer temperature',
+    '24': 'Climate metric 24 - autumn temperature',
+    '25': 'Climate metric 25 - winter temperature',
+    '26': 'Climate metric 26 - spring precipitation',
+    '27': 'Climate metric 27 - summer precipitation',
+    '28': 'Climate metric 28 - autumn precipitation',
+    '29': 'Climate metric 29 - winter precipitation',
+    '30': 'Climate metric 30 - heat index',
+    '31': 'Climate metric 31 - cold index',
+    '32': 'Climate metric 32 - temperature variability',
+    '33': 'Climate metric 33 - precipitation variability',
+    '34': 'Climate metric 34 - snow/rain',
+    '35': 'Climate metric 35 - climate summary',
+  },
+  wtlst_ava: {
+    '01': 'Land surface temperature at postal code',
+    '02': '3-year annual max of 100m means',
+    '03': '3-year annual max of 250m means',
+    '04': '3-year annual max of 500m means',
+    '05': '3-year annual max of 750m means',
+    '06': '3-year annual max of 1km means',
+  },
+  wtfsi_ava: {
+    '01': 'Flood susceptibility index',
+    '02': 'Flood susceptibility lower estimate',
+    '03': 'Flood susceptibility median estimate',
+    '04': 'Flood susceptibility upper estimate',
+    '05': 'Flood susceptibility class',
+  },
+  grlan_amn: {
+    '01': 'Annual mean NDVI at postal code',
+    '02': 'Annual mean NDVI within 100m',
+    '03': 'Annual mean NDVI within 250m',
+    '04': 'Annual mean NDVI within 500m',
+    '05': 'Annual mean NDVI within 1km',
+    '06': 'Annual maximum mean NDVI within 100m',
+    '07': 'Annual maximum mean NDVI within 250m',
+    '08': 'Annual maximum mean NDVI within 500m',
+    '09': 'Annual maximum mean NDVI within 1km',
+  },
+  grlan_gmn: {
+    '10': 'Growing-season mean NDVI at postal code',
+    '11': 'Growing-season mean NDVI within 100m',
+    '12': 'Growing-season mean NDVI within 250m',
+    '13': 'Growing-season mean NDVI within 500m',
+    '14': 'Growing-season mean NDVI within 1km',
+    '15': 'Growing-season maximum mean NDVI within 100m',
+    '16': 'Growing-season maximum mean NDVI within 250m',
+    '17': 'Growing-season maximum mean NDVI within 500m',
+    '18': 'Growing-season maximum mean NDVI within 1km',
+  },
+  grlan_gp: {
+    '19': 'Greenest-pixel NDVI at postal code',
+    '20': 'Mean greenest-pixel NDVI within 100m',
+    '21': 'Mean greenest-pixel NDVI within 250m',
+    '22': 'Mean greenest-pixel NDVI within 500m',
+    '23': 'Mean greenest-pixel NDVI within 1km',
+    '24': 'Maximum greenest-pixel NDVI within 100m',
+    '25': 'Maximum greenest-pixel NDVI within 250m',
+    '26': 'Maximum greenest-pixel NDVI within 500m',
+    '27': 'Maximum greenest-pixel NDVI within 1km',
+  },
+  gravh_amn: {
+    '01': 'AVHRR NDVI at postal code',
+    '02': 'AVHRR NDVI within 100m',
+    '03': 'AVHRR NDVI within 250m',
+  },
+  grmod_amnb: {
+    '01': 'Modeled annual mean greenness at postal code',
+    '02': 'Modeled annual mean greenness within 100m',
+    '03': 'Modeled annual mean greenness within 250m',
+    '04': 'Modeled annual mean greenness within 500m',
+    '05': 'Modeled annual mean greenness within 1km',
+  },
+  grmod_amxb: {
+    '06': 'Modeled annual maximum greenness at postal code',
+    '07': 'Modeled annual maximum greenness within 100m',
+    '08': 'Modeled annual maximum greenness within 250m',
+    '09': 'Modeled annual maximum greenness within 500m',
+    '10': 'Modeled annual maximum greenness within 1km',
+  },
+  grmod_gmnb: {
+    '11': 'Modeled growing-season mean greenness at postal code',
+    '12': 'Modeled growing-season mean greenness within 100m',
+    '13': 'Modeled growing-season mean greenness within 250m',
+    '14': 'Modeled growing-season mean greenness within 500m',
+    '15': 'Modeled growing-season mean greenness within 1km',
+  },
+  grmod_gmxb: {
+    '16': 'Modeled growing-season maximum greenness at postal code',
+    '17': 'Modeled growing-season maximum greenness within 100m',
+    '18': 'Modeled growing-season maximum greenness within 250m',
+    '19': 'Modeled growing-season maximum greenness within 500m',
+    '20': 'Modeled growing-season maximum greenness within 1km',
+  },
+  grtcc_ava: {
+    '01': 'Tree canopy cover',
+    '02': 'Tree canopy cover within 100m',
+    '03': 'Tree canopy cover within 250m',
+    '04': 'Tree canopy cover within 500m',
+    '05': 'Tree canopy cover within 1km',
+  },
+  lcz_a: {
+    '02': 'Dense urban percentage within 1km',
+    '03': 'Open urban percentage within 1km',
+    '04': 'Residential percentage within 1km',
+    '05': 'Industrial/commercial/paved percentage within 1km',
+    '06': 'Natural percentage within 1km',
+    '07': 'Water percentage within 1km',
+    '08': 'Unknown land-cover percentage within 1km',
+  },
+  cmg_a: {
+    '04': 'Dissemination/enumeration area identifier',
+    '05': 'Distance to nearest dissemination area',
+    '06': 'Instability quintile',
+    '07': 'Deprivation quintile',
+    '08': 'Dependency quintile',
+    '09': 'Ethnic concentration quintile',
+    '10': 'Instability factor score',
+    '11': 'Deprivation factor score',
+    '12': 'Dependency factor score',
+    '13': 'Ethnic concentration factor score',
+  },
+  indmsd_a: {
+    '01': 'Dissemination area identifier',
+    '02': 'Dissemination area population',
+    '03': 'Census subdivision',
+    '04': 'Province',
+    '08': 'Material deprivation factor score',
+    '09': 'Social deprivation factor score',
+    '10': 'Material deprivation quintile within Canada',
+    '11': 'Social deprivation quintile within Canada',
+    '12': 'Material deprivation percentile within Canada',
+    '13': 'Social deprivation percentile within Canada',
+    '14': 'Material deprivation quintile within region',
+    '15': 'Social deprivation quintile within region',
+    '16': 'Material deprivation quintile within zone',
+    '17': 'Social deprivation quintile within zone',
   },
   ale_a: {
     '01': 'Dissemination area ID',
@@ -496,6 +720,43 @@ const CANUE_MONTH_BY_KEY: Map<string, (typeof CANUE_MONTHS)[number]> = new Map(C
 const CANUE_MONTH_PATTERN = /_(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)_\d{2}$/i
 const CANUE_ANNUAL_YEAR_PATTERN = /^(.*?)(\d{2})(_\d+)$/
 
+const CANUE_DATASET_SUFFIX_LABELS: Record<string, Record<string, string>> = {
+  wtutv: {
+    '01': 'Mean daily Vitamin D dose at sea level',
+    '02': 'Mean daily Vitamin D dose at altitude',
+    '03': 'Mean noon Vitamin D index at sea level',
+    '04': 'Mean noon Vitamin D index at altitude',
+    '05': '95th percentile noon Vitamin D index at sea level',
+    '06': '95th percentile noon Vitamin D index at altitude',
+  },
+  wtwbm: {
+    '01': 'Average daily maximum temperature',
+    '02': 'Highest daily maximum temperature',
+    '03': 'Lowest daily maximum temperature',
+    '04': 'Average daily minimum temperature',
+    '05': 'Highest daily minimum temperature',
+    '06': 'Lowest daily minimum temperature',
+    '07': 'Monthly mean temperature',
+    '08': 'Monthly total precipitation',
+    '09': 'Monthly total rainfall',
+    '10': 'Monthly total snowfall',
+    '11': 'Days with precipitation',
+    '12': 'Days with snowfall',
+    '13': 'Days with snow on the ground',
+    '14': 'Average snow-pack thickness',
+    '15': 'Monthly total snow melt',
+    '16': 'Potential evapotranspiration / water demand',
+    '17': 'Actual evapotranspiration',
+    '18': 'Water surplus',
+    '19': 'Days with water surplus',
+    '20': 'Water deficit',
+    '21': 'Days with water deficit',
+    '22': 'Average soil moisture',
+    '23': 'Minimum soil moisture',
+    '24': 'Wetness/dryness index',
+  },
+}
+
 const CANUE_V2_DATASET_LABELS: Record<string, string> = {
   aqaix_ava: 'Annual air quality health index',
   aqfpm_01: 'Monthly PM2.5',
@@ -515,12 +776,85 @@ const CANUE_V2_DATASET_LABELS: Record<string, string> = {
   pm25dald_a: 'Annual PM2.5 DAL v4',
   pm25dale_a: 'Annual PM2.5 DAL v5',
   so2omi_a: 'Annual SO2 OMI',
+  dtw_a: 'Distance to water',
+  wthnrc_a: 'Climate metrics',
+  wtutv_01: 'Ultraviolet',
+  wtutv_02: 'Ultraviolet',
+  wtutv_03: 'Ultraviolet',
+  wtutv_04: 'Ultraviolet',
+  wtutv_05: 'Ultraviolet',
+  wtutv_06: 'Ultraviolet',
+  wbnrc_a: 'Annual water balance metrics',
+  dtr_a: 'Distance to roads',
+  wtlst_ava: 'Land surface temperature',
+  wtfsi_ava: 'Flood susceptibility index',
+  wtwbm_01: 'Monthly water balance metrics',
+  wtwbm_02: 'Monthly water balance metrics',
+  wtwbm_03: 'Monthly water balance metrics',
+  wtwbm_04: 'Monthly water balance metrics',
+  wtwbm_05: 'Monthly water balance metrics',
+  wtwbm_06: 'Monthly water balance metrics',
+  wtwbm_07: 'Monthly water balance metrics',
+  wtwbm_08: 'Monthly water balance metrics',
+  wtwbm_09: 'Monthly water balance metrics',
+  wtwbm_10: 'Monthly water balance metrics',
+  wtwbm_11: 'Monthly water balance metrics',
+  wtwbm_12: 'Monthly water balance metrics',
+  wtwbm_14: 'Monthly water balance metrics',
+  wtwbm_15: 'Monthly water balance metrics',
+  wtwbm_16: 'Monthly water balance metrics',
+  wtwbm_17: 'Monthly water balance metrics',
+  wtwbm_18: 'Monthly water balance metrics',
+  wtwbm_19: 'Monthly water balance metrics',
+  wtwbm_20: 'Monthly water balance metrics',
+  wtwbm_21: 'Monthly water balance metrics',
+  wtwbm_22: 'Monthly water balance metrics',
+  wtwbm_23: 'Monthly water balance metrics',
+  wtwbm_24: 'Monthly water balance metrics',
+  grlan_amn: 'Land greenness - annual mean NDVI',
+  grlan_gmn: 'Land greenness - growing-season mean NDVI',
+  grlan_gp: 'Land greenness - greenest-pixel NDVI',
+  gravh_amn: 'AVHRR NDVI',
+  grmod_amnb: 'Modeled greenness - annual mean',
+  grmod_amxb: 'Modeled greenness - annual maximum',
+  grmod_gmnb: 'Modeled greenness - growing-season mean',
+  grmod_gmxb: 'Modeled greenness - growing-season maximum',
+  grtcc_ava: 'Tree canopy cover',
+  lcz_a: 'Local climate zone',
+  cmg_a: 'Canadian marginalization index',
+  indmsd_a: 'Material and social deprivation',
+  ale_a: 'Active living environment',
+  nae_a: 'Employment accessibility',
+  nhnse_ava: 'Neighborhood socioeconomic status',
+  nhspw_ava: 'Urban sprawl',
+  nhdwl_ava: 'Dwelling density',
+  nhgrd_ava: 'Green roads',
+  nhfed_ava: 'Food environment density',
+  nhbld_ava: 'Building density',
+  nhfac_ava: 'Facility richness and density',
+  nhpmd_ann: 'Proximity to amenities',
+  nhscn_ava: 'Street connectivity',
+  nhtsp_ava: 'Transit stop access',
+  nhacs_ava: 'Spatial accessibility measures',
+  nhbic_ava: 'Bikeability',
+  nhcmd_ann: 'Complete communities',
+  nhhpp_ava: 'Healthy places priority',
+  nhnse_avb: 'Neighborhood socioeconomic status v2',
+  nhply_ann: 'Playability',
+  lgtnlt_a: 'Night-time light brightness',
 }
 
 const CANUE_V2_PREFERRED_MEASURE_KEYS = [
   'aqfpm_01__pm25',
   'aqsmk_01__aqsmk_01',
   'pm25dale_a__pm25dal_01',
+]
+
+const CANUE_TIMELINE_WINDOW_OPTIONS = [
+  { value: 1, label: '1' },
+  { value: 3, label: '3' },
+  { value: 5, label: '5' },
+  { value: -1, label: 'Cumul.' },
 ]
 
 function getCanueVariableLabel(file: CanueFile | null, variable: string): string {
@@ -562,6 +896,12 @@ function getDefaultCanueVariable(file: CanueFile): string | null {
 
 function getCanueVariableSuffix(variable: string | null): string | null {
   return variable?.match(/_(\d+)$/)?.[1] ?? null
+}
+
+function getCanueDatasetSuffixLabel(dataset: string): string | null {
+  const match = dataset.match(/^([a-z]+)_(\d+)$/i)
+  if (!match) return null
+  return CANUE_DATASET_SUFFIX_LABELS[match[1].toLowerCase()]?.[match[2]] ?? null
 }
 
 function getCanueVariableFamily(variable: string): string {
@@ -608,6 +948,8 @@ function getCanueV2VariableLabel(selection: CanueVariableSelection | null): stri
   const suffix = getCanueVariableSuffix(variable)
   const datasetLabels = CANUE_SUFFIX_LABELS_BY_DATASET[selection.dataset]
   if (suffix && datasetLabels?.[suffix]) return datasetLabels[suffix]
+  const datasetSuffixLabel = getCanueDatasetSuffixLabel(selection.dataset)
+  if (datasetSuffixLabel) return datasetSuffixLabel
   if (variable === 'pm25') return 'PM2.5'
   if (variable === 'aqsmk_01') return 'Smoke PM2.5'
   if (variable === 'aqsmk_02') return 'Smoke PM2.5 median'
@@ -675,6 +1017,35 @@ function getCanueV2DatasetTitle(selection: CanueVariableSelection, metadataLooku
   return parts.filter(Boolean).join(' | ')
 }
 
+function getCanueV2DatasetHelp(selection: CanueVariableSelection, metadataLookup: CanueV2MetadataLookup | null | undefined): string {
+  const metadata = metadataLookup?.datasets?.[selection.dataset]?.metadata
+  const description = firstMetadataValue(metadata?.descriptions)
+  if (selection.dataset.startsWith('pm25dal') || selection.dataset === 'aqfpm_avf') {
+    return 'PM2.5 DAL is the van Donkelaar/Dalhousie satellite-derived PM2.5 product indexed by CANUE. It combines satellite aerosol optical depth, GEOS-Chem chemical transport modelling, and ground-monitor calibration. The v2-v5 choices are successive product releases with different source years and method updates.'
+  }
+  if (selection.dataset === 'aqfpm_01') {
+    return 'Monthly PM2.5 estimates from the same satellite/model/ground-monitor family, provided as month-specific values instead of annual averages.'
+  }
+  if (selection.dataset === 'no2lur_a' || selection.dataset === 'aqno2_ra') {
+    return 'NO2 land-use regression estimates nitrogen dioxide using monitoring data plus land-use, traffic, satellite, industrial land-use, and weather predictors.'
+  }
+  if (selection.dataset === 'aqaix_ava') {
+    return 'Air quality health index variables include three combined pollution principal-component indices plus individual pollutants such as CO, HCHO, NH3, NO2, O3, PM2.5, and SO2.'
+  }
+  if (selection.dataset.startsWith('wtutv')) {
+    return 'Ultraviolet variables are long-term monthly UV/Vitamin-D exposure estimates. The metric number chooses dose/index, sea-level/altitude adjustment, and mean versus 95th percentile.'
+  }
+  if (selection.dataset === 'wbnrc_a' || selection.dataset.startsWith('wtwbm')) {
+    return 'Water-balance variables describe precipitation, rainfall, snowfall, snowpack, evapotranspiration, soil moisture, surplus, deficit, and wetness/dryness.'
+  }
+  if (selection.dataset.startsWith('grlan') || selection.dataset.startsWith('grmod') || selection.dataset === 'gravh_amn' || selection.dataset === 'grtcc_ava') {
+    return 'Greenness variables differ by vegetation source, season, summary statistic, and buffer distance around the postal/grid location.'
+  }
+  return description
+    ? description.replace(/\s+/g, ' ').trim()
+    : getCanueV2DatasetTitle(selection, metadataLookup)
+}
+
 function getCanueV2GraphVariableLabel(selection: CanueVariableSelection, metadataLookup: CanueV2MetadataLookup | null | undefined): string {
   const datasetLabel = getCanueV2DatasetLabel(selection.dataset, metadataLookup)
   const variableLabel = getCanueV2VariableLabel(selection)
@@ -690,8 +1061,56 @@ function normalizedCanueLabelToken(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '')
 }
 
+function formatCanueDisplayLabel(label: string): string {
+  return label
+}
+
+function renderCanueDisplayLabel(label: string): ReactNode {
+  return label.split(/\b(PM2\.5|NO2|SO2|CO2|O3|NH3|m3|cm2)\b/gi).map((part, index) => {
+    const normalized = part.toLowerCase()
+    if (normalized === 'pm2.5') return <span key={index}>PM<sub>2.5</sub></span>
+    if (normalized === 'no2') return <span key={index}>NO<sub>2</sub></span>
+    if (normalized === 'so2') return <span key={index}>SO<sub>2</sub></span>
+    if (normalized === 'co2') return <span key={index}>CO<sub>2</sub></span>
+    if (normalized === 'o3') return <span key={index}>O<sub>3</sub></span>
+    if (normalized === 'nh3') return <span key={index}>NH<sub>3</sub></span>
+    if (normalized === 'm3') return <span key={index}>m<sup>3</sup></span>
+    if (normalized === 'cm2') return <span key={index}>cm<sup>2</sup></span>
+    return part
+  })
+}
+
+function CanueHelpIcon({ label, help }: { label: string; help: string | null | undefined }) {
+  if (!help) return null
+  return (
+    <span
+      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+      title={help}
+      aria-label={`${label} help: ${help}`}
+    >
+      <Info className="h-3.5 w-3.5" />
+    </span>
+  )
+}
+
 function getCanueV2MonthKey(variable: string): string | null {
   return variable.match(CANUE_MONTH_PATTERN)?.[1]?.toLowerCase() ?? null
+}
+
+function getCanueV2SelectionDate(selection: CanueVariableSelection): Date {
+  const month = getCanueV2MonthKey(selection.variable)
+  return new Date(selection.year, month ? (CANUE_MONTH_BY_KEY.get(month)?.value ?? 1) - 1 : 0, 1)
+}
+
+function getCanueV2TimelineKey(selection: CanueVariableSelection, monthly: boolean): string {
+  if (!monthly) return String(selection.year)
+  const month = getCanueV2MonthKey(selection.variable)
+  const monthIndex = month ? (CANUE_MONTH_BY_KEY.get(month)?.value ?? 1) - 1 : 0
+  return `${selection.year}-${String(monthIndex).padStart(2, '0')}`
+}
+
+function getCanueV2Cadence(selection: CanueVariableSelection): CanueV2Cadence {
+  return getCanueV2MonthKey(selection.variable) ? 'monthly' : 'annual'
 }
 
 function getCanueV2MeasureVariable(variable: string): string {
@@ -702,6 +1121,46 @@ function getCanueV2MeasureVariable(variable: string): string {
 
 function getCanueV2MeasureKey(selection: Pick<CanueVariableSelection, 'dataset' | 'variable'>): string {
   return `${selection.dataset}__${getCanueV2MeasureVariable(selection.variable)}`
+}
+
+function stripCanueV2DatasetVersion(label: string): string {
+  return label
+    .replace(/\s+\(?v\d+\)?\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function getCanueV2GridVariableLabel(selection: CanueVariableSelection, metadataLookup: CanueV2MetadataLookup | null | undefined): string {
+  return stripCanueV2DatasetVersion(getCanueV2DatasetLabel(selection.dataset, metadataLookup))
+    .replace(/^(annual|monthly|daily|yearly)\s+/i, '')
+    .trim()
+}
+
+function getCanueV2GridVariableKey(selection: CanueVariableSelection, metadataLookup: CanueV2MetadataLookup | null | undefined): string {
+  return normalizedCanueLabelToken(getCanueV2GridVariableLabel(selection, metadataLookup))
+}
+
+function getCanueV2VariableOptionLabel(selection: CanueVariableSelection, metadataLookup: CanueV2MetadataLookup | null | undefined): string {
+  const datasetLabel = getCanueV2DatasetLabel(selection.dataset, metadataLookup)
+  const gridVariableLabel = getCanueV2GridVariableLabel(selection, metadataLookup)
+  const datasetVersion = datasetLabel.match(/\bv\d+\b/i)?.[0] ?? null
+  const topicLabel = gridVariableLabel
+    .replace(/\b(annual|monthly|daily|yearly)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const escapedTopic = topicLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const variableLabel = getCanueV2VariableLabel(selection)
+  const measureLabel = escapedTopic
+    ? variableLabel.replace(new RegExp(`^${escapedTopic}\\s*`, 'i'), '').trim()
+    : variableLabel
+  const inferredMeanLabel = !measureLabel && getCanueVariableSuffix(getCanueV2MeasureVariable(selection.variable)) === '01'
+    ? 'mean'
+    : null
+  const normalizedMeasure = inferredMeanLabel ?? (measureLabel && normalizedCanueLabelToken(measureLabel) !== normalizedCanueLabelToken(gridVariableLabel)
+    ? measureLabel
+    : null)
+
+  return [datasetVersion, normalizedMeasure ?? variableLabel].filter(Boolean).join(' - ')
 }
 
 function getPreferredCanueV2MeasureKey(options: Array<{ value: string }>): string | null {
@@ -1093,6 +1552,7 @@ function CanueGraphDrawer({
   selectedBoundaryId,
   boundaryLevelLabel,
   loading,
+  elevated,
   onToggleVariable,
   onClose,
 }: {
@@ -1102,6 +1562,7 @@ function CanueGraphDrawer({
   selectedBoundaryId: string | null
   boundaryLevelLabel: string
   loading: boolean
+  elevated?: boolean
   onToggleVariable: (key: string) => void
   onClose: () => void
 }) {
@@ -1112,7 +1573,14 @@ function CanueGraphDrawer({
     : null
 
   return (
-    <div className="absolute inset-x-3 bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] z-20 mx-auto max-h-[50vh] max-w-5xl overflow-hidden rounded-lg border border-border bg-background/95 shadow-2xl backdrop-blur md:bottom-6 md:max-h-[22rem]">
+    <div
+      className={cn(
+        'absolute inset-x-3 z-20 mx-auto max-h-[50vh] max-w-5xl overflow-hidden rounded-lg border border-border bg-background/95 shadow-2xl backdrop-blur md:max-h-[22rem]',
+        elevated
+          ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
+          : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] md:bottom-6',
+      )}
+    >
       <div className="flex items-start justify-between gap-3 border-b border-border px-3 py-2.5 md:px-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -1265,10 +1733,15 @@ export default function MiscDataSection() {
     return Number.isFinite(year) && year > 0 ? year : null
   })
   const [selectedCanueV2Measure, setSelectedCanueV2Measure] = useState<string | null>(() => searchParams.get('measure'))
+  const [selectedCanueV2Cadence, setSelectedCanueV2Cadence] = useState<CanueV2Cadence>(() => (
+    searchParams.get('cadence') === 'monthly' || searchParams.has('gridMonth') ? 'monthly' : 'annual'
+  ))
   const [selectedCanueV2Month, setSelectedCanueV2Month] = useState<string | null>(() => searchParams.get('gridMonth'))
   const [selectedCanueV2Property, setSelectedCanueV2Property] = useState<string | null>(() => searchParams.get('property'))
   const [selectedCanueBoundaryId, setSelectedCanueBoundaryId] = useState<string | null>(null)
   const [showCanueGraphs, setShowCanueGraphs] = useState(false)
+  const [canueTimelineEnabled, setCanueTimelineEnabled] = useState(false)
+  const [canueTimelineWindowSize, setCanueTimelineWindowSize] = useState(1)
   const [selectedCanueGraphKeys, setSelectedCanueGraphKeys] = useState<string[]>([])
   const { trees, forests, facilities, loading, error } = useHeatShadeData(activeTab === 'heatShade')
   const heatShadeManifest = useJsonManifest<HeatShadeManifest>(activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null)
@@ -1321,6 +1794,8 @@ export default function MiscDataSection() {
       else params.delete('gridYear')
       if (selectedCanueV2Measure) params.set('measure', selectedCanueV2Measure)
       else params.delete('measure')
+      if (selectedCanueV2Cadence === 'monthly') params.set('cadence', selectedCanueV2Cadence)
+      else params.delete('cadence')
       if (selectedCanueV2Month) params.set('gridMonth', selectedCanueV2Month)
       else params.delete('gridMonth')
       if (selectedCanueV2Property) params.set('property', selectedCanueV2Property)
@@ -1334,6 +1809,7 @@ export default function MiscDataSection() {
       params.delete('family')
       params.delete('gridYear')
       params.delete('measure')
+      params.delete('cadence')
       params.delete('gridMonth')
       params.delete('property')
       params.delete('boundary')
@@ -1365,7 +1841,7 @@ export default function MiscDataSection() {
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueV2Family, selectedCanueV2Measure, selectedCanueV2Month, selectedCanueV2Property, selectedCanueV2Year, selectedCanueYear, icbc.showHeatmap, icbc.showPoints, icbc.selectedDatasetId, wars.showHeatmap, wars.showPoints, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueV2Cadence, selectedCanueV2Family, selectedCanueV2Measure, selectedCanueV2Month, selectedCanueV2Property, selectedCanueV2Year, selectedCanueYear, icbc.showHeatmap, icbc.showPoints, icbc.selectedDatasetId, wars.showHeatmap, wars.showPoints, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -1462,38 +1938,93 @@ export default function MiscDataSection() {
     if (!canueV2Catalog.data || !selectedCanueV2FamilyEntry) return []
     return listCanueV2Selections(canueV2Catalog.data).filter((selection) => selection.family === selectedCanueV2FamilyEntry.id)
   }, [canueV2Catalog.data, selectedCanueV2FamilyEntry])
-  const canueV2MeasureOptions = useMemo(() => {
-    const options = new Map<string, { value: string; label: string; title: string }>()
+  const canueV2GridVariableOptions = useMemo(() => {
+    const options = new Map<string, { value: string; label: ReactNode; sortLabel: string; title: string }>()
     for (const selection of selectedCanueV2FamilySelections) {
-      const value = getCanueV2MeasureKey(selection)
+      const value = getCanueV2GridVariableKey(selection, canueV2Metadata.data)
       if (!options.has(value)) {
-        const datasetLabel = getCanueV2DatasetLabel(selection.dataset, canueV2Metadata.data)
-        const variableLabel = getCanueV2VariableLabel(selection)
-        const label = normalizedCanueLabelToken(datasetLabel).includes(normalizedCanueLabelToken(variableLabel))
-          ? datasetLabel
-          : `${datasetLabel} - ${variableLabel}`
+        const label = getCanueV2GridVariableLabel(selection, canueV2Metadata.data)
+        const help = getCanueV2DatasetHelp(selection, canueV2Metadata.data)
         options.set(value, {
           value,
-          label,
-          title: getCanueV2DatasetTitle(selection, canueV2Metadata.data),
+          label: renderCanueDisplayLabel(label),
+          sortLabel: label,
+          title: `${getCanueV2DatasetTitle(selection, canueV2Metadata.data)} | ${help}`,
         })
       }
     }
-    return Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label))
+    return Array.from(options.values()).sort((left, right) => left.sortLabel.localeCompare(right.sortLabel))
   }, [canueV2Metadata.data, selectedCanueV2FamilySelections])
+  const selectedCanueV2GridVariableKey = useMemo(() => {
+    if (selectedCanueV2Measure) {
+      const measureSelection = selectedCanueV2FamilySelections.find((selection) => getCanueV2MeasureKey(selection) === selectedCanueV2Measure)
+      if (measureSelection) return getCanueV2GridVariableKey(measureSelection, canueV2Metadata.data)
+    }
+    if (selectedCanueV2Property) {
+      const propertySelection = selectedCanueV2FamilySelections.find((selection) => selection.property === selectedCanueV2Property)
+      if (propertySelection) return getCanueV2GridVariableKey(propertySelection, canueV2Metadata.data)
+    }
+    const preferredSelection = getPreferredCanueV2Selection(selectedCanueV2FamilySelections)
+    return preferredSelection ? getCanueV2GridVariableKey(preferredSelection, canueV2Metadata.data) : canueV2GridVariableOptions[0]?.value ?? null
+  }, [canueV2GridVariableOptions, canueV2Metadata.data, selectedCanueV2FamilySelections, selectedCanueV2Measure, selectedCanueV2Property])
+  const selectedCanueV2GridVariableSelections = useMemo(() => (
+    selectedCanueV2GridVariableKey
+      ? selectedCanueV2FamilySelections.filter((selection) => getCanueV2GridVariableKey(selection, canueV2Metadata.data) === selectedCanueV2GridVariableKey)
+      : []
+  ), [canueV2Metadata.data, selectedCanueV2FamilySelections, selectedCanueV2GridVariableKey])
+  const canueV2CadenceOptions = useMemo(() => {
+    const available = new Set(selectedCanueV2GridVariableSelections.map(getCanueV2Cadence))
+    return ([
+      { value: 'annual' as const, label: 'Annual' },
+      { value: 'monthly' as const, label: 'Monthly' },
+    ]).filter((option) => available.has(option.value))
+  }, [selectedCanueV2GridVariableSelections])
+  const selectedCanueV2ResolvedCadence = useMemo<CanueV2Cadence>(() => {
+    if (selectedCanueV2Property) {
+      const propertySelection = selectedCanueV2GridVariableSelections.find((selection) => selection.property === selectedCanueV2Property)
+      if (propertySelection) return getCanueV2Cadence(propertySelection)
+    }
+    if (selectedCanueV2Measure) {
+      const measureSelection = selectedCanueV2GridVariableSelections.find((selection) => getCanueV2MeasureKey(selection) === selectedCanueV2Measure)
+      if (measureSelection) return getCanueV2Cadence(measureSelection)
+    }
+    if (canueV2CadenceOptions.some((option) => option.value === selectedCanueV2Cadence)) return selectedCanueV2Cadence
+    return canueV2CadenceOptions[0]?.value ?? 'annual'
+  }, [canueV2CadenceOptions, selectedCanueV2Cadence, selectedCanueV2GridVariableSelections, selectedCanueV2Measure, selectedCanueV2Property])
+  const selectedCanueV2CadenceSelections = useMemo(() => (
+    selectedCanueV2GridVariableSelections.filter((selection) => getCanueV2Cadence(selection) === selectedCanueV2ResolvedCadence)
+  ), [selectedCanueV2GridVariableSelections, selectedCanueV2ResolvedCadence])
+  const canueV2MeasureOptions = useMemo(() => {
+    const options = new Map<string, { value: string; label: ReactNode; sortLabel: string; title: string }>()
+    for (const selection of selectedCanueV2CadenceSelections) {
+      const value = getCanueV2MeasureKey(selection)
+      if (!options.has(value)) {
+        const label = getCanueV2VariableOptionLabel(selection, canueV2Metadata.data)
+        const variableLabel = getCanueV2VariableLabel(selection)
+        const help = getCanueV2DatasetHelp(selection, canueV2Metadata.data)
+        options.set(value, {
+          value,
+          label: renderCanueDisplayLabel(label),
+          sortLabel: label,
+          title: `${variableLabel}: ${help}`,
+        })
+      }
+    }
+    return Array.from(options.values()).sort((left, right) => left.sortLabel.localeCompare(right.sortLabel))
+  }, [canueV2Metadata.data, selectedCanueV2CadenceSelections])
   const selectedCanueV2MeasureKey = useMemo(() => {
     if (selectedCanueV2Measure && canueV2MeasureOptions.some((option) => option.value === selectedCanueV2Measure)) return selectedCanueV2Measure
     if (selectedCanueV2Property) {
-      const propertySelection = selectedCanueV2FamilySelections.find((selection) => selection.property === selectedCanueV2Property)
+      const propertySelection = selectedCanueV2CadenceSelections.find((selection) => selection.property === selectedCanueV2Property)
       if (propertySelection) return getCanueV2MeasureKey(propertySelection)
     }
     return getPreferredCanueV2MeasureKey(canueV2MeasureOptions)
-  }, [canueV2MeasureOptions, selectedCanueV2FamilySelections, selectedCanueV2Measure, selectedCanueV2Property])
+  }, [canueV2MeasureOptions, selectedCanueV2CadenceSelections, selectedCanueV2Measure, selectedCanueV2Property])
   const selectedCanueV2MeasureSelections = useMemo(() => (
     selectedCanueV2MeasureKey
-      ? selectedCanueV2FamilySelections.filter((selection) => getCanueV2MeasureKey(selection) === selectedCanueV2MeasureKey)
+      ? selectedCanueV2CadenceSelections.filter((selection) => getCanueV2MeasureKey(selection) === selectedCanueV2MeasureKey)
       : []
-  ), [selectedCanueV2FamilySelections, selectedCanueV2MeasureKey])
+  ), [selectedCanueV2CadenceSelections, selectedCanueV2MeasureKey])
   const canueV2YearOptions = useMemo(() => (
     Array.from(new Set(selectedCanueV2MeasureSelections.map((selection) => selection.year))).sort((left, right) => left - right)
   ), [selectedCanueV2MeasureSelections])
@@ -1545,6 +2076,67 @@ export default function MiscDataSection() {
       )
     )) ?? selectedCanueV2MeasureSelections.find((selection) => selection.year === selectedCanueV2Layer.year) ?? null
   }, [selectedCanueV2Layer, selectedCanueV2MeasureKey, selectedCanueV2MeasureSelections, selectedCanueV2ResolvedMonth])
+  const selectedCanueV2DatasetHelp = useMemo(() => (
+    selectedCanueV2Selection ? getCanueV2DatasetHelp(selectedCanueV2Selection, canueV2Metadata.data) : null
+  ), [canueV2Metadata.data, selectedCanueV2Selection])
+  const canueTimelineIsMonthly = canueV2MonthOptions.length > 0
+  const canueTimelineSelections = useMemo(() => {
+    if (!selectedCanueV2MeasureSelections.length) return []
+    return selectedCanueV2MeasureSelections
+      .filter((selection) => canueTimelineIsMonthly ? getCanueV2MonthKey(selection.variable) : getCanueV2MonthKey(selection.variable) == null)
+      .sort((left, right) => getCanueV2SelectionDate(left).getTime() - getCanueV2SelectionDate(right).getTime())
+  }, [canueTimelineIsMonthly, selectedCanueV2MeasureSelections])
+  const canueTimelineBucketKeys = useMemo(() => (
+    new Set(canueTimelineSelections.map((selection) => getCanueV2TimelineKey(selection, canueTimelineIsMonthly)))
+  ), [canueTimelineIsMonthly, canueTimelineSelections])
+  const canueTimelineDateRange = useMemo(() => {
+    const first = canueTimelineSelections[0]
+    const last = canueTimelineSelections[canueTimelineSelections.length - 1]
+    if (!first || !last) return null
+    return {
+      start: getCanueV2SelectionDate(first),
+      end: getCanueV2SelectionDate(last),
+    }
+  }, [canueTimelineSelections])
+  const canueTimelineDate = useMemo(() => {
+    if (!selectedCanueV2Selection) return null
+    return getCanueV2SelectionDate(selectedCanueV2Selection)
+  }, [selectedCanueV2Selection])
+  const canueTimelineBucketCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const selection of canueTimelineSelections) {
+      counts.set(
+        getCanueV2TimelineKey(selection, canueTimelineIsMonthly),
+        selection.count ?? selectedCanueV2FamilyEntry?.layers.find((layer) => layer.year === selection.year)?.features ?? 1,
+      )
+    }
+    return counts
+  }, [canueTimelineIsMonthly, canueTimelineSelections, selectedCanueV2FamilyEntry?.layers])
+  const canueTimelineAvailable = CANUE_V2_ENABLED && canueTimelineBucketKeys.size > 1 && selectedCanueV2Selection != null
+  const canueTimelineActive = canueTimelineEnabled && canueTimelineAvailable
+  const handleCanueTimelineDateChange = useCallback((date: Date) => {
+    const targetTime = date.getTime()
+    const nextSelection = canueTimelineSelections.find((selection) => getCanueV2SelectionDate(selection).getTime() === targetTime)
+      ?? canueTimelineSelections.reduce<CanueVariableSelection | null>((closest, selection) => {
+        if (!closest) return selection
+        const currentDistance = Math.abs(getCanueV2SelectionDate(selection).getTime() - targetTime)
+        const closestDistance = Math.abs(getCanueV2SelectionDate(closest).getTime() - targetTime)
+        return currentDistance < closestDistance ? selection : closest
+      }, null)
+    if (!nextSelection) return
+    setSelectedCanueV2Year(nextSelection.year)
+    setSelectedCanueV2Month(getCanueV2MonthKey(nextSelection.variable))
+    setSelectedCanueV2Property(nextSelection.property)
+  }, [canueTimelineSelections])
+  const handleCanueTimelineDisable = useCallback(() => {
+    setCanueTimelineEnabled(false)
+  }, [])
+  const canueTimelinePrefetch = useCanueV2AggregatePrefetch({
+    source: canueBoundarySource,
+    level: canueBoundaryLevel,
+    selections: canueTimelineSelections,
+    enabled: activeTab === 'canue' && showCanueBoundaries && canueTimelineActive,
+  })
   const canuePeriodLabel = getCanuePeriodLabel(selectedCanueFiles, canueYearMode, selectedCanueMonth)
   const canueBoundaryData = useCanueBoundaryData(
     selectedCanueFiles,
@@ -1591,7 +2183,7 @@ export default function MiscDataSection() {
         if (selection.year !== selectedCanueV2Layer.year) continue
         options.set(selection.property, {
           key: selection.property,
-          label: getCanueV2GraphVariableLabel(selection, canueV2Metadata.data),
+          label: formatCanueDisplayLabel(getCanueV2GraphVariableLabel(selection, canueV2Metadata.data)),
         })
       }
       return Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label))
@@ -1600,7 +2192,7 @@ export default function MiscDataSection() {
     if (selectedCanueFile && selectedCanueVariable) {
       return [{
         key: selectedCanueVariable,
-        label: getCanueVariableLabel(selectedCanueFile, selectedCanueVariable),
+        label: formatCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable)),
       }]
     }
 
@@ -1621,9 +2213,69 @@ export default function MiscDataSection() {
     })
   }, [activeCanueBoundaryData.data.features, activeCanueBoundaryProperty, canueV2AggregateData.aggregateRows])
   const canueGraphsAvailable = activeTab === 'canue' && showCanueBoundaries && canueGraphVariableOptions.length > 0
-  const canueFillColor = useMemo(() => {
-    return canueBoundaryPaint(activeCanueBoundaryProperty, activeCanueBoundaryData.minValue, activeCanueBoundaryData.maxValue)
-  }, [activeCanueBoundaryData.maxValue, activeCanueBoundaryData.minValue, activeCanueBoundaryProperty])
+  const canueBoundaryLayerReady = useMemo(() => (
+    activeCanueBoundaryData.data.features.some((feature) => (
+      Number.isFinite(Number(feature.properties?.[activeCanueBoundaryProperty]))
+    ))
+  ), [activeCanueBoundaryData.data.features, activeCanueBoundaryProperty])
+  const [stableCanueBoundaryLayer, setStableCanueBoundaryLayer] = useState<{
+    data: BoundaryFeatureCollection
+    property: string
+    minValue: number | null
+    maxValue: number | null
+    boundaryLevel: CanueBoundaryLevel
+  } | null>(null)
+
+  useEffect(() => {
+    if (canueBoundaryLayerReady) {
+      setStableCanueBoundaryLayer({
+        data: activeCanueBoundaryData.data,
+        property: activeCanueBoundaryProperty,
+        minValue: activeCanueBoundaryData.minValue,
+        maxValue: activeCanueBoundaryData.maxValue,
+        boundaryLevel: canueBoundaryLevel,
+      })
+      return
+    }
+
+    const waitingForNextCanueAggregate = CANUE_V2_ENABLED
+      && selectedCanueV2Selection
+      && activeCanueBoundaryData === canueV2AggregateData
+      && canueV2AggregateData.property != null
+      && canueV2AggregateData.property !== activeCanueBoundaryProperty
+
+    if (!activeCanueBoundaryData.loading && !waitingForNextCanueAggregate) {
+      setStableCanueBoundaryLayer(null)
+    }
+  }, [
+    activeCanueBoundaryData.data,
+    activeCanueBoundaryData.loading,
+    activeCanueBoundaryData.maxValue,
+    activeCanueBoundaryData.minValue,
+    activeCanueBoundaryProperty,
+    canueBoundaryLayerReady,
+    canueBoundaryLevel,
+    canueV2AggregateData,
+    selectedCanueV2Selection,
+  ])
+
+  useEffect(() => {
+    if (!canueTimelineAvailable && canueTimelineEnabled) {
+      setCanueTimelineEnabled(false)
+    }
+  }, [canueTimelineAvailable, canueTimelineEnabled])
+
+  const renderedCanueBoundaryLayer = stableCanueBoundaryLayer?.boundaryLevel === canueBoundaryLevel
+    ? stableCanueBoundaryLayer
+    : null
+  const renderedCanueFillColor = useMemo(() => {
+    if (!renderedCanueBoundaryLayer) return '#e5e7eb'
+    return canueBoundaryPaint(
+      renderedCanueBoundaryLayer.property,
+      renderedCanueBoundaryLayer.minValue,
+      renderedCanueBoundaryLayer.maxValue,
+    )
+  }, [renderedCanueBoundaryLayer])
   const heatShadeSources = heatShadeManifest.data?.sources ?? []
   const landsatSource = heatShadeSources.find((source) => source.kind === 'historicalNdviLst')
   const canueMapCenter = canueBoundarySource === 'bcHealth'
@@ -1670,6 +2322,7 @@ export default function MiscDataSection() {
   useEffect(() => {
     if (!selectedCanueV2FamilyEntry || !selectedCanueV2Layer || !selectedCanueV2Selection) return
     if (selectedCanueV2Family !== selectedCanueV2FamilyEntry.id) setSelectedCanueV2Family(selectedCanueV2FamilyEntry.id)
+    if (selectedCanueV2Cadence !== selectedCanueV2ResolvedCadence) setSelectedCanueV2Cadence(selectedCanueV2ResolvedCadence)
     if (selectedCanueV2Measure !== selectedCanueV2MeasureKey) setSelectedCanueV2Measure(selectedCanueV2MeasureKey)
     if (selectedCanueV2Month !== selectedCanueV2ResolvedMonth) setSelectedCanueV2Month(selectedCanueV2ResolvedMonth)
     if (selectedCanueV2Year !== selectedCanueV2Layer.year) setSelectedCanueV2Year(selectedCanueV2Layer.year)
@@ -1677,11 +2330,13 @@ export default function MiscDataSection() {
   }, [
     selectedCanueV2Family,
     selectedCanueV2FamilyEntry,
+    selectedCanueV2Cadence,
     selectedCanueV2Layer,
     selectedCanueV2Measure,
     selectedCanueV2MeasureKey,
     selectedCanueV2Month,
     selectedCanueV2Property,
+    selectedCanueV2ResolvedCadence,
     selectedCanueV2ResolvedMonth,
     selectedCanueV2Selection,
     selectedCanueV2Year,
@@ -1874,16 +2529,34 @@ export default function MiscDataSection() {
               <Database className="h-4 w-4 shrink-0 text-cyan-600" />
               <h2 className="truncate text-sm font-semibold text-foreground">CANUE Boundary Map</h2>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowCanueGraphs((current) => !current)}
-              disabled={!canueGraphsAvailable}
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-input px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-              aria-pressed={showCanueGraphs}
-            >
-              <BarChart3 className="h-3.5 w-3.5" />
-              Graphs
-            </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {canueTimelineAvailable && (
+                <button
+                  type="button"
+                  onClick={() => setCanueTimelineEnabled((current) => !current)}
+                  className={cn(
+                    'inline-flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors',
+                    canueTimelineActive
+                      ? 'border-cyan-600 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/30 dark:text-cyan-100'
+                      : 'border-input text-muted-foreground hover:text-foreground',
+                  )}
+                  aria-pressed={canueTimelineActive}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Timeline
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowCanueGraphs((current) => !current)}
+                disabled={!canueGraphsAvailable}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                aria-pressed={showCanueGraphs}
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                Graphs
+              </button>
+            </div>
           </div>
           {CANUE_V2_ENABLED && selectedCanueV2FamilyEntry && selectedCanueV2Layer && selectedCanueV2Selection && (
             <div className="mb-4 space-y-3 rounded-md border border-border bg-muted/15 p-3">
@@ -1903,7 +2576,9 @@ export default function MiscDataSection() {
                       ? listCanueV2Selections(canueV2Catalog.data).filter((selection) => selection.family === nextFamily.id)
                       : []
                     const nextSelection = getPreferredCanueV2Selection(nextSelections)
+                    const nextCadence = nextSelection ? getCanueV2Cadence(nextSelection) : selectedCanueV2ResolvedCadence
                     setSelectedCanueV2Family(familyId)
+                    setSelectedCanueV2Cadence(nextCadence)
                     setSelectedCanueV2Measure(nextSelection ? getCanueV2MeasureKey(nextSelection) : null)
                     setSelectedCanueV2Year(nextFamily?.years[nextFamily.years.length - 1] ?? nextSelection?.year ?? null)
                     setSelectedCanueV2Month(nextSelection ? getCanueV2MonthKey(nextSelection.variable) : null)
@@ -1918,21 +2593,81 @@ export default function MiscDataSection() {
                 />
               </label>
               <label className="block text-xs font-medium text-foreground">
-                Grid variable
+                <span className="flex items-center gap-1.5">
+                  Grid variable
+                  <CanueHelpIcon label="Grid variable" help={selectedCanueV2DatasetHelp} />
+                </span>
                 <AppSelect
-                  value={selectedCanueV2MeasureKey ?? ''}
-                  onValueChange={(measure) => {
-                    const nextSelection = selectedCanueV2FamilySelections.find((selection) => getCanueV2MeasureKey(selection) === measure)
-                    setSelectedCanueV2Measure(measure)
+                  value={selectedCanueV2GridVariableKey ?? ''}
+                  onValueChange={(gridVariable) => {
+                    const nextSelections = selectedCanueV2FamilySelections.filter((selection) => (
+                      getCanueV2GridVariableKey(selection, canueV2Metadata.data) === gridVariable
+                    ))
+                    const nextSelection = getPreferredCanueV2Selection(nextSelections)
+                    const nextCadence = nextSelection ? getCanueV2Cadence(nextSelection) : selectedCanueV2ResolvedCadence
+                    setSelectedCanueV2Cadence(nextCadence)
+                    setSelectedCanueV2Measure(nextSelection ? getCanueV2MeasureKey(nextSelection) : null)
                     setSelectedCanueV2Year(nextSelection?.year ?? null)
-                    setSelectedCanueV2Month(nextSelection ? getCanueV2MonthKey(nextSelection.variable) : null)
+                    setSelectedCanueV2Month(nextCadence === 'monthly' && nextSelection ? getCanueV2MonthKey(nextSelection.variable) : null)
                     setSelectedCanueV2Property(nextSelection?.property ?? null)
                   }}
-                  options={canueV2MeasureOptions}
+                  options={canueV2GridVariableOptions}
                   className="mt-1"
                   triggerClassName="h-8 rounded-md text-xs"
                 />
               </label>
+              {canueV2CadenceOptions.length > 1 && (
+                <div className="block text-xs font-medium text-foreground">
+                  Time scale
+                  <div className="mt-1 grid grid-cols-2 rounded-md border border-input bg-background p-0.5">
+                    {canueV2CadenceOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          const nextSelections = selectedCanueV2GridVariableSelections.filter((selection) => getCanueV2Cadence(selection) === option.value)
+                          const nextSelection = getPreferredCanueV2Selection(nextSelections)
+                          setSelectedCanueV2Cadence(option.value)
+                          setSelectedCanueV2Measure(nextSelection ? getCanueV2MeasureKey(nextSelection) : null)
+                          setSelectedCanueV2Year(nextSelection?.year ?? null)
+                          setSelectedCanueV2Month(option.value === 'monthly' && nextSelection ? getCanueV2MonthKey(nextSelection.variable) : null)
+                          setSelectedCanueV2Property(nextSelection?.property ?? null)
+                        }}
+                        className={cn(
+                          'h-7 rounded px-2 text-xs font-medium transition-colors',
+                          selectedCanueV2ResolvedCadence === option.value
+                            ? 'bg-cyan-600 text-white shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                        aria-pressed={selectedCanueV2ResolvedCadence === option.value}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {canueV2MeasureOptions.length > 1 && (
+                <label className="block text-xs font-medium text-foreground">
+                  <span className="flex items-center gap-1.5">
+                    Sub-variable
+                    <CanueHelpIcon label="Sub-variable" help={selectedCanueV2DatasetHelp} />
+                  </span>
+                  <AppSelect
+                    value={selectedCanueV2MeasureKey ?? ''}
+                    onValueChange={(measure) => {
+                      const nextSelection = selectedCanueV2CadenceSelections.find((selection) => getCanueV2MeasureKey(selection) === measure)
+                      setSelectedCanueV2Measure(measure)
+                      setSelectedCanueV2Year(nextSelection?.year ?? null)
+                      setSelectedCanueV2Month(selectedCanueV2ResolvedCadence === 'monthly' && nextSelection ? getCanueV2MonthKey(nextSelection.variable) : null)
+                      setSelectedCanueV2Property(nextSelection?.property ?? null)
+                    }}
+                    options={canueV2MeasureOptions}
+                    className="mt-1"
+                    triggerClassName="h-8 rounded-md text-xs"
+                  />
+                </label>
+              )}
               <label className="block text-xs font-medium text-foreground">
                 Grid year
                 <AppSelect
@@ -2011,7 +2746,7 @@ export default function MiscDataSection() {
                     {String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary')}
                   </div>
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">{getCanueV2VariableLabel(selectedCanueV2Selection)}</span>
+                    <span className="text-muted-foreground">{renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection))}</span>
                     <span className="font-semibold text-foreground">
                       {formatNullableNumber(Number(selectedCanueBoundary.properties?.[selectedCanueV2Selection.property]))}
                     </span>
@@ -2140,7 +2875,7 @@ export default function MiscDataSection() {
                   onValueChange={setSelectedCanueVariable}
                   options={getSelectableCanueVariables(selectedCanueFile).map((variable) => ({
                     value: variable,
-                    label: `${getCanueVariableLabel(selectedCanueFile, variable)} (${variable})`,
+                    label: <>{renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, variable))} ({variable})</>,
                   }))}
                   className="mt-1"
                   triggerClassName="h-8 rounded-md text-xs"
@@ -2161,7 +2896,7 @@ export default function MiscDataSection() {
               {activeCanueBoundaryData.loading && <div className="text-xs text-muted-foreground">Aggregating CANUE records...</div>}
               {activeCanueBoundaryData.error && <div className="text-xs text-red-500">{activeCanueBoundaryData.error}</div>}
               <div className="rounded-md border border-border bg-muted/20 p-2 text-xs leading-5 text-muted-foreground">
-                {getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '')} is aggregated in the browser from raw boundary-clipped CANUE records for {canuePeriodLabel}.
+                {renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? ''))} is aggregated in the browser from raw boundary-clipped CANUE records for {canuePeriodLabel}.
               </div>
               {selectedCanueBoundary && selectedCanueVariable && (
                 <div className="rounded-md border border-border bg-background p-3 text-xs">
@@ -2169,7 +2904,7 @@ export default function MiscDataSection() {
                     {String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary')}
                   </div>
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">{getCanueVariableLabel(selectedCanueFile, selectedCanueVariable)}</span>
+                    <span className="text-muted-foreground">{renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable))}</span>
                     <span className="font-semibold text-foreground">
                       {formatNullableNumber(Number(selectedCanueBoundary.properties?.[activeCanueBoundaryProperty]))}
                     </span>
@@ -2296,9 +3031,9 @@ export default function MiscDataSection() {
             </MapMarker>
           ))}
 
-          {activeTab === 'canue' && CANUE_V2_ENABLED && selectedCanueV2Selection && (
+          {activeTab === 'canue' && CANUE_V2_ENABLED && selectedCanueV2Selection && !showCanueBoundaries && (
             <MapPmtilesFillLayer
-              key={`${selectedCanueV2Selection.pmtilesUrl}-${selectedCanueV2Selection.property}`}
+              key={selectedCanueV2Selection.pmtilesUrl}
               url={selectedCanueV2Selection.pmtilesUrl}
               sourceLayer="canue"
               fillColor={canueV2Paint(selectedCanueV2Selection)}
@@ -2309,10 +3044,10 @@ export default function MiscDataSection() {
             />
           )}
 
-          {activeTab === 'canue' && showCanueBoundaries && activeCanueBoundaryData.data.features.length > 0 && (
+          {activeTab === 'canue' && showCanueBoundaries && renderedCanueBoundaryLayer && renderedCanueBoundaryLayer.data.features.length > 0 && (
             <MapFillLayer
-              data={activeCanueBoundaryData.data}
-              fillColor={canueFillColor}
+              data={renderedCanueBoundaryLayer.data}
+              fillColor={renderedCanueFillColor}
               fillOpacity={0.74}
               lineColor="#0e7490"
               lineWidth={0.7}
@@ -2386,15 +3121,30 @@ export default function MiscDataSection() {
           />
         )}
 
-        {activeTab === 'canue' && canueGraphsAvailable && !showCanueGraphs && (
-          <button
-            type="button"
-            onClick={() => setShowCanueGraphs(true)}
-            className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] left-3 z-10 inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-background/95 px-3 text-xs font-semibold text-foreground shadow-xl backdrop-blur hover:bg-muted/80 md:bottom-6 md:left-6"
-          >
-            <BarChart3 className="h-4 w-4 text-cyan-600" />
-            Graphs
-          </button>
+        {activeTab === 'canue' && canueTimelineActive && canueTimelineDateRange && canueTimelineDate && (
+          <Timeline
+            startDate={canueTimelineDateRange.start}
+            endDate={canueTimelineDateRange.end}
+            currentDate={canueTimelineDate}
+            onDateChange={handleCanueTimelineDateChange}
+            onClose={handleCanueTimelineDisable}
+            granularity={canueTimelineIsMonthly ? 'month' : 'year'}
+            bucketCounts={canueTimelineBucketCounts}
+            compactBars
+            windowMode={{
+              size: canueTimelineWindowSize,
+              onSizeChange: setCanueTimelineWindowSize,
+              options: CANUE_TIMELINE_WINDOW_OPTIONS.map((option) => ({
+                ...option,
+                label: option.value === -1 ? option.label : `${option.value} ${canueTimelineIsMonthly ? 'mo' : 'yr'}`,
+              })),
+            }}
+            statsLabel={
+              canueTimelinePrefetch.loading
+                ? `Loading timeline ${canueTimelinePrefetch.loaded}/${canueTimelinePrefetch.total} | ${activeCanueBoundaryData.validBoundaryCount.toLocaleString()} areas`
+                : `${activeCanueBoundaryData.validBoundaryCount.toLocaleString()} areas with values`
+            }
+          />
         )}
 
         {activeTab === 'canue' && showCanueGraphs && canueGraphsAvailable && (
@@ -2405,6 +3155,7 @@ export default function MiscDataSection() {
             selectedBoundaryId={selectedCanueBoundaryId}
             boundaryLevelLabel={canueBoundaryConfig.label}
             loading={activeCanueBoundaryData.loading}
+            elevated={canueTimelineActive}
             onToggleVariable={handleCanueGraphVariableToggle}
             onClose={() => setShowCanueGraphs(false)}
           />
@@ -2413,7 +3164,7 @@ export default function MiscDataSection() {
         <div
           className={cn(
             'absolute right-3 z-10 w-[min(16.5rem,calc(100vw-2rem))] rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:w-auto md:rounded-xl md:p-4',
-            (activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled) || (activeTab === 'water' && water.timelineEnabled)
+            (activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled) || (activeTab === 'water' && water.timelineEnabled) || (activeTab === 'canue' && canueTimelineActive)
               ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
               : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] md:bottom-6',
           )}
@@ -2447,7 +3198,7 @@ export default function MiscDataSection() {
                 <div>
                   <div className="mb-1 flex items-center justify-between gap-3">
                     <span className="min-w-0 truncate font-medium text-foreground">
-                      {selectedCanueV2Selection ? getCanueV2VariableLabel(selectedCanueV2Selection) : selectedCanueFile ? getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '') : 'CANUE boundary layer'}
+                      {selectedCanueV2Selection ? renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection)) : selectedCanueFile ? renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '')) : 'CANUE boundary layer'}
                     </span>
                     {activeCanueBoundaryData.loading && <span className="shrink-0 text-[10px]">Loading</span>}
                   </div>

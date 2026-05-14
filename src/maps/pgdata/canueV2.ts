@@ -55,6 +55,7 @@ export type CanueVariableSelection = {
   variable: string
   property: string
   pmtilesUrl: string
+  count: number | null
   min: number | null
   max: number | null
 }
@@ -70,6 +71,7 @@ export function listCanueV2Selections(catalog: CanueV2Catalog): CanueVariableSel
         variable: variable.variable,
         property: variable.property,
         pmtilesUrl: layer.pmtiles.url,
+        count: variable.count ?? null,
         min: variable.min ?? null,
         max: variable.max ?? null,
       })),

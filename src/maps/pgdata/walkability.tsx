@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Calculator, Footprints, RotateCcw } from 'lucide-react'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
-import { InlineAlert, KeyValueRows, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
+import { InlineAlert, KeyValueRows, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
 
@@ -955,14 +955,11 @@ export function WalkabilityLegend({ walkability }: { walkability: WalkabilitySta
   return (
     <div className="w-56 space-y-2 text-xs text-muted-foreground">
       <div className="font-medium text-foreground">{walkability.selectedVariant?.label ?? 'Walkability score'}</div>
-      <div
-        className="h-3 w-full rounded-sm border border-border bg-gradient-to-r from-orange-500 via-yellow-300 to-green-500"
-        aria-hidden="true"
+      <MapGradientLegendItem
+        colors={['#f97316', '#fde047', '#22c55e']}
+        minLabel={formatNullableNumber(walkability.minScore)}
+        maxLabel={formatNullableNumber(walkability.maxScore)}
       />
-      <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums">
-        <span>{formatNullableNumber(walkability.minScore)}</span>
-        <span>{formatNullableNumber(walkability.maxScore)}</span>
-      </div>
       <div>{walkability.features.length.toLocaleString()} community polygons</div>
     </div>
   )

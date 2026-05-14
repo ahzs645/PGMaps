@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { ParksMap } from './components/ParksMap'
 import { ParksSidebar } from './components/ParksSidebar'
 import { useParksData } from './hooks/useParksData'
@@ -239,19 +240,13 @@ export default function ParksSection() {
 
         {/* Legend */}
         {legendItems.length > 0 && (
-          <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
-            <h4 className="mb-2 text-xs font-semibold text-foreground">
-              Legend
-            </h4>
+          <MapLegendPanel title="Legend" collapsible>
             <div className="space-y-1">
               {legendItems.map((item) => (
-                <div key={item.label} className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-xs text-muted-foreground">{item.label}</span>
-                </div>
+                <LegendItem key={item.label} color={item.color} label={item.label} />
               ))}
             </div>
-          </div>
+          </MapLegendPanel>
         )}
       </div>
     </MapSectionLayout>

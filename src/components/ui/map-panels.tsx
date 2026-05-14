@@ -1,7 +1,339 @@
-import type { ElementType, HTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { useState, type ComponentPropsWithoutRef, type ElementType, type HTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
+import { ChevronDown, X } from 'lucide-react'
 import { DatasetInfo, type DatasetInfoRecord } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
+
+const overlayPositions = {
+  'top-left': 'top-3 left-3',
+  'top-right': 'top-3 right-3',
+  'bottom-left': 'bottom-3 left-3',
+  'bottom-right': 'right-3 bottom-3',
+  'top-center': 'top-3 left-1/2 -translate-x-1/2',
+  'bottom-center': 'bottom-3 left-1/2 -translate-x-1/2',
+} as const
+
+export type MapOverlayPosition = keyof typeof overlayPositions
+
+type MapOverlayProps = ComponentPropsWithoutRef<'div'> & {
+  position?: MapOverlayPosition
+}
+
+export function MapOverlay({ position = 'top-left', className, children, ...props }: MapOverlayProps) {
+  return (
+    <div
+      className={cn(
+        'absolute z-10 rounded-md border border-border bg-background/90 shadow-sm backdrop-blur-sm',
+        overlayPositions[position],
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function MapOverlayHeader({ className, ...props }: ComponentPropsWithoutRef<'div'>) {
+  return <div className={cn('mb-2', className)} {...props} />
+}
+
+export function MapOverlayTitle({ className, ...props }: ComponentPropsWithoutRef<'p'>) {
+  return <p className={cn('text-[10px] font-medium text-foreground', className)} {...props} />
+}
+
+export function MapOverlayContent({ className, ...props }: ComponentPropsWithoutRef<'div'>) {
+  return <div className={cn('space-y-1', className)} {...props} />
+}
+
+export function MapPanel({ className, ...props }: ComponentPropsWithoutRef<'div'>) {
+  return (
+    <div
+      className={cn(
+        'max-h-[calc(100%-5rem)] overflow-auto rounded-xl bg-background/95 shadow-lg backdrop-blur-sm',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+export function MapPanelHeader({ className, ...props }: ComponentPropsWithoutRef<'div'>) {
+  return <div className={cn('border-b border-border p-3', className)} {...props} />
+}
+
+export function MapPanelTitle({ className, ...props }: ComponentPropsWithoutRef<'h2'>) {
+  return <h2 className={cn('text-sm font-semibold', className)} {...props} />
+}
+
+export function MapPanelDescription({ className, ...props }: ComponentPropsWithoutRef<'p'>) {
+  return <p className={cn('mt-1 text-xs text-muted-foreground', className)} {...props} />
+}
+
+export function MapPanelContent({ className, ...props }: ComponentPropsWithoutRef<'div'>) {
+  return <div className={cn('p-3', className)} {...props} />
+}
+
+export function MapPanelFooter({ className, ...props }: ComponentPropsWithoutRef<'div'>) {
+  return <div className={cn('px-3 pb-3', className)} {...props} />
+}
+
+type MapFloatingButtonProps = ComponentPropsWithoutRef<'button'> & {
+  active?: boolean
+  position?: MapOverlayPosition
+}
+
+export function MapFloatingButton({
+  active = false,
+  position = 'top-left',
+  className,
+  type = 'button',
+  ...props
+}: MapFloatingButtonProps) {
+  return (
+    <button
+      type={type}
+      className={cn(
+        'absolute z-10 flex size-9 cursor-pointer items-center justify-center rounded-lg shadow-lg backdrop-blur-sm transition-colors',
+        overlayPositions[position],
+        active ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-background/95 hover:bg-accent',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+type MapToolbarButtonProps = ComponentPropsWithoutRef<'button'> & {
+  active?: boolean
+  shape?: 'circle' | 'square'
+}
+
+export function MapToolbarButton({
+  active = false,
+  shape = 'square',
+  className,
+  type = 'button',
+  ...props
+}: MapToolbarButtonProps) {
+  return (
+    <button
+      type={type}
+      className={cn(
+        'flex size-9 cursor-pointer items-center justify-center border border-border transition-colors',
+        shape === 'circle' ? 'rounded-full' : 'rounded-md',
+        active ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+type MapStatProps = ComponentPropsWithoutRef<'div'> & {
+  icon?: ReactNode
+  label?: ReactNode
+  value: ReactNode
+  inline?: boolean
+}
+
+export function MapStat({ icon, label, value, inline = false, className, ...props }: MapStatProps) {
+  return (
+    <div className={cn('flex items-center gap-1.5 text-xs text-muted-foreground', className)} {...props}>
+      {icon}
+      <div className={cn(inline && 'contents')}>
+        <div className={cn('font-medium', inline ? 'text-muted-foreground' : 'text-foreground')}>{value}</div>
+        {label ? <div className="text-[10px]">{label}</div> : null}
+      </div>
+    </div>
+  )
+}
+
+type MapSwatchProps = ComponentPropsWithoutRef<'span'> & {
+  color?: string
+  active?: boolean
+  shape?: 'dot' | 'square' | 'line'
+}
+
+export function MapSwatch({ color, active = true, shape = 'square', className, style, ...props }: MapSwatchProps) {
+  return (
+    <span
+      className={cn(
+        'shrink-0 border',
+        shape === 'dot' && 'size-2.5 rounded-full',
+        shape === 'square' && 'size-2.5 rounded-sm',
+        shape === 'line' && 'h-0.5 w-4 rounded-full border-0',
+        className,
+      )}
+      style={{
+        backgroundColor: active ? color : 'transparent',
+        borderColor: color,
+        ...style,
+      }}
+      {...props}
+    />
+  )
+}
+
+type MapLegendProps = MapOverlayProps & {
+  title?: ReactNode
+  collapsible?: boolean
+  defaultCollapsed?: boolean
+}
+
+export function MapLegend({
+  title,
+  collapsible = false,
+  defaultCollapsed = false,
+  className,
+  children,
+  ...props
+}: MapLegendProps) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed)
+
+  return (
+    <MapOverlay className={cn('p-2', className)} {...props}>
+      {title ? (
+        <MapOverlayHeader className={cn(!collapsed && 'mb-2')}>
+          {collapsible ? (
+            <button
+              type="button"
+              aria-expanded={!collapsed}
+              onClick={() => setCollapsed((value) => !value)}
+              className="flex w-full items-center justify-between gap-3 text-left hover:text-foreground"
+            >
+              <MapOverlayTitle>{title}</MapOverlayTitle>
+              <ChevronDown
+                className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', collapsed && '-rotate-90')}
+              />
+            </button>
+          ) : (
+            <MapOverlayTitle>{title}</MapOverlayTitle>
+          )}
+        </MapOverlayHeader>
+      ) : null}
+      {!collapsed ? <MapOverlayContent>{children}</MapOverlayContent> : null}
+    </MapOverlay>
+  )
+}
+
+type MapLegendItemProps = ComponentPropsWithoutRef<'button'> & {
+  color?: string
+  label: ReactNode
+  active?: boolean
+  swatchShape?: MapSwatchProps['shape']
+}
+
+export function MapLegendItem({
+  color,
+  label,
+  active = true,
+  swatchShape = 'square',
+  className,
+  disabled,
+  ...props
+}: MapLegendItemProps) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      className={cn(
+        'flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[10px] transition-colors hover:bg-accent disabled:pointer-events-none',
+        className,
+      )}
+      {...props}
+    >
+      <MapSwatch color={color} active={active} shape={swatchShape} />
+      <span className={cn(!active && 'text-muted-foreground line-through')}>{label}</span>
+    </button>
+  )
+}
+
+type MapGradientLegendItemProps = ComponentPropsWithoutRef<'div'> & {
+  colors: string[]
+  minLabel: ReactNode
+  maxLabel: ReactNode
+}
+
+export function MapGradientLegendItem({
+  colors,
+  minLabel,
+  maxLabel,
+  className,
+  style,
+  ...props
+}: MapGradientLegendItemProps) {
+  return (
+    <div className={cn('min-w-24 space-y-1', className)} {...props}>
+      <div
+        className="h-2 rounded-sm border"
+        style={{
+          background: `linear-gradient(to right, ${colors.join(', ')})`,
+          ...style,
+        }}
+      />
+      <div className="flex items-center justify-between gap-3 text-[9px] text-muted-foreground">
+        <span>{minLabel}</span>
+        <span>{maxLabel}</span>
+      </div>
+    </div>
+  )
+}
+
+type MapLayerToggleProps = ComponentPropsWithoutRef<'label'> & {
+  color?: string
+  label: ReactNode
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+}
+
+export function MapLayerToggle({ color, label, checked, onCheckedChange, className, ...props }: MapLayerToggleProps) {
+  return (
+    <label className={cn('flex cursor-pointer items-center gap-1.5 text-[10px]', className)} {...props}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onCheckedChange(event.target.checked)}
+        className="size-3 accent-primary"
+      />
+      <MapSwatch color={color} active={checked} />
+      {label}
+    </label>
+  )
+}
+
+type MapMarkerDotProps = ComponentPropsWithoutRef<'div'> & {
+  color?: string
+}
+
+export function MapMarkerDot({ color, className, style, ...props }: MapMarkerDotProps) {
+  return (
+    <div
+      className={cn('size-3.5 rounded-full border-2 border-white shadow-lg', className)}
+      style={{ backgroundColor: color, ...style }}
+      {...props}
+    />
+  )
+}
+
+type MapNumberedMarkerProps = ComponentPropsWithoutRef<'div'> & {
+  color?: string
+  label: ReactNode
+}
+
+export function MapNumberedMarker({ color, label, className, style, ...props }: MapNumberedMarkerProps) {
+  return (
+    <div
+      className={cn(
+        'flex size-4 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold text-white shadow-lg',
+        className,
+      )}
+      style={{ backgroundColor: color, ...style }}
+      {...props}
+    >
+      {label}
+    </div>
+  )
+}
 
 type MapSidebarShellProps = HTMLAttributes<HTMLDivElement> & {
   title: ReactNode
@@ -405,9 +737,22 @@ export function SelectedItemCard({
 type MapLegendPanelProps = {
   children: ReactNode
   className?: string
+  title?: ReactNode
+  description?: ReactNode
+  collapsible?: boolean
+  defaultCollapsed?: boolean
 }
 
-export function MapLegendPanel({ children, className }: MapLegendPanelProps) {
+export function MapLegendPanel({
+  children,
+  className,
+  title,
+  description,
+  collapsible = false,
+  defaultCollapsed = false,
+}: MapLegendPanelProps) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed)
+
   return (
     <div
       className={cn(
@@ -415,7 +760,32 @@ export function MapLegendPanel({ children, className }: MapLegendPanelProps) {
         className,
       )}
     >
-      {children}
+      {title && (
+        <div className={cn(!collapsed && 'mb-2')}>
+          {collapsible ? (
+            <button
+              type="button"
+              aria-expanded={!collapsed}
+              onClick={() => setCollapsed((value) => !value)}
+              className="flex w-full items-start justify-between gap-3 text-left hover:text-foreground"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-semibold text-foreground">{title}</span>
+                {description ? <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">{description}</span> : null}
+              </span>
+              <ChevronDown
+                className={cn('mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform', collapsed && '-rotate-90')}
+              />
+            </button>
+          ) : (
+            <>
+              <h4 className="text-xs font-semibold text-foreground">{title}</h4>
+              {description ? <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</div> : null}
+            </>
+          )}
+        </div>
+      )}
+      {!collapsed ? children : null}
     </div>
   )
 }
