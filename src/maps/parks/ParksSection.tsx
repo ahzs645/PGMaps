@@ -179,15 +179,17 @@ export default function ParksSection() {
       .filter((row) => row.count > 0)
   }, [searchQuery, selectedTrailTypes, trails])
 
-  const overlayLegendItems = useMemo(() => [
-    activeLayers.includes('amenities') ? { label: 'Amenities', color: '#f59e0b', layer: 'amenities' as const } : null,
-    activeLayers.includes('parkAssets') ? { label: 'Park assets', color: '#16a34a', layer: 'parkAssets' as const } : null,
-    activeLayers.includes('mobility') ? { label: 'Mobility', color: '#0891b2', layer: 'mobility' as const } : null,
-    activeLayers.includes('ecology') ? { label: 'Ecology', color: '#16a34a', layer: 'ecology' as const } : null,
-    activeLayers.includes('community') ? { label: 'Community', color: '#6366f1', layer: 'community' as const } : null,
-    activeLayers.includes('services') ? { label: 'Services', color: '#38bdf8', layer: 'services' as const } : null,
-    activeLayers.includes('planning') ? { label: 'OCP 2025', color: '#f97316', layer: 'planning' as const } : null,
-  ].filter((item): item is { label: string; color: string; layer: ActiveLayer } => item !== null), [activeLayers])
+  const overlayLegendItems = useMemo(() => {
+    const items: Array<{ label: string; color: string; layer: ActiveLayer }> = []
+    if (activeLayers.includes('amenities')) items.push({ label: 'Amenities', color: '#f59e0b', layer: 'amenities' })
+    if (activeLayers.includes('parkAssets')) items.push({ label: 'Park assets', color: '#16a34a', layer: 'parkAssets' })
+    if (activeLayers.includes('mobility')) items.push({ label: 'Mobility', color: '#0891b2', layer: 'mobility' })
+    if (activeLayers.includes('ecology')) items.push({ label: 'Ecology', color: '#16a34a', layer: 'ecology' })
+    if (activeLayers.includes('community')) items.push({ label: 'Community', color: '#6366f1', layer: 'community' })
+    if (activeLayers.includes('services')) items.push({ label: 'Services', color: '#38bdf8', layer: 'services' })
+    if (activeLayers.includes('planning')) items.push({ label: 'OCP 2025', color: '#f97316', layer: 'planning' })
+    return items
+  }, [activeLayers])
 
   const showLegend = (activeLayers.includes('parks') && parkLegendRows.length > 0)
     || (activeLayers.includes('trails') && trailLegendRows.length > 0)
