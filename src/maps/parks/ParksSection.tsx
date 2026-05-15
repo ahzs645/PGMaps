@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { ParksMap } from './components/ParksMap'
 import { ParksSidebar } from './components/ParksSidebar'
 import { useParksData } from './hooks/useParksData'
@@ -147,42 +147,51 @@ export default function ParksSection() {
     setSelectedTrail(null)
   }, [])
 
-  // Build legend items
-  const legendItems = useMemo(() => {
-    const items: { label: string; color: string }[] = []
-    if (activeLayers.includes('parks')) {
-      selectedClassifications.slice(0, 5).forEach((c) => {
-        items.push({ label: c, color: getClassificationColor(c) })
-      })
-    }
-    if (activeLayers.includes('trails')) {
-      selectedTrailTypes.forEach((t) => {
-        items.push({ label: `${t} Trail`, color: getTrailColor(t) })
-      })
-    }
-    if (activeLayers.includes('amenities')) {
-      items.push({ label: 'Amenities', color: '#f59e0b' })
-    }
-    if (activeLayers.includes('parkAssets')) {
-      items.push({ label: 'Park assets', color: '#16a34a' })
-    }
-    if (activeLayers.includes('mobility')) {
-      items.push({ label: 'Mobility', color: '#0891b2' })
-    }
-    if (activeLayers.includes('ecology')) {
-      items.push({ label: 'Ecology', color: '#16a34a' })
-    }
-    if (activeLayers.includes('community')) {
-      items.push({ label: 'Community', color: '#6366f1' })
-    }
-    if (activeLayers.includes('services')) {
-      items.push({ label: 'Services', color: '#38bdf8' })
-    }
-    if (activeLayers.includes('planning')) {
-      items.push({ label: 'OCP 2025', color: '#f97316' })
-    }
-    return items
-  }, [activeLayers, selectedClassifications, selectedTrailTypes])
+  const parkLegendRows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    return ALL_CLASSIFICATIONS
+      .map((classification) => ({
+        classification,
+        count: parks.filter((park) => (
+          park.classification === classification &&
+          (!query || park.name.toLowerCase().includes(query))
+        )).length,
+        active: selectedClassifications.includes(classification),
+      }))
+      .filter((row) => row.count > 0)
+  }, [parks, searchQuery, selectedClassifications])
+
+  const trailLegendRows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    return ALL_TRAIL_TYPES
+      .map((type) => ({
+        type,
+        count: trails.filter((trail) => (
+          trail.userClass === type &&
+          (!query || [
+            trail.name,
+            trail.parkName,
+            trail.surfaceMaterial,
+          ].filter(Boolean).join(' ').toLowerCase().includes(query))
+        )).length,
+        active: selectedTrailTypes.includes(type),
+      }))
+      .filter((row) => row.count > 0)
+  }, [searchQuery, selectedTrailTypes, trails])
+
+  const overlayLegendItems = useMemo(() => [
+    activeLayers.includes('amenities') ? { label: 'Amenities', color: '#f59e0b', layer: 'amenities' as const } : null,
+    activeLayers.includes('parkAssets') ? { label: 'Park assets', color: '#16a34a', layer: 'parkAssets' as const } : null,
+    activeLayers.includes('mobility') ? { label: 'Mobility', color: '#0891b2', layer: 'mobility' as const } : null,
+    activeLayers.includes('ecology') ? { label: 'Ecology', color: '#16a34a', layer: 'ecology' as const } : null,
+    activeLayers.includes('community') ? { label: 'Community', color: '#6366f1', layer: 'community' as const } : null,
+    activeLayers.includes('services') ? { label: 'Services', color: '#38bdf8', layer: 'services' as const } : null,
+    activeLayers.includes('planning') ? { label: 'OCP 2025', color: '#f97316', layer: 'planning' as const } : null,
+  ].filter((item): item is { label: string; color: string; layer: ActiveLayer } => item !== null), [activeLayers])
+
+  const showLegend = (activeLayers.includes('parks') && parkLegendRows.length > 0)
+    || (activeLayers.includes('trails') && trailLegendRows.length > 0)
+    || overlayLegendItems.length > 0
 
   return (
     <MapSectionLayout
@@ -239,13 +248,52 @@ export default function ParksSection() {
         />
 
         {/* Legend */}
-        {legendItems.length > 0 && (
-          <MapLegendPanel title="Legend" collapsible>
-            <div className="space-y-1">
-              {legendItems.map((item) => (
-                <LegendItem key={item.label} color={item.color} label={item.label} />
-              ))}
-            </div>
+        {showLegend && (
+          <MapLegendPanel title="Legend" collapsible contentClassName="space-y-3">
+            {activeLayers.includes('parks') && parkLegendRows.length > 0 && (
+              <MapLegendSection title="Parks" value={parkLegendRows.length.toLocaleString()}>
+                {parkLegendRows.map((row) => (
+                  <LegendItem
+                    key={row.classification}
+                    color={getClassificationColor(row.classification)}
+                    label={row.classification}
+                    value={row.count.toLocaleString()}
+                    active={row.active}
+                    onClick={() => toggleClassification(row.classification)}
+                  />
+                ))}
+              </MapLegendSection>
+            )}
+
+            {activeLayers.includes('trails') && trailLegendRows.length > 0 && (
+              <MapLegendSection title="Trails" value={trailLegendRows.length.toLocaleString()} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+                {trailLegendRows.map((row) => (
+                  <LegendItem
+                    key={row.type}
+                    color={getTrailColor(row.type)}
+                    label={`${row.type} Trail`}
+                    value={row.count.toLocaleString()}
+                    active={row.active}
+                    swatchShape="dashed-line"
+                    onClick={() => toggleTrailType(row.type)}
+                  />
+                ))}
+              </MapLegendSection>
+            )}
+
+            {overlayLegendItems.length > 0 && (
+              <MapLegendSection title="Overlays" value={overlayLegendItems.length.toLocaleString()} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+                {overlayLegendItems.map((item) => (
+                  <LegendItem
+                    key={item.layer}
+                    color={item.color}
+                    label={item.label}
+                    active={activeLayers.includes(item.layer)}
+                    onClick={() => toggleLayer(item.layer)}
+                  />
+                ))}
+              </MapLegendSection>
+            )}
           </MapLegendPanel>
         )}
       </div>

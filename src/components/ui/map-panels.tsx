@@ -844,7 +844,7 @@ type LegendItemProps = Omit<ComponentPropsWithoutRef<'button'>, 'color'> & {
   label: ReactNode
   value?: ReactNode
   active?: boolean
-  swatchShape?: 'circle' | 'square'
+  swatchShape?: 'circle' | 'square' | 'line' | 'dashed-line'
   className?: string
 }
 
@@ -864,11 +864,16 @@ export function LegendItem({
       <div className="flex min-w-0 items-center gap-2">
         <span
           className={cn(
-            'h-2.5 w-2.5 shrink-0 transition-opacity',
+            'shrink-0 transition-opacity',
             swatchShape === 'circle' ? 'rounded-full' : 'rounded-sm',
+            swatchShape === 'line' || swatchShape === 'dashed-line' ? 'h-0.5 w-5' : 'h-2.5 w-2.5',
             !active && 'opacity-35',
           )}
-          style={{ backgroundColor: color }}
+          style={
+            swatchShape === 'dashed-line'
+              ? { backgroundImage: `repeating-linear-gradient(to right, ${color} 0 5px, transparent 5px 8px)` }
+              : { backgroundColor: color }
+          }
         />
         <span className={cn('truncate', !active && 'line-through')}>{label}</span>
       </div>

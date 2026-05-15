@@ -150,7 +150,7 @@ export function ParksMap({
 
         <MapLineLayer
           data={trailGeojson}
-          color="#ef4444"
+          color={['get', 'color']}
           width={3}
           opacity={0.8}
           dashArray={[2, 1.5]}

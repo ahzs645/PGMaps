@@ -719,11 +719,34 @@ export default function AirQualitySection() {
     })
   }, [])
 
-  const visibleLegendNetworks = useMemo(() => {
-    return Array.from(new Set(visibleMonitorsInView.map((monitor) => monitor.network)))
-      .filter((network) => selectedNetworks.includes(network))
-      .sort((a, b) => a.localeCompare(b))
-  }, [selectedNetworks, visibleMonitorsInView])
+  const legendNetworkRows = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+    const counts = new Map<string, number>()
+    monitorsInRegionScope
+      .filter((monitor) => monitorMatchesObservationLayers(monitor, observationLayers))
+      .filter((monitor) => !normalizedQuery || getMonitorSearchText(monitor).includes(normalizedQuery))
+      .filter((monitor) => isMonitorInBounds(monitor, mapBounds))
+      .forEach((monitor) => {
+        counts.set(monitor.network, (counts.get(monitor.network) ?? 0) + 1)
+      })
+
+    return Array.from(counts.entries())
+      .map(([network, count]) => ({
+        network,
+        count,
+        active: selectedNetworks.includes(network),
+      }))
+      .sort((a, b) => b.count - a.count || a.network.localeCompare(b.network))
+  }, [mapBounds, monitorsInRegionScope, observationLayers, searchQuery, selectedNetworks])
+
+  const selectLegendNetworks = useCallback(() => {
+    setSelectedNetworks((current) => Array.from(new Set([...current, ...legendNetworkRows.map((row) => row.network)])))
+  }, [legendNetworkRows])
+
+  const clearLegendNetworks = useCallback(() => {
+    const legendNetworks = new Set(legendNetworkRows.map((row) => row.network))
+    setSelectedNetworks((current) => current.filter((network) => !legendNetworks.has(network)))
+  }, [legendNetworkRows])
 
   const handleBoundsChange = useCallback((bounds: AirQualityMapBounds) => {
     setMapBounds(bounds)
@@ -880,13 +903,45 @@ export default function AirQualitySection() {
             {showPoints && (
               <MapLegendSection
                 title="Networks in view"
-                value={visibleLegendNetworks.length.toLocaleString()}
+                value={legendNetworkRows.length.toLocaleString()}
                 className="border-t border-border pt-3 first:border-t-0 first:pt-0"
               >
-                {visibleLegendNetworks.length > 0 ? (
-                  <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
-                    {visibleLegendNetworks.map((network) => (
-                      <LegendItem key={network} color={getNetworkColor(network)} label={network} />
+                {legendNetworkRows.length > 0 ? (
+                  <>
+                    <div className="flex items-center gap-2 px-1 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={selectLegendNetworks}
+                        className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearLegendNetworks}
+                        className="font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        None
+                      </button>
+                    </div>
+                    <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                      {legendNetworkRows.map((row) => (
+                        <LegendItem
+                          key={row.network}
+                          color={getNetworkColor(row.network)}
+                          label={row.network}
+                          value={row.count.toLocaleString()}
+                          active={row.active}
+                          onClick={() => toggleNetwork(row.network)}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs text-muted-foreground">No visible network points</div>
+                )}
+              </MapLegendSection>
+            )}
                     ))}
                   </div>
                 ) : (
