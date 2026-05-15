@@ -942,13 +942,6 @@ export default function AirQualitySection() {
                 )}
               </MapLegendSection>
             )}
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground">No visible network points</div>
-                )}
-              </MapLegendSection>
-            )}
           </div>
         </MapLegendPanel>
       </div>
