@@ -23,6 +23,7 @@ import {
 } from './lib/monitorPresentation'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from './lib/markerIcons'
 import { fetchAqmapPlotSeries, makePlotPolyline, type AqPlotPoint } from './lib/plotData'
+import { useAqmapSmokeLayers } from './lib/useAqmapSmokeLayers'
 import { SMOKE_LAYERS, type SmokeLayerDefinition, type SmokeLayerKey } from './lib/smokeLayers'
 import {
   CANADA_CENTER,
@@ -140,6 +141,7 @@ function ToggleButton({
 
 function AqMapSidebar({
   monitors,
+  smokeLayers,
   visibleGroups,
   onToggleGroup,
   visibleWmsLayers,
@@ -162,6 +164,7 @@ function AqMapSidebar({
   onBasemapChange: (basemap: AqBasemap) => void
   loading: boolean
   error: string | null
+  smokeLayers: SmokeLayerDefinition[]
 }) {
   const counts = useMemo(() => {
     return monitors.reduce<Record<AqMonitorGroup, number>>(
@@ -254,7 +257,7 @@ function AqMapSidebar({
             Overlays
           </div>
           <div className="space-y-2">
-            {SMOKE_LAYERS.map((layer) => (
+            {smokeLayers.map((layer) => (
               <ToggleButton
                 key={layer.key}
                 active={visibleSmokeLayers.has(layer.key)}
@@ -787,6 +790,7 @@ function FloatingLayerControl({
   onToggleWmsLayer,
   visibleSmokeLayers,
   onToggleSmokeLayer,
+  smokeLayers,
 }: {
   basemap: AqBasemap
   onBasemapChange: (basemap: AqBasemap) => void
@@ -796,6 +800,7 @@ function FloatingLayerControl({
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
+  smokeLayers: SmokeLayerDefinition[]
 }) {
   return (
     <div
@@ -819,7 +824,7 @@ function FloatingLayerControl({
             <span>{getGroupLabel(group)}</span>
           </label>
         ))}
-        {SMOKE_LAYERS.map((layer) => (
+        {smokeLayers.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
             <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
             <span>{layer.label}</span>
@@ -839,12 +844,14 @@ function FloatingLayerControl({
 function FloatingLegends({
   visibleWmsLayers,
   visibleSmokeLayers,
+  smokeLayers,
 }: {
   visibleWmsLayers: Set<WmsLayerKey>
   visibleSmokeLayers: Set<SmokeLayerKey>
+  smokeLayers: SmokeLayerDefinition[]
 }) {
   const visibleWms = WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key) && layer.legendUrl)
-  const visibleSmoke = SMOKE_LAYERS.filter((layer) => visibleSmokeLayers.has(layer.key))
+  const visibleSmoke = smokeLayers.filter((layer) => visibleSmokeLayers.has(layer.key))
   if (visibleWms.length === 0 && visibleSmoke.length === 0) return null
 
   return (
@@ -963,6 +970,7 @@ function ScaleBar() {
 
 export default function AqMapSection() {
   const { monitors, loading, error } = useAirQualityData({ aqmapCompatible: true })
+  const { layers: smokeLayers, error: smokeError } = useAqmapSmokeLayers()
   const initialUrlState = useMemo(() => parseAqmapHash(window.location.hash, new URLSearchParams(window.location.search)), [])
   const [showSidebar, setShowSidebar] = useState(false)
   const [visibleGroups, setVisibleGroups] = useState<Set<AqMonitorGroup>>(() => initialUrlState.visibleGroups)
@@ -1054,19 +1062,20 @@ export default function AqMapSection() {
   }, [])
 
   const sidebar = (
-    <AqMapSidebar
-      monitors={monitors}
-      visibleGroups={visibleGroups}
-      onToggleGroup={toggleGroup}
+      <AqMapSidebar
+        monitors={monitors}
+        smokeLayers={smokeLayers}
+        visibleGroups={visibleGroups}
+        onToggleGroup={toggleGroup}
       visibleWmsLayers={visibleWmsLayers}
       onToggleWmsLayer={toggleWmsLayer}
       visibleSmokeLayers={visibleSmokeLayers}
       onToggleSmokeLayer={toggleSmokeLayer}
-      basemap={basemap}
-      onBasemapChange={setBasemap}
-      loading={loading}
-      error={error}
-    />
+        basemap={basemap}
+        onBasemapChange={setBasemap}
+        loading={loading}
+        error={error || smokeError}
+      />
   )
 
   return (
@@ -1095,7 +1104,7 @@ export default function AqMapSection() {
           })
         }}
       >
-        {SMOKE_LAYERS.map((layer) => (
+        {smokeLayers.map((layer) => (
           <SmokePolygonLayer key={layer.key} definition={layer} visible={visibleSmokeLayers.has(layer.key)} />
         ))}
         {WMS_LAYERS.map((layer) => (
@@ -1122,10 +1131,12 @@ export default function AqMapSection() {
           onToggleWmsLayer={toggleWmsLayer}
           visibleSmokeLayers={visibleSmokeLayers}
           onToggleSmokeLayer={toggleSmokeLayer}
+          smokeLayers={smokeLayers}
         />
         <FloatingLegends
           visibleWmsLayers={visibleWmsLayers}
           visibleSmokeLayers={visibleSmokeLayers}
+          smokeLayers={smokeLayers}
         />
         <MapUtilityControls onReset={resetView} />
         <MapTimestamp latestDate={latestDate} />

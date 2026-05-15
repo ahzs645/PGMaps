@@ -13,6 +13,8 @@ export interface SmokeLayerDefinition {
   }>
 }
 
+export type SmokeLayerDataMap = Record<SmokeLayerKey, GeoJSON.FeatureCollection>
+
 export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
   {
     key: 'modelledSmoke',
@@ -130,3 +132,8 @@ export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
     },
   },
 ]
+
+export const SMOKE_FALLBACK_DATA: SmokeLayerDataMap = {
+  modelledSmoke: SMOKE_LAYERS[0].data,
+  visibleSmoke: SMOKE_LAYERS[1].data,
+}
