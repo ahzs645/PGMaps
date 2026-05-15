@@ -156,6 +156,33 @@ button, a, [role="button"] {
   pointer-events: none;
 }
 
+.aqmap-popup {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000;
+  background: #fff;
+}
+
+.aqmap-popup .popup_title,
+.aqmap-tooltip .tooltip_title {
+  color: #000;
+  font-weight: 700;
+}
+
+.aqmap-popup .popup_value,
+.aqmap-tooltip .popup_value {
+  color: #000;
+  white-space: nowrap;
+}
+
+.aqmap-popup table {
+  border-collapse: collapse;
+}
+
+.aqmap-popup td {
+  vertical-align: middle;
+  padding: 1px 5px 1px 0;
+}
+
 /* Custom animations */
 @keyframes bounce-in {
   0% {

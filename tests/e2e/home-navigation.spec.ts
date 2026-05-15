@@ -35,6 +35,14 @@ test.describe('Home Page Navigation', () => {
     await expect(censusLink).toBeVisible()
   })
 
+  test('navbar leaves selected air quality monitor URLs for PG Data tabs', async ({ page }) => {
+    await page.goto('/airquality?boundaries=0&monitor=23541', { waitUntil: 'domcontentloaded' })
+
+    await page.locator('nav').getByRole('link', { name: 'Parks & Trails' }).click()
+
+    await expect(page).toHaveURL(/\/pgdata\?tab=parks$/)
+  })
+
   test('mobile menu opens, closes, and navigates', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/', { waitUntil: 'domcontentloaded' })

@@ -373,6 +373,7 @@ export default function AirQualitySection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [mapBounds, setMapBounds] = useState<AirQualityMapBounds | null>(null)
   const closedMonitorIdRef = useRef<string | null>(null)
+  const suppressUrlSyncUntilRef = useRef(0)
 
   const {
     regions: studyAreaRegions,
@@ -402,6 +403,25 @@ export default function AirQualitySection() {
     : null
 
   useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const link = target.closest('a[href]')
+      if (!(link instanceof HTMLAnchorElement)) return
+      const url = new URL(link.href, window.location.href)
+      if (url.origin === window.location.origin && url.pathname !== '/airquality') {
+        suppressUrlSyncUntilRef.current = Date.now() + 1000
+      }
+    }
+
+    document.addEventListener('click', handleDocumentClick, true)
+    return () => document.removeEventListener('click', handleDocumentClick, true)
+  }, [])
+
+  useEffect(() => {
+    if (Date.now() < suppressUrlSyncUntilRef.current) return
+    if (typeof window !== 'undefined' && window.location.pathname !== '/airquality') return
+
     const params = new URLSearchParams(searchParams)
     if (boundarySource !== 'bcHealth') params.set('src', boundarySource)
     else params.delete('src')

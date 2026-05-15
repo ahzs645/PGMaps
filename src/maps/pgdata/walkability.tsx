@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Calculator, Footprints, RotateCcw } from 'lucide-react'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
-import { InlineAlert, KeyValueRows, LegendItem, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
+import { InlineAlert, KeyValueRows, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
 
@@ -927,27 +927,9 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
 }
 
 export function WalkabilityLegend({ walkability }: { walkability: WalkabilityState }) {
-  const modeControls = (
-    <div className="space-y-1">
-      <LegendItem
-        color="#22c55e"
-        label="Community polygons"
-        active={walkability.displayMode === 'community'}
-        onClick={() => walkability.setDisplayMode('community')}
-      />
-      <LegendItem
-        color="#e89c4a"
-        label="Mobility grid"
-        active={walkability.displayMode === 'heatmap'}
-        onClick={() => walkability.setDisplayMode('heatmap')}
-      />
-    </div>
-  )
-
   if (walkability.displayMode === 'heatmap') {
     return (
       <div className="w-full space-y-2 text-xs text-muted-foreground md:w-64">
-        {modeControls}
         <div className="break-words font-medium leading-4 text-foreground">
           {walkability.liveHeatmap.status === 'ready' ? 'Live recalculated grid' : (walkability.selectedHeatmapVariant?.label ?? 'Citywide MI grid')}
         </div>
@@ -965,21 +947,18 @@ export function WalkabilityLegend({ walkability }: { walkability: WalkabilitySta
           <span>64-82</span>
           <span>83-170</span>
         </div>
-        <div>{Object.values(walkability.selectedHeatmapBandCounts ?? {}).reduce((sum, count) => sum + count, 0).toLocaleString()} non-pathlocked grid cells</div>
       </div>
     )
   }
 
   return (
     <div className="w-56 space-y-2 text-xs text-muted-foreground">
-      {modeControls}
       <div className="font-medium text-foreground">{walkability.selectedVariant?.label ?? 'Walkability score'}</div>
       <MapGradientLegendItem
         colors={['#f97316', '#fde047', '#22c55e']}
         minLabel={formatNullableNumber(walkability.minScore)}
         maxLabel={formatNullableNumber(walkability.maxScore)}
       />
-      <div>{walkability.features.length.toLocaleString()} community polygons</div>
     </div>
   )
 }

@@ -11,6 +11,16 @@ export interface AirMonitor {
   source?: string | null
   dateObserved?: string | null
   pm25Recent?: number | null
+  pm25RecentRaw?: number | null
+  pm25OneHour?: number | null
+  pm25OneHourRaw?: number | null
+  pm25ThreeHour?: number | null
+  pm25ThreeHourRaw?: number | null
+  pm25TwentyFourHour?: number | null
+  pm25TwentyFourHourRaw?: number | null
+  aqhiValue?: number | null
+  aqhiOneHourValue?: number | null
+  aqhiTwentyFourHourValue?: number | null
   metadata?: {
     temperature?: number | null
     humidity?: number | null

@@ -3195,13 +3195,6 @@ export default function MiscDataSection() {
                     key={layer.id}
                     color={layer.color}
                     label={layer.label}
-                    value={
-                      layer.id === 'trees'
-                        ? visibleTrees.length.toLocaleString()
-                        : layer.id === 'forests'
-                          ? forests.length.toLocaleString()
-                          : visibleFacilities.length.toLocaleString()
-                    }
                     active={activeLayers.includes(layer.id)}
                     swatchShape={layer.id === 'forests' ? 'square' : 'circle'}
                     onClick={() => toggleLayer(layer.id)}

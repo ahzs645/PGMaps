@@ -90,7 +90,7 @@ export function Navbar() {
     : null
 
   return (
-    <header className="h-12 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:h-14">
+    <header className="relative z-[1100] h-12 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:h-14">
       <div className="flex h-full items-center justify-between gap-2 px-2.5 md:px-4">
         <div className="flex min-w-0 items-center gap-2.5 xl:gap-6">
           <Link to="/" className="flex shrink-0 items-center gap-2">

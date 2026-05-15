@@ -160,6 +160,8 @@ const WATER_POINT_COLORS: Record<WaterPointCategory, string> = {
   notice: '#dc2626',
 }
 
+const WATER_POINT_CATEGORIES: WaterPointCategory[] = ['facility', 'samples', 'notice']
+
 const WATER_BOUNDARY_METRIC_OPTIONS: Array<{ value: WaterBoundaryMetric; label: string }> = [
   { value: 'avgSamplesPerFacility', label: 'Avg sample rows / facility' },
   { value: 'sampleRows', label: 'Sample rows' },
@@ -665,6 +667,7 @@ export function useWaterData(active: boolean) {
   const [sampleKindFilter, setSampleKindFilter] = useState<WaterSampleKindFilter>('all')
   const [sampleParameterFilter, setSampleParameterFilter] = useState('all')
   const [showPoints, setShowPoints] = useState(true)
+  const [visiblePointCategories, setVisiblePointCategories] = useState<WaterPointCategory[]>(WATER_POINT_CATEGORIES)
   const [showHeatmap, setShowHeatmap] = useState(false)
   const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>(null)
   const [showSelectedFacilityReport, setShowSelectedFacilityReport] = useState(false)
@@ -1034,16 +1037,30 @@ export function useWaterData(active: boolean) {
 
   const facilityPointData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, WaterFacilityFeatureProperties>>(() => ({
     type: 'FeatureCollection',
-    features: mappedFacilities.map((facility) => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [facility.longitude as number, facility.latitude as number] },
-      properties: {
-        id: facility.id,
-        name: facility.name,
-        category: getWaterPointCategory(facility, layerMode),
-      },
-    })),
-  }), [layerMode, mappedFacilities])
+    features: mappedFacilities.flatMap((facility) => {
+      const categories: WaterPointCategory[] = []
+      if (!facility.noticeOnly) categories.push('facility')
+      if (!facility.noticeOnly && getFacilitySampleTotal(facility) > 0) categories.push('samples')
+      if (facility.activeNotices > 0) categories.push('notice')
+      return categories.map((category) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [facility.longitude as number, facility.latitude as number] },
+        properties: {
+          id: facility.id,
+          name: facility.name,
+          category,
+        },
+      }))
+    }),
+  }), [mappedFacilities])
+
+  const togglePointCategory = useCallback((category: WaterPointCategory) => {
+    setVisiblePointCategories((current) => (
+      current.includes(category)
+        ? current.filter((item) => item !== category)
+        : [...current, category]
+    ))
+  }, [])
 
   const boundaryLevelOptions = boundarySource === 'bcHealth'
     ? WATER_HEALTH_LEVEL_OPTIONS
@@ -1172,6 +1189,8 @@ export function useWaterData(active: boolean) {
     sampleParameterCounts,
     showPoints,
     setShowPoints,
+    visiblePointCategories,
+    togglePointCategory,
     showHeatmap,
     setShowHeatmap,
     facilities,
@@ -1882,13 +1901,14 @@ function WaterSamplingGridRow({ sample }: { sample: WaterSampleRow }) {
 
 export function WaterLayer({ water }: { water: WaterState }) {
   const pointCollections = useMemo(() => (
-    (['facility', 'samples', 'notice'] as WaterPointCategory[])
+    WATER_POINT_CATEGORIES
+      .filter((category) => water.visiblePointCategories.includes(category))
       .map((category) => {
         const features = water.facilityPointData.features.filter((feature) => feature.properties.category === category)
         return [category, { type: 'FeatureCollection' as const, features }] as const
       })
       .filter(([, collection]) => collection.features.length > 0)
-  ), [water.facilityPointData])
+  ), [water.facilityPointData, water.visiblePointCategories])
 
   const boundaryFillColor = useMemo(() => ([
     'interpolate',
@@ -1997,38 +2017,37 @@ export function WaterLayer({ water }: { water: WaterState }) {
 }
 
 export function WaterLegend({ water }: { water: WaterState }) {
-  const togglePointMode = (mode: WaterLayerMode) => {
-    if (water.showPoints && water.layerMode === mode) {
-      water.setShowPoints(false)
+  const togglePointCategory = (category: WaterPointCategory) => {
+    if (!water.showPoints) {
+      water.setShowPoints(true)
+      if (!water.visiblePointCategories.includes(category)) water.togglePointCategory(category)
       return
     }
-    water.setLayerMode(mode)
-    water.setShowPoints(true)
+    water.togglePointCategory(category)
   }
 
   return (
     <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-foreground">Drinking water</span>
-        <span className="tabular-nums text-[10px]">{water.mappedFacilities.length.toLocaleString()} mapped</span>
       </div>
       <LegendItem
         color="#2563eb"
         label="Facility"
-        active={water.showPoints && water.layerMode === 'facilities'}
-        onClick={() => togglePointMode('facilities')}
+        active={water.showPoints && water.visiblePointCategories.includes('facility')}
+        onClick={() => togglePointCategory('facility')}
       />
       <LegendItem
         color="#0891b2"
         label="Sampling activity"
-        active={water.showPoints && water.layerMode === 'samples'}
-        onClick={() => togglePointMode('samples')}
+        active={water.showPoints && water.visiblePointCategories.includes('samples')}
+        onClick={() => togglePointCategory('samples')}
       />
       <LegendItem
         color="#dc2626"
         label="Active notice"
-        active={water.showPoints && water.layerMode === 'notices'}
-        onClick={() => togglePointMode('notices')}
+        active={water.showPoints && water.visiblePointCategories.includes('notice')}
+        onClick={() => togglePointCategory('notice')}
       />
       <LegendItem
         color="#7dd3fc"

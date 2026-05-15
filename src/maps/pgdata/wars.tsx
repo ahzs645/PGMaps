@@ -136,6 +136,7 @@ export function useWarsData(
   initialShowHeatmap: string | null = null,
 ) {
   const [selectedSpecies, setSelectedSpecies] = useState<string>(initialSpecies || ALL_SPECIES)
+  const [hiddenSpecies, setHiddenSpecies] = useState<string[]>([])
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
   const [yearMode, setYearMode] = useState<string>(ALL_YEARS)
@@ -151,11 +152,13 @@ export function useWarsData(
 
   const baseFilteredFeatures = useMemo(() => (
     features.filter((feature) => {
-      if (selectedSpecies !== ALL_SPECIES && feature.properties.species !== selectedSpecies) return false
+      const species = feature.properties.species || 'Unknown'
+      if (hiddenSpecies.includes(species)) return false
+      if (selectedSpecies !== ALL_SPECIES && species !== selectedSpecies) return false
       if (yearMode === RECENT_YEARS && recentYearStart != null) return feature.properties.year >= recentYearStart
       return true
     })
-  ), [features, recentYearStart, selectedSpecies, yearMode])
+  ), [features, hiddenSpecies, recentYearStart, selectedSpecies, yearMode])
 
   const accidentDateRange = useMemo(() => {
     if (features.length === 0) {
@@ -225,6 +228,14 @@ export function useWarsData(
     setTimelineDate(null)
   }, [])
 
+  const toggleSpeciesVisibility = useCallback((species: string) => {
+    setHiddenSpecies((current) => (
+      current.includes(species)
+        ? current.filter((item) => item !== species)
+        : [...current, species]
+    ))
+  }, [])
+
   const selectedCrash = useMemo(() => {
     if (!selectedId) return null
     return filteredFeatures.find((feature, index) => getWarsFeatureKey(feature, index) === selectedId) ?? null
@@ -287,6 +298,8 @@ export function useWarsData(
     crashes,
     selectedSpecies,
     setSelectedSpecies,
+    hiddenSpecies,
+    toggleSpeciesVisibility,
     showPoints,
     setShowPoints,
     showHeatmap,
@@ -535,27 +548,6 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
 export function WarsLegend({ wars }: { wars: WarsState }) {
   return (
     <div className="w-full space-y-1.5 text-[11px] text-muted-foreground md:w-56 md:space-y-2 md:text-xs">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-foreground">
-          {wars.selectedSpecies === ALL_SPECIES ? 'Species' : wars.selectedSpecies}
-        </span>
-        <span className="tabular-nums text-[10px]">{wars.filteredFeatures.length.toLocaleString()}</span>
-      </div>
-      <div className="space-y-1">
-        <LegendItem
-          color="#64748b"
-          label="Collision points"
-          value={wars.filteredFeatures.length.toLocaleString()}
-          active={wars.showPoints}
-          onClick={() => wars.setShowPoints((current) => !current)}
-        />
-        <LegendItem
-          color="#f97316"
-          label="Collision heatmap"
-          active={wars.showHeatmap}
-          onClick={() => wars.setShowHeatmap((current) => !current)}
-        />
-      </div>
       {wars.showPoints && (
         <>
           {wars.speciesLegendBreakdown.length === 0 ? (
@@ -567,10 +559,9 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
                   <LegendItem
                     color={entry.color}
                     label={entry.name}
-                    value={entry.count.toLocaleString()}
-                    active={wars.selectedSpecies === ALL_SPECIES || wars.selectedSpecies === entry.name}
+                    active={!wars.hiddenSpecies.includes(entry.name)}
                     className="md:gap-2"
-                    onClick={() => wars.setSelectedSpecies(wars.selectedSpecies === entry.name ? ALL_SPECIES : entry.name)}
+                    onClick={() => wars.toggleSpeciesVisibility(entry.name)}
                   />
                 </li>
               ))}
