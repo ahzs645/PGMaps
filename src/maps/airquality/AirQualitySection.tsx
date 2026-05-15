@@ -7,7 +7,7 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import convex from '@turf/convex'
 import { featureCollection, point } from '@turf/helpers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { AirQualityMap } from './components/AirQualityMap'
 import { AirQualitySidebar } from './components/AirQualitySidebar'
 import { getNetworkColor } from './constants'
@@ -361,7 +361,12 @@ export default function AirQualitySection() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
   const [showPoints, setShowPoints] = useState(() => searchParams.get('points') !== '0')
-  const [showBoundaries, setShowBoundaries] = useState(() => searchParams.get('boundaries') !== '0')
+  const [showBoundaries, setShowBoundaries] = useState(() => (
+    searchParams.get('boundaries') === '1' ||
+    searchParams.has('src') ||
+    searchParams.has('level') ||
+    searchParams.has('region')
+  ))
   const [basemap, setBasemap] = useState<AirQualityBasemap>(() => (searchParams.get('basemap') as AirQualityBasemap) || 'light')
   const [correctionModel, setCorrectionModel] = useState<AirQualityCorrectionModel>(() => (searchParams.get('model') as AirQualityCorrectionModel) || 'epaBarkjohn')
   const [boundaryColorMetric, setBoundaryColorMetric] = useState<AirQualityBoundaryColorMetric>(() => {
@@ -427,7 +432,7 @@ export default function AirQualitySection() {
     else params.delete('src')
     if (showBoundaries) params.set('level', selectedRegionLevel)
     else params.delete('level')
-    if (!showBoundaries) params.set('boundaries', '0')
+    if (showBoundaries) params.set('boundaries', '1')
     else params.delete('boundaries')
     if (searchQuery.trim()) params.set('q', searchQuery.trim())
     else params.delete('q')
@@ -843,13 +848,13 @@ export default function AirQualitySection() {
           onMonitorClear={handleMonitorClear}
         />
 
-        <MapLegendPanel className="max-w-[240px]" title="Legend" collapsible>
+        <MapLegendPanel className="max-w-[240px]" title="Legend" collapsible contentClassName="space-y-3">
           <div className="space-y-3">
             {boundaryLegendStats && (
-              <div className="space-y-1">
-                <h4 className="text-xs font-semibold text-foreground">
-                  {REGION_LEVEL_LABELS[selectedRegionLevel] ?? 'Study'} areas ({boundaryLegendStats.areaCount})
-                </h4>
+              <MapLegendSection
+                title={`${REGION_LEVEL_LABELS[selectedRegionLevel] ?? 'Study'} areas`}
+                value={boundaryLegendStats.areaCount.toLocaleString()}
+              >
                 <MapGradientLegendItem
                   colors={boundaryColorMetric === 'correctedPm25' || boundaryColorMetric === 'rawPm25'
                     ? ['#dcfce7', '#fde047', '#fb923c', '#b91c1c']
@@ -863,21 +868,21 @@ export default function AirQualitySection() {
                 <div className="text-xs text-muted-foreground">
                   {boundaryLegendStats.totalMonitors.toLocaleString()} monitors in study area
                 </div>
-              </div>
+              </MapLegendSection>
             )}
 
             {showHeatmap && (
-              <div className="space-y-1 border-t border-border pt-3 first:border-t-0 first:pt-0">
-                <h4 className="text-xs font-semibold text-foreground">Heatmap</h4>
+              <MapLegendSection title="Heatmap" className="border-t border-border pt-3 first:border-t-0 first:pt-0">
                 <MapGradientLegendItem colors={['#0ea5e9', '#22c55e', '#ef4444']} minLabel="Low" maxLabel="High" />
-              </div>
+              </MapLegendSection>
             )}
 
             {showPoints && (
-              <div className="space-y-1 border-t border-border pt-3 first:border-t-0 first:pt-0">
-                <h4 className="text-xs font-semibold text-foreground">
-                  Networks in view ({visibleLegendNetworks.length})
-                </h4>
+              <MapLegendSection
+                title="Networks in view"
+                value={visibleLegendNetworks.length.toLocaleString()}
+                className="border-t border-border pt-3 first:border-t-0 first:pt-0"
+              >
                 {visibleLegendNetworks.length > 0 ? (
                   <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
                     {visibleLegendNetworks.map((network) => (
@@ -887,7 +892,7 @@ export default function AirQualitySection() {
                 ) : (
                   <div className="text-xs text-muted-foreground">No visible network points</div>
                 )}
-              </div>
+              </MapLegendSection>
             )}
           </div>
         </MapLegendPanel>

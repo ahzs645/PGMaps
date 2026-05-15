@@ -14,6 +14,7 @@ interface RawMonitor {
   monitor_type?: string
   latitude?: number | string
   longitude?: number | string
+  lng?: number | string
   lat?: number | string
   lon?: number | string
   city?: string
@@ -50,6 +51,30 @@ interface RawMonitor {
     pressure?: number | string | null
     [key: string]: number | string | null | undefined
   } | null
+}
+
+type SpartanMonitorRow = {
+  Site_Code?: string
+  City?: string
+  Country?: string
+  Latitude?: string
+  Longitude?: string
+  Start_date?: string
+  End_date?: string
+}
+
+type BcAirStationRow = {
+  SERIAL_CODE?: string
+  EMS_ID?: string
+  STATION_NAME?: string
+  CITY?: string
+  LATITUDE?: string
+  LONGITUDE?: string
+  STATUS?: string
+  PM25?: string
+  PM25_24?: string
+  DATE_PST?: string
+  CATEGORY?: string
 }
 
 interface GeoJsonMonitorFeature {
@@ -106,7 +131,7 @@ function normalizeMonitor(row: RawMonitor): AirMonitor | null {
 
   const longitude = typeof row.longitude === 'number'
     ? row.longitude
-    : parseFloat(String(row.longitude ?? row.lon ?? ''))
+    : parseFloat(String(row.longitude ?? row.lng ?? row.lon ?? ''))
 
   if (!id || !name || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return null
@@ -190,7 +215,7 @@ function parseCsv(text: string): RawMonitor[] {
     if (row.some((cell) => cell.length > 0)) rows.push(row)
   }
 
-  const [headers, ...records] = rows
+  const [headers, ...records] = rows.filter((csvRow) => csvRow.some((cell) => cell.trim().length > 0))
   if (!headers) return []
 
   return records.map((record) => {
@@ -251,6 +276,109 @@ async function fetchJsonRows(url: string, signal: AbortSignal, fallbackNetwork?:
   return rowsFromJsonPayload(json, fallbackNetwork)
 }
 
+async function fetchOptionalJsonRows(url: string, signal: AbortSignal, fallbackNetwork?: string): Promise<RawMonitor[]> {
+  try {
+    return await fetchJsonRows(url, signal, fallbackNetwork)
+  } catch {
+    return []
+  }
+}
+
+async function fetchOptionalCsvText(url: string, signal: AbortSignal): Promise<string | null> {
+  try {
+    const response = await fetch(url, { signal })
+    if (!response.ok) return null
+    return await response.text()
+  } catch {
+    return null
+  }
+}
+
+async function fetchSpartanRows(signal: AbortSignal): Promise<RawMonitor[]> {
+  const text = await fetchOptionalCsvText('/data/spartan.csv', signal)
+  if (!text) return []
+
+  return (parseCsv(text) as unknown as SpartanMonitorRow[]).map((row) => ({
+    id: row.Site_Code,
+    name: row.City && row.Country ? `${row.City}, ${row.Country}` : row.City || row.Site_Code,
+    network: 'SPARTAN',
+    latitude: row.Latitude,
+    longitude: row.Longitude,
+    status: row.End_date ? 'inactive' : 'active',
+    parameters: ['PM2.5', 'Aerosol'],
+    source: 'spartan',
+    date: row.End_date || row.Start_date,
+  }))
+}
+
+async function fetchBcEnvRows(signal: AbortSignal): Promise<RawMonitor[]> {
+  const text = await fetchOptionalCsvText('/data/bc/bc_air_monitoring_stations.csv', signal)
+  if (!text) return []
+
+  return (parseCsv(text) as unknown as BcAirStationRow[]).map((row) => ({
+    id: row.SERIAL_CODE || row.EMS_ID,
+    name: row.STATION_NAME,
+    network: 'BC ENV',
+    latitude: row.LATITUDE,
+    longitude: row.LONGITUDE,
+    city: row.CITY,
+    province: 'BC',
+    status: row.STATUS,
+    parameters: ['PM2.5', 'O3', 'NO2', 'PM10', 'SO2'],
+    source: row.CATEGORY || 'bc-env',
+    date: row.DATE_PST,
+    pm25Recent: row.PM25,
+    pm25TwentyFourHour: row.PM25_24,
+  }))
+}
+
+async function fetchSupplementalMonitorRows(signal: AbortSignal): Promise<RawMonitor[]> {
+  const [
+    spartanRows,
+    ascentRows,
+    bcEnvRows,
+    improveRows,
+    nattsRows,
+    ncoreRows,
+    nearRoadRows,
+    pm25SpeciationRows,
+  ] = await Promise.all([
+    fetchSpartanRows(signal),
+    fetchOptionalJsonRows('/data/ascent-sites.json', signal, 'ASCENT'),
+    fetchBcEnvRows(signal),
+    fetchOptionalJsonRows('/data/epa/improve.json', signal, 'EPA IMPROVE'),
+    fetchOptionalJsonRows('/data/epa/natts.json', signal, 'EPA NATTS'),
+    fetchOptionalJsonRows('/data/epa/ncore.json', signal, 'EPA NCORE'),
+    fetchOptionalJsonRows('/data/epa/near_road.json', signal, 'EPA NEAR ROAD'),
+    fetchOptionalJsonRows('/data/epa/pm25_speciation.json', signal, 'EPA CSN STN'),
+  ])
+
+  return [
+    ...spartanRows,
+    ...ascentRows,
+    ...bcEnvRows,
+    ...improveRows,
+    ...nattsRows,
+    ...ncoreRows,
+    ...nearRoadRows,
+    ...pm25SpeciationRows,
+  ]
+}
+
+function dedupeRows(rows: RawMonitor[]): RawMonitor[] {
+  const seen = new Set<string>()
+  return rows.filter((row) => {
+    const id = String(row.id ?? row.site_id ?? row.siteId ?? row.sensor_index ?? '')
+    const network = row.network ?? row.network_id ?? row.monitor_type ?? 'Unknown'
+    const lat = row.latitude ?? row.lat
+    const lng = row.longitude ?? row.lng ?? row.lon
+    const key = id ? `${network}:${id}` : `${network}:${lat}:${lng}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 async function fetchAqmapCompatibleRows(signal: AbortSignal): Promise<RawMonitor[]> {
   const directEndpoints = [
     '/data/recent/all/json',
@@ -261,7 +389,7 @@ async function fetchAqmapCompatibleRows(signal: AbortSignal): Promise<RawMonitor
   for (const endpoint of directEndpoints) {
     try {
       const rows = await fetchJsonRows(endpoint, signal)
-      if (rows.length > 0) return rows
+      if (rows.length > 0) return dedupeRows([...rows, ...await fetchSupplementalMonitorRows(signal)])
     } catch {
       // Try the next aqmap-compatible shape before falling back to static CSV.
     }
@@ -276,11 +404,11 @@ async function fetchAqmapCompatibleRows(signal: AbortSignal): Promise<RawMonitor
     networkEndpoints.map(([endpoint, network]) => fetchJsonRows(endpoint, signal, network)),
   )
   const combined = networkRows.flatMap((result) => result.status === 'fulfilled' ? result.value : [])
-  if (combined.length > 0) return combined
+  if (combined.length > 0) return dedupeRows([...combined, ...await fetchSupplementalMonitorRows(signal)])
 
   const csvResponse = await fetch('/data/monitors.csv', { signal })
   if (!csvResponse.ok) throw new Error(`Failed to load monitors: ${csvResponse.status}`)
-  return parseCsv(await csvResponse.text())
+  return dedupeRows([...parseCsv(await csvResponse.text()), ...await fetchSupplementalMonitorRows(signal)])
 }
 
 async function fetchStaticMonitorRows(signal: AbortSignal): Promise<RawMonitor[]> {
@@ -289,14 +417,14 @@ async function fetchStaticMonitorRows(signal: AbortSignal): Promise<RawMonitor[]
     if (!response.ok) {
       throw new Error(`Failed to load monitors: ${response.status}`)
     }
-    return parseCsv(await response.text())
+    return dedupeRows([...parseCsv(await response.text()), ...await fetchSupplementalMonitorRows(signal)])
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err
     const response = await fetch('/data/monitors/all.json', { signal })
     if (!response.ok) throw err
     const json = await response.json()
     if (!Array.isArray(json)) throw err
-    return json as RawMonitor[]
+    return dedupeRows([...json as RawMonitor[], ...await fetchSupplementalMonitorRows(signal)])
   }
 }
 
