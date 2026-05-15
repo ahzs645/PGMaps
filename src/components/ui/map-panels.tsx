@@ -790,21 +790,64 @@ export function MapLegendPanel({
   )
 }
 
-type LegendItemProps = {
+type LegendItemProps = Omit<ComponentPropsWithoutRef<'button'>, 'color'> & {
   color: string
   label: ReactNode
   value?: ReactNode
+  active?: boolean
+  swatchShape?: 'circle' | 'square'
   className?: string
 }
 
-export function LegendItem({ color, label, value, className }: LegendItemProps) {
-  return (
-    <div className={cn('flex items-center justify-between gap-2', className)}>
+export function LegendItem({
+  color,
+  label,
+  value,
+  active = true,
+  swatchShape = 'circle',
+  className,
+  onClick,
+  type = 'button',
+  ...props
+}: LegendItemProps) {
+  const content = (
+    <>
       <div className="flex min-w-0 items-center gap-2">
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-        <span className="truncate">{label}</span>
+        <span
+          className={cn(
+            'h-2.5 w-2.5 shrink-0 transition-opacity',
+            swatchShape === 'circle' ? 'rounded-full' : 'rounded-sm',
+            !active && 'opacity-35',
+          )}
+          style={{ backgroundColor: color }}
+        />
+        <span className={cn('truncate', !active && 'line-through')}>{label}</span>
       </div>
       {value && <span className="shrink-0 tabular-nums text-[10px]">{value}</span>}
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type={type}
+        onClick={onClick}
+        aria-pressed={active}
+        className={cn(
+          'flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          !active && 'text-muted-foreground',
+          className,
+        )}
+        {...props}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className={cn('flex items-center justify-between gap-2', !active && 'text-muted-foreground', className)}>
+      {content}
     </div>
   )
 }

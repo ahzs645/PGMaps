@@ -13,6 +13,7 @@ interface DroughtMapProps {
 
 const DROUGHT_FILL_COLOR = ['coalesce', ['get', 'droughtColor'], '#8a8f98']
 const DROUGHT_LINE_COLOR = ['case', ['==', ['get', 'droughtLevel'], null], '#4b5563', '#263238']
+const DROUGHT_MOBILE_CENTER: [number, number] = [-125.4, 53.8]
 
 export function DroughtMap({ data, selectedId, onFeatureClick }: DroughtMapProps) {
   const mapRef = useRef<MapRef>(null)
@@ -21,6 +22,10 @@ export function DroughtMap({ data, selectedId, onFeatureClick }: DroughtMapProps
   useEffect(() => {
     const map = mapRef.current
     if (!map || featureCount === 0) return
+    if (window.innerWidth < 768) {
+      map.jumpTo({ center: DROUGHT_MOBILE_CENTER, zoom: 4.75 })
+      return
+    }
     map.fitBounds(
       [
         [-139.2, 48.2],

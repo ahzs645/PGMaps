@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PawPrint } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { InlineAlert, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, LegendItem, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -205,6 +205,21 @@ export function useWarsData(
     })
   }, [baseFilteredFeatures, timelineFilterRange])
 
+  const speciesLegendFeatures = useMemo(() => {
+    const yearFiltered = features.filter((feature) => {
+      if (yearMode === RECENT_YEARS && recentYearStart != null) return feature.properties.year >= recentYearStart
+      return true
+    })
+    if (!timelineFilterRange) return yearFiltered
+    const { start, end } = timelineFilterRange
+    return yearFiltered.filter((feature) => {
+      const date = parseAccidentDate(feature.properties)
+      if (!date) return false
+      const t = date.getTime()
+      return t >= start && t <= end
+    })
+  }, [features, recentYearStart, timelineFilterRange, yearMode])
+
   const handleTimelineDisable = useCallback(() => {
     setTimelineEnabled(false)
     setTimelineDate(null)
@@ -229,6 +244,17 @@ export function useWarsData(
       .map(([name, count]) => ({ name, count, color: getSpeciesColor(name) }))
       .sort((a, b) => b.count - a.count)
   }, [filteredFeatures])
+
+  const speciesLegendBreakdown = useMemo(() => {
+    const counts = new Map<string, number>()
+    speciesLegendFeatures.forEach((feature) => {
+      const name = feature.properties.species || 'Unknown'
+      counts.set(name, (counts.get(name) ?? 0) + 1)
+    })
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count, color: getSpeciesColor(name) }))
+      .sort((a, b) => b.count - a.count)
+  }, [speciesLegendFeatures])
 
   const bucketCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -276,6 +302,7 @@ export function useWarsData(
     selectedCrash,
     totalQuantity,
     speciesBreakdown,
+    speciesLegendBreakdown,
     bucketCounts,
     recentYearStart,
     timelineEnabled,
@@ -514,22 +541,37 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
         </span>
         <span className="tabular-nums text-[10px]">{wars.filteredFeatures.length.toLocaleString()}</span>
       </div>
+      <div className="space-y-1">
+        <LegendItem
+          color="#64748b"
+          label="Collision points"
+          value={wars.filteredFeatures.length.toLocaleString()}
+          active={wars.showPoints}
+          onClick={() => wars.setShowPoints((current) => !current)}
+        />
+        <LegendItem
+          color="#f97316"
+          label="Collision heatmap"
+          active={wars.showHeatmap}
+          onClick={() => wars.setShowHeatmap((current) => !current)}
+        />
+      </div>
       {wars.showPoints && (
         <>
-          {wars.speciesBreakdown.length === 0 ? (
+          {wars.speciesLegendBreakdown.length === 0 ? (
             <div className="text-[10px] italic">No records in current filter.</div>
           ) : (
             <ul className="max-h-32 space-y-0.5 overflow-y-auto pr-1 md:max-h-44 md:space-y-1">
-              {wars.speciesBreakdown.map((entry) => (
-                <li key={entry.name} className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
-                    <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full border border-white shadow-sm md:h-3 md:w-3"
-                      style={{ backgroundColor: entry.color }}
-                    />
-                    <span className="truncate text-foreground">{entry.name}</span>
-                  </div>
-                  <span className="shrink-0 tabular-nums text-[10px]">{entry.count.toLocaleString()}</span>
+              {wars.speciesLegendBreakdown.map((entry) => (
+                <li key={entry.name}>
+                  <LegendItem
+                    color={entry.color}
+                    label={entry.name}
+                    value={entry.count.toLocaleString()}
+                    active={wars.selectedSpecies === ALL_SPECIES || wars.selectedSpecies === entry.name}
+                    className="md:gap-2"
+                    onClick={() => wars.setSelectedSpecies(wars.selectedSpecies === entry.name ? ALL_SPECIES : entry.name)}
+                  />
                 </li>
               ))}
             </ul>

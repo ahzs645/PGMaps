@@ -27,9 +27,9 @@ interface MapSectionLayoutProps {
 function getSnapPositions(height: number) {
   const sheetHeight = Math.max(160, height)
   return {
-    full: 16,
+    full: 12,
     half: Math.round(sheetHeight * 0.42),
-    collapsed: Math.max(88, sheetHeight - 72),
+    collapsed: Math.max(72, sheetHeight - 56),
   }
 }
 
@@ -364,7 +364,7 @@ export function MapSectionLayout({
         <div
           ref={sheetRef}
           className={cn(
-            'pointer-events-auto absolute inset-x-0 bottom-0 flex h-full max-h-full flex-col overflow-hidden rounded-t-2xl border border-b-0 border-border bg-background/95 shadow-2xl backdrop-blur',
+            'pointer-events-auto absolute inset-x-0 bottom-0 flex h-full max-h-full flex-col overflow-hidden rounded-t-xl border border-b-0 border-border bg-background/95 shadow-2xl backdrop-blur sm:rounded-t-2xl',
             'md:relative md:inset-auto md:h-full md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-blur-none',
           )}
           data-map-mobile-sheet="true"
@@ -372,7 +372,7 @@ export function MapSectionLayout({
           {/* Drag handle */}
           <div
             ref={handleRef}
-            className="relative flex shrink-0 cursor-grab touch-none flex-col items-center justify-center gap-2 px-4 py-3 select-none active:cursor-grabbing md:hidden"
+            className="relative flex shrink-0 cursor-grab touch-none flex-col items-center justify-center gap-1.5 px-3 py-2 select-none active:cursor-grabbing sm:gap-2 sm:px-4 sm:py-3 md:hidden"
             role="separator"
             aria-label="Drag to resize sheet"
             data-map-mobile-sheet-handle="true"
@@ -389,7 +389,7 @@ export function MapSectionLayout({
                 event.stopPropagation()
                 snapTo(mobileSheetState === 'collapsed' ? 'half' : 'collapsed')
               }}
-              className="absolute right-4 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-sm"
+              className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-sm sm:right-4 sm:h-8 sm:w-8"
               aria-label={mobileSheetState === 'collapsed' ? 'Show panel' : 'Hide panel'}
             >
               {mobileSheetState === 'collapsed' ? (

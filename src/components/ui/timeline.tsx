@@ -106,7 +106,10 @@ function buildBuckets(startDate: Date, endDate: Date, granularity: TimelineGranu
       buckets.push({
         key: bucketStart.toISOString().slice(0, 10),
         label,
-        shortLabel: bucketStart.getDate() <= 7 ? `${MONTH_NAMES[bucketStart.getMonth()]} ${bucketStart.getFullYear()}` : String(bucketStart.getDate()),
+        shortLabel:
+          bucketStart.getDate() <= 7
+            ? `${MONTH_NAMES[bucketStart.getMonth()]} ${bucketStart.getFullYear()}`
+            : String(bucketStart.getDate()),
         start: bucketStart,
         end: bucketEnd,
       })
@@ -181,9 +184,8 @@ export function Timeline({
   const visibleStart = useMemo(() => {
     if (!isVirtualized) return 0
     const maxStart = Math.max(0, buckets.length - visibleSize)
-    const targetIndex = currentIndex > visibleSize * VIEW_SHIFT_TRIGGER
-      ? currentIndex - Math.floor(visibleSize * VIEW_SHIFT_TARGET)
-      : 0
+    const targetIndex =
+      currentIndex > visibleSize * VIEW_SHIFT_TRIGGER ? currentIndex - Math.floor(visibleSize * VIEW_SHIFT_TARGET) : 0
     return Math.max(0, Math.min(maxStart, targetIndex))
   }, [buckets.length, currentIndex, isVirtualized, visibleSize])
 
@@ -277,7 +279,7 @@ export function Timeline({
       }
       setIsPlaying(false)
     },
-    [buckets, onDateChange]
+    [buckets, onDateChange],
   )
 
   useEffect(() => {
@@ -302,7 +304,7 @@ export function Timeline({
       }
       return i >= currentIndex && i < currentIndex + windowSize
     },
-    [windowMode, isCumulative, windowAnchor, windowSize, currentIndex]
+    [windowMode, isCumulative, windowAnchor, windowSize, currentIndex],
   )
 
   useLayoutEffect(() => {
@@ -331,25 +333,22 @@ export function Timeline({
   const windowOptions = windowMode?.options ?? DEFAULT_WINDOW_OPTIONS
   const shouldUseCompactBars = compactBars || granularity === 'week'
   const controlButtonClass =
-    'flex size-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30'
+    'flex size-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:size-8'
+  const selectClass =
+    'h-10 rounded-md border border-input bg-background px-3 text-base font-semibold text-foreground shadow-sm outline-none focus:ring-1 focus:ring-ring sm:hidden'
 
   return (
     <div
       ref={timelineRef}
       data-map-timeline="true"
-      className="absolute inset-x-3 z-20 md:inset-x-6"
-      style={{ bottom: 'calc(var(--map-mobile-sheet-visible-height, 0px) + 0.75rem)' } as CSSProperties}
+      className="absolute inset-x-2 z-20 sm:inset-x-3 md:inset-x-6"
+      style={{ bottom: 'calc(var(--map-mobile-sheet-visible-height, 0px) + 0.5rem)' } as CSSProperties}
     >
-      <div className="rounded-xl border border-border/60 bg-background/95 p-3 shadow-xl backdrop-blur-sm md:p-4">
-        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="rounded-lg border border-border/60 bg-background/95 p-2.5 shadow-xl backdrop-blur-sm sm:rounded-xl sm:p-3 md:p-4">
+        <div className="mb-3 flex flex-col gap-2 sm:mb-3 sm:gap-2 lg:flex-row lg:items-center lg:gap-3">
+          <div className="flex min-w-0 items-center gap-1.5 lg:flex-wrap lg:gap-2">
             <div className="flex items-center gap-1">
-              <button
-                onClick={reset}
-                className={controlButtonClass}
-                aria-label="Reset to start"
-                title="Reset to start"
-              >
+              <button onClick={reset} className={controlButtonClass} aria-label="Reset to start" title="Reset to start">
                 <SkipBack className="h-3.5 w-3.5" />
               </button>
               <button
@@ -367,7 +366,8 @@ export function Timeline({
                   'flex size-9 items-center justify-center rounded-full border transition-colors',
                   isPlaying
                     ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                    : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground',
+                  'size-9 sm:size-9',
                 )}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
                 title={isPlaying ? 'Pause' : 'Play'}
@@ -394,65 +394,92 @@ export function Timeline({
               </button>
             </div>
 
-            <div className="min-w-0 rounded-md border border-primary/50 bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+            <div className="min-w-0 flex-1 rounded-md border border-primary/50 bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary sm:text-sm lg:flex-none">
               <span className="block truncate">{formattedDate}</span>
-            </div>
-
-            {statsLabel && <div className="text-xs text-muted-foreground">{statsLabel}</div>}
-          </div>
-
-          <div className="flex min-w-0 flex-wrap items-center gap-2 lg:ml-auto lg:justify-end">
-            {windowMode && (
-              <div className="grid flex-1 grid-cols-4 gap-1 rounded-md border border-input p-0.5 sm:flex sm:flex-none sm:items-center">
-                {windowOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => windowMode.onSizeChange(opt.value)}
-                    className={cn(
-                      'whitespace-nowrap rounded px-2 py-1 text-[10px] font-medium transition-colors sm:py-0.5',
-                      windowMode.size === opt.value
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center gap-1 rounded-md border border-input p-0.5">
-              {SPEED_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setSpeed(opt.value)}
-                  className={cn(
-                    'rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors',
-                    speed === opt.value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
             </div>
 
             {onClose && (
               <button
                 onClick={onClose}
-                className="flex size-8 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex size-9 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:size-8"
                 aria-label="Close timeline"
                 title="Close timeline"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
+
+            {statsLabel && <div className="hidden text-xs text-muted-foreground sm:block">{statsLabel}</div>}
+          </div>
+
+          <div className="flex min-w-0 items-center gap-1.5 sm:flex-wrap sm:gap-2 lg:ml-auto lg:justify-end">
+            {windowMode && (
+              <>
+                <select
+                  value={windowMode.size}
+                  onChange={(event) => windowMode.onSizeChange(Number(event.target.value))}
+                  className={cn(selectClass, 'min-w-0 flex-1')}
+                  aria-label="Timeline range"
+                >
+                  {windowOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="hidden min-w-0 flex-1 grid-cols-4 gap-0.5 rounded-md border border-input p-0.5 sm:flex sm:flex-none sm:items-center sm:gap-1">
+                  {windowOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => windowMode.onSizeChange(opt.value)}
+                      className={cn(
+                        'whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors sm:px-2',
+                        windowMode.size === opt.value
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <select
+              value={speed}
+              onChange={(event) => setSpeed(Number(event.target.value))}
+              className={selectClass}
+              aria-label="Timeline speed"
+            >
+              {SPEED_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            <div className="hidden items-center gap-0.5 rounded-md border border-input p-0.5 sm:flex sm:gap-1">
+              {SPEED_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSpeed(opt.value)}
+                  className={cn(
+                    'rounded px-1 py-0.5 text-[10px] font-medium transition-colors sm:px-1.5',
+                    speed === opt.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {bucketCounts && !shouldUseCompactBars ? (
-          <div className="mb-1 flex h-10 items-end gap-px">
+          <div className="mb-1 hidden h-10 items-end gap-px sm:flex">
             {visibleBuckets.map((bucket, i) => {
               const count = bucketCounts.get(bucket.key) ?? 0
               const height = Math.max(2, (count / maxCount) * 100)
@@ -478,13 +505,11 @@ export function Timeline({
             })}
           </div>
         ) : (
-          <div className="mb-1 flex h-4 items-end">
+          <div className="mb-1 flex h-5 items-end sm:h-4">
             {visibleBuckets.map((bucket, i) => {
               const inWindow = isInWindow(visibleOffset + i)
               const isJanuary = bucket.start.getMonth() === 0
-              const isPeriodStart = granularity === 'week'
-                ? bucket.start.getDate() <= 7
-                : isJanuary
+              const isPeriodStart = granularity === 'week' ? bucket.start.getDate() <= 7 : isJanuary
               const count = bucketCounts?.get(bucket.key) ?? 0
               return (
                 <div
@@ -497,18 +522,23 @@ export function Timeline({
                   }}
                 >
                   {isPeriodStart && (
-                    <span className="text-[9px] text-muted-foreground">
-                      {granularity === 'week' ? bucket.shortLabel : bucket.start.getFullYear()}
-                    </span>
+                    <>
+                      <span className="text-[10px] leading-none text-muted-foreground sm:hidden">
+                        {granularity === 'week' ? MONTH_NAMES[bucket.start.getMonth()] : bucket.start.getFullYear()}
+                      </span>
+                      <span className="hidden text-[9px] text-muted-foreground sm:block">
+                        {granularity === 'week' ? bucket.shortLabel : bucket.start.getFullYear()}
+                      </span>
+                    </>
                   )}
                   <div
                     className={cn(
                       'w-full transition-colors',
                       inWindow
-                        ? 'h-3 bg-primary'
+                        ? 'h-3.5 bg-primary sm:h-3'
                         : isPeriodStart
-                          ? 'h-2 bg-muted-foreground/30'
-                          : 'h-1 bg-muted-foreground/15'
+                          ? 'h-2.5 bg-muted-foreground/30 sm:h-2'
+                          : 'h-1 bg-muted-foreground/15',
                     )}
                     style={{ borderRadius: '1px 1px 0 0', minWidth: '2px' }}
                   />
@@ -526,11 +556,10 @@ export function Timeline({
             value={[Math.min(currentIndex, maxPosition)]}
             onValueChange={handleSliderChange}
             className="flex-1 py-2"
+            aria-label="Timeline date"
           />
 
-          <div className="hidden text-[10px] text-muted-foreground sm:block">
-            {buckets[currentIndex]?.shortLabel}
-          </div>
+          <div className="hidden text-[10px] text-muted-foreground sm:block">{buckets[currentIndex]?.shortLabel}</div>
         </div>
       </div>
     </div>

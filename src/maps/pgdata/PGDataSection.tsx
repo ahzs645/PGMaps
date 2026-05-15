@@ -50,21 +50,21 @@ export default function PGDataSection() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur md:px-4">
-        <div className="flex w-max rounded-lg border border-border bg-muted/40 p-1">
+      <div className="min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-2 py-1 backdrop-blur [scrollbar-width:none] md:px-4 md:py-2 [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-max rounded-md border border-border bg-muted/40 p-0.5 md:rounded-lg md:p-1">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
               className={cn(
-                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3',
+                'inline-flex h-6 shrink-0 items-center gap-1 rounded px-2 text-[10px] font-medium transition-colors sm:h-7 sm:gap-1.5 sm:px-2.5 sm:text-xs md:h-8 md:rounded-md md:px-3',
                 activeTab === id
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span className={id === 'parks' ? 'hidden sm:inline' : ''}>{label}</span>
               {id === 'parks' && <span className="sm:hidden">Parks</span>}
             </button>

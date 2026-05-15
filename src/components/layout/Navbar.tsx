@@ -64,7 +64,7 @@ export function Navbar() {
     ? createPortal(
         <div
           ref={menuRef}
-          className="fixed inset-x-0 top-14 z-[1000] border-b border-border bg-background/95 shadow-lg backdrop-blur lg:hidden"
+          className="fixed inset-x-0 top-12 z-[1000] border-b border-border bg-background/95 shadow-lg backdrop-blur md:top-14 lg:hidden"
         >
           <nav className="flex flex-col p-2">
             {navLinks.map(({ path, label, icon: Icon }) => (
@@ -90,14 +90,14 @@ export function Navbar() {
     : null
 
   return (
-    <header className="h-14 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-full items-center justify-between gap-2 px-3 md:px-4">
-        <div className="flex min-w-0 items-center gap-3 xl:gap-6">
+    <header className="h-12 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:h-14">
+      <div className="flex h-full items-center justify-between gap-2 px-2.5 md:px-4">
+        <div className="flex min-w-0 items-center gap-2.5 xl:gap-6">
           <Link to="/" className="flex shrink-0 items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Map className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary md:h-8 md:w-8">
+              <Map className="h-4 w-4 text-primary-foreground md:h-5 md:w-5" />
             </div>
-            <span className="text-lg font-semibold">PGMaps</span>
+            <span className="text-base font-semibold md:text-lg">PGMaps</span>
           </Link>
 
           <nav className="hidden min-w-0 items-center gap-1 lg:flex">
@@ -130,7 +130,7 @@ export function Navbar() {
             size="icon"
             onClick={toggleTheme}
             aria-label="Toggle theme"
-            className="h-10 w-10"
+            className="h-9 w-9 md:h-10 md:w-10"
           >
             {resolvedTheme === 'dark' ? (
               <Sun className="h-5 w-5" />
@@ -146,7 +146,7 @@ export function Navbar() {
             onClick={() => setMobileMenuOpen((open) => !open)}
             aria-label="Toggle menu"
             aria-expanded={mobileMenuOpen}
-            className="h-10 w-10 lg:hidden"
+            className="h-9 w-9 lg:hidden"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>

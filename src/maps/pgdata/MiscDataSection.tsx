@@ -10,6 +10,7 @@ import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector, type StudyAreaLevelOption, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
 import { BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
 import { AppSelect } from '@/components/ui/select'
+import { LegendItem, MapGradientLegendItem } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
@@ -2936,21 +2937,21 @@ export default function MiscDataSection() {
   )
 
   const tabsBar = (
-    <div className="min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur md:px-4">
-      <div className="flex w-max rounded-lg border border-border bg-muted/40 p-1">
+    <div className="min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-2 py-1 backdrop-blur [scrollbar-width:none] md:px-4 md:py-2 [&::-webkit-scrollbar]:hidden">
+      <div className="flex w-max rounded-md border border-border bg-muted/40 p-0.5 md:rounded-lg md:p-1">
         {MISC_TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => setActiveTab(id)}
             className={cn(
-              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors sm:px-3',
+              'inline-flex h-6 shrink-0 items-center gap-1 rounded px-2 text-[10px] font-medium transition-colors sm:h-7 sm:gap-1.5 sm:px-2.5 sm:text-xs md:h-8 md:rounded-md md:px-3',
               activeTab === id
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            <Icon className="h-3.5 w-3.5" />
+            <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             <span className={id === 'heatShade' ? 'hidden sm:inline' : ''}>{label}</span>
             {id === 'heatShade' && <span className="sm:hidden">Shade</span>}
           </button>
@@ -3187,29 +3188,42 @@ export default function MiscDataSection() {
             </button>
           </div>
           <div className={cn('mt-2 space-y-1 md:mt-0 md:block', showMobileLegend ? 'block' : 'hidden')}>
-            {activeTab === 'heatShade' && MISC_LAYERS.filter((layer) => activeLayers.includes(layer.id)).map((layer) => (
-              <div key={layer.id} className="flex items-center gap-2">
-                <span className={cn('h-3 w-3', layer.id === 'forests' ? 'rounded-sm' : 'rounded-full')} style={{ backgroundColor: layer.color }} />
-                <span className="text-xs text-muted-foreground">{layer.label}</span>
+            {activeTab === 'heatShade' && (
+              <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
+                {MISC_LAYERS.map((layer) => (
+                  <LegendItem
+                    key={layer.id}
+                    color={layer.color}
+                    label={layer.label}
+                    value={
+                      layer.id === 'trees'
+                        ? visibleTrees.length.toLocaleString()
+                        : layer.id === 'forests'
+                          ? forests.length.toLocaleString()
+                          : visibleFacilities.length.toLocaleString()
+                    }
+                    active={activeLayers.includes(layer.id)}
+                    swatchShape={layer.id === 'forests' ? 'square' : 'circle'}
+                    onClick={() => toggleLayer(layer.id)}
+                  />
+                ))}
               </div>
-            ))}
+            )}
             {activeTab === 'canue' && (
               <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
                 <div>
-                  <div className="mb-1 flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate font-medium text-foreground">
-                      {selectedCanueV2Selection ? renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection)) : selectedCanueFile ? renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '')) : 'CANUE boundary layer'}
-                    </span>
-                    {activeCanueBoundaryData.loading && <span className="shrink-0 text-[10px]">Loading</span>}
-                  </div>
-                  <div
-                    className="h-3 w-full rounded-sm border border-border bg-gradient-to-r from-cyan-300 via-yellow-300 to-red-500"
-                    aria-hidden="true"
+                  <LegendItem
+                    color="#fde047"
+                    label={selectedCanueV2Selection ? renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection)) : selectedCanueFile ? renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '')) : 'CANUE boundary layer'}
+                    value={activeCanueBoundaryData.loading ? 'Loading' : undefined}
+                    swatchShape="square"
                   />
-                  <div className="mt-1 flex items-center justify-between gap-2 text-[10px] tabular-nums">
-                    <span>{formatNullableNumber(activeCanueBoundaryData.minValue ?? selectedCanueV2Selection?.min)}</span>
-                    <span>{formatNullableNumber(activeCanueBoundaryData.maxValue ?? selectedCanueV2Selection?.max)}</span>
-                  </div>
+                  <MapGradientLegendItem
+                    className="mt-1 px-1"
+                    colors={['#67e8f9', '#fde047', '#ef4444']}
+                    minLabel={formatNullableNumber(activeCanueBoundaryData.minValue ?? selectedCanueV2Selection?.min)}
+                    maxLabel={formatNullableNumber(activeCanueBoundaryData.maxValue ?? selectedCanueV2Selection?.max)}
+                  />
                 </div>
               </div>
             )}

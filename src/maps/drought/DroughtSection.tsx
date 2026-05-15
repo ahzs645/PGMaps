@@ -219,9 +219,9 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
           onFeatureClick={setSelectedId}
         />
 
-        <div className="absolute right-4 top-4 z-10 rounded-lg border border-border bg-background/95 px-3 py-2 text-xs shadow-lg backdrop-blur md:right-16">
-          <div className="font-semibold text-foreground">{selectedYear}</div>
-          <div className="text-muted-foreground">
+        <div className="absolute right-14 top-2 z-10 rounded-md border border-border bg-background/95 px-2 py-1.5 text-[11px] shadow-lg backdrop-blur sm:right-16 sm:top-4 sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs md:right-16">
+          <div className="font-semibold leading-tight text-foreground">{selectedYear}</div>
+          <div className="leading-tight text-muted-foreground">
             {timelineDate?.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         </div>

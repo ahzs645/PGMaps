@@ -1997,24 +1997,53 @@ export function WaterLayer({ water }: { water: WaterState }) {
 }
 
 export function WaterLegend({ water }: { water: WaterState }) {
+  const togglePointMode = (mode: WaterLayerMode) => {
+    if (water.showPoints && water.layerMode === mode) {
+      water.setShowPoints(false)
+      return
+    }
+    water.setLayerMode(mode)
+    water.setShowPoints(true)
+  }
+
   return (
     <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-foreground">Drinking water</span>
         <span className="tabular-nums text-[10px]">{water.mappedFacilities.length.toLocaleString()} mapped</span>
       </div>
-      <LegendItem color="#2563eb" label="Facility" />
-      <LegendItem color="#0891b2" label="Sampling activity" />
-      <LegendItem color="#dc2626" label="Active notice" />
+      <LegendItem
+        color="#2563eb"
+        label="Facility"
+        active={water.showPoints && water.layerMode === 'facilities'}
+        onClick={() => togglePointMode('facilities')}
+      />
+      <LegendItem
+        color="#0891b2"
+        label="Sampling activity"
+        active={water.showPoints && water.layerMode === 'samples'}
+        onClick={() => togglePointMode('samples')}
+      />
+      <LegendItem
+        color="#dc2626"
+        label="Active notice"
+        active={water.showPoints && water.layerMode === 'notices'}
+        onClick={() => togglePointMode('notices')}
+      />
+      <LegendItem
+        color="#7dd3fc"
+        label={getBoundaryMetricLabel(water.boundaryMetric)}
+        active={water.showBoundaries}
+        onClick={() => water.setShowBoundaries((current) => !current)}
+      />
       {water.showBoundaries && (
-        <>
-          <LegendItem color="#7dd3fc" label={getBoundaryMetricLabel(water.boundaryMetric)} />
+        <div className="px-1">
           <MapGradientLegendItem
             colors={['#e0f2fe', '#38bdf8', '#075985']}
             minLabel="0"
             maxLabel={formatMetricValue(water.boundaryMaxValue, water.boundaryMetric)}
           />
-        </>
+        </div>
       )}
     </div>
   )

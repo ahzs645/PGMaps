@@ -454,8 +454,23 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
   return (
     <div className="w-52 space-y-2 text-xs text-muted-foreground">
       <div className="font-medium text-foreground">{getIcbcDatasetLabel(icbc.selectedDataset)}</div>
+      <div className="space-y-1">
+        <LegendItem
+          color="#64748b"
+          label="Crash points"
+          value={icbc.typedCrashFeatures.length.toLocaleString()}
+          active={icbc.showPoints}
+          onClick={() => icbc.setShowPoints((current) => !current)}
+        />
+        <LegendItem
+          color="#f97316"
+          label="Crash heatmap"
+          active={icbc.showHeatmap}
+          onClick={() => icbc.setShowHeatmap((current) => !current)}
+        />
+      </div>
       {icbc.showPoints && (
-        <div className="space-y-2">
+        <div className="space-y-2 border-t border-border pt-2">
           <div>
             <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Crash type</div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
@@ -476,12 +491,12 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
         </div>
       )}
       {icbc.showHeatmap && (
-        <div className={cn(icbc.showPoints && 'border-t border-border pt-2')}>
+        <div className="border-t border-border pt-2">
           <MapGradientLegendItem colors={['#7dd3fc', '#fde047', '#dc2626']} minLabel="Lower density" maxLabel="Higher density" />
         </div>
       )}
       {!icbc.showPoints && !icbc.showHeatmap && (
-        <div className="text-[10px] italic">Both layers are hidden.</div>
+        <div className="px-1 text-[10px] italic">Both layers are hidden.</div>
       )}
       <div>{icbc.crashFeatures.length.toLocaleString()} mapped locations</div>
     </div>
