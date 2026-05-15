@@ -1,19 +1,21 @@
 export type SmokeLayerKey = 'modelledSmoke' | 'visibleSmoke'
 
+export type SmokeFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Geometry, {
+  fill?: string
+  density?: string
+  minPm25?: number
+}>
+
 export interface SmokeLayerDefinition {
   key: SmokeLayerKey
   label: string
   fill: string
   opacity: number
   legend: Array<{ label: string; color: string }>
-  data: GeoJSON.FeatureCollection<GeoJSON.Polygon, {
-    fill?: string
-    density?: string
-    minPm25?: number
-  }>
+  data: SmokeFeatureCollection
 }
 
-export type SmokeLayerDataMap = Record<SmokeLayerKey, GeoJSON.FeatureCollection>
+export type SmokeLayerDataMap = Record<SmokeLayerKey, SmokeFeatureCollection>
 
 export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
   {

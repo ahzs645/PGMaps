@@ -2,10 +2,16 @@
   "compilerOptions": {
     "composite": true,
     "skipLibCheck": true,
+    "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
+    "outDir": "node_modules/.cache/tsconfig-node",
     "strict": true
   },
-  "include": ["vite.config.ts"]
+  "include": [
+    "vite.config.ts",
+    "src/maps/aqmap/server/**/*.ts",
+    "src/maps/aqmap/lib/smokeLayers.ts"
+  ]
 }

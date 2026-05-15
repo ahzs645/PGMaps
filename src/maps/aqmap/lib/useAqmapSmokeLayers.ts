@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { SMOKE_FALLBACK_DATA, SMOKE_LAYERS, type SmokeLayerDefinition, type SmokeLayerKey } from './smokeLayers'
+import {
+  SMOKE_FALLBACK_DATA,
+  SMOKE_LAYERS,
+  type SmokeFeatureCollection,
+  type SmokeLayerDefinition,
+  type SmokeLayerKey,
+} from './smokeLayers'
 
 const SMOKE_ENDPOINTS: Record<SmokeLayerKey, string> = {
   modelledSmoke: '/data/smoke/modelled/geojson',
@@ -14,22 +20,22 @@ interface UseAqmapSmokeLayersResult {
   error: string | null
 }
 
-function isFeatureCollection(value: unknown): value is GeoJSON.FeatureCollection {
+function isFeatureCollection(value: unknown): value is SmokeFeatureCollection {
   return !!value
     && typeof value === 'object'
     && (value as { type?: unknown }).type === 'FeatureCollection'
     && Array.isArray((value as { features?: unknown }).features)
 }
 
-function extractFeatureCollection(value: unknown): GeoJSON.FeatureCollection | null {
+function extractFeatureCollection(value: unknown): SmokeFeatureCollection | null {
   if (isFeatureCollection(value)) return value
   if (value && typeof value === 'object' && 'data' in value) {
-    return isFeatureCollection((value as { data?: unknown }).data) ? (value as { data: GeoJSON.FeatureCollection }).data : null
+    return isFeatureCollection((value as { data?: unknown }).data) ? (value as { data: SmokeFeatureCollection }).data : null
   }
   return null
 }
 
-async function loadSmokeLayerData(url: string, signal: AbortSignal): Promise<GeoJSON.FeatureCollection | null> {
+async function loadSmokeLayerData(url: string, signal: AbortSignal): Promise<SmokeFeatureCollection | null> {
   try {
     const response = await fetch(url, { signal })
     if (!response.ok) return null
@@ -86,4 +92,3 @@ export function useAqmapSmokeLayers(): UseAqmapSmokeLayersResult {
     error,
   }), [error, layers, loading])
 }
-

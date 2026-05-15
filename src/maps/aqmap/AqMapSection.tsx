@@ -24,7 +24,7 @@ import {
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from './lib/markerIcons'
 import { fetchAqmapPlotSeries, makePlotPolyline, type AqPlotPoint } from './lib/plotData'
 import { useAqmapSmokeLayers } from './lib/useAqmapSmokeLayers'
-import { SMOKE_LAYERS, type SmokeLayerDefinition, type SmokeLayerKey } from './lib/smokeLayers'
+import { type SmokeLayerDefinition, type SmokeLayerKey } from './lib/smokeLayers'
 import {
   CANADA_CENTER,
   DEFAULT_ZOOM,

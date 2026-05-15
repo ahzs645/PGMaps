@@ -91,6 +91,7 @@ export function normalizeIconGroup(group: string): AqmapIconGroup {
 }
 
 export function buildIconText(group: string, rawValue: string | number | null | undefined, forLegend = false): string {
+  void group
   const text = makeIconText(rawValue)
   return forLegend ? '' : text
 }
@@ -134,17 +135,15 @@ export function parseIconRequest(pathname: string): ParsedIconRequest | null {
     .replace(/^\//, '')
     .replace(/^icons\//, '')
 
-  const match = normalized.match(
-    /^(?<group>[a-z0-9_]+)_icon_(?<value>[^/]+?)(?:_size(?<size>\d+))?\.svg$/i
-  )
-  if (!match?.groups?.group || !match.groups.value) return null
+  const match = normalized.match(/^([a-z0-9_]+)_icon_([^/]+?)(?:_size(\d+))?\.svg$/i)
+  if (!match?.[1] || !match[2]) return null
 
-  const group = normalizeGroup(match.groups.group)
-  const parsedSize = Number.parseInt(match.groups.size || '', 10)
+  const group = normalizeGroup(match[1])
+  const parsedSize = Number.parseInt(match[3] || '', 10)
 
   return {
     group,
-    valueText: parseGeneratedIconText(match.groups.value),
+    valueText: parseGeneratedIconText(match[2]),
     size: Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : DEFAULT_ICON_SIZE,
   }
 }

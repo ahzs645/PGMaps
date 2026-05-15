@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import {
   SMOKE_FALLBACK_DATA,
+  type SmokeFeatureCollection,
   type SmokeLayerDataMap,
   type SmokeLayerKey,
 } from '../lib/smokeLayers'
@@ -29,25 +30,23 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
-function isFeatureCollection(value: unknown): value is GeoJSON.FeatureCollection {
+function isFeatureCollection(value: unknown): value is SmokeFeatureCollection {
   if (!isPlainObject(value)) return false
   if (value.type !== 'FeatureCollection') return false
-  const typed = value as GeoJSON.FeatureCollection
-  return Array.isArray(typed.features)
+  return Array.isArray(value.features)
 }
 
-function toFeatureCollection(value: unknown): GeoJSON.FeatureCollection | null {
+function toFeatureCollection(value: unknown): SmokeFeatureCollection | null {
   if (isFeatureCollection(value)) return value
   return null
 }
 
-function normalizeCollection(value: unknown): GeoJSON.FeatureCollection | null {
+function normalizeCollection(value: unknown): SmokeFeatureCollection | null {
   if (!isPlainObject(value)) return null
-  const data = (value as Record<string, unknown>).data
-  return toFeatureCollection(data)
+  return toFeatureCollection(value.data)
 }
 
-async function loadJsonFromText(text: string): Promise<GeoJSON.FeatureCollection | null> {
+async function loadJsonFromText(text: string): Promise<SmokeFeatureCollection | null> {
   try {
     const parsed = JSON.parse(text)
     return toFeatureCollection(parsed) ?? normalizeCollection(parsed) ?? null
@@ -56,7 +55,7 @@ async function loadJsonFromText(text: string): Promise<GeoJSON.FeatureCollection
   }
 }
 
-async function readLocalSmokeData(key: SmokeLayerKey): Promise<GeoJSON.FeatureCollection | null> {
+async function readLocalSmokeData(key: SmokeLayerKey): Promise<SmokeFeatureCollection | null> {
   const candidates = LOCAL_PATHS[key]
   for (const localPath of candidates) {
     try {
@@ -71,7 +70,7 @@ async function readLocalSmokeData(key: SmokeLayerKey): Promise<GeoJSON.FeatureCo
   return null
 }
 
-async function fetchRemoteSmokeData(key: SmokeLayerKey): Promise<GeoJSON.FeatureCollection | null> {
+async function fetchRemoteSmokeData(key: SmokeLayerKey): Promise<SmokeFeatureCollection | null> {
   try {
     const response = await fetch(REMOTE_PATHS[key])
     if (!response.ok) return null
@@ -82,7 +81,7 @@ async function fetchRemoteSmokeData(key: SmokeLayerKey): Promise<GeoJSON.Feature
   }
 }
 
-export async function loadSmokeLayerData(key: SmokeLayerKey): Promise<GeoJSON.FeatureCollection> {
+export async function loadSmokeLayerData(key: SmokeLayerKey): Promise<SmokeFeatureCollection> {
   const local = await readLocalSmokeData(key)
   if (local) return local
 

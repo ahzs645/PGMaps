@@ -13,7 +13,8 @@ import {
 } from './aqmapDataAdapter'
 import { loadAqmapPlotRows, serializePlotData } from './aqmapPlotAdapter'
 import { renderIconFromPath } from './aqmapIconAdapter'
-import { loadSmokeLayerData, type SmokeLayerKey } from './aqmapSmokeAdapter'
+import { loadSmokeLayerData } from './aqmapSmokeAdapter'
+import type { SmokeLayerKey } from '../lib/smokeLayers'
 
 const AQMAP_ORIGIN = 'https://aqmap.ca/aqmap'
 

@@ -8,7 +8,7 @@ export interface AqMarkerIcon {
   size: number
 }
 
-function iconPath(group: ReturnType<typeof getAqmapMarkerGroup>, value: string | number | null | undefined, size: number): string {
+function iconPath(group: ReturnType<typeof getAqmapMarkerGroup>, value: number | null | undefined, size: number): string {
   const markerValue = getMarkerText(value)
   return `/icons/${group}_icon_${encodeURIComponent(markerValue)}_size${size}.svg`
 }
@@ -31,4 +31,3 @@ export function getAqmapMarkerSortKey(monitor: AirMonitor): number {
   const groupBonus = getAqmapMarkerGroup(monitor) === 'agency' ? 100000 : 0
   return pm25 === null ? -1 : groupBonus + Math.round(pm25 * 100)
 }
-
