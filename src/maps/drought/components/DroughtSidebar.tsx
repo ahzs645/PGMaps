@@ -21,6 +21,14 @@ interface DroughtSidebarProps {
   onToggleTimeline: () => void
 }
 
+function getReadableTextColor(backgroundColor: string): '#000000' | '#ffffff' {
+  const hex = backgroundColor.replace('#', '')
+  const [red, green, blue] = [0, 2, 4].map((start) => parseInt(hex.slice(start, start + 2), 16))
+  const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255
+
+  return luminance > 0.55 ? '#000000' : '#ffffff'
+}
+
 export function DroughtSidebar({
   className,
   manifest,
@@ -87,8 +95,8 @@ export function DroughtSidebar({
             {DROUGHT_LEVELS.map((item) => (
               <div key={item.level} className="flex items-center gap-3">
                 <span
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-black/10 text-xs font-bold text-black"
-                  style={{ backgroundColor: item.color }}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-black/10 text-xs font-bold"
+                  style={{ backgroundColor: item.color, color: getReadableTextColor(item.color) }}
                 >
                   {item.level}
                 </span>
