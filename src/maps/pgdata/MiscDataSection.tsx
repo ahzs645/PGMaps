@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ElementType, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarDays, ChevronDown, ChevronUp, Database, Droplets, Footprints, Info, Layers, PawPrint, Satellite, ShieldAlert, Trees, X } from 'lucide-react'
+import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, Satellite, ShieldAlert, Trees, X } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -10,7 +10,7 @@ import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector, type StudyAreaLevelOption, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
 import { BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
 import { AppSelect } from '@/components/ui/select'
-import { LegendItem, MapGradientLegendItem } from '@/components/ui/map-panels'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
@@ -3162,32 +3162,20 @@ export default function MiscDataSection() {
           />
         )}
 
-        <div
+        <MapLegendPanel
+          title={activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : 'MISC Layers'}
+          icon={<Layers className="h-3.5 w-3.5" />}
+          collapsible
+          collapsed={!showMobileLegend}
+          onCollapsedChange={(collapsed) => setShowMobileLegend(!collapsed)}
+          contentClassName="space-y-1"
           className={cn(
-            'absolute right-3 z-10 w-[min(16.5rem,calc(100vw-2rem))] rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:w-auto md:rounded-xl md:p-4',
+            'w-[min(16.5rem,calc(100vw-2rem))] md:w-auto',
             (activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled) || (activeTab === 'water' && water.timelineEnabled) || (activeTab === 'canue' && canueTimelineActive)
               ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
               : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] md:bottom-6',
           )}
         >
-          <div className="flex items-center justify-between gap-2 md:mb-2">
-            <h4 className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground">
-              <Layers className="h-3.5 w-3.5 shrink-0" />
-              <span>
-                {activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : 'MISC Layers'}
-              </span>
-            </h4>
-            <button
-              type="button"
-              onClick={() => setShowMobileLegend((current) => !current)}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground md:hidden"
-              aria-label={showMobileLegend ? 'Hide map legend' : 'Show map legend'}
-              aria-expanded={showMobileLegend}
-            >
-              {showMobileLegend ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-            </button>
-          </div>
-          <div className={cn('mt-2 space-y-1 md:mt-0 md:block', showMobileLegend ? 'block' : 'hidden')}>
             {activeTab === 'heatShade' && (
               <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
                 {MISC_LAYERS.map((layer) => (
@@ -3224,8 +3212,7 @@ export default function MiscDataSection() {
             {activeTab === 'wars' && <WarsLegend wars={wars} />}
             {activeTab === 'walkability' && <WalkabilityLegend walkability={walkability} />}
             {activeTab === 'water' && <WaterLegend water={water} />}
-          </div>
-        </div>
+        </MapLegendPanel>
       </div>
     </MapSectionLayout>
       </div>

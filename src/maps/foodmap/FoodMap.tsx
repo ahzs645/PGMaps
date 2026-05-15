@@ -5,6 +5,7 @@ import { RestaurantMap } from './components/RestaurantMap'
 import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
 import { Timeline } from '@/components/ui/timeline'
+import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { RouletteModal } from './components/roulette'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { useRestaurantData } from './hooks/useRestaurantData'
@@ -374,56 +375,32 @@ export default function FoodMap() {
           />
         )}
 
-        {/* Map Legend */}
-        <div className={cn(
-          'absolute right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:right-6',
-          showTimeline
-            ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+5.5rem)] md:bottom-28'
-            : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6'
-        )}>
-          <h4 className="mb-2 text-xs font-semibold text-foreground">
-            {visualizationMode === 'violations'
-              ? `Violations (${violationTimelineLabel})`
-              : 'Hazard Rating'}
-          </h4>
-
+        <MapLegendPanel
+          title={visualizationMode === 'violations' ? `Violations (${violationTimelineLabel})` : 'Hazard Rating'}
+          collapsible
+          className={cn(
+            showTimeline
+              ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+5.5rem)] md:bottom-28'
+              : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6'
+          )}
+          contentClassName="space-y-1 text-xs text-muted-foreground"
+        >
           {/* Violations legend */}
           {visualizationMode === 'violations' && (
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-green-500"></span>
-                <span className="text-xs text-muted-foreground">0 violations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-yellow-500"></span>
-                <span className="text-xs text-muted-foreground">1-2 violations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-orange-500"></span>
-                <span className="text-xs text-muted-foreground">3-5 violations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-red-500"></span>
-                <span className="text-xs text-muted-foreground">6+ violations</span>
-              </div>
+              <LegendItem color="#22c55e" label="0 violations" />
+              <LegendItem color="#eab308" label="1-2 violations" />
+              <LegendItem color="#f97316" label="3-5 violations" />
+              <LegendItem color="#ef4444" label="6+ violations" />
             </div>
           )}
 
           {/* Hazard rating legend with counts */}
           {visualizationMode === 'hazard' && (
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-green-500"></span>
-                <span className="text-xs text-muted-foreground">Low ({hazardStatsAtDate.Low})</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-amber-500"></span>
-                <span className="text-xs text-muted-foreground">Moderate ({hazardStatsAtDate.Moderate})</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full bg-gray-500"></span>
-                <span className="text-xs text-muted-foreground">Unknown ({hazardStatsAtDate.Unknown})</span>
-              </div>
+              <LegendItem color="#22c55e" label="Low" value={hazardStatsAtDate.Low} />
+              <LegendItem color="#f59e0b" label="Moderate" value={hazardStatsAtDate.Moderate} />
+              <LegendItem color="#6b7280" label="Unknown" value={hazardStatsAtDate.Unknown} />
             </div>
           )}
 
@@ -435,7 +412,7 @@ export default function FoodMap() {
               </div>
             </div>
           )}
-        </div>
+        </MapLegendPanel>
         </div>
       </MapSectionLayout>
 

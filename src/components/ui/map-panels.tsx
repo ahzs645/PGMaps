@@ -739,8 +739,12 @@ type MapLegendPanelProps = {
   className?: string
   title?: ReactNode
   description?: ReactNode
+  icon?: ReactNode
   collapsible?: boolean
   defaultCollapsed?: boolean
+  collapsed?: boolean
+  onCollapsedChange?: (collapsed: boolean) => void
+  contentClassName?: string
 }
 
 export function MapLegendPanel({
@@ -748,44 +752,89 @@ export function MapLegendPanel({
   className,
   title,
   description,
+  icon,
   collapsible = false,
   defaultCollapsed = false,
+  collapsed,
+  onCollapsedChange,
+  contentClassName,
 }: MapLegendPanelProps) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed)
+  const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed)
+  const isCollapsed = collapsed ?? internalCollapsed
+  const toggleCollapsed = () => {
+    const next = !isCollapsed
+    onCollapsedChange?.(next)
+    if (collapsed === undefined) {
+      setInternalCollapsed(next)
+    }
+  }
 
   return (
     <div
       className={cn(
-        'absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-4 z-10 rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6',
+        'absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-3 z-10 w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:bottom-6 md:right-6 md:w-auto md:rounded-xl md:p-4',
         className,
       )}
     >
       {title && (
-        <div className={cn(!collapsed && 'mb-2')}>
+        <div className={cn(!isCollapsed && 'mb-2')}>
           {collapsible ? (
             <button
               type="button"
-              aria-expanded={!collapsed}
-              onClick={() => setCollapsed((value) => !value)}
+              aria-expanded={!isCollapsed}
+              onClick={toggleCollapsed}
               className="flex w-full items-start justify-between gap-3 text-left hover:text-foreground"
             >
-              <span className="min-w-0">
+              <span className="flex min-w-0 items-start gap-1.5">
+                {icon ? <span className="mt-px shrink-0 text-muted-foreground">{icon}</span> : null}
+                <span className="min-w-0">
                 <span className="block truncate text-xs font-semibold text-foreground">{title}</span>
                 {description ? <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">{description}</span> : null}
+                </span>
               </span>
               <ChevronDown
-                className={cn('mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform', collapsed && '-rotate-90')}
+                className={cn('mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform', isCollapsed && '-rotate-90')}
               />
             </button>
           ) : (
             <>
-              <h4 className="text-xs font-semibold text-foreground">{title}</h4>
+              <h4 className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground">
+                {icon ? <span className="shrink-0 text-muted-foreground">{icon}</span> : null}
+                <span className="truncate">{title}</span>
+              </h4>
               {description ? <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</div> : null}
             </>
           )}
         </div>
       )}
-      {!collapsed ? children : null}
+      {!isCollapsed ? <div className={contentClassName}>{children}</div> : null}
+    </div>
+  )
+}
+
+type MapLegendSectionProps = ComponentPropsWithoutRef<'div'> & {
+  title?: ReactNode
+  value?: ReactNode
+  scroll?: boolean
+}
+
+export function MapLegendSection({
+  title,
+  value,
+  scroll = false,
+  className,
+  children,
+  ...props
+}: MapLegendSectionProps) {
+  return (
+    <div className={cn('space-y-1.5 text-xs text-muted-foreground', className)} {...props}>
+      {(title || value) && (
+        <div className="flex items-center justify-between gap-2">
+          {title ? <span className="font-medium text-foreground">{title}</span> : <span />}
+          {value ? <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{value}</span> : null}
+        </div>
+      )}
+      <div className={cn('space-y-1', scroll && 'max-h-44 overflow-y-auto pr-1')}>{children}</div>
     </div>
   )
 }
