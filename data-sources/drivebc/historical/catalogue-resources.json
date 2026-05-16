@@ -1,0 +1,245 @@
+{
+  "package": {
+    "id": "cdf6ab31-fa03-479a-b6e0-f9a0c71edf91",
+    "name": "historical-drivebc-events",
+    "metadata_modified": "2026-04-24T22:15:31.257985",
+    "record_last_modified": "2026-04-24"
+  },
+  "resources": [
+    {
+      "year": 2006,
+      "name": "Drivebc_events_hist_2006",
+      "id": "c4238fe1-7047-4279-acfa-727d03496fc5",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/c4238fe1-7047-4279-acfa-727d03496fc5/download/drivebceventshist2006.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": null
+    },
+    {
+      "year": 2007,
+      "name": "drivebc_events_hist_2007",
+      "id": "574f7678-9487-48d8-bbde-15ab3a553e86",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/574f7678-9487-48d8-bbde-15ab3a553e86/download/drivebceventshist2007.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": null
+    },
+    {
+      "year": 2008,
+      "name": "Drivebc_events_hist_2008",
+      "id": "a3009573-81a6-4ffb-870b-3c56939dd27e",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/a3009573-81a6-4ffb-870b-3c56939dd27e/download/drivebceventshist2008.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": null
+    },
+    {
+      "year": 2009,
+      "name": "Drivebc_events_hist_2009",
+      "id": "8fd3dadd-72f9-481b-ba8f-269c6cb528df",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/8fd3dadd-72f9-481b-ba8f-269c6cb528df/download/drivebceventshist2009.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": null
+    },
+    {
+      "year": 2010,
+      "name": "Drivebc_events_hist_2010",
+      "id": "44ffe010-8d34-4b83-a677-d2078a3d3253",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/44ffe010-8d34-4b83-a677-d2078a3d3253/download/drivebceventshist2010.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": null
+    },
+    {
+      "year": 2011,
+      "name": "Drivebc_events_hist_2011",
+      "id": "ac48e099-ad2d-4a4d-9c9d-901319d71a0c",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/ac48e099-ad2d-4a4d-9c9d-901319d71a0c/download/drivebceventshist2011.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": null
+    },
+    {
+      "year": 2012,
+      "name": "Drivebc_events_hist_2012",
+      "id": "b982beff-dfd4-4cf4-92c3-fed65985b30a",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/b982beff-dfd4-4cf4-92c3-fed65985b30a/download/drivebceventshist2012.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": null
+    },
+    {
+      "year": 2013,
+      "name": "Drivebc_events_hist_2013",
+      "id": "c502411c-003a-4881-b808-126e8bdb3f06",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/c502411c-003a-4881-b808-126e8bdb3f06/download/drivebceventshist2013.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": null
+    },
+    {
+      "year": 2014,
+      "name": "Drivebc_events_hist_2014",
+      "id": "0362540e-2539-4090-a0b6-59ff85714690",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/0362540e-2539-4090-a0b6-59ff85714690/download/drivebceventshist2014.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": null
+    },
+    {
+      "year": 2015,
+      "name": "Drivebc_events_hist_2015",
+      "id": "2c00f954-92bb-44d7-8253-94bbc7a01ff9",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/2c00f954-92bb-44d7-8253-94bbc7a01ff9/download/drivebceventshist2015.csv",
+      "size": null,
+      "last_modified": null,
+      "temporal_extent": [
+        {
+          "beginning_date": "2015-01-01",
+          "end_date": "2015-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2016,
+      "name": "Drivebc_events_hist_2016",
+      "id": "ae3280c9-6a3d-4663-a025-f04fb69d5e83",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/ae3280c9-6a3d-4663-a025-f04fb69d5e83/download/drivebceventshist2016.csv",
+      "size": 59530403,
+      "last_modified": "2017-03-21T16:32:53.779000",
+      "temporal_extent": [
+        {
+          "beginning_date": "2016-01-01",
+          "end_date": "2016-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2017,
+      "name": "Drivebc_events_hist_2017",
+      "id": "59276202-b0b5-490b-be33-497dc1ac8a3f",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/59276202-b0b5-490b-be33-497dc1ac8a3f/download/drivebceventshist2017.csv",
+      "size": 75162600,
+      "last_modified": "2018-04-12T17:04:14.246000",
+      "temporal_extent": [
+        {
+          "beginning_date": "2017-01-01",
+          "end_date": "2017-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2018,
+      "name": "Drivebc_events_hist_2018",
+      "id": "7db8b239-fb19-4be8-82b5-f6e541f77acc",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/7db8b239-fb19-4be8-82b5-f6e541f77acc/download/drivebc_events_hist_2018.csv",
+      "size": 226388343,
+      "last_modified": "2026-04-24T21:39:33.024831",
+      "temporal_extent": [
+        {
+          "beginning_date": "2018-01-01",
+          "end_date": "2018-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2019,
+      "name": "Drivebc_events_hist_2019",
+      "id": "b8190690-ff9a-467e-93b1-01ae3e139147",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/b8190690-ff9a-467e-93b1-01ae3e139147/download/drivebc_events_hist_2019.csv",
+      "size": 144389465,
+      "last_modified": "2026-04-24T21:40:33.773625",
+      "temporal_extent": [
+        {
+          "beginning_date": "2019-01-01",
+          "end_date": "2019-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2020,
+      "name": "Drivebc_events_hist_2020",
+      "id": "30d8c7df-a100-43fc-9243-d5057380bf44",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/30d8c7df-a100-43fc-9243-d5057380bf44/download/drivebc_events_hist_2020.csv",
+      "size": 132602954,
+      "last_modified": "2021-03-29T21:22:19.687000",
+      "temporal_extent": [
+        {
+          "beginning_date": "2020-01-01",
+          "end_date": "2020-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2021,
+      "name": "Drivebc_events_hist_2021",
+      "id": "f5b630b6-e1d3-4368-973a-248c3ca26175",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/f5b630b6-e1d3-4368-973a-248c3ca26175/download/drivebc_events_hist_2021.csv",
+      "size": 132522794,
+      "last_modified": "2022-03-03T19:46:47.491572",
+      "temporal_extent": [
+        {
+          "beginning_date": "2021-01-01",
+          "end_date": "2021-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2022,
+      "name": "Drivebc_events_hist_2022",
+      "id": "1ad14e4d-5d2d-4b8c-8b10-e25e20a40b3f",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/1ad14e4d-5d2d-4b8c-8b10-e25e20a40b3f/download/drivebc_events_hist_2022.csv",
+      "size": 138657146,
+      "last_modified": "2023-01-26T00:04:55.973261",
+      "temporal_extent": [
+        {
+          "beginning_date": "2022-01-01",
+          "end_date": "2022-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2023,
+      "name": "Drivebc_events_hist_2023",
+      "id": "bcb7b1a6-6f46-4911-8889-860acb112fca",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/bcb7b1a6-6f46-4911-8889-860acb112fca/download/drivebc_events_hist_2023.csv",
+      "size": 128317112,
+      "last_modified": "2024-01-15T23:47:50.193171",
+      "temporal_extent": [
+        {
+          "beginning_date": "2023-01-01",
+          "end_date": "2023-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2024,
+      "name": "DriveBC_events_hist_2024",
+      "id": "b1639255-776f-416e-8f13-331110ea1d02",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/b1639255-776f-416e-8f13-331110ea1d02/download/drivebc_events_hist_2024.csv",
+      "size": 133644134,
+      "last_modified": "2025-02-18T19:35:49.177139",
+      "temporal_extent": [
+        {
+          "beginning_date": "2024-01-01",
+          "end_date": "2024-12-31"
+        }
+      ]
+    },
+    {
+      "year": 2025,
+      "name": "DriveBC_events_hist_2025",
+      "id": "e402a618-8368-4f2d-a376-88cfddbe0d2a",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/e402a618-8368-4f2d-a376-88cfddbe0d2a/download/drivebc_events_hist_2025.csv",
+      "size": 110488505,
+      "last_modified": "2026-02-20T23:14:43.246545",
+      "temporal_extent": [
+        {
+          "beginning_date": "2025-01-01",
+          "end_date": "2025-12-31"
+        }
+      ]
+    }
+  ]
+}

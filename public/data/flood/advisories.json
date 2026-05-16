@@ -1,0 +1,1323 @@
+[
+  {
+    "id": "flood_136",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_136.htm",
+    "sourceMethods": [
+      "seed-file",
+      "legacy-number-probe"
+    ],
+    "title": "High Streamflow Advisory - South Coast and Vancouver Island",
+    "issuedAt": "2020-12-31T23:45:00.000Z",
+    "issuedAtLocal": "3:45 PM December 31, 2020",
+    "issuedYear": 2020,
+    "levels": [
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "issued"
+    ],
+    "namedAreas": [
+      "South Coast",
+      "Vancouver Island"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "east-vancouver-island",
+        "name": "East Vancouver Island"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "sunshine-coast",
+        "name": "Sunshine Coast"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "west-vancouver-island",
+        "name": "West Vancouver Island"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "SQAM",
+        "name": "Squamish"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "LILL",
+        "name": "Lillooet"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13024",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13022",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13023",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13014",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13021",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "23",
+        "name": "Lillooet River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/flood_136-ab7bb214866d.htm",
+    "textPath": "/data/flood/text/flood_136.txt",
+    "contentType": "text/html; charset=UTF-8",
+    "byteLength": 17493,
+    "textLength": 2995,
+    "duplicateUrls": [
+      "https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_137.htm"
+    ]
+  },
+  {
+    "id": "flood_001",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_001.htm",
+    "sourceMethods": [
+      "seed-file",
+      "legacy-number-probe"
+    ],
+    "title": "Flood Watch – Englishman River and Nanaimo River High Streamflow Advisory – Vancouver Island, South Coast",
+    "issuedAt": "2021-01-02T20:45:00.000Z",
+    "issuedAtLocal": "12:45 PM January 2, 2021",
+    "issuedYear": 2021,
+    "levels": [
+      "Flood Watch",
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "upgraded",
+      "maintained",
+      "issued"
+    ],
+    "namedAreas": [
+      "Englishman",
+      "Nanaimo",
+      "Vancouver Island",
+      "South Coast"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "east-vancouver-island",
+        "name": "East Vancouver Island"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "sunshine-coast",
+        "name": "Sunshine Coast"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "west-vancouver-island",
+        "name": "West Vancouver Island"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "SQAM",
+        "name": "Squamish"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "LILL",
+        "name": "Lillooet"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13024",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13022",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13023",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13014",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "13021",
+        "name": "Table River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "23",
+        "name": "Lillooet River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/flood_001-2b13e3eeab6c.htm",
+    "textPath": "/data/flood/text/flood_001.txt",
+    "contentType": "text/html; charset=UTF-8",
+    "byteLength": 17661,
+    "textLength": 3543,
+    "duplicateUrls": []
+  },
+  {
+    "id": "FWN_FWT_HSA_2024_09_24_1350_NC_CC_upd",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_FWT_HSA_2024_09_24_1350_NC_CC_upd.pdf",
+    "sourceMethods": [
+      "seed-file"
+    ],
+    "title": "Ministry of Water, Land and Resource Stewardship Flood Warning – Telkwa River (Maintained) Flood Watch – Kitsumkalum River (Upgraded) High Streamflow Advisory – North Coast and Central Coast, including Skeena River and tributaries (Maintained), Kitimat-Kemano (Downgraded), and Kingcome River (Downgraded)",
+    "issuedAt": "2024-09-24T20:50:00.000Z",
+    "issuedAtLocal": "1:50 PM September 24, 2024",
+    "issuedYear": 2024,
+    "levels": [
+      "Flood Warning",
+      "Flood Watch",
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "upgraded",
+      "downgraded",
+      "maintained",
+      "issued"
+    ],
+    "namedAreas": [
+      "Ministry Water",
+      "Land",
+      "Resource Stewardship",
+      "Telkwa",
+      "Kitsumkalum",
+      "Upgraded",
+      "North Coast",
+      "Central Coast",
+      "Skeena",
+      "Kitimat",
+      "Kemano",
+      "Downgraded",
+      "Kingcome"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "central-coast",
+        "name": "Central Coast"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "haida-gwaii",
+        "name": "Haida Gwaii"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BULK",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "KITR",
+        "name": "Kitimat River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "KLUM",
+        "name": "Kalum River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "162",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "164",
+        "name": "Kitsumkalum River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "84",
+        "name": "Skeena River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/FWN_FWT_HSA_2024_09_24_1350_NC_CC_upd-ddec55290c03.pdf",
+    "textPath": "/data/flood/text/FWN_FWT_HSA_2024_09_24_1350_NC_CC_upd.txt",
+    "contentType": "application/pdf",
+    "byteLength": 137579,
+    "textLength": 3758,
+    "duplicateUrls": []
+  },
+  {
+    "id": "FWN_2025_12_11_745_CC_SC_VI_upg",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_11_745_CC_SC_VI_upg.pdf",
+    "sourceMethods": [
+      "seed-file"
+    ],
+    "title": "Ministry of Water, Land and Resource Stewardship Flood Warning – Similkameen (Princeton and upstream), Tulameen High Streamflow Advisory – Coldwater, Central Coast, South Coast, Vancouver Island",
+    "issuedAt": "2025-12-11T15:45:00.000Z",
+    "issuedAtLocal": "7:45 AM December 11, 2025",
+    "issuedYear": 2025,
+    "levels": [
+      "Flood Warning",
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "upgraded",
+      "downgraded",
+      "maintained",
+      "issued"
+    ],
+    "namedAreas": [
+      "Ministry Water",
+      "Land",
+      "Resource Stewardship",
+      "Similkameen",
+      "Princeton",
+      "upstream",
+      "Tulameen",
+      "Coldwater",
+      "Central Coast",
+      "South Coast",
+      "Vancouver Island"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "bridge",
+        "name": "Bridge"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "central-coast",
+        "name": "Central Coast"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "similkameen",
+        "name": "Similkameen"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "SIML",
+        "name": "Similkameen River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/FWN_2025_12_11_745_CC_SC_VI_upg-432cd9a27cc1.pdf",
+    "textPath": "/data/flood/text/FWN_2025_12_11_745_CC_SC_VI_upg.txt",
+    "contentType": "application/pdf",
+    "byteLength": 185070,
+    "textLength": 2708,
+    "duplicateUrls": []
+  },
+  {
+    "id": "FWN_2025_12_14_1230_NC_CC_SC_upg",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_14_1230_NC_CC_SC_upg.pdf",
+    "sourceMethods": [
+      "seed-file"
+    ],
+    "title": "Ministry of Water, Land and Resource Stewardship Flood Warning – Chilliwack River (UPGRADE), Flood Watch – Lower Fraser tributaries, Kingcome River, Englishman River (UPGRADE), High Streamflow Advisory – Haida Gwaii (NEW), North Coast, Central Coast, South Coast, Vancouver Island",
+    "issuedAt": "2025-12-14T20:30:00.000Z",
+    "issuedAtLocal": "12:30 PM December 14, 2025",
+    "issuedYear": 2025,
+    "levels": [
+      "Flood Warning",
+      "Flood Watch",
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "upgraded",
+      "maintained",
+      "issued"
+    ],
+    "namedAreas": [
+      "Ministry Water",
+      "Land",
+      "Resource Stewardship",
+      "Chilliwack",
+      "Lower Fraser",
+      "Kingcome",
+      "Englishman",
+      "Haida Gwaii",
+      "North Coast",
+      "Central Coast",
+      "South Coast",
+      "Vancouver Island"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "bridge",
+        "name": "Bridge"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "central-coast",
+        "name": "Central Coast"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "haida-gwaii",
+        "name": "Haida Gwaii"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "sunshine-coast",
+        "name": "Sunshine Coast"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "LFRA",
+        "name": "Lower Fraser"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "CHWK",
+        "name": "Chilliwack River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "LILL",
+        "name": "Lillooet"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "FRCN",
+        "name": "Fraser Canyon"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "23",
+        "name": "Lillooet River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/FWN_2025_12_14_1230_NC_CC_SC_upg-24f6ae49e710.pdf",
+    "textPath": "/data/flood/text/FWN_2025_12_14_1230_NC_CC_SC_upg.txt",
+    "contentType": "application/pdf",
+    "byteLength": 188924,
+    "textLength": 4245,
+    "duplicateUrls": []
+  },
+  {
+    "id": "HSA_2026_03_22_1045_CLDWT_SIMIL_SKAGIT_end",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_03_22_1045_CLDWT_SIMIL_SKAGIT_end.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "ENDED - High Streamflow Advisory - Coldwater River, Similkameen River, and Skagit River - Issued: 10:45 AM March 22, 2026",
+    "issuedAt": "2026-03-22T17:45:00.000Z",
+    "issuedAtLocal": "10:45 AM March 22, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "Flood Watch",
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "ended",
+      "issued"
+    ],
+    "namedAreas": [
+      "Coldwater",
+      "Similkameen",
+      "Skagit",
+      ": 10:45 AM March 22",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "similkameen",
+        "name": "Similkameen"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "SKGT",
+        "name": "Skagit River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "SIML",
+        "name": "Similkameen River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/HSA_2026_03_22_1045_CLDWT_SIMIL_SKAGIT_end-dca90fff15bc.pdf",
+    "textPath": "/data/flood/text/HSA_2026_03_22_1045_CLDWT_SIMIL_SKAGIT_end.txt",
+    "contentType": "application/pdf",
+    "byteLength": 181972,
+    "textLength": 1434,
+    "duplicateUrls": []
+  },
+  {
+    "id": "HSA_2026_05_04_Interior",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_04_Interior.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "High Streamflow Advisory – Northern Interior - Issued: 11:30 AM May 4, 2026",
+    "issuedAt": "2026-05-04T18:30:00.000Z",
+    "issuedAtLocal": "11:30 AM May 4, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "issued"
+    ],
+    "namedAreas": [
+      "Northern Interior",
+      ": 11:30 AM May 4",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BULK",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "1620",
+        "name": "Pack River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "1654",
+        "name": "Pack River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "1655",
+        "name": "Pack River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "1656",
+        "name": "McLeod Lake"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "3923",
+        "name": "Fraser Lake"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "162",
+        "name": "Bulkley River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/HSA_2026_05_04_Interior-7303f7d27a93.pdf",
+    "textPath": "/data/flood/text/HSA_2026_05_04_Interior.txt",
+    "contentType": "application/pdf",
+    "byteLength": 185022,
+    "textLength": 2673,
+    "duplicateUrls": []
+  },
+  {
+    "id": "FWT_2026_05_06_0930_Interior_CC",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWT_2026_05_06_0930_Interior_CC.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "UPDATE – Flood Watch – Bulkley River (UPGRADED); High Streamflow Advisory – Central Coast (NEW), Northern Interior - Issued: 9:30 AM May 6, 2026",
+    "issuedAt": "2026-05-06T16:30:00.000Z",
+    "issuedAtLocal": "9:30 AM May 6, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "Flood Watch",
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "upgraded",
+      "updated",
+      "maintained",
+      "issued"
+    ],
+    "namedAreas": [
+      "Bulkley",
+      "UPGRADED",
+      "Central Coast",
+      "Northern Interior",
+      ": 9:30 AM May 6",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "central-coast",
+        "name": "Central Coast"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BULK",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BELA",
+        "name": "Bella Coola River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "ATNA",
+        "name": "Atnarko River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "1620",
+        "name": "Pack River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "1654",
+        "name": "Pack River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "1655",
+        "name": "Pack River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "1656",
+        "name": "McLeod Lake"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "3923",
+        "name": "Fraser Lake"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "162",
+        "name": "Bulkley River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/FWT_2026_05_06_0930_Interior_CC-1b2fb781ddbb.pdf",
+    "textPath": "/data/flood/text/FWT_2026_05_06_0930_Interior_CC.txt",
+    "contentType": "application/pdf",
+    "byteLength": 185805,
+    "textLength": 3292,
+    "duplicateUrls": []
+  },
+  {
+    "id": "FWT_2026_05_07_1730_Interior_CC_NC",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWT_2026_05_07_1730_Interior_CC_NC.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "UPDATE – Flood Watch – Bulkley River; High Streamflow Advisory – Skeena (NEW), Central Coast, Northern Interior – Issued: 5:30 PM May 7, 2026",
+    "issuedAt": "2026-05-08T00:30:00.000Z",
+    "issuedAtLocal": "5:30 PM May 7, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "Flood Watch",
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "updated",
+      "maintained",
+      "issued"
+    ],
+    "namedAreas": [
+      "Bulkley",
+      "Skeena",
+      "Central Coast",
+      "Northern Interior",
+      ": 5:30 PM May 7",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "central-coast",
+        "name": "Central Coast"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BULK",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BELA",
+        "name": "Bella Coola River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "ATNA",
+        "name": "Atnarko River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "3923",
+        "name": "Fraser Lake"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "162",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "84",
+        "name": "Skeena River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/FWT_2026_05_07_1730_Interior_CC_NC-fd4c13fa9985.pdf",
+    "textPath": "/data/flood/text/FWT_2026_05_07_1730_Interior_CC_NC.txt",
+    "contentType": "application/pdf",
+    "byteLength": 187687,
+    "textLength": 3831,
+    "duplicateUrls": []
+  },
+  {
+    "id": "HSA_2026_05_08_1530_Interior_CC_NC_dwn",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_08_1530_Interior_CC_NC_dwn.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "UPDATE – High Streamflow Advisory – Bulkley (downgrade), Skeena, Central Coast, Northern Interior – Issued: 3:30 PM May 8, 2026",
+    "issuedAt": "2026-05-08T22:30:00.000Z",
+    "issuedAtLocal": "3:30 PM May 8, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "downgraded",
+      "updated",
+      "maintained",
+      "issued"
+    ],
+    "namedAreas": [
+      "Bulkley",
+      "Skeena",
+      "Central Coast",
+      "Northern Interior",
+      ": 3:30 PM May 8",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "central-coast",
+        "name": "Central Coast"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BULK",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BELA",
+        "name": "Bella Coola River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "ATNA",
+        "name": "Atnarko River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "3923",
+        "name": "Fraser Lake"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "162",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "84",
+        "name": "Skeena River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/HSA_2026_05_08_1530_Interior_CC_NC_dwn-e182a72a3efa.pdf",
+    "textPath": "/data/flood/text/HSA_2026_05_08_1530_Interior_CC_NC_dwn.txt",
+    "contentType": "application/pdf",
+    "byteLength": 186930,
+    "textLength": 3415,
+    "duplicateUrls": []
+  },
+  {
+    "id": "HSA_2026_05_11_1130_Interior_CC_NC_upd",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_11_1130_Interior_CC_NC_upd.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "UPDATE - High Streamflow Advisory (MAINTAINED) – Central Coast, Northern Interior; High Streamflow Advisory (ENDED) – Bulkley, Skeena - Issued: 11:30 AM May 11, 2026",
+    "issuedAt": "2026-05-11T18:30:00.000Z",
+    "issuedAtLocal": "11:30 AM May 11, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "ended",
+      "updated",
+      "maintained",
+      "issued"
+    ],
+    "namedAreas": [
+      "Central Coast",
+      "Northern Interior",
+      "Bulkley",
+      "Skeena",
+      ": 11:30 AM May 11",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "central-coast",
+        "name": "Central Coast"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BULK",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BELA",
+        "name": "Bella Coola River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "ATNA",
+        "name": "Atnarko River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "STUR",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15404",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15403",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15402",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15401",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15400",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15364",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15399",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "3935",
+        "name": "Stellako River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "3923",
+        "name": "Fraser Lake"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "154",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "162",
+        "name": "Bulkley River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "84",
+        "name": "Skeena River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/HSA_2026_05_11_1130_Interior_CC_NC_upd-719a7688c53a.pdf",
+    "textPath": "/data/flood/text/HSA_2026_05_11_1130_Interior_CC_NC_upd.txt",
+    "contentType": "application/pdf",
+    "byteLength": 183156,
+    "textLength": 2811,
+    "duplicateUrls": []
+  },
+  {
+    "id": "HSA_2026_05_12_1130_Interior_CC_upd",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_12_1130_Interior_CC_upd.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "UPDATE - High Streamflow Advisory – Northern Interior (MAINTAINED); High Streamflow Advisory – Central Coast (ENDED) - Issued: 11:30 AM May 12, 2026",
+    "issuedAt": "2026-05-12T18:30:00.000Z",
+    "issuedAtLocal": "11:30 AM May 12, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "ended",
+      "updated",
+      "maintained",
+      "issued"
+    ],
+    "namedAreas": [
+      "Northern Interior",
+      "Central Coast",
+      ": 11:30 AM May 12",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "central-coast",
+        "name": "Central Coast"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BELA",
+        "name": "Bella Coola River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "NATR",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "ATNA",
+        "name": "Atnarko River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "STUR",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12022",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12020",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12018",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12019",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12021",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "11891",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12024",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12025",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12023",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12034",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12031",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12030",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12029",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12026",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12033",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "12028",
+        "name": "Nation River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15404",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15403",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15402",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15401",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15400",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15364",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15399",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "3923",
+        "name": "Fraser Lake"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "154",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "160",
+        "name": "Nation River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/HSA_2026_05_12_1130_Interior_CC_upd-fd6f72dd1ec2.pdf",
+    "textPath": "/data/flood/text/HSA_2026_05_12_1130_Interior_CC_upd.txt",
+    "contentType": "application/pdf",
+    "byteLength": 182973,
+    "textLength": 2459,
+    "duplicateUrls": []
+  },
+  {
+    "id": "HSA_2026_05_13_1045_Interior_iss",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_13_1045_Interior_iss.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "High Streamflow Advisory – Upper Columbia, West Kootenay, East Kootenay, North and Thompson tributaries, Okanagan, Boundary - Issued: 10:45 AM May 13, 2026",
+    "issuedAt": "2026-05-13T17:45:00.000Z",
+    "issuedAtLocal": "10:45 AM May 13, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "issued"
+    ],
+    "namedAreas": [
+      "Upper Columbia",
+      "West Kootenay",
+      "East Kootenay",
+      "North",
+      "Thompson",
+      "Okanagan",
+      "Boundary",
+      ": 10:45 AM May 13",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "clearwater",
+        "name": "Clearwater"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "okanagan",
+        "name": "Okanagan"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "south-thompson",
+        "name": "South Thompson"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "upper-columbia",
+        "name": "Upper Columbia"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "THOM",
+        "name": "Thompson River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BLUR",
+        "name": "Blue River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "STHM",
+        "name": "South Thompson River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "SHUL",
+        "name": "Shuswap Lake"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "223",
+        "name": "South Thompson River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "11",
+        "name": "Illecillewaet River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "13",
+        "name": "Thompson River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/HSA_2026_05_13_1045_Interior_iss-255a1c6476d3.pdf",
+    "textPath": "/data/flood/text/HSA_2026_05_13_1045_Interior_iss.txt",
+    "contentType": "application/pdf",
+    "byteLength": 186341,
+    "textLength": 3977,
+    "duplicateUrls": []
+  },
+  {
+    "id": "HSA_2026_05_15_845_NorthInterior_end",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_15_845_NorthInterior_end.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "ENDED - High Streamflow Advisory – Northern Interior (Omineca, Lakes Region) - Issued: 8:45 AM May 15, 2026",
+    "issuedAt": "2026-05-15T15:45:00.000Z",
+    "issuedAtLocal": "8:45 AM May 15, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "ended",
+      "issued"
+    ],
+    "namedAreas": [
+      "Northern Interior",
+      "Omineca",
+      "Lakes Region",
+      ": 8:45 AM May 15",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "fwaWatershedGroup",
+        "id": "STUR",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15404",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15403",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15402",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15401",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15400",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15364",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "15399",
+        "name": "Stuart River"
+      },
+      {
+        "source": "fwaAssessmentWatershed",
+        "id": "3923",
+        "name": "Fraser Lake"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "154",
+        "name": "Stuart River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/HSA_2026_05_15_845_NorthInterior_end-695c27a2d104.pdf",
+    "textPath": "/data/flood/text/HSA_2026_05_15_845_NorthInterior_end.txt",
+    "contentType": "application/pdf",
+    "byteLength": 182101,
+    "textLength": 2018,
+    "duplicateUrls": []
+  },
+  {
+    "id": "HSA_2026_05_15_1145_Interior_end",
+    "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_15_1145_Interior_end.pdf",
+    "sourceMethods": [
+      "current-index"
+    ],
+    "title": "ENDED - High Streamflow Advisory – Upper Columbia, West Kootenay, East Kootenay, North and Thompson tributaries, Okanagan, Boundary - Issued: 11:45 AM May 15, 2026",
+    "issuedAt": "2026-05-15T18:45:00.000Z",
+    "issuedAtLocal": "11:45 AM May 15, 2026",
+    "issuedYear": 2026,
+    "levels": [
+      "High Streamflow Advisory"
+    ],
+    "statuses": [
+      "ended",
+      "issued"
+    ],
+    "namedAreas": [
+      "Upper Columbia",
+      "West Kootenay",
+      "East Kootenay",
+      "North",
+      "Thompson",
+      "Okanagan",
+      "Boundary",
+      ": 11:45 AM May 15",
+      "2026"
+    ],
+    "matchedBoundaries": [
+      {
+        "source": "droughtBasin",
+        "id": "clearwater",
+        "name": "Clearwater"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "okanagan",
+        "name": "Okanagan"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "south-thompson",
+        "name": "South Thompson"
+      },
+      {
+        "source": "droughtBasin",
+        "id": "upper-columbia",
+        "name": "Upper Columbia"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "THOM",
+        "name": "Thompson River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "BLUR",
+        "name": "Blue River"
+      },
+      {
+        "source": "fwaWatershedGroup",
+        "id": "STHM",
+        "name": "South Thompson River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "223",
+        "name": "South Thompson River"
+      },
+      {
+        "source": "fwaMajorWatershed",
+        "id": "13",
+        "name": "Thompson River"
+      }
+    ],
+    "rawPath": "/data/flood/raw/HSA_2026_05_15_1145_Interior_end-3f89abdf09c8.pdf",
+    "textPath": "/data/flood/text/HSA_2026_05_15_1145_Interior_end.txt",
+    "contentType": "application/pdf",
+    "byteLength": 184635,
+    "textLength": 2586,
+    "duplicateUrls": []
+  }
+]

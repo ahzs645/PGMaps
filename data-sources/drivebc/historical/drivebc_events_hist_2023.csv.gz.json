@@ -1,0 +1,17 @@
+{
+  "year": 2023,
+  "name": "Drivebc_events_hist_2023",
+  "id": "bcb7b1a6-6f46-4911-8889-860acb112fca",
+  "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/bcb7b1a6-6f46-4911-8889-860acb112fca/download/drivebc_events_hist_2023.csv",
+  "size": 128317112,
+  "last_modified": "2024-01-15T23:47:50.193171",
+  "temporal_extent": [
+    {
+      "beginning_date": "2023-01-01",
+      "end_date": "2023-12-31"
+    }
+  ],
+  "downloaded_at": "2026-05-16T20:46:32Z",
+  "raw_bytes_downloaded": 128317112,
+  "gzip_bytes": 18424518
+}

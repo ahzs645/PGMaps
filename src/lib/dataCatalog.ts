@@ -124,6 +124,16 @@ export const DATASETS = {
     downloadUrl: '/data/water/combined_water_notices_summary.json',
     fields: ['facility_id', 'facility_name', 'latitude', 'longitude', 'sample_date', 'parameter', 'result', 'notice_type', 'primary_source', 'merge_bucket'],
   },
+  flood: {
+    title: 'BC River Forecast Centre flood context',
+    description: 'Live streamflow return periods, CLEVER/COFFEE forecast station points, and RFC basin polygons for flood context.',
+    source: 'BC River Forecast Centre',
+    coverage: 'British Columbia hydrometric stations and RFC basins',
+    license: 'Open Government Licence - British Columbia / source-dependent hydrometric terms',
+    formats: ['ArcGIS FeatureServer', 'GeoJSON'],
+    apiUrl: 'https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services',
+    fields: ['Station_ID', 'Station_Name', 'Basin', 'Current_Reading_', 'Return_Period', 'Forecast_maximum_in_5_days', 'Return_Period_FOR'],
+  },
   bcAssessment: {
     title: 'BC Assessment properties',
     description: 'Parcel/property assessment extracts with value, year built, category, and location attributes.',

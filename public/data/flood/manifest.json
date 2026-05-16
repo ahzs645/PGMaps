@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-05-16T20:52:55.071Z",
+  "source": "BC River Forecast Centre flood warnings/advisories",
+  "sourceIndex": "https://bcrfc.env.gov.bc.ca/warnings/index.htm",
+  "outputFiles": {
+    "advisories": "/data/flood/advisories.json",
+    "manifest": "/data/flood/manifest.json",
+    "discovery": "/data/flood/discovery.json"
+  },
+  "discovery": {
+    "currentIndex": 10,
+    "seedFile": 6,
+    "legacyNumberProbe": 5,
+    "waybackCdx": 0,
+    "uniqueUrls": 16,
+    "failures": 0,
+    "legacyMax": 250
+  },
+  "records": {
+    "advisories": 15,
+    "parsedAdvisoriesBeforeDedupe": 16,
+    "duplicateAdvisories": 1,
+    "firstIssuedAt": "2020-12-31T23:45:00.000Z",
+    "lastIssuedAt": "2026-05-15T18:45:00.000Z",
+    "yearCounts": {
+      "2020": 1,
+      "2021": 1,
+      "2024": 1,
+      "2025": 2,
+      "2026": 10
+    },
+    "levelCounts": {
+      "High Streamflow Advisory": 15,
+      "Flood Watch": 6,
+      "Flood Warning": 3
+    }
+  },
+  "limitations": [
+    "BC RFC does not expose a public archive listing for /warnings/advisories; directory listing returns 403.",
+    "Historical completeness is limited to URLs discoverable from the current index, seed file, legacy numbered probes, and optional Wayback CDX results.",
+    "Advisory polygons are not supplied historically; matchedBoundaries are inferred from names in the bulletin text."
+  ]
+}

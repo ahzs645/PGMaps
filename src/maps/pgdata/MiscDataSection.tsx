@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ElementType, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, Satellite, ShieldAlert, Trees, X } from 'lucide-react'
+import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, Satellite, ShieldAlert, Trees, Waves, X } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -27,6 +27,7 @@ import {
 import { ICBC_TIMELINE_WINDOW_OPTIONS, IcbcLayer, IcbcLayerControls, IcbcLegend, IcbcSidebar, IcbcSourceNotes, useIcbcData } from './icbc'
 import { WARS_TIMELINE_WINDOW_OPTIONS, WarsLayer, WarsLayerControls, WarsLegend, WarsSidebar, WarsSourceNotes, useWarsData } from './wars'
 import { WATER_TIMELINE_WINDOW_OPTIONS, WaterLayer, WaterLayerControls, WaterLegend, WaterSidebar, WaterSourceNotes, useWaterData } from './water'
+import { FloodLayer, FloodLayerControls, FloodLegend, FloodSidebar, FloodSourceNotes, useFloodData } from './flood'
 import { Timeline } from '@/components/ui/timeline'
 import { DroughtSection } from '@/maps/drought'
 import {
@@ -57,7 +58,7 @@ interface HeatShadeManifest {
 type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
 
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
-type MiscDataTab = 'heatShade' | 'canue' | 'icbc' | 'wars' | 'walkability' | 'water' | 'drought'
+type MiscDataTab = 'heatShade' | 'canue' | 'icbc' | 'wars' | 'walkability' | 'water' | 'flood' | 'drought'
 type CanueYearMode = 'single' | 'month' | 'all' | 'range'
 type CanueV2Cadence = 'annual' | 'monthly'
 type CanueBoundarySource = 'bcHealth' | 'regionalDistrict' | 'census' | 'cityPG' | 'watershed' | 'nrAdmin'
@@ -173,6 +174,7 @@ const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = 
   { id: 'wars', label: 'WARS', icon: PawPrint },
   { id: 'walkability', label: 'Walkability', icon: Footprints },
   { id: 'water', label: 'Water', icon: Droplets },
+  { id: 'flood', label: 'Flood', icon: Waves },
   { id: 'drought', label: 'Drought', icon: Droplets },
 ]
 
@@ -1704,7 +1706,7 @@ export default function MiscDataSection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [activeTab, setActiveTab] = useState<MiscDataTab>(() => {
     const tab = searchParams.get('tab')
-    return tab === 'heatShade' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'drought' ? tab : 'canue'
+    return tab === 'heatShade' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'flood' || tab === 'drought' ? tab : 'canue'
   })
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
   const [showMobileLegend, setShowMobileLegend] = useState(false)
@@ -1775,6 +1777,7 @@ export default function MiscDataSection() {
     searchParams.get('walkabilityHeatmap'),
   )
   const water = useWaterData(activeTab === 'water')
+  const flood = useFloodData(activeTab === 'flood')
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -2391,6 +2394,7 @@ export default function MiscDataSection() {
       {activeTab === 'wars' && <WarsSourceNotes wars={wars} />}
       {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
       {activeTab === 'water' && <WaterSourceNotes water={water} />}
+      {activeTab === 'flood' && <FloodSourceNotes flood={flood} />}
       {activeTab === 'heatShade' && (heatShadeManifest.data?.caveats ?? []).slice(0, 2).map((caveat) => (
         <p key={caveat}>{caveat}</p>
       ))}
@@ -2404,6 +2408,7 @@ export default function MiscDataSection() {
         {activeTab === 'icbc' && <IcbcLayerControls icbc={icbc} />}
         {activeTab === 'wars' && <WarsLayerControls wars={wars} />}
         {activeTab === 'water' && <WaterLayerControls water={water} />}
+        {activeTab === 'flood' && <FloodLayerControls flood={flood} />}
       </div>
 
       <DatasetInfo
@@ -2418,6 +2423,8 @@ export default function MiscDataSection() {
                 ? DATASETS.walkability
               : activeTab === 'water'
                 ? DATASETS.water
+              : activeTab === 'flood'
+                ? DATASETS.flood
                 : DATASETS.canue),
           updated: activeTab === 'heatShade'
             ? heatShadeManifest.data?.generatedAt
@@ -2429,6 +2436,8 @@ export default function MiscDataSection() {
                 ? walkability.manifest.data?.generatedAt
               : activeTab === 'water'
                 ? water.manifest.data?.generatedAt
+              : activeTab === 'flood'
+                ? undefined
                 : canueManifest.data?.generatedAt,
         }}
         sourceNotes={sourceNotes}
@@ -2931,6 +2940,7 @@ export default function MiscDataSection() {
         {activeTab === 'walkability' && <WalkabilitySidebar walkability={walkability} />}
 
         {activeTab === 'water' && <WaterSidebar water={water} />}
+        {activeTab === 'flood' && <FloodSidebar flood={flood} />}
 
       </div>
     </div>
@@ -2981,7 +2991,7 @@ export default function MiscDataSection() {
       mobilePeek={(
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">
-            MISC Data | {activeTab === 'canue' ? 'CANUE' : activeTab === 'icbc' ? 'ICBC' : activeTab === 'wars' ? 'WARS' : activeTab === 'walkability' ? 'Walkability' : activeTab === 'water' ? 'Water' : 'Heat/shade'}
+            MISC Data | {activeTab === 'canue' ? 'CANUE' : activeTab === 'icbc' ? 'ICBC' : activeTab === 'wars' ? 'WARS' : activeTab === 'walkability' ? 'Walkability' : activeTab === 'water' ? 'Water' : activeTab === 'flood' ? 'Flood' : 'Heat/shade'}
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
             {activeTab === 'canue'
@@ -2996,6 +3006,8 @@ export default function MiscDataSection() {
                     : `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString()} communities`
                   : activeTab === 'water'
                     ? `${water.facilities.length.toLocaleString()} facilities | ${water.filteredSamples.length.toLocaleString()} sample rows`
+                  : activeTab === 'flood'
+                    ? `${flood.filteredStations.length.toLocaleString()} stations | ${flood.highRiskCount.toLocaleString()} above 2 year`
                   : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
           </div>
         </div>
@@ -3064,6 +3076,7 @@ export default function MiscDataSection() {
           {activeTab === 'walkability' && <WalkabilityLayer walkability={walkability} />}
 
           {activeTab === 'water' && <WaterLayer water={water} />}
+          {activeTab === 'flood' && <FloodLayer flood={flood} />}
 
           {activeTab === 'icbc' && <IcbcLayer icbc={icbc} />}
 
@@ -3163,7 +3176,7 @@ export default function MiscDataSection() {
         )}
 
         <MapLegendPanel
-          title={activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : 'MISC Layers'}
+          title={activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : activeTab === 'flood' ? 'Flood Layer' : 'MISC Layers'}
           icon={<Layers className="h-3.5 w-3.5" />}
           collapsible
           collapsed={!showMobileLegend}
@@ -3212,6 +3225,7 @@ export default function MiscDataSection() {
             {activeTab === 'wars' && <WarsLegend wars={wars} />}
             {activeTab === 'walkability' && <WalkabilityLegend walkability={walkability} />}
             {activeTab === 'water' && <WaterLegend water={water} />}
+            {activeTab === 'flood' && <FloodLegend flood={flood} />}
         </MapLegendPanel>
       </div>
     </MapSectionLayout>

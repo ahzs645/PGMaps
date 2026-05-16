@@ -1,0 +1,17 @@
+{
+  "year": 2016,
+  "name": "Drivebc_events_hist_2016",
+  "id": "ae3280c9-6a3d-4663-a025-f04fb69d5e83",
+  "url": "https://catalogue.data.gov.bc.ca/dataset/cdf6ab31-fa03-479a-b6e0-f9a0c71edf91/resource/ae3280c9-6a3d-4663-a025-f04fb69d5e83/download/drivebceventshist2016.csv",
+  "size": 59530403,
+  "last_modified": "2017-03-21T16:32:53.779000",
+  "temporal_extent": [
+    {
+      "beginning_date": "2016-01-01",
+      "end_date": "2016-12-31"
+    }
+  ],
+  "downloaded_at": "2026-05-16T20:45:51Z",
+  "raw_bytes_downloaded": 59530403,
+  "gzip_bytes": 3164175
+}

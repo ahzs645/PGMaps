@@ -1,0 +1,10 @@
+# Additional BC River Forecast Centre advisory URLs that are publicly reachable
+# but not discoverable from the current warnings index. Keep one URL or advisory
+# filename per line. The sync script also discovers current index links and
+# legacy flood_N.htm pages automatically.
+https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_11_745_CC_SC_VI_upg.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_14_1230_NC_CC_SC_upg.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_FWT_HSA_2024_09_24_1350_NC_CC_upd.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_001.htm
+https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_136.htm
+https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_137.htm

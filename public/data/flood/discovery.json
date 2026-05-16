@@ -1,0 +1,118 @@
+{
+  "generatedAt": "2026-05-16T20:52:55.071Z",
+  "discoveries": [
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_001.htm",
+      "methods": [
+        "seed-file",
+        "legacy-number-probe"
+      ]
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_136.htm",
+      "methods": [
+        "seed-file",
+        "legacy-number-probe"
+      ]
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_137.htm",
+      "methods": [
+        "seed-file",
+        "legacy-number-probe"
+      ]
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_11_745_CC_SC_VI_upg.pdf",
+      "methods": [
+        "seed-file"
+      ],
+      "titleHint": null
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_14_1230_NC_CC_SC_upg.pdf",
+      "methods": [
+        "seed-file"
+      ],
+      "titleHint": null
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_FWT_HSA_2024_09_24_1350_NC_CC_upd.pdf",
+      "methods": [
+        "seed-file"
+      ],
+      "titleHint": null
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWT_2026_05_06_0930_Interior_CC.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "UPDATE – Flood Watch – Bulkley River (UPGRADED); High Streamflow Advisory – Central Coast (NEW), Northern Interior - Issued: 9:30 AM May 6, 2026"
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/FWT_2026_05_07_1730_Interior_CC_NC.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "UPDATE – Flood Watch – Bulkley River; High Streamflow Advisory – Skeena (NEW), Central Coast, Northern Interior – Issued: 5:30 PM May 7, 2026"
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_03_22_1045_CLDWT_SIMIL_SKAGIT_end.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "ENDED - High Streamflow Advisory - Coldwater River, Similkameen River, and Skagit River - Issued: 10:45 AM March 22, 2026"
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_04_Interior.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "High Streamflow Advisory – Northern Interior - Issued: 11:30 AM May 4, 2026"
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_08_1530_Interior_CC_NC_dwn.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "UPDATE – High Streamflow Advisory – Bulkley (downgrade), Skeena, Central Coast, Northern Interior – Issued: 3:30 PM May 8, 2026"
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_11_1130_Interior_CC_NC_upd.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "UPDATE - High Streamflow Advisory (MAINTAINED) – Central Coast, Northern Interior; High Streamflow Advisory (ENDED) – Bulkley, Skeena - Issued: 11:30 AM May 11, 2026"
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_12_1130_Interior_CC_upd.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "UPDATE - High Streamflow Advisory – Northern Interior (MAINTAINED); High Streamflow Advisory – Central Coast (ENDED) - Issued: 11:30 AM May 12, 2026"
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_13_1045_Interior_iss.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "High Streamflow Advisory – Upper Columbia, West Kootenay, East Kootenay, North and Thompson tributaries, Okanagan, Boundary - Issued: 10:45 AM May 13, 2026"
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_15_1145_Interior_end.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "ENDED - High Streamflow Advisory – Upper Columbia, West Kootenay, East Kootenay, North and Thompson tributaries, Okanagan, Boundary - Issued: 11:45 AM May 15, 2026"
+    },
+    {
+      "url": "https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_05_15_845_NorthInterior_end.pdf",
+      "methods": [
+        "current-index"
+      ],
+      "titleHint": "ENDED - High Streamflow Advisory – Northern Interior (Omineca, Lakes Region) - Issued: 8:45 AM May 15, 2026"
+    }
+  ],
+  "failures": []
+}
