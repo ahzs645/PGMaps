@@ -27,7 +27,6 @@ const DATA_JSON_PATHS = [
 ]
 
 const DATA_CSV_PATH = path.resolve(process.cwd(), 'public', 'data', 'monitors.csv')
-
 const MONITOR_NETWORK_ALIASES: Record<string, string[]> = {
   agency: ['FEM', 'BC ENV'],
   fem: ['FEM', 'BC ENV'],
@@ -99,58 +98,53 @@ const ICON_COLOR_SIZE_ONLINE = 29
 const ICON_COLOR_SIZE_OFFLINE = 20
 
 const PREFERRED_KEY_ORDER = [
-  'id',
-  'name',
   'site_id',
+  'name',
   'network',
   'monitor_type',
-  'sensor_index',
-  'latitude',
-  'longitude',
   'lat',
   'lng',
-  'city',
-  'province',
-  'state',
   'prov_terr',
-  'date',
   'date_last_obs',
-  'date_observed',
-  'status',
-  'pm25_recent_r',
-  'pm25_recent',
-  'pm25_1hr_r',
+  'pm25_10min',
   'pm25_1hr',
-  'pm25_3hr_r',
   'pm25_3hr',
-  'pm25_24hr_r',
   'pm25_24hr',
-  'temperature',
-  'rh',
-  'pressure',
 ]
 
 function normalizeMonitorIdentifier(row: RawMonitorRow): AqmapMonitorRow {
   const normalizedRow = normalizeAliasKeys(row)
   const id = valueToString(normalizedRow.id ?? normalizedRow.site_id ?? normalizedRow.sensor_index)
-  const network = valueToString(normalizedRow.network ?? normalizedRow.network_id ?? normalizedRow.monitor_type)
-  const siteId = valueToString(normalizedRow.site_id ?? normalizedRow.sensor_index)
+  const rawNetwork = valueToString(normalizedRow.network ?? normalizedRow.network_id ?? normalizedRow.monitor_type)
+  const network = toAqmapNetwork(rawNetwork)
+  const siteId = valueToString(normalizedRow.site_id ?? normalizedRow.sensor_index ?? normalizedRow.id)
   const dateValue = valueToString(
     normalizedRow.date_last_obs ?? normalizedRow.date ?? normalizedRow.date_observed ?? normalizedRow.dateObserved ?? normalizedRow.date_last_observed,
   )
   const province = valueToString(normalizedRow.prov_terr ?? normalizedRow.province ?? normalizedRow.state)
+  const latitude = parseNumeric(row.latitude ?? row.lat)
+  const longitude = parseNumeric(row.longitude ?? row.lng)
+  const pm25Recent = network === 'agency'
+    ? null
+    : parseNumeric(normalizedRow.pm25_10min ?? normalizedRow.pm25_recent ?? normalizedRow.pm25Recent)
 
   const normalized: AqmapMonitorRow = {
-    ...normalizedRow,
     id: id || normalizedRow.id || siteId,
     name: valueToString(normalizedRow.name ?? normalizedRow.monitor ?? normalizedRow.site_name ?? ''),
     site_id: siteId,
     network,
-    latitude: parseNumeric(row.latitude ?? row.lat),
-    longitude: parseNumeric(row.longitude ?? row.lng),
+    monitor_type: valueToString(normalizedRow.monitor_type ?? rawNetwork),
+    lat: latitude,
+    lng: longitude,
+    latitude,
+    longitude,
     date: dateValue,
     date_last_obs: dateValue,
     prov_terr: province,
+    pm25_10min: pm25Recent,
+    pm25_1hr: parseNumeric(normalizedRow.pm25_1hr ?? normalizedRow.pm25OneHour),
+    pm25_3hr: parseNumeric(normalizedRow.pm25_3hr ?? normalizedRow.pm25ThreeHour),
+    pm25_24hr: parseNumeric(normalizedRow.pm25_24hr ?? normalizedRow.pm25TwentyFourHour),
   }
 
   if (normalized.latitude === undefined) normalized.latitude = parseNumeric(row.lat)
@@ -166,6 +160,14 @@ function normalizeMonitorIdentifier(row: RawMonitorRow): AqmapMonitorRow {
   }
 
   return normalized
+}
+
+function toAqmapNetwork(network: string): string {
+  const normalized = network.trim().toUpperCase()
+  if (normalized === 'FEM' || normalized === 'BC ENV' || normalized === 'AGENCY') return 'agency'
+  if (normalized === 'PA' || normalized === 'EGG' || normalized === 'LCM') return 'lcm'
+  if (normalized === 'PURPLEAIR' || normalized === 'AQEGG') return 'lcm'
+  return network
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -288,10 +290,10 @@ function parseCsvText(text: string): RawMonitorRow[] {
 type AqmapIconMetaGroup = 'agency' | 'purpleair' | 'aqegg' | 'lcm'
 
 function toIconMetaGroup(network: unknown): AqmapIconMetaGroup {
-  const normalized = String(network ?? '').trim().toUpperCase()
-  if (normalized === 'FEM' || normalized === 'BC ENV') return 'agency'
-  if (normalized === 'PA') return 'purpleair'
-  if (normalized === 'EGG') return 'aqegg'
+  const normalized = String(network ?? '').trim().toLowerCase()
+  if (normalized === 'agency' || normalized === 'fem' || normalized === 'bc env') return 'agency'
+  if (normalized === 'pa' || normalized === 'purpleair') return 'purpleair'
+  if (normalized === 'egg' || normalized === 'aqegg') return 'aqegg'
   return 'lcm'
 }
 
@@ -338,20 +340,22 @@ function markerSortKey(network: string, value: number | null): number {
 
 function buildMonitorIconMetadata(row: AqmapMonitorRow) {
   const value = resolveIconValue(row)
-  const group = toIconMetaGroup(row.network)
+  const group = toIconMetaGroup(row.monitor_type ?? row.network)
   const size = value === null ? ICON_COLOR_SIZE_OFFLINE : ICON_COLOR_SIZE_ONLINE
   return {
     iconUrl: buildIconUrl(group, value, size),
     iconSize: size,
     zIndexOffset: markerSortKey(String(row.network), value),
-    pane: 'markerPane',
+    pane: value === null ? 'offline' : 'online',
   }
 }
 
 export function resolveNetworkFilter(value?: string): string[] | null {
   if (!value) return null
-  const resolved = MONITOR_NETWORK_ALIASES[value.toLowerCase()]
-  return resolved ? [...resolved] : null
+  const normalized = value.toLowerCase()
+  if (normalized === 'agency' || normalized === 'lcm') return [normalized]
+  const resolved = MONITOR_NETWORK_ALIASES[normalized]
+  return resolved ? Array.from(new Set(resolved.map(toAqmapNetwork))) : []
 }
 
 export function getMonitorNetworkValue(row: AqmapMonitorRow): string {
@@ -366,15 +370,17 @@ function toCsvValue(value: unknown): string {
 }
 
 function serializeRows(rows: AqmapMonitorRow[], delimiter: string): string {
-  if (!rows.length) return ''
-
-  const keys = Array.from(new Set<string>(rows.flatMap((row) => Object.keys(row))))
+  const keys = rows.length
+    ? Array.from(new Set<string>(rows.flatMap((row) => Object.keys(row))))
+    : PREFERRED_KEY_ORDER
   const orderedKeys = [
     ...PREFERRED_KEY_ORDER.filter((key) => keys.includes(key)),
     ...keys.filter((key) => !PREFERRED_KEY_ORDER.includes(key)),
   ]
 
   const header = orderedKeys.join(delimiter)
+  if (!rows.length) return header
+
   const body = rows
     .map((row) => orderedKeys
       .map((key) => toCsvValue(row[key]))
@@ -420,9 +426,13 @@ export async function loadRecentMonitorRows(): Promise<AqmapMonitorRow[]> {
 }
 
 export function sanitizeRecentRows(rows: AqmapMonitorRow[], datasetName?: string): AqmapMonitorRow[] {
-  if (datasetName !== 'meta') return rows
+  const completeRows = rows
+    .map(toCanonicalRecentRow)
+    .filter(isCompleteRecentRow)
 
-  return rows.map((row) => {
+  if (datasetName !== 'meta') return completeRows
+
+  return completeRows.map((row) => {
     const sanitized: AqmapMonitorRow = {}
     for (const [key, value] of Object.entries(row)) {
       const lower = key.toLowerCase()
@@ -435,18 +445,40 @@ export function sanitizeRecentRows(rows: AqmapMonitorRow[], datasetName?: string
   })
 }
 
+function toCanonicalRecentRow(row: AqmapMonitorRow): AqmapMonitorRow {
+  return {
+    site_id: row.site_id ?? row.id,
+    name: row.name,
+    network: row.network,
+    monitor_type: row.monitor_type,
+    lat: parseNumeric(row.lat as string | number | null | undefined),
+    lng: parseNumeric(row.lng as string | number | null | undefined),
+    prov_terr: row.prov_terr,
+    date_last_obs: row.date_last_obs ?? row.date,
+    pm25_10min: row.network === 'agency' ? null : row.pm25_10min,
+    pm25_1hr: row.pm25_1hr,
+    pm25_3hr: row.pm25_3hr,
+    pm25_24hr: row.pm25_24hr,
+  }
+}
+
+function isCompleteRecentRow(row: AqmapMonitorRow): boolean {
+  return Boolean(row.site_id)
+    && Boolean(row.network)
+    && Number.isFinite(row.lat)
+    && Number.isFinite(row.lng)
+    && Boolean(row.date_last_obs)
+}
+
 export function toGeoJson(rows: AqmapMonitorRow[]) {
   const features = rows
     .map((row) => {
-      const latitude = Number(row.latitude)
-      const longitude = Number(row.longitude)
+      const canonical = toCanonicalRecentRow(row)
+      if (!isCompleteRecentRow(canonical)) return null
+      const latitude = Number(canonical.lat)
+      const longitude = Number(canonical.lng)
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
-      const iconMeta = buildMonitorIconMetadata(row)
-      const rest = {
-        ...row,
-      }
-      delete rest.latitude
-      delete rest.longitude
+      const iconMeta = buildMonitorIconMetadata(canonical)
       return {
         type: 'Feature',
         geometry: {
@@ -454,13 +486,20 @@ export function toGeoJson(rows: AqmapMonitorRow[]) {
           coordinates: [longitude, latitude],
         },
         properties: {
-          ...rest,
-          id: rest.id ?? rest.site_id,
-          latitude,
-          longitude,
-          site_id: rest.site_id ?? rest.id,
-          date_last_obs: rest.date_last_obs ?? rest.date,
-          ...iconMeta,
+          id: canonical.site_id,
+          lng: longitude,
+          lat: latitude,
+          pane: iconMeta.pane,
+          zIndexOffset: iconMeta.zIndexOffset,
+          iconUrl: iconMeta.iconUrl,
+          iconSize: iconMeta.iconSize,
+          name: canonical.name,
+          network_type: canonical.monitor_type,
+          date_stamp: canonical.date_last_obs,
+          pm25_10min: canonical.pm25_10min ?? null,
+          pm25_1hr: canonical.pm25_1hr ?? null,
+          pm25_3hr: canonical.pm25_3hr ?? null,
+          pm25_24hr: canonical.pm25_24hr ?? null,
         },
       }
     })
@@ -479,10 +518,11 @@ export function applyNetworkFilter(rows: AqmapMonitorRow[], network?: string | n
 
   const allowed = resolveNetworkFilter(network)
   if (!allowed) return rows
+  if (!allowed.length) return []
 
-  const allowedSet = new Set(allowed.map((value) => value.toUpperCase()))
+  const allowedSet = new Set(allowed.map((value) => value.toLowerCase()))
   return rows.filter((row) => {
-    const monitorNetwork = getMonitorNetworkValue(row)
+    const monitorNetwork = String(row.network ?? '').trim().toLowerCase()
     return allowedSet.has(monitorNetwork)
   })
 }

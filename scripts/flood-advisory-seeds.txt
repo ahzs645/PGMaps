@@ -3,8 +3,21 @@
 # filename per line. The sync script also discovers current index links and
 # legacy flood_N.htm pages automatically.
 https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_11_745_CC_SC_VI_upg.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_10_1545_SC_mai.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_11_1230_SC_mai.pdf
 https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_2025_12_14_1230_NC_CC_SC_upg.pdf
 https://bcrfc.env.gov.bc.ca/warnings/advisories/FWN_FWT_HSA_2024_09_24_1350_NC_CC_upd.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2025_09_25_1100_NC_CC_iss.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2025_12_08_1230_CC_SC_VI_iss.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2025_12_13_1130_NC_CC_SC_iss.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/FWT_2025_12_27_0930_NC_HG_iss.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_03_06_1145_CC_iss.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_03_13_1130_SC_iss.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/FWT_2026_01_10_0930_Coast_upg.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_03_20_0815_SE_iss.pdf
+https://bcrfc.env.gov.bc.ca/warnings/advisories/HSA_2026_03_21_1045_SC_dwn.pdf
 https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_001.htm
 https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_136.htm
 https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_137.htm
+https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_2023_04_26_BCINT_HSA_ISS.htm
+https://bcrfc.env.gov.bc.ca/warnings/advisories/flood_2023_04_28_WestRoad_FWT_UPG.htm

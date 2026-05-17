@@ -1,0 +1,286 @@
+{
+  "name": "DriveBC historical strict bridge",
+  "principle": "No source value is mapped to a modern Open511 code unless the source field is already that code. Legacy values are preserved in legacy-specific fields and may be grouped only under explicitly named compatibility fields.",
+  "sourceEras": [
+    {
+      "id": "legacy_15",
+      "years": "2006-2012",
+      "columns": 15,
+      "schema": [
+        "id",
+        "cause",
+        "district",
+        "state",
+        "severity",
+        "localupdatetime",
+        "advisorymessage",
+        "isbidirectional",
+        "trafficpattern",
+        "head_latitude",
+        "head_longitude",
+        "tail_latitude",
+        "tail_longitude",
+        "route",
+        "type"
+      ]
+    },
+    {
+      "id": "legacy_26",
+      "years": "2013-2017",
+      "columns": 26,
+      "schema": [
+        "id",
+        "cause",
+        "district",
+        "state",
+        "severity",
+        "localupdatetime",
+        "advisorymessage",
+        "isbidirectional",
+        "trafficpattern",
+        "head_latitude",
+        "head_longitude",
+        "tail_latitude",
+        "tail_longitude",
+        "route",
+        "type",
+        "headdistfrombgn",
+        "popular_route",
+        "createdtime",
+        "starttime",
+        "endtime",
+        "geometry",
+        "districtnum",
+        "direction",
+        "from",
+        "to",
+        "ivradvisorymessage"
+      ]
+    },
+    {
+      "id": "open511_27",
+      "years": "2018-2024",
+      "columns": 27,
+      "schema": [
+        "ID",
+        "STATUS",
+        "CREATED",
+        "UPDATED",
+        "HEADLINE",
+        "DESCRIPTION",
+        "IVR_MESSAGE",
+        "EVENT_TYPE",
+        "EVENT_SUBTYPE",
+        "SEVERITY",
+        "TIME_ZONE",
+        "START_DATETIME",
+        "END_DATETIME",
+        "OPEN511_DB_UPDATE_TIMESTAMP",
+        "AREA_NAME",
+        "AREA_ID",
+        "AREA_LINK",
+        "HEAD_LATITUDE",
+        "HEAD_LONGITUDE",
+        "TAIL_LATITUDE",
+        "TAIL_LONGITUDE",
+        "ROAD_NAME",
+        "ROAD_FROM_DESCRIPTION",
+        "ROAD_TO_DESCRIPTION",
+        "ROAD_DIRECTION",
+        "ROAD_STATE",
+        "ROAD_DELAY"
+      ],
+      "note": "2020-2023 reorder CREATED/UPDATED after SEVERITY, but field names are equivalent after header normalization."
+    },
+    {
+      "id": "open511_26",
+      "years": "2025",
+      "columns": 26,
+      "schema": [
+        "ID",
+        "STATUS",
+        "CREATED",
+        "UPDATED",
+        "HEADLINE",
+        "DESCRIPTION",
+        "EVENT_TYPE",
+        "EVENT_SUBTYPE",
+        "SEVERITY",
+        "TIME_ZONE",
+        "START_DATETIME",
+        "END_DATETIME",
+        "OPEN511_DB_UPDATE_TIMESTAMP",
+        "AREA_NAME",
+        "AREA_ID",
+        "AREA_LINK",
+        "HEAD_LATITUDE",
+        "HEAD_LONGITUDE",
+        "TAIL_LATITUDE",
+        "TAIL_LONGITUDE",
+        "ROAD_NAME",
+        "ROAD_FROM_DESCRIPTION",
+        "ROAD_TO_DESCRIPTION",
+        "ROAD_DIRECTION",
+        "ROAD_STATE",
+        "ROAD_DELAY"
+      ]
+    }
+  ],
+  "canonicalFields": {
+    "sourceSchema": {
+      "legacy_15": "legacy_15",
+      "legacy_26": "legacy_26",
+      "open511_27": "open511_27",
+      "open511_26": "open511_26"
+    },
+    "sourceId": {
+      "legacy_15": "id",
+      "legacy_26": "id",
+      "open511_27": "ID",
+      "open511_26": "ID"
+    },
+    "displayId": {
+      "legacy_15": "drivebc.ca/{id}",
+      "legacy_26": "drivebc.ca/{id}",
+      "open511_27": "ID",
+      "open511_26": "ID"
+    },
+    "headLatitude": {
+      "legacy_15": "head_latitude",
+      "legacy_26": "head_latitude",
+      "open511_27": "HEAD_LATITUDE",
+      "open511_26": "HEAD_LATITUDE"
+    },
+    "headLongitude": {
+      "legacy_15": "head_longitude",
+      "legacy_26": "head_longitude",
+      "open511_27": "HEAD_LONGITUDE",
+      "open511_26": "HEAD_LONGITUDE"
+    },
+    "tailLatitude": {
+      "legacy_15": "tail_latitude",
+      "legacy_26": "tail_latitude",
+      "open511_27": "TAIL_LATITUDE",
+      "open511_26": "TAIL_LATITUDE"
+    },
+    "tailLongitude": {
+      "legacy_15": "tail_longitude",
+      "legacy_26": "tail_longitude",
+      "open511_27": "TAIL_LONGITUDE",
+      "open511_26": "TAIL_LONGITUDE"
+    },
+    "sourceSeverity": {
+      "legacy_15": "severity",
+      "legacy_26": "severity",
+      "open511_27": "SEVERITY",
+      "open511_26": "SEVERITY"
+    },
+    "sourceAreaName": {
+      "legacy_15": "district",
+      "legacy_26": "district",
+      "open511_27": "AREA_NAME",
+      "open511_26": "AREA_NAME"
+    },
+    "sourceRoadName": {
+      "legacy_15": "route",
+      "legacy_26": "route",
+      "open511_27": "ROAD_NAME",
+      "open511_26": "ROAD_NAME"
+    },
+    "sourceDescription": {
+      "legacy_15": "advisorymessage",
+      "legacy_26": "advisorymessage",
+      "open511_27": "DESCRIPTION",
+      "open511_26": "DESCRIPTION"
+    },
+    "sourceUpdatedAt": {
+      "legacy_15": "localupdatetime",
+      "legacy_26": "localupdatetime",
+      "open511_27": "UPDATED",
+      "open511_26": "UPDATED"
+    }
+  },
+  "open511OnlyFields": {
+    "status": ["STATUS"],
+    "eventType": ["EVENT_TYPE"],
+    "eventSubtype": ["EVENT_SUBTYPE"],
+    "createdAt": ["CREATED"],
+    "startedAt": ["START_DATETIME"],
+    "endedAt": ["END_DATETIME"],
+    "timeZone": ["TIME_ZONE"],
+    "areaId": ["AREA_ID"],
+    "areaLink": ["AREA_LINK"],
+    "roadFromDescription": ["ROAD_FROM_DESCRIPTION"],
+    "roadToDescription": ["ROAD_TO_DESCRIPTION"],
+    "roadDirection": ["ROAD_DIRECTION"],
+    "roadState": ["ROAD_STATE"],
+    "roadDelay": ["ROAD_DELAY"]
+  },
+  "legacyOnlyFields": {
+    "legacyCause": ["cause"],
+    "legacyType": ["type"],
+    "legacyState": ["state"],
+    "legacyTrafficPattern": ["trafficpattern"],
+    "legacyIsBidirectional": ["isbidirectional"],
+    "legacyCreatedTime": ["createdtime"],
+    "legacyStartTime": ["starttime"],
+    "legacyEndTime": ["endtime"],
+    "legacyDirection": ["direction"],
+    "legacyFrom": ["from"],
+    "legacyTo": ["to"],
+    "legacyIvrMessage": ["ivradvisorymessage"],
+    "legacyGeometry": ["geometry"],
+    "legacyDistrictNumber": ["districtnum"],
+    "legacyHeadDistanceFromBeginning": ["headdistfrombgn"],
+    "legacyPopularRoute": ["popular_route"]
+  },
+  "identityValueNormalizations": {
+    "severity": {
+      "Normal": "normal",
+      "Major": "major",
+      "MINOR": "minor",
+      "MAJOR": "major"
+    },
+    "legacyState": {
+      "Ongoing": "ongoing",
+      "Future": "future",
+      "TermRespOngo": "term_resp_ongo"
+    },
+    "legacyType": {
+      "Road Condition": "road_condition",
+      "Incident": "incident",
+      "Current Planned": "current_planned",
+      "Future Planned": "future_planned"
+    },
+    "open511EventType": {
+      "ROAD_CONDITION": "road_condition",
+      "INCIDENT": "incident",
+      "CONSTRUCTION": "construction",
+      "WEATHER_CONDITION": "weather_condition",
+      "SPECIAL_EVENT": "special_event"
+    }
+  },
+  "nonBridgeableWithoutApproximation": [
+    {
+      "from": "legacy cause",
+      "to": "EVENT_SUBTYPE",
+      "reason": "Legacy cause strings are human-readable DriveBC condition labels, not Open511 subtype codes. Some are similar to modern subtype concepts but not formally identical."
+    },
+    {
+      "from": "legacy type Current Planned/Future Planned",
+      "to": "EVENT_TYPE CONSTRUCTION/SPECIAL_EVENT",
+      "reason": "Legacy planned records include maintenance, construction, ferry, and special-event concepts. The exact modern Open511 event type cannot be recovered from type alone."
+    },
+    {
+      "from": "legacy state",
+      "to": "STATUS ACTIVE/ARCHIVED",
+      "reason": "Legacy state describes event state at record time. It does not encode the modern archived lifecycle status."
+    },
+    {
+      "from": "legacy severity Normal",
+      "to": "SEVERITY MINOR",
+      "reason": "Normal and MINOR appear to occupy a similar display tier, but they are not the same source code."
+    }
+  ],
+  "generatedInventory": "data-sources/drivebc/historical/schema-inventory.json"
+}

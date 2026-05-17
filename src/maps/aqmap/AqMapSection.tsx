@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Crosshair, Layers, LineChart, MapPin, RadioTower, RefreshCw, RotateCcw } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Map as PgMap, MapControls, MapPopup, useMap } from '@/components/ui/map'
+import { MapImageLegend, MapSteppedLegend } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
 import { useAirQualityData, type AirMonitor } from '@/maps/airquality'
@@ -234,16 +235,18 @@ function AqMapSidebar({
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">WMS Legends</div>
             <div className="space-y-3">
               {WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key)).map((layer) => (
-                <div key={layer.key} className="rounded-md border border-border bg-secondary/30 p-3">
-                  <div className="mb-2 text-xs font-medium text-foreground">{layer.label}</div>
+                <div key={layer.key}>
                   {layer.legendUrl ? (
-                    <img
+                    <MapImageLegend
                       src={layer.legendUrl}
                       alt={`${layer.label} legend`}
-                      className="max-h-24 max-w-full rounded bg-white object-contain"
+                      label={layer.label}
                     />
                   ) : (
-                    <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
+                    <div className="rounded-md border border-border bg-secondary/30 p-3">
+                      <div className="mb-2 text-xs font-medium text-foreground">{layer.label}</div>
+                      <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
+                    </div>
                   )}
                 </div>
               ))}
@@ -860,20 +863,12 @@ function FloatingLegends({
       style={{ bottom: 40, left: 12 }}
     >
       {visibleWms.map((layer) => (
-        <div key={layer.key} className="rounded border border-border bg-background/95 p-2 text-xs shadow-md">
-          <div className="mb-1 font-medium text-foreground">{layer.label}</div>
-          <img src={layer.legendUrl} alt={`${layer.label} legend`} className="max-h-24 max-w-full rounded bg-white object-contain" />
-        </div>
+        <MapImageLegend key={layer.key} className="bg-background/95 p-2 shadow-md" src={layer.legendUrl!} alt={`${layer.label} legend`} label={layer.label} />
       ))}
       {visibleSmoke.map((layer) => (
         <div key={layer.key} className="rounded border border-border bg-background/95 p-2 text-xs shadow-md">
           <div className="mb-1 font-medium text-foreground">{layer.label}</div>
-          {layer.legend.map((item) => (
-            <div key={item.label} className="flex items-center gap-2 text-muted-foreground">
-              <span className="size-3 rounded-sm border border-border" style={{ backgroundColor: item.color }} />
-              <span>{item.label}</span>
-            </div>
-          ))}
+          <MapSteppedLegend bands={layer.legend} variant="rows" showBandLabels={false} />
         </div>
       ))}
     </div>

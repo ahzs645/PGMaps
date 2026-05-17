@@ -1,0 +1,135 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - link "PGMaps" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img [ref=e9]
+          - generic [ref=e11]: PGMaps
+        - navigation [ref=e12]:
+          - link "Home" [ref=e13] [cursor=pointer]:
+            - /url: /
+            - img [ref=e14]
+            - generic [ref=e16]: Home
+          - link "Food Safety" [ref=e17] [cursor=pointer]:
+            - /url: /foodmap
+            - img [ref=e18]
+            - generic [ref=e23]: Food Safety
+          - link "Air Quality" [ref=e24] [cursor=pointer]:
+            - /url: /airquality
+            - img [ref=e25]
+            - generic [ref=e29]: Air Quality
+          - link "Parks & Trails" [ref=e30] [cursor=pointer]:
+            - /url: /pgdata?tab=parks
+            - img [ref=e31]
+            - generic [ref=e34]: Parks & Trails
+          - link "Census" [ref=e35] [cursor=pointer]:
+            - /url: /census
+            - img [ref=e36]
+            - generic [ref=e38]: Census
+          - link "Explorer" [ref=e39] [cursor=pointer]:
+            - /url: /explorer
+            - img [ref=e40]
+            - generic [ref=e44]: Explorer
+          - link "Index Lab" [ref=e45] [cursor=pointer]:
+            - /url: /score-builder
+            - img [ref=e46]
+            - generic [ref=e48]: Index Lab
+          - link "Assessment" [ref=e49] [cursor=pointer]:
+            - /url: /bc-assessment
+            - img [ref=e50]
+            - generic [ref=e54]: Assessment
+          - link "PG Data" [ref=e55] [cursor=pointer]:
+            - /url: /pgdata
+            - img [ref=e56]
+            - generic [ref=e58]: PG Data
+          - link "MISC" [ref=e59] [cursor=pointer]:
+            - /url: /misc
+            - img [ref=e60]
+            - generic [ref=e64]: MISC
+      - generic [ref=e65]:
+        - button "Open search" [ref=e66] [cursor=pointer]:
+          - img [ref=e67]
+        - button "Toggle theme" [ref=e70] [cursor=pointer]:
+          - img
+  - main [ref=e71]:
+    - generic [ref=e73]:
+      - generic [ref=e74]:
+        - heading "Prince George Data Platform" [level=1] [ref=e75]
+        - paragraph [ref=e76]: Explore and analyze multiple datasets about Prince George through interactive maps. Combine layers, build custom scores, and discover insights about your community.
+      - generic [ref=e77]:
+        - link "Open Explorer" [ref=e78] [cursor=pointer]:
+          - /url: /explorer
+          - img
+          - text: Open Explorer
+        - link "Open Index Lab" [ref=e79] [cursor=pointer]:
+          - /url: /score-builder
+          - img
+          - text: Open Index Lab
+      - generic [ref=e80]:
+        - heading "Available Maps" [level=2] [ref=e81]
+        - generic [ref=e82]:
+          - link "Food Safety Explore restaurant health inspection results across Prince George. View ratings, violations, and inspection history. Open map" [ref=e83] [cursor=pointer]:
+            - /url: /foodmap
+            - img [ref=e85]
+            - heading "Food Safety" [level=3] [ref=e90]
+            - paragraph [ref=e91]: Explore restaurant health inspection results across Prince George. View ratings, violations, and inspection history.
+            - generic [ref=e92]:
+              - text: Open map
+              - img [ref=e93]
+          - link "Air Quality Monitor real-time air quality data from stations throughout the city. Track AQI, PM2.5, and other pollutants. Open map" [ref=e95] [cursor=pointer]:
+            - /url: /airquality
+            - img [ref=e97]
+            - heading "Air Quality" [level=3] [ref=e101]
+            - paragraph [ref=e102]: Monitor real-time air quality data from stations throughout the city. Track AQI, PM2.5, and other pollutants.
+            - generic [ref=e103]:
+              - text: Open map
+              - img [ref=e104]
+          - link "Census Data Explore dissemination-area census patterns in Prince George with a choropleth map and sortable neighborhood metrics. Open map" [ref=e106] [cursor=pointer]:
+            - /url: /census
+            - img [ref=e108]
+            - heading "Census Data" [level=3] [ref=e110]
+            - paragraph [ref=e111]: Explore dissemination-area census patterns in Prince George with a choropleth map and sortable neighborhood metrics.
+            - generic [ref=e112]:
+              - text: Open map
+              - img [ref=e113]
+          - link "Index Lab Build transparent civic and environmental-health indices with adjustable weights, methods, and explainable region scores. Open map" [ref=e115] [cursor=pointer]:
+            - /url: /score-builder
+            - img [ref=e117]
+            - heading "Index Lab" [level=3] [ref=e119]
+            - paragraph [ref=e120]: Build transparent civic and environmental-health indices with adjustable weights, methods, and explainable region scores.
+            - generic [ref=e121]:
+              - text: Open map
+              - img [ref=e122]
+          - link "PG Data Explore City of Prince George open datasets, including property crime, parks, trails, and recreation amenities. Open map" [ref=e124] [cursor=pointer]:
+            - /url: /pgdata
+            - img [ref=e126]
+            - heading "PG Data" [level=3] [ref=e128]
+            - paragraph [ref=e129]: Explore City of Prince George open datasets, including property crime, parks, trails, and recreation amenities.
+            - generic [ref=e130]:
+              - text: Open map
+              - img [ref=e131]
+          - link "MISC Data Explore datasets that do not come from the City PG data site, including canopy proxies, heat-shade layers, CANUE, WARS, drinking water, and remote sensing metadata. Open map" [ref=e133] [cursor=pointer]:
+            - /url: /misc
+            - img [ref=e135]
+            - heading "MISC Data" [level=3] [ref=e139]
+            - paragraph [ref=e140]: Explore datasets that do not come from the City PG data site, including canopy proxies, heat-shade layers, CANUE, WARS, drinking water, and remote sensing metadata.
+            - generic [ref=e141]:
+              - text: Open map
+              - img [ref=e142]
+          - link "Explorer Browse all point, line, and polygon datasets together. Filter by geometry type, toggle sources, and rank features by relevance. Open map" [ref=e144] [cursor=pointer]:
+            - /url: /explorer
+            - img [ref=e146]
+            - heading "Explorer" [level=3] [ref=e150]
+            - paragraph [ref=e151]: Browse all point, line, and polygon datasets together. Filter by geometry type, toggle sources, and rank features by relevance.
+            - generic [ref=e152]:
+              - text: Open map
+              - img [ref=e153]
+      - generic [ref=e155]:
+        - heading "Coming Soon" [level=2] [ref=e156]
+        - generic [ref=e158]:
+          - img [ref=e160]
+          - heading "Community Events" [level=3] [ref=e162]
+          - paragraph [ref=e163]: Find upcoming events, festivals, and community gatherings happening around Prince George.
+          - generic [ref=e164]: Coming soon
+      - paragraph [ref=e166]: Data sources include Northern Health, City of Prince George, BC Data Catalogue, and more.

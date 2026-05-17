@@ -24,7 +24,7 @@ function normalizePlotNetwork(network: string): string {
 
 function buildPlotFilename(network: string, siteId: string): string {
   const normalized = normalizePlotNetwork(network)
-  return normalized === 'agency' ? `${siteId}.csv` : `sensor_${siteId}.csv`
+  return normalized === 'agency' ? `${siteId}_recent_hourly.csv` : `sensor_${siteId}_recent_hourly.csv`
 }
 
 function parseCsvRows(text: string): AqmapPlotPoint[] {

@@ -61,6 +61,61 @@ const MODULE_PERCENTILE_METHOD: Partial<ScoreMethodSettings> = {
   normalization: 'percentile',
   aggregation: 'modulePercentileRankedSum',
 }
+const HEALTHYPLAN_PAIRWISE_METHOD = (
+  demographicMetric: ScoreMetricKey,
+  environmentMetric: ScoreMetricKey,
+): Partial<ScoreMethodSettings> => ({
+  normalization: 'percentile',
+  aggregation: 'healthyPlanPairwisePriority',
+  healthyPlanPriority: {
+    demographicMetric,
+    environmentMetric,
+  },
+})
+
+export const HEALTHYPLAN_PAIRWISE_PRESETS: Array<{
+  key: string
+  label: string
+  description: string
+  demographicMetric: ScoreMetricKey
+  environmentMetric: ScoreMetricKey
+}> = [
+  {
+    key: 'lowIncomeCanopy',
+    label: 'CIMD vulnerability x canopy',
+    description: 'Find higher-vulnerability areas with lower canopy benefit.',
+    demographicMetric: 'cimdComposite',
+    environmentMetric: 'canopyProxyRatio',
+  },
+  {
+    key: 'seniorsCoolingProxy',
+    label: 'Situational vulnerability x cooling',
+    description: 'Find areas with higher vulnerability and weaker walking access to cooling/community facilities.',
+    demographicMetric: 'cimdSituationalVulnerability',
+    environmentMetric: 'coolingWalk15Access',
+  },
+  {
+    key: 'economicParkAccess',
+    label: 'Economic dependency x parks',
+    description: 'Find economically vulnerable areas with weaker 10-minute park access.',
+    demographicMetric: 'cimdEconomicDependency',
+    environmentMetric: 'parkWalk10Access',
+  },
+  {
+    key: 'instabilityTransitAccess',
+    label: 'Residential instability x transit',
+    description: 'Find higher-instability areas with weaker accessible frequent transit access.',
+    demographicMetric: 'cimdResidentialInstability',
+    environmentMetric: 'accessibleFrequentTransitAccess',
+  },
+  {
+    key: 'densityServiceAccess',
+    label: 'Population density x services',
+    description: 'Find more populated areas with lower composite access to nearby services.',
+    demographicMetric: 'populationDensity',
+    environmentMetric: 'serviceAccessComposite',
+  },
+]
 
 export const SCORE_INDEX_MODULE_LABELS: Record<ScoreIndexModule, string> = {
   socialVulnerability: 'Social Vulnerability',
@@ -1762,6 +1817,168 @@ export const SCORE_PRESETS: ScorePreset[] = [
       serviceAccessComposite: 8,
     },
     methodSettings: CUMULATIVE_BURDEN_METHOD,
+  },
+  {
+    key: 'accessPg15Minute',
+    label: '15-Minute PG Access',
+    description:
+      'Access preset for transit, parks, trails, cooling/community destinations, services, childcare, and walkability proxies.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      serviceAccessComposite: 18,
+      accessibleFrequentTransitAccess: 16,
+      transitServiceSpan: 10,
+      parkWalk10Access: 14,
+      parkTransit20Access: 8,
+      trailDensity: 8,
+      coolingWalk15Access: 8,
+      childcareDensity: 8,
+      walkabilityPoiDensity: 10,
+    },
+    methodSettings: PERCENTILE_METHOD,
+  },
+  {
+    key: 'activeLivingWalkability',
+    label: 'Active Living / Walkability',
+    description:
+      'Active-living preset using pedestrian network, crossings, transit, trails, parks, services, and lower pedestrian crash pressure.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      sidewalkDensity: 16,
+      walkwayDensity: 10,
+      walkabilityIntersectionDensity: 12,
+      walkabilityCrossingDensity: 10,
+      trailDensity: 10,
+      parkWalk10Access: 10,
+      accessibleFrequentTransitAccess: 10,
+      serviceAccessComposite: 12,
+      pedestrianCrashDensity: -10,
+    },
+    methodSettings: PERCENTILE_METHOD,
+  },
+  {
+    key: 'housingClimateRisk',
+    label: 'Housing + Climate Risk',
+    description:
+      'Housing stress and climate-risk proxy using older housing, lower assessed value, instability, shade/cooling gaps, and local burden.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      buildingAge: 18,
+      pre1980HousingShare: 14,
+      avgAssessedValue: -12,
+      multiFamilyShare: 8,
+      cimdResidentialInstability: 14,
+      cimdEconomicDependency: 10,
+      shadeGap: 14,
+      coolingWalk15Access: -10,
+      crimePerCapita: 6,
+      foodRiskScore: 4,
+    },
+    methodSettings: CUMULATIVE_BURDEN_METHOD,
+  },
+  {
+    key: 'smokeVulnerabilityProxy',
+    label: 'Smoke Vulnerability Proxy',
+    description:
+      'Smoke-readiness proxy for vulnerable, dense, older-housing areas with weaker monitoring, cooling, and service access.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      cimdSituationalVulnerability: 20,
+      cimdEconomicDependency: 12,
+      populationDensity: 12,
+      buildingAge: 12,
+      overallDensity: -12,
+      referenceDensity: -10,
+      coolingWalk15Access: -10,
+      serviceAccessComposite: -8,
+      activeShare: -4,
+    },
+    methodSettings: CUMULATIVE_BURDEN_METHOD,
+  },
+  {
+    key: 'floodVulnerabilityProxy',
+    label: 'Flood Vulnerability Proxy',
+    description:
+      'Flood-response vulnerability proxy using population, social vulnerability, older housing, lower access, and emergency response access.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      populationDensity: 14,
+      cimdComposite: 20,
+      cimdResidentialInstability: 12,
+      cimdEconomicDependency: 10,
+      buildingAge: 12,
+      pre1980HousingShare: 10,
+      responseFacilityDensity: -8,
+      serviceAccessComposite: -8,
+      accessibleFrequentTransitAccess: -6,
+    },
+    methodSettings: CUMULATIVE_BURDEN_METHOD,
+  },
+  {
+    key: 'industrialBurdenProxy',
+    label: 'Industrial Burden Proxy',
+    description:
+      'Industrial/local burden placeholder using traffic, monitoring, land-value, food-safety, crime, and older-building proxies until NPRI and contaminated-site layers are normalized.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      transitStopDensity: 8,
+      crimeDensity: 12,
+      foodRiskScore: 10,
+      criticalViolationRate: 8,
+      commercialShare: 10,
+      landValueShare: 10,
+      buildingAge: 10,
+      overallDensity: -8,
+      parkWalk10Access: -8,
+      cimdComposite: 16,
+    },
+    methodSettings: CUMULATIVE_BURDEN_METHOD,
+  },
+  {
+    key: 'healthyPlanCimdCanopy',
+    label: 'Pairwise: CIMD x Canopy',
+    description: 'HealthyPlan-style priority: high CIMD vulnerability and low canopy benefit.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      cimdComposite: 50,
+      canopyProxyRatio: 50,
+    },
+    methodSettings: HEALTHYPLAN_PAIRWISE_METHOD('cimdComposite', 'canopyProxyRatio'),
+  },
+  {
+    key: 'healthyPlanEconomicParks',
+    label: 'Pairwise: Economic Dependency x Parks',
+    description: 'HealthyPlan-style priority: high economic dependency and low 10-minute park access.',
+    boundarySources: ['census', 'cityPG'],
+    recommendedBoundarySource: 'census',
+    recommendedBoundaryLevel: 'da',
+    weights: {
+      ...ZERO_WEIGHTS,
+      cimdEconomicDependency: 50,
+      parkWalk10Access: 50,
+    },
+    methodSettings: HEALTHYPLAN_PAIRWISE_METHOD('cimdEconomicDependency', 'parkWalk10Access'),
   },
   {
     key: 'communityResilienceProxy',

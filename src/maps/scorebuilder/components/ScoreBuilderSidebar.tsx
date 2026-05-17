@@ -10,6 +10,7 @@ import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import {
   BOUNDARY_SOURCE_OPTIONS,
   DENSITY_METRIC_OPTIONS,
+  HEALTHYPLAN_PAIRWISE_PRESETS,
   SCORE_METRICS,
   SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
@@ -343,6 +344,15 @@ export function ScoreBuilderSidebar({
   const activeMetricCount = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length, [weights])
   const healthyPlanDemographicMetrics = useMemo(() => SCORE_METRICS.filter(isHealthyPlanDemographicMetric), [])
   const healthyPlanEnvironmentMetrics = useMemo(() => SCORE_METRICS.filter(isHealthyPlanEnvironmentMetric), [])
+  const activeHealthyPlanPairKey = useMemo(() => {
+    return (
+      HEALTHYPLAN_PAIRWISE_PRESETS.find(
+        (preset) =>
+          preset.demographicMetric === methodSettings.healthyPlanPriority.demographicMetric &&
+          preset.environmentMetric === methodSettings.healthyPlanPriority.environmentMetric,
+      )?.key ?? 'custom'
+    )
+  }, [methodSettings.healthyPlanPriority])
   const updateMethodSettings = <Key extends keyof ScoreMethodSettings>(key: Key, value: ScoreMethodSettings[Key]) =>
     onMethodSettingsChange({ ...methodSettings, [key]: value })
 
@@ -1118,6 +1128,29 @@ export function ScoreBuilderSidebar({
                   </label>
                   {methodSettings.aggregation === 'healthyPlanPairwisePriority' && (
                     <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50/70 p-2 dark:border-amber-900/70 dark:bg-amber-950/25">
+                      <label className="space-y-1">
+                        <span className="block font-medium text-amber-950 dark:text-amber-100">Pairwise recipe</span>
+                        <AppSelect
+                          value={activeHealthyPlanPairKey}
+                          onValueChange={(value) => {
+                            if (value === 'custom') return
+                            const preset = HEALTHYPLAN_PAIRWISE_PRESETS.find((entry) => entry.key === value)
+                            if (!preset) return
+                            updateMethodSettings('healthyPlanPriority', {
+                              demographicMetric: preset.demographicMetric,
+                              environmentMetric: preset.environmentMetric,
+                            })
+                          }}
+                          options={[
+                            ...HEALTHYPLAN_PAIRWISE_PRESETS.map((preset) => ({
+                              value: preset.key,
+                              label: preset.label,
+                            })),
+                            { value: 'custom', label: 'Custom pair' },
+                          ]}
+                          triggerClassName="h-8 rounded border-amber-300 text-xs focus:ring-1 focus:ring-amber-500 dark:border-amber-900"
+                        />
+                      </label>
                       <label className="space-y-1">
                         <span className="block font-medium text-amber-950 dark:text-amber-100">
                           Vulnerable population proxy

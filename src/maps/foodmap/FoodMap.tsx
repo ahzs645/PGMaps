@@ -1,11 +1,10 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { cn } from '@/lib/utils'
 import { RestaurantMap } from './components/RestaurantMap'
 import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
 import { Timeline } from '@/components/ui/timeline'
-import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { LegendItem, MapLegendPanel, MapSizeLegend } from '@/components/ui/map-panels'
 import { RouletteModal } from './components/roulette'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { useRestaurantData } from './hooks/useRestaurantData'
@@ -378,11 +377,7 @@ export default function FoodMap() {
         <MapLegendPanel
           title={visualizationMode === 'violations' ? `Violations (${violationTimelineLabel})` : 'Hazard Rating'}
           collapsible
-          className={cn(
-            showTimeline
-              ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+5.5rem)] md:bottom-28'
-              : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6'
-          )}
+          elevated={showTimeline}
           contentClassName="space-y-1 text-xs text-muted-foreground"
         >
           {/* Violations legend */}
@@ -406,10 +401,7 @@ export default function FoodMap() {
 
           {visualizationMode === 'violations' && (
             <div className="mt-2 border-t border-border pt-2">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/60"></span>
-                <span className="text-xs text-muted-foreground">Size = count</span>
-              </div>
+              <MapSizeLegend minLabel="Size" maxLabel="count" sizes={[10, 14, 18]} />
             </div>
           )}
         </MapLegendPanel>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PawPrint } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { InlineAlert, LegendItem, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -551,7 +551,7 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
       {wars.showPoints && (
         <>
           {wars.speciesLegendBreakdown.length === 0 ? (
-            <div className="text-[10px] italic">No records in current filter.</div>
+            <MapLegendNote className="italic">No records in current filter.</MapLegendNote>
           ) : (
             <ul className="max-h-32 space-y-0.5 overflow-y-auto pr-1 md:max-h-44 md:space-y-1">
               {wars.speciesLegendBreakdown.map((entry) => (
@@ -567,15 +567,13 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
               ))}
             </ul>
           )}
-          <div className="flex items-center justify-between gap-2 border-t border-border pt-1.5 md:pt-2">
-            <span>Single</span>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full border border-white bg-muted-foreground/60 shadow-sm" />
-              <span className="h-4 w-4 rounded-full border border-white bg-muted-foreground/60 shadow-sm" />
-              <span className="h-6 w-6 rounded-full border border-white bg-muted-foreground/60 shadow-sm" />
-            </div>
-            <span>Multiple</span>
-          </div>
+          <MapSizeLegend
+            className="border-t border-border pt-1.5 md:pt-2"
+            minLabel="Single"
+            maxLabel="Multiple"
+            sizes={[8, 16, 24]}
+            color="rgb(100 116 139 / 0.6)"
+          />
         </>
       )}
       {wars.showHeatmap && (
@@ -585,7 +583,7 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
         </div>
       )}
       {!wars.showPoints && !wars.showHeatmap && (
-        <div className="text-[10px] italic">Both layers are hidden.</div>
+        <MapLegendNote className="italic">Both layers are hidden.</MapLegendNote>
       )}
     </div>
   )

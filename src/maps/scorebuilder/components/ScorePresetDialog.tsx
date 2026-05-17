@@ -16,6 +16,16 @@ interface ScorePresetDialogProps {
 
 const PRESET_GROUPS = [
   {
+    key: 'indexLab',
+    label: 'Index Lab Packs',
+    description: 'Planning presets for equity, heat, smoke, flood, access, housing, walkability, and local burden.',
+  },
+  {
+    key: 'pairwise',
+    label: 'Pairwise Equity',
+    description: 'HealthyPlan-style high-need plus low-benefit overlays; these are not weighted composite scores.',
+  },
+  {
     key: 'hbe',
     label: 'Healthy Built Environment',
     description: 'BCCDC HBE Linkages Toolkit recipes for neighbourhoods, mobility, nature, food, and housing.',
@@ -48,6 +58,25 @@ const PRESET_GROUPS = [
 ] as const
 
 function getPresetGroupKey(preset: ScorePreset): (typeof PRESET_GROUPS)[number]['key'] {
+  if (preset.key.startsWith('healthyPlan')) return 'pairwise'
+  if (
+    [
+      'pgEnvironmentalJusticeProxy',
+      'pgSocialEnvironmentalRank',
+      'heatReliefPriority',
+      'parkAccessEquity',
+      'accessPg15Minute',
+      'housingClimateRisk',
+      'activeLivingWalkability',
+      'smokeVulnerabilityProxy',
+      'floodVulnerabilityProxy',
+      'industrialBurdenProxy',
+      'transitEquity',
+      'investmentPriority',
+    ].includes(preset.key)
+  ) {
+    return 'indexLab'
+  }
   if (preset.key.startsWith('hbe')) return 'hbe'
   if (
     preset.key.includes('Coverage') ||

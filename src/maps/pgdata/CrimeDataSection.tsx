@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { cn } from '@/lib/utils'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { CrimeMap } from './components/CrimeMap'
 import { CrimeSidebar } from './components/CrimeSidebar'
 import { Timeline } from '@/components/ui/timeline'
@@ -266,11 +265,7 @@ export default function CrimeDataSection() {
 
         {/* Legend */}
         <MapLegendPanel
-          className={cn(
-            timelineEnabled
-              ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
-              : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] md:bottom-6'
-          )}
+          elevated={timelineEnabled}
           title={showCrimeLayer && showHeatmap ? 'Heatmap (Crime Density)' : 'Legend'}
           collapsible
         >
@@ -280,28 +275,22 @@ export default function CrimeDataSection() {
             <div className="space-y-2">
               {/* Point legends */}
               {legendItems.length > 0 && (
-                <div>
-                  <h4 className="mb-1 text-xs font-semibold text-foreground">Layers</h4>
-                  <div className="space-y-1">
+                <MapLegendSection title="Layers">
                     {legendItems.map((item) => (
                       <LegendItem key={item.label} color={item.color} label={item.label} />
                     ))}
-                  </div>
-                </div>
+                </MapLegendSection>
               )}
 
               {/* Census choropleth legend */}
               {showCensusLayer && selectedVariableLabel && (
-                <div>
-                  <h4 className="mb-1 text-xs font-semibold text-foreground">
-                    {selectedVariableLabel}
-                  </h4>
+                <MapLegendSection title={selectedVariableLabel}>
                   <MapGradientLegendItem
                     colors={[...COLOR_SCALES.purple]}
                     minLabel={censusOverlay.legendMin.toLocaleString()}
                     maxLabel={censusOverlay.legendMax.toLocaleString()}
                   />
-                </div>
+                </MapLegendSection>
               )}
             </div>
           )}

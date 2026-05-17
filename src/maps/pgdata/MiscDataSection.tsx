@@ -3182,11 +3182,10 @@ export default function MiscDataSection() {
           collapsed={!showMobileLegend}
           onCollapsedChange={(collapsed) => setShowMobileLegend(!collapsed)}
           contentClassName="space-y-1"
+          elevated={(activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled) || (activeTab === 'water' && water.timelineEnabled) || (activeTab === 'canue' && canueTimelineActive)}
+          width="sm"
           className={cn(
             'w-[min(16.5rem,calc(100vw-2rem))] md:w-auto',
-            (activeTab === 'wars' && wars.timelineEnabled) || (activeTab === 'icbc' && icbc.timelineEnabled) || (activeTab === 'water' && water.timelineEnabled) || (activeTab === 'canue' && canueTimelineActive)
-              ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
-              : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_0.75rem)] md:bottom-6',
           )}
         >
             {activeTab === 'heatShade' && (

@@ -904,26 +904,27 @@ export default function AirQualitySection() {
               <MapLegendSection
                 title="Networks in view"
                 value={legendNetworkRows.length.toLocaleString()}
+                actions={legendNetworkRows.length > 0 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={selectLegendNetworks}
+                      className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearLegendNetworks}
+                      className="font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      None
+                    </button>
+                  </>
+                ) : null}
                 className="border-t border-border pt-3 first:border-t-0 first:pt-0"
               >
                 {legendNetworkRows.length > 0 ? (
-                  <>
-                    <div className="flex items-center gap-2 px-1 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={selectLegendNetworks}
-                        className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-                      >
-                        All
-                      </button>
-                      <button
-                        type="button"
-                        onClick={clearLegendNetworks}
-                        className="font-medium text-muted-foreground hover:text-foreground"
-                      >
-                        None
-                      </button>
-                    </div>
                     <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
                       {legendNetworkRows.map((row) => (
                         <LegendItem
@@ -936,7 +937,6 @@ export default function AirQualitySection() {
                         />
                       ))}
                     </div>
-                  </>
                 ) : (
                   <div className="text-xs text-muted-foreground">No visible network points</div>
                 )}

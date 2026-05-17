@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Calculator, Footprints, RotateCcw } from 'lucide-react'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
-import { InlineAlert, KeyValueRows, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
+import { InlineAlert, KeyValueRows, MapGradientLegendItem, MapSteppedLegend, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
 
@@ -928,25 +928,19 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
 
 export function WalkabilityLegend({ walkability }: { walkability: WalkabilityState }) {
   if (walkability.displayMode === 'heatmap') {
+    const bands = [
+      { label: '1-27', color: '#4f9ad6' },
+      { label: '28-45', color: '#9ec99c' },
+      { label: '46-63', color: '#f5e451' },
+      { label: '64-82', color: '#e89c4a' },
+      { label: '83-170', color: '#d33b3b' },
+    ]
     return (
       <div className="w-full space-y-2 text-xs text-muted-foreground md:w-64">
         <div className="break-words font-medium leading-4 text-foreground">
           {walkability.liveHeatmap.status === 'ready' ? 'Live recalculated grid' : (walkability.selectedHeatmapVariant?.label ?? 'Citywide MI grid')}
         </div>
-        <div className="grid grid-cols-5 overflow-hidden rounded-sm border border-border">
-          <span className="block h-3" style={{ backgroundColor: '#4f9ad6' }} />
-          <span className="block h-3" style={{ backgroundColor: '#9ec99c' }} />
-          <span className="block h-3" style={{ backgroundColor: '#f5e451' }} />
-          <span className="block h-3" style={{ backgroundColor: '#e89c4a' }} />
-          <span className="block h-3" style={{ backgroundColor: '#d33b3b' }} />
-        </div>
-        <div className="flex items-center justify-between gap-1 text-[9px] tabular-nums sm:text-[10px]">
-          <span>1-27</span>
-          <span>28-45</span>
-          <span>46-63</span>
-          <span>64-82</span>
-          <span>83-170</span>
-        </div>
+        <MapSteppedLegend bands={bands} />
       </div>
     )
   }

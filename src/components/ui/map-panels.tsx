@@ -745,6 +745,8 @@ type MapLegendPanelProps = {
   collapsed?: boolean
   onCollapsedChange?: (collapsed: boolean) => void
   contentClassName?: string
+  elevated?: boolean
+  width?: 'sm' | 'md' | 'lg'
 }
 
 export function MapLegendPanel({
@@ -758,6 +760,8 @@ export function MapLegendPanel({
   collapsed,
   onCollapsedChange,
   contentClassName,
+  elevated = false,
+  width = 'md',
 }: MapLegendPanelProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed)
   const isCollapsed = collapsed ?? internalCollapsed
@@ -772,7 +776,13 @@ export function MapLegendPanel({
   return (
     <div
       className={cn(
-        'absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-3 z-10 w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:bottom-6 md:right-6 md:w-auto md:rounded-xl md:p-4',
+        'absolute right-3 z-10 rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:rounded-xl md:p-4',
+        elevated
+          ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
+          : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6',
+        width === 'sm' && 'w-[min(14rem,calc(100vw-2rem))] md:w-56',
+        width === 'md' && 'w-[min(18rem,calc(100vw-2rem))] md:w-auto',
+        width === 'lg' && 'w-[min(22rem,calc(100vw-2rem))] md:w-88',
         className,
       )}
     >
@@ -815,12 +825,18 @@ export function MapLegendPanel({
 type MapLegendSectionProps = ComponentPropsWithoutRef<'div'> & {
   title?: ReactNode
   value?: ReactNode
+  description?: ReactNode
+  actions?: ReactNode
+  columns?: 1 | 2
   scroll?: boolean
 }
 
 export function MapLegendSection({
   title,
   value,
+  description,
+  actions,
+  columns = 1,
   scroll = false,
   className,
   children,
@@ -828,13 +844,29 @@ export function MapLegendSection({
 }: MapLegendSectionProps) {
   return (
     <div className={cn('space-y-1.5 text-xs text-muted-foreground', className)} {...props}>
-      {(title || value) && (
+      {(title || value || actions) && (
         <div className="flex items-center justify-between gap-2">
-          {title ? <span className="font-medium text-foreground">{title}</span> : <span />}
-          {value ? <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{value}</span> : null}
+          <div className="min-w-0">
+            {title ? <span className="block truncate font-medium text-foreground">{title}</span> : null}
+            {description ? <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground">{description}</span> : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {actions ? <div className="flex items-center gap-2 text-[10px]">{actions}</div> : null}
+            {value ? <span className="tabular-nums text-[10px] text-muted-foreground">{value}</span> : null}
+          </div>
         </div>
       )}
-      <div className={cn('space-y-1', scroll && 'max-h-44 overflow-y-auto pr-1')}>{children}</div>
+      {!title && !value && !actions && description ? (
+        <div className="text-[10px] leading-snug text-muted-foreground">{description}</div>
+      ) : null}
+      <div
+        className={cn(
+          columns === 2 ? 'grid grid-cols-2 gap-x-3 gap-y-1' : 'space-y-1',
+          scroll && 'max-h-44 overflow-y-auto pr-1',
+        )}
+      >
+        {children}
+      </div>
     </div>
   )
 }
@@ -903,5 +935,160 @@ export function LegendItem({
     <div className={cn('flex items-center justify-between gap-2', !active && 'text-muted-foreground', className)}>
       {content}
     </div>
+  )
+}
+
+type MapSteppedLegendBand = {
+  label: ReactNode
+  color: string
+  textColor?: string
+  swatchLabel?: ReactNode
+}
+
+type MapSteppedLegendProps = ComponentPropsWithoutRef<'div'> & {
+  bands: MapSteppedLegendBand[]
+  variant?: 'strip' | 'rows'
+  labels?: ReactNode[]
+  showBandLabels?: boolean
+  swatchShape?: 'square' | 'circle'
+  getReadableTextColor?: (color: string) => string
+}
+
+export function MapSteppedLegend({
+  bands,
+  variant = 'strip',
+  labels,
+  showBandLabels = true,
+  swatchShape = 'square',
+  getReadableTextColor,
+  className,
+  ...props
+}: MapSteppedLegendProps) {
+  if (variant === 'rows') {
+    return (
+      <div className={cn('space-y-1.5', className)} {...props}>
+        {bands.map((band, index) => (
+          <div key={`${String(band.label)}-${index}`} className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span
+              className={cn(
+                'flex h-6 w-6 shrink-0 items-center justify-center border border-black/10 text-xs font-bold',
+                swatchShape === 'circle' ? 'rounded-full' : 'rounded',
+              )}
+              style={{
+                backgroundColor: band.color,
+                color: band.textColor ?? getReadableTextColor?.(band.color),
+              }}
+            >
+              {showBandLabels ? (band.swatchLabel ?? band.label) : null}
+            </span>
+            <span className="text-foreground">{band.label}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const footerLabels = labels ?? bands.map((band) => band.label)
+
+  return (
+    <div className={cn('space-y-1', className)} {...props}>
+      <div className="grid overflow-hidden rounded-sm border border-border" style={{ gridTemplateColumns: `repeat(${bands.length}, minmax(0, 1fr))` }}>
+        {bands.map((band, index) => (
+          <span key={`${String(band.label)}-${index}`} className="block h-3" style={{ backgroundColor: band.color }} />
+        ))}
+      </div>
+      {footerLabels.length > 0 && (
+        <div className="flex items-center justify-between gap-1 text-[9px] tabular-nums text-muted-foreground sm:text-[10px]">
+          {footerLabels.map((label, index) => (
+            <span key={`${String(label)}-${index}`}>{label}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+type MapSizeLegendProps = ComponentPropsWithoutRef<'div'> & {
+  minLabel: ReactNode
+  maxLabel: ReactNode
+  sizes?: number[]
+  color?: string
+  shape?: 'circle' | 'square'
+}
+
+export function MapSizeLegend({
+  minLabel,
+  maxLabel,
+  sizes = [8, 16, 28],
+  color = '#94a3b8',
+  shape = 'circle',
+  className,
+  ...props
+}: MapSizeLegendProps) {
+  return (
+    <div className={cn('flex items-center justify-between gap-2 text-xs text-muted-foreground', className)} {...props}>
+      <span>{minLabel}</span>
+      <div className="flex min-h-7 items-center gap-1.5">
+        {sizes.map((size) => (
+          <span
+            key={size}
+            className={cn('border border-white shadow-sm', shape === 'circle' ? 'rounded-full' : 'rounded-sm')}
+            style={{ width: size, height: size, backgroundColor: color }}
+          />
+        ))}
+      </div>
+      <span>{maxLabel}</span>
+    </div>
+  )
+}
+
+type MapImageLegendProps = ComponentPropsWithoutRef<'div'> & {
+  src: string
+  alt: string
+  label?: ReactNode
+  maxHeight?: number
+}
+
+export function MapImageLegend({
+  src,
+  alt,
+  label,
+  maxHeight = 96,
+  className,
+  ...props
+}: MapImageLegendProps) {
+  return (
+    <div className={cn('rounded-md border border-border bg-secondary/30 p-3 text-xs', className)} {...props}>
+      {label ? <div className="mb-2 font-medium text-foreground">{label}</div> : null}
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-full rounded bg-white object-contain"
+        style={{ maxHeight }}
+      />
+    </div>
+  )
+}
+
+type MapLegendNoteProps = ComponentPropsWithoutRef<'div'> & {
+  tone?: 'muted' | 'warning' | 'error'
+}
+
+export function MapLegendNote({
+  tone = 'muted',
+  className,
+  ...props
+}: MapLegendNoteProps) {
+  return (
+    <div
+      className={cn(
+        'px-1 text-[10px] leading-snug',
+        tone === 'muted' && 'text-muted-foreground',
+        tone === 'warning' && 'rounded border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200',
+        tone === 'error' && 'rounded border border-destructive/30 bg-destructive/10 px-2 py-1 font-medium text-destructive',
+        className,
+      )}
+      {...props}
+    />
   )
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { InlineAlert, LegendItem, MapGradientLegendItem, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapLegendSection, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -456,23 +456,12 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
       <div className="font-medium text-foreground">{getIcbcDatasetLabel(icbc.selectedDataset)}</div>
       {icbc.showPoints && (
         <div className="space-y-2">
-          <div>
-            <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Crash type</div>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-              {ICBC_CRASH_TYPE_LEGEND.map((item) => (
-                <LegendItem key={item.label} color={item.color} label={item.label} />
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
-            <span>Small</span>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full border border-white bg-slate-400 shadow-sm" />
-              <span className="h-4 w-4 rounded-full border border-white bg-slate-400 shadow-sm" />
-              <span className="h-7 w-7 rounded-full border border-white bg-slate-400 shadow-sm" />
-            </div>
-            <span>High</span>
-          </div>
+          <MapLegendSection title="Crash type" columns={2}>
+            {ICBC_CRASH_TYPE_LEGEND.map((item) => (
+              <LegendItem key={item.label} color={item.color} label={item.label} />
+            ))}
+          </MapLegendSection>
+          <MapSizeLegend className="border-t border-border pt-2" minLabel="Small" maxLabel="High" />
         </div>
       )}
       {icbc.showHeatmap && (
@@ -481,7 +470,7 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
         </div>
       )}
       {!icbc.showPoints && !icbc.showHeatmap && (
-        <div className="px-1 text-[10px] italic">Both layers are hidden.</div>
+        <MapLegendNote className="italic">Both layers are hidden.</MapLegendNote>
       )}
     </div>
   )

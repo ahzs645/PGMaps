@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-16T20:52:55.071Z",
+  "generatedAt": "2026-05-16T22:55:22.564Z",
   "source": "BC River Forecast Centre flood warnings/advisories",
   "sourceIndex": "https://bcrfc.env.gov.bc.ca/warnings/index.htm",
   "outputFiles": {
@@ -9,30 +9,113 @@
   },
   "discovery": {
     "currentIndex": 10,
-    "seedFile": 6,
+    "seedFile": 19,
     "legacyNumberProbe": 5,
-    "waybackCdx": 0,
-    "uniqueUrls": 16,
+    "legacyYearNumberProbe": 13,
+    "waybackCdx": 713,
+    "uniqueUrls": 736,
     "failures": 0,
-    "legacyMax": 250
+    "legacyMax": 250,
+    "legacyYearMax": 180,
+    "legacyYears": [
+      2021,
+      2022,
+      2023,
+      2024
+    ]
   },
   "records": {
-    "advisories": 15,
-    "parsedAdvisoriesBeforeDedupe": 16,
-    "duplicateAdvisories": 1,
-    "firstIssuedAt": "2020-12-31T23:45:00.000Z",
+    "advisories": 707,
+    "parsedAdvisoriesBeforeDedupe": 736,
+    "duplicateAdvisories": 29,
+    "firstIssuedAt": "2010-10-19T18:00:00.000Z",
     "lastIssuedAt": "2026-05-15T18:45:00.000Z",
     "yearCounts": {
-      "2020": 1,
-      "2021": 1,
-      "2024": 1,
-      "2025": 2,
-      "2026": 10
+      "2010": 2,
+      "2011": 13,
+      "2012": 6,
+      "2013": 20,
+      "2014": 1,
+      "2016": 8,
+      "2017": 72,
+      "2018": 38,
+      "2019": 10,
+      "2020": 71,
+      "2021": 143,
+      "2022": 117,
+      "2023": 69,
+      "2024": 43,
+      "2025": 52,
+      "2026": 26,
+      "unknown": 16
     },
     "levelCounts": {
-      "High Streamflow Advisory": 15,
-      "Flood Watch": 6,
-      "Flood Warning": 3
+      "Flood Watch": 300,
+      "High Streamflow Advisory": 586,
+      "Flood Warning": 136,
+      "Unknown": 23
+    }
+  },
+  "consistency": {
+    "schema": {
+      "stableFields": [
+        "id",
+        "url",
+        "title",
+        "issuedAt",
+        "issuedAtLocal",
+        "issuedYear",
+        "levels",
+        "statuses",
+        "namedAreas",
+        "matchedBoundaries",
+        "rawPath",
+        "textPath"
+      ],
+      "variableFields": [
+        "title verbosity and ministry header",
+        "date wording",
+        "PDF versus legacy HTML source format",
+        "region naming granularity",
+        "station/return-period detail in narrative text"
+      ]
+    },
+    "eras": {
+      "legacyArchived": {
+        "records": 138,
+        "withIssuedAt": 122,
+        "withLevels": 115,
+        "withStatuses": 88,
+        "withMatchedBoundaries": 136,
+        "withExtractedText": 138,
+        "formats": {
+          "html": 94,
+          "pdf": 44
+        }
+      },
+      "htmlTemplate": {
+        "records": 119,
+        "withIssuedAt": 119,
+        "withLevels": 119,
+        "withStatuses": 119,
+        "withMatchedBoundaries": 117,
+        "withExtractedText": 119,
+        "formats": {
+          "html": 119
+        }
+      },
+      "pdfTemplate": {
+        "records": 450,
+        "withIssuedAt": 450,
+        "withLevels": 450,
+        "withStatuses": 450,
+        "withMatchedBoundaries": 441,
+        "withExtractedText": 450,
+        "formats": {
+          "html": 19,
+          "pdf": 431
+        }
+      }
     }
   },
   "limitations": [

@@ -74,78 +74,85 @@ Keep the raw DriveBC fields for traceability, but expose these normalized fields
 
 ## Historical Schema Bridge
 
-The annual CSV files are bridgeable, but the source schema changes by era:
+Use the strict machine-readable bridge in `docs/drivebc-events-strict-bridge.json` for implementation. A full field/value inventory generated from the downloaded source files is in `data-sources/drivebc/historical/schema-inventory.json`.
+
+The bridge should be strict: do not map legacy values to modern Open511 codes unless the source already contains that modern code. Use source-preserving fields plus explicit compatibility fields instead.
+
+The annual CSV files are structurally bridgeable, but the source schema changes by era:
 
 | Years | Source shape | Bridge quality |
 | --- | --- | --- |
-| 2006-2012 | 15 columns: `id`, `cause`, `district`, `state`, `severity`, `localupdatetime`, `advisorymessage`, `trafficpattern`, coordinates, `route`, `type` | Good for map/filter use, weaker for lifecycle because there is no explicit archived status or created timestamp |
-| 2013-2017 | 26 columns: old fields plus `createdtime`, `starttime`, `endtime`, `geometry`, `direction`, `from`, `to`, `ivradvisorymessage` | Good; can populate most normalized temporal and road fields |
-| 2018-2024 | 27 columns: Open511-style fields including `IVR_MESSAGE`, `EVENT_TYPE`, `EVENT_SUBTYPE`, `ROAD_*` | Strong; direct mapping |
-| 2025 | 26 columns: Open511-style fields without `IVR_MESSAGE` | Strong; direct mapping |
+| 2006-2012 | 15 columns: `id`, `cause`, `district`, `state`, `severity`, `localupdatetime`, `advisorymessage`, `trafficpattern`, coordinates, `route`, `type` | Structurally bridgeable. No exact Open511 `STATUS`, `EVENT_TYPE`, or `EVENT_SUBTYPE`. |
+| 2013-2017 | 26 columns: old fields plus `createdtime`, `starttime`, `endtime`, `geometry`, `direction`, `from`, `to`, `ivradvisorymessage` | Structurally bridgeable with better time/road fields. No exact Open511 `STATUS`, `EVENT_TYPE`, or `EVENT_SUBTYPE`. |
+| 2018-2024 | 27 columns: Open511-style fields including `IVR_MESSAGE`, `EVENT_TYPE`, `EVENT_SUBTYPE`, `ROAD_*` | Direct Open511-style bridge after header cleanup. |
+| 2025 | 26 columns: Open511-style fields without `IVR_MESSAGE` | Direct Open511-style bridge after header cleanup. |
 
 ### Old-to-normalized field crosswalk
 
-| Normalized field | 2006-2012 | 2013-2017 | 2018-2025 |
+| Strict normalized field | 2006-2012 | 2013-2017 | 2018-2025 |
 | --- | --- | --- | --- |
-| `id` | `id` prefixed as `drivebc.ca/{id}` if needed | `id` prefixed as `drivebc.ca/{id}` if needed | `ID` |
-| `status` | derive from `state`: `Future` -> `future`, `Ongoing`/`TermRespOngo` -> `active_like` | derive from `state`; use `endtime` presence for ended events | lower-case `STATUS` |
-| `eventType` | map from old `type` | map from old `type` | lower-case `EVENT_TYPE` |
-| `eventSubtype` | map from `cause` | map from `cause` | lower-case `EVENT_SUBTYPE` |
-| `eventGroup` | map from old `type` | map from old `type` | map from `EVENT_TYPE` |
-| `conditionCode` | map from `cause` | map from `cause` | map from `EVENT_SUBTYPE` |
-| `severity` | `Normal` -> `minor`, `Major` -> `major` | `Normal` -> `minor`, `Major` -> `major` | lower-case `SEVERITY` |
-| `startedAt` | unavailable; use `localupdatetime` as best event time | `starttime` if present, else `createdtime`, else `localupdatetime` | `START_DATETIME` |
-| `endedAt` | unavailable | `endtime` | `END_DATETIME` |
-| `createdAt` | unavailable | `createdtime` | `CREATED` |
-| `updatedAt` | `localupdatetime` | `localupdatetime` | `UPDATED` |
-| `areaName` | `district` | `district` | `AREA_NAME` |
-| `roadName` | `route` | `route` or `popular_route` | `ROAD_NAME` |
-| `fromDescription` | parse from `advisorymessage` only if needed | `from` | `ROAD_FROM_DESCRIPTION` |
-| `toDescription` | parse from `advisorymessage` only if needed | `to` | `ROAD_TO_DESCRIPTION` |
-| `direction` | `isbidirectional=1` -> `both`, else unknown | `direction` normalized, or `isbidirectional=1` -> `both` | `ROAD_DIRECTION` |
-| `roadState` | `trafficpattern` | `trafficpattern` | `ROAD_STATE` |
-| `description` | `advisorymessage` | `advisorymessage` | `DESCRIPTION` |
-| `ivrMessage` | unavailable | `ivradvisorymessage` | `IVR_MESSAGE` when present |
-| coordinates | `head_latitude`, `head_longitude`, `tail_latitude`, `tail_longitude` | same, or optional `geometry` validation | `HEAD_*`, `TAIL_*` |
+| `sourceId` | `id` | `id` | `ID` |
+| `displayId` | `drivebc.ca/{id}` | `drivebc.ca/{id}` | `ID` |
+| `sourceSchema` | `legacy_15` | `legacy_26` | `open511_27` or `open511_26` |
+| `sourceSeverity` | `severity` | `severity` | `SEVERITY` |
+| `sourceAreaName` | `district` | `district` | `AREA_NAME` |
+| `sourceRoadName` | `route` | `route` | `ROAD_NAME` |
+| `sourceDescription` | `advisorymessage` | `advisorymessage` | `DESCRIPTION` |
+| `sourceUpdatedAt` | `localupdatetime` | `localupdatetime` | `UPDATED` |
+| `sourceGeometry` | head/tail coordinate fields | head/tail coordinate fields and optional `geometry` source field | head/tail coordinate fields |
+| `legacyCause` | `cause` | `cause` | null |
+| `legacyType` | `type` | `type` | null |
+| `legacyState` | `state` | `state` | null |
+| `legacyTrafficPattern` | `trafficpattern` | `trafficpattern` | null |
+| `legacyCreatedTime` | null | `createdtime` | null |
+| `legacyStartTime` | null | `starttime` | null |
+| `legacyEndTime` | null | `endtime` | null |
+| `status` | null | null | `STATUS` |
+| `eventType` | null | null | `EVENT_TYPE` |
+| `eventSubtype` | null | null | `EVENT_SUBTYPE` |
+| `createdAt` | null | null | `CREATED` |
+| `startedAt` | null | null | `START_DATETIME` |
+| `endedAt` | null | null | `END_DATETIME` |
 
-### Old `type` to modern group bridge
+### Exact compatibility normalizations
 
-| Old `type` | Normalized `eventGroup` | Approx. modern `EVENT_TYPE` |
+These are value cleanups, not semantic remaps to a different source vocabulary.
+
+| Source field | Source value | Compatibility value |
 | --- | --- | --- |
-| `Road Condition` | `road_condition` | `ROAD_CONDITION` |
-| `Incident` | `incident` | `INCIDENT` |
-| `Current Planned` | `construction` | `CONSTRUCTION` |
-| `Future Planned` | `construction` | `CONSTRUCTION` |
+| legacy `type` | `Road Condition` | `road_condition` |
+| legacy `type` | `Incident` | `incident` |
+| legacy `type` | `Current Planned` | `current_planned` |
+| legacy `type` | `Future Planned` | `future_planned` |
+| legacy `state` | `Ongoing` | `ongoing` |
+| legacy `state` | `Future` | `future` |
+| legacy `state` | `TermRespOngo` | `term_resp_ongo` |
+| legacy `severity` | `Normal` | `normal` |
+| legacy `severity` | `Major` | `major` |
+| Open511 `SEVERITY` | `MINOR` | `minor` |
+| Open511 `SEVERITY` | `MAJOR` | `major` |
+| Open511 `EVENT_TYPE` | `ROAD_CONDITION` | `road_condition` |
+| Open511 `EVENT_TYPE` | `INCIDENT` | `incident` |
+| Open511 `EVENT_TYPE` | `CONSTRUCTION` | `construction` |
+| Open511 `EVENT_TYPE` | `WEATHER_CONDITION` | `weather_condition` |
+| Open511 `EVENT_TYPE` | `SPECIAL_EVENT` | `special_event` |
 
-`Current Planned` and `Future Planned` include maintenance, construction, special events, ferry work, and other planned disruptions. For old years, use `cause` to refine these into `road_maintenance`, `road_construction`, `planned_event`, etc.
+Do not combine `normal` and `minor` into one source value. If the UI needs a single display scale, add a clearly named field such as `displaySeverityTier` and document that it is a UI classification, not source equivalence.
 
-### Old `cause` to condition bridge
+### Values that are not bridgeable without approximation
 
-The old `cause` field is the bridge to modern `EVENT_SUBTYPE`. It is more human-readable than modern codes, but has a stable enough vocabulary for deterministic mapping.
+These must stay in separate fields unless a later source document defines an official equivalence:
 
-Recommended mapping examples:
+- Legacy `cause` is not equivalent to Open511 `EVENT_SUBTYPE`.
+- Legacy `type` values `Current Planned` and `Future Planned` are not equivalent to Open511 `CONSTRUCTION`; they can include construction, maintenance, ferry work, special events, and other planned disruptions.
+- Legacy `state` is not equivalent to Open511 `STATUS`; it describes state at record time, not the archived lifecycle.
+- Legacy `severity=Normal` is not equivalent to Open511 `SEVERITY=MINOR`; it is only a separate source severity value.
 
-| Old `cause` pattern | Normalized `conditionCode` | Approx. modern subtype |
-| --- | --- | --- |
-| `Slippery Sections`, `Black Ice`, `Rain on Compact Snow` | `partly_icy` | `PARTLY_ICY` |
-| `Compact Snow`, `Compact Snow Sanded`, `Compact Snow with Plowing & Sanding` | `snow_packed` | `SNOW_PACKED` |
-| `Compact Snow with Slippery Sections` | `partly_icy` | `PARTLY_ICY` |
-| `Compact Snow with Slushy Sections`, `Slushy Sections`, `Slushy with Slippery Sections` | `partly_snow_packed` | `PARTLY_SNOW_PACKED` |
-| `Compact Ice` | `ice_covered` | `ICE_COVERED` |
-| `Limited Visibility with Fog`, `Fog Patches`, `Limited Visibility with Smoke`, `Limited Visibility with Blowing Snow`, `Limited Visibility with Heavy Snowfall` | `poor_visibility` | `POOR_VISIBILITY` |
-| `Strong Cross Winds` | `strong_winds` | `STRONG_WINDS` |
-| `Heavy Rain`, `Heavy Snowfall`, `Snowing with Slippery Sections`, `Freezing Rain`, `Drifting Snow` | `weather_hazard` | `HAZARD` or weather-specific family |
-| `Water Ponding`, `Water Pooling`, `Flooding`, `Wash Out` | `surface_water` | `SURFACE_WATER_HAZARD` |
-| `Avalanche Control`, `High Avalanche Hazard` | `avalanche_hazard` | `AVALANCHE_HAZARD` |
-| `Falling Rock`, `Falling Ice`, `Frost Heaves`, `Muddy Sections`, `Debris on Road`, `Tree on Road`, `Hydro Lines Down`, `Livestock on Road`, `Wildlife on Road` | `hazard` | `HAZARD` or `OBSTRUCTION` depending on display needs |
-| `Collision`, `Vehicle Incident`, `Vehicle Recovery`, `Vehicle Stall`, `Police Incident`, `Vehicle Fire` | `incident` | `HAZARD` or `FIRE` |
-| `Forest Fire` | `fire` | `FIRE` |
-| `Maintenance`, `Bridge Maintenance`, `Electrical Maintenance`, `Winter Highway Maintenance`, `Sweeping`, `Mowing`, `Ditching`, `Brushing`, `Paving`, `Rock Scaling` | `road_maintenance` | `ROAD_MAINTENANCE` |
-| `Construction` | `road_construction` | `ROAD_CONSTRUCTION` |
-| `Special Event` | `planned_event` | `PLANNED_EVENT` |
-| `Ferry Out of Service`, `Ferry Service Interruption` | `ferry_disruption` | `HAZARD` or custom code |
+The importer can still expose UI filters such as "winter", "construction/maintenance", or "incident-like", but those must be named as `displayCategory` or `uiCategory` and generated from a separate, documented UI taxonomy. They should not overwrite source fields or be called `EVENT_SUBTYPE`.
 
-Keep the original `cause` as `sourceCause` because some older values do not map cleanly to modern Open511 subtypes.
+### Legacy value inventory
+
+Across 2006-2017, there are 87 distinct legacy `cause` values, 4 legacy `type` values, 12 `trafficpattern` values, 3 `state` values, and 2 `severity` values. The full value counts are available in `data-sources/drivebc/historical/schema-inventory.json`.
 
 ## Event Group Mapping
 

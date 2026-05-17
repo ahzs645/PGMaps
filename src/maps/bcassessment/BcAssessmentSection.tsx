@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { BcAssessmentMap } from './components/BcAssessmentMap'
 import { BcAssessmentSidebar } from './components/BcAssessmentSidebar'
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
@@ -221,11 +221,7 @@ export default function BcAssessmentSection() {
             title={`${boundaryLevel !== 'none' ? 'Avg ' : ''}${colorMetric === 'yearBuilt' ? 'Year Built' : 'Assessed Value'}`}
             collapsible
           >
-            <div className="space-y-1">
-              {legendItems.map((item) => (
-                <LegendItem key={item.label} color={item.color} label={item.label} />
-              ))}
-            </div>
+            <MapSteppedLegend bands={legendItems} variant="rows" showBandLabels={false} />
           </MapLegendPanel>
         )}
       </div>

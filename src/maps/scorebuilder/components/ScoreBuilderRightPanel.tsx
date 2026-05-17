@@ -21,6 +21,7 @@ import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import {
   DENSITY_METRIC_OPTIONS,
+  HEALTHYPLAN_PAIRWISE_PRESETS,
   SCORE_BUILDER_EXAMPLES,
   SCORE_METRICS,
   SCORE_METRICS_BY_CATEGORY,
@@ -297,7 +298,6 @@ export function ScoreBuilderRightPanel({
   const totalAbsoluteWeight = useMemo(() => {
     return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
   }, [weights])
-
   const handleShare = async () => {
     setShareStatus('copying')
     try {
@@ -1660,6 +1660,18 @@ export function ModelTab({
     .slice(0, 3)
   const updateMethodSettings = <Key extends keyof ScoreMethodSettings>(key: Key, value: ScoreMethodSettings[Key]) =>
     onMethodSettingsChange({ ...methodSettings, [key]: value })
+  const activeHealthyPlanPairKey = useMemo(() => {
+    return (
+      HEALTHYPLAN_PAIRWISE_PRESETS.find(
+        (preset) =>
+          preset.demographicMetric === methodSettings.healthyPlanPriority.demographicMetric &&
+          preset.environmentMetric === methodSettings.healthyPlanPriority.environmentMetric,
+      )?.key ?? 'custom'
+    )
+  }, [
+    methodSettings.healthyPlanPriority.demographicMetric,
+    methodSettings.healthyPlanPriority.environmentMetric,
+  ])
 
   return (
     <div className="space-y-3 p-4" data-score-builder-section="model">
@@ -1766,6 +1778,29 @@ export function ModelTab({
           </label>
           {methodSettings.aggregation === 'healthyPlanPairwisePriority' && (
             <div className="grid gap-2 rounded-md border border-amber-200 bg-amber-50/70 p-2 dark:border-amber-900/70 dark:bg-amber-950/25">
+              <label className="space-y-1">
+                <span className="block font-medium text-amber-950 dark:text-amber-100">Pairwise recipe</span>
+                <AppSelect
+                  value={activeHealthyPlanPairKey}
+                  onValueChange={(value) => {
+                    if (value === 'custom') return
+                    const preset = HEALTHYPLAN_PAIRWISE_PRESETS.find((entry) => entry.key === value)
+                    if (!preset) return
+                    updateMethodSettings('healthyPlanPriority', {
+                      demographicMetric: preset.demographicMetric,
+                      environmentMetric: preset.environmentMetric,
+                    })
+                  }}
+                  options={[
+                    ...HEALTHYPLAN_PAIRWISE_PRESETS.map((preset) => ({
+                      value: preset.key,
+                      label: preset.label,
+                    })),
+                    { value: 'custom', label: 'Custom pair' },
+                  ]}
+                  triggerClassName="h-8 rounded border-amber-300 text-xs focus:ring-1 focus:ring-amber-500 dark:border-amber-900"
+                />
+              </label>
               <label className="space-y-1">
                 <span className="block font-medium text-amber-950 dark:text-amber-100">
                   Vulnerable population proxy

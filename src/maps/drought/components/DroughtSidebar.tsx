@@ -1,5 +1,5 @@
 import { ExternalLink, Layers } from 'lucide-react'
-import { InlineAlert, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, MapSteppedLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { DROUGHT_LEVELS } from '../constants'
@@ -91,26 +91,18 @@ export function DroughtSidebar({
         </SidebarSection>
 
         <SidebarSection title="Legend">
-          <div className="space-y-1.5">
-            {DROUGHT_LEVELS.map((item) => (
-              <div key={item.level} className="flex items-center gap-3">
-                <span
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-black/10 text-xs font-bold"
-                  style={{ backgroundColor: item.color, color: getReadableTextColor(item.color) }}
-                >
-                  {item.level}
-                </span>
-                <span className="text-xs text-foreground">{item.label}</span>
-              </div>
-            ))}
-            <div className="flex items-center gap-3">
-              <span
-                className="h-6 w-6 shrink-0 rounded border border-black/10"
-                style={{ backgroundColor: '#8a8f98' }}
-              />
-              <span className="text-xs text-foreground">Not updated / no numeric level</span>
-            </div>
-          </div>
+          <MapSteppedLegend
+            bands={[
+              ...DROUGHT_LEVELS.map((item) => ({
+                label: item.label,
+                color: item.color,
+                textColor: getReadableTextColor(item.color),
+                swatchLabel: item.level,
+              })),
+              { label: 'Not updated / no numeric level', color: '#8a8f98', swatchLabel: '' },
+            ]}
+            variant="rows"
+          />
         </SidebarSection>
 
         {selectedFeature && (

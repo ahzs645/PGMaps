@@ -19,17 +19,29 @@ const ADVISORY_ROOT = `${RFC_ROOT}/warnings/advisories/`
 const DEFAULT_LEGACY_MAX = 250
 
 const MONTHS = {
+  jan: 0,
   january: 0,
+  feb: 1,
   february: 1,
+  mar: 2,
   march: 2,
+  apr: 3,
   april: 3,
   may: 4,
+  jun: 5,
   june: 5,
+  jul: 6,
   july: 6,
+  aug: 7,
   august: 7,
+  sep: 8,
+  sept: 8,
   september: 8,
+  oct: 9,
   october: 9,
+  nov: 10,
   november: 10,
+  dec: 11,
   december: 11,
 }
 
@@ -52,9 +64,12 @@ function parseArgs() {
   const args = process.argv.slice(2)
   const options = {
     legacyMax: DEFAULT_LEGACY_MAX,
+    legacyYearMax: 180,
+    legacyYears: [2021, 2022, 2023, 2024],
     legacy: true,
+    legacyYear: true,
     wayback: true,
-    concurrency: 8,
+    concurrency: 4,
   }
 
   for (let i = 0; i < args.length; i += 1) {
@@ -63,8 +78,17 @@ function parseArgs() {
     if (arg === '--legacy-max' && next) {
       options.legacyMax = Number(next)
       i += 1
+    } else if (arg === '--legacy-year-max' && next) {
+      options.legacyYearMax = Number(next)
+      i += 1
+    } else if (arg === '--legacy-years' && next) {
+      options.legacyYears = next.split(',').map((year) => Number(year.trim())).filter(Number.isFinite)
+      i += 1
     } else if (arg === '--legacy' && next) {
       options.legacy = next !== 'false'
+      i += 1
+    } else if (arg === '--legacy-year' && next) {
+      options.legacyYear = next !== 'false'
       i += 1
     } else if (arg === '--wayback' && next) {
       options.wayback = next !== 'false'
@@ -82,7 +106,7 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function fetchWithRetry(url, options = {}, attempts = 3) {
+async function fetchWithRetry(url, options = {}, attempts = 4) {
   let lastError
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
@@ -107,7 +131,11 @@ function normalizeUrl(value) {
   if (!value) return null
   const trimmed = value.trim()
   if (!trimmed || trimmed.startsWith('#')) return null
-  if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/^http:/i, 'https:')
+  if (/^https?:\/\//i.test(trimmed)) {
+    const parsed = new URL(trimmed.replace(/^http:/i, 'https:'))
+    if (parsed.hostname === 'bcrfc.env.gov.bc.ca' && parsed.port === '80') parsed.port = ''
+    return parsed.href
+  }
   if (trimmed.startsWith('/')) return `${RFC_ROOT}${trimmed}`
   if (trimmed.startsWith('advisories/')) return new URL(trimmed, `${RFC_ROOT}/warnings/`).href
   return new URL(trimmed, ADVISORY_ROOT).href
@@ -207,29 +235,73 @@ async function discoverLegacyNumbered(max) {
   return found
 }
 
-async function discoverWayback() {
-  const cdxUrl = 'https://web.archive.org/cdx?' + new URLSearchParams({
-    url: 'bcrfc.env.gov.bc.ca/warnings/advisories/*',
-    output: 'json',
-    fl: 'original,statuscode,mimetype,timestamp',
-    filter: 'statuscode:200',
-    collapse: 'urlkey',
-    limit: '10000',
-  }).toString()
-
-  try {
-    const response = await fetchWithRetry(cdxUrl, {}, 1)
-    if (!response.ok) return []
-    const text = await response.text()
-    if (!text.trim().startsWith('[')) return []
-    const rows = JSON.parse(text)
-    return rows.slice(1)
-      .map((row) => normalizeUrl(row[0]))
-      .filter((url) => url && /\/warnings\/advisories\//i.test(url))
-      .map((url) => ({ url, method: 'wayback-cdx' }))
-  } catch {
-    return []
+async function discoverLegacyYearNumbered(years, max) {
+  const candidates = []
+  for (const year of years) {
+    for (let i = 1; i <= max; i += 1) {
+      candidates.push(`${ADVISORY_ROOT}flood_${year}_${String(i).padStart(3, '0')}.htm`)
+    }
   }
+
+  const found = []
+  let cursor = 0
+  const workers = Array.from({ length: 12 }, async () => {
+    while (cursor < candidates.length) {
+      const url = candidates[cursor]
+      cursor += 1
+      try {
+        if (await urlExists(url)) found.push({ url, method: 'legacy-year-number-probe' })
+      } catch {
+        // Missing pages are expected in sparse legacy sequences.
+      }
+    }
+  })
+  await Promise.all(workers)
+  return found
+}
+
+async function discoverWayback() {
+  const patterns = [
+    'bcrfc.env.gov.bc.ca/warnings/advisories/*',
+    'http://bcrfc.env.gov.bc.ca/warnings/advisories/*',
+    'https://bcrfc.env.gov.bc.ca/warnings/advisories/*',
+    'www.env.gov.bc.ca/bcrfc/warnings/advisories/*',
+    'www.env.gov.bc.ca/rfc/warnings/advisories/*',
+  ]
+
+  const found = []
+  for (const pattern of patterns) {
+    const cdxUrl = 'https://web.archive.org/cdx?' + new URLSearchParams({
+      url: pattern,
+      output: 'json',
+      fl: 'original,statuscode,mimetype,timestamp',
+      filter: 'statuscode:200',
+      collapse: 'urlkey',
+      limit: '2000',
+    }).toString()
+
+    try {
+      const response = await fetchWithRetry(cdxUrl, {}, 1)
+      if (!response.ok) continue
+      const text = await response.text()
+      if (!text.trim().startsWith('[')) continue
+      const rows = JSON.parse(text)
+      found.push(...rows.slice(1)
+        .map((row) => {
+          const url = normalizeUrl(row[0])
+          if (!url || !/\/warnings\/advisories\//i.test(url)) return null
+          return {
+            url,
+            method: 'wayback-cdx',
+            archiveUrl: `https://web.archive.org/web/${row[3]}id_/${row[0]}`,
+          }
+        })
+        .filter(Boolean))
+    } catch {
+      // Wayback is useful when available but often rate-limits or returns transient 503s.
+    }
+  }
+  return found
 }
 
 function mergeDiscoveries(groups) {
@@ -246,6 +318,7 @@ function mergeDiscoveries(groups) {
         url,
         methods: [item.method],
         titleHint: item.titleHint ?? null,
+        archiveUrl: item.archiveUrl ?? null,
       })
     }
   }
@@ -253,7 +326,12 @@ function mergeDiscoveries(groups) {
 }
 
 async function downloadRaw(discovery) {
-  const response = await fetchWithRetry(discovery.url)
+  let response = await fetchWithRetry(discovery.url)
+  let downloadedFrom = discovery.url
+  if (!response.ok && discovery.archiveUrl) {
+    response = await fetchWithRetry(discovery.archiveUrl)
+    downloadedFrom = discovery.archiveUrl
+  }
   if (!response.ok) {
     throw new Error(`Download failed ${response.status}`)
   }
@@ -265,6 +343,7 @@ async function downloadRaw(discovery) {
     rawPath,
     contentType: response.headers.get('content-type') ?? null,
     byteLength: bytes.byteLength,
+    downloadedFrom,
   }
 }
 
@@ -282,16 +361,44 @@ async function extractText(rawPath, url, contentType) {
 
 function parseIssuedAt(text, url) {
   const candidates = [
+    /ISSUED:\s*([A-Za-z]+\s+\d{1,2},\s+\d{4}\s+\d{1,2}:\d{2}\s*[AP]\.?M\.?)/i,
+    /Issued:\s*([A-Za-z]+\s+\d{1,2},\s+\d{4}\s+\d{1,2}:\d{2}\s*[AP]\.?M\.?)/i,
     /ISSUED:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]\.?M\.?\s+[A-Za-z]+\s+[0-9]{1,2},\s+[0-9]{4})/i,
     /Issued:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]\.?M\.?\s+[A-Za-z]+\s+[0-9]{1,2},\s+[0-9]{4})/i,
     /Issued:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]\.?M\.?\s+[A-Za-z]+\s+[0-9]{1,2}\s+[0-9]{4})/i,
+    /Updated:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]\.?M\.?\s+[A-Za-z]+\s+[0-9]{1,2},?\s+[0-9]{4})/i,
+    /Upgraded:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]\.?M\.?\s+[A-Za-z]+\s+[0-9]{1,2},?\s+[0-9]{4})/i,
   ]
   for (const pattern of candidates) {
     const match = text.match(pattern)
     if (match) return normalizeIssuedString(match[1])
   }
 
+  const hourDate = text.match(/\b(?:ISSUED|UPDATED|Updated):\s*([0-9]{1,2})([0-9]{2})h?\s+([A-Za-z]+)\s+([0-9]{1,2})(?:st|nd|rd|th)?,?\s+([0-9]{4})/i)
+  if (hourDate) {
+    const [, hour, minute, monthName, day, year] = hourDate
+    return normalizeIssuedString(`${hour}:${minute} AM ${monthName} ${day}, ${year}`)
+  }
+
+  const pmDate = text.match(/\b(?:Updated|ISSUED):\s*([0-9]{1,2}):([0-9]{2})\s*([ap])m,?\s+([A-Za-z]+)\s+([0-9]{1,2})(?:st|nd|rd|th)?,?\s+([0-9]{4})/i)
+  if (pmDate) {
+    const [, hour, minute, ampm, monthName, day, year] = pmDate
+    return normalizeIssuedString(`${hour}:${minute} ${ampm.toUpperCase()}M ${monthName} ${day}, ${year}`)
+  }
+
+  const dateTime = text.match(/\b(?:ISSUED|UPDATED):\s*([A-Za-z]+)\s+([0-9]{1,2}),?\s+([0-9]{4})\s+([0-9]{1,2}):([0-9]{2})\s*([AP]\.?M\.?)/i)
+  if (dateTime) {
+    const [, monthName, day, year, hour, minute, ampm] = dateTime
+    return normalizeIssuedString(`${hour}:${minute} ${ampm} ${monthName} ${day}, ${year}`)
+  }
+
   const filename = basename(new URL(url).pathname)
+  const compactIssued = text.match(/\b(?:Issued|Updated):\s*([0-9]{1,2})([A-Za-z]+)([0-9]{4})\s+([0-9]{1,2}:[0-9]{2}\s*[AP]\.?M\.?)/i)
+  if (compactIssued) {
+    const [, day, monthName, year, time] = compactIssued
+    return normalizeIssuedString(`${time} ${monthName} ${day}, ${year}`)
+  }
+
   const fileMatch = filename.match(/(?:HSA|FWT|FWN|FWN_FWT_HSA)_(\d{4})_(\d{2})_(\d{2})_(\d{3,4})/i)
   if (fileMatch) {
     const [, year, month, day, hhmmRaw] = fileMatch
@@ -306,19 +413,44 @@ function parseIssuedAt(text, url) {
     }
   }
 
+  const advisoryFileMatch = filename.match(/Advisory_(\d{4})([A-Za-z]+)(\d{1,2})_?(\d{3,4})?/i)
+  if (advisoryFileMatch) {
+    const [, year, monthName, day, hhmmRaw = '1200'] = advisoryFileMatch
+    const hhmm = hhmmRaw.padStart(4, '0')
+    return normalizeIssuedString(`${hhmm.slice(0, 2)}:${hhmm.slice(2)} AM ${monthName} ${day}, ${year}`)
+  }
+
+  const namedFileMatch = filename.match(/(?:FloodWarning|FloodWatch)_(\d{4})([A-Za-z]+)(\d{1,2})_?(\d{3,4})?/i)
+  if (namedFileMatch) {
+    const [, year, monthName, day, hhmmRaw = '1200'] = namedFileMatch
+    const hhmm = hhmmRaw.padStart(4, '0')
+    return normalizeIssuedString(`${hhmm.slice(0, 2)}:${hhmm.slice(2)} AM ${monthName} ${day}, ${year}`)
+  }
+
   return { issuedAtLocal: null, issuedAt: null, issuedYear: null }
 }
 
 function normalizeIssuedString(value) {
   const clean = value.replace(/\./g, '').replace(/\s+/g, ' ').trim()
+  const dateFirstMatch = clean.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})\s+(\d{1,2}):(\d{2})\s*([AP]M)$/i)
+  if (dateFirstMatch) {
+    const [, monthText, dayText, yearText, hourText, minuteText, ampm] = dateFirstMatch
+    return buildIssuedResult(clean, hourText, minuteText, ampm, monthText, dayText, yearText)
+  }
+
   const match = clean.match(/^(\d{1,2}):(\d{2})\s*([AP]M)\s+([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/i)
   if (!match) return { issuedAtLocal: clean, issuedAt: null, issuedYear: null }
-  let [, hourText, minuteText, ampm, monthText, dayText, yearText] = match
+  const [, hourText, minuteText, ampm, monthText, dayText, yearText] = match
+  return buildIssuedResult(clean, hourText, minuteText, ampm, monthText, dayText, yearText)
+}
+
+function buildIssuedResult(clean, hourText, minuteText, ampm, monthText, dayText, yearText) {
   let hour = Number(hourText)
   const minute = Number(minuteText)
   if (/pm/i.test(ampm) && hour !== 12) hour += 12
   if (/am/i.test(ampm) && hour === 12) hour = 0
   const month = MONTHS[monthText.toLowerCase()]
+  if (month == null) return { issuedAtLocal: clean, issuedAt: null, issuedYear: Number(yearText) || null }
   const date = new Date(Number(yearText), month, Number(dayText), hour, minute)
   return {
     issuedAtLocal: clean,
@@ -412,6 +544,55 @@ function dedupeEvents(events) {
   return Array.from(byKey.values())
 }
 
+function summarizeConsistency(events) {
+  const eras = {
+    legacyArchived: events.filter((event) => (event.issuedYear ?? 0) < 2018 || event.issuedYear == null),
+    htmlTemplate: events.filter((event) => (event.issuedYear ?? 0) >= 2018 && (event.issuedYear ?? 0) <= 2020),
+    pdfTemplate: events.filter((event) => (event.issuedYear ?? 0) >= 2021),
+  }
+
+  const summarize = (items) => ({
+    records: items.length,
+    withIssuedAt: items.filter((event) => event.issuedAt).length,
+    withLevels: items.filter((event) => event.levels.length > 0).length,
+    withStatuses: items.filter((event) => event.statuses.length > 0).length,
+    withMatchedBoundaries: items.filter((event) => event.matchedBoundaries.length > 0).length,
+    withExtractedText: items.filter((event) => event.textLength > 0).length,
+    formats: items.reduce((acc, event) => {
+      const format = event.url.toLowerCase().endsWith('.pdf') ? 'pdf' : 'html'
+      acc[format] = (acc[format] ?? 0) + 1
+      return acc
+    }, {}),
+  })
+
+  return {
+    schema: {
+      stableFields: [
+        'id',
+        'url',
+        'title',
+        'issuedAt',
+        'issuedAtLocal',
+        'issuedYear',
+        'levels',
+        'statuses',
+        'namedAreas',
+        'matchedBoundaries',
+        'rawPath',
+        'textPath',
+      ],
+      variableFields: [
+        'title verbosity and ministry header',
+        'date wording',
+        'PDF versus legacy HTML source format',
+        'region naming granularity',
+        'station/return-period detail in narrative text',
+      ],
+    },
+    eras: Object.fromEntries(Object.entries(eras).map(([key, items]) => [key, summarize(items)])),
+  }
+}
+
 async function mapLimit(items, limit, mapper) {
   const results = []
   let cursor = 0
@@ -457,6 +638,7 @@ async function processDiscovery(discovery, boundaryNames) {
         matchedBoundaries,
         rawPath: downloaded.rawPath.replace(/^public\//, '/'),
         textPath: textPath.replace(/^public\//, '/'),
+        downloadedFrom: downloaded.downloadedFrom,
         contentType: downloaded.contentType,
         byteLength: downloaded.byteLength,
         textLength: text.length,
@@ -483,8 +665,9 @@ async function main() {
   const current = await discoverCurrentIndex()
   const seeds = await discoverSeedFile()
   const legacy = options.legacy ? await discoverLegacyNumbered(options.legacyMax) : []
+  const legacyYear = options.legacyYear ? await discoverLegacyYearNumbered(options.legacyYears, options.legacyYearMax) : []
   const wayback = options.wayback ? await discoverWayback() : []
-  const discoveries = mergeDiscoveries([current, seeds, legacy, wayback])
+  const discoveries = mergeDiscoveries([current, seeds, legacy, legacyYear, wayback])
   console.log(`Discovered ${discoveries.length} unique advisory URLs`)
 
   const boundaryNames = await loadBoundaryNames()
@@ -513,6 +696,7 @@ async function main() {
     }
     return acc
   }, {})
+  const consistency = summarizeConsistency(events)
 
   const manifest = {
     generatedAt: new Date().toISOString(),
@@ -527,10 +711,13 @@ async function main() {
       currentIndex: current.length,
       seedFile: seeds.length,
       legacyNumberProbe: legacy.length,
+      legacyYearNumberProbe: legacyYear.length,
       waybackCdx: wayback.length,
       uniqueUrls: discoveries.length,
       failures: failures.length,
       legacyMax: options.legacy ? options.legacyMax : null,
+      legacyYearMax: options.legacyYear ? options.legacyYearMax : null,
+      legacyYears: options.legacyYear ? options.legacyYears : [],
     },
     records: {
       advisories: events.length,
@@ -541,6 +728,7 @@ async function main() {
       yearCounts,
       levelCounts,
     },
+    consistency,
     limitations: [
       'BC RFC does not expose a public archive listing for /warnings/advisories; directory listing returns 403.',
       'Historical completeness is limited to URLs discoverable from the current index, seed file, legacy numbered probes, and optional Wayback CDX results.',
