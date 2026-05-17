@@ -1,3 +1,6 @@
 [submodule "vendor/json-url"]
 	path = vendor/json-url
 	url = https://github.com/ahzs645/json-url.git
+[submodule "vendor/bcdatamapper"]
+	path = vendor/bcdatamapper
+	url = https://github.com/ahzs645/bcdatamapper.git
