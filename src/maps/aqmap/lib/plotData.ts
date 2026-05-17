@@ -78,14 +78,3 @@ export async function fetchAqmapPlotSeries(monitor: AirMonitor, signal?: AbortSi
   return { points: makeFallbackPlotSeries(monitor), source: 'fallback' }
 }
 
-export function makePlotPolyline(points: AqPlotPoint[]): string {
-  const values = points.map((point) => point.pm25)
-  const max = Math.max(5, ...values)
-  return values
-    .map((value, index) => {
-      const x = 26 + (index / Math.max(1, values.length - 1)) * 228
-      const y = 90 - (Math.min(value, max) / max) * 66
-      return `${x.toFixed(1)},${y.toFixed(1)}`
-    })
-    .join(' ')
-}

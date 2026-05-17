@@ -82,12 +82,12 @@ export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
   {
     key: 'visibleSmoke',
     label: 'Visible Smoke',
-    fill: '#9ca3af',
-    opacity: 0.38,
+    fill: '#D7FC6B',
+    opacity: 0.45,
     legend: [
-      { label: 'Light', color: '#d1d5db' },
-      { label: 'Medium', color: '#9ca3af' },
-      { label: 'Heavy', color: '#4b5563' },
+      { label: 'Light', color: '#8CF183' },
+      { label: 'Medium', color: '#D7FC6B' },
+      { label: 'Heavy', color: '#E19651' },
     ],
     data: {
       type: 'FeatureCollection',
@@ -95,7 +95,7 @@ export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
         {
           type: 'Feature',
           properties: {
-            fill: '#9ca3af',
+            fill: '#D7FC6B',
             density: 'Medium',
           },
           geometry: {
@@ -114,7 +114,7 @@ export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
         {
           type: 'Feature',
           properties: {
-            fill: '#4b5563',
+            fill: '#E19651',
             density: 'Heavy',
           },
           geometry: {
@@ -134,6 +134,15 @@ export const SMOKE_LAYERS: SmokeLayerDefinition[] = [
     },
   },
 ]
+
+export const HMS_DENSITY_COLORS: Record<string, string> = {
+  Light: '#8CF183',
+  Faible: '#8CF183',
+  Medium: '#D7FC6B',
+  Moyen: '#D7FC6B',
+  Heavy: '#E19651',
+  Haute: '#E19651',
+}
 
 export const SMOKE_FALLBACK_DATA: SmokeLayerDataMap = {
   modelledSmoke: SMOKE_LAYERS[0].data,

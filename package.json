@@ -49,14 +49,14 @@
     "bc-assessment:refresh": "npm --prefix vendor/bcdatamapper run bc-assessment:refresh --",
     "food-health:refresh": "npm --prefix vendor/bcdatamapper run food-health:refresh --",
     "food-health:geocode": "npm --prefix vendor/bcdatamapper run food-health:geocode --",
+    "walkability:build": "npm --prefix vendor/bcdatamapper run walkability:build --",
+    "walkability:import-supplements": "npm --prefix vendor/bcdatamapper run walkability:import-supplements --",
+    "walkability:build-grid-heatmap": "npm --prefix vendor/bcdatamapper run walkability:build-grid-heatmap --",
     "lint": "eslint src/",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "e2e": "playwright test",
-    "e2e:headed": "playwright test --headed",
-    "walkability:import-supplements": "npm --prefix vendor/bcdatamapper run walkability:import-supplements --",
-    "walkability:build-grid-heatmap": "npm --prefix vendor/bcdatamapper run walkability:build-grid-heatmap --",
-    "walkability:build": "npm --prefix vendor/bcdatamapper run walkability:build --"
+    "e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@firstform/json-url": "file:vendor/json-url",
@@ -71,6 +71,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.0",
     "gsap": "^3.14.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "jsts": "^2.12.1",
     "lucide-react": "^0.562.0",
     "maplibre-gl": "^5.15.0",
@@ -81,6 +83,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.22.0",
+    "recharts": "^3.8.1",
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {

@@ -121,6 +121,7 @@ export type ScoreAggregationMethod =
   | 'cumulativeBurden'
   | 'modulePercentileRankedSum'
   | 'healthyPlanPairwisePriority'
+  | 'accessThreshold'
 export type ScoreNormalizationScope = 'activeBoundaryLevel'
 export type ScoreMetricDirection = 'higherIsBetter' | 'higherIsWorse'
 export type ScoreMetricComponent =
@@ -151,6 +152,11 @@ export interface ScoreMethodSettings {
     demographicMetric: ScoreMetricKey | null
     environmentMetric: ScoreMetricKey | null
   }
+  accessThreshold: {
+    minimumAccess: number
+    minimumHits: number
+  }
+  metricModuleOverrides: Partial<Record<ScoreMetricKey, ScoreIndexModule>>
 }
 
 export interface ScoreMetricDefinition {
@@ -388,6 +394,9 @@ export interface ScenarioComparison {
   topChanged: boolean
   stableTopShare: number
   averageRankShift: number
+  changedMost: Array<{ regionId: string; regionName: string; delta: number }>
+  alwaysHighPriority: Array<{ regionId: string; regionName: string }>
+  sensitiveRegions: Array<{ regionId: string; regionName: string; rankShift: number }>
 }
 
 export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; description: string }> = [

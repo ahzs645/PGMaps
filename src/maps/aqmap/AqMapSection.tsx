@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Crosshair, Layers, LineChart, MapPin, RadioTower, RefreshCw, RotateCcw } from 'lucide-react'
+import { Crosshair, Download, FileImage, FileText, Globe, Layers, LineChart, MapPin, RadioTower, RefreshCw, RotateCcw } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Map as PgMap, MapControls, MapPopup, useMap } from '@/components/ui/map'
 import { MapImageLegend, MapSteppedLegend } from '@/components/ui/map-panels'
@@ -7,23 +7,18 @@ import { MAP_STYLES } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
 import { useAirQualityData, type AirMonitor } from '@/maps/airquality'
 import {
+  getAqhiCategory,
   getAqhiColor,
   getMonitorAqhiPm25,
 } from '@/maps/airquality/lib/monitorPopup'
 import {
-  formatAqmapPm25,
-  getAqmapHealthMessage,
-  getAqmapMonitorType,
-  getAqmapObservationRows,
-  getAqmapObservedLabel,
-  getGroupLabel,
   getMonitorGroup,
   monitorKey,
   type AqBasemap,
   type AqMonitorGroup,
 } from './lib/monitorPresentation'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from './lib/markerIcons'
-import { fetchAqmapPlotSeries, makePlotPolyline, type AqPlotPoint } from './lib/plotData'
+import { fetchAqmapPlotSeries, type AqPlotPoint } from './lib/plotData'
 import { useAqmapSmokeLayers } from './lib/useAqmapSmokeLayers'
 import { type SmokeLayerDefinition, type SmokeLayerKey } from './lib/smokeLayers'
 import {
@@ -37,6 +32,21 @@ import {
   serializeSet,
 } from './lib/urlState'
 import { WMS_LAYERS, type WmsLayerDefinition, type WmsLayerKey } from './lib/wmsLayers'
+import {
+  buildObservationRowLabels,
+  formatAqmapPm25Localized,
+  formatGroupLabel,
+  formatLocalizedDate,
+  localizeHealthMessage,
+  localizeMonitorType,
+  localizeSmokeDensity,
+  localizeSmokeLabel,
+  localizeWmsLabel,
+  translate,
+  type AqmapLocale,
+} from './lib/i18n'
+import { exportAqmap, type ExportFormat } from './lib/exportMap'
+import { MonitorPlotChart } from './components/MonitorPlotChart'
 import type maplibregl from 'maplibre-gl'
 
 interface AqMapFeatureProperties {
@@ -61,11 +71,18 @@ interface AqMapFeatureProperties {
 
 const URL_UPDATE_DELAY_MS = 350
 
-const AQHI_STOPS = [
-  { max: 30, color: '#3bb54a', label: 'Low', range: '0-29.9' },
-  { max: 60, color: '#f7d13d', label: 'Moderate', range: '30-59.9' },
-  { max: 100, color: '#f59e0b', label: 'High', range: '60-99.9' },
-  { max: Number.POSITIVE_INFINITY, color: '#c81e1e', label: 'Very high' },
+const AQHI_STOPS: Array<{ color: string; labelKey: string; rangeKey: string }> = [
+  { color: '#3bb54a', labelKey: 'aqhi.low', rangeKey: 'aqhi.range.low' },
+  { color: '#f7d13d', labelKey: 'aqhi.moderate', rangeKey: 'aqhi.range.moderate' },
+  { color: '#f59e0b', labelKey: 'aqhi.high', rangeKey: 'aqhi.range.high' },
+  { color: '#c81e1e', labelKey: 'aqhi.veryHigh', rangeKey: 'aqhi.range.veryHigh' },
+]
+
+const EXPORT_OPTIONS: Array<{ format: ExportFormat; labelKey: string; icon: typeof FileImage }> = [
+  { format: 'png', labelKey: 'export.png', icon: FileImage },
+  { format: 'pngOverlay', labelKey: 'export.pngWithOverlays', icon: FileImage },
+  { format: 'jpeg', labelKey: 'export.jpeg', icon: FileImage },
+  { format: 'pdf', labelKey: 'export.pdf', icon: FileText },
 ]
 
 const OSM_LIGHT_STYLE: maplibregl.StyleSpecification = {
@@ -98,21 +115,10 @@ const BASEMAP_STYLES: Record<AqBasemap, { light: string | maplibregl.StyleSpecif
   },
 }
 
-function formatDate(value: string | null | undefined): string {
-  if (!value) return 'No timestamp'
-  const date = new Date(value.replace(' ', 'T'))
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date)
-}
-
-function basemapLabel(value: AqBasemap): string {
-  return value === 'light' ? 'Light Theme' : 'Dark Theme'
+function basemapLabel(value: AqBasemap, locale: AqmapLocale): string {
+  return value === 'light'
+    ? translate('sidebar.basemap.light', locale)
+    : translate('sidebar.basemap.dark', locale)
 }
 
 function ToggleButton({
@@ -151,6 +157,10 @@ function AqMapSidebar({
   onToggleSmokeLayer,
   basemap,
   onBasemapChange,
+  locale,
+  onLocaleChange,
+  onExport,
+  exportStatus,
   loading,
   error,
 }: {
@@ -163,6 +173,10 @@ function AqMapSidebar({
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
   basemap: AqBasemap
   onBasemapChange: (basemap: AqBasemap) => void
+  locale: AqmapLocale
+  onLocaleChange: (locale: AqmapLocale) => void
+  onExport: (format: ExportFormat) => void
+  exportStatus: { format: ExportFormat | null; error: string | null }
   loading: boolean
   error: string | null
   smokeLayers: SmokeLayerDefinition[]
@@ -185,27 +199,29 @@ function AqMapSidebar({
     .sort()
     .at(-1)
 
+  const numberLocale = locale === 'fr' ? 'fr-CA' : 'en-CA'
+
   return (
     <aside className="flex h-full flex-col bg-background">
       <div className="border-b border-border p-4">
         <div className="flex items-center gap-2">
           <RadioTower className="size-4 text-primary" />
-          <h1 className="text-base font-semibold text-foreground">AQmap</h1>
+          <h1 className="text-base font-semibold text-foreground">{translate('app.title', locale)}</h1>
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Static reimplementation of the AQmap monitor and overlay view.
+          {translate('app.subtitle', locale)}
         </p>
       </div>
 
       <div className="space-y-5 overflow-y-auto p-4">
         <section className="grid grid-cols-2 gap-2">
           <div className="rounded-md border border-border bg-secondary/30 p-3">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Visible</div>
-            <div className="mt-1 text-xl font-semibold text-foreground">{visibleCount.toLocaleString()}</div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{translate('sidebar.visible', locale)}</div>
+            <div className="mt-1 text-xl font-semibold text-foreground">{visibleCount.toLocaleString(numberLocale)}</div>
           </div>
           <div className="rounded-md border border-border bg-secondary/30 p-3">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">PM2.5</div>
-            <div className="mt-1 text-xl font-semibold text-foreground">{recentCount.toLocaleString()}</div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{translate('sidebar.pm25Count', locale)}</div>
+            <div className="mt-1 text-xl font-semibold text-foreground">{recentCount.toLocaleString(numberLocale)}</div>
           </div>
         </section>
 
@@ -217,14 +233,38 @@ function AqMapSidebar({
 
         <section>
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Globe className="size-3.5" />
+            {translate('sidebar.language', locale)}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {(['en', 'fr'] as AqmapLocale[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onLocaleChange(option)}
+                className={cn(
+                  'rounded-md border px-3 py-2 text-sm transition-colors',
+                  locale === option
+                    ? 'border-primary/50 bg-primary/10 text-foreground'
+                    : 'border-border bg-background text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
+                )}
+              >
+                {option === 'en' ? 'English' : 'Français'}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <MapPin className="size-3.5" />
-            Monitor Layers
+            {translate('sidebar.monitorLayers', locale)}
           </div>
           <div className="space-y-2">
             {(['agency', 'lcm', 'other'] as AqMonitorGroup[]).map((group) => (
               <ToggleButton key={group} active={visibleGroups.has(group)} onClick={() => onToggleGroup(group)}>
-                <span>{getGroupLabel(group)}</span>
-                <span className="text-xs font-medium">{counts[group].toLocaleString()}</span>
+                <span>{formatGroupLabel(group, locale)}</span>
+                <span className="text-xs font-medium">{counts[group].toLocaleString(numberLocale)}</span>
               </ToggleButton>
             ))}
           </div>
@@ -232,24 +272,27 @@ function AqMapSidebar({
 
         {visibleWmsLayers.size > 0 && (
           <section>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">WMS Legends</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.wmsLegends', locale)}</div>
             <div className="space-y-3">
-              {WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key)).map((layer) => (
-                <div key={layer.key}>
-                  {layer.legendUrl ? (
-                    <MapImageLegend
-                      src={layer.legendUrl}
-                      alt={`${layer.label} legend`}
-                      label={layer.label}
-                    />
-                  ) : (
-                    <div className="rounded-md border border-border bg-secondary/30 p-3">
-                      <div className="mb-2 text-xs font-medium text-foreground">{layer.label}</div>
-                      <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
-                    </div>
-                  )}
-                </div>
-              ))}
+              {WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key)).map((layer) => {
+                const label = localizeWmsLabel(layer.key, locale)
+                return (
+                  <div key={layer.key}>
+                    {layer.legendUrl ? (
+                      <MapImageLegend
+                        src={layer.legendUrl}
+                        alt={`${label} legend`}
+                        label={label}
+                      />
+                    ) : (
+                      <div className="rounded-md border border-border bg-secondary/30 p-3">
+                        <div className="mb-2 text-xs font-medium text-foreground">{label}</div>
+                        <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </section>
         )}
@@ -257,7 +300,7 @@ function AqMapSidebar({
         <section>
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Layers className="size-3.5" />
-            Overlays
+            {translate('sidebar.overlays', locale)}
           </div>
           <div className="space-y-2">
             {smokeLayers.map((layer) => (
@@ -266,8 +309,8 @@ function AqMapSidebar({
                 active={visibleSmokeLayers.has(layer.key)}
                 onClick={() => onToggleSmokeLayer(layer.key)}
               >
-                <span>{layer.label}</span>
-                <span className="text-xs font-medium">Smoke</span>
+                <span>{localizeSmokeLabel(layer.key, locale)}</span>
+                <span className="text-xs font-medium">{translate('smoke.tag', locale)}</span>
               </ToggleButton>
             ))}
             {WMS_LAYERS.map((layer) => {
@@ -280,9 +323,9 @@ function AqMapSidebar({
                 >
                   <span className="flex items-center gap-2">
                     <Icon className="size-3.5" />
-                    {layer.label}
+                    {localizeWmsLabel(layer.key, locale)}
                   </span>
-                  <span className="text-xs font-medium">WMS</span>
+                  <span className="text-xs font-medium">{translate('wms.tag', locale)}</span>
                 </ToggleButton>
               )
             })}
@@ -290,7 +333,7 @@ function AqMapSidebar({
         </section>
 
         <section>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Basemap</div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.basemap', locale)}</div>
           <div className="grid grid-cols-2 gap-2">
             {(['light', 'dark'] as AqBasemap[]).map((option) => (
               <button
@@ -304,32 +347,62 @@ function AqMapSidebar({
                     : 'border-border bg-background text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
                 )}
               >
-                {basemapLabel(option)}
+                {basemapLabel(option, locale)}
               </button>
             ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Download className="size-3.5" />
+            {translate('sidebar.export', locale)}
+          </div>
+          <div className="space-y-2">
+            {EXPORT_OPTIONS.map(({ format, labelKey, icon: Icon }) => (
+              <button
+                key={format}
+                type="button"
+                onClick={() => onExport(format)}
+                disabled={exportStatus.format === format}
+                className="flex w-full items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-secondary/60 disabled:opacity-60"
+              >
+                <span className="flex items-center gap-2">
+                  <Icon className="size-3.5" />
+                  {translate(labelKey, locale)}
+                </span>
+                {exportStatus.format === format && (
+                  <span className="text-xs text-muted-foreground">{translate('export.preparing', locale)}</span>
+                )}
+              </button>
+            ))}
+            {exportStatus.error && (
+              <div className="text-xs text-destructive">{exportStatus.error}</div>
+            )}
           </div>
         </section>
 
         <section className="rounded-md border border-border bg-secondary/30 p-3 text-xs leading-5 text-muted-foreground">
           <div className="flex items-center gap-2 font-medium text-foreground">
             <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
-            Static snapshot
+            {translate('app.snapshot', locale)}
           </div>
-          <div className="mt-1">Latest monitor timestamp: {formatDate(latestDate)}</div>
-          <div>Monitor data: <span className="font-medium text-foreground">aqmap-compatible endpoints</span></div>
+          <div className="mt-1">{translate('app.latestObservation', locale)} {formatLocalizedDate(latestDate, locale)}</div>
+          <div>{translate('app.monitorData', locale)} <span className="font-medium text-foreground">{translate('app.endpoints', locale)}</span></div>
         </section>
 
         <section>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">PM2.5 Legend</div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.pm25Legend', locale)}</div>
           <div className="space-y-1.5">
             {AQHI_STOPS.map((stop) => (
-              <div key={stop.label} className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div key={stop.labelKey} className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="size-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: stop.color }} />
                 <span>
-                  {stop.label}
+                  {translate(stop.labelKey, locale)}
                   {' '}
-                  {stop.range ?? '100+'}
-                  {' ug m-3'}
+                  {translate(stop.rangeKey, locale)}
+                  {' '}
+                  {translate('aqhi.unit', locale)}
                 </span>
               </div>
             ))}
@@ -337,12 +410,12 @@ function AqMapSidebar({
         </section>
 
         <section>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Monitor Icon Legend</div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.iconLegend', locale)}</div>
           <div className="space-y-1.5 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2"><span className="size-3 rotate-45 border border-foreground bg-emerald-400" /> Regulatory (FEM)</div>
-            <div className="flex items-center gap-2"><span className="size-3 rounded-full border border-foreground bg-emerald-400" /> PurpleAir / LCM</div>
-            <div className="flex items-center gap-2"><span className="size-3 border border-foreground bg-emerald-400" /> AQegg</div>
-            <div className="flex items-center gap-2"><span className="size-2 rounded-full border border-foreground bg-slate-400" /> Missing recent data</div>
+            <div className="flex items-center gap-2"><span className="size-3 rotate-45 border border-foreground bg-emerald-400" /> {translate('monitorType.fem', locale)}</div>
+            <div className="flex items-center gap-2"><span className="size-3 rounded-full border border-foreground bg-emerald-400" /> {translate('monitorType.pa', locale)} / {translate('groups.lcm', locale)}</div>
+            <div className="flex items-center gap-2"><span className="size-3 border border-foreground bg-emerald-400" /> {translate('monitorType.egg', locale)}</div>
+            <div className="flex items-center gap-2"><span className="size-2 rounded-full border border-foreground bg-slate-400" /> {translate('monitorType.missing', locale)}</div>
           </div>
         </section>
       </div>
@@ -499,7 +572,7 @@ function AqMonitorLayer({
               name: monitor.name,
               network: monitor.network,
               group,
-              groupLabel: getGroupLabel(group),
+              groupLabel: formatGroupLabel(group, 'en'),
               city: monitor.city ?? '',
               province: monitor.province ?? '',
               status: monitor.status ?? '',
@@ -623,15 +696,33 @@ function AqMonitorLayer({
   return null
 }
 
-function MonitorPopup({ monitor, onClose }: { monitor: AirMonitor; onClose: () => void }) {
+function MonitorPopup({ monitor, locale, onClose }: { monitor: AirMonitor; locale: AqmapLocale; onClose: () => void }) {
   const { map } = useMap()
   const contentRef = useRef<HTMLDivElement>(null)
   const [showPlot, setShowPlot] = useState(false)
   const [plotPoints, setPlotPoints] = useState<AqPlotPoint[]>([])
   const [plotSource, setPlotSource] = useState<'endpoint' | 'fallback'>('fallback')
   const pm25 = getMonitorAqhiPm25(monitor)
-  const health = getAqmapHealthMessage(monitor)
-  const observationRows = getAqmapObservationRows(monitor)
+  const aqhiCategory = getAqhiCategory(pm25)
+  const health = localizeHealthMessage(aqhiCategory, locale)
+  const monitorTypeLabel = localizeMonitorType(monitor.network, locale)
+  const labelMap = useMemo(() => {
+    const map = new Map<string, { label: string; title: string }>()
+    for (const entry of buildObservationRowLabels(locale)) {
+      map.set(entry.key, { label: entry.label, title: entry.title })
+    }
+    return map
+  }, [locale])
+  const isFem = monitor.network === 'FEM' || monitor.network === 'BC ENV'
+  const observationValues: Array<{ key: string; value: number | null }> = [
+    { key: 'pm25_10min', value: monitor.pm25Recent ?? null },
+    { key: 'pm25_1hr', value: monitor.pm25OneHour ?? null },
+    { key: 'pm25_3hr', value: monitor.pm25ThreeHour ?? null },
+    { key: 'pm25_24hr', value: monitor.pm25TwentyFourHour ?? null },
+  ]
+  const visibleObservationRows = isFem
+    ? observationValues.filter((row) => row.key !== 'pm25_10min')
+    : observationValues
 
   useEffect(() => {
     if (!map) return
@@ -674,33 +765,38 @@ function MonitorPopup({ monitor, onClose }: { monitor: AirMonitor; onClose: () =
     >
       <div ref={contentRef} className="p-2 pr-6 text-[12px] leading-[1.35] text-black">
         <div className="popup_title" style={{ verticalAlign: 'middle' }}>
-          <span title="Name assigned to this monitor.">
+          <span title={monitor.name}>
             <big><strong>{monitor.name}</strong></big>
           </span>
         </div>
-        <div className="text-[12px] italic">{getAqmapMonitorType(monitor)} monitor</div>
+        <div className="text-[12px] italic">{monitorTypeLabel} {translate('popup.monitor', locale)}</div>
         <div className="text-[12px]">
-          Observed PM<sub>2.5</sub> as of: {getAqmapObservedLabel(monitor).replace(/^Observed PM2\.5 as of: /, '')}
+          <span dangerouslySetInnerHTML={{ __html: translate('popup.observedAsOf', locale) }} />{' '}
+          {formatLocalizedDate(monitor.dateObserved, locale)}
         </div>
         <table className="mt-1">
           <tbody>
-            {observationRows.map((row) => (
-              <tr key={row.key}>
-                <td className="popup_value pr-3" title={row.title}>
-                  <b>{row.label}:</b>
-                </td>
-                <td className="popup_value">
-                  {formatAqmapPm25(row.value)} <span dangerouslySetInnerHTML={{ __html: '&mu;g m<sup>-3</sup>' }} />
-                </td>
-              </tr>
-            ))}
+            {visibleObservationRows.map((row) => {
+              const labels = labelMap.get(row.key)
+              return (
+                <tr key={row.key}>
+                  <td className="popup_value pr-3" title={labels?.title}>
+                    <b>{labels?.label}:</b>
+                  </td>
+                  <td className="popup_value">
+                    {formatAqmapPm25Localized(row.value, locale)}{' '}
+                    <span dangerouslySetInnerHTML={{ __html: '&mu;g m<sup>-3</sup>' }} />
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
         <table className="mt-1">
           <tbody>
             <tr>
               <td style={{ verticalAlign: 'middle' }}>
-                <span title="Health messaging based on the AQHI+ system.">
+                <span title={translate('popup.healthMessage', locale)}>
                   <b>{health.heading}</b>
                 </span>
                 <br />
@@ -718,30 +814,24 @@ function MonitorPopup({ monitor, onClose }: { monitor: AirMonitor; onClose: () =
             className="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-1 text-xs font-medium text-foreground hover:bg-secondary"
           >
             <LineChart className="size-3.5" />
-            Plot Timeseries
+            {translate('popup.plotButton', locale)}
           </button>
         </div>
         {showPlot && (
           <div className="mt-3 rounded-md border border-border bg-secondary/20 p-2">
             <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>Hourly PM2.5</span>
-              <span>{plotSource === 'endpoint' ? '/data/plotting' : 'Fallback data'}</span>
+              <span>{translate('popup.hourlyPm25', locale)}</span>
+              <span>{plotSource === 'endpoint' ? translate('popup.plotSource.endpoint', locale) : translate('popup.plotSource.fallback', locale)}</span>
             </div>
-            <svg viewBox="0 0 280 110" className="h-[110px] w-full rounded bg-background">
-              <line x1="24" y1="90" x2="260" y2="90" stroke="currentColor" strokeOpacity="0.25" />
-              <line x1="24" y1="20" x2="24" y2="90" stroke="currentColor" strokeOpacity="0.25" />
-              <polyline
-                points={makePlotPolyline(plotPoints)}
-                fill="none"
-                stroke={getAqhiColor(pm25)}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <text x="30" y="32" className="fill-current text-[10px]">
-                Now {formatAqmapPm25(pm25)} ug m-3
-              </text>
-            </svg>
+            <MonitorPlotChart
+              points={plotPoints}
+              locale={locale}
+              highlightColor={getAqhiColor(pm25)}
+              height={220}
+            />
+            <div className="mt-1 text-[10px] text-muted-foreground">
+              {translate('popup.now', locale)}: {formatAqmapPm25Localized(pm25, locale)} {translate('aqhi.unit', locale)}
+            </div>
           </div>
         )}
       </div>
@@ -749,8 +839,23 @@ function MonitorPopup({ monitor, onClose }: { monitor: AirMonitor; onClose: () =
   )
 }
 
-function MonitorTooltip({ monitor }: { monitor: AirMonitor }) {
-  const rows = getAqmapObservationRows(monitor)
+function MonitorTooltip({ monitor, locale }: { monitor: AirMonitor; locale: AqmapLocale }) {
+  const monitorTypeLabel = localizeMonitorType(monitor.network, locale)
+  const labelMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const entry of buildObservationRowLabels(locale)) {
+      map.set(entry.key, entry.label)
+    }
+    return map
+  }, [locale])
+  const isFem = monitor.network === 'FEM' || monitor.network === 'BC ENV'
+  const observations: Array<{ key: string; value: number | null }> = [
+    { key: 'pm25_10min', value: monitor.pm25Recent ?? null },
+    { key: 'pm25_1hr', value: monitor.pm25OneHour ?? null },
+    { key: 'pm25_3hr', value: monitor.pm25ThreeHour ?? null },
+    { key: 'pm25_24hr', value: monitor.pm25TwentyFourHour ?? null },
+  ]
+  const rows = isFem ? observations.filter((row) => row.key !== 'pm25_10min') : observations
 
   return (
     <MapPopup
@@ -765,15 +870,19 @@ function MonitorTooltip({ monitor }: { monitor: AirMonitor }) {
     >
       <div className="text-xs">
         <div className="tooltip_title truncate font-semibold text-foreground">{monitor.name}</div>
-        <div className="mt-0.5 text-[11px] italic text-muted-foreground">{getAqmapMonitorType(monitor)} monitor</div>
-        <div className="mt-1 text-[11px] text-muted-foreground">Observed PM<sub>2.5</sub> as of: {getAqmapObservedLabel(monitor).replace(/^Observed PM2\.5 as of: /, '')}</div>
+        <div className="mt-0.5 text-[11px] italic text-muted-foreground">{monitorTypeLabel} {translate('popup.monitor', locale)}</div>
+        <div className="mt-1 text-[11px] text-muted-foreground">
+          <span dangerouslySetInnerHTML={{ __html: translate('popup.observedAsOf', locale) }} />{' '}
+          {formatLocalizedDate(monitor.dateObserved, locale)}
+        </div>
         <table className="mt-1 w-full text-[11px]">
           <tbody>
             {rows.map((row) => (
               <tr key={row.key}>
-                <td className="pr-3 text-muted-foreground">{row.label}:</td>
+                <td className="pr-3 text-muted-foreground">{labelMap.get(row.key)}:</td>
                 <td className="popup_value text-right font-medium text-foreground">
-                  {formatAqmapPm25(row.value)} <span dangerouslySetInnerHTML={{ __html: '&mu;g m<sup>-3</sup>' }} />
+                  {formatAqmapPm25Localized(row.value, locale)}{' '}
+                  <span dangerouslySetInnerHTML={{ __html: '&mu;g m<sup>-3</sup>' }} />
                 </td>
               </tr>
             ))}
@@ -794,6 +903,7 @@ function FloatingLayerControl({
   visibleSmokeLayers,
   onToggleSmokeLayer,
   smokeLayers,
+  locale,
 }: {
   basemap: AqBasemap
   onBasemapChange: (basemap: AqBasemap) => void
@@ -804,39 +914,40 @@ function FloatingLayerControl({
   visibleSmokeLayers: Set<SmokeLayerKey>
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
   smokeLayers: SmokeLayerDefinition[]
+  locale: AqmapLocale
 }) {
   return (
     <div
       className="absolute z-10 w-56 rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur"
       style={{ top: 12, right: 12 }}
     >
-      <div className="font-semibold text-foreground">Basemaps</div>
+      <div className="font-semibold text-foreground">{translate('controls.basemaps', locale)}</div>
       <div className="mt-1 space-y-1">
         {(['light', 'dark'] as AqBasemap[]).map((option) => (
           <label key={option} className="flex items-center gap-2 text-muted-foreground">
             <input type="radio" checked={basemap === option} onChange={() => onBasemapChange(option)} />
-            <span>{basemapLabel(option)}</span>
+            <span>{basemapLabel(option, locale)}</span>
           </label>
         ))}
       </div>
-      <div className="mt-3 font-semibold text-foreground">Layers</div>
+      <div className="mt-3 font-semibold text-foreground">{translate('controls.layers', locale)}</div>
       <div className="mt-1 max-h-72 space-y-1 overflow-y-auto">
         {(['agency', 'lcm', 'other'] as AqMonitorGroup[]).map((group) => (
           <label key={group} className="flex items-center gap-2 text-muted-foreground">
             <input type="checkbox" checked={visibleGroups.has(group)} onChange={() => onToggleGroup(group)} />
-            <span>{getGroupLabel(group)}</span>
+            <span>{formatGroupLabel(group, locale)}</span>
           </label>
         ))}
         {smokeLayers.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
             <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
-            <span>{layer.label}</span>
+            <span>{localizeSmokeLabel(layer.key, locale)}</span>
           </label>
         ))}
         {WMS_LAYERS.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
             <input type="checkbox" checked={visibleWmsLayers.has(layer.key)} onChange={() => onToggleWmsLayer(layer.key)} />
-            <span>{layer.label}</span>
+            <span>{localizeWmsLabel(layer.key, locale)}</span>
           </label>
         ))}
       </div>
@@ -848,10 +959,12 @@ function FloatingLegends({
   visibleWmsLayers,
   visibleSmokeLayers,
   smokeLayers,
+  locale,
 }: {
   visibleWmsLayers: Set<WmsLayerKey>
   visibleSmokeLayers: Set<SmokeLayerKey>
   smokeLayers: SmokeLayerDefinition[]
+  locale: AqmapLocale
 }) {
   const visibleWms = WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key) && layer.legendUrl)
   const visibleSmoke = smokeLayers.filter((layer) => visibleSmokeLayers.has(layer.key))
@@ -862,20 +975,36 @@ function FloatingLegends({
       className="absolute z-10 max-w-[260px] space-y-2"
       style={{ bottom: 40, left: 12 }}
     >
-      {visibleWms.map((layer) => (
-        <MapImageLegend key={layer.key} className="bg-background/95 p-2 shadow-md" src={layer.legendUrl!} alt={`${layer.label} legend`} label={layer.label} />
-      ))}
+      {visibleWms.map((layer) => {
+        const label = localizeWmsLabel(layer.key, locale)
+        return (
+          <MapImageLegend
+            key={layer.key}
+            className="bg-background/95 p-2 shadow-md"
+            src={layer.legendUrl!}
+            alt={`${label} legend`}
+            label={label}
+          />
+        )
+      })}
       {visibleSmoke.map((layer) => (
         <div key={layer.key} className="rounded border border-border bg-background/95 p-2 text-xs shadow-md">
-          <div className="mb-1 font-medium text-foreground">{layer.label}</div>
-          <MapSteppedLegend bands={layer.legend} variant="rows" showBandLabels={false} />
+          <div className="mb-1 font-medium text-foreground">{localizeSmokeLabel(layer.key, locale)}</div>
+          <MapSteppedLegend
+            bands={layer.legend.map((band) => ({
+              ...band,
+              label: localizeSmokeDensity(band.label, locale),
+            }))}
+            variant="rows"
+            showBandLabels={false}
+          />
         </div>
       ))}
     </div>
   )
 }
 
-function MapUtilityControls({ onReset }: { onReset: () => void }) {
+function MapUtilityControls({ onReset, locale }: { onReset: () => void; locale: AqmapLocale }) {
   const { map } = useMap()
 
   const locate = () => {
@@ -894,23 +1023,23 @@ function MapUtilityControls({ onReset }: { onReset: () => void }) {
       className="absolute z-10 flex flex-col overflow-hidden rounded border border-border bg-background shadow-md"
       style={{ top: 12, left: 12 }}
     >
-      <button type="button" title="Zoom to your location" onClick={locate} className="p-2 hover:bg-secondary">
+      <button type="button" title={translate('controls.zoomToLocation', locale)} onClick={locate} className="p-2 hover:bg-secondary">
         <Crosshair className="size-4" />
       </button>
-      <button type="button" title="Reset map view" onClick={onReset} className="border-t border-border p-2 hover:bg-secondary">
+      <button type="button" title={translate('controls.resetView', locale)} onClick={onReset} className="border-t border-border p-2 hover:bg-secondary">
         <RotateCcw className="size-4" />
       </button>
     </div>
   )
 }
 
-function MapTimestamp({ latestDate }: { latestDate: string | null | undefined }) {
+function MapTimestamp({ latestDate, locale }: { latestDate: string | null | undefined; locale: AqmapLocale }) {
   return (
     <div
       className="absolute z-10 rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md"
       style={{ bottom: 12, left: 12 }}
     >
-      Last updated: {formatDate(latestDate)}
+      {translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}
     </div>
   )
 }
@@ -973,8 +1102,12 @@ export default function AqMapSection() {
   const [visibleSmokeLayers, setVisibleSmokeLayers] = useState<Set<SmokeLayerKey>>(() => initialUrlState.visibleSmokeLayers)
   const [basemap, setBasemap] = useState<AqBasemap>(() => initialUrlState.basemap)
   const [mapView, setMapView] = useState(() => initialUrlState.mapView)
+  const [locale, setLocale] = useState<AqmapLocale>(() => initialUrlState.locale)
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [hoveredMonitor, setHoveredMonitor] = useState<AirMonitor | null>(null)
+  const [exportStatus, setExportStatus] = useState<{ format: ExportFormat | null; error: string | null }>({ format: null, error: null })
+  const mapRef = useRef<maplibregl.Map | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const latestDate = monitors
     .map((monitor) => monitor.dateObserved)
     .filter((date): date is string => Boolean(date))
@@ -1000,6 +1133,9 @@ export default function AqMapSection() {
       if (smoke) next.set('smoke', smoke)
       else next.delete('smoke')
 
+      if (locale === 'en') next.delete('lang')
+      else next.set('lang', locale)
+
       next.delete('time')
 
       if (isValidMapView(mapView)) {
@@ -1016,6 +1152,7 @@ export default function AqMapSection() {
         visibleSmokeLayers,
         selectedTimestamp: '',
         mapView,
+        locale,
       })
       if (nextSearch !== window.location.search.slice(1) || nextHash !== window.location.hash) {
         window.history.replaceState(null, '', `${window.location.pathname}?${nextSearch}${nextHash}`)
@@ -1023,7 +1160,7 @@ export default function AqMapSection() {
     }, URL_UPDATE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [basemap, mapView, visibleGroups, visibleSmokeLayers, visibleWmsLayers])
+  }, [basemap, locale, mapView, visibleGroups, visibleSmokeLayers, visibleWmsLayers])
 
   const toggleGroup = useCallback((group: AqMonitorGroup) => {
     setVisibleGroups((current) => {
@@ -1056,21 +1193,41 @@ export default function AqMapSection() {
     setMapView({ center: CANADA_CENTER, zoom: DEFAULT_ZOOM })
   }, [])
 
+  const handleExport = useCallback(async (format: ExportFormat) => {
+    if (!mapRef.current) return
+    setExportStatus({ format, error: null })
+    try {
+      await exportAqmap(format, {
+        map: mapRef.current,
+        container: mapContainerRef.current,
+        baseName: 'aqmap',
+      })
+      setExportStatus({ format: null, error: null })
+    } catch (error) {
+      console.error('AQmap export failed', error)
+      setExportStatus({ format: null, error: translate('export.failed', locale) })
+    }
+  }, [locale])
+
   const sidebar = (
-      <AqMapSidebar
-        monitors={monitors}
-        smokeLayers={smokeLayers}
-        visibleGroups={visibleGroups}
-        onToggleGroup={toggleGroup}
+    <AqMapSidebar
+      monitors={monitors}
+      smokeLayers={smokeLayers}
+      visibleGroups={visibleGroups}
+      onToggleGroup={toggleGroup}
       visibleWmsLayers={visibleWmsLayers}
       onToggleWmsLayer={toggleWmsLayer}
       visibleSmokeLayers={visibleSmokeLayers}
       onToggleSmokeLayer={toggleSmokeLayer}
-        basemap={basemap}
-        onBasemapChange={setBasemap}
-        loading={loading}
-        error={error || smokeError}
-      />
+      basemap={basemap}
+      onBasemapChange={setBasemap}
+      locale={locale}
+      onLocaleChange={setLocale}
+      onExport={handleExport}
+      exportStatus={exportStatus}
+      loading={loading}
+      error={error || smokeError}
+    />
   )
 
   return (
@@ -1080,64 +1237,69 @@ export default function AqMapSection() {
       onToggleDesktopSidebar={() => setShowSidebar((value) => !value)}
       desktopSidebarWidth={360}
       mobileInitialSheetState="half"
-      mobilePeek={<div className="text-sm font-semibold text-foreground">AQmap</div>}
+      mobilePeek={<div className="text-sm font-semibold text-foreground">{translate('app.title', locale)}</div>}
     >
-      <PgMap
-        key={basemap}
-        viewport={{
-          center: mapView.center,
-          zoom: mapView.zoom,
-        }}
-        minZoom={MIN_ZOOM}
-        maxZoom={MAX_ZOOM}
-        styles={BASEMAP_STYLES[basemap]}
-        onViewportChange={(viewport) => {
-          if (!isValidMapView(viewport)) return
-          setMapView({
-            center: viewport.center,
-            zoom: viewport.zoom,
-          })
-        }}
-      >
-        {smokeLayers.map((layer) => (
-          <SmokePolygonLayer key={layer.key} definition={layer} visible={visibleSmokeLayers.has(layer.key)} />
-        ))}
-        {WMS_LAYERS.map((layer) => (
-          <WmsRasterLayer
-            key={layer.key}
-            definition={layer}
-            visible={visibleWmsLayers.has(layer.key)}
+      <div ref={mapContainerRef} className="relative h-full w-full">
+        <PgMap
+          key={basemap}
+          ref={mapRef}
+          viewport={{
+            center: mapView.center,
+            zoom: mapView.zoom,
+          }}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          styles={BASEMAP_STYLES[basemap]}
+          onViewportChange={(viewport) => {
+            if (!isValidMapView(viewport)) return
+            setMapView({
+              center: viewport.center,
+              zoom: viewport.zoom,
+            })
+          }}
+        >
+          {smokeLayers.map((layer) => (
+            <SmokePolygonLayer key={layer.key} definition={layer} visible={visibleSmokeLayers.has(layer.key)} />
+          ))}
+          {WMS_LAYERS.map((layer) => (
+            <WmsRasterLayer
+              key={layer.key}
+              definition={layer}
+              visible={visibleWmsLayers.has(layer.key)}
+            />
+          ))}
+          <AqMonitorLayer
+            monitors={monitors}
+            visibleGroups={visibleGroups}
+            onMonitorClick={setSelectedMonitor}
+            onMonitorHover={setHoveredMonitor}
           />
-        ))}
-        <AqMonitorLayer
-          monitors={monitors}
-          visibleGroups={visibleGroups}
-          onMonitorClick={setSelectedMonitor}
-          onMonitorHover={setHoveredMonitor}
-        />
-        {hoveredMonitor && selectedMonitor !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} />}
-        {selectedMonitor && <MonitorPopup monitor={selectedMonitor} onClose={() => setSelectedMonitor(null)} />}
-        <FloatingLayerControl
-          basemap={basemap}
-          onBasemapChange={setBasemap}
-          visibleGroups={visibleGroups}
-          onToggleGroup={toggleGroup}
-          visibleWmsLayers={visibleWmsLayers}
-          onToggleWmsLayer={toggleWmsLayer}
-          visibleSmokeLayers={visibleSmokeLayers}
-          onToggleSmokeLayer={toggleSmokeLayer}
-          smokeLayers={smokeLayers}
-        />
-        <FloatingLegends
-          visibleWmsLayers={visibleWmsLayers}
-          visibleSmokeLayers={visibleSmokeLayers}
-          smokeLayers={smokeLayers}
-        />
-        <MapUtilityControls onReset={resetView} />
-        <MapTimestamp latestDate={latestDate} />
-        <ScaleBar />
-        <MapControls showFullscreen />
-      </PgMap>
+          {hoveredMonitor && selectedMonitor !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} locale={locale} />}
+          {selectedMonitor && <MonitorPopup monitor={selectedMonitor} locale={locale} onClose={() => setSelectedMonitor(null)} />}
+          <FloatingLayerControl
+            basemap={basemap}
+            onBasemapChange={setBasemap}
+            visibleGroups={visibleGroups}
+            onToggleGroup={toggleGroup}
+            visibleWmsLayers={visibleWmsLayers}
+            onToggleWmsLayer={toggleWmsLayer}
+            visibleSmokeLayers={visibleSmokeLayers}
+            onToggleSmokeLayer={toggleSmokeLayer}
+            smokeLayers={smokeLayers}
+            locale={locale}
+          />
+          <FloatingLegends
+            visibleWmsLayers={visibleWmsLayers}
+            visibleSmokeLayers={visibleSmokeLayers}
+            smokeLayers={smokeLayers}
+            locale={locale}
+          />
+          <MapUtilityControls onReset={resetView} locale={locale} />
+          <MapTimestamp latestDate={latestDate} locale={locale} />
+          <ScaleBar />
+          <MapControls showFullscreen />
+        </PgMap>
+      </div>
     </MapSectionLayout>
   )
 }

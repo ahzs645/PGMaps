@@ -1,0 +1,349 @@
+export type AqmapLocale = 'en' | 'fr'
+
+type StringMap = Record<string, string>
+
+const EN: StringMap = {
+  'app.title': 'AQmap',
+  'app.subtitle': 'Static reimplementation of the AQmap monitor and overlay view.',
+  'app.snapshot': 'Static snapshot',
+  'app.monitorData': 'Monitor data:',
+  'app.endpoints': 'aqmap-compatible endpoints',
+  'app.lastUpdated': 'Last updated:',
+  'app.latestObservation': 'Latest monitor timestamp:',
+  'app.noTimestamp': 'No timestamp',
+
+  'sidebar.visible': 'Visible',
+  'sidebar.pm25Count': 'PM2.5',
+  'sidebar.monitorLayers': 'Monitor Layers',
+  'sidebar.overlays': 'Overlays',
+  'sidebar.wmsLegends': 'WMS Legends',
+  'sidebar.basemap': 'Basemap',
+  'sidebar.basemap.light': 'Light Theme',
+  'sidebar.basemap.dark': 'Dark Theme',
+  'sidebar.pm25Legend': 'PM2.5 Legend',
+  'sidebar.iconLegend': 'Monitor Icon Legend',
+  'sidebar.export': 'Export Map',
+  'sidebar.language': 'Language',
+
+  'controls.basemaps': 'Basemaps',
+  'controls.layers': 'Layers',
+  'controls.zoomToLocation': 'Zoom to your location',
+  'controls.resetView': 'Reset map view',
+
+  'groups.agency': 'Regulatory',
+  'groups.lcm': 'Low-cost',
+  'groups.other': 'Other networks',
+
+  'monitorType.fem': 'Regulatory (FEM)',
+  'monitorType.pa': 'PurpleAir (PA)',
+  'monitorType.egg': 'AQegg (EGG)',
+  'monitorType.missing': 'Missing recent data',
+
+  'aqhi.low': 'Low',
+  'aqhi.moderate': 'Moderate',
+  'aqhi.high': 'High',
+  'aqhi.veryHigh': 'Very high',
+  'aqhi.noData': 'No Data',
+  'aqhi.unit': 'µg m⁻³',
+  'aqhi.range.low': '0-29.9',
+  'aqhi.range.moderate': '30-59.9',
+  'aqhi.range.high': '60-99.9',
+  'aqhi.range.veryHigh': '100+',
+
+  'popup.monitor': 'monitor',
+  'popup.observedAsOf': 'Observed PM₂.₅ as of:',
+  'popup.tenMinAvg': '10-min average',
+  'popup.oneHourAvg': '1-hour average',
+  'popup.threeHourAvg': '3-hour average',
+  'popup.twentyFourHourAvg': '24-hour average',
+  'popup.tenMinTitle': 'Mean average PM2.5 concentration for the past 10 minutes.',
+  'popup.oneHourTitle': 'Mean average PM2.5 concentration for the past hour.',
+  'popup.threeHourTitle': 'Mean average PM2.5 concentration for the past 3 hours.',
+  'popup.twentyFourHourTitle': 'Mean average PM2.5 concentration for the past 24 hours.',
+  'popup.healthMessage': 'Health messaging based on the AQHI+ system.',
+  'popup.plotButton': 'Plot Timeseries',
+  'popup.plotSource.endpoint': '/data/plotting',
+  'popup.plotSource.fallback': 'Fallback data',
+  'popup.hourlyPm25': 'Hourly PM2.5',
+  'popup.now': 'Now',
+
+  'health.heading.low': '1 Hour Average Between 0 - 29.9 µg m⁻³ (Low AQHI+):',
+  'health.heading.moderate': '1 Hour Average Between 30 - 59.9 µg m⁻³ (Moderate AQHI+):',
+  'health.heading.high': '1 Hour Average Between 60 - 99.9 µg m⁻³ (High AQHI+):',
+  'health.heading.veryHigh': '1 Hour Average 100+ µg m⁻³ (Very High AQHI+):',
+  'health.heading.noData': 'No recent 1 hour average (No Data AQHI+):',
+  'health.noData': 'Data for the past hour from this monitor is missing.',
+  'health.low.general': 'General Population - Ideal air for outdoor activities.',
+  'health.low.atRisk': 'At Risk - Enjoy usual outdoor activities.',
+  'health.moderate.general': 'General Population - No need to modify usual outdoor activities unless symptoms occur.',
+  'health.moderate.atRisk': 'At Risk - Consider reducing or rescheduling strenuous activities outdoors if symptoms occur.',
+  'health.high.general': 'General Population - Consider reducing or rescheduling strenuous outdoor activities if symptoms occur.',
+  'health.high.atRisk': 'At Risk - Reduce or reschedule strenuous outdoor activities. Children and the elderly should also take it easy.',
+  'health.veryHigh.general': 'General Population - Reduce or reschedule strenuous outdoor activities.',
+  'health.veryHigh.atRisk': 'At Risk - Avoid strenuous outdoor activities. Children and the elderly should also avoid outdoor physical exertion.',
+
+  'smoke.modelled': 'Modelled Smoke',
+  'smoke.visible': 'Visible Smoke',
+  'smoke.density.light': 'Light',
+  'smoke.density.medium': 'Medium',
+  'smoke.density.heavy': 'Heavy',
+  'smoke.tag': 'Smoke',
+
+  'wms.surfaceWinds': 'Surface Winds',
+  'wms.modelledPm25': 'Modelled PM2.5',
+  'wms.activeFires': 'Active Fires',
+  'wms.firePerimeters': 'Fire Perimeters',
+  'wms.fireDanger': 'Fire Danger',
+  'wms.tag': 'WMS',
+
+  'export.png': 'PNG (map only)',
+  'export.pngWithOverlays': 'PNG with overlays',
+  'export.jpeg': 'JPEG',
+  'export.pdf': 'PDF',
+  'export.preparing': 'Preparing…',
+  'export.failed': 'Export failed',
+
+  'plot.noData': 'No plot data available',
+  'plot.yAxis': 'PM2.5 (µg m⁻³)',
+  'plot.tooltipLabel': 'PM2.5',
+}
+
+const FR: StringMap = {
+  'app.title': 'AQmap',
+  'app.subtitle': 'Réimplémentation statique de la vue des moniteurs et superpositions AQmap.',
+  'app.snapshot': 'Capture statique',
+  'app.monitorData': 'Données des moniteurs :',
+  'app.endpoints': 'points d’accès compatibles aqmap',
+  'app.lastUpdated': 'Dernière mise à jour :',
+  'app.latestObservation': 'Dernière observation :',
+  'app.noTimestamp': 'Aucun horodatage',
+
+  'sidebar.visible': 'Visibles',
+  'sidebar.pm25Count': 'PM2,5',
+  'sidebar.monitorLayers': 'Couches des moniteurs',
+  'sidebar.overlays': 'Superpositions',
+  'sidebar.wmsLegends': 'Légendes WMS',
+  'sidebar.basemap': 'Fond de carte',
+  'sidebar.basemap.light': 'Thème clair',
+  'sidebar.basemap.dark': 'Thème sombre',
+  'sidebar.pm25Legend': 'Légende PM2,5',
+  'sidebar.iconLegend': 'Légende des icônes',
+  'sidebar.export': 'Exporter la carte',
+  'sidebar.language': 'Langue',
+
+  'controls.basemaps': 'Thèmes',
+  'controls.layers': 'Couches',
+  'controls.zoomToLocation': 'Zoomer sur votre position',
+  'controls.resetView': 'Réinitialiser la vue',
+
+  'groups.agency': 'Réglementaires',
+  'groups.lcm': 'Faible coût',
+  'groups.other': 'Autres réseaux',
+
+  'monitorType.fem': 'Réglementaires (FEM)',
+  'monitorType.pa': 'PurpleAir (PA)',
+  'monitorType.egg': 'AQegg (EGG)',
+  'monitorType.missing': 'Aucune donnée récente',
+
+  'aqhi.low': 'Faible',
+  'aqhi.moderate': 'Modéré',
+  'aqhi.high': 'Élevé',
+  'aqhi.veryHigh': 'Très élevé',
+  'aqhi.noData': 'Aucune donnée',
+  'aqhi.unit': 'µg m⁻³',
+  'aqhi.range.low': '0-29,9',
+  'aqhi.range.moderate': '30-59,9',
+  'aqhi.range.high': '60-99,9',
+  'aqhi.range.veryHigh': '100+',
+
+  'popup.monitor': 'moniteur',
+  'popup.observedAsOf': 'PM₂,₅ observée à :',
+  'popup.tenMinAvg': 'Moyenne 10 min',
+  'popup.oneHourAvg': 'Moyenne 1 h',
+  'popup.threeHourAvg': 'Moyenne 3 h',
+  'popup.twentyFourHourAvg': 'Moyenne 24 h',
+  'popup.tenMinTitle': 'Concentration moyenne de PM2,5 pour les 10 dernières minutes.',
+  'popup.oneHourTitle': 'Concentration moyenne de PM2,5 pour la dernière heure.',
+  'popup.threeHourTitle': 'Concentration moyenne de PM2,5 pour les 3 dernières heures.',
+  'popup.twentyFourHourTitle': 'Concentration moyenne de PM2,5 pour les 24 dernières heures.',
+  'popup.healthMessage': 'Messages de santé fondés sur le système CAS+.',
+  'popup.plotButton': 'Tracer la série temporelle',
+  'popup.plotSource.endpoint': '/data/plotting',
+  'popup.plotSource.fallback': 'Données de repli',
+  'popup.hourlyPm25': 'PM2,5 horaires',
+  'popup.now': 'Maintenant',
+
+  'health.heading.low': 'Moyenne horaire entre 0 et 29,9 µg m⁻³ (CAS+ faible) :',
+  'health.heading.moderate': 'Moyenne horaire entre 30 et 59,9 µg m⁻³ (CAS+ modéré) :',
+  'health.heading.high': 'Moyenne horaire entre 60 et 99,9 µg m⁻³ (CAS+ élevé) :',
+  'health.heading.veryHigh': 'Moyenne horaire de 100+ µg m⁻³ (CAS+ très élevé) :',
+  'health.heading.noData': 'Aucune moyenne horaire récente (CAS+ : aucune donnée) :',
+  'health.noData': 'Les données de la dernière heure de ce moniteur sont manquantes.',
+  'health.low.general': 'Population générale — air idéal pour les activités extérieures.',
+  'health.low.atRisk': 'À risque — profitez des activités extérieures habituelles.',
+  'health.moderate.general': 'Population générale — pas besoin de modifier les activités extérieures à moins de présenter des symptômes.',
+  'health.moderate.atRisk': 'À risque — envisagez de réduire ou de reporter les activités intenses si des symptômes apparaissent.',
+  'health.high.general': 'Population générale — envisagez de réduire ou de reporter les activités intenses si des symptômes apparaissent.',
+  'health.high.atRisk': 'À risque — réduisez ou reportez les activités intenses. Les enfants et les personnes âgées devraient aussi y aller doucement.',
+  'health.veryHigh.general': 'Population générale — réduisez ou reportez les activités intenses à l’extérieur.',
+  'health.veryHigh.atRisk': 'À risque — évitez les activités intenses à l’extérieur. Les enfants et les personnes âgées devraient aussi éviter tout effort physique extérieur.',
+
+  'smoke.modelled': 'Fumée modélisée',
+  'smoke.visible': 'Fumée visible',
+  'smoke.density.light': 'Faible',
+  'smoke.density.medium': 'Moyen',
+  'smoke.density.heavy': 'Haute',
+  'smoke.tag': 'Fumée',
+
+  'wms.surfaceWinds': 'Vents de surface',
+  'wms.modelledPm25': 'PM2,5 modélisé',
+  'wms.activeFires': 'Feux actifs',
+  'wms.firePerimeters': 'Périmètres des feux',
+  'wms.fireDanger': 'Danger d’incendie',
+  'wms.tag': 'WMS',
+
+  'export.png': 'PNG (carte seule)',
+  'export.pngWithOverlays': 'PNG avec habillage',
+  'export.jpeg': 'JPEG',
+  'export.pdf': 'PDF',
+  'export.preparing': 'Préparation…',
+  'export.failed': 'Échec de l’export',
+
+  'plot.noData': 'Aucune donnée à tracer',
+  'plot.yAxis': 'PM2,5 (µg m⁻³)',
+  'plot.tooltipLabel': 'PM2,5',
+}
+
+const STRINGS: Record<AqmapLocale, StringMap> = { en: EN, fr: FR }
+
+export function translate(key: string, locale: AqmapLocale): string {
+  return STRINGS[locale][key] ?? STRINGS.en[key] ?? key
+}
+
+const TIMESTAMP_LOCALE: Record<AqmapLocale, string> = {
+  en: 'en-CA',
+  fr: 'fr-CA',
+}
+
+export function formatLocalizedDate(value: string | null | undefined, locale: AqmapLocale): string {
+  if (!value) return translate('app.noTimestamp', locale)
+  const parsed = new Date(value.replace(' ', 'T'))
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat(TIMESTAMP_LOCALE[locale], {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZoneName: 'short',
+  }).format(parsed)
+}
+
+export function formatGroupLabel(group: 'agency' | 'lcm' | 'other', locale: AqmapLocale): string {
+  if (group === 'agency') return translate('groups.agency', locale)
+  if (group === 'lcm') return translate('groups.lcm', locale)
+  return translate('groups.other', locale)
+}
+
+export function formatAqhiCategory(category: string, locale: AqmapLocale): string {
+  if (category === 'Low') return translate('aqhi.low', locale)
+  if (category === 'Moderate') return translate('aqhi.moderate', locale)
+  if (category === 'High') return translate('aqhi.high', locale)
+  if (category === 'Very High') return translate('aqhi.veryHigh', locale)
+  return translate('aqhi.noData', locale)
+}
+
+const HEALTH_HEADING: Record<string, string> = {
+  Low: 'health.heading.low',
+  Moderate: 'health.heading.moderate',
+  High: 'health.heading.high',
+  'Very High': 'health.heading.veryHigh',
+  'No Data': 'health.heading.noData',
+}
+
+const HEALTH_GENERAL: Record<string, string> = {
+  Low: 'health.low.general',
+  Moderate: 'health.moderate.general',
+  High: 'health.high.general',
+  'Very High': 'health.veryHigh.general',
+}
+
+const HEALTH_AT_RISK: Record<string, string> = {
+  Low: 'health.low.atRisk',
+  Moderate: 'health.moderate.atRisk',
+  High: 'health.high.atRisk',
+  'Very High': 'health.veryHigh.atRisk',
+}
+
+export interface LocalizedHealthMessage {
+  heading: string
+  lines: string[]
+}
+
+export function localizeHealthMessage(category: string, locale: AqmapLocale): LocalizedHealthMessage {
+  const headingKey = HEALTH_HEADING[category] ?? HEALTH_HEADING['No Data']
+  if (category === 'No Data') {
+    return {
+      heading: translate(headingKey, locale),
+      lines: [translate('health.noData', locale)],
+    }
+  }
+  return {
+    heading: translate(headingKey, locale),
+    lines: [
+      translate(HEALTH_GENERAL[category] ?? 'health.low.general', locale),
+      translate(HEALTH_AT_RISK[category] ?? 'health.low.atRisk', locale),
+    ],
+  }
+}
+
+export function localizeMonitorType(network: string, locale: AqmapLocale): string {
+  if (network === 'PA') return translate('monitorType.pa', locale)
+  if (network === 'EGG') return translate('monitorType.egg', locale)
+  if (network === 'FEM' || network === 'BC ENV') return translate('monitorType.fem', locale)
+  return network
+}
+
+export function localizeWmsLabel(key: string, locale: AqmapLocale): string {
+  return translate(`wms.${key}`, locale)
+}
+
+export function localizeSmokeLabel(key: 'modelledSmoke' | 'visibleSmoke', locale: AqmapLocale): string {
+  return key === 'modelledSmoke'
+    ? translate('smoke.modelled', locale)
+    : translate('smoke.visible', locale)
+}
+
+export function localizeSmokeDensity(label: string, locale: AqmapLocale): string {
+  const normalized = label.toLowerCase()
+  if (normalized.startsWith('light') || normalized.startsWith('faible')) return translate('smoke.density.light', locale)
+  if (normalized.startsWith('medium') || normalized.startsWith('moyen')) return translate('smoke.density.medium', locale)
+  if (normalized.startsWith('heavy') || normalized.startsWith('haute')) return translate('smoke.density.heavy', locale)
+  return label
+}
+
+export interface LocalizedObservationRow {
+  key: string
+  label: string
+  title: string
+}
+
+export function buildObservationRowLabels(locale: AqmapLocale): LocalizedObservationRow[] {
+  return [
+    { key: 'pm25_10min', label: translate('popup.tenMinAvg', locale), title: translate('popup.tenMinTitle', locale) },
+    { key: 'pm25_1hr', label: translate('popup.oneHourAvg', locale), title: translate('popup.oneHourTitle', locale) },
+    { key: 'pm25_3hr', label: translate('popup.threeHourAvg', locale), title: translate('popup.threeHourTitle', locale) },
+    { key: 'pm25_24hr', label: translate('popup.twentyFourHourAvg', locale), title: translate('popup.twentyFourHourTitle', locale) },
+  ]
+}
+
+export function formatAqmapPm25Localized(value: number | null, locale: AqmapLocale): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '-'
+  if (value < 0) return '-'
+  const formatter = new Intl.NumberFormat(TIMESTAMP_LOCALE[locale], {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
+  return formatter.format(value)
+}

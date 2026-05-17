@@ -8,6 +8,7 @@ import {
   SidebarSection,
   StatGrid,
 } from '@/components/ui/map-panels'
+import { AddToIndexLabLink } from '@/components/AddToIndexLabLink'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { getClassificationColor, getTrailColor } from '../constants'
@@ -185,6 +186,7 @@ export function ParksSidebar({
     >
       {/* Stats & Search */}
       <SidebarSection>
+        <AddToIndexLabLink quick="parks" label="Add park access to Index Lab" className="mb-3 w-full" />
         <StatGrid
           className="mb-3"
           stats={[

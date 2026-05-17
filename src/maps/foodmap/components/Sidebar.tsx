@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { RestaurantCard } from './RestaurantCard'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
+import { AddToIndexLabLink } from '@/components/AddToIndexLabLink'
 import { FilterChipGroup, MapSidebarShell, SearchInput, SelectedItemCard } from '@/components/ui/map-panels'
 import { DATASETS } from '@/lib/dataCatalog'
 import type {
@@ -165,6 +166,7 @@ export function Sidebar({
     >
       {/* Visualization Mode Toggle */}
       <div className="border-b border-border bg-background/95 p-3">
+        <AddToIndexLabLink quick="foodSafety" label="Add food-risk metric to Index Lab" className="mb-3 w-full" />
         <div className="flex rounded-lg bg-secondary p-1">
           <button
             onClick={() => onVisualizationModeChange('violations')}

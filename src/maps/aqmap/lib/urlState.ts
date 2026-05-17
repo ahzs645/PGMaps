@@ -1,6 +1,7 @@
 import { WMS_LAYERS, type WmsLayerKey } from './wmsLayers'
 import { SMOKE_LAYERS, type SmokeLayerKey } from './smokeLayers'
 import type { AqBasemap, AqMonitorGroup } from './monitorPresentation'
+import type { AqmapLocale } from './i18n'
 
 export const CANADA_CENTER: [number, number] = [-96, 56]
 export const MIN_ZOOM = 2
@@ -19,6 +20,11 @@ export interface AqUrlState {
   visibleSmokeLayers: Set<SmokeLayerKey>
   selectedTimestamp: string
   mapView: AqMapView
+  locale: AqmapLocale
+}
+
+function parseLocale(value: string | null): AqmapLocale {
+  return value === 'fr' ? 'fr' : 'en'
 }
 
 const GROUP_IDS: Record<AqMonitorGroup, string> = {
@@ -107,6 +113,7 @@ function parseQueryState(searchParams: URLSearchParams): AqUrlState {
       ],
       zoom: parseZoom(searchParams.get('z')),
     },
+    locale: parseLocale(searchParams.get('lang')),
   }
 }
 
@@ -147,6 +154,7 @@ export function parseAqmapHash(hash: string, searchParams: URLSearchParams): AqU
     visibleSmokeLayers,
     selectedTimestamp: fallback.selectedTimestamp,
     mapView: { center: [lng, lat], zoom },
+    locale: fallback.locale,
   }
 }
 

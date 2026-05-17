@@ -35,13 +35,13 @@ import {
   WATERSHED_BOUNDARY_LEVEL_OPTIONS,
   SCORE_BUILDER_EXAMPLES,
   SCORE_METRICS,
+  SCORE_PRESETS,
   createDefaultWeights,
   createMetricValueMap,
   getScorePaletteProfile,
   getScoreDataSourcesForWeights,
   getWalkabilityReportMiColor,
   LOW_COST_NETWORKS,
-  SCORE_PRESETS,
   WALKABILITY_REPORT_MI_BANDS,
   encodeWeightsToParams,
   decodeWeightsFromParams,
@@ -180,6 +180,9 @@ function getMethodLegendText(settings: ScoreMethodSettings): string {
   }
   if (settings.aggregation === 'modulePercentileRankedSum') {
     return 'EJI-style mode ranks indicators, sums them within modules, ranks module sums, then ranks the combined module score.'
+  }
+  if (settings.aggregation === 'accessThreshold') {
+    return 'Access threshold mode counts how many selected access indicators meet the configured threshold, then scores areas by whether they meet enough essential-access hits.'
   }
   return getNormalizationLegendText(settings.normalization)
 }
@@ -420,11 +423,24 @@ function parseAggregationMethod(value: string | null): ScoreMethodSettings['aggr
     value === 'geometric' ||
     value === 'cumulativeBurden' ||
     value === 'modulePercentileRankedSum' ||
-    value === 'healthyPlanPairwisePriority'
+    value === 'healthyPlanPairwisePriority' ||
+    value === 'accessThreshold'
   ) {
     return value
   }
   return 'additive'
+}
+
+function parseAccessThresholdValue(value: string | null): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return 0.5
+  return Math.max(0.05, Math.min(1, parsed))
+}
+
+function parseAccessMinimumHits(value: string | null): number {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return 4
+  return Math.max(1, Math.min(7, Math.round(parsed)))
 }
 
 function parseMissingDataMethod(value: string | null): ScoreMethodSettings['missingData'] {
@@ -437,6 +453,18 @@ function parseVisualOutputMode(value: string | null): ScoreMethodSettings['visua
 
 function parseMapSurface(value: string | null): 'source' | 'boundary' {
   return value === 'source' ? 'source' : 'boundary'
+}
+
+function getQuickIndexLabPresetKey(value: string | null): string | null {
+  if (value === 'airQuality') return 'monitoringGapProxy'
+  if (value === 'parks') return 'parkAccessEquity'
+  if (value === 'transit') return 'transitEquity'
+  if (value === 'crime') return 'safetyPressure'
+  if (value === 'foodSafety') return 'foodInspectionRisk'
+  if (value === 'walkability') return 'activeLivingWalkability'
+  if (value === 'heatShade') return 'heatReliefPriority'
+  if (value === 'canue') return 'activeLivingWalkability'
+  return null
 }
 
 function parseScoreMetricKey(value: string | null, fallback: ScoreMetricKey): ScoreMetricKey {
@@ -473,6 +501,7 @@ function buildScoreBandSummary(regions: ScoredBoundaryRegion[]): ScoreBandSummar
 export default function ScoreBuilderSection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialShareToken = useRef(searchParams.get('s'))
+  const appliedQuickPreset = useRef<string | null>(null)
   const initialHasUrlWeights = Boolean(
     searchParams.get('w') ||
     searchParams.get('agg') ||
@@ -511,6 +540,8 @@ export default function ScoreBuilderSection() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
   const [weights, setWeights] = useState<ScoreMetricWeightMap>(() => {
+    const quickPreset = SCORE_PRESETS.find((preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')))
+    if (quickPreset) return { ...quickPreset.weights }
     const fromUrl = searchParams.get('w')
     if (fromUrl) {
       const decoded = decodeWeightsFromParams(fromUrl)
@@ -553,6 +584,8 @@ export default function ScoreBuilderSection() {
   const [correlateVisStyle, setCorrelateVisStyle] = useState<'bivariate' | 'residual'>('bivariate')
   const [showPoints, setShowPoints] = useState(true)
   const [enabledDataSources, setEnabledDataSources] = useState<ScoreDataSource[]>(() => {
+    const quickPreset = SCORE_PRESETS.find((preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')))
+    if (quickPreset) return getScoreDataSourcesForWeights(quickPreset.weights)
     const fromUrl = searchParams.get('ds')
     if (fromUrl) {
       const parsed = fromUrl
@@ -567,7 +600,9 @@ export default function ScoreBuilderSection() {
   const [scoreFilters, setScoreFilters] = useState<ScoreFilterState>(DEFAULT_SCORE_FILTERS)
   const [methodSettings, setMethodSettings] = useState<ScoreMethodSettings>({
     normalization: parseNormalizationMethod(searchParams.get('norm')),
-    aggregation: parseAggregationMethod(searchParams.get('agg')),
+    aggregation:
+      SCORE_PRESETS.find((preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')))?.methodSettings
+        ?.aggregation ?? parseAggregationMethod(searchParams.get('agg')),
     missingData: parseMissingDataMethod(searchParams.get('missing')),
     sensitivity: searchParams.get('sens') === 'off' ? false : true,
     normalizationScope: 'activeBoundaryLevel',
@@ -576,8 +611,14 @@ export default function ScoreBuilderSection() {
       demographicMetric: parseScoreMetricKey(searchParams.get('hpDemo'), 'cimdComposite'),
       environmentMetric: parseScoreMetricKey(searchParams.get('hpEnv'), 'canopyProxyRatio'),
     },
+    accessThreshold: {
+      minimumAccess: parseAccessThresholdValue(searchParams.get('accessMin')),
+      minimumHits: parseAccessMinimumHits(searchParams.get('accessHits')),
+    },
+    metricModuleOverrides: {},
   })
   const [activeExampleKey, setActiveExampleKey] = useState<string | null>(() => {
+    if (getQuickIndexLabPresetKey(searchParams.get('quick'))) return null
     // If no URL params, auto-load first example
     if (!initialHasUrlWeights) return SCORE_BUILDER_EXAMPLES[0]?.key || null
     return null
@@ -598,8 +639,40 @@ export default function ScoreBuilderSection() {
   )
   const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(censusDataEnabled)
 
+  useEffect(() => {
+    const quickKey = getQuickIndexLabPresetKey(searchParams.get('quick'))
+    if (!quickKey || appliedQuickPreset.current === quickKey) return
+    const quickPreset = SCORE_PRESETS.find((preset) => preset.key === quickKey)
+    if (!quickPreset) return
+    appliedQuickPreset.current = quickKey
+    setWeights({ ...quickPreset.weights })
+    setEnabledDataSources(getScoreDataSourcesForWeights(quickPreset.weights))
+    setMethodSettings((current) => ({
+      ...current,
+      ...quickPreset.methodSettings,
+      accessThreshold: {
+        ...current.accessThreshold,
+        ...quickPreset.methodSettings?.accessThreshold,
+      },
+      healthyPlanPriority: {
+        ...current.healthyPlanPriority,
+        ...quickPreset.methodSettings?.healthyPlanPriority,
+      },
+    }))
+    setActiveExampleKey(null)
+    setMapSurface(getScoreDataSourcesForWeights(quickPreset.weights).includes('walkability') ? 'source' : 'boundary')
+    if (quickPreset.recommendedBoundarySource) setBoundarySource(quickPreset.recommendedBoundarySource)
+    if (quickPreset.recommendedBoundaryLevel && quickPreset.recommendedBoundarySource === 'census') {
+      setCensusBoundaryLevel(parseCensusBoundaryLevel(quickPreset.recommendedBoundaryLevel))
+    }
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('quick')
+    setSearchParams(nextParams, { replace: true })
+  }, [searchParams, setSearchParams])
+
   // URL persistence
   useEffect(() => {
+    if (searchParams.get('quick')) return
     const params = new URLSearchParams()
     params.set('src', boundarySource)
     params.set(
@@ -631,6 +704,8 @@ export default function ScoreBuilderSection() {
     if (methodSettings.healthyPlanPriority.environmentMetric) {
       params.set('hpEnv', methodSettings.healthyPlanPriority.environmentMetric)
     }
+    params.set('accessMin', String(methodSettings.accessThreshold.minimumAccess))
+    params.set('accessHits', String(methodSettings.accessThreshold.minimumHits))
     setSearchParams(params, { replace: true })
   }, [
     boundarySource,
@@ -1783,10 +1858,25 @@ export default function ScoreBuilderSection() {
       .filter((entry) => eligibleIds.has(entry.region.id))
       .map((entry, index) => ({ ...entry, rank: index + 1 }))
     const referenceSpread = summarizeScores(referenceEligible)
+    const referenceById = new Map(referenceEligible.map((entry) => [entry.region.id, entry]))
+    const changedMost = scoredRegions
+      .map((entry) => ({
+        regionId: entry.region.id,
+        regionName: entry.region.name,
+        delta: entry.score - (referenceById.get(entry.region.id)?.score ?? entry.score),
+      }))
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+      .slice(0, 5)
+    const referenceTopIds = new Set(referenceEligible.slice(0, Math.max(1, Math.ceil(referenceEligible.length * 0.15))).map((entry) => entry.region.id))
+    const alwaysHighPriority = scoredRegions
+      .filter((entry) => entry.rank <= Math.max(1, Math.ceil(scoredRegions.length * 0.15)) && referenceTopIds.has(entry.region.id))
+      .slice(0, 5)
+      .map((entry) => ({ regionId: entry.region.id, regionName: entry.region.name }))
     const currentTopId = scoredRegions[0]?.region.id || null
     const trials = methodSettings.sensitivity && currentTopId ? 24 : 0
     let stableTopCount = 0
     let averageRankShift = 0
+    const trialRankShiftById = new Map<string, number>()
 
     if (trials > 0) {
       const baseRankById = new Map(scoredRegions.map((entry) => [entry.region.id, entry.rank]))
@@ -1804,12 +1894,22 @@ export default function ScoreBuilderSection() {
           trialRows.reduce((sum, entry, index) => {
             const baseRank = baseRankById.get(entry.region.id)
             if (!baseRank) return sum
-            return sum + Math.abs(baseRank - (index + 1))
+            const shift = Math.abs(baseRank - (index + 1))
+            trialRankShiftById.set(entry.region.id, (trialRankShiftById.get(entry.region.id) || 0) + shift)
+            return sum + shift
           }, 0) / Math.max(1, trialRows.length)
         averageRankShift += rankShift
       }
       averageRankShift /= trials
     }
+    const sensitiveRegions = Array.from(trialRankShiftById.entries())
+      .map(([regionId, rankShift]) => ({
+        regionId,
+        regionName: scoredRegions.find((entry) => entry.region.id === regionId)?.region.name || regionId,
+        rankShift: trials > 0 ? rankShift / trials : 0,
+      }))
+      .sort((a, b) => b.rankShift - a.rankShift)
+      .slice(0, 5)
 
     return {
       label: referencePreset.label,
@@ -1821,6 +1921,9 @@ export default function ScoreBuilderSection() {
       topChanged: (scoredRegions[0]?.region.id || null) !== (referenceEligible[0]?.region.id || null),
       stableTopShare: trials > 0 ? stableTopCount / trials : 1,
       averageRankShift,
+      changedMost,
+      alwaysHighPriority,
+      sensitiveRegions,
     }
   }, [
     methodSettings.sensitivity,
@@ -1863,12 +1966,15 @@ export default function ScoreBuilderSection() {
       const moduleNames = Array.from(new Set(activeTerms.map((metric) => metric.indexModule || 'localContext')))
       return `score = percentile_rank(sum(module ranks: ${moduleNames.join(' + ')}))`
     }
+    if (methodSettings.aggregation === 'accessThreshold') {
+      return `score = access hits >= ${(methodSettings.accessThreshold.minimumAccess * 100).toFixed(0)}%, target ${methodSettings.accessThreshold.minimumHits}`
+    }
     const terms = activeTerms.map((metric) => {
       const weight = weights[metric.key]
       return weight < 0 ? `${Math.abs(weight)}×low ${metric.shortLabel}` : `${weight}×${metric.shortLabel}`
     })
     return `score = weighted average(${terms.join(' + ')})`
-  }, [methodSettings.aggregation, methodSettings.healthyPlanPriority, weights])
+  }, [methodSettings.aggregation, methodSettings.accessThreshold, methodSettings.healthyPlanPriority, weights])
 
   const normalizationLegendText = useMemo(() => getMethodLegendText(methodSettings), [methodSettings])
 

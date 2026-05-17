@@ -253,6 +253,15 @@ export function ScoreBuilderRegionInsightDialog({
     return `${region.region.name} ranks ${rankPhrase} at #${region.rank} with a ${formatScore(region.score)} score. The result is lifted most by ${formatLiftPhrase(strongest)}; the biggest drag is ${formatDragPhrase(weakest)}.`
   }, [contributionRows, region])
 
+  const explanationBullets = useMemo(() => {
+    if (!region) return []
+    return contributionRows.slice(0, 4).map((row) => {
+      const percentile = Math.round(row.normalizedValue * 100)
+      const directionText = row.weight < 0 ? 'lower value helps this score' : 'higher value drives this score'
+      return `${row.fullLabel}: ${formatMetricValue(row.key, row.metricValue, true)} (${percentile}th percentile; ${directionText}).`
+    })
+  }, [contributionRows, region])
+
   // Group visible rows by category
   const groupedRows = useMemo(() => {
     const groups: Record<string, typeof visibleContributionRows> = {}
@@ -353,6 +362,13 @@ export function ScoreBuilderRegionInsightDialog({
             {narrative && (
               <div className="rounded-lg border border-cyan-200/70 bg-cyan-50 p-3 text-sm leading-relaxed text-cyan-950 dark:border-cyan-900/70 dark:bg-cyan-950/25 dark:text-cyan-100">
                 {narrative}
+                {explanationBullets.length > 0 && (
+                  <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs">
+                    {explanationBullets.map((bullet) => (
+                      <li key={bullet}>{bullet}</li>
+                    ))}
+                  </ol>
+                )}
               </div>
             )}
 

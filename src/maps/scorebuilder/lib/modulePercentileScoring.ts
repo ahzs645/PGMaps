@@ -148,7 +148,7 @@ export function scoreRegionRowsWithModulePercentiles({
         ),
       )
       const burdenValue = metricBurdenValue(metric, normalizedValue, allNormalizedValues)
-      const module = metric.indexModule || 'localContext'
+      const module = settings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext'
       const domain = metric.indexDomain || 'services'
 
       normalizedMetrics[metric.key] = normalizedValue
@@ -178,7 +178,7 @@ export function scoreRegionRowsWithModulePercentiles({
   })
 
   const activeModules = MODULE_ORDER.filter((module) =>
-    activeMetrics.some((metric) => (metric.indexModule || 'localContext') === module),
+    activeMetrics.some((metric) => (settings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext') === module),
   )
   const moduleRankValues = new Map<ScoreIndexModule, number[]>()
   activeModules.forEach((module) => {
@@ -224,7 +224,7 @@ export function scoreRegionRowsWithModulePercentiles({
     const score = clampScore(percentileRank(entry.combinedRaw, finalRankValues) * 100)
     const contributions = createMetricValueMap(0)
     activeMetrics.forEach((metric) => {
-      const module = metric.indexModule || 'localContext'
+      const module = settings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext'
       const moduleScore = entry.moduleScores.find((candidate) => candidate.key === module)
       const moduleMetricCount = Math.max(1, moduleScore?.activeMetricCount ?? 1)
       contributions[metric.key] = ((moduleScore?.rank ?? 0) / Math.max(1, activeModules.length)) / moduleMetricCount

@@ -11,6 +11,8 @@ import {
   BOUNDARY_SOURCE_OPTIONS,
   DENSITY_METRIC_OPTIONS,
   HEALTHYPLAN_PAIRWISE_PRESETS,
+  SCORE_ACCESS_THRESHOLD_METRICS,
+  SCORE_INDEX_MODULE_LABELS,
   SCORE_METRICS,
   SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
@@ -28,6 +30,7 @@ import type {
   ScoreMetricKey,
   ScoreMetricWeightMap,
   ScoreMethodSettings,
+  ScoreIndexModule,
   ScenarioComparison,
 } from '../types'
 import { SCORE_DATA_SOURCES, METRIC_CATEGORY_LABELS } from '../types'
@@ -60,6 +63,7 @@ function formatNormalizationMethod(method: ScoreMethodSettings['normalization'])
 function formatAggregationMethod(method: ScoreMethodSettings['aggregation']): string {
   if (method === 'healthyPlanPairwisePriority') return 'HealthyPlan-style pairwise priority'
   if (method === 'modulePercentileRankedSum') return 'EJI-style module ranked sum'
+  if (method === 'accessThreshold') return 'access threshold'
   if (method === 'cumulativeBurden') return 'cumulative burden'
   if (method === 'geometric') return 'geometric mean'
   return 'weighted average'
@@ -961,7 +965,10 @@ export function ScoreBuilderSidebar({
                         {metric.spatialMethod}
                       </div>
                       <div className="mt-1 text-[10px] text-muted-foreground">
-                        {metric.freshnessLabel} · {metric.comparisonBasis}
+                  {metric.freshnessLabel} · {metric.comparisonBasis}
+                      </div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        Module {SCORE_INDEX_MODULE_LABELS[methodSettings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext']} · domain {metric.indexDomain || 'local context'} · {metric.proxyLevel || 'proxy'} metric
                       </div>
                       {metric.caveat && (
                         <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">{metric.caveat}</div>
@@ -1122,6 +1129,7 @@ export function ScoreBuilderSidebar({
                         { value: 'cumulativeBurden', label: 'Cumulative burden' },
                         { value: 'modulePercentileRankedSum', label: 'EJI-style module ranked sum' },
                         { value: 'healthyPlanPairwisePriority', label: 'HealthyPlan-style pairwise priority' },
+                        { value: 'accessThreshold', label: 'Access threshold score' },
                       ]}
                       triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
                     />
@@ -1189,6 +1197,77 @@ export function ScoreBuilderSidebar({
                           triggerClassName="h-8 rounded border-amber-300 text-xs focus:ring-1 focus:ring-amber-500 dark:border-amber-900"
                         />
                       </label>
+                    </div>
+                  )}
+                  {methodSettings.aggregation === 'accessThreshold' && (
+                    <div className="space-y-2 rounded-md border border-emerald-200 bg-emerald-50/70 p-2 dark:border-emerald-900/70 dark:bg-emerald-950/25">
+                      <label className="space-y-1">
+                        <span className="block font-medium text-emerald-950 dark:text-emerald-100">
+                          Access threshold
+                        </span>
+                        <input
+                          type="number"
+                          min={5}
+                          max={100}
+                          step={5}
+                          value={Math.round(methodSettings.accessThreshold.minimumAccess * 100)}
+                          onChange={(event) =>
+                            updateMethodSettings('accessThreshold', {
+                              ...methodSettings.accessThreshold,
+                              minimumAccess: Math.max(0.05, Math.min(1, Number(event.target.value) / 100)),
+                            })
+                          }
+                          className="h-8 w-full rounded border border-emerald-300 bg-background px-2 text-xs dark:border-emerald-900"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block font-medium text-emerald-950 dark:text-emerald-100">
+                          Required access hits
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={SCORE_ACCESS_THRESHOLD_METRICS.length}
+                          value={methodSettings.accessThreshold.minimumHits}
+                          onChange={(event) =>
+                            updateMethodSettings('accessThreshold', {
+                              ...methodSettings.accessThreshold,
+                              minimumHits: Math.max(1, Math.min(SCORE_ACCESS_THRESHOLD_METRICS.length, Number(event.target.value))),
+                            })
+                          }
+                          className="h-8 w-full rounded border border-emerald-300 bg-background px-2 text-xs dark:border-emerald-900"
+                        />
+                      </label>
+                      <p className="text-[10px] leading-snug text-emerald-900 dark:text-emerald-100/85">
+                        Counts how many access indicators meet the selected threshold, then scores against the required
+                        number of hits.
+                      </p>
+                    </div>
+                  )}
+                  {methodSettings.aggregation === 'modulePercentileRankedSum' && (
+                    <div className="space-y-2 rounded-md border border-cyan-200 bg-cyan-50/70 p-2 dark:border-cyan-900/70 dark:bg-cyan-950/25">
+                      <div className="font-medium text-cyan-950 dark:text-cyan-100">Module editor</div>
+                      {SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).map((metric) => (
+                        <label key={metric.key} className="grid gap-1">
+                          <span className="text-[10px] font-medium text-cyan-950 dark:text-cyan-100">
+                            {metric.shortLabel}
+                          </span>
+                          <AppSelect
+                            value={methodSettings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext'}
+                            onValueChange={(value) =>
+                              updateMethodSettings('metricModuleOverrides', {
+                                ...methodSettings.metricModuleOverrides,
+                                [metric.key]: value as ScoreIndexModule,
+                              })
+                            }
+                            options={Object.entries(SCORE_INDEX_MODULE_LABELS).map(([value, label]) => ({
+                              value,
+                              label,
+                            }))}
+                            triggerClassName="h-8 rounded border-cyan-300 text-xs focus:ring-1 focus:ring-cyan-500 dark:border-cyan-900"
+                          />
+                        </label>
+                      ))}
                     </div>
                   )}
                   <label className="space-y-1">
@@ -1307,6 +1386,22 @@ export function ScoreBuilderSidebar({
                   <div className="mt-1">
                     Sensitivity {(scenarioComparison.stableTopShare * 100).toFixed(0)}% stable · avg rank shift{' '}
                     {scenarioComparison.averageRankShift.toFixed(1)}
+                  </div>
+                  <div className="mt-2 grid gap-1">
+                    <div>
+                      <span className="font-semibold">Changed most:</span>{' '}
+                      {scenarioComparison.changedMost
+                        .slice(0, 3)
+                        .map((entry) => `${entry.regionName} ${entry.delta >= 0 ? '+' : ''}${formatScore(entry.delta)}`)
+                        .join(', ') || 'None'}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Always high:</span>{' '}
+                      {scenarioComparison.alwaysHighPriority
+                        .slice(0, 3)
+                        .map((entry) => entry.regionName)
+                        .join(', ') || 'None'}
+                    </div>
                   </div>
                 </div>
               )}

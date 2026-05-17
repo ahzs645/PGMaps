@@ -1,4 +1,5 @@
 import {
+  SCORE_ACCESS_THRESHOLD_METRICS,
   SCORE_METRICS,
   createMetricValueMap,
   getScorePaletteOutputColor,
@@ -135,7 +136,9 @@ export function scoreRegionRows({
     })
 
     const aggregateValue =
-      settings.aggregation === 'cumulativeBurden'
+      settings.aggregation === 'accessThreshold'
+        ? calculateAccessThresholdScore(normalizedMetrics, row.metrics, weights, settings)
+        : settings.aggregation === 'cumulativeBurden'
         ? calculateCumulativeBurden(normalizedMetrics, weights)
         : settings.aggregation === 'geometric' && totalWeight > 0
           ? rawProduct
@@ -162,6 +165,10 @@ export function scoreRegionRows({
         burdenOverlap: 0,
         cutoffWarning: null,
       },
+      scoreMethodLabel:
+        settings.aggregation === 'accessThreshold'
+          ? `Access threshold: ${settings.accessThreshold.minimumHits}+ indicators at ${(settings.accessThreshold.minimumAccess * 100).toFixed(0)}%+`
+          : undefined,
     }
   })
 
@@ -172,6 +179,24 @@ export function scoreRegionRows({
   })
 
   return ranked.map((row, index) => ({ ...row, rank: index + 1, rankInterval: [index + 1, index + 1] }))
+}
+
+function calculateAccessThresholdScore(
+  normalizedMetrics: ScoreMetricValueMap,
+  rawMetrics: ScoreMetricValueMap,
+  weights: ScoreMetricWeightMap,
+  settings: ScoreMethodSettings,
+): number {
+  const activeAccessMetrics = SCORE_ACCESS_THRESHOLD_METRICS.filter((metric) => weights[metric] !== 0)
+  const evaluatedMetrics = activeAccessMetrics.length > 0 ? activeAccessMetrics : SCORE_ACCESS_THRESHOLD_METRICS
+  const threshold = settings.accessThreshold.minimumAccess
+  const minimumHits = Math.max(1, Math.min(settings.accessThreshold.minimumHits, evaluatedMetrics.length))
+  const hits = evaluatedMetrics.filter((metric) => {
+    const raw = rawMetrics[metric]
+    const value = Number.isFinite(raw) ? raw : normalizedMetrics[metric]
+    return value >= threshold
+  }).length
+  return Math.max(0, Math.min(1, hits / minimumHits))
 }
 
 function getComparisonUniverseLabel(source: ScoreBuilderRegion['source'], level: ScoreBuilderRegion['level']): string {

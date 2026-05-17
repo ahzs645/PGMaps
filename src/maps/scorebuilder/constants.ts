@@ -61,6 +61,14 @@ const MODULE_PERCENTILE_METHOD: Partial<ScoreMethodSettings> = {
   normalization: 'percentile',
   aggregation: 'modulePercentileRankedSum',
 }
+const ACCESS_THRESHOLD_METHOD: Partial<ScoreMethodSettings> = {
+  normalization: 'percentile',
+  aggregation: 'accessThreshold',
+  accessThreshold: {
+    minimumAccess: 0.5,
+    minimumHits: 4,
+  },
+}
 const HEALTHYPLAN_PAIRWISE_METHOD = (
   demographicMetric: ScoreMetricKey,
   environmentMetric: ScoreMetricKey,
@@ -141,6 +149,16 @@ export const SCORE_INDEX_DOMAIN_LABELS: Record<ScoreIndexDomain, string> = {
   monitoring: 'Monitoring',
   services: 'Services',
 }
+
+export const SCORE_ACCESS_THRESHOLD_METRICS: ScoreMetricKey[] = [
+  'parkWalk10Access',
+  'parkWalk20Access',
+  'coolingWalk15Access',
+  'parkTransit20Access',
+  'serviceAccessComposite',
+  'frequentTransitStopAccess',
+  'accessibleFrequentTransitAccess',
+]
 
 const SCORE_METRIC_BASES: ScoreMetricBaseDefinition[] = [
   // Air Quality
@@ -1838,7 +1856,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
       childcareDensity: 8,
       walkabilityPoiDensity: 10,
     },
-    methodSettings: PERCENTILE_METHOD,
+    methodSettings: ACCESS_THRESHOLD_METHOD,
   },
   {
     key: 'activeLivingWalkability',
@@ -2083,6 +2101,7 @@ export const SCORE_PRESETS: ScorePreset[] = [
 
 function formatPresetNormalization(method: Partial<ScoreMethodSettings> | undefined): string {
   if (method?.aggregation === 'modulePercentileRankedSum') return 'EJI-style module percentile ranks'
+  if (method?.aggregation === 'accessThreshold') return 'Access threshold count'
   if (method?.aggregation === 'cumulativeBurden') return 'Percentile + cumulative burden'
   if (method?.normalization === 'winsorizedMinMax') return 'Winsorized min-max'
   if (method?.normalization === 'zScore') return 'Z-score'
