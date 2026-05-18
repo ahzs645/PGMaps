@@ -28,6 +28,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: pip install -r vendor/bcdatamapper/datascrapers/bc/assessment/requirements.txt
+      - run: npm run census:variables
+      - run: npm run bc-assessment:build
       - run: npm run build
 
       - name: Copy index.html to 404.html for SPA routing
