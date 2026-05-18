@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback } from 'react'
-import { SpinnerWheelCanvas, SpinnerWheelLabel, useAudio } from '@firstform/spinnerwheel'
+import { useMemo, useCallback } from 'react'
+import { SpinnerWheel, useSpinnerWheelState } from '@firstform/spinnerwheel'
 import '@firstform/spinnerwheel/styles'
-import type { WheelEntry, WheelSegment } from '@firstform/spinnerwheel'
+import type { WheelEntry } from '@firstform/spinnerwheel'
 import type { RouletteRestaurant } from '../../types'
 
 interface RouletteWheelProps {
@@ -15,42 +15,27 @@ export function RouletteWheel({
   onSpinStart,
   onSpinComplete
 }: RouletteWheelProps) {
-  const [isSpinning, setIsSpinning] = useState(false)
-  const [currentSegment, setCurrentSegment] = useState<WheelSegment | null>(null)
+  const initialEntries: WheelEntry[] = useMemo(
+    () => restaurants.map((r, i) => ({
+      id: r.details_url || `restaurant-${i}`,
+      name: r.name,
+    })),
+    [restaurants]
+  )
 
-  const { playTick, playCelebration } = useAudio({
-    enabled: true,
-    tickPath: `${import.meta.env.BASE_URL}media/spinner-wheel-tick.mp3`,
-    celebrationPath: `${import.meta.env.BASE_URL}media/spinner-wheel-celebration.mp3`,
+  const wheel = useSpinnerWheelState({
+    initialEntries,
+    onWinnerSelected: (winnerEntry) => {
+      const winner = restaurants.find(r => r.name === winnerEntry.name)
+      if (winner) onSpinComplete(winner)
+    },
   })
 
-  const entries: WheelEntry[] = useMemo(() => {
-    return restaurants.map((r, i) => ({
-      id: r.details_url || `restaurant-${i}`,
-      name: r.name
-    }))
-  }, [restaurants])
-
   const handleSpin = useCallback(() => {
-    if (isSpinning || restaurants.length === 0) return
-    setIsSpinning(true)
+    if (wheel.isSpinning || restaurants.length === 0) return
     onSpinStart()
-  }, [isSpinning, restaurants.length, onSpinStart])
-
-  const handleSegmentChange = useCallback((segment: WheelSegment) => {
-    setCurrentSegment(segment)
-  }, [])
-
-  const handleSpinComplete = useCallback((segment: WheelSegment) => {
-    setIsSpinning(false)
-    setCurrentSegment(segment)
-    playCelebration()
-    const winnerName = segment.fullText || segment.text
-    const winner = restaurants.find(r => r.name === winnerName)
-    if (winner) {
-      onSpinComplete(winner)
-    }
-  }, [restaurants, onSpinComplete, playCelebration])
+    wheel.spin()
+  }, [wheel, restaurants.length, onSpinStart])
 
   if (restaurants.length === 0) {
     return (
@@ -69,29 +54,26 @@ export function RouletteWheel({
 
   return (
     <div className="flex flex-col items-center w-full max-w-[280px]">
-      {currentSegment ? (
-        <SpinnerWheelLabel
-          text={currentSegment.fullText || currentSegment.text}
-          backgroundColor={currentSegment.fillStyle}
-          variant="white"
-          className="mb-4"
-        />
-      ) : (
-        <div className="spinner-wheel-label --white mb-4" style={{ width: '256px' }}>
-          <span className="spinner-wheel-label__prompt" style={{ color: 'hsl(var(--foreground))' }}>Press &#9658; to spin the wheel</span>
-        </div>
-      )}
       <div style={{ transform: 'scale(0.7)', transformOrigin: 'center center', marginTop: '-70px', marginBottom: '-70px' }}>
-        <SpinnerWheelCanvas
-          entries={entries}
-          isSpinning={isSpinning}
+        <SpinnerWheel
+          entries={wheel.entries}
+          isSpinning={wheel.isSpinning}
+          winner={wheel.winner}
+          currentSegment={wheel.currentSegment}
+          showWinnerPopup={false}
+          onEntriesChange={wheel.setEntries}
+          onSpin={handleSpin}
+          onSpinComplete={wheel.handleSpinComplete}
+          onSegmentChange={wheel.handleSegmentChange}
+          onWinnerPopupClose={wheel.closeWinnerPopup}
+          showEntryInput={false}
+          audioEnabled={true}
+          confettiEnabled={false}
+          tickPath={`${import.meta.env.BASE_URL}media/spinner-wheel-tick.mp3`}
+          celebrationPath={`${import.meta.env.BASE_URL}media/spinner-wheel-celebration.mp3`}
           canvasSize={465}
           spinDuration={6}
           spinRevolutions={6}
-          onSpin={handleSpin}
-          onSpinComplete={handleSpinComplete}
-          onSegmentChange={handleSegmentChange}
-          onTickSound={playTick}
         />
       </div>
     </div>
