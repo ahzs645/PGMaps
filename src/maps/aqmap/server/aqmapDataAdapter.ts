@@ -250,10 +250,10 @@ function parseCsvText(text: string): RawMonitorRow[] {
     const current = text[index]
     const next = text[index + 1]
 
-    if (current === '\"' && inQuotes && next === '\"') {
-      value += '\"'
+    if (current === '"' && inQuotes && next === '"') {
+      value += '"'
       index += 1
-    } else if (current === '\"') {
+    } else if (current === '"') {
       inQuotes = !inQuotes
     } else if (current === ',' && !inQuotes) {
       row.push(value)
@@ -364,9 +364,9 @@ export function getMonitorNetworkValue(row: AqmapMonitorRow): string {
 
 function toCsvValue(value: unknown): string {
   const text = value == null ? '' : String(value)
-  const escaped = text.replace(/\"/g, '\"\"')
-  const requiresQuote = escaped.includes(',') || escaped.includes('\n') || escaped.includes('\r') || escaped.includes('\"')
-  return requiresQuote ? `\"${escaped}\"` : escaped
+  const escaped = text.replace(/"/g, '""')
+  const requiresQuote = escaped.includes(',') || escaped.includes('\n') || escaped.includes('\r') || escaped.includes('"')
+  return requiresQuote ? `"${escaped}"` : escaped
 }
 
 function serializeRows(rows: AqmapMonitorRow[], delimiter: string): string {

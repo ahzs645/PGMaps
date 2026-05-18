@@ -1,3 +1,4 @@
+/* global self, postMessage, fetch */
 import GeoJSONReader from 'jsts/org/locationtech/jts/io/GeoJSONReader.js'
 import GeoJSONWriter from 'jsts/org/locationtech/jts/io/GeoJSONWriter.js'
 import BufferOp from 'jsts/org/locationtech/jts/operation/buffer/BufferOp.js'

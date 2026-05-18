@@ -96,8 +96,8 @@ async function serveMapRoute(res: ServerResponse) {
   try {
     const source = await fs.readFile(mapHtmlPath, 'utf8')
     const adjusted = source
-      .replace(/src=\"\.\/assets\//g, 'src=\"/airdatamap/assets/')
-      .replace(/href=\"\.\/assets\//g, 'href=\"/airdatamap/assets/')
+      .replace(/src="\.\/assets\//g, 'src="/airdatamap/assets/')
+      .replace(/href="\.\/assets\//g, 'href="/airdatamap/assets/')
     sendResponse(res, 200, adjusted, 'text/html; charset=utf-8')
     return
   } catch {

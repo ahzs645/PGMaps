@@ -37,10 +37,10 @@ function parseCsvRows(text: string): AqmapPlotPoint[] {
     const current = text[index]
     const next = text[index + 1]
 
-    if (current === '\"' && inQuotes && next === '\"') {
-      value += '\"'
+    if (current === '"' && inQuotes && next === '"') {
+      value += '"'
       index += 1
-    } else if (current === '\"') {
+    } else if (current === '"') {
       inQuotes = !inQuotes
     } else if (current === ',' && !inQuotes) {
       row.push(value)

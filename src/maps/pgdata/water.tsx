@@ -763,20 +763,46 @@ export function useWaterData(active: boolean) {
         }
       })
       .filter((facility): facility is WaterFacility => Boolean(facility))
+    const mutableFacilities = baseFacilities.map((facility) => ({
+      ...facility,
+      noticeIds: facility.noticeIds ? [...facility.noticeIds] : undefined,
+    }))
     const byId = new Map<string, WaterFacility>()
     const byName = new Map<string, WaterFacility>()
 
-    for (const facility of baseFacilities) {
+    for (const facility of mutableFacilities) {
       byId.set(facility.id, facility)
       byName.set(facility.name.toLowerCase(), facility)
+    }
+
+    const facilityUpdates = new Map<string, {
+      bacteriologicalSamples: number
+      chemicalResults: number
+      activeNotices: number
+      lastSampleDate: string | null
+      noticeIds: string[]
+    }>()
+    const getFacilityUpdate = (facility: WaterFacility) => {
+      const existing = facilityUpdates.get(facility.id)
+      if (existing) return existing
+      const update = {
+        bacteriologicalSamples: facility.bacteriologicalSamples,
+        chemicalResults: facility.chemicalResults,
+        activeNotices: facility.activeNotices,
+        lastSampleDate: facility.lastSampleDate,
+        noticeIds: [...(facility.noticeIds ?? [])],
+      }
+      facilityUpdates.set(facility.id, update)
+      return update
     }
 
     for (const sample of samples) {
       const facility = (sample.facilityId && byId.get(sample.facilityId)) || (sample.facilityName && byName.get(sample.facilityName.toLowerCase()))
       if (!facility) continue
-      if (sample.kind === 'bacteriological') facility.bacteriologicalSamples += 1
-      else facility.chemicalResults += 1
-      if (sample.date && (!facility.lastSampleDate || sample.date > facility.lastSampleDate)) facility.lastSampleDate = sample.date
+      const update = getFacilityUpdate(facility)
+      if (sample.kind === 'bacteriological') update.bacteriologicalSamples += 1
+      else update.chemicalResults += 1
+      if (sample.date && (!update.lastSampleDate || sample.date > update.lastSampleDate)) update.lastSampleDate = sample.date
     }
 
     const matchedNoticeIds = new Set<string>()
@@ -784,8 +810,9 @@ export function useWaterData(active: boolean) {
     for (const notice of activeNotices) {
       const facility = (notice.facilityId && byId.get(notice.facilityId)) || (notice.facilityName && byName.get(notice.facilityName.toLowerCase()))
       if (!facility) continue
-      facility.activeNotices += 1
-      facility.noticeIds = [...(facility.noticeIds ?? []), notice.id]
+      const update = getFacilityUpdate(facility)
+      update.activeNotices += 1
+      update.noticeIds.push(notice.id)
       matchedNoticeIds.add(notice.id)
     }
 
@@ -816,7 +843,14 @@ export function useWaterData(active: boolean) {
       })
     }
 
-    return Array.from(byId.values()).sort((left, right) => right.activeNotices - left.activeNotices || right.bacteriologicalSamples + right.chemicalResults - left.bacteriologicalSamples - left.chemicalResults)
+    return Array.from(byId.values())
+      .map((facility) => {
+        const update = facilityUpdates.get(facility.id)
+        return update
+          ? { ...facility, ...update }
+          : facility
+      })
+      .sort((left, right) => right.activeNotices - left.activeNotices || right.bacteriologicalSamples + right.chemicalResults - left.bacteriologicalSamples - left.chemicalResults)
   }, [activeNotices, facilitiesJson.data, geocodedLocations.data, samples])
 
   const hazardCounts = useMemo(() => {

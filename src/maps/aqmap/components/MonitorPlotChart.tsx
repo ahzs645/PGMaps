@@ -96,9 +96,6 @@ export function MonitorPlotChart({
     return Math.ceil((maxValue + 10) / 25) * 25
   }, [data])
 
-  const xMin = data.length > 0 ? data[0].time : Date.now() - 24 * 3600 * 1000
-  const xMax = data.length > 0 ? data[data.length - 1].time : Date.now()
-
   if (data.length === 0) {
     return (
       <div className="flex h-[200px] items-center justify-center rounded border border-dashed border-border bg-background text-xs text-muted-foreground">
@@ -107,6 +104,8 @@ export function MonitorPlotChart({
     )
   }
 
+  const xMin = data[0].time
+  const xMax = data[data.length - 1].time
   const strokeColor = highlightColor ?? '#0ea5e9'
 
   return (
