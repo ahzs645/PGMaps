@@ -61,7 +61,7 @@ export function RouletteWheel({
 
   return (
     <div className="flex flex-col items-center w-full max-w-[280px]">
-      <div style={{ transform: 'scale(0.7)', transformOrigin: 'center center', marginTop: '-70px', marginBottom: '-70px' }}>
+      <div style={{ transform: 'scale(0.7)', transformOrigin: 'center center', marginTop: '-70px', marginBottom: '-70px', overflow: 'hidden' }}>
         <SpinnerWheel
           entries={wheel.entries}
           isSpinning={wheel.isSpinning}
