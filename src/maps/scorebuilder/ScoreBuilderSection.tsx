@@ -7,6 +7,7 @@ import intersect from '@turf/intersect'
 import union from '@turf/union'
 import { point } from '@turf/helpers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { HEALTHYPLAN_EQUITY_PRIORITY_RAMP } from '@/lib/healthyplan'
 import {
   useAirQualityData,
@@ -525,8 +526,8 @@ export default function ScoreBuilderSection() {
   const [cityBoundaryLevel, setCityBoundaryLevel] = useState<CityBoundaryLevel>(() =>
     parseCityBoundaryLevel(searchParams.get('level')),
   )
-  const [regionalDistrictBoundaryLevel, setRegionalDistrictBoundaryLevel] = useState<RegionalDistrictBoundaryLevel>(() =>
-    parseRegionalDistrictBoundaryLevel(searchParams.get('level')),
+  const [regionalDistrictBoundaryLevel, setRegionalDistrictBoundaryLevel] = useState<RegionalDistrictBoundaryLevel>(
+    () => parseRegionalDistrictBoundaryLevel(searchParams.get('level')),
   )
   const [watershedBoundaryLevel, setWatershedBoundaryLevel] = useState<WatershedBoundaryLevel>(() =>
     parseWatershedBoundaryLevel(searchParams.get('level')),
@@ -540,7 +541,9 @@ export default function ScoreBuilderSection() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
   const [weights, setWeights] = useState<ScoreMetricWeightMap>(() => {
-    const quickPreset = SCORE_PRESETS.find((preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')))
+    const quickPreset = SCORE_PRESETS.find(
+      (preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')),
+    )
     if (quickPreset) return { ...quickPreset.weights }
     const fromUrl = searchParams.get('w')
     if (fromUrl) {
@@ -553,7 +556,9 @@ export default function ScoreBuilderSection() {
   const [densityMode, setDensityMode] = useState(false)
   const [correlateMode, setCorrelateMode] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [mapSurface, setMapSurface] = useState<'source' | 'boundary'>(() => parseMapSurface(searchParams.get('surface')))
+  const [mapSurface, setMapSurface] = useState<'source' | 'boundary'>(() =>
+    parseMapSurface(searchParams.get('surface')),
+  )
 
   const handleToggleCorrelateMode = useCallback(() => {
     setCorrelateMode((current) => {
@@ -584,7 +589,9 @@ export default function ScoreBuilderSection() {
   const [correlateVisStyle, setCorrelateVisStyle] = useState<'bivariate' | 'residual'>('bivariate')
   const [showPoints, setShowPoints] = useState(true)
   const [enabledDataSources, setEnabledDataSources] = useState<ScoreDataSource[]>(() => {
-    const quickPreset = SCORE_PRESETS.find((preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')))
+    const quickPreset = SCORE_PRESETS.find(
+      (preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')),
+    )
     if (quickPreset) return getScoreDataSourcesForWeights(quickPreset.weights)
     const fromUrl = searchParams.get('ds')
     if (fromUrl) {
@@ -601,8 +608,8 @@ export default function ScoreBuilderSection() {
   const [methodSettings, setMethodSettings] = useState<ScoreMethodSettings>({
     normalization: parseNormalizationMethod(searchParams.get('norm')),
     aggregation:
-      SCORE_PRESETS.find((preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')))?.methodSettings
-        ?.aggregation ?? parseAggregationMethod(searchParams.get('agg')),
+      SCORE_PRESETS.find((preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')))
+        ?.methodSettings?.aggregation ?? parseAggregationMethod(searchParams.get('agg')),
     missingData: parseMissingDataMethod(searchParams.get('missing')),
     sensitivity: searchParams.get('sens') === 'off' ? false : true,
     normalizationScope: 'activeBoundaryLevel',
@@ -627,16 +634,23 @@ export default function ScoreBuilderSection() {
   const enabledSourceSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
   const censusDataEnabled = enabledSourceSet.has('census') || enabledSourceSet.has('deprivation')
 
-  const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData(
-    enabledSourceSet.has('airQuality'),
-  )
-  const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData(
-    [],
-    enabledSourceSet.has('parks'),
-  )
-  const { restaurants, loading: loadingRestaurants, error: restaurantsError } = useRestaurantData(
-    enabledSourceSet.has('restaurants'),
-  )
+  const {
+    monitors,
+    loading: loadingMonitors,
+    error: monitorsError,
+  } = useAirQualityData(enabledSourceSet.has('airQuality'))
+  const {
+    parks,
+    trails,
+    amenities,
+    loading: loadingParks,
+    error: parksError,
+  } = useParksData([], enabledSourceSet.has('parks'))
+  const {
+    restaurants,
+    loading: loadingRestaurants,
+    error: restaurantsError,
+  } = useRestaurantData(enabledSourceSet.has('restaurants'))
   const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(censusDataEnabled)
 
   useEffect(() => {
@@ -681,13 +695,13 @@ export default function ScoreBuilderSection() {
         ? healthBoundaryLevel
         : boundarySource === 'regionalDistrict'
           ? regionalDistrictBoundaryLevel
-        : boundarySource === 'census'
-          ? censusBoundaryLevel
-          : boundarySource === 'cityPG'
-            ? cityBoundaryLevel
-            : boundarySource === 'nrAdmin'
-              ? nrAdminBoundaryLevel
-              : watershedBoundaryLevel,
+          : boundarySource === 'census'
+            ? censusBoundaryLevel
+            : boundarySource === 'cityPG'
+              ? cityBoundaryLevel
+              : boundarySource === 'nrAdmin'
+                ? nrAdminBoundaryLevel
+                : watershedBoundaryLevel,
     )
     params.set('w', encodeWeightsToParams(weights))
     params.set('ds', enabledDataSources.join(','))
@@ -802,16 +816,36 @@ export default function ScoreBuilderSection() {
     error: cimdError,
   } = useCimdData(enabledSourceSet.has('deprivation'))
   const walkabilityEnabled = enabledSourceSet.has('walkability')
-  const walkabilitySidewalks = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/citypg/sidewalks.geojson' : null)
-  const walkabilityWalkways = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/citypg/walkways.geojson' : null)
-  const walkabilityIntersections = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/citypg/road_intersections.geojson' : null)
-  const walkabilityCrossings = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/osm_crossings.geojson' : null)
-  const walkabilityChildcare = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/bc_childcare_locations.geojson' : null)
-  const walkabilityOsmDaycares = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/osm_daycares.geojson' : null)
-  const walkabilityClass3Crosswalks = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/report_class3_crosswalks_geocoded.geojson' : null)
-  const walkabilitySupplementalPoi = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/missing_poi_supplement.geojson' : null)
-  const walkabilityIntercityStops = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/walkability/supplemental/intercity_bus_stops.geojson' : null)
-  const walkabilityPedestrianCrashes = useJsonManifest<GeoJSON.FeatureCollection>(walkabilityEnabled ? '/data/icbc/prince_george_pedestrian_crashes.geojson' : null)
+  const walkabilitySidewalks = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/citypg/sidewalks.geojson' : null,
+  )
+  const walkabilityWalkways = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/citypg/walkways.geojson' : null,
+  )
+  const walkabilityIntersections = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/citypg/road_intersections.geojson' : null,
+  )
+  const walkabilityCrossings = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/walkability/supplemental/osm_crossings.geojson' : null,
+  )
+  const walkabilityChildcare = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/walkability/supplemental/bc_childcare_locations.geojson' : null,
+  )
+  const walkabilityOsmDaycares = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/walkability/supplemental/osm_daycares.geojson' : null,
+  )
+  const walkabilityClass3Crosswalks = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/walkability/supplemental/report_class3_crosswalks_geocoded.geojson' : null,
+  )
+  const walkabilitySupplementalPoi = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/walkability/supplemental/missing_poi_supplement.geojson' : null,
+  )
+  const walkabilityIntercityStops = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/walkability/supplemental/intercity_bus_stops.geojson' : null,
+  )
+  const walkabilityPedestrianCrashes = useJsonManifest<GeoJSON.FeatureCollection>(
+    walkabilityEnabled ? '/data/icbc/prince_george_pedestrian_crashes.geojson' : null,
+  )
 
   const networkCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -1867,9 +1901,16 @@ export default function ScoreBuilderSection() {
       }))
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
       .slice(0, 5)
-    const referenceTopIds = new Set(referenceEligible.slice(0, Math.max(1, Math.ceil(referenceEligible.length * 0.15))).map((entry) => entry.region.id))
+    const referenceTopIds = new Set(
+      referenceEligible
+        .slice(0, Math.max(1, Math.ceil(referenceEligible.length * 0.15)))
+        .map((entry) => entry.region.id),
+    )
     const alwaysHighPriority = scoredRegions
-      .filter((entry) => entry.rank <= Math.max(1, Math.ceil(scoredRegions.length * 0.15)) && referenceTopIds.has(entry.region.id))
+      .filter(
+        (entry) =>
+          entry.rank <= Math.max(1, Math.ceil(scoredRegions.length * 0.15)) && referenceTopIds.has(entry.region.id),
+      )
       .slice(0, 5)
       .map((entry) => ({ regionId: entry.region.id, regionName: entry.region.name }))
     const currentTopId = scoredRegions[0]?.region.id || null
@@ -1978,13 +2019,10 @@ export default function ScoreBuilderSection() {
 
   const normalizationLegendText = useMemo(() => getMethodLegendText(methodSettings), [methodSettings])
 
-  const handleWeightChange = useCallback(
-    (metric: ScoreMetricKey, value: number) => {
-      setActiveExampleKey(null)
-      setWeights((current) => ({ ...current, [metric]: value }))
-    },
-    [],
-  )
+  const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
+    setActiveExampleKey(null)
+    setWeights((current) => ({ ...current, [metric]: value }))
+  }, [])
 
   const applyExample = useCallback(
     (exampleKey: string) => {
@@ -2034,7 +2072,9 @@ export default function ScoreBuilderSection() {
         setHealthBoundaryLevel(parseHealthBoundaryLevel(state.healthBoundaryLevel))
         setCensusBoundaryLevel(parseCensusBoundaryLevel(state.censusBoundaryLevel))
         setCityBoundaryLevel(parseCityBoundaryLevel(state.cityBoundaryLevel ?? null))
-        setRegionalDistrictBoundaryLevel(parseRegionalDistrictBoundaryLevel(state.regionalDistrictBoundaryLevel ?? null))
+        setRegionalDistrictBoundaryLevel(
+          parseRegionalDistrictBoundaryLevel(state.regionalDistrictBoundaryLevel ?? null),
+        )
         setWatershedBoundaryLevel(parseWatershedBoundaryLevel(state.watershedBoundaryLevel ?? null))
         setEnabledDataSources([...state.enabledDataSources])
         setSelectedNetworks([...state.selectedNetworks])
@@ -2195,7 +2235,8 @@ export default function ScoreBuilderSection() {
   const handleRegionLevelChange = useCallback(
     (level: RegionLevel) => {
       if (boundarySource === 'bcHealth') setHealthBoundaryLevel(parseHealthBoundaryLevel(level))
-      else if (boundarySource === 'regionalDistrict') setRegionalDistrictBoundaryLevel(parseRegionalDistrictBoundaryLevel(level))
+      else if (boundarySource === 'regionalDistrict')
+        setRegionalDistrictBoundaryLevel(parseRegionalDistrictBoundaryLevel(level))
       else if (boundarySource === 'census') setCensusBoundaryLevel(parseCensusBoundaryLevel(level))
       else if (boundarySource === 'cityPG') setCityBoundaryLevel(parseCityBoundaryLevel(level))
       else if (boundarySource === 'nrAdmin') setNrAdminBoundaryLevel(parseNrAdminBoundaryLevel(level))
@@ -2534,7 +2575,7 @@ export default function ScoreBuilderSection() {
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
         desktopSidebarWidth={300}
         mobileInitialSheetState="half"
-        mobilePeek={(
+        mobilePeek={
           <div className="min-w-0 text-left">
             <div className="truncate text-xs font-semibold text-foreground">
               Index Lab | {scoredRegions.length.toLocaleString()} regions
@@ -2543,7 +2584,7 @@ export default function ScoreBuilderSection() {
               {selectedRegion?.region.name || activeExample?.label || activePreset?.label || 'Custom index'}
             </div>
           </div>
-        )}
+        }
         sidebar={isDesktop ? desktopLeftPanel : mobileSidebar}
         rightSidebar={isDesktop ? desktopRightPanel : undefined}
         showDesktopRightSidebar={showRightSidebar}
@@ -2590,7 +2631,7 @@ export default function ScoreBuilderSection() {
               sourceGridWeights={weights}
             />
 
-            <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-4 z-10 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-background/95 p-4 shadow-xl backdrop-blur md:bottom-6 md:right-6">
+            <MapLegendPanel width="lg">
               {correlateMode ? (
                 <CorrelationMapLegend
                   metricX={correlateMetricX}
@@ -2599,106 +2640,101 @@ export default function ScoreBuilderSection() {
                   result={correlationResult}
                 />
               ) : densityMode ? (
-                <DensityMapLegend
-                  metric={densityMetric}
-                  range={metricRanges[densityMetric]}
-                />
+                <DensityMapLegend metric={densityMetric} range={metricRanges[densityMetric]} />
               ) : (
                 <>
-              <h4 className="mb-2 text-xs font-semibold text-foreground">
-                {showWalkabilitySourceSurface
-                  ? 'Walkability source MI grid'
-                  : canUseWalkabilitySourceSurface
-                  ? 'Walkability boundary MI bands'
-                  : methodSettings.aggregation === 'healthyPlanPairwisePriority'
-                  ? 'HealthyPlan priority'
-                  : scorePaletteProfile.label}
-              </h4>
-              {showWalkabilitySourceSurface || canUseWalkabilitySourceSurface ? (
-                <>
-                  <div className="grid grid-cols-5 overflow-hidden rounded border border-border">
-                    {WALKABILITY_REPORT_MI_BANDS.map((band) => (
-                      <div key={band.label} className="h-3" style={{ backgroundColor: band.color }} />
-                    ))}
-                  </div>
-                  <div className="mt-1 flex items-center justify-between gap-1 text-[9px] text-muted-foreground">
-                    {WALKABILITY_REPORT_MI_BANDS.map((band) => (
-                      <span key={band.label}>{band.label}</span>
-                    ))}
-                  </div>
-                  <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                  <h4 className="mb-2 text-xs font-semibold text-foreground">
                     {showWalkabilitySourceSurface
-                      ? 'Showing the report-style citywide source grid. Click a boundary, or switch Map surface to Boundary map in Study area, to map the Index Lab equation by selected regions.'
-                      : 'Boundary polygons use the same report-style Mobility Index bands as the source grid while mapping the Index Lab equation by selected regions.'}
-                  </div>
-                </>
-              ) : methodSettings.aggregation === 'healthyPlanPairwisePriority' ? (
-                <>
-                  <div className="grid grid-cols-9 overflow-hidden rounded border border-border">
-                    {HEALTHYPLAN_EQUITY_PRIORITY_RAMP.map((color, index) => (
-                      <div key={`${color}-${index}`} className="h-3" style={{ backgroundColor: color }} />
-                    ))}
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>Rank gap 1</span>
-                    <span>Rank gap 9</span>
-                  </div>
-                  <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
-                    Colored regions meet vulnerability decile &gt; 5 and environment benefit decile &lt; 6. Uncolored
-                    regions do not meet the HealthyPlan threshold.
-                  </div>
-                </>
-              ) : (
-                <>
-                  {methodSettings.visualOutput === 'binned' ? (
-                    <div className="grid grid-cols-5 overflow-hidden rounded border border-border">
-                      {scorePaletteProfile.colors.map((color, index) => (
-                        <div key={`${color}-${index}`} className="h-3" style={{ backgroundColor: color }} />
-                      ))}
-                    </div>
+                      ? 'Walkability source MI grid'
+                      : canUseWalkabilitySourceSurface
+                        ? 'Walkability boundary MI bands'
+                        : methodSettings.aggregation === 'healthyPlanPairwisePriority'
+                          ? 'HealthyPlan priority'
+                          : scorePaletteProfile.label}
+                  </h4>
+                  {showWalkabilitySourceSurface || canUseWalkabilitySourceSurface ? (
+                    <>
+                      <MapSteppedLegend bands={WALKABILITY_REPORT_MI_BANDS} />
+                      <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                        {showWalkabilitySourceSurface
+                          ? 'Showing the report-style citywide source grid. Click a boundary, or switch Map surface to Boundary map in Study area, to map the Index Lab equation by selected regions.'
+                          : 'Boundary polygons use the same report-style Mobility Index bands as the source grid while mapping the Index Lab equation by selected regions.'}
+                      </div>
+                    </>
+                  ) : methodSettings.aggregation === 'healthyPlanPairwisePriority' ? (
+                    <>
+                      <MapSteppedLegend
+                        bands={HEALTHYPLAN_EQUITY_PRIORITY_RAMP.map((color, index) => ({
+                          color,
+                          label:
+                            index === 0
+                              ? 'Rank gap 1'
+                              : index === HEALTHYPLAN_EQUITY_PRIORITY_RAMP.length - 1
+                                ? 'Rank gap 9'
+                                : '',
+                        }))}
+                        labels={['Rank gap 1', 'Rank gap 9']}
+                      />
+                      <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                        Colored regions meet vulnerability decile &gt; 5 and environment benefit decile &lt; 6.
+                        Uncolored regions do not meet the HealthyPlan threshold.
+                      </div>
+                    </>
                   ) : (
-                    <div
-                      className="h-2 w-full rounded"
-                      style={{ background: `linear-gradient(to right, ${scorePaletteProfile.colors.join(', ')})` }}
-                    />
+                    <>
+                      {methodSettings.visualOutput === 'binned' ? (
+                        <MapSteppedLegend
+                          bands={scorePaletteProfile.colors.map((color, index) => ({
+                            color,
+                            label:
+                              index === 0
+                                ? scorePaletteProfile.legend.low
+                                : index === scorePaletteProfile.colors.length - 1
+                                  ? scorePaletteProfile.legend.high
+                                  : '',
+                          }))}
+                          labels={[scorePaletteProfile.legend.low, scorePaletteProfile.legend.high]}
+                        />
+                      ) : (
+                        <MapGradientLegendItem
+                          colors={scorePaletteProfile.colors}
+                          minLabel={scorePaletteProfile.legend.low}
+                          maxLabel={scorePaletteProfile.legend.high}
+                        />
+                      )}
+                      <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                        {methodSettings.visualOutput === 'binned'
+                          ? 'Map output uses five fixed score classes: 0-20, 20-40, 40-60, 60-80, 80-100.'
+                          : 'Map output uses continuous color interpolation between palette stops.'}
+                      </div>
+                    </>
                   )}
-                  <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>{scorePaletteProfile.legend.low}</span>
-                    <span>{scorePaletteProfile.legend.high}</span>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
+                    <div>
+                      <div className="uppercase">Min</div>
+                      <div className="font-medium text-foreground">{scoreSpread.min.toFixed(1)}</div>
+                    </div>
+                    <div>
+                      <div className="uppercase">Avg</div>
+                      <div className="font-medium text-foreground">{scoreSpread.average.toFixed(1)}</div>
+                    </div>
+                    <div>
+                      <div className="uppercase">Max</div>
+                      <div className="font-medium text-foreground">{scoreSpread.max.toFixed(1)}</div>
+                    </div>
                   </div>
-                  <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
-                    {methodSettings.visualOutput === 'binned'
-                      ? 'Map output uses five fixed score classes: 0-20, 20-40, 40-60, 60-80, 80-100.'
-                      : 'Map output uses continuous color interpolation between palette stops.'}
+                  <div className="mt-2 text-[10px] text-muted-foreground">
+                    {enabledDataSources.length} data source(s) active across {regions.length} regions.
                   </div>
+                  <div className="mt-1 text-[10px] leading-snug text-muted-foreground">{normalizationLegendText}</div>
+                  {thinCoverageCount > 0 && (
+                    <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                      {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'} have thin active-data coverage.
+                    </div>
+                  )}
                 </>
               )}
-              <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
-                <div>
-                  <div className="uppercase">Min</div>
-                  <div className="font-medium text-foreground">{scoreSpread.min.toFixed(1)}</div>
-                </div>
-                <div>
-                  <div className="uppercase">Avg</div>
-                  <div className="font-medium text-foreground">{scoreSpread.average.toFixed(1)}</div>
-                </div>
-                <div>
-                  <div className="uppercase">Max</div>
-                  <div className="font-medium text-foreground">{scoreSpread.max.toFixed(1)}</div>
-                </div>
-              </div>
-              <div className="mt-2 text-[10px] text-muted-foreground">
-                {enabledDataSources.length} data source(s) active across {regions.length} regions.
-              </div>
-              <div className="mt-1 text-[10px] leading-snug text-muted-foreground">{normalizationLegendText}</div>
-              {thinCoverageCount > 0 && (
-                <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                  {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'} have thin active-data coverage.
-                </div>
-              )}
-                </>
-              )}
-            </div>
+            </MapLegendPanel>
           </div>
         </div>
       </MapSectionLayout>
@@ -2762,11 +2798,11 @@ function CorrelationMapLegend({
             className="grid h-12 w-12 shrink-0 grid-cols-3 grid-rows-3 overflow-hidden rounded border border-border"
             aria-label="Bivariate legend grid"
           >
-            {BIVARIATE_3X3_PALETTE.slice().reverse().flatMap((row, rowIdx) =>
-              row.map((color, colIdx) => (
-                <div key={`bv-${rowIdx}-${colIdx}`} style={{ backgroundColor: color }} />
-              )),
-            )}
+            {BIVARIATE_3X3_PALETTE.slice()
+              .reverse()
+              .flatMap((row, rowIdx) =>
+                row.map((color, colIdx) => <div key={`bv-${rowIdx}-${colIdx}`} style={{ backgroundColor: color }} />),
+              )}
           </div>
           <div className="text-[10px] leading-tight text-muted-foreground">
             <div className="font-medium text-foreground">Y · {yLabel}</div>
@@ -2777,15 +2813,11 @@ function CorrelationMapLegend({
         </div>
       ) : (
         <>
-          <div
-            className="h-2 w-full rounded"
-            style={{ background: 'linear-gradient(to right, #1d4ed8, #f1f5f9, #b91c1c)' }}
+          <MapGradientLegendItem
+            colors={['#1d4ed8', '#f1f5f9', '#b91c1c']}
+            minLabel="Y below fit"
+            maxLabel="Y above fit"
           />
-          <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-            <span>Y below fit</span>
-            <span>On fit</span>
-            <span>Y above fit</span>
-          </div>
           <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
             Color = residual from a least-squares line of {yLabel} on {xLabel}.
           </div>
@@ -2827,23 +2859,20 @@ function DensityMapLegend({
   return (
     <>
       <h4 className="mb-2 text-xs font-semibold text-foreground">Density · {label}</h4>
-      <div
-        className="h-2 w-full rounded"
-        style={{ background: `linear-gradient(to right, ${colors.join(', ')})` }}
-      />
-      <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-        <span>Lower</span>
-        <span>Higher</span>
-      </div>
+      <MapGradientLegendItem colors={colors} minLabel="Lower" maxLabel="Higher" />
       {range && (
         <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
           <div>
             <div className="uppercase">Min</div>
-            <div className="font-medium text-foreground">{range.min.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+            <div className="font-medium text-foreground">
+              {range.min.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </div>
           </div>
           <div>
             <div className="uppercase">Max</div>
-            <div className="font-medium text-foreground">{range.max.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+            <div className="font-medium text-foreground">
+              {range.max.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </div>
           </div>
         </div>
       )}

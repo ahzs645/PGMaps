@@ -1,4 +1,11 @@
-import { useState, type ComponentPropsWithoutRef, type ElementType, type HTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
+import {
+  useState,
+  type ComponentPropsWithoutRef,
+  type ElementType,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import { DatasetInfo, type DatasetInfoRecord } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
@@ -203,7 +210,10 @@ export function MapLegend({
             >
               <MapOverlayTitle>{title}</MapOverlayTitle>
               <ChevronDown
-                className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', collapsed && '-rotate-90')}
+                className={cn(
+                  'size-3.5 shrink-0 text-muted-foreground transition-transform',
+                  collapsed && '-rotate-90',
+                )}
               />
             </button>
           ) : (
@@ -249,7 +259,7 @@ export function MapLegendItem({
 }
 
 type MapGradientLegendItemProps = ComponentPropsWithoutRef<'div'> & {
-  colors: string[]
+  colors: readonly string[]
   minLabel: ReactNode
   maxLabel: ReactNode
 }
@@ -740,6 +750,7 @@ type MapLegendPanelProps = {
   title?: ReactNode
   description?: ReactNode
   icon?: ReactNode
+  actions?: ReactNode
   collapsible?: boolean
   defaultCollapsed?: boolean
   collapsed?: boolean
@@ -755,6 +766,7 @@ export function MapLegendPanel({
   title,
   description,
   icon,
+  actions,
   collapsible = false,
   defaultCollapsed = false,
   collapsed,
@@ -798,22 +810,35 @@ export function MapLegendPanel({
               <span className="flex min-w-0 items-start gap-1.5">
                 {icon ? <span className="mt-px shrink-0 text-muted-foreground">{icon}</span> : null}
                 <span className="min-w-0">
-                <span className="block truncate text-xs font-semibold text-foreground">{title}</span>
-                {description ? <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">{description}</span> : null}
+                  <span className="block truncate text-xs font-semibold text-foreground">{title}</span>
+                  {description ? (
+                    <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">{description}</span>
+                  ) : null}
                 </span>
               </span>
-              <ChevronDown
-                className={cn('mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform', isCollapsed && '-rotate-90')}
-              />
+              <span className="flex shrink-0 items-center gap-2">
+                {actions ? <span className="text-[10px]">{actions}</span> : null}
+                <ChevronDown
+                  className={cn(
+                    'mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform',
+                    isCollapsed && '-rotate-90',
+                  )}
+                />
+              </span>
             </button>
           ) : (
-            <>
-              <h4 className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground">
-                {icon ? <span className="shrink-0 text-muted-foreground">{icon}</span> : null}
-                <span className="truncate">{title}</span>
-              </h4>
-              {description ? <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</div> : null}
-            </>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h4 className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground">
+                  {icon ? <span className="shrink-0 text-muted-foreground">{icon}</span> : null}
+                  <span className="truncate">{title}</span>
+                </h4>
+                {description ? (
+                  <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</div>
+                ) : null}
+              </div>
+              {actions ? <div className="shrink-0 text-[10px]">{actions}</div> : null}
+            </div>
           )}
         </div>
       )}
@@ -848,7 +873,9 @@ export function MapLegendSection({
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             {title ? <span className="block truncate font-medium text-foreground">{title}</span> : null}
-            {description ? <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground">{description}</span> : null}
+            {description ? (
+              <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground">{description}</span>
+            ) : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {actions ? <div className="flex items-center gap-2 text-[10px]">{actions}</div> : null}
@@ -946,7 +973,7 @@ type MapSteppedLegendBand = {
 }
 
 type MapSteppedLegendProps = ComponentPropsWithoutRef<'div'> & {
-  bands: MapSteppedLegendBand[]
+  bands: readonly MapSteppedLegendBand[]
   variant?: 'strip' | 'rows'
   labels?: ReactNode[]
   showBandLabels?: boolean
@@ -992,7 +1019,10 @@ export function MapSteppedLegend({
 
   return (
     <div className={cn('space-y-1', className)} {...props}>
-      <div className="grid overflow-hidden rounded-sm border border-border" style={{ gridTemplateColumns: `repeat(${bands.length}, minmax(0, 1fr))` }}>
+      <div
+        className="grid overflow-hidden rounded-sm border border-border"
+        style={{ gridTemplateColumns: `repeat(${bands.length}, minmax(0, 1fr))` }}
+      >
         {bands.map((band, index) => (
           <span key={`${String(band.label)}-${index}`} className="block h-3" style={{ backgroundColor: band.color }} />
         ))}
@@ -1049,23 +1079,11 @@ type MapImageLegendProps = ComponentPropsWithoutRef<'div'> & {
   maxHeight?: number
 }
 
-export function MapImageLegend({
-  src,
-  alt,
-  label,
-  maxHeight = 96,
-  className,
-  ...props
-}: MapImageLegendProps) {
+export function MapImageLegend({ src, alt, label, maxHeight = 96, className, ...props }: MapImageLegendProps) {
   return (
     <div className={cn('rounded-md border border-border bg-secondary/30 p-3 text-xs', className)} {...props}>
       {label ? <div className="mb-2 font-medium text-foreground">{label}</div> : null}
-      <img
-        src={src}
-        alt={alt}
-        className="max-w-full rounded bg-white object-contain"
-        style={{ maxHeight }}
-      />
+      <img src={src} alt={alt} className="max-w-full rounded bg-white object-contain" style={{ maxHeight }} />
     </div>
   )
 }
@@ -1074,18 +1092,16 @@ type MapLegendNoteProps = ComponentPropsWithoutRef<'div'> & {
   tone?: 'muted' | 'warning' | 'error'
 }
 
-export function MapLegendNote({
-  tone = 'muted',
-  className,
-  ...props
-}: MapLegendNoteProps) {
+export function MapLegendNote({ tone = 'muted', className, ...props }: MapLegendNoteProps) {
   return (
     <div
       className={cn(
         'px-1 text-[10px] leading-snug',
         tone === 'muted' && 'text-muted-foreground',
-        tone === 'warning' && 'rounded border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200',
-        tone === 'error' && 'rounded border border-destructive/30 bg-destructive/10 px-2 py-1 font-medium text-destructive',
+        tone === 'warning' &&
+          'rounded border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200',
+        tone === 'error' &&
+          'rounded border border-destructive/30 bg-destructive/10 px-2 py-1 font-medium text-destructive',
         className,
       )}
       {...props}

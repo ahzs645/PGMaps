@@ -13,7 +13,7 @@ export const PARK_CLASSIFICATION_COLORS: Record<ParkClassification, string> = {
 }
 
 export const TRAIL_USER_CLASS_COLORS: Record<TrailUserClass, string> = {
-  Walking: '#22c55e',
+  Walking: '#ef4444',
   Multiuse: '#f59e0b',
   Equine: '#a855f7',
 }

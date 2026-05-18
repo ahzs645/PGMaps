@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Layers } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { HeatmapMashupLayer, type HeatmapDataset } from '@/components/HeatmapMashupLayer'
 import { NeighborhoodReport } from '@/components/NeighborhoodReport'
+import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { useAirQualityData } from '@/maps/airquality'
 import { useBcAssessmentData } from '@/maps/bcassessment/hooks/useBcAssessmentData'
 import type { PropertyCategory } from '@/maps/bcassessment/types'
@@ -17,12 +18,7 @@ import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
 import { useTransitData } from '@/maps/scorebuilder/hooks/useTransitData'
 import { cn } from '@/lib/utils'
 import { useExplorerGeoJson } from './hooks/useExplorerGeoJson'
-import {
-  datasetById,
-  EXPLORER_DATASETS,
-  GEOMETRY_TYPE_LABEL,
-  LOW_COST_NETWORKS
-} from './constants'
+import { datasetById, EXPLORER_DATASETS, GEOMETRY_TYPE_LABEL, LOW_COST_NETWORKS } from './constants'
 import { ExplorerMap } from './components/ExplorerMap'
 import { ExplorerSidebar } from './components/ExplorerSidebar'
 import type {
@@ -34,7 +30,7 @@ import type {
   ExplorerPointCollection,
   ExplorerPolygonCollection,
   GeometryBounds,
-  SpatialFilter
+  SpatialFilter,
 } from './types'
 
 const ALL_GEOMETRY_TYPES: ExplorerGeometryType[] = ['point', 'line', 'polygon']
@@ -88,7 +84,7 @@ const PROPERTY_CATEGORY_WEIGHT: Record<PropertyCategory, number> = {
   institutional: 10,
   vacant: 4,
   farm: 6,
-  other: 5
+  other: 5,
 }
 
 type SortMode = 'relevance' | 'name'
@@ -121,14 +117,19 @@ function geometryBounds(geometry: GeoJSON.Geometry): GeometryBounds | null {
     return createPointBounds(lng, lat)
   }
   const bounds: GeometryBounds = { minLng: Infinity, minLat: Infinity, maxLng: -Infinity, maxLat: -Infinity }
-  const scanRing = (ring: number[][]) => { ring.forEach(([lng, lat]) => expandBounds(bounds, lng, lat)) }
+  const scanRing = (ring: number[][]) => {
+    ring.forEach(([lng, lat]) => expandBounds(bounds, lng, lat))
+  }
   if (geometry.type === 'LineString') geometry.coordinates.forEach(([lng, lat]) => expandBounds(bounds, lng, lat))
-  else if (geometry.type === 'MultiLineString') geometry.coordinates.forEach((line) => line.forEach(([lng, lat]) => expandBounds(bounds, lng, lat)))
+  else if (geometry.type === 'MultiLineString')
+    geometry.coordinates.forEach((line) => line.forEach(([lng, lat]) => expandBounds(bounds, lng, lat)))
   else if (geometry.type === 'Polygon') geometry.coordinates.forEach((ring) => scanRing(ring))
-  else if (geometry.type === 'MultiPolygon') geometry.coordinates.forEach((polygon) => polygon.forEach((ring) => scanRing(ring)))
+  else if (geometry.type === 'MultiPolygon')
+    geometry.coordinates.forEach((polygon) => polygon.forEach((ring) => scanRing(ring)))
   else return null
   if (!Number.isFinite(bounds.minLng) || !Number.isFinite(bounds.minLat)) return null
-  if (bounds.minLng === bounds.maxLng && bounds.minLat === bounds.maxLat) return createPointBounds(bounds.minLng, bounds.minLat)
+  if (bounds.minLng === bounds.maxLng && bounds.minLat === bounds.maxLat)
+    return createPointBounds(bounds.minLng, bounds.minLat)
   return bounds
 }
 
@@ -149,29 +150,44 @@ function countInspectionViolations(inspections: Inspection[] | undefined): numbe
 
 function classificationWeight(classification: ParkClassification | null): number {
   switch (classification) {
-    case 'Major': return 14
-    case 'Community': return 12
-    case 'Athletic': return 11
-    case 'Nature': case 'Green Space': return 10
-    case 'Special Purpose': return 9
-    default: return 7
+    case 'Major':
+      return 14
+    case 'Community':
+      return 12
+    case 'Athletic':
+      return 11
+    case 'Nature':
+    case 'Green Space':
+      return 10
+    case 'Special Purpose':
+      return 9
+    default:
+      return 7
   }
 }
 
 function trailClassWeight(userClass: TrailUserClass | null): number {
   switch (userClass) {
-    case 'Multiuse': return 12
-    case 'Walking': return 9
-    case 'Equine': return 8
-    default: return 6
+    case 'Multiuse':
+      return 12
+    case 'Walking':
+      return 9
+    case 'Equine':
+      return 8
+    default:
+      return 6
   }
 }
 
 function hazardWeight(rating: HazardRating): number {
   switch (rating) {
-    case 'Moderate': return 22
-    case 'Low': return 12
-    case 'Unknown': default: return 6
+    case 'Moderate':
+      return 22
+    case 'Low':
+      return 12
+    case 'Unknown':
+    default:
+      return 6
   }
 }
 
@@ -206,7 +222,7 @@ export default function ExplorerSection() {
     return valid.length ? valid : DEFAULT_ACTIVE_DATASET_IDS
   })
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
-  const [sortMode, setSortMode] = useState<SortMode>(() => searchParams.get('sort') === 'name' ? 'name' : 'relevance')
+  const [sortMode, setSortMode] = useState<SortMode>(() => (searchParams.get('sort') === 'name' ? 'name' : 'relevance'))
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [spatialFilter, setSpatialFilter] = useState<SpatialFilter | null>(null)
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>(() => ({
@@ -218,25 +234,35 @@ export default function ExplorerSection() {
   const [neighborhoodPoint, setNeighborhoodPoint] = useState<{ lat: number; lng: number } | null>(null)
 
   const activeDatasetSetForLoading = useMemo(() => new Set(activeDatasetIds), [activeDatasetIds])
-  const parksDataEnabled = (
+  const parksDataEnabled =
     activeDatasetSetForLoading.has('parks') ||
     activeDatasetSetForLoading.has('trails') ||
     activeDatasetSetForLoading.has('parkAmenities')
-  )
-  const censusDataEnabled = (
+  const censusDataEnabled =
     activeDatasetSetForLoading.has('censusDa') ||
     activeDatasetSetForLoading.has('censusCt') ||
     activeDatasetSetForLoading.has('censusCsd') ||
     activeDatasetSetForLoading.has('censusCd') ||
     activeDatasetSetForLoading.has('censusDb')
-  )
 
-  const { monitors, loading: loadingMonitors, error: monitorsError } = useAirQualityData(activeDatasetSetForLoading.has('airMonitors'))
-  const { restaurants, loading: loadingRestaurants, error: restaurantsError } = useRestaurantData(activeDatasetSetForLoading.has('restaurants'))
+  const {
+    monitors,
+    loading: loadingMonitors,
+    error: monitorsError,
+  } = useAirQualityData(activeDatasetSetForLoading.has('airMonitors'))
+  const {
+    restaurants,
+    loading: loadingRestaurants,
+    error: restaurantsError,
+  } = useRestaurantData(activeDatasetSetForLoading.has('restaurants'))
   const { parks, trails, amenities, loading: loadingParks, error: parksError } = useParksData([], parksDataEnabled)
   const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(censusDataEnabled)
   const { incidents, loading: loadingCrime, error: crimeError } = useCrimeData(activeDatasetSetForLoading.has('crime'))
-  const { stops: transitStops, loading: loadingTransit, error: transitError } = useTransitData(activeDatasetSetForLoading.has('transitStops'))
+  const {
+    stops: transitStops,
+    loading: loadingTransit,
+    error: transitError,
+  } = useTransitData(activeDatasetSetForLoading.has('transitStops'))
   const transitRoutesState = useExplorerGeoJson<GeoJSON.LineString, TransitRouteProperties>(
     '/data/transit/prince_george_gtfs_routes.geojson',
     activeDatasetSetForLoading.has('transitRoutes'),
@@ -250,17 +276,23 @@ export default function ExplorerSection() {
     activeDatasetSetForLoading.has('wildlifeAccidents'),
   )
   const bcAssessmentEnabled = activeDatasetIds.includes('bcAssessment')
-  const { properties: bcParcels, loading: loadingBcAssessment, error: bcAssessmentError } = useBcAssessmentData(bcAssessmentEnabled)
+  const {
+    properties: bcParcels,
+    loading: loadingBcAssessment,
+    error: bcAssessmentError,
+  } = useBcAssessmentData(bcAssessmentEnabled)
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
-    const defaultDatasetsActive = (
+    const defaultDatasetsActive =
       activeDatasetIds.length === DEFAULT_ACTIVE_DATASET_IDS.length &&
       DEFAULT_ACTIVE_DATASET_IDS.every((datasetId) => activeDatasetIds.includes(datasetId))
-    )
-    const datasetValue = activeDatasetIds.length === ALL_DATASET_IDS.length
-      ? 'all'
-      : defaultDatasetsActive ? '' : activeDatasetIds.join(',')
+    const datasetValue =
+      activeDatasetIds.length === ALL_DATASET_IDS.length
+        ? 'all'
+        : defaultDatasetsActive
+          ? ''
+          : activeDatasetIds.join(',')
     const geomValue = geometryFilters.length === ALL_GEOMETRY_TYPES.length ? '' : geometryFilters.join(',')
     if (datasetValue) params.set('datasets', datasetValue)
     else params.delete('datasets')
@@ -282,7 +314,7 @@ export default function ExplorerSection() {
   }, [activeDatasetIds, dateRange, geometryFilters, searchParams, searchQuery, setSearchParams, showHeatmap, sortMode])
 
   // Date range parsing
-  const dateFrom = useMemo(() => dateRange.from ? new Date(dateRange.from).getTime() : null, [dateRange.from])
+  const dateFrom = useMemo(() => (dateRange.from ? new Date(dateRange.from).getTime() : null), [dateRange.from])
   const dateTo = useMemo(() => {
     if (!dateRange.to) return null
     const date = new Date(dateRange.to)
@@ -310,8 +342,11 @@ export default function ExplorerSection() {
           relevanceBreakdown: [
             { label: 'Base', points: 30 },
             { label: monitor.status === 'active' ? 'Active status' : 'Inactive', points: activeBoost },
-            { label: LOW_COST_NETWORKS.has(monitor.network) ? 'Low-cost network' : 'Reference network', points: networkBoost },
-            { label: `${parameterCount} param(s)`, points: richnessBoost }
+            {
+              label: LOW_COST_NETWORKS.has(monitor.network) ? 'Low-cost network' : 'Reference network',
+              points: networkBoost,
+            },
+            { label: `${parameterCount} param(s)`, points: richnessBoost },
           ],
           summary: `Active state ${formatNullableText(monitor.status, 'unknown')} with ${parameterCount} tracked parameter(s).`,
           bounds: createPointBounds(monitor.longitude, monitor.latitude),
@@ -321,8 +356,8 @@ export default function ExplorerSection() {
             { label: 'Status', value: formatNullableText(monitor.status, 'Unknown') },
             { label: 'City', value: formatNullableText(monitor.city, 'Unknown') },
             { label: 'Province', value: formatNullableText(monitor.province, 'Unknown') },
-            { label: 'Parameters', value: monitor.parameters.join(', ') || 'N/A' }
-          ]
+            { label: 'Parameters', value: monitor.parameters.join(', ') || 'N/A' },
+          ],
         }
       })
   }, [monitors])
@@ -370,7 +405,7 @@ export default function ExplorerSection() {
             { label: 'Base', points: 20 },
             { label: `${rating} hazard`, points: hazardPts },
             { label: `${violationCount} violation(s)`, points: Math.round(violPts) },
-            { label: `${inspectionCount} inspection(s)`, points: Math.round(inspPts) }
+            { label: `${inspectionCount} inspection(s)`, points: Math.round(inspPts) },
           ],
           summary: `${violationCount} violation(s) across ${inspectionCount} inspection(s).`,
           bounds: createPointBounds(longitude, latitude),
@@ -380,9 +415,9 @@ export default function ExplorerSection() {
             { label: 'Facility', value: formatNullableText(restaurant.facility_type, 'Unknown') },
             { label: 'Address', value: formatNullableText(restaurant.address, 'Unknown') },
             { label: 'Inspections', value: inspectionCount.toLocaleString() },
-            { label: 'Violations', value: violationCount.toLocaleString() }
+            { label: 'Violations', value: violationCount.toLocaleString() },
           ],
-          timestamp: latestDate
+          timestamp: latestDate,
         }
       })
   }, [restaurants, dateFrom, dateTo])
@@ -404,7 +439,11 @@ export default function ExplorerSection() {
         const filePts = incident.fileNumber ? 8 : 0
         const relevance = clampScore(28 + recencyPts + locationPts + filePts)
         const geometry: GeoJSON.Point = { type: 'Point', coordinates: [incident.longitude, incident.latitude] }
-        const dateLabel = incident.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+        const dateLabel = incident.date.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
 
         return {
           id: `crime:${incident.id}`,
@@ -417,7 +456,7 @@ export default function ExplorerSection() {
             { label: 'Base', points: 28 },
             { label: 'Recency', points: recencyPts },
             { label: 'Location detail', points: locationPts },
-            { label: incident.fileNumber ? 'Has file number' : 'No file number', points: filePts }
+            { label: incident.fileNumber ? 'Has file number' : 'No file number', points: filePts },
           ],
           summary: `${category} incident reported ${dateLabel} near ${formatNullableText(incident.address, 'an unknown address').toLowerCase()}.`,
           bounds: createPointBounds(incident.longitude, incident.latitude),
@@ -429,9 +468,9 @@ export default function ExplorerSection() {
             { label: 'Time', value: formatNullableText(incident.time, 'Unknown') },
             { label: 'Address', value: formatNullableText(incident.address, 'Unknown') },
             { label: 'Community', value: formatNullableText(incident.community, 'Unknown') },
-            { label: 'File', value: formatNullableText(incident.fileNumber, 'Unknown') }
+            { label: 'File', value: formatNullableText(incident.fileNumber, 'Unknown') },
           ],
-          timestamp: incident.date.getTime()
+          timestamp: incident.date.getTime(),
         }
       })
   }, [dateFrom, dateTo, incidents])
@@ -454,7 +493,7 @@ export default function ExplorerSection() {
           relevanceBreakdown: [
             { label: 'Base', points: 34 },
             { label: amenity.parkName ? 'Has park name' : 'No park name', points: parkPts },
-            { label: amenity.type ? 'Has type' : 'No type', points: typePts }
+            { label: amenity.type ? 'Has type' : 'No type', points: typePts },
           ],
           summary: 'Park infrastructure and public-space amenity location.',
           bounds: createPointBounds(amenity.longitude, amenity.latitude),
@@ -462,8 +501,8 @@ export default function ExplorerSection() {
           details: [
             { label: 'Amenity Type', value: formatNullableText(amenity.type, 'Unknown') },
             { label: 'Park', value: formatNullableText(amenity.parkName, 'Unknown') },
-            { label: 'Location', value: formatNullableText(amenity.location, 'Unknown') }
-          ]
+            { label: 'Location', value: formatNullableText(amenity.location, 'Unknown') },
+          ],
         }
       })
   }, [amenities])
@@ -475,39 +514,42 @@ export default function ExplorerSection() {
 
   const trailItems = useMemo<ExplorerItem[]>(() => {
     const items: ExplorerItem[] = []
-    trails.filter((trail) => trail.coordinates.length >= 2).forEach((trail) => {
-      const length = trail.length || 0
-      const normalizedLength = normalize(length, trailLengthRange.min, trailLengthRange.max)
-      const lengthPts = Math.round(normalizedLength * 50)
-      const winterPts = trail.winterMaintenance ? 12 : 4
-      const classPts = trailClassWeight(trail.userClass)
-      const relevance = clampScore(24 + lengthPts + winterPts + classPts)
-      const geometry: GeoJSON.LineString = { type: 'LineString', coordinates: trail.coordinates }
-      const bounds = geometryBounds(geometry)
-      if (!bounds) return
-      items.push({
-        id: `trail:${trail.id}`,
-        datasetId: 'trails',
-        geometryType: 'line',
-        name: trail.name,
-        subtitle: `${formatNullableText(trail.userClass, 'Unknown class')} | ${formatNullableText(trail.parkName, 'No park')}`,
-        relevance,
-        relevanceBreakdown: [
-          { label: 'Base', points: 24 },
-          { label: `Length (norm)`, points: lengthPts },
-          { label: trail.winterMaintenance ? 'Winter maintained' : 'No winter maint.', points: winterPts },
-          { label: `${trail.userClass || 'Unknown'} class`, points: classPts }
-        ],
-        summary: `${trail.winterMaintenance ? 'Maintained' : 'Not maintained'} in winter with length ${length.toLocaleString(undefined, { maximumFractionDigits: 0 })} m.`,
-        bounds, geometry,
-        details: [
-          { label: 'User Class', value: formatNullableText(trail.userClass, 'Unknown') },
-          { label: 'Surface', value: formatNullableText(trail.surfaceMaterial, 'Unknown') },
-          { label: 'Winter', value: trail.winterMaintenance ? 'Maintained' : 'Not maintained' },
-          { label: 'Length (m)', value: length.toLocaleString(undefined, { maximumFractionDigits: 0 }) }
-        ]
+    trails
+      .filter((trail) => trail.coordinates.length >= 2)
+      .forEach((trail) => {
+        const length = trail.length || 0
+        const normalizedLength = normalize(length, trailLengthRange.min, trailLengthRange.max)
+        const lengthPts = Math.round(normalizedLength * 50)
+        const winterPts = trail.winterMaintenance ? 12 : 4
+        const classPts = trailClassWeight(trail.userClass)
+        const relevance = clampScore(24 + lengthPts + winterPts + classPts)
+        const geometry: GeoJSON.LineString = { type: 'LineString', coordinates: trail.coordinates }
+        const bounds = geometryBounds(geometry)
+        if (!bounds) return
+        items.push({
+          id: `trail:${trail.id}`,
+          datasetId: 'trails',
+          geometryType: 'line',
+          name: trail.name,
+          subtitle: `${formatNullableText(trail.userClass, 'Unknown class')} | ${formatNullableText(trail.parkName, 'No park')}`,
+          relevance,
+          relevanceBreakdown: [
+            { label: 'Base', points: 24 },
+            { label: `Length (norm)`, points: lengthPts },
+            { label: trail.winterMaintenance ? 'Winter maintained' : 'No winter maint.', points: winterPts },
+            { label: `${trail.userClass || 'Unknown'} class`, points: classPts },
+          ],
+          summary: `${trail.winterMaintenance ? 'Maintained' : 'Not maintained'} in winter with length ${length.toLocaleString(undefined, { maximumFractionDigits: 0 })} m.`,
+          bounds,
+          geometry,
+          details: [
+            { label: 'User Class', value: formatNullableText(trail.userClass, 'Unknown') },
+            { label: 'Surface', value: formatNullableText(trail.surfaceMaterial, 'Unknown') },
+            { label: 'Winter', value: trail.winterMaintenance ? 'Maintained' : 'Not maintained' },
+            { label: 'Length (m)', value: length.toLocaleString(undefined, { maximumFractionDigits: 0 }) },
+          ],
+        })
       })
-    })
     return items
   }, [trailLengthRange.max, trailLengthRange.min, trails])
 
@@ -539,16 +581,17 @@ export default function ExplorerSection() {
           { label: 'Base', points: 24 },
           { label: 'Area (norm)', points: areaPts },
           { label: park.developed ? 'Developed' : 'Natural', points: devPts },
-          { label: `${park.classification || 'Unknown'} class`, points: classPts }
+          { label: `${park.classification || 'Unknown'} class`, points: classPts },
         ],
         summary: `${park.developed ? 'Developed' : 'Natural/open'} park with area ${areaKm2.toLocaleString(undefined, { maximumFractionDigits: 2 })} km².`,
-        bounds, geometry: park.geometry,
+        bounds,
+        geometry: park.geometry,
         details: [
           { label: 'Classification', value: formatNullableText(park.classification, 'Unknown') },
           { label: 'Subtype', value: formatNullableText(park.subType, 'Unknown') },
           { label: 'Developed', value: park.developed ? 'Yes' : 'No' },
-          { label: 'Area (km²)', value: areaKm2.toLocaleString(undefined, { maximumFractionDigits: 2 }) }
-        ]
+          { label: 'Area (km²)', value: areaKm2.toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        ],
       })
     })
     return items
@@ -563,7 +606,7 @@ export default function ExplorerSection() {
       populationMin: populations.length ? Math.min(...populations) : 0,
       populationMax: populations.length ? Math.max(...populations) : 1,
       densityMin: densities.length ? Math.min(...densities) : 0,
-      densityMax: densities.length ? Math.max(...densities) : 1
+      densityMax: densities.length ? Math.max(...densities) : 1,
     }
   }, [unitsByLevel.da])
 
@@ -580,22 +623,27 @@ export default function ExplorerSection() {
       const bounds = geometryBounds(unit.geometry)
       if (!bounds) return
       items.push({
-        id: `census-da:${unit.id}`, datasetId: 'censusDa', geometryType: 'polygon',
-        name: unit.name, subtitle: `DA ${unit.id}`, relevance,
+        id: `census-da:${unit.id}`,
+        datasetId: 'censusDa',
+        geometryType: 'polygon',
+        name: unit.name,
+        subtitle: `DA ${unit.id}`,
+        relevance,
         relevanceBreakdown: [
           { label: 'Base', points: 22 },
           { label: 'Pop. density (norm)', points: densityPts },
-          { label: 'Population (norm)', points: popPts }
+          { label: 'Population (norm)', points: popPts },
         ],
         summary: `Population ${population.toLocaleString()} with density ${density.toLocaleString(undefined, { maximumFractionDigits: 1 })} /km².`,
-        bounds, geometry: unit.geometry,
+        bounds,
+        geometry: unit.geometry,
         details: [
           { label: 'Population', value: population.toLocaleString() },
           { label: 'Density', value: density.toLocaleString(undefined, { maximumFractionDigits: 1 }) },
           { label: 'Households', value: (unit.households || 0).toLocaleString() },
           { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString() },
-          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }
-        ]
+          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        ],
       })
     })
     return items
@@ -610,7 +658,7 @@ export default function ExplorerSection() {
       populationMin: populations.length ? Math.min(...populations) : 0,
       populationMax: populations.length ? Math.max(...populations) : 1,
       densityMin: densities.length ? Math.min(...densities) : 0,
-      densityMax: densities.length ? Math.max(...densities) : 1
+      densityMax: densities.length ? Math.max(...densities) : 1,
     }
   }, [unitsByLevel.ct])
 
@@ -627,22 +675,27 @@ export default function ExplorerSection() {
       const bounds = geometryBounds(unit.geometry)
       if (!bounds) return
       items.push({
-        id: `census-ct:${unit.id}`, datasetId: 'censusCt', geometryType: 'polygon',
-        name: unit.name, subtitle: `CT ${unit.id}`, relevance,
+        id: `census-ct:${unit.id}`,
+        datasetId: 'censusCt',
+        geometryType: 'polygon',
+        name: unit.name,
+        subtitle: `CT ${unit.id}`,
+        relevance,
         relevanceBreakdown: [
           { label: 'Base', points: 22 },
           { label: 'Pop. density (norm)', points: densityPts },
-          { label: 'Population (norm)', points: popPts }
+          { label: 'Population (norm)', points: popPts },
         ],
         summary: `Population ${population.toLocaleString()} with density ${density.toLocaleString(undefined, { maximumFractionDigits: 1 })} /km².`,
-        bounds, geometry: unit.geometry,
+        bounds,
+        geometry: unit.geometry,
         details: [
           { label: 'Population', value: population.toLocaleString() },
           { label: 'Density', value: density.toLocaleString(undefined, { maximumFractionDigits: 1 }) },
           { label: 'Households', value: (unit.households || 0).toLocaleString() },
           { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString() },
-          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }
-        ]
+          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        ],
       })
     })
     return items
@@ -657,7 +710,7 @@ export default function ExplorerSection() {
       populationMin: populations.length ? Math.min(...populations) : 0,
       populationMax: populations.length ? Math.max(...populations) : 1,
       densityMin: densities.length ? Math.min(...densities) : 0,
-      densityMax: densities.length ? Math.max(...densities) : 1
+      densityMax: densities.length ? Math.max(...densities) : 1,
     }
   }, [unitsByLevel.csd])
 
@@ -674,22 +727,27 @@ export default function ExplorerSection() {
       const bounds = geometryBounds(unit.geometry)
       if (!bounds) return
       items.push({
-        id: `census-csd:${unit.id}`, datasetId: 'censusCsd', geometryType: 'polygon',
-        name: unit.name, subtitle: `CSD ${unit.id}`, relevance,
+        id: `census-csd:${unit.id}`,
+        datasetId: 'censusCsd',
+        geometryType: 'polygon',
+        name: unit.name,
+        subtitle: `CSD ${unit.id}`,
+        relevance,
         relevanceBreakdown: [
           { label: 'Base', points: 22 },
           { label: 'Pop. density (norm)', points: densityPts },
-          { label: 'Population (norm)', points: popPts }
+          { label: 'Population (norm)', points: popPts },
         ],
         summary: `Population ${population.toLocaleString()} with density ${density.toLocaleString(undefined, { maximumFractionDigits: 1 })} /km².`,
-        bounds, geometry: unit.geometry,
+        bounds,
+        geometry: unit.geometry,
         details: [
           { label: 'Population', value: population.toLocaleString() },
           { label: 'Density', value: density.toLocaleString(undefined, { maximumFractionDigits: 1 }) },
           { label: 'Households', value: (unit.households || 0).toLocaleString() },
           { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString() },
-          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }
-        ]
+          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        ],
       })
     })
     return items
@@ -704,7 +762,7 @@ export default function ExplorerSection() {
       populationMin: populations.length ? Math.min(...populations) : 0,
       populationMax: populations.length ? Math.max(...populations) : 1,
       densityMin: densities.length ? Math.min(...densities) : 0,
-      densityMax: densities.length ? Math.max(...densities) : 1
+      densityMax: densities.length ? Math.max(...densities) : 1,
     }
   }, [unitsByLevel.cd])
 
@@ -721,22 +779,27 @@ export default function ExplorerSection() {
       const bounds = geometryBounds(unit.geometry)
       if (!bounds) return
       items.push({
-        id: `census-cd:${unit.id}`, datasetId: 'censusCd', geometryType: 'polygon',
-        name: unit.name, subtitle: `CD ${unit.id}`, relevance,
+        id: `census-cd:${unit.id}`,
+        datasetId: 'censusCd',
+        geometryType: 'polygon',
+        name: unit.name,
+        subtitle: `CD ${unit.id}`,
+        relevance,
         relevanceBreakdown: [
           { label: 'Base', points: 22 },
           { label: 'Pop. density (norm)', points: densityPts },
-          { label: 'Population (norm)', points: popPts }
+          { label: 'Population (norm)', points: popPts },
         ],
         summary: `Population ${population.toLocaleString()} with density ${density.toLocaleString(undefined, { maximumFractionDigits: 1 })} /km².`,
-        bounds, geometry: unit.geometry,
+        bounds,
+        geometry: unit.geometry,
         details: [
           { label: 'Population', value: population.toLocaleString() },
           { label: 'Density', value: density.toLocaleString(undefined, { maximumFractionDigits: 1 }) },
           { label: 'Households', value: (unit.households || 0).toLocaleString() },
           { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString() },
-          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }
-        ]
+          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        ],
       })
     })
     return items
@@ -748,7 +811,7 @@ export default function ExplorerSection() {
     const populations = dbUnits.map((u) => u.population || 0).filter(Number.isFinite)
     return {
       populationMin: populations.length ? Math.min(...populations) : 0,
-      populationMax: populations.length ? Math.max(...populations) : 1
+      populationMax: populations.length ? Math.max(...populations) : 1,
     }
   }, [unitsByLevel.db])
 
@@ -762,19 +825,24 @@ export default function ExplorerSection() {
       const bounds = geometryBounds(unit.geometry)
       if (!bounds) return
       items.push({
-        id: `census-db:${unit.id}`, datasetId: 'censusDb', geometryType: 'polygon',
-        name: unit.name, subtitle: `DB ${unit.id}`, relevance,
+        id: `census-db:${unit.id}`,
+        datasetId: 'censusDb',
+        geometryType: 'polygon',
+        name: unit.name,
+        subtitle: `DB ${unit.id}`,
+        relevance,
         relevanceBreakdown: [
           { label: 'Base', points: 20 },
-          { label: 'Population (norm)', points: popPts }
+          { label: 'Population (norm)', points: popPts },
         ],
         summary: `Census block with population ${population.toLocaleString()}.`,
-        bounds, geometry: unit.geometry,
+        bounds,
+        geometry: unit.geometry,
         details: [
           { label: 'Population', value: population.toLocaleString() },
           { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString() },
-          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 4 }) }
-        ]
+          { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 4 }) },
+        ],
       })
     })
     return items
@@ -803,7 +871,7 @@ export default function ExplorerSection() {
             { label: stop.hasShelter ? 'Has shelter' : 'No shelter', points: shelterPts },
             { label: stop.accessible ? 'Accessible' : 'Not accessible', points: accessPts },
             { label: 'Weekday trips', points: tripsPts },
-            { label: stop.frequent ? 'Frequent service' : 'Standard service', points: frequentPts }
+            { label: stop.frequent ? 'Frequent service' : 'Standard service', points: frequentPts },
           ],
           summary: `${stop.weekdayTrips} weekday trips across ${stop.serviceSpanHours.toFixed(1)} hr service span.`,
           bounds: createPointBounds(stop.longitude, stop.latitude),
@@ -814,8 +882,8 @@ export default function ExplorerSection() {
             { label: 'Accessible', value: stop.accessible ? 'Yes' : 'No' },
             { label: 'Weekday trips', value: stop.weekdayTrips.toLocaleString() },
             { label: 'Service span (hr)', value: stop.serviceSpanHours.toFixed(1) },
-            { label: 'Status', value: formatNullableText(stop.status, 'Unknown') }
-          ]
+            { label: 'Status', value: formatNullableText(stop.status, 'Unknown') },
+          ],
         }
       })
   }, [transitStops])
@@ -831,8 +899,8 @@ export default function ExplorerSection() {
       if (!bounds) return
       const pointCount = props.pointCount ?? geometry.coordinates.length
       const lengthPts = Math.min(Math.round(pointCount / 12), 40)
-      const headsignPts = (props.headsigns && props.headsigns.length > 1) ? 10 : 5
-      const directionPts = (props.directions && props.directions.length > 1) ? 8 : 4
+      const headsignPts = props.headsigns && props.headsigns.length > 1 ? 10 : 5
+      const directionPts = props.directions && props.directions.length > 1 ? 8 : 4
       const relevance = clampScore(28 + lengthPts + headsignPts + directionPts)
       items.push({
         id: `transit-route:${props.routeId}-${props.shapeId}`,
@@ -845,16 +913,17 @@ export default function ExplorerSection() {
           { label: 'Base', points: 28 },
           { label: 'Shape length', points: lengthPts },
           { label: 'Headsigns', points: headsignPts },
-          { label: 'Directions', points: directionPts }
+          { label: 'Directions', points: directionPts },
         ],
         summary: `Bus route ${props.routeShortName} (${props.routeLongName}) with ${pointCount} shape points.`,
-        bounds, geometry,
+        bounds,
+        geometry,
         details: [
           { label: 'Route', value: props.routeShortName },
           { label: 'Long name', value: props.routeLongName },
           { label: 'Headsigns', value: (props.headsigns || []).join(', ') || 'N/A' },
-          { label: 'Shape ID', value: props.shapeId }
-        ]
+          { label: 'Shape ID', value: props.shapeId },
+        ],
       })
     })
     return items
@@ -862,7 +931,10 @@ export default function ExplorerSection() {
 
   // ICBC crashes (point)
   const icbcMaxCount = useMemo(() => {
-    return icbcCrashesState.features.reduce((max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0), 0)
+    return icbcCrashesState.features.reduce(
+      (max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0),
+      0,
+    )
   }, [icbcCrashesState.features])
 
   const icbcItems = useMemo<ExplorerItem[]>(() => {
@@ -886,7 +958,7 @@ export default function ExplorerSection() {
           relevanceBreakdown: [
             { label: 'Base', points: 20 },
             { label: 'Crash count (norm)', points: countPts },
-            { label: 'Geocode quality', points: matchPts }
+            { label: 'Geocode quality', points: matchPts },
           ],
           summary: `${crashCount} crashes reported at this location (${props.datasetTitle}).`,
           bounds: createPointBounds(longitude, latitude),
@@ -896,8 +968,8 @@ export default function ExplorerSection() {
             { label: 'Municipality', value: formatNullableText(props.municipality, 'Unknown') },
             { label: 'Crashes', value: crashCount.toLocaleString() },
             { label: 'Dataset', value: formatNullableText(props.datasetTitle, 'Unknown') },
-            { label: 'Match type', value: formatNullableText(props.geocodeMatchType, 'Unknown') }
-          ]
+            { label: 'Match type', value: formatNullableText(props.geocodeMatchType, 'Unknown') },
+          ],
         }
       })
   }, [icbcCrashesState.features, icbcMaxCount])
@@ -919,7 +991,7 @@ export default function ExplorerSection() {
         const [longitude, latitude] = feature.geometry.coordinates
         const props = feature.properties
         const quantity = Number(props.quantity) || 1
-        const ageYears = Math.max(0, (new Date().getFullYear() - props.year))
+        const ageYears = Math.max(0, new Date().getFullYear() - props.year)
         const recencyPts = Math.round(Math.max(0, 30 - Math.min(ageYears * 1.5, 30)))
         const quantityPts = Math.min(quantity * 6, 24)
         const speciesPts = props.species && props.species !== 'UNKNOWN' ? 10 : 4
@@ -935,7 +1007,7 @@ export default function ExplorerSection() {
             { label: 'Base', points: 22 },
             { label: 'Recency', points: recencyPts },
             { label: 'Quantity', points: quantityPts },
-            { label: 'Species known', points: speciesPts }
+            { label: 'Species known', points: speciesPts },
           ],
           summary: `${quantity} ${props.species || 'wildlife'} struck near ${formatNullableText(props.nearestTown, 'an unknown town')} on ${props.accidentDate}.`,
           bounds: createPointBounds(longitude, latitude),
@@ -946,9 +1018,9 @@ export default function ExplorerSection() {
             { label: 'Date', value: formatNullableText(props.accidentDate, 'Unknown') },
             { label: 'Town', value: formatNullableText(props.nearestTown, 'Unknown') },
             { label: 'Quantity', value: quantity.toLocaleString() },
-            { label: 'Time', value: formatNullableText(props.timeOfKill, 'Unknown') }
+            { label: 'Time', value: formatNullableText(props.timeOfKill, 'Unknown') },
           ],
-          timestamp: props.accidentDate ? new Date(props.accidentDate).getTime() : undefined
+          timestamp: props.accidentDate ? new Date(props.accidentDate).getTime() : undefined,
         }
       })
   }, [dateFrom, dateTo, wildlifeState.features])
@@ -958,7 +1030,7 @@ export default function ExplorerSection() {
     const values = bcParcels.map((p) => p.totalAssessed || 0).filter((v) => v > 0)
     return {
       min: values.length ? Math.min(...values) : 0,
-      max: values.length ? Math.max(...values) : 1
+      max: values.length ? Math.max(...values) : 1,
     }
   }, [bcParcels])
 
@@ -983,10 +1055,11 @@ export default function ExplorerSection() {
           { label: 'Base', points: 20 },
           { label: 'Assessed value (norm)', points: valuePts },
           { label: `${property.category}`, points: categoryPts },
-          { label: 'Year built', points: Math.round(yearPts) }
+          { label: 'Year built', points: Math.round(yearPts) },
         ],
         summary: `${property.category} parcel assessed at $${(property.totalAssessed || 0).toLocaleString()}.`,
-        bounds, geometry: property.geometry,
+        bounds,
+        geometry: property.geometry,
         details: [
           { label: 'Address', value: formatNullableText(property.address, 'Unknown') },
           { label: 'Category', value: property.category },
@@ -994,8 +1067,8 @@ export default function ExplorerSection() {
           { label: 'Land', value: `$${(property.totalLand || 0).toLocaleString()}` },
           { label: 'Building', value: `$${(property.totalBuilding || 0).toLocaleString()}` },
           { label: 'Year built', value: property.yearBuilt ? String(property.yearBuilt) : 'Unknown' },
-          { label: 'Roll', value: formatNullableText(property.roll, 'Unknown') }
-        ]
+          { label: 'Roll', value: formatNullableText(property.roll, 'Unknown') },
+        ],
       })
     })
     return items
@@ -1003,17 +1076,40 @@ export default function ExplorerSection() {
 
   const allItems = useMemo(() => {
     return [
-      ...monitorItems, ...crimeItems, ...restaurantItems, ...amenityItems,
-      ...transitStopItems, ...icbcItems, ...wildlifeItems,
-      ...trailItems, ...transitRouteItems,
-      ...parkItems, ...bcAssessmentItems,
-      ...censusDaItems, ...censusCtItems, ...censusCsdItems,
-      ...censusCdItems, ...censusDbItems
+      ...monitorItems,
+      ...crimeItems,
+      ...restaurantItems,
+      ...amenityItems,
+      ...transitStopItems,
+      ...icbcItems,
+      ...wildlifeItems,
+      ...trailItems,
+      ...transitRouteItems,
+      ...parkItems,
+      ...bcAssessmentItems,
+      ...censusDaItems,
+      ...censusCtItems,
+      ...censusCsdItems,
+      ...censusCdItems,
+      ...censusDbItems,
     ]
   }, [
-    amenityItems, bcAssessmentItems, censusCdItems, censusCsdItems, censusCtItems,
-    censusDaItems, censusDbItems, crimeItems, icbcItems, monitorItems, parkItems,
-    restaurantItems, trailItems, transitRouteItems, transitStopItems, wildlifeItems
+    amenityItems,
+    bcAssessmentItems,
+    censusCdItems,
+    censusCsdItems,
+    censusCtItems,
+    censusDaItems,
+    censusDbItems,
+    crimeItems,
+    icbcItems,
+    monitorItems,
+    parkItems,
+    restaurantItems,
+    trailItems,
+    transitRouteItems,
+    transitStopItems,
+    wildlifeItems,
   ])
 
   const datasetStats = useMemo<ExplorerDatasetStat[]>(() => {
@@ -1022,7 +1118,8 @@ export default function ExplorerSection() {
       const count = datasetItems.length
       const relevanceValues = datasetItems.map((item) => item.relevance)
       const averageRelevance = relevanceValues.length
-        ? relevanceValues.reduce((sum, value) => sum + value, 0) / relevanceValues.length : 0
+        ? relevanceValues.reduce((sum, value) => sum + value, 0) / relevanceValues.length
+        : 0
       const maxRelevance = relevanceValues.length ? Math.max(...relevanceValues) : 0
       return { dataset, count, averageRelevance, maxRelevance }
     })
@@ -1067,21 +1164,31 @@ export default function ExplorerSection() {
       const datasetItems = filteredItems.filter((item) => item.datasetId === dataset.id)
       if (dataset.geometryType === 'point') {
         pointCollections.push({
-          datasetId: dataset.id, color: dataset.color,
+          datasetId: dataset.id,
+          color: dataset.color,
           visible: datasetSet.has(dataset.id) && geometrySet.has('point') && datasetItems.length > 0,
           data: {
             type: 'FeatureCollection',
-            features: datasetItems.filter((item) => item.geometry.type === 'Point').map((item) => ({
-              type: 'Feature',
-              geometry: item.geometry as GeoJSON.Point,
-              properties: { itemId: item.id, datasetId: item.datasetId, name: item.name, subtitle: item.subtitle, relevance: item.relevance }
-            }))
-          }
+            features: datasetItems
+              .filter((item) => item.geometry.type === 'Point')
+              .map((item) => ({
+                type: 'Feature',
+                geometry: item.geometry as GeoJSON.Point,
+                properties: {
+                  itemId: item.id,
+                  datasetId: item.datasetId,
+                  name: item.name,
+                  subtitle: item.subtitle,
+                  relevance: item.relevance,
+                },
+              })),
+          },
         })
       }
       if (dataset.geometryType === 'line') {
         lineCollections.push({
-          datasetId: dataset.id, color: dataset.color,
+          datasetId: dataset.id,
+          color: dataset.color,
           visible: datasetSet.has(dataset.id) && geometrySet.has('line') && datasetItems.length > 0,
           data: {
             type: 'FeatureCollection',
@@ -1090,14 +1197,21 @@ export default function ExplorerSection() {
               .map((item) => ({
                 type: 'Feature',
                 geometry: item.geometry as GeoJSON.LineString | GeoJSON.MultiLineString,
-                properties: { itemId: item.id, datasetId: item.datasetId, name: item.name, subtitle: item.subtitle, relevance: item.relevance }
-              }))
-          }
+                properties: {
+                  itemId: item.id,
+                  datasetId: item.datasetId,
+                  name: item.name,
+                  subtitle: item.subtitle,
+                  relevance: item.relevance,
+                },
+              })),
+          },
         })
       }
       if (dataset.geometryType === 'polygon') {
         polygonCollections.push({
-          datasetId: dataset.id, color: dataset.color,
+          datasetId: dataset.id,
+          color: dataset.color,
           visible: datasetSet.has(dataset.id) && geometrySet.has('polygon') && datasetItems.length > 0,
           data: {
             type: 'FeatureCollection',
@@ -1106,9 +1220,15 @@ export default function ExplorerSection() {
               .map((item) => ({
                 type: 'Feature',
                 geometry: item.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon,
-                properties: { itemId: item.id, datasetId: item.datasetId, name: item.name, subtitle: item.subtitle, relevance: item.relevance }
-              }))
-          }
+                properties: {
+                  itemId: item.id,
+                  datasetId: item.datasetId,
+                  name: item.name,
+                  subtitle: item.subtitle,
+                  relevance: item.relevance,
+                },
+              })),
+          },
         })
       }
     })
@@ -1129,20 +1249,37 @@ export default function ExplorerSection() {
     if (bcAssessmentError) errors.push(`BC Assessment: ${bcAssessmentError}`)
     return errors
   }, [
-    bcAssessmentError, censusError, crimeError, icbcCrashesState.error, monitorsError,
-    parksError, restaurantsError, transitError, transitRoutesState.error, wildlifeState.error
+    bcAssessmentError,
+    censusError,
+    crimeError,
+    icbcCrashesState.error,
+    monitorsError,
+    parksError,
+    restaurantsError,
+    transitError,
+    transitRoutesState.error,
+    wildlifeState.error,
   ])
 
-  const loading = (
-    loadingMonitors || loadingRestaurants || loadingParks || loadingCensus || loadingCrime
-    || loadingTransit || transitRoutesState.loading || icbcCrashesState.loading || wildlifeState.loading
-    || (bcAssessmentEnabled && loadingBcAssessment)
-  )
+  const loading =
+    loadingMonitors ||
+    loadingRestaurants ||
+    loadingParks ||
+    loadingCensus ||
+    loadingCrime ||
+    loadingTransit ||
+    transitRoutesState.loading ||
+    icbcCrashesState.loading ||
+    wildlifeState.loading ||
+    (bcAssessmentEnabled && loadingBcAssessment)
 
   const legendDatasets = useMemo(() => {
-    return EXPLORER_DATASETS.filter((dataset) => (
-      datasetSet.has(dataset.id) && geometrySet.has(dataset.geometryType) && filteredItems.some((item) => item.datasetId === dataset.id)
-    ))
+    return EXPLORER_DATASETS.filter(
+      (dataset) =>
+        datasetSet.has(dataset.id) &&
+        geometrySet.has(dataset.geometryType) &&
+        filteredItems.some((item) => item.datasetId === dataset.id),
+    )
   }, [datasetSet, filteredItems, geometrySet])
 
   const toggleGeometry = useCallback((geometryType: ExplorerGeometryType) => {
@@ -1159,8 +1296,12 @@ export default function ExplorerSection() {
     })
   }, [])
 
-  const selectAllDatasets = useCallback(() => { setActiveDatasetIds(ALL_DATASET_IDS) }, [])
-  const clearDatasets = useCallback(() => { setActiveDatasetIds([]) }, [])
+  const selectAllDatasets = useCallback(() => {
+    setActiveDatasetIds(ALL_DATASET_IDS)
+  }, [])
+  const clearDatasets = useCallback(() => {
+    setActiveDatasetIds([])
+  }, [])
 
   const heatmapDatasets = useMemo<HeatmapDataset[]>(() => {
     const datasets: HeatmapDataset[] = []
@@ -1236,51 +1377,74 @@ export default function ExplorerSection() {
     }
     return datasets
   }, [
-    datasetSet, monitors, restaurants, incidents, amenities, transitStops,
-    icbcCrashesState.features, wildlifeState.features
+    datasetSet,
+    monitors,
+    restaurants,
+    incidents,
+    amenities,
+    transitStops,
+    icbcCrashesState.features,
+    wildlifeState.features,
   ])
 
-  const handleExport = useCallback((format: 'csv' | 'geojson') => {
-    if (format === 'csv') {
-      const header = ['Name', 'Dataset', 'Geometry', 'Relevance', 'Subtitle', 'Summary']
-      const rows = filteredItems.map((item) => [
-        item.name, item.datasetId, item.geometryType,
-        Math.round(item.relevance), item.subtitle, item.summary
-      ])
-      const csv = [header.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n')
-      downloadBlob(csv, 'explorer-items.csv', 'text/csv')
-    } else {
-      const fc: GeoJSON.FeatureCollection = {
-        type: 'FeatureCollection',
-        features: filteredItems.map((item) => ({
-          type: 'Feature', geometry: item.geometry,
-          properties: {
-            id: item.id, name: item.name, dataset: item.datasetId,
-            relevance: item.relevance, subtitle: item.subtitle, summary: item.summary
-          }
-        }))
+  const handleExport = useCallback(
+    (format: 'csv' | 'geojson') => {
+      if (format === 'csv') {
+        const header = ['Name', 'Dataset', 'Geometry', 'Relevance', 'Subtitle', 'Summary']
+        const rows = filteredItems.map((item) => [
+          item.name,
+          item.datasetId,
+          item.geometryType,
+          Math.round(item.relevance),
+          item.subtitle,
+          item.summary,
+        ])
+        const csv = [
+          header.join(','),
+          ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')),
+        ].join('\n')
+        downloadBlob(csv, 'explorer-items.csv', 'text/csv')
+      } else {
+        const fc: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features: filteredItems.map((item) => ({
+            type: 'Feature',
+            geometry: item.geometry,
+            properties: {
+              id: item.id,
+              name: item.name,
+              dataset: item.datasetId,
+              relevance: item.relevance,
+              subtitle: item.subtitle,
+              summary: item.summary,
+            },
+          })),
+        }
+        downloadBlob(JSON.stringify(fc, null, 2), 'explorer-items.geojson', 'application/geo+json')
       }
-      downloadBlob(JSON.stringify(fc, null, 2), 'explorer-items.geojson', 'application/geo+json')
-    }
-  }, [filteredItems])
+    },
+    [filteredItems],
+  )
 
   return (
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={370}
-      mobilePeek={(
+      mobilePeek={
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">
             Explorer | {filteredItems.length.toLocaleString()} visible
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {activeDatasetIds.length === ALL_DATASET_IDS.length ? 'All datasets' : `${activeDatasetIds.length} datasets`}
+            {activeDatasetIds.length === ALL_DATASET_IDS.length
+              ? 'All datasets'
+              : `${activeDatasetIds.length} datasets`}
             {selectedItem ? ` | ${selectedItem.name}` : searchQuery ? ` | "${searchQuery}"` : ''}
           </div>
         </div>
-      )}
-      sidebar={(
+      }
+      sidebar={
         <ExplorerSidebar
           className="h-full w-full border-0 shadow-none md:w-[370px] md:border-r md:shadow-xl"
           loading={loading}
@@ -1306,7 +1470,7 @@ export default function ExplorerSection() {
           onDateRangeChange={setDateRange}
           onExport={handleExport}
         />
-      )}
+      }
     >
       <div className="relative h-full">
         <ExplorerMap
@@ -1329,36 +1493,38 @@ export default function ExplorerSection() {
           />
         )}
 
-        <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-3 z-10 w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:bottom-6 md:right-6 md:w-auto md:rounded-xl md:p-4">
-          <div className="flex items-center justify-between gap-2 md:mb-2 md:gap-3">
-            <h4 className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground">
-              <Layers className="h-3.5 w-3.5 shrink-0" />
-              <span>Active Layers</span>
+        <MapLegendPanel
+          title="Active Layers"
+          icon={<Layers className="h-3.5 w-3.5 shrink-0" />}
+          contentClassName={cn('mt-2 space-y-1 md:mt-0 md:block', showMobileLegend ? 'block' : 'hidden')}
+          actions={
+            <div className="flex items-center gap-2">
               <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground md:hidden">
                 {legendDatasets.length}
               </span>
-            </h4>
-            <button
-              type="button"
-              onClick={() => setShowMobileLegend((current) => !current)}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground md:hidden"
-              aria-label={showMobileLegend ? 'Hide active layer legend' : 'Show active layer legend'}
-              aria-expanded={showMobileLegend}
-            >
-              {showMobileLegend ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              onClick={() => setShowHeatmap((v) => !v)}
-              className={`hidden rounded border px-2 py-0.5 text-[10px] font-medium transition-colors md:inline-flex ${
-                showHeatmap
-                  ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
-                  : 'border-input text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {showHeatmap ? 'Heatmap ON' : 'Heatmap'}
-            </button>
-          </div>
-          <div className={cn('mt-2 space-y-1 md:mt-0 md:block', showMobileLegend ? 'block' : 'hidden')}>
+              <button
+                type="button"
+                onClick={() => setShowMobileLegend((current) => !current)}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground md:hidden"
+                aria-label={showMobileLegend ? 'Hide active layer legend' : 'Show active layer legend'}
+                aria-expanded={showMobileLegend}
+              >
+                {showMobileLegend ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                onClick={() => setShowHeatmap((v) => !v)}
+                className={`hidden rounded border px-2 py-0.5 text-[10px] font-medium transition-colors md:inline-flex ${
+                  showHeatmap
+                    ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
+                    : 'border-input text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {showHeatmap ? 'Heatmap ON' : 'Heatmap'}
+              </button>
+            </div>
+          }
+        >
+          <MapLegendSection>
             <button
               onClick={() => setShowHeatmap((v) => !v)}
               className={`mb-1 inline-flex rounded border px-2 py-0.5 text-[10px] font-medium transition-colors md:hidden ${
@@ -1372,13 +1538,12 @@ export default function ExplorerSection() {
             {legendDatasets.slice(0, 8).map((dataset) => {
               const stat = datasetStats.find((entry) => entry.dataset.id === dataset.id)
               return (
-                <div key={dataset.id} className="flex items-center justify-between gap-2 text-[11px] md:gap-3 md:text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full md:h-3 md:w-3" style={{ backgroundColor: dataset.color }} />
-                    <span className="text-foreground">{dataset.label}</span>
-                  </div>
-                  <span className="text-muted-foreground">{GEOMETRY_TYPE_LABEL[dataset.geometryType]} | {stat?.count.toLocaleString() || 0}</span>
-                </div>
+                <LegendItem
+                  key={dataset.id}
+                  color={dataset.color}
+                  label={dataset.label}
+                  value={`${GEOMETRY_TYPE_LABEL[dataset.geometryType]} | ${stat?.count.toLocaleString() || 0}`}
+                />
               )
             })}
             {legendDatasets.length === 0 && (
@@ -1387,14 +1552,16 @@ export default function ExplorerSection() {
             {legendDatasets.length > 8 && (
               <div className="pt-1 text-xs text-muted-foreground">+{legendDatasets.length - 8} more layers</div>
             )}
-          </div>
+          </MapLegendSection>
           {selectedItem && (
             <div className="mt-2 border-t border-border pt-2 text-[11px] text-muted-foreground">
               Selected: <span className="font-medium text-foreground">{selectedItem.name}</span>
-              <div>{datasetById(selectedItem.datasetId).label} | relevance {Math.round(selectedItem.relevance)}</div>
+              <div>
+                {datasetById(selectedItem.datasetId).label} | relevance {Math.round(selectedItem.relevance)}
+              </div>
             </div>
           )}
-        </div>
+        </MapLegendPanel>
       </div>
     </MapSectionLayout>
   )

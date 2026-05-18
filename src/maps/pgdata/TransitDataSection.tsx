@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Bus, Eye, EyeOff, MapPin, Route } from 'lucide-react'
+import { Bus, MapPin, Route } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
-import { StatTile } from '@/components/ui/map-panels'
+import { LegendItem, MapLegendPanel, MapLegendSection, StatTile } from '@/components/ui/map-panels'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -63,7 +63,25 @@ const ROUTE_PALETTE: Record<string, string> = {
   '161': '#00843D',
 }
 
-const ROUTE_ORDER = ['1', '11', '10', '5', '55', '12', '15', '16', '19', '46', '47', '88', '89', '91', '96', '97', '161']
+const ROUTE_ORDER = [
+  '1',
+  '11',
+  '10',
+  '5',
+  '55',
+  '12',
+  '15',
+  '16',
+  '19',
+  '46',
+  '47',
+  '88',
+  '89',
+  '91',
+  '96',
+  '97',
+  '161',
+]
 const DISPLAYED_ROUTES = new Set(ROUTE_ORDER)
 
 function routeSortValue(routeShortName: string): number {
@@ -97,9 +115,7 @@ function distanceKm(a: [number, number], b: [number, number]): number {
   const deltaLng = toRad(b[0] - a[0])
   const lat1 = toRad(a[1])
   const lat2 = toRad(b[1])
-  const h =
-    Math.sin(deltaLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2
+  const h = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2
   return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
@@ -167,7 +183,10 @@ export default function TransitDataSection() {
   }, [hiddenStopCategories, searchQuery, statusFilter, stops])
 
   const selectedStop = useMemo(
-    () => filteredStops.find((stop) => stop.id === selectedStopId) ?? stops.find((stop) => stop.id === selectedStopId) ?? null,
+    () =>
+      filteredStops.find((stop) => stop.id === selectedStopId) ??
+      stops.find((stop) => stop.id === selectedStopId) ??
+      null,
     [filteredStops, selectedStopId, stops],
   )
 
@@ -255,7 +274,7 @@ export default function TransitDataSection() {
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((value) => !value)}
-      mobilePeek={(
+      mobilePeek={
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">
             Transit | {stops.length.toLocaleString()} stops
@@ -264,7 +283,7 @@ export default function TransitDataSection() {
             {activeLayers.join(', ')} | {routeCounts.routes.toLocaleString()} routes
           </div>
         </div>
-      )}
+      }
       sidebar={
         <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden border-0 bg-background shadow-none md:w-[350px] md:border-r md:shadow-xl">
           <div className="border-b border-border p-4">
@@ -289,10 +308,30 @@ export default function TransitDataSection() {
             )}
 
             <div className="grid grid-cols-2 gap-2">
-              <StatTile label="Stops" value={stops.length.toLocaleString()} loading={stopsLoading} valueClassName="text-lg font-semibold" />
-              <StatTile label="Accessible" value={accessibleCount.toLocaleString()} loading={stopsLoading} valueClassName="text-lg font-semibold" />
-              <StatTile label="Shelters/exchanges" value={shelterCount.toLocaleString()} loading={stopsLoading} valueClassName="text-lg font-semibold" />
-              <StatTile label="Routes" value={routeCounts.routes.toLocaleString()} loading={routesLoading} valueClassName="text-lg font-semibold" />
+              <StatTile
+                label="Stops"
+                value={stops.length.toLocaleString()}
+                loading={stopsLoading}
+                valueClassName="text-lg font-semibold"
+              />
+              <StatTile
+                label="Accessible"
+                value={accessibleCount.toLocaleString()}
+                loading={stopsLoading}
+                valueClassName="text-lg font-semibold"
+              />
+              <StatTile
+                label="Shelters/exchanges"
+                value={shelterCount.toLocaleString()}
+                loading={stopsLoading}
+                valueClassName="text-lg font-semibold"
+              />
+              <StatTile
+                label="Routes"
+                value={routeCounts.routes.toLocaleString()}
+                loading={routesLoading}
+                valueClassName="text-lg font-semibold"
+              />
             </div>
 
             <div className="mt-4 rounded-md border border-border bg-muted/30 p-3">
@@ -301,12 +340,14 @@ export default function TransitDataSection() {
                 400 m proximity reference
               </div>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                The OCP source treats 400 m from conventional transit as a reasonable walking distance for single residential housing.
+                The OCP source treats 400 m from conventional transit as a reasonable walking distance for single
+                residential housing.
               </p>
               {pgCenterNearestStop && (
                 <div className="mt-2 text-xs text-muted-foreground">
-                  Nearest loaded stop to map center: <span className="font-medium text-foreground">{pgCenterNearestStop.stop.name}</span>{' '}
-                  ({formatDistanceKm(pgCenterNearestStop.distanceKm)})
+                  Nearest loaded stop to map center:{' '}
+                  <span className="font-medium text-foreground">{pgCenterNearestStop.stop.name}</span> (
+                  {formatDistanceKm(pgCenterNearestStop.distanceKm)})
                 </div>
               )}
             </div>
@@ -388,17 +429,10 @@ export default function TransitDataSection() {
       }
     >
       <div className="relative h-full">
-        <PgMap
-          center={PG_CENTER}
-          zoom={11}
-          styles={MAP_STYLES}
-        >
+        <PgMap center={PG_CENTER} zoom={11} styles={MAP_STYLES}>
           <MapControls position="top-right" />
           {visibleRouteInputs && (
-            <TransitRouteLayers
-              routes={visibleRouteInputs}
-              visible={activeLayers.includes('routes')}
-            />
+            <TransitRouteLayers routes={visibleRouteInputs} visible={activeLayers.includes('routes')} />
           )}
           {activeLayers.includes('stops') &&
             filteredStops.map((stop) => (
@@ -412,12 +446,10 @@ export default function TransitDataSection() {
                   <span
                     className={cn(
                       'block rounded-full border-2 shadow-sm',
-                      stop.id === selectedStopId ? 'h-4 w-4 bg-teal-200 ring-4 ring-teal-500/30' : 'h-2.5 w-2.5 bg-background',
-                      stop.hasShelter
-                        ? 'border-cyan-700'
-                        : stop.accessible
-                          ? 'border-teal-700'
-                          : 'border-slate-500',
+                      stop.id === selectedStopId
+                        ? 'h-4 w-4 bg-teal-200 ring-4 ring-teal-500/30'
+                        : 'h-2.5 w-2.5 bg-background',
+                      stop.hasShelter ? 'border-cyan-700' : stop.accessible ? 'border-teal-700' : 'border-slate-500',
                     )}
                   />
                 </MarkerContent>
@@ -438,13 +470,12 @@ export default function TransitDataSection() {
             ))}
         </PgMap>
 
-        <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] right-4 z-10 rounded-md border border-border bg-background/95 p-3 shadow-lg backdrop-blur md:bottom-6 md:right-6">
-          <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-foreground">
-            <div className="flex items-center gap-2">
-              <Route className="h-3.5 w-3.5" />
-              Transit layers
-            </div>
-            {routeLegendItems.length > 0 && (
+        <MapLegendPanel
+          title="Transit layers"
+          icon={<Route className="h-3.5 w-3.5" />}
+          width="md"
+          actions={
+            routeLegendItems.length > 0 ? (
               <button
                 type="button"
                 onClick={toggleAllRoutes}
@@ -452,38 +483,39 @@ export default function TransitDataSection() {
               >
                 {allRoutesHidden ? 'Show all' : 'Hide all'}
               </button>
-            )}
-          </div>
-          <div className="max-h-[34vh] space-y-1 overflow-y-auto pr-1 text-xs text-muted-foreground">
+            ) : null
+          }
+        >
+          <MapLegendSection scroll>
             {routeLegendItems.map((item) => (
               <LegendItem
                 key={item.id}
                 color={item.color}
                 label={item.label}
-                hidden={hiddenRoutes.has(item.id)}
-                onToggle={() => toggleRoute(item.id)}
+                active={!hiddenRoutes.has(item.id)}
+                onClick={() => toggleRoute(item.id)}
               />
             ))}
             <LegendItem
               color="#0891b2"
               label="Shelter / exchange"
-              hidden={hiddenStopCategories.has('shelter')}
-              onToggle={() => toggleStopCategory('shelter')}
+              active={!hiddenStopCategories.has('shelter')}
+              onClick={() => toggleStopCategory('shelter')}
             />
             <LegendItem
               color="#0d9488"
               label="Accessible / sidewalk proxy"
-              hidden={hiddenStopCategories.has('accessible')}
-              onToggle={() => toggleStopCategory('accessible')}
+              active={!hiddenStopCategories.has('accessible')}
+              onClick={() => toggleStopCategory('accessible')}
             />
             <LegendItem
               color="#64748b"
               label="Other stop"
-              hidden={hiddenStopCategories.has('other')}
-              onToggle={() => toggleStopCategory('other')}
+              active={!hiddenStopCategories.has('other')}
+              onClick={() => toggleStopCategory('other')}
             />
-          </div>
-        </div>
+          </MapLegendSection>
+        </MapLegendPanel>
       </div>
     </MapSectionLayout>
   )
@@ -496,22 +528,13 @@ export default function TransitDataSection() {
 //      overlapping routes sit side-by-side instead of stacked.
 // Width / spacing / opacity are zoom-interpolated, the way transitive.js
 // scales styling values via `pixels(zoom, min, normal, max)`.
-function TransitRouteLayers({
-  routes,
-  visible,
-}: {
-  routes: RouteInput[]
-  visible: boolean
-}) {
+function TransitRouteLayers({ routes, visible }: { routes: RouteInput[]; visible: boolean }) {
   // Subscribed for the side effect of forcing a re-render when the zoom
   // partition crosses a tier boundary — useful if we ever want to swap
   // bundling strategies per tier (transitive.js does this on scale change).
   useTransitiveZoom()
 
-  const bundled = useMemo<BundledFeatureCollection>(
-    () => bundleRoutes(routes),
-    [routes],
-  )
+  const bundled = useMemo<BundledFeatureCollection>(() => bundleRoutes(routes), [routes])
 
   // Pixels per lane index, interpolated on zoom. Matches transitive.js's
   // storybook configuration (stories/transitive-overlay.js
@@ -525,11 +548,16 @@ function TransitRouteLayers({
       'interpolate',
       ['linear'],
       ['zoom'],
-      10, ['*', ['get', 'offsetIndex'], 1.1],
-      12, ['*', ['get', 'offsetIndex'], 1.3],
-      14, ['*', ['get', 'offsetIndex'], 1.6],
-      16, ['*', ['get', 'offsetIndex'], 2.4],
-      18, ['*', ['get', 'offsetIndex'], 3.4],
+      10,
+      ['*', ['get', 'offsetIndex'], 1.1],
+      12,
+      ['*', ['get', 'offsetIndex'], 1.3],
+      14,
+      ['*', ['get', 'offsetIndex'], 1.6],
+      16,
+      ['*', ['get', 'offsetIndex'], 2.4],
+      18,
+      ['*', ['get', 'offsetIndex'], 3.4],
     ],
     [],
   )
@@ -537,43 +565,12 @@ function TransitRouteLayers({
   // Lines stay thin at low zoom so the wiggly road-following geometry
   // doesn't look chunky at city overview, then bulk up to schematic-bold
   // at street level — like the sample's stroke weight.
-  const widthExpr = useMemo(
-    () => [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      10, 1,
-      12, 1.4,
-      14, 2,
-      16, 3.4,
-      18, 4.5,
-    ],
-    [],
-  )
+  const widthExpr = useMemo(() => ['interpolate', ['linear'], ['zoom'], 10, 1, 12, 1.4, 14, 2, 16, 3.4, 18, 4.5], [])
   const haloWidthExpr = useMemo(
-    () => [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      10, 1.8,
-      12, 2.6,
-      14, 3.6,
-      16, 5.6,
-      18, 7.5,
-    ],
+    () => ['interpolate', ['linear'], ['zoom'], 10, 1.8, 12, 2.6, 14, 3.6, 16, 5.6, 18, 7.5],
     [],
   )
-  const opacityExpr = useMemo(
-    () => [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      10, 0.75,
-      13, 0.9,
-      16, 0.95,
-    ],
-    [],
-  )
+  const opacityExpr = useMemo(() => ['interpolate', ['linear'], ['zoom'], 10, 0.75, 13, 0.9, 16, 0.95], [])
 
   return (
     <>
@@ -596,49 +593,5 @@ function TransitRouteLayers({
         visible={visible}
       />
     </>
-  )
-}
-
-function LegendItem({
-  color,
-  label,
-  hidden,
-  onToggle,
-}: {
-  color: string
-  label: string
-  hidden?: boolean
-  onToggle?: () => void
-}) {
-  if (!onToggle) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-        <span>{label}</span>
-      </div>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={!hidden}
-      className={cn(
-        'group flex w-full items-center gap-2 rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-muted',
-        hidden && 'opacity-50',
-      )}
-    >
-      <span
-        className="h-2.5 w-2.5 shrink-0 rounded-full"
-        style={{ backgroundColor: color, ...(hidden ? { opacity: 0.35 } : null) }}
-      />
-      <span className={cn('flex-1 truncate', hidden && 'line-through')}>{label}</span>
-      {hidden ? (
-        <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />
-      ) : (
-        <Eye className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-      )}
-    </button>
   )
 }
