@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useEffect } from 'react'
 import { SpinnerWheel, useSpinnerWheelState } from '@firstform/spinnerwheel'
 import '@firstform/spinnerwheel/styles'
 import type { WheelEntry } from '@firstform/spinnerwheel'
@@ -30,6 +30,13 @@ export function RouletteWheel({
       if (winner) onSpinComplete(winner)
     },
   })
+
+  // useSpinnerWheelState only reads initialEntries on mount. Push prop-driven
+  // changes (e.g. filter updates, async restaurant load) into the hook so the
+  // wheel doesn't fall back to the library's DEFAULT_ENTRIES placeholder.
+  useEffect(() => {
+    wheel.setEntries(initialEntries)
+  }, [initialEntries, wheel.setEntries])
 
   const handleSpin = useCallback(() => {
     if (wheel.isSpinning || restaurants.length === 0) return
