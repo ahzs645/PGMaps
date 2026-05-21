@@ -474,6 +474,7 @@ export default function TransitDataSection() {
           title="Transit layers"
           icon={<Route className="h-3.5 w-3.5" />}
           width="md"
+          collapsible
           actions={
             routeLegendItems.length > 0 ? (
               <button

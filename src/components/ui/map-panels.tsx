@@ -801,31 +801,34 @@ export function MapLegendPanel({
       {title && (
         <div className={cn(!isCollapsed && 'mb-2')}>
           {collapsible ? (
-            <button
-              type="button"
-              aria-expanded={!isCollapsed}
-              onClick={toggleCollapsed}
-              className="flex w-full items-start justify-between gap-3 text-left hover:text-foreground"
-            >
-              <span className="flex min-w-0 items-start gap-1.5">
+            <div className="flex items-start justify-between gap-3">
+              <button
+                type="button"
+                aria-expanded={!isCollapsed}
+                onClick={toggleCollapsed}
+                className="flex min-w-0 flex-1 items-start gap-1.5 text-left hover:text-foreground"
+              >
                 {icon ? <span className="mt-px shrink-0 text-muted-foreground">{icon}</span> : null}
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-semibold text-foreground">{title}</span>
                   {description ? (
                     <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">{description}</span>
                   ) : null}
                 </span>
-              </span>
+              </button>
               <span className="flex shrink-0 items-center gap-2">
                 {actions ? <span className="text-[10px]">{actions}</span> : null}
-                <ChevronDown
-                  className={cn(
-                    'mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform',
-                    isCollapsed && '-rotate-90',
-                  )}
-                />
+                <button
+                  type="button"
+                  aria-label={isCollapsed ? 'Expand legend' : 'Collapse legend'}
+                  aria-expanded={!isCollapsed}
+                  onClick={toggleCollapsed}
+                  className="mt-0.5 text-muted-foreground hover:text-foreground"
+                >
+                  <ChevronDown className={cn('size-3.5 transition-transform', isCollapsed && '-rotate-90')} />
+                </button>
               </span>
-            </button>
+            </div>
           ) : (
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">

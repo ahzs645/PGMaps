@@ -2631,7 +2631,7 @@ export default function ScoreBuilderSection() {
               sourceGridWeights={weights}
             />
 
-            <MapLegendPanel width="lg">
+            <MapLegendPanel title="Legend" width="lg" collapsible>
               {correlateMode ? (
                 <CorrelationMapLegend
                   metricX={correlateMetricX}

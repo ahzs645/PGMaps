@@ -779,7 +779,7 @@ export function useWaterData(active: boolean) {
       bacteriologicalSamples: number
       chemicalResults: number
       activeNotices: number
-      lastSampleDate: string | null
+      lastSampleDate: Date | null
       noticeIds: string[]
     }>()
     const getFacilityUpdate = (facility: WaterFacility) => {

@@ -1496,6 +1496,7 @@ export default function ExplorerSection() {
         <MapLegendPanel
           title="Active Layers"
           icon={<Layers className="h-3.5 w-3.5 shrink-0" />}
+          collapsible
           contentClassName={cn('mt-2 space-y-1 md:mt-0 md:block', showMobileLegend ? 'block' : 'hidden')}
           actions={
             <div className="flex items-center gap-2">
