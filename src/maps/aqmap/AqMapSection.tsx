@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Crosshair, Download, FileImage, FileText, Globe, Layers, LineChart, MapPin, RadioTower, RefreshCw, RotateCcw } from 'lucide-react'
+import { Crosshair, Download, FileImage, FileText, Globe, Layers, LineChart, MapPin, RadioTower, RefreshCw, RotateCcw, Waves } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Map as PgMap, MapControls, MapPopup, useMap } from '@/components/ui/map'
 import { MapImageLegend, MapSteppedLegend } from '@/components/ui/map-panels'
@@ -47,6 +47,7 @@ import {
 } from './lib/i18n'
 import { exportAqmap, type ExportFormat } from './lib/exportMap'
 import { MonitorPlotChart } from './components/MonitorPlotChart'
+import { WindCanvasLayer, WIND_LEGEND_COLORS } from './components/WindCanvasLayer'
 import type maplibregl from 'maplibre-gl'
 
 interface AqMapFeatureProperties {
@@ -85,29 +86,10 @@ const EXPORT_OPTIONS: Array<{ format: ExportFormat; labelKey: string; icon: type
   { format: 'pdf', labelKey: 'export.pdf', icon: FileText },
 ]
 
-const OSM_LIGHT_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: 'OpenStreetMap contributors',
-    },
-  },
-  layers: [
-    {
-      id: 'osm',
-      type: 'raster',
-      source: 'osm',
-    },
-  ],
-}
-
-const BASEMAP_STYLES: Record<AqBasemap, { light: string | maplibregl.StyleSpecification; dark: string | maplibregl.StyleSpecification }> = {
+const BASEMAP_STYLES: Record<AqBasemap, { light: string; dark: string }> = {
   light: {
-    light: OSM_LIGHT_STYLE,
-    dark: OSM_LIGHT_STYLE,
+    light: MAP_STYLES.light,
+    dark: MAP_STYLES.light,
   },
   dark: {
     light: MAP_STYLES.dark,
@@ -155,6 +137,8 @@ function AqMapSidebar({
   onToggleWmsLayer,
   visibleSmokeLayers,
   onToggleSmokeLayer,
+  windVisible,
+  onToggleWind,
   basemap,
   onBasemapChange,
   locale,
@@ -171,6 +155,8 @@ function AqMapSidebar({
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
+  windVisible: boolean
+  onToggleWind: () => void
   basemap: AqBasemap
   onBasemapChange: (basemap: AqBasemap) => void
   locale: AqmapLocale
@@ -303,6 +289,13 @@ function AqMapSidebar({
             {translate('sidebar.overlays', locale)}
           </div>
           <div className="space-y-2">
+            <ToggleButton active={windVisible} onClick={onToggleWind}>
+              <span className="flex items-center gap-2">
+                <Waves className="size-3.5" />
+                {translate('sidebar.wind', locale)}
+              </span>
+              <span className="text-xs font-medium">{translate('wind.tag', locale)}</span>
+            </ToggleButton>
             {smokeLayers.map((layer) => (
               <ToggleButton
                 key={layer.key}
@@ -902,6 +895,8 @@ function FloatingLayerControl({
   onToggleWmsLayer,
   visibleSmokeLayers,
   onToggleSmokeLayer,
+  windVisible,
+  onToggleWind,
   smokeLayers,
   locale,
 }: {
@@ -913,6 +908,8 @@ function FloatingLayerControl({
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
+  windVisible: boolean
+  onToggleWind: () => void
   smokeLayers: SmokeLayerDefinition[]
   locale: AqmapLocale
 }) {
@@ -938,6 +935,10 @@ function FloatingLayerControl({
             <span>{formatGroupLabel(group, locale)}</span>
           </label>
         ))}
+        <label className="flex items-center gap-2 text-muted-foreground">
+          <input type="checkbox" checked={windVisible} onChange={onToggleWind} />
+          <span>{translate('sidebar.wind', locale)}</span>
+        </label>
         {smokeLayers.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
             <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
@@ -959,22 +960,37 @@ function FloatingLegends({
   visibleWmsLayers,
   visibleSmokeLayers,
   smokeLayers,
+  windVisible,
   locale,
 }: {
   visibleWmsLayers: Set<WmsLayerKey>
   visibleSmokeLayers: Set<SmokeLayerKey>
   smokeLayers: SmokeLayerDefinition[]
+  windVisible: boolean
   locale: AqmapLocale
 }) {
   const visibleWms = WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key) && layer.legendUrl)
   const visibleSmoke = smokeLayers.filter((layer) => visibleSmokeLayers.has(layer.key))
-  if (visibleWms.length === 0 && visibleSmoke.length === 0) return null
+  if (visibleWms.length === 0 && visibleSmoke.length === 0 && !windVisible) return null
 
   return (
     <div
       className="absolute z-10 max-w-[260px] space-y-2"
       style={{ bottom: 40, left: 12 }}
     >
+      {windVisible && (
+        <div className="rounded border border-border bg-background/95 p-2 text-xs shadow-md">
+          <div className="mb-1 font-medium text-foreground">{translate('wind.legend.title', locale)}</div>
+          <div
+            className="h-2 w-full rounded"
+            style={{ backgroundImage: `linear-gradient(to right, ${WIND_LEGEND_COLORS.join(', ')})` }}
+          />
+          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+            <span>{translate('wind.legend.min', locale)}</span>
+            <span>{translate('wind.legend.max', locale)}</span>
+          </div>
+        </div>
+      )}
       {visibleWms.map((layer) => {
         const label = localizeWmsLabel(layer.key, locale)
         return (
@@ -1103,6 +1119,10 @@ export default function AqMapSection() {
   const [basemap, setBasemap] = useState<AqBasemap>(() => initialUrlState.basemap)
   const [mapView, setMapView] = useState(() => initialUrlState.mapView)
   const [locale, setLocale] = useState<AqmapLocale>(() => initialUrlState.locale)
+  const [windVisible, setWindVisible] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('wind') === '1'
+  })
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [hoveredMonitor, setHoveredMonitor] = useState<AirMonitor | null>(null)
   const [exportStatus, setExportStatus] = useState<{ format: ExportFormat | null; error: string | null }>({ format: null, error: null })
@@ -1136,6 +1156,9 @@ export default function AqMapSection() {
       if (locale === 'en') next.delete('lang')
       else next.set('lang', locale)
 
+      if (windVisible) next.set('wind', '1')
+      else next.delete('wind')
+
       next.delete('time')
 
       if (isValidMapView(mapView)) {
@@ -1160,7 +1183,7 @@ export default function AqMapSection() {
     }, URL_UPDATE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [basemap, locale, mapView, visibleGroups, visibleSmokeLayers, visibleWmsLayers])
+  }, [basemap, locale, mapView, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
 
   const toggleGroup = useCallback((group: AqMonitorGroup) => {
     setVisibleGroups((current) => {
@@ -1209,6 +1232,8 @@ export default function AqMapSection() {
     }
   }, [locale])
 
+  const toggleWind = useCallback(() => setWindVisible((value) => !value), [])
+
   const sidebar = (
     <AqMapSidebar
       monitors={monitors}
@@ -1219,6 +1244,8 @@ export default function AqMapSection() {
       onToggleWmsLayer={toggleWmsLayer}
       visibleSmokeLayers={visibleSmokeLayers}
       onToggleSmokeLayer={toggleSmokeLayer}
+      windVisible={windVisible}
+      onToggleWind={toggleWind}
       basemap={basemap}
       onBasemapChange={setBasemap}
       locale={locale}
@@ -1268,6 +1295,7 @@ export default function AqMapSection() {
               visible={visibleWmsLayers.has(layer.key)}
             />
           ))}
+          <WindCanvasLayer visible={windVisible} />
           <AqMonitorLayer
             monitors={monitors}
             visibleGroups={visibleGroups}
@@ -1285,6 +1313,8 @@ export default function AqMapSection() {
             onToggleWmsLayer={toggleWmsLayer}
             visibleSmokeLayers={visibleSmokeLayers}
             onToggleSmokeLayer={toggleSmokeLayer}
+            windVisible={windVisible}
+            onToggleWind={toggleWind}
             smokeLayers={smokeLayers}
             locale={locale}
           />
@@ -1292,6 +1322,7 @@ export default function AqMapSection() {
             visibleWmsLayers={visibleWmsLayers}
             visibleSmokeLayers={visibleSmokeLayers}
             smokeLayers={smokeLayers}
+            windVisible={windVisible}
             locale={locale}
           />
           <MapUtilityControls onReset={resetView} locale={locale} />

@@ -89,6 +89,12 @@ const EN: StringMap = {
   'smoke.density.heavy': 'Heavy',
   'smoke.tag': 'Smoke',
 
+  'sidebar.wind': 'Global Wind Field',
+  'wind.tag': 'Wind',
+  'wind.legend.title': 'Wind speed',
+  'wind.legend.min': '0',
+  'wind.legend.max': '24+ m/s',
+
   'wms.surfaceWinds': 'Surface Winds',
   'wms.modelledPm25': 'Modelled PM2.5',
   'wms.activeFires': 'Active Fires',
@@ -194,6 +200,12 @@ const FR: StringMap = {
   'smoke.density.medium': 'Moyen',
   'smoke.density.heavy': 'Haute',
   'smoke.tag': 'Fumée',
+
+  'sidebar.wind': 'Champ de vent mondial',
+  'wind.tag': 'Vent',
+  'wind.legend.title': 'Vitesse du vent',
+  'wind.legend.min': '0',
+  'wind.legend.max': '24+ m/s',
 
   'wms.surfaceWinds': 'Vents de surface',
   'wms.modelledPm25': 'PM2,5 modélisé',
