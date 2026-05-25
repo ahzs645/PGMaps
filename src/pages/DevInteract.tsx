@@ -32,6 +32,7 @@ function DevInteract() {
   const [zoomFeature, setZoomFeature] = useState<{ feature: InteractFeature; nonce: number } | null>(null)
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('idle')
   const [measurementPoints, setMeasurementPoints] = useState<[number, number][]>([])
+  const [redoMeasurementPoints, setRedoMeasurementPoints] = useState<[number, number][]>([])
   const [measurementCursor, setMeasurementCursor] = useState<[number, number] | null>(null)
 
   const measurementPolygonData = useMemo(() => measurementPolygon(measurementPoints), [measurementPoints])
@@ -101,28 +102,56 @@ function DevInteract() {
     clearSelection()
     setMeasurementMode('drawing')
     setMeasurementPoints([])
+    setRedoMeasurementPoints([])
   }, [clearSelection])
 
   const clearMeasurement = useCallback(() => {
     setMeasurementMode('idle')
     setMeasurementPoints([])
+    setRedoMeasurementPoints([])
     setMeasurementCursor(null)
   }, [])
 
   const finishMeasurement = useCallback(() => {
     setMeasurementMode((current) => (current === 'drawing' && measurementCanClose(measurementPoints) ? 'complete' : current))
+    setRedoMeasurementPoints([])
     setMeasurementCursor(null)
   }, [measurementPoints])
+
+  const addMeasurementPoint = useCallback((point: [number, number]) => {
+    setMeasurementPoints((current) => [...current, point])
+    setRedoMeasurementPoints([])
+  }, [])
+
+  const undoMeasurementPoint = useCallback(() => {
+    setMeasurementPoints((current) => {
+      if (current.length === 0) return current
+      const next = current.slice(0, -1)
+      const removed = current[current.length - 1]
+      setRedoMeasurementPoints((redo) => [removed, ...redo])
+      return next
+    })
+  }, [])
+
+  const redoMeasurementPoint = useCallback(() => {
+    setRedoMeasurementPoints((current) => {
+      if (current.length === 0) return current
+      const [restored, ...nextRedo] = current
+      setMeasurementPoints((points) => [...points, restored])
+      return nextRedo
+    })
+  }, [])
 
   const handleMeasurementMapAction = useCallback((action: MeasurementMapAction) => {
     if (action.type === 'close') {
       setMeasurementMode((current) => (current === 'drawing' && measurementCanClose(measurementPoints) ? 'complete' : current))
+      setRedoMeasurementPoints([])
       setMeasurementCursor(null)
       return
     }
 
-    setMeasurementPoints((current) => [...current, action.point])
-  }, [measurementPoints])
+    addMeasurementPoint(action.point)
+  }, [addMeasurementPoint, measurementPoints])
 
   const handleFeatureAction = useCallback((action: FeatureAction, feature: InteractFeature) => {
     if (action === 'hide') {
@@ -161,6 +190,7 @@ function DevInteract() {
       measurementPointCount={measurementPoints.length}
       onToggleLayer={toggleLayer}
       onStartMeasurement={startMeasurement}
+      onOpenTable={() => setTableLayer('parks')}
       onFinishMeasurement={finishMeasurement}
       onClearMeasurement={clearMeasurement}
       openInEnabled={openInEnabled}
@@ -284,6 +314,19 @@ function DevInteract() {
               />
             </MapPopup>
           )}
+
+          <MeasurementOverlay
+            measurementMode={measurementMode}
+            measurementStats={currentMeasurementStats}
+            measurementPoints={measurementPoints}
+            canUndo={measurementPoints.length > 0}
+            canRedo={redoMeasurementPoints.length > 0}
+            onAddPoint={addMeasurementPoint}
+            onUndo={undoMeasurementPoint}
+            onRedo={redoMeasurementPoint}
+            onClearMeasurement={clearMeasurement}
+            onFinishMeasurement={finishMeasurement}
+          />
         </Map>
 
         {measurementMode !== 'drawing' && selectedFeature && (
@@ -300,6 +343,7 @@ function DevInteract() {
         {tableLayer && (
           <FeatureTablePanel
             layer={tableLayer}
+            onLayerChange={setTableLayer}
             hiddenFeatureIds={hiddenFeatureIds}
             isolatedFeatureId={isolatedFeatureId}
             onClose={() => setTableLayer(null)}
@@ -310,13 +354,6 @@ function DevInteract() {
           />
         )}
 
-        <MeasurementOverlay
-          measurementMode={measurementMode}
-          measurementStats={currentMeasurementStats}
-          measurementPoints={measurementPoints}
-          onClearMeasurement={clearMeasurement}
-          onFinishMeasurement={finishMeasurement}
-        />
       </div>
     </MapSectionLayout>
   )

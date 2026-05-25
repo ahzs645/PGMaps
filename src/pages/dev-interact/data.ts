@@ -1,4 +1,4 @@
-import { Search, Ruler } from 'lucide-react'
+import { Search, Ruler, Table2 } from 'lucide-react'
 import type { InteractFeatureProperties, LayerId, LineFeature, PolygonFeature } from './types'
 
 export const CENTER: [number, number] = [-122.7497, 53.9171]
@@ -70,6 +70,7 @@ export const routeFeatures: GeoJSON.FeatureCollection<GeoJSON.LineString, Intera
 export const actionRows = [
   { label: 'Search locations', icon: Search },
   { label: 'Measure areas', icon: Ruler },
+  { label: 'Open table', icon: Table2 },
 ]
 
 function polygonFeature(

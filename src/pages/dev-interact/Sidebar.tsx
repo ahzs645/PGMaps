@@ -14,6 +14,7 @@ export function DevInteractSidebar({
   measurementPointCount,
   onToggleLayer,
   onStartMeasurement,
+  onOpenTable,
   onFinishMeasurement,
   onClearMeasurement,
   openInEnabled,
@@ -26,6 +27,7 @@ export function DevInteractSidebar({
   measurementPointCount: number
   onToggleLayer: (layer: LayerId) => void
   onStartMeasurement: () => void
+  onOpenTable: () => void
   onFinishMeasurement: () => void
   onClearMeasurement: () => void
   openInEnabled: boolean
@@ -56,7 +58,7 @@ export function DevInteractSidebar({
               <button
                 key={label}
                 type="button"
-                onClick={label === 'Measure areas' ? onStartMeasurement : undefined}
+                onClick={label === 'Measure areas' ? onStartMeasurement : label === 'Open table' ? onOpenTable : undefined}
                 className="flex w-full items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium shadow-sm transition-colors hover:bg-muted"
               >
                 <Icon className="size-4" />
