@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Shell } from '@/components/layout/Shell'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { QualityMapLayout } from '@/components/layout/QualityMapLayout'
+import { SharedMapLayout } from '@/components/layout/SharedMapLayout'
 import Home from '@/pages/Home'
 
 const FoodMap = lazy(() => import('@/maps/foodmap').then(m => ({ default: m.FoodMap })))
@@ -25,7 +25,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/explorer" element={<ExplorerSection />} />
-          <Route element={<QualityMapLayout />}>
+          <Route element={<SharedMapLayout />}>
             <Route path="/foodmap" element={<FoodMap />} />
             <Route path="/airquality" element={<AirQualitySection />} />
           </Route>

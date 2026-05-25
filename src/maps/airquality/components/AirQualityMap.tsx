@@ -1,13 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import {
   MapClusterLayer,
-  MapControls,
   MapMarker,
   MapPopup,
   MarkerContent,
   useMap
 } from '@/components/ui/map'
-import { PersistentMapHost, usePersistentMap } from '@/components/ui/persistent-map'
+import { SharedMap } from '@/components/ui/persistent-map'
 import bbox from '@turf/bbox'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { getNetworkColor } from '../constants'
@@ -358,7 +357,6 @@ export function AirQualityMap({
   onMonitorClear
 }: AirQualityMapProps) {
   const { map } = useMap()
-  const { setStyles } = usePersistentMap()
 
   const monitorById = useMemo(() => {
     const map = new globalThis.Map<string, AirMonitor>()
@@ -421,10 +419,6 @@ export function AirQualityMap({
   const mapStyles = useMemo(() => AIR_QUALITY_MAP_STYLES[basemap], [basemap])
 
   useEffect(() => {
-    setStyles(mapStyles)
-  }, [mapStyles, setStyles])
-
-  useEffect(() => {
     if (!selectedMonitor || !map) return
     map.flyTo({
       center: [selectedMonitor.longitude, selectedMonitor.latitude],
@@ -473,9 +467,7 @@ export function AirQualityMap({
   }, [map, onBoundsChange])
 
   return (
-    <div className="relative h-full w-full">
-      <PersistentMapHost />
-      <MapControls position="top-right" showZoom showCompass />
+    <SharedMap styles={mapStyles}>
       <BoundaryBrowseLayer
           features={browseBoundaryFeatures}
           visible={browseBoundariesVisible}
@@ -554,6 +546,6 @@ export function AirQualityMap({
             </MapPopup>
           </>
         )}
-    </div>
+    </SharedMap>
   )
 }

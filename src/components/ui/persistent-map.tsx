@@ -17,10 +17,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from "./map-styles";
-import { MapContext } from "./map";
+import { MapContext, MapControls } from "./map";
 
 type MapStyleOption = string | MapLibreGL.StyleSpecification;
-type MapStylePair = { light?: MapStyleOption; dark?: MapStyleOption };
+export type MapStylePair = { light?: MapStyleOption; dark?: MapStyleOption };
 
 type PersistentMapContextValue = {
   map: MapLibreGL.Map | null;
@@ -206,6 +206,62 @@ export function PersistentMapHost({ className, loading = false }: PersistentMapH
     <div className={cn("relative h-full w-full", className)}>
       <div ref={hostRef} className="absolute inset-0" />
       {(!isLoaded || loading) && <PersistentMapLoader />}
+    </div>
+  );
+}
+
+/**
+ * Declare the active basemap for the section currently using the shared map.
+ * Applied via setStyle, so swapping basemaps never tears the map down. Call
+ * this once per section (the last section to mount wins, which matches the
+ * single-active-route model).
+ */
+export function useMapBasemap(styles: MapStylePair) {
+  const { setStyles } = usePersistentMap();
+  const { light, dark } = styles;
+  useEffect(() => {
+    setStyles({ light, dark });
+  }, [setStyles, light, dark]);
+}
+
+type SharedMapProps = {
+  children?: ReactNode;
+  /** Basemap for this section. Defaults to the standard Carto styles. */
+  styles?: MapStylePair;
+  className?: string;
+  loading?: boolean;
+  /**
+   * Map controls to render. Defaults to zoom + compass at top-right. Pass
+   * `null` to render none, or your own element to customize.
+   */
+  controls?: ReactNode;
+};
+
+/**
+ * High-level slot for a section that participates in a shared map group.
+ * Bundles the canvas host, the standard controls, and the basemap declaration
+ * so a section's map is just `<SharedMap>{overlays}</SharedMap>`. Overlays
+ * (markers, layers, popups) attach to the shared instance via useMap() and can
+ * be rendered as children regardless of DOM nesting.
+ */
+export function SharedMap({
+  children,
+  styles,
+  className,
+  loading,
+  controls,
+}: SharedMapProps) {
+  useMapBasemap(styles ?? MAP_STYLES);
+
+  return (
+    <div className={cn("relative h-full w-full", className)}>
+      <PersistentMapHost loading={loading} />
+      {controls === undefined ? (
+        <MapControls position="top-right" showZoom showCompass />
+      ) : (
+        controls
+      )}
+      {children}
     </div>
   );
 }

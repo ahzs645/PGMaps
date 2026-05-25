@@ -5,12 +5,10 @@ import {
   MarkerContent,
   MarkerPopup,
   MarkerTooltip,
-  MapControls,
   useMap
 } from '@/components/ui/map'
-import { PersistentMapHost, usePersistentMap } from '@/components/ui/persistent-map'
+import { SharedMap } from '@/components/ui/persistent-map'
 import { cn } from '@/lib/utils'
-import { MAP_STYLES } from '@/components/ui/map-styles'
 import type { RestaurantWithStats, HazardRating, VisualizationMode } from '../types'
 
 interface RestaurantMapProps {
@@ -75,13 +73,6 @@ export function RestaurantMap({
   onViewInspections
 }: RestaurantMapProps) {
   const { map } = useMap()
-  const { setStyles } = usePersistentMap()
-
-  // Use the default Carto basemap (reset it when arriving from a mode that
-  // swapped the style, e.g. air quality's topographic/dark basemaps).
-  useEffect(() => {
-    setStyles(MAP_STYLES)
-  }, [setStyles])
 
   // Filter to only restaurants with valid coordinates
   const geocodedRestaurants = useMemo(() => {
@@ -100,10 +91,7 @@ export function RestaurantMap({
   }, [selectedRestaurant, map])
 
   return (
-    <div className="relative w-full h-full">
-      <PersistentMapHost />
-      <MapControls position="top-right" showZoom showCompass />
-
+    <SharedMap>
       {geocodedRestaurants.map(restaurant => (
         <RestaurantMarker
           key={restaurant.details_url}
@@ -114,7 +102,7 @@ export function RestaurantMap({
           onViewInspections={() => onViewInspections(restaurant)}
         />
       ))}
-    </div>
+    </SharedMap>
   )
 }
 
