@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
 import {
-  Map as PgMap,
-  MapControls,
   MapClusterLayer,
   MapMarker,
   MarkerContent,
-  type MapRef,
+  useMap,
 } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
-import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { SharedMap } from '@/components/ui/persistent-map'
+import { MAP_STYLES } from '@/components/ui/map-styles'
 import { getClassificationColor, getTrailColor } from '../constants'
 import type { Park, Trail, ParkAmenity, ActiveLayer, CityPgOverlayData } from '../types'
 
@@ -24,8 +23,6 @@ interface ParksMapProps {
   onTrailClick: (trail: Trail) => void
 }
 
-const ZOOM = 12
-
 export function ParksMap({
   parks,
   trails,
@@ -37,7 +34,7 @@ export function ParksMap({
   onParkClick,
   onTrailClick,
 }: ParksMapProps) {
-  const mapRef = useRef<MapRef>(null)
+  const { map } = useMap()
   const parksByIdRef = useRef(new globalThis.Map<number, Park>())
   const trailsByIdRef = useRef(new globalThis.Map<number, Trail>())
 
@@ -96,25 +93,25 @@ export function ParksMap({
 
   // Fly to selected park
   useEffect(() => {
-    if (!selectedPark || !mapRef.current) return
-    mapRef.current.flyTo({
+    if (!selectedPark || !map) return
+    map.flyTo({
       center: [selectedPark.longitude, selectedPark.latitude],
       zoom: 15,
       duration: 800,
     })
-  }, [selectedPark])
+  }, [map, selectedPark])
 
   // Fly to selected trail
   useEffect(() => {
-    if (!selectedTrail || !mapRef.current || selectedTrail.coordinates.length === 0) return
+    if (!selectedTrail || !map || selectedTrail.coordinates.length === 0) return
     const midIdx = Math.floor(selectedTrail.coordinates.length / 2)
     const [lng, lat] = selectedTrail.coordinates[midIdx]
-    mapRef.current.flyTo({
+    map.flyTo({
       center: [lng, lat],
       zoom: 15,
       duration: 800,
     })
-  }, [selectedTrail])
+  }, [map, selectedTrail])
 
   const visibleAmenities = useMemo(() => {
     if (!showAmenities) return []
@@ -123,14 +120,7 @@ export function ParksMap({
 
   return (
     <div className="h-full w-full">
-      <PgMap
-        ref={mapRef}
-        center={PG_CENTER}
-        zoom={ZOOM}
-        styles={MAP_STYLES}
-      >
-        <MapControls position="top-right" showZoom showCompass />
-
+      <SharedMap styles={MAP_STYLES}>
         <MapFillLayer
           data={parkGeojson}
           fillColor={['get', 'color']}
@@ -305,7 +295,7 @@ export function ParksMap({
             </MarkerContent>
           </MapMarker>
         ))}
-      </PgMap>
+      </SharedMap>
     </div>
   )
 }

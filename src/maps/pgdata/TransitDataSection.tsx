@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bus, MapPin, Route } from 'lucide-react'
-import { Map as PgMap, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
+import { MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
+import { SharedMap } from '@/components/ui/persistent-map'
 import { LegendItem, MapLegendPanel, MapLegendSection, StatTile } from '@/components/ui/map-panels'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
@@ -429,8 +430,7 @@ export default function TransitDataSection() {
       }
     >
       <div className="relative h-full">
-        <PgMap center={PG_CENTER} zoom={11} styles={MAP_STYLES}>
-          <MapControls position="top-right" />
+        <SharedMap styles={MAP_STYLES}>
           {visibleRouteInputs && (
             <TransitRouteLayers routes={visibleRouteInputs} visible={activeLayers.includes('routes')} />
           )}
@@ -468,7 +468,7 @@ export default function TransitDataSection() {
                 )}
               </MapMarker>
             ))}
-        </PgMap>
+        </SharedMap>
 
         <MapLegendPanel
           title="Transit layers"

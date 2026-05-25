@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
-  Map as PgMap,
   MapClusterLayer,
-  MapControls,
   MapMarker,
   MapPopup,
   MarkerContent,
-  type MapRef,
+  useMap,
 } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
-import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { SharedMap } from '@/components/ui/persistent-map'
+import { MAP_STYLES } from '@/components/ui/map-styles'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
 
@@ -120,7 +119,7 @@ export function CrimeMap({
   censusGeojson,
   censusFillColor,
 }: CrimeMapProps) {
-  const mapRef = useRef<MapRef>(null)
+  const { map } = useMap()
 
   const incidentById = useMemo(() => {
     const map = new Map<number, CrimeIncident>()
@@ -155,19 +154,17 @@ export function CrimeMap({
   }, [incidents, showCrimeLayer])
 
   useEffect(() => {
-    if (!selectedIncident || !mapRef.current) return
-    mapRef.current.flyTo({
+    if (!selectedIncident || !map) return
+    map.flyTo({
       center: [selectedIncident.longitude, selectedIncident.latitude],
       zoom: 15,
       duration: 800,
     })
-  }, [selectedIncident])
+  }, [map, selectedIncident])
 
   return (
     <div className="h-full w-full">
-      <PgMap ref={mapRef} center={PG_CENTER} zoom={12} styles={MAP_STYLES}>
-        <MapControls position="top-right" showZoom showCompass />
-
+      <SharedMap styles={MAP_STYLES}>
         {/* Census choropleth layer (render first so it's below points) */}
         {showCensusLayer && (
           <MapFillLayer
@@ -270,7 +267,7 @@ export function CrimeMap({
             </MapPopup>
           </>
         )}
-      </PgMap>
+      </SharedMap>
     </div>
   )
 }
