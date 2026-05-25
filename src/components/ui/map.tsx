@@ -1406,6 +1406,7 @@ function MapClusterLayer<
 
 export {
   Map,
+  MapContext,
   useMap,
   MapMarker,
   MarkerContent,

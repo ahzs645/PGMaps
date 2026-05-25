@@ -1,16 +1,15 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
-  Map as PgMap,
   MapClusterLayer,
   MapControls,
   MapMarker,
   MapPopup,
   MarkerContent,
-  useMap,
-  type MapRef
+  useMap
 } from '@/components/ui/map'
+import { PersistentMapHost, usePersistentMap } from '@/components/ui/persistent-map'
 import bbox from '@turf/bbox'
-import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { MAP_STYLES } from '@/components/ui/map-styles'
 import { getNetworkColor } from '../constants'
 import { calculateCorrectedPm25, formatNumber, formatPm25 } from '../lib/corrections'
 import { AirQualityHeatmapLayer } from './AirQualityHeatmapLayer'
@@ -58,8 +57,6 @@ type MonitorFeatureProperties = {
   city: string
   province: string
 }
-
-const ZOOM = 12
 
 function hexToRgba(hex: string, alpha: number): string {
   const cleaned = hex.replace('#', '')
@@ -360,7 +357,8 @@ export function AirQualityMap({
   onBrowseBoundaryClick,
   onMonitorClear
 }: AirQualityMapProps) {
-  const mapRef = useRef<MapRef>(null)
+  const { map } = useMap()
+  const { setStyles } = usePersistentMap()
 
   const monitorById = useMemo(() => {
     const map = new globalThis.Map<string, AirMonitor>()
@@ -423,32 +421,32 @@ export function AirQualityMap({
   const mapStyles = useMemo(() => AIR_QUALITY_MAP_STYLES[basemap], [basemap])
 
   useEffect(() => {
-    if (!selectedMonitor || !mapRef.current) return
-    mapRef.current.flyTo({
+    setStyles(mapStyles)
+  }, [mapStyles, setStyles])
+
+  useEffect(() => {
+    if (!selectedMonitor || !map) return
+    map.flyTo({
       center: [selectedMonitor.longitude, selectedMonitor.latitude],
       duration: 800
     })
-  }, [selectedMonitor])
+  }, [selectedMonitor, map])
 
   useEffect(() => {
-    if (!selectedRegionFeature || !mapRef.current) return
+    if (!selectedRegionFeature || !map) return
     const [minLon, minLat, maxLon, maxLat] = bbox(selectedRegionFeature)
-    mapRef.current.flyTo({
+    map.flyTo({
       center: [(minLon + maxLon) / 2, (minLat + maxLat) / 2],
-      zoom: mapRef.current.getZoom(),
+      zoom: map.getZoom(),
       duration: 800
     })
-  }, [selectedRegionFeature])
+  }, [selectedRegionFeature, map])
 
   useEffect(() => {
-    if (!onBoundsChange) return
-
-    let mapInstance: MapRef | null = null
-    let animationFrame: number | null = null
+    if (!onBoundsChange || !map) return
 
     const publishBounds = () => {
-      if (!mapInstance) return
-      const bounds = mapInstance.getBounds()
+      const bounds = map.getBounds()
       onBoundsChange({
         west: bounds.getWest(),
         east: bounds.getEast(),
@@ -457,48 +455,28 @@ export function AirQualityMap({
       })
     }
 
-    const bind = () => {
-      mapInstance = mapRef.current
-      if (!mapInstance) {
-        animationFrame = requestAnimationFrame(bind)
-        return
-      }
+    map.on('load', publishBounds)
+    map.on('moveend', publishBounds)
+    map.on('zoomend', publishBounds)
+    map.on('resize', publishBounds)
 
-      mapInstance.on('load', publishBounds)
-      mapInstance.on('moveend', publishBounds)
-      mapInstance.on('zoomend', publishBounds)
-      mapInstance.on('resize', publishBounds)
-
-      if (mapInstance.loaded()) {
-        publishBounds()
-      }
+    if (map.loaded()) {
+      publishBounds()
     }
-
-    bind()
 
     return () => {
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame)
-      }
-      if (!mapInstance) return
-      mapInstance.off('load', publishBounds)
-      mapInstance.off('moveend', publishBounds)
-      mapInstance.off('zoomend', publishBounds)
-      mapInstance.off('resize', publishBounds)
+      map.off('load', publishBounds)
+      map.off('moveend', publishBounds)
+      map.off('zoomend', publishBounds)
+      map.off('resize', publishBounds)
     }
-  }, [onBoundsChange])
+  }, [map, onBoundsChange])
 
   return (
-    <div className="h-full w-full">
-      <PgMap
-        key={basemap}
-        ref={mapRef}
-        center={PG_CENTER}
-        zoom={ZOOM}
-        styles={mapStyles}
-      >
-        <MapControls position="top-right" showZoom showCompass />
-        <BoundaryBrowseLayer
+    <div className="relative h-full w-full">
+      <PersistentMapHost />
+      <MapControls position="top-right" showZoom showCompass />
+      <BoundaryBrowseLayer
           features={browseBoundaryFeatures}
           visible={browseBoundariesVisible}
           selectedCode={selectedBrowseBoundaryCode}
@@ -576,7 +554,6 @@ export function AirQualityMap({
             </MapPopup>
           </>
         )}
-      </PgMap>
     </div>
   )
 }
