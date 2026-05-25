@@ -8,6 +8,11 @@ declare module '@turf/bbox' {
   export default bbox
 }
 
+declare module '@turf/length' {
+  function length(geojson: GeoJSON.Feature<GeoJSON.LineString | GeoJSON.MultiLineString>, options?: { units?: string }): number
+  export default length
+}
+
 declare module '@turf/bbox-polygon' {
   function bboxPolygon(bounds: [number, number, number, number]): GeoJSON.Feature<GeoJSON.Polygon>
   export default bboxPolygon

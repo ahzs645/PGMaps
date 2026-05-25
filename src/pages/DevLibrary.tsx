@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Beaker, Droplets, Palette, Wind } from 'lucide-react'
+import type { ElementType } from 'react'
+import { ArrowRight, Beaker, Droplets, MousePointerClick, Palette, Wind } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -8,7 +9,7 @@ type DevEntry = {
   title: string
   description: string
   href: string
-  icon: React.ElementType
+  icon: ElementType
   color: string
   label: string
 }
@@ -39,6 +40,14 @@ const devEntries: DevEntry[] = [
     icon: Palette,
     color: 'bg-violet-600',
     label: '/dev/design',
+  },
+  {
+    title: 'Interaction Lab',
+    description: 'Map interaction prototype for search, measuring, layer visibility, feature popups, and selection flows.',
+    href: '/dev/interact',
+    icon: MousePointerClick,
+    color: 'bg-emerald-600',
+    label: '/dev/interact',
   },
 ]
 

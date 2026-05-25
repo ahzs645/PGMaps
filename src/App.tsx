@@ -16,6 +16,7 @@ const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then(m => (
 const DevLibrary = lazy(() => import('@/pages/DevLibrary'))
 const DevWatersheds = lazy(() => import('@/pages/DevWatersheds'))
 const DevDesign = lazy(() => import('@/pages/DevDesign'))
+const DevInteract = lazy(() => import('@/pages/DevInteract'))
 const AqMapSection = lazy(() => import('@/maps/aqmap').then(m => ({ default: m.AqMapSection })))
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
           <Route path="/dev" element={<DevLibrary />} />
           <Route path="/dev/watersheds" element={<DevWatersheds />} />
           <Route path="/dev/design" element={<DevDesign />} />
+          <Route path="/dev/interact" element={<DevInteract />} />
           <Route path="/dev/aqmap" element={<AqMapSection />} />
         </Routes>
       </Suspense>
