@@ -1,16 +1,14 @@
-import { useMemo, useRef, useEffect } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import {
-  Map,
   MapMarker,
   MarkerContent,
   MarkerPopup,
   MarkerTooltip,
-  MapControls,
-  type MapRef
+  useMap
 } from '@/components/ui/map'
+import { SharedMap } from '@/components/ui/persistent-map'
 import { cn } from '@/lib/utils'
-import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import type { RestaurantWithStats, HazardRating, VisualizationMode } from '../types'
 
 interface RestaurantMapProps {
@@ -20,8 +18,6 @@ interface RestaurantMapProps {
   onRestaurantClick: (restaurant: RestaurantWithStats) => void
   onViewInspections: (restaurant: RestaurantWithStats) => void
 }
-
-const ZOOM = 12
 
 const HAZARD_COLORS: Record<'light' | 'dark', Record<HazardRating, string>> = {
   light: {
@@ -76,7 +72,7 @@ export function RestaurantMap({
   onRestaurantClick,
   onViewInspections
 }: RestaurantMapProps) {
-  const mapRef = useRef<MapRef>(null)
+  const { map } = useMap()
 
   // Filter to only restaurants with valid coordinates
   const geocodedRestaurants = useMemo(() => {
@@ -85,37 +81,28 @@ export function RestaurantMap({
 
   // Fly to selected restaurant
   useEffect(() => {
-    if (selectedRestaurant?.latitude && selectedRestaurant?.longitude && mapRef.current) {
-      mapRef.current.flyTo({
+    if (selectedRestaurant?.latitude && selectedRestaurant?.longitude && map) {
+      map.flyTo({
         center: [selectedRestaurant.longitude, selectedRestaurant.latitude],
         zoom: 16,
         duration: 1000
       })
     }
-  }, [selectedRestaurant])
+  }, [selectedRestaurant, map])
 
   return (
-    <div className="w-full h-full">
-      <Map
-        ref={mapRef}
-        center={PG_CENTER}
-        zoom={ZOOM}
-        styles={MAP_STYLES}
-      >
-        <MapControls position="top-right" showZoom showCompass />
-
-        {geocodedRestaurants.map(restaurant => (
-          <RestaurantMarker
-            key={restaurant.details_url}
-            restaurant={restaurant}
-            visualizationMode={visualizationMode}
-            isSelected={selectedRestaurant?.details_url === restaurant.details_url}
-            onClick={() => onRestaurantClick(restaurant)}
-            onViewInspections={() => onViewInspections(restaurant)}
-          />
-        ))}
-      </Map>
-    </div>
+    <SharedMap>
+      {geocodedRestaurants.map(restaurant => (
+        <RestaurantMarker
+          key={restaurant.details_url}
+          restaurant={restaurant}
+          visualizationMode={visualizationMode}
+          isSelected={selectedRestaurant?.details_url === restaurant.details_url}
+          onClick={() => onRestaurantClick(restaurant)}
+          onViewInspections={() => onViewInspections(restaurant)}
+        />
+      ))}
+    </SharedMap>
   )
 }
 
