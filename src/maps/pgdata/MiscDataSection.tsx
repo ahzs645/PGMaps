@@ -476,10 +476,6 @@ function NetworkAvailabilitySidebar({ manifest }: { manifest: ReturnType<typeof 
 function EvChargingSidebar({
   manifest,
   stationCount,
-  showPoints,
-  showHeatmap,
-  onTogglePoints,
-  onToggleHeatmap,
   boundariesVisible,
   boundarySource,
   selectedRegionLevel,
@@ -492,10 +488,6 @@ function EvChargingSidebar({
 }: {
   manifest: ReturnType<typeof useJsonManifest<EvChargingManifest>>
   stationCount: number
-  showPoints: boolean
-  showHeatmap: boolean
-  onTogglePoints: () => void
-  onToggleHeatmap: () => void
   boundariesVisible: boolean
   boundarySource: BoundarySource
   selectedRegionLevel: RegionLevel
@@ -513,14 +505,6 @@ function EvChargingSidebar({
       {!manifest.data && !manifest.error && <div className="text-sm text-muted-foreground">Loading EV charging manifest...</div>}
       {manifest.error && <div className="text-sm text-red-500">{manifest.error}</div>}
       <section className="rounded border border-border bg-muted/30 p-3">
-        <div className="mb-3 flex flex-wrap gap-2">
-          <ToggleChip active={showPoints} onClick={onTogglePoints} tone="sky">
-            {showPoints ? 'Hide points' : 'Show points'}
-          </ToggleChip>
-          <ToggleChip active={showHeatmap} onClick={onToggleHeatmap} tone="orange">
-            Heatmap
-          </ToggleChip>
-        </div>
         <div className="text-xs text-muted-foreground">
           {stationCount.toLocaleString()} stations in current study area.
         </div>
@@ -2853,10 +2837,40 @@ export default function MiscDataSection() {
     </>
   )
 
+  const activeMapTitle = activeTab === 'canue'
+    ? 'CANUE'
+    : activeTab === 'network'
+      ? 'Network'
+    : activeTab === 'ev'
+      ? 'EV Chargers'
+    : activeTab === 'icbc'
+      ? 'ICBC'
+    : activeTab === 'wars'
+      ? 'WARS'
+    : activeTab === 'walkability'
+      ? 'Walkability'
+    : activeTab === 'water'
+      ? 'Water'
+    : activeTab === 'flood'
+      ? 'Flood'
+    : activeTab === 'drought'
+      ? 'Drought'
+    : 'Heat & Shade'
+
   const sidebar = (
     <div className="z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/95 p-4">
-        <h1 className="text-xl font-bold text-foreground">MISC Data</h1>
+        <h1 className="text-xl font-bold text-foreground">{activeMapTitle}</h1>
+        {activeTab === 'ev' && (
+          <div className="flex flex-wrap gap-2">
+            <ToggleChip active={evShowPoints} onClick={() => setEvShowPoints((current) => !current)} tone="sky">
+              {evShowPoints ? 'Hide points' : 'Show points'}
+            </ToggleChip>
+            <ToggleChip active={evShowHeatmap} onClick={() => setEvShowHeatmap((current) => !current)} tone="orange">
+              Heatmap
+            </ToggleChip>
+          </div>
+        )}
         {activeTab === 'icbc' && <IcbcLayerControls icbc={icbc} />}
         {activeTab === 'wars' && <WarsLayerControls wars={wars} />}
         {activeTab === 'water' && <WaterLayerControls water={water} />}
@@ -3399,10 +3413,6 @@ export default function MiscDataSection() {
           <EvChargingSidebar
             manifest={evChargingManifest}
             stationCount={filteredEvStations.features.length}
-            showPoints={evShowPoints}
-            showHeatmap={evShowHeatmap}
-            onTogglePoints={() => setEvShowPoints((current) => !current)}
-            onToggleHeatmap={() => setEvShowHeatmap((current) => !current)}
             boundariesVisible={evShowBoundaries}
             boundarySource={evBoundarySource}
             selectedRegionLevel={evRegionLevel}
