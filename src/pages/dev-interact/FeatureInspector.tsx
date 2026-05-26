@@ -10,13 +10,17 @@ export function MobileFeatureInspector({
   feature,
   openInPoint,
   openInEnabled,
+  collapsed,
   onFeatureAction,
+  onExpand,
   onClose,
 }: {
   feature: InteractFeature
   openInPoint: [number, number] | null
   openInEnabled: boolean
+  collapsed: boolean
   onFeatureAction: (action: FeatureAction) => void
+  onExpand: () => void
   onClose: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -59,10 +63,12 @@ export function MobileFeatureInspector({
       <div
         role="dialog"
         aria-labelledby="feature-inspector-title"
+        data-sheet-detent={collapsed ? 'collapsed' : 'default'}
         className={cn(
-          'absolute inset-x-0 bottom-0 pointer-events-auto rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)]',
-          'transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform',
+          'absolute inset-x-0 bottom-0 pointer-events-auto overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)]',
+          'transition-[max-height,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform',
           open ? 'translate-y-0' : 'translate-y-full',
+          collapsed ? 'max-h-[106px]' : 'max-h-[58vh]',
         )}
       >
         <div className="flex justify-center py-2" aria-hidden="true">
@@ -83,7 +89,12 @@ export function MobileFeatureInspector({
         </div>
         <header className="border-b border-border px-4 pb-3">
           <div className="flex items-start justify-between gap-3">
-            <button type="button" className="min-w-0 text-left" aria-label={`Selected feature ${feature.properties.name}`}>
+            <button
+              type="button"
+              className="min-w-0 text-left"
+              aria-label={`Selected feature ${feature.properties.name}`}
+              onClick={collapsed ? onExpand : undefined}
+            >
               <span id="feature-inspector-title" className="block truncate text-base font-semibold text-foreground">
                 {feature.properties.name}
               </span>
@@ -119,7 +130,13 @@ export function MobileFeatureInspector({
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{layerLabel(feature.properties.layer)}</p>
         </header>
-        <div className="max-h-[42vh] overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
+        <div
+          className={cn(
+            'overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] transition-[max-height,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
+            collapsed ? 'max-h-0 opacity-0' : 'max-h-[42vh] opacity-100',
+          )}
+          aria-hidden={collapsed}
+        >
           <div aria-label="Vector feature popup contents" className="px-4 py-2">
             {feature.properties.properties.map((row) => (
               <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-3 border-b border-border/70 py-2.5 text-sm last:border-b-0">

@@ -92,3 +92,26 @@ export function ZoomToFeature({ feature, nonce }: { feature: InteractFeature; no
 
   return null
 }
+
+export function CollapseInspectorOnMapDrag({
+  enabled,
+  onCollapse,
+}: {
+  enabled: boolean
+  onCollapse: () => void
+}) {
+  const { map, isLoaded } = useMap()
+
+  useEffect(() => {
+    if (!map || !isLoaded || !enabled) return
+    const handleDragStart = () => {
+      onCollapse()
+    }
+    map.on('dragstart', handleDragStart)
+    return () => {
+      map.off('dragstart', handleDragStart)
+    }
+  }, [enabled, isLoaded, map, onCollapse])
+
+  return null
+}

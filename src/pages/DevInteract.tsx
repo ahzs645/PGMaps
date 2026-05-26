@@ -8,8 +8,9 @@ import { DesktopFeaturePopup } from './dev-interact/DesktopFeaturePopup'
 import { FeatureTablePanel } from './dev-interact/FeatureTablePanel'
 import { MobileFeatureInspector } from './dev-interact/FeatureInspector'
 import { featureBounds, filterCollection, measurementCanClose, measurementStats, relatedFeaturesAtPoint } from './dev-interact/geo'
-import { MapClickCapture, ZoomToFeature } from './dev-interact/MapBehaviors'
+import { CollapseInspectorOnMapDrag, MapClickCapture, ZoomToFeature } from './dev-interact/MapBehaviors'
 import { MeasurementOverlay } from './dev-interact/MeasurementOverlay'
+import { MobileMapToolbar } from './dev-interact/MobileMapToolbar'
 import { measurementLine, measurementPolygon, measurementPreviewLine } from './dev-interact/measurement'
 import { DevInteractSidebar } from './dev-interact/Sidebar'
 import type { FeatureAction, InteractFeature, InteractFeatureProperties, LayerId, MeasurementMapAction, MeasurementMode } from './dev-interact/types'
@@ -25,6 +26,7 @@ function DevInteract() {
   const [selectedFeatures, setSelectedFeatures] = useState<InteractFeature[]>([])
   const [selectedFeatureIndex, setSelectedFeatureIndex] = useState(0)
   const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
+  const [mobileInspectorCollapsed, setMobileInspectorCollapsed] = useState(false)
   const [openInEnabled, setOpenInEnabled] = useState(true)
   const [hiddenFeatureIds, setHiddenFeatureIds] = useState<Set<string>>(() => new Set())
   const [isolatedFeatureId, setIsolatedFeatureId] = useState<string | null>(null)
@@ -64,6 +66,7 @@ function DevInteract() {
     setSelectedFeatures([])
     setSelectedFeatureIndex(0)
     setSelectedLngLat(null)
+    setMobileInspectorCollapsed(false)
   }, [])
 
   const setSelection = useCallback((feature: InteractFeature, point: [number, number]) => {
@@ -72,6 +75,7 @@ function DevInteract() {
     setSelectedFeatures(features)
     setSelectedFeatureIndex(0)
     setSelectedLngLat(point)
+    setMobileInspectorCollapsed(false)
   }, [])
 
   const selectPolygon = useCallback((id: string, collection: GeoJSON.FeatureCollection<GeoJSON.Polygon, InteractFeatureProperties>) => {
@@ -216,7 +220,13 @@ function DevInteract() {
     >
       <div className="relative h-full">
         <Map center={CENTER} zoom={11.1}>
-          <MapControls position="top-right" />
+          <MapControls position="top-right" className="hidden md:flex" />
+          <MobileMapToolbar
+            visibleLayers={visibleLayers}
+            onToggleLayer={toggleLayer}
+            onStartMeasurement={startMeasurement}
+            onOpenTable={() => setTableLayer('parks')}
+          />
           <MapClickCapture
             measurementMode={measurementMode}
             measurementPoints={measurementPoints}
@@ -224,6 +234,10 @@ function DevInteract() {
             onMeasurementCursor={setMeasurementCursor}
           />
           {zoomFeature && <ZoomToFeature feature={zoomFeature.feature} nonce={zoomFeature.nonce} />}
+          <CollapseInspectorOnMapDrag
+            enabled={measurementMode !== 'drawing' && Boolean(selectedFeature)}
+            onCollapse={() => setMobileInspectorCollapsed(true)}
+          />
 
           <MapFillLayer
             data={filteredNeighbourhoodFeatures}
@@ -335,7 +349,9 @@ function DevInteract() {
             feature={selectedFeature}
             openInPoint={selectedLngLat}
             openInEnabled={openInEnabled}
+            collapsed={mobileInspectorCollapsed}
             onFeatureAction={(action) => handleFeatureAction(action, selectedFeature)}
+            onExpand={() => setMobileInspectorCollapsed(false)}
             onClose={clearSelection}
           />
         )}
