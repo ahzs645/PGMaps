@@ -1,5 +1,7 @@
-import { closeRing, measurementCanClose } from './geo'
+import { closeRing, lineLengthKm, measurementCanClose } from './geo'
 import type { MeasurementMode } from './types'
+
+const EARTH_RADIUS_KM = 6371.0088
 
 export function measurementPolygon(points: [number, number][]): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
   if (points.length < 3) return { type: 'FeatureCollection', features: [] }
@@ -11,6 +13,50 @@ export function measurementPolygon(points: [number, number][]): GeoJSON.FeatureC
       geometry: { type: 'Polygon', coordinates: [closeRing(points)] },
     }],
   }
+}
+
+export function measurementCircle(
+  center: [number, number] | null,
+  edge: [number, number] | null,
+): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
+  if (!center || !edge) return { type: 'FeatureCollection', features: [] }
+  const radiusKm = lineLengthKm([center, edge])
+  if (radiusKm === 0) return { type: 'FeatureCollection', features: [] }
+  const coordinates = circleCoordinates(center, radiusKm)
+  return {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: { id: 'measurement-circle' },
+      geometry: { type: 'Polygon', coordinates: [coordinates] },
+    }],
+  }
+}
+
+function circleCoordinates(center: [number, number], radiusKm: number, steps = 96): [number, number][] {
+  const [lng, lat] = center
+  const centerLat = lat * Math.PI / 180
+  const centerLng = lng * Math.PI / 180
+  const angularDistance = radiusKm / EARTH_RADIUS_KM
+
+  const points = Array.from({ length: steps }, (_, index): [number, number] => {
+    const bearing = (index / steps) * Math.PI * 2
+    const pointLat = Math.asin(
+      Math.sin(centerLat) * Math.cos(angularDistance) +
+        Math.cos(centerLat) * Math.sin(angularDistance) * Math.cos(bearing),
+    )
+    const pointLng = centerLng + Math.atan2(
+      Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(centerLat),
+      Math.cos(angularDistance) - Math.sin(centerLat) * Math.sin(pointLat),
+    )
+
+    return [
+      ((pointLng * 180 / Math.PI + 540) % 360) - 180,
+      pointLat * 180 / Math.PI,
+    ]
+  })
+
+  return closeRing(points)
 }
 
 export function measurementLine(

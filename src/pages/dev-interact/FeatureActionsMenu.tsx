@@ -18,7 +18,7 @@ export function FeatureActionsMenu({
     <div
       role="menu"
       aria-label="Feature actions menu"
-      className="absolute bottom-[calc(100%+0.35rem)] right-0 z-20 w-56 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-xl"
+      className="absolute right-0 top-[calc(100%+0.35rem)] z-20 w-56 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-xl"
     >
       <div
         role="menuitem"

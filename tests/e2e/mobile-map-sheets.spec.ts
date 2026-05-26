@@ -11,6 +11,7 @@ const mapRoutes = [
   '/pgdata?tab=parks',
   '/pgdata?tab=transit',
   '/misc',
+  '/dev/interact',
 ] as const
 
 test.describe('mobile map sidebars', () => {
@@ -54,5 +55,31 @@ test.describe('mobile map sidebars', () => {
     })
     expect(measurements.shellHeight).toBeLessThanOrEqual(measurements.rootHeight + 1)
     expect(measurements.shellHeight).toBeLessThanOrEqual(measurements.viewportHeight + 1)
+  })
+
+  test('full mobile sheet snap stays below the floating toolbar', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/dev/interact', { waitUntil: 'domcontentloaded' })
+
+    const sheet = page.locator('[data-map-mobile-sheet="true"]')
+    const handle = page.locator('[data-map-mobile-sheet-handle="true"]')
+    const toolbar = page.locator('[data-map-mobile-toolbar="true"]')
+
+    await expect(sheet).toBeVisible({ timeout: 30_000 })
+    await handle.click()
+    await handle.click()
+
+    await page.waitForTimeout(400)
+    const measurements = await page.evaluate(() => {
+      const sheetEl = document.querySelector<HTMLElement>('[data-map-mobile-sheet="true"]')
+      const toolbarEl = document.querySelector<HTMLElement>('[data-map-mobile-toolbar="true"]')
+      return {
+        sheetTop: sheetEl?.getBoundingClientRect().top ?? 0,
+        toolbarBottom: toolbarEl?.getBoundingClientRect().bottom ?? 0,
+      }
+    })
+
+    await expect(toolbar).toBeVisible()
+    expect(measurements.sheetTop).toBeGreaterThanOrEqual(measurements.toolbarBottom + 7)
   })
 })

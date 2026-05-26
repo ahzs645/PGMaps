@@ -1,0 +1,522 @@
+{
+  "generatedAt": "2026-05-26T03:55:37.689Z",
+  "title": "Canada cell coverage map tile sources",
+  "description": "Normalized carrier coverage tile metadata for Rogers, TELUS, Bell, Videotron, and Freedom Mobile. Coverage is provider-reported and approximate.",
+  "coverage": "Canada",
+  "bounds": [
+    -141.01,
+    41.68,
+    -52.62,
+    83.14
+  ],
+  "license": "Source-dependent carrier map terms; do not redistribute tiles as bulk data without reviewing provider terms.",
+  "providers": [
+    {
+      "id": "rogers",
+      "name": "Rogers",
+      "sourceUrl": "https://www.rogers.com/mobility/network-coverage-map",
+      "platform": "spatialbuzz-raster",
+      "attribution": "Rogers / Spatialbuzz",
+      "notes": "Raster coverage tiles discovered from the Rogers Spatialbuzz iframe.",
+      "bounds": [
+        -141.01,
+        41.68,
+        -52.62,
+        83.14
+      ],
+      "layers": [
+        {
+          "id": "rogers-combined",
+          "label": "Rogers combined coverage",
+          "technology": "combined",
+          "format": "png",
+          "minzoom": 0,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "tileUrl": "https://593e2268-tiles.spatialbuzz.net/tiles/rog_ca-v200/styles/rog_ca_v200_comp/{z}/{x}/{y}.png",
+          "sampleTile": "https://593e2268-tiles.spatialbuzz.net/tiles/rog_ca-v200/styles/rog_ca_v200_comp/4/4/5.png"
+        }
+      ],
+      "checks": [
+        {
+          "layerId": "rogers-combined",
+          "sampleTile": "https://593e2268-tiles.spatialbuzz.net/tiles/rog_ca-v200/styles/rog_ca_v200_comp/4/4/5.png",
+          "status": {
+            "ok": true,
+            "status": 200,
+            "contentType": "image/png",
+            "contentLength": null,
+            "lastModified": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "telus",
+      "name": "TELUS",
+      "sourceUrl": "https://www.telus.com/en/mobility/network/coverage-map",
+      "configUrl": "https://www.telus.com/network/tools/coverage-map/api/brand-config/Telus",
+      "platform": "carto-vector",
+      "attribution": "TELUS / CARTO",
+      "notes": "Vector tilejson URLs are read from the public TELUS coverage-map brand config.",
+      "bounds": [
+        -125,
+        41.5,
+        -60.625,
+        63
+      ],
+      "center": [
+        -95,
+        55.77
+      ],
+      "layers": [
+        {
+          "id": "telus-5g-3500",
+          "label": "5G 3500 MHz",
+          "technology": "5g-3500",
+          "format": "mvt",
+          "minzoom": 0,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "bounds": [
+            -130.349733,
+            41.909876000000004,
+            -52.65533599999999,
+            58.85374600000001
+          ],
+          "center": [
+            -96.54992256530778,
+            49.00078494412102,
+            6
+          ],
+          "tilejsonUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset?format=tilejson&name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-5g-3500-tileset-1776367289&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "tileUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset/{z}/{x}/{y}?name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-5g-3500-tileset-1776367289&partition=0_12_564_1449_1215_1522_3999_1&formatTiles=mvt&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "vectorLayers": [
+            {
+              "id": "default",
+              "minzoom": 0,
+              "maxzoom": 12,
+              "fields": {},
+              "geometry_type": "Polygon"
+            }
+          ],
+          "tilestats": {
+            "layerCount": 1,
+            "layers": [
+              {
+                "layer": "default",
+                "count": 3606,
+                "geometry": "Polygon",
+                "attributeCount": 0,
+                "attributes": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "telus-5g",
+          "label": "5G",
+          "technology": "5g",
+          "format": "mvt",
+          "minzoom": 0,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "bounds": [
+            -135.577998,
+            41.74069300000001,
+            -52.619172,
+            63.900676
+          ],
+          "center": [
+            -103.07415331395819,
+            51.13936509329328,
+            6
+          ],
+          "tilejsonUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset?format=tilejson&name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-5g-tileset-1776367329&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "tileUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset/{z}/{x}/{y}?name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-5g-tileset-1776367329&partition=0_12_505_1450_1094_1525_3999_1&formatTiles=mvt&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "vectorLayers": [
+            {
+              "id": "default",
+              "minzoom": 0,
+              "maxzoom": 12,
+              "fields": {},
+              "geometry_type": "Polygon"
+            }
+          ],
+          "tilestats": {
+            "layerCount": 1,
+            "layers": [
+              {
+                "layer": "default",
+                "count": 16550,
+                "geometry": "Polygon",
+                "attributeCount": 0,
+                "attributes": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "telus-lte-advanced",
+          "label": "LTE Advanced",
+          "technology": "lte-advanced",
+          "format": "mvt",
+          "minzoom": 0,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "bounds": [
+            -139.753532,
+            41.676301,
+            -52.350289,
+            72.819697
+          ],
+          "center": [
+            -97.28216182941148,
+            50.756495609788246,
+            5
+          ],
+          "tilejsonUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset?format=tilejson&name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-lte-advanced-tileset-1776367351&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "tileUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset/{z}/{x}/{y}?name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-lte-advanced-tileset-1776367351&partition=0_12_457_1453_815_1526_3999_1&formatTiles=mvt&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "vectorLayers": [
+            {
+              "id": "default",
+              "minzoom": 0,
+              "maxzoom": 12,
+              "fields": {},
+              "geometry_type": "Polygon"
+            }
+          ],
+          "tilestats": {
+            "layerCount": 1,
+            "layers": [
+              {
+                "layer": "default",
+                "count": 21587,
+                "geometry": "Polygon",
+                "attributeCount": 0,
+                "attributes": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "telus-lte",
+          "label": "LTE",
+          "technology": "lte",
+          "format": "mvt",
+          "minzoom": 0,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "bounds": [
+            -141.001567,
+            41.67655599999999,
+            -52.35013500000001,
+            74.76167
+          ],
+          "center": [
+            -98.37174046999625,
+            51.70265610177839,
+            5
+          ],
+          "tilejsonUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset?format=tilejson&name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-lte-tileset-1776367445&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "tileUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset/{z}/{x}/{y}?name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-lte-tileset-1776367445&partition=0_12_443_1453_736_1526_3999_1&formatTiles=mvt&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "vectorLayers": [
+            {
+              "id": "default",
+              "minzoom": 0,
+              "maxzoom": 12,
+              "fields": {},
+              "geometry_type": "Polygon"
+            }
+          ],
+          "tilestats": {
+            "layerCount": 1,
+            "layers": [
+              {
+                "layer": "default",
+                "count": 30596,
+                "geometry": "Polygon",
+                "attributeCount": 0,
+                "attributes": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "telus-hspa",
+          "label": "HSPA",
+          "technology": "hspa",
+          "format": "mvt",
+          "minzoom": 0,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "bounds": [
+            -141.001567,
+            41.676556,
+            -52.350187000000005,
+            74.76167
+          ],
+          "center": [
+            -96.48859064091027,
+            51.74240209416618,
+            5
+          ],
+          "tilejsonUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset?format=tilejson&name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-hspa-tileset-1776278219&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "tileUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset/{z}/{x}/{y}?name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-hspa-tileset-1776278219&partition=0_12_443_1453_736_1526_3999_1&formatTiles=mvt&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "vectorLayers": [
+            {
+              "id": "default",
+              "minzoom": 0,
+              "maxzoom": 12,
+              "fields": {},
+              "geometry_type": "Polygon"
+            }
+          ],
+          "tilestats": {
+            "layerCount": 1,
+            "layers": [
+              {
+                "layer": "default",
+                "count": 24324,
+                "geometry": "Polygon",
+                "attributeCount": 0,
+                "attributes": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "telus-lte-m",
+          "label": "LTE-M / LPWA",
+          "technology": "lte-m",
+          "format": "mvt",
+          "minzoom": 0,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "bounds": [
+            -141.001567,
+            41.676556,
+            -52.34984000000001,
+            74.76167
+          ],
+          "center": [
+            -98.30550311183944,
+            51.745956227461946,
+            5
+          ],
+          "tilejsonUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset?format=tilejson&name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-lte-m-tileset-1776367403&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "tileUrl": "https://www.telus.com/network/tools/coverage-map/api/carto/v3/maps/public-coverage-map/tileset/{z}/{x}/{y}?name=cto-cartobackend-pr-d23fd8.public_telus_coverage_map_pr.coverage-lte-m-tileset-1776367403&partition=0_12_443_1453_736_1526_3999_1&formatTiles=mvt&v=3.4&client=deck-gl-carto&deckglVersion=9.1.2",
+          "vectorLayers": [
+            {
+              "id": "default",
+              "minzoom": 0,
+              "maxzoom": 12,
+              "fields": {},
+              "geometry_type": "Polygon"
+            }
+          ],
+          "tilestats": {
+            "layerCount": 1,
+            "layers": [
+              {
+                "layer": "default",
+                "count": 31724,
+                "geometry": "Polygon",
+                "attributeCount": 0,
+                "attributes": []
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "bell",
+      "name": "Bell",
+      "sourceUrl": "https://www.bell.ca/Mobility/Our_network_coverage",
+      "configUrl": "https://bellmaps.korem.com/Coverage/getSiteConfig?siteId=Bell-brf.ca&callback=callback",
+      "platform": "korem-raster",
+      "attribution": "Bell / Korem",
+      "notes": "Korem coverage tiles use one-based Google tile coordinates and z+1 in the request.",
+      "bounds": [
+        -125,
+        41.5,
+        -60.625,
+        63
+      ],
+      "center": [
+        -95,
+        55.77
+      ],
+      "timestamp": "1776434216297",
+      "layers": [
+        {
+          "id": "bell-5g-lte",
+          "label": "Bell 5G/LTE coverage",
+          "technology": "5g-lte",
+          "format": "png",
+          "minzoom": 4,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "tileUrl": "https://bellmaps.korem.com/TMS/getTile?workspace=Bell.ca&layers=5G_PLUS_Advanced,5G_PLUS,5G,LTE_Advanced,LTE&z={zPlusOne}&x={xPlusOne}&y={yPlusOne}&timestamp=1776434216297",
+          "bounds": [
+            -125,
+            41.5,
+            -60.625,
+            63
+          ],
+          "coordinateTemplate": {
+            "z": "z+1",
+            "x": "x+1",
+            "y": "y+1"
+          }
+        },
+        {
+          "id": "bell-hspa",
+          "label": "Bell HSPA coverage",
+          "technology": "hspa",
+          "format": "png",
+          "minzoom": 4,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "tileUrl": "https://bellmaps.korem.com/TMS/getTile?workspace=Bell.ca&layers=HSPA&z={zPlusOne}&x={xPlusOne}&y={yPlusOne}&timestamp=1776434216297",
+          "bounds": [
+            -125,
+            41.5,
+            -60.625,
+            63
+          ],
+          "coordinateTemplate": {
+            "z": "z+1",
+            "x": "x+1",
+            "y": "y+1"
+          }
+        },
+        {
+          "id": "bell-lte-m",
+          "label": "Bell LTE-M coverage",
+          "technology": "lte-m",
+          "format": "png",
+          "minzoom": 4,
+          "maxzoom": 12,
+          "opacity": 0.7,
+          "tileUrl": "https://bellmaps.korem.com/TMS/getTile?workspace=Bell.ca&layers=LTE_M&z={zPlusOne}&x={xPlusOne}&y={yPlusOne}&timestamp=1776434216297",
+          "bounds": [
+            -125,
+            41.5,
+            -60.625,
+            63
+          ],
+          "coordinateTemplate": {
+            "z": "z+1",
+            "x": "x+1",
+            "y": "y+1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "videotron",
+      "name": "Videotron",
+      "sourceUrl": "https://www.videotron.com/en/mobile/mobile-network-coverage",
+      "platform": "openlayers-raster",
+      "attribution": "Videotron",
+      "notes": "Videotron coverage is served from the shared Videotron CloudFront OpenLayers app.",
+      "bounds": [
+        -141.01,
+        41.68,
+        -52.62,
+        83.14
+      ],
+      "layers": [
+        {
+          "id": "videotron-lte",
+          "label": "Videotron LTE coverage",
+          "technology": "lte",
+          "format": "png",
+          "minzoom": 0,
+          "maxzoom": 15,
+          "opacity": 1,
+          "tileUrl": "https://dnyepvvjamjdg.cloudfront.net/vl_carto_vcom/{z}/{x}/{y}.png",
+          "sampleTile": "https://dnyepvvjamjdg.cloudfront.net/vl_carto_vcom/4/4/5.png"
+        }
+      ],
+      "checks": [
+        {
+          "layerId": "videotron-lte",
+          "sampleTile": "https://dnyepvvjamjdg.cloudfront.net/vl_carto_vcom/4/4/5.png",
+          "status": {
+            "ok": true,
+            "status": 200,
+            "contentType": "image/png",
+            "contentLength": "32671",
+            "lastModified": "Wed, 12 Jul 2023 18:24:44 GMT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "freedom",
+      "name": "Freedom Mobile",
+      "sourceUrl": "https://www.freedommobile.ca/en-CA/network-coverage",
+      "platform": "openlayers-raster",
+      "attribution": "Freedom Mobile / Videotron",
+      "notes": "Freedom embeds the Videotron CloudFront OpenLayers coverage app.",
+      "bounds": [
+        -141.01,
+        41.68,
+        -52.62,
+        83.14
+      ],
+      "layers": [
+        {
+          "id": "freedom-nationwide",
+          "label": "Freedom nationwide coverage",
+          "technology": "nationwide",
+          "format": "png",
+          "minzoom": 0,
+          "maxzoom": 15,
+          "opacity": 1,
+          "tileUrl": "https://dnyepvvjamjdg.cloudfront.net/free3g/{z}/{x}/{y}.png",
+          "sampleTile": "https://dnyepvvjamjdg.cloudfront.net/free3g/4/4/5.png"
+        },
+        {
+          "id": "freedom-extended-lte",
+          "label": "Freedom extended LTE coverage",
+          "technology": "extended-lte",
+          "format": "png",
+          "minzoom": 0,
+          "maxzoom": 15,
+          "opacity": 1,
+          "tileUrl": "https://dnyepvvjamjdg.cloudfront.net/freelte1/{z}/{x}/{y}.png",
+          "sampleTile": "https://dnyepvvjamjdg.cloudfront.net/freelte1/4/4/5.png"
+        }
+      ],
+      "checks": [
+        {
+          "layerId": "freedom-nationwide",
+          "sampleTile": "https://dnyepvvjamjdg.cloudfront.net/free3g/4/4/5.png",
+          "status": {
+            "ok": true,
+            "status": 200,
+            "contentType": "image/png",
+            "contentLength": "5746",
+            "lastModified": "Mon, 16 Mar 2026 14:45:02 GMT"
+          }
+        },
+        {
+          "layerId": "freedom-extended-lte",
+          "sampleTile": "https://dnyepvvjamjdg.cloudfront.net/freelte1/4/4/5.png",
+          "status": {
+            "ok": true,
+            "status": 200,
+            "contentType": "image/png",
+            "contentLength": "7623",
+            "lastModified": "Mon, 16 Mar 2026 14:44:33 GMT"
+          }
+        }
+      ]
+    }
+  ],
+  "failures": []
+}

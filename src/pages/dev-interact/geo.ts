@@ -1,7 +1,7 @@
 import area from '@turf/area'
 import bbox from '@turf/bbox'
 import { neighbourhoodFeatures, parkFeatures, routeFeatures } from './data'
-import type { InteractFeature, InteractFeatureProperties, LayerId } from './types'
+import type { InteractFeature, InteractFeatureProperties, LayerId, YearRange } from './types'
 
 const EARTH_RADIUS_KM = 6371.0088
 
@@ -19,6 +19,7 @@ export function formatDistance(km: number): string {
 export function layerLabel(layer: LayerId): string {
   if (layer === 'parks') return 'Parks'
   if (layer === 'routes') return 'Transit routes'
+  if (layer === 'catchments') return 'Sewage spill cells'
   return 'Neighbourhood areas'
 }
 
@@ -26,27 +27,38 @@ export function filterCollection<TGeometry extends GeoJSON.Geometry>(
   collection: GeoJSON.FeatureCollection<TGeometry, InteractFeatureProperties>,
   hiddenIds: Set<string>,
   isolatedId: string | null,
+  yearRange?: YearRange,
 ): GeoJSON.FeatureCollection<TGeometry, InteractFeatureProperties> {
   return {
     ...collection,
     features: collection.features.filter((feature) => {
       if (hiddenIds.has(feature.properties.id)) return false
       if (isolatedId && feature.properties.id !== isolatedId) return false
+      if (yearRange && !featureMatchesYearRange(feature, yearRange)) return false
       return true
     }),
   }
+}
+
+export function featureMatchesYearRange(feature: GeoJSON.Feature<GeoJSON.Geometry, InteractFeatureProperties>, yearRange: YearRange): boolean {
+  return feature.properties.issuedYear >= yearRange[0] && feature.properties.issuedYear <= yearRange[1]
 }
 
 export function featureBounds(feature: InteractFeature): [number, number, number, number] {
   return bbox(feature) as [number, number, number, number]
 }
 
-export function relatedFeaturesAtPoint(point: [number, number], primary: InteractFeature): InteractFeature[] {
+export function relatedFeaturesAtPoint(
+  point: [number, number],
+  primary: InteractFeature,
+  includeFeature: (feature: InteractFeature) => boolean = () => true,
+): InteractFeature[] {
   const seen = new Set<string>([primary.properties.id])
   const related: InteractFeature[] = [primary]
 
   for (const feature of [...neighbourhoodFeatures.features, ...parkFeatures.features, ...routeFeatures.features]) {
     if (seen.has(feature.properties.id)) continue
+    if (!includeFeature(feature)) continue
     if (boundsContainPoint(featureBounds(feature), point)) {
       related.push(feature)
       seen.add(feature.properties.id)
@@ -92,6 +104,14 @@ export function measurementStats(points: [number, number][], complete: boolean) 
     geometry: { type: 'Polygon', coordinates: [closeRing(points)] },
   }) : 0
   return { perimeter, area: areaValue }
+}
+
+export function circleMeasurementStats(center: [number, number] | null, edge: [number, number] | null) {
+  if (!center || !edge) return null
+  const radius = lineLengthKm([center, edge])
+  const perimeter = 2 * Math.PI * radius
+  const areaValue = Math.PI * (radius * 1000) ** 2
+  return { radius, perimeter, area: areaValue }
 }
 
 function boundsContainPoint(bounds: [number, number, number, number], point: [number, number]): boolean {

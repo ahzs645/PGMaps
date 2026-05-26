@@ -1,19 +1,22 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { cn } from '@/lib/utils'
-import { CENTER, neighbourhoodFeatures, parkFeatures, routeFeatures } from './dev-interact/data'
+import { CENTER, YEAR_FILTER_DOMAIN, neighbourhoodFeatures, parkFeatures, routeFeatures } from './dev-interact/data'
 import { DesktopFeaturePopup } from './dev-interact/DesktopFeaturePopup'
 import { FeatureTablePanel } from './dev-interact/FeatureTablePanel'
 import { MobileFeatureInspector } from './dev-interact/FeatureInspector'
-import { featureBounds, filterCollection, measurementCanClose, measurementStats, relatedFeaturesAtPoint } from './dev-interact/geo'
-import { CollapseInspectorOnMapDrag, MapClickCapture, ZoomToFeature } from './dev-interact/MapBehaviors'
+import { circleMeasurementStats, featureBounds, featureMatchesYearRange, filterCollection, measurementCanClose, measurementStats, relatedFeaturesAtPoint } from './dev-interact/geo'
+import { CollapseInspectorOnMapDrag, DismissSelectionOnMapClick, MapClickCapture, ZoomToFeature } from './dev-interact/MapBehaviors'
+import { MapSearchSheet } from './dev-interact/MapSearchSheet'
 import { MeasurementOverlay } from './dev-interact/MeasurementOverlay'
-import { MobileMapToolbar } from './dev-interact/MobileMapToolbar'
-import { measurementLine, measurementPolygon, measurementPreviewLine } from './dev-interact/measurement'
+import { measurementCircle, measurementLine, measurementPolygon, measurementPreviewLine } from './dev-interact/measurement'
 import { DevInteractSidebar } from './dev-interact/Sidebar'
-import type { FeatureAction, InteractFeature, InteractFeatureProperties, LayerId, MeasurementMapAction, MeasurementMode } from './dev-interact/types'
+import { catchmentFeatures } from './dev-interact/catchments'
+import { buildCatchmentStyle } from './dev-interact/styling'
+import { CatchmentStylePanel } from './dev-interact/CatchmentStylePanel'
+import type { FeatureAction, GraduatedRampName, InteractFeature, InteractFeatureProperties, LayerId, MeasurementMapAction, MeasurementMode, MeasurementShape, StyleAttributeId, YearRange } from './dev-interact/types'
 
 function DevInteract() {
   const [showSidebar, setShowSidebar] = useState(true)
@@ -21,6 +24,7 @@ function DevInteract() {
     parks: true,
     routes: true,
     neighbourhoods: true,
+    catchments: true,
   })
   const [selectedFeature, setSelectedFeature] = useState<InteractFeature | null>(null)
   const [selectedFeatures, setSelectedFeatures] = useState<InteractFeature[]>([])
@@ -31,11 +35,17 @@ function DevInteract() {
   const [hiddenFeatureIds, setHiddenFeatureIds] = useState<Set<string>>(() => new Set())
   const [isolatedFeatureId, setIsolatedFeatureId] = useState<string | null>(null)
   const [tableLayer, setTableLayer] = useState<LayerId | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [zoomFeature, setZoomFeature] = useState<{ feature: InteractFeature; nonce: number } | null>(null)
+  const [yearRange, setYearRange] = useState<YearRange>(YEAR_FILTER_DOMAIN)
+  const [styleAttribute, setStyleAttribute] = useState<StyleAttributeId>('spillHours')
+  const [styleRamp, setStyleRamp] = useState<GraduatedRampName>('red')
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('idle')
+  const [measurementShape, setMeasurementShape] = useState<MeasurementShape>('polygon')
   const [measurementPoints, setMeasurementPoints] = useState<[number, number][]>([])
   const [redoMeasurementPoints, setRedoMeasurementPoints] = useState<[number, number][]>([])
   const [measurementCursor, setMeasurementCursor] = useState<[number, number] | null>(null)
+  const skipNextMapDismiss = useRef(false)
 
   const measurementPolygonData = useMemo(() => measurementPolygon(measurementPoints), [measurementPoints])
   const measurementLineData = useMemo(() => measurementLine(measurementPoints, measurementMode), [measurementMode, measurementPoints])
@@ -43,22 +53,37 @@ function DevInteract() {
     () => measurementPreviewLine(measurementPoints, measurementCursor, measurementMode),
     [measurementCursor, measurementMode, measurementPoints],
   )
+  const circleEdge = measurementShape === 'circle' ? measurementPoints[1] ?? (measurementMode === 'drawing' ? measurementCursor : null) : null
+  const measurementCircleData = useMemo(
+    () => measurementCircle(measurementShape === 'circle' ? measurementPoints[0] ?? null : null, circleEdge),
+    [circleEdge, measurementPoints, measurementShape],
+  )
   const currentMeasurementStats = useMemo(
-    () => measurementStats(measurementPoints, measurementMode === 'complete'),
-    [measurementMode, measurementPoints],
+    () => (measurementShape === 'circle'
+      ? circleMeasurementStats(measurementPoints[0] ?? null, measurementPoints[1] ?? measurementCursor)
+      : measurementStats(measurementPoints, measurementMode === 'complete')),
+    [measurementCursor, measurementMode, measurementPoints, measurementShape],
   )
 
   const filteredNeighbourhoodFeatures = useMemo(
-    () => filterCollection(neighbourhoodFeatures, hiddenFeatureIds, isolatedFeatureId),
-    [hiddenFeatureIds, isolatedFeatureId],
+    () => filterCollection(neighbourhoodFeatures, hiddenFeatureIds, isolatedFeatureId, yearRange),
+    [hiddenFeatureIds, isolatedFeatureId, yearRange],
   )
   const filteredParkFeatures = useMemo(
-    () => filterCollection(parkFeatures, hiddenFeatureIds, isolatedFeatureId),
-    [hiddenFeatureIds, isolatedFeatureId],
+    () => filterCollection(parkFeatures, hiddenFeatureIds, isolatedFeatureId, yearRange),
+    [hiddenFeatureIds, isolatedFeatureId, yearRange],
   )
   const filteredRouteFeatures = useMemo(
-    () => filterCollection(routeFeatures, hiddenFeatureIds, isolatedFeatureId),
+    () => filterCollection(routeFeatures, hiddenFeatureIds, isolatedFeatureId, yearRange),
+    [hiddenFeatureIds, isolatedFeatureId, yearRange],
+  )
+  const filteredCatchmentFeatures = useMemo(
+    () => filterCollection(catchmentFeatures, hiddenFeatureIds, isolatedFeatureId),
     [hiddenFeatureIds, isolatedFeatureId],
+  )
+  const catchmentStyle = useMemo(
+    () => buildCatchmentStyle(filteredCatchmentFeatures.features, styleAttribute, styleRamp),
+    [filteredCatchmentFeatures, styleAttribute, styleRamp],
   )
 
   const clearSelection = useCallback(() => {
@@ -70,12 +95,19 @@ function DevInteract() {
   }, [])
 
   const setSelection = useCallback((feature: InteractFeature, point: [number, number]) => {
-    const features = relatedFeaturesAtPoint(point, feature)
+    skipNextMapDismiss.current = true
+    const features = relatedFeaturesAtPoint(point, feature, (candidate) => featureMatchesYearRange(candidate, yearRange))
     setSelectedFeature(feature)
     setSelectedFeatures(features)
     setSelectedFeatureIndex(0)
     setSelectedLngLat(point)
     setMobileInspectorCollapsed(false)
+  }, [yearRange])
+
+  useEffect(() => {
+    const openSearch = () => setSearchOpen(true)
+    window.addEventListener('pgmaps:open-map-search', openSearch)
+    return () => window.removeEventListener('pgmaps:open-map-search', openSearch)
   }, [])
 
   const selectPolygon = useCallback((id: string, collection: GeoJSON.FeatureCollection<GeoJSON.Polygon, InteractFeatureProperties>) => {
@@ -98,29 +130,57 @@ function DevInteract() {
     }
   }, [clearSelection, setSelection])
 
+  const selectFeature = useCallback((feature: InteractFeature) => {
+    if (feature.geometry.type === 'LineString') {
+      const coordinates = feature.geometry.coordinates
+      setSelection(feature, coordinates[Math.floor(coordinates.length / 2)] as [number, number])
+      setZoomFeature({ feature, nonce: Date.now() })
+      return
+    }
+
+    const bounds = featureBounds(feature)
+    setSelection(feature, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
+    setZoomFeature({ feature, nonce: Date.now() })
+  }, [setSelection])
+
   const toggleLayer = useCallback((layer: LayerId) => {
     setVisibleLayers((current) => ({ ...current, [layer]: !current[layer] }))
   }, [])
 
   const startMeasurement = useCallback(() => {
     clearSelection()
+    setMeasurementShape('polygon')
     setMeasurementMode('drawing')
     setMeasurementPoints([])
     setRedoMeasurementPoints([])
+    setMeasurementCursor(null)
+  }, [clearSelection])
+
+  const startCircleMeasurement = useCallback(() => {
+    clearSelection()
+    setMeasurementShape('circle')
+    setMeasurementMode('drawing')
+    setMeasurementPoints([])
+    setRedoMeasurementPoints([])
+    setMeasurementCursor(null)
   }, [clearSelection])
 
   const clearMeasurement = useCallback(() => {
     setMeasurementMode('idle')
+    setMeasurementShape('polygon')
     setMeasurementPoints([])
     setRedoMeasurementPoints([])
     setMeasurementCursor(null)
   }, [])
 
   const finishMeasurement = useCallback(() => {
-    setMeasurementMode((current) => (current === 'drawing' && measurementCanClose(measurementPoints) ? 'complete' : current))
+    setMeasurementMode((current) => {
+      if (current !== 'drawing') return current
+      return measurementShape === 'circle' ? (measurementPoints.length >= 2 ? 'complete' : current) : (measurementCanClose(measurementPoints) ? 'complete' : current)
+    })
     setRedoMeasurementPoints([])
     setMeasurementCursor(null)
-  }, [measurementPoints])
+  }, [measurementPoints, measurementShape])
 
   const addMeasurementPoint = useCallback((point: [number, number]) => {
     setMeasurementPoints((current) => [...current, point])
@@ -135,6 +195,7 @@ function DevInteract() {
       setRedoMeasurementPoints((redo) => [removed, ...redo])
       return next
     })
+    setMeasurementMode((current) => (current === 'complete' ? 'drawing' : current))
   }, [])
 
   const redoMeasurementPoint = useCallback(() => {
@@ -148,14 +209,31 @@ function DevInteract() {
 
   const handleMeasurementMapAction = useCallback((action: MeasurementMapAction) => {
     if (action.type === 'close') {
-      setMeasurementMode((current) => (current === 'drawing' && measurementCanClose(measurementPoints) ? 'complete' : current))
+      setMeasurementMode((current) => {
+        if (current !== 'drawing') return current
+        return measurementShape === 'circle' ? (measurementPoints.length >= 2 ? 'complete' : current) : (measurementCanClose(measurementPoints) ? 'complete' : current)
+      })
       setRedoMeasurementPoints([])
       setMeasurementCursor(null)
       return
     }
 
+    if (measurementShape === 'circle') {
+      setMeasurementPoints((current) => {
+        if (current.length === 0) {
+          setRedoMeasurementPoints([])
+          return [action.point]
+        }
+        setMeasurementMode('complete')
+        setMeasurementCursor(null)
+        setRedoMeasurementPoints([])
+        return [current[0], action.point]
+      })
+      return
+    }
+
     addMeasurementPoint(action.point)
-  }, [addMeasurementPoint, measurementPoints])
+  }, [addMeasurementPoint, measurementPoints, measurementShape])
 
   const handleFeatureAction = useCallback((action: FeatureAction, feature: InteractFeature) => {
     if (action === 'hide') {
@@ -182,7 +260,7 @@ function DevInteract() {
       })
       return
     }
-    setTableLayer(feature.properties.layer)
+    setTableLayer(feature.properties.layer === 'catchments' ? 'parks' : feature.properties.layer)
   }, [clearSelection])
 
   const sidebar = (
@@ -193,7 +271,14 @@ function DevInteract() {
       measurementStats={currentMeasurementStats}
       measurementPointCount={measurementPoints.length}
       onToggleLayer={toggleLayer}
+      yearRange={yearRange}
+      onYearRangeChange={(range) => {
+        clearSelection()
+        setYearRange(range)
+      }}
+      onOpenSearch={() => setSearchOpen(true)}
       onStartMeasurement={startMeasurement}
+      onStartCircleMeasurement={startCircleMeasurement}
       onOpenTable={() => setTableLayer('parks')}
       onFinishMeasurement={finishMeasurement}
       onClearMeasurement={clearMeasurement}
@@ -208,6 +293,7 @@ function DevInteract() {
       onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={320}
       mobileInitialSheetState="collapsed"
+      suppressMobileSheet={measurementMode !== 'idle'}
       mobilePeek={(
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">Interactive map controls</div>
@@ -220,15 +306,10 @@ function DevInteract() {
     >
       <div className="relative h-full">
         <Map center={CENTER} zoom={11.1}>
-          <MapControls position="top-right" className="hidden md:flex" />
-          <MobileMapToolbar
-            visibleLayers={visibleLayers}
-            onToggleLayer={toggleLayer}
-            onStartMeasurement={startMeasurement}
-            onOpenTable={() => setTableLayer('parks')}
-          />
+          <MapControls position="top-right" className="top-16 md:top-2" />
           <MapClickCapture
             measurementMode={measurementMode}
+            measurementShape={measurementShape}
             measurementPoints={measurementPoints}
             onMeasurementAction={handleMeasurementMapAction}
             onMeasurementCursor={setMeasurementCursor}
@@ -236,9 +317,33 @@ function DevInteract() {
           {zoomFeature && <ZoomToFeature feature={zoomFeature.feature} nonce={zoomFeature.nonce} />}
           <CollapseInspectorOnMapDrag
             enabled={measurementMode !== 'drawing' && Boolean(selectedFeature)}
-            onCollapse={() => setMobileInspectorCollapsed(true)}
+            onCollapse={() => {
+              skipNextMapDismiss.current = true
+              setMobileInspectorCollapsed(true)
+            }}
+          />
+          <DismissSelectionOnMapClick
+            enabled={measurementMode !== 'drawing' && Boolean(selectedFeature)}
+            shouldSkip={() => {
+              if (!skipNextMapDismiss.current) return false
+              skipNextMapDismiss.current = false
+              return true
+            }}
+            onDismiss={clearSelection}
           />
 
+          <MapFillLayer
+            data={filteredCatchmentFeatures}
+            fillColor={catchmentStyle.fillColor}
+            fillOpacity={0.72}
+            lineColor={catchmentStyle.lineColor}
+            lineWidth={0.6}
+            lineOpacity={0.5}
+            idProperty="id"
+            selectedId={selectedFeature?.properties.layer === 'catchments' ? selectedFeature.properties.id : null}
+            visible={visibleLayers.catchments}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => selectPolygon(id, catchmentFeatures)}
+          />
           <MapFillLayer
             data={filteredNeighbourhoodFeatures}
             fillColor="#8b5cf6"
@@ -272,9 +377,10 @@ function DevInteract() {
             onFeatureClick={measurementMode === 'drawing' ? undefined : selectRoute}
           />
 
-          <MapFillLayer data={measurementPolygonData} fillColor="#f97316" fillOpacity={0.18} lineColor="#ea580c" lineWidth={2} visible={measurementPoints.length >= 3} />
-          <MapLineLayer data={measurementLineData} color="#ea580c" width={2.5} opacity={1} dashArray={measurementMode === 'drawing' ? [2, 1.3] : undefined} visible={measurementPoints.length > 1} />
-          <MapLineLayer data={measurementPreviewLineData} color="#ea580c" width={2} opacity={0.72} dashArray={[1.2, 1.2]} visible={measurementMode === 'drawing' && measurementPoints.length > 0} />
+          <MapFillLayer data={measurementPolygonData} fillColor="#f97316" fillOpacity={0.18} lineColor="#ea580c" lineWidth={2} visible={measurementShape === 'polygon' && measurementPoints.length >= 3} />
+          <MapLineLayer data={measurementLineData} color="#ea580c" width={2.5} opacity={1} dashArray={measurementMode === 'drawing' ? [2, 1.3] : undefined} visible={measurementShape === 'polygon' && measurementPoints.length > 1} />
+          <MapLineLayer data={measurementPreviewLineData} color="#ea580c" width={2} opacity={0.72} dashArray={[1.2, 1.2]} visible={measurementShape === 'polygon' && measurementMode === 'drawing' && measurementPoints.length > 0} />
+          <MapFillLayer data={measurementCircleData} fillColor="#f97316" fillOpacity={0.18} lineColor="#ea580c" lineWidth={2} visible={measurementShape === 'circle' && measurementCircleData.features.length > 0} />
 
           {measurementPoints.map((point, index) => (
             <MapMarker
@@ -282,7 +388,7 @@ function DevInteract() {
               longitude={point[0]}
               latitude={point[1]}
               onClick={(event) => {
-                if (measurementMode !== 'drawing' || index !== 0 || !measurementCanClose(measurementPoints)) return
+                if (measurementShape !== 'polygon' || measurementMode !== 'drawing' || index !== 0 || !measurementCanClose(measurementPoints)) return
                 event.preventDefault()
                 event.stopPropagation()
                 finishMeasurement()
@@ -293,14 +399,14 @@ function DevInteract() {
                   type="button"
                   className={cn(
                     'flex size-5 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-[10px] font-semibold text-white shadow-lg transition-transform',
-                    measurementMode === 'drawing' && index === 0 && measurementCanClose(measurementPoints) && 'size-6 cursor-pointer ring-4 ring-orange-500/20 hover:scale-110',
+                    measurementShape === 'polygon' && measurementMode === 'drawing' && index === 0 && measurementCanClose(measurementPoints) && 'size-6 cursor-pointer ring-4 ring-orange-500/20 hover:scale-110',
                   )}
                   onClick={(event) => {
-                    if (measurementMode !== 'drawing' || index !== 0 || !measurementCanClose(measurementPoints)) return
+                    if (measurementShape !== 'polygon' || measurementMode !== 'drawing' || index !== 0 || !measurementCanClose(measurementPoints)) return
                     event.stopPropagation()
                     finishMeasurement()
                   }}
-                  aria-label={index === 0 && measurementCanClose(measurementPoints) ? 'Close polygon' : `Measurement point ${index + 1}`}
+                  aria-label={measurementShape === 'polygon' && index === 0 && measurementCanClose(measurementPoints) ? 'Close polygon' : `Measurement point ${index + 1}`}
                 >
                   {index + 1}
                 </button>
@@ -331,17 +437,31 @@ function DevInteract() {
 
           <MeasurementOverlay
             measurementMode={measurementMode}
+            measurementShape={measurementShape}
             measurementStats={currentMeasurementStats}
             measurementPoints={measurementPoints}
             canUndo={measurementPoints.length > 0}
             canRedo={redoMeasurementPoints.length > 0}
-            onAddPoint={addMeasurementPoint}
+            onAddPoint={(point) => handleMeasurementMapAction({ type: 'add', point })}
             onUndo={undoMeasurementPoint}
             onRedo={redoMeasurementPoint}
             onClearMeasurement={clearMeasurement}
             onFinishMeasurement={finishMeasurement}
           />
         </Map>
+
+        {measurementMode === 'idle' && (
+          <CatchmentStylePanel
+            visible={visibleLayers.catchments}
+            onToggleVisible={() => toggleLayer('catchments')}
+            attribute={styleAttribute}
+            onAttributeChange={setStyleAttribute}
+            ramp={styleRamp}
+            onRampChange={setStyleRamp}
+            legend={catchmentStyle.legend}
+            totalCount={filteredCatchmentFeatures.features.length}
+          />
+        )}
 
         {measurementMode !== 'drawing' && selectedFeature && (
           <MobileFeatureInspector
@@ -362,11 +482,22 @@ function DevInteract() {
             onLayerChange={setTableLayer}
             hiddenFeatureIds={hiddenFeatureIds}
             isolatedFeatureId={isolatedFeatureId}
+            yearRange={yearRange}
             onClose={() => setTableLayer(null)}
             onSelect={(feature) => {
               const bounds = featureBounds(feature)
               setSelection(feature, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
             }}
+          />
+        )}
+
+        {searchOpen && (
+          <MapSearchSheet
+            hiddenFeatureIds={hiddenFeatureIds}
+            isolatedFeatureId={isolatedFeatureId}
+            yearRange={yearRange}
+            onClose={() => setSearchOpen(false)}
+            onSelect={selectFeature}
           />
         )}
 

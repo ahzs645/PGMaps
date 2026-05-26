@@ -2,6 +2,26 @@ import { Search, Ruler, Table2 } from 'lucide-react'
 import type { InteractFeatureProperties, LayerId, LineFeature, PolygonFeature } from './types'
 
 export const CENTER: [number, number] = [-122.7497, 53.9171]
+export const YEAR_FILTER_DOMAIN: [number, number] = [2014, 2024]
+
+export const mapDatasetMeta = {
+  updated: '2026-05-25T20:40:00-07:00',
+  source: 'PGMaps dev sample layers',
+}
+
+export const yearHistogramBins = [
+  { year: 2014, count: 18 },
+  { year: 2015, count: 31 },
+  { year: 2016, count: 42 },
+  { year: 2017, count: 29 },
+  { year: 2018, count: 53 },
+  { year: 2019, count: 46 },
+  { year: 2020, count: 25 },
+  { year: 2021, count: 34 },
+  { year: 2022, count: 38 },
+  { year: 2023, count: 27 },
+  { year: 2024, count: 16 },
+]
 
 export const parkFeatures: GeoJSON.FeatureCollection<GeoJSON.Polygon, InteractFeatureProperties> = {
   type: 'FeatureCollection',
@@ -81,10 +101,11 @@ function polygonFeature(
   ring: [number, number][],
   value: string,
 ): PolygonFeature {
+  const meta = featureMeta(id)
   return {
     type: 'Feature',
     id,
-    properties: { id, name, layer, description, value, properties: featureProperties(layer, value) },
+    properties: { id, name, layer, description, value, issuedYear: meta.issuedYear, cost: meta.cost, properties: featureProperties(layer, value, meta) },
     geometry: { type: 'Polygon', coordinates: [ring] },
   }
 }
@@ -97,18 +118,39 @@ function lineFeature(
   coordinates: [number, number][],
   value: string,
 ): LineFeature {
+  const meta = featureMeta(id)
   return {
     type: 'Feature',
     id,
-    properties: { id, name, layer, description, value, properties: featureProperties(layer, value) },
+    properties: { id, name, layer, description, value, issuedYear: meta.issuedYear, cost: meta.cost, properties: featureProperties(layer, value, meta) },
     geometry: { type: 'LineString', coordinates },
   }
 }
 
-function featureProperties(layer: LayerId, value: string): Array<{ label: string; value: string }> {
+function featureMeta(id: string): { issuedYear: number; cost: number } {
+  const meta: Record<string, { issuedYear: number; cost: number }> = {
+    cottonwood: { issuedYear: 2016, cost: 820_000 },
+    lheidli: { issuedYear: 2020, cost: 1_240_000 },
+    downtown: { issuedYear: 2018, cost: 6_600_000 },
+    'college-heights': { issuedYear: 2023, cost: 2_180_000 },
+    'route-15': { issuedYear: 2015, cost: 430_000 },
+    'route-5': { issuedYear: 2024, cost: 375_000 },
+  }
+  return meta[id] ?? { issuedYear: 2019, cost: 0 }
+}
+
+function formatCurrency(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}m`
+  if (value >= 1_000) return `$${(value / 1_000).toLocaleString(undefined, { maximumFractionDigits: 0 })}k`
+  return `$${value.toLocaleString()}`
+}
+
+function featureProperties(layer: LayerId, value: string, meta: { issuedYear: number; cost: number }): Array<{ label: string; value: string }> {
   if (layer === 'parks') {
     return [
       { label: 'Category', value },
+      { label: 'Year Issued', value: String(meta.issuedYear) },
+      { label: 'Estimated Cost', value: formatCurrency(meta.cost) },
       { label: 'Access', value: 'Public' },
       { label: 'Trail Connection', value: 'Yes' },
       { label: 'Maintained By', value: 'City of Prince George' },
@@ -119,6 +161,8 @@ function featureProperties(layer: LayerId, value: string): Array<{ label: string
     return [
       { label: 'Route Type', value: 'Transit' },
       { label: 'Frequency', value },
+      { label: 'Year Issued', value: String(meta.issuedYear) },
+      { label: 'Estimated Cost', value: formatCurrency(meta.cost) },
       { label: 'Service Status', value: 'Active' },
       { label: 'Primary Corridor', value: 'Yes' },
       { label: 'Stops in View', value: '8' },
@@ -126,6 +170,8 @@ function featureProperties(layer: LayerId, value: string): Array<{ label: string
   }
   return [
     { label: 'Area Type', value },
+    { label: 'Year Issued', value: String(meta.issuedYear) },
+    { label: 'Estimated Cost', value: formatCurrency(meta.cost) },
     { label: 'Profile', value: 'Neighbourhood' },
     { label: 'Map Layer', value: 'Boundary' },
     { label: 'Feature Count', value: '1' },

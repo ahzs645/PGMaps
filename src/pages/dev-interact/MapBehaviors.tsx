@@ -6,11 +6,13 @@ import type { InteractFeature, MeasurementMapAction, MeasurementMode } from './t
 
 export function MapClickCapture({
   measurementMode,
+  measurementShape,
   measurementPoints,
   onMeasurementAction,
   onMeasurementCursor,
 }: {
   measurementMode: MeasurementMode
+  measurementShape: 'polygon' | 'circle'
   measurementPoints: [number, number][]
   onMeasurementAction: (action: MeasurementMapAction) => void
   onMeasurementCursor: (point: [number, number] | null) => void
@@ -24,6 +26,10 @@ export function MapClickCapture({
     const handleClick = (event: { lngLat: { lng: number; lat: number }; originalEvent: MouseEvent }) => {
       event.originalEvent.preventDefault()
       if (event.originalEvent.detail > 1) return
+      if (measurementShape === 'circle') {
+        onMeasurementAction({ type: 'add', point: [event.lngLat.lng, event.lngLat.lat] })
+        return
+      }
       if (measurementCanClose(measurementPoints)) {
         const firstPoint = measurementPoints[0]
         const firstScreenPoint = map.project(firstPoint)
@@ -44,7 +50,7 @@ export function MapClickCapture({
     }
     const handleMouseMove = (event: { lngLat: { lng: number; lat: number } }) => {
       onMeasurementCursor([event.lngLat.lng, event.lngLat.lat])
-      if (!measurementCanClose(measurementPoints)) {
+      if (measurementShape === 'circle' || !measurementCanClose(measurementPoints)) {
         map.getCanvas().style.cursor = 'crosshair'
         return
       }
@@ -72,7 +78,33 @@ export function MapClickCapture({
       map.getCanvas().style.cursor = previousCursor
       onMeasurementCursor(null)
     }
-  }, [isLoaded, map, measurementMode, measurementPoints, onMeasurementAction, onMeasurementCursor])
+  }, [isLoaded, map, measurementMode, measurementPoints, measurementShape, onMeasurementAction, onMeasurementCursor])
+
+  return null
+}
+
+export function DismissSelectionOnMapClick({
+  enabled,
+  shouldSkip,
+  onDismiss,
+}: {
+  enabled: boolean
+  shouldSkip: () => boolean
+  onDismiss: () => void
+}) {
+  const { map, isLoaded } = useMap()
+
+  useEffect(() => {
+    if (!map || !isLoaded || !enabled) return
+    const handleClick = () => {
+      if (shouldSkip()) return
+      onDismiss()
+    }
+    map.on('click', handleClick)
+    return () => {
+      map.off('click', handleClick)
+    }
+  }, [enabled, isLoaded, map, onDismiss, shouldSkip])
 
   return null
 }

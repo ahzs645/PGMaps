@@ -23,6 +23,7 @@
     "range-tenures:sync": "npm --prefix vendor/bcdatamapper run range-tenures:sync --",
     "mineral-tenures:sync": "npm --prefix vendor/bcdatamapper run mineral-tenures:sync --",
     "wars:sync": "npm --prefix vendor/bcdatamapper run wars:sync --",
+    "cell-coverage:sync": "npm --prefix vendor/bcdatamapper run cell-coverage:sync --",
     "cimd:sync": "npm --prefix vendor/bcdatamapper run cimd:sync --",
     "census:sync": "npm --prefix vendor/bcdatamapper run census:sync --",
     "census:variables": "npm --prefix vendor/bcdatamapper run census:variables --",

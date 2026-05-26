@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin, Database, Building2, PawPrint, Droplets } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
@@ -238,6 +238,16 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const location = useLocation()
+  const useMapSearch = location.pathname === '/dev/interact'
+
+  const openSearch = useCallback(() => {
+    if (useMapSearch) {
+      window.dispatchEvent(new CustomEvent('pgmaps:open-map-search'))
+      return
+    }
+    setOpen(true)
+  }, [useMapSearch])
 
   // Build the index on first open
   useEffect(() => {
@@ -252,13 +262,17 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setOpen((o) => !o)
+        if (useMapSearch) {
+          window.dispatchEvent(new CustomEvent('pgmaps:open-map-search'))
+        } else {
+          setOpen((o) => !o)
+        }
       }
       if (e.key === 'Escape') setOpen(false)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
+  }, [useMapSearch])
 
   // Click outside to close
   useEffect(() => {
@@ -407,7 +421,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
       <button
         aria-label="Open search"
         title="Search (⌘K)"
-        onClick={() => setOpen(true)}
+        onClick={openSearch}
         className={cn(
           'inline-flex h-9 w-9 items-center justify-center rounded-lg border border-input bg-background/80 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
           className,

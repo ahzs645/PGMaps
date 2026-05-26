@@ -2,8 +2,8 @@ import { Check, ChevronDown, Filter, Search, Square, SquareCheck, X } from 'luci
 import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { neighbourhoodFeatures, parkFeatures, routeFeatures } from './data'
-import { layerLabel } from './geo'
-import type { InteractFeature, LayerId } from './types'
+import { featureMatchesYearRange, layerLabel } from './geo'
+import type { InteractFeature, LayerId, YearRange } from './types'
 
 const tableLayers: Array<{ id: LayerId; color: string; shape: 'fill' | 'line' }> = [
   { id: 'parks', color: '#22c55e', shape: 'fill' },
@@ -18,6 +18,7 @@ export function FeatureTablePanel({
   onLayerChange,
   hiddenFeatureIds,
   isolatedFeatureId,
+  yearRange,
   onClose,
   onSelect,
 }: {
@@ -25,6 +26,7 @@ export function FeatureTablePanel({
   onLayerChange: (layer: LayerId) => void
   hiddenFeatureIds: Set<string>
   isolatedFeatureId: string | null
+  yearRange: YearRange
   onClose: () => void
   onSelect: (feature: InteractFeature) => void
 }) {
@@ -39,6 +41,7 @@ export function FeatureTablePanel({
     return collection.features.filter((feature) => {
       if (hiddenFeatureIds.has(feature.properties.id)) return false
       if (isolatedFeatureId && feature.properties.id !== isolatedFeatureId) return false
+      if (!featureMatchesYearRange(feature, yearRange)) return false
       if (showOnlyInView && feature.properties.id === 'college-heights') return false
       if (!normalizedQuery) return true
       const searchable = [
@@ -49,7 +52,7 @@ export function FeatureTablePanel({
       ].join(' ').toLowerCase()
       return searchable.includes(normalizedQuery)
     })
-  }, [hiddenFeatureIds, isolatedFeatureId, layer, query, showOnlyInView])
+  }, [hiddenFeatureIds, isolatedFeatureId, layer, query, showOnlyInView, yearRange])
 
   return (
     <>

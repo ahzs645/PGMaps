@@ -155,6 +155,16 @@ export const DATASETS = {
     apiUrl: 'https://droughtportal.gov.bc.ca/search',
     fields: ['basinName', 'droughtLevel', 'startDate', 'endDate', 'geometry'],
   },
+  cellCoverage: {
+    title: 'Canada cell coverage tile sources',
+    description: 'Provider-reported mobile coverage tile metadata for Rogers, TELUS, Bell, Videotron, and Freedom Mobile.',
+    source: 'Carrier public coverage maps',
+    coverage: 'Canada',
+    license: 'Source-dependent carrier map terms',
+    formats: ['JSON manifest', 'Raster tiles', 'Vector tiles'],
+    downloadUrl: '/data/cell-coverage/manifest.json',
+    fields: ['provider', 'technology', 'tileUrl', 'tilejsonUrl', 'bounds', 'minzoom', 'maxzoom'],
+  },
   explorer: {
     title: 'Explorer catalogue',
     description: 'Unified searchable layer catalogue combining point, line, and polygon datasets across PGMaps.',

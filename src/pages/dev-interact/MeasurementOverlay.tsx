@@ -9,6 +9,7 @@ import type { MeasurementMode, MeasurementStats } from './types'
 
 export function MeasurementOverlay({
   measurementMode,
+  measurementShape,
   measurementStats,
   measurementPoints,
   canUndo,
@@ -20,6 +21,7 @@ export function MeasurementOverlay({
   onFinishMeasurement,
 }: {
   measurementMode: MeasurementMode
+  measurementShape: 'polygon' | 'circle'
   measurementStats: MeasurementStats
   measurementPoints: [number, number][]
   canUndo: boolean
@@ -34,7 +36,7 @@ export function MeasurementOverlay({
 
   if (measurementMode === 'idle') return null
 
-  const canClose = measurementCanClose(measurementPoints)
+  const canClose = measurementShape === 'circle' ? measurementPoints.length >= 2 : measurementCanClose(measurementPoints)
   const addCenterPoint = () => {
     const center = map?.getCenter()
     if (!center) return
@@ -45,6 +47,7 @@ export function MeasurementOverlay({
     <>
       <MobileMeasurementSheet
         measurementMode={measurementMode}
+        measurementShape={measurementShape}
         measurementStats={measurementStats}
         measurementPoints={measurementPoints}
         canClose={canClose}
@@ -58,6 +61,7 @@ export function MeasurementOverlay({
       />
       <DesktopMeasurementCard
         measurementMode={measurementMode}
+        measurementShape={measurementShape}
         measurementStats={measurementStats}
         canClose={canClose}
         onClearMeasurement={onClearMeasurement}
@@ -69,12 +73,14 @@ export function MeasurementOverlay({
 
 function DesktopMeasurementCard({
   measurementMode,
+  measurementShape,
   measurementStats,
   canClose,
   onClearMeasurement,
   onFinishMeasurement,
 }: {
   measurementMode: MeasurementMode
+  measurementShape: 'polygon' | 'circle'
   measurementStats: MeasurementStats
   canClose: boolean
   onClearMeasurement: () => void
@@ -84,9 +90,13 @@ function DesktopMeasurementCard({
     <div className="absolute bottom-4 right-4 z-20 hidden w-[min(22rem,calc(100vw-1.5rem))] rounded-lg border border-border bg-background/95 p-3 shadow-xl backdrop-blur md:block">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold">Polygon measurement</div>
+          <div className="text-sm font-semibold">{measurementShape === 'circle' ? 'Circle measurement' : 'Polygon measurement'}</div>
           <div className="mt-1 text-xs text-muted-foreground">
-            {measurementMode === 'drawing' ? 'Click to add points. Click the first point or double-click to close.' : 'Measurement is visible only in this session.'}
+            {measurementMode === 'drawing'
+              ? measurementShape === 'circle'
+                ? 'Click once for center, then click again to set radius.'
+                : 'Click to add points. Click the first point or double-click to close.'
+              : 'Measurement is visible only in this session.'}
           </div>
         </div>
         <button type="button" className="rounded-md p-1.5 hover:bg-muted" onClick={onClearMeasurement} aria-label="Clear measurement">
@@ -94,12 +104,13 @@ function DesktopMeasurementCard({
         </button>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <MeasurementValue label="Perimeter" value={measurementStats ? formatDistance(measurementStats.perimeter) : '-'} />
+        {measurementShape === 'circle' && <MeasurementValue label="Radius" value={measurementStats?.radius ? formatDistance(measurementStats.radius) : '-'} />}
+        <MeasurementValue label={measurementShape === 'circle' ? 'Circumference' : 'Perimeter'} value={measurementStats ? formatDistance(measurementStats.perimeter) : '-'} />
         <MeasurementValue label="Area" value={measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-'} />
       </div>
       {measurementMode === 'drawing' && (
         <Button size="sm" className="mt-3 w-full" disabled={!canClose} onClick={onFinishMeasurement}>
-          Close polygon
+          {measurementShape === 'circle' ? 'Set circle' : 'Close polygon'}
         </Button>
       )}
     </div>
@@ -108,6 +119,7 @@ function DesktopMeasurementCard({
 
 function MobileMeasurementSheet({
   measurementMode,
+  measurementShape,
   measurementStats,
   measurementPoints,
   canClose,
@@ -120,6 +132,7 @@ function MobileMeasurementSheet({
   onFinishMeasurement,
 }: {
   measurementMode: MeasurementMode
+  measurementShape: 'polygon' | 'circle'
   measurementStats: MeasurementStats
   measurementPoints: [number, number][]
   canClose: boolean
@@ -131,6 +144,79 @@ function MobileMeasurementSheet({
   onClearMeasurement: () => void
   onFinishMeasurement: () => void
 }) {
+  if (measurementShape === 'circle') {
+    return (
+      <div className="pointer-events-none absolute inset-0 z-40 md:hidden">
+        {measurementMode === 'drawing' && (
+          <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between p-4">
+            <Button
+              type="button"
+              variant="secondary"
+              className="pointer-events-auto border border-white/10 bg-neutral-950 px-5 text-white shadow-lg hover:bg-neutral-900"
+              onClick={onClearMeasurement}
+            >
+              Cancel
+            </Button>
+            <div className="flex gap-3">
+              <IconToolbarButton
+                label="Undo"
+                disabled={!canUndo}
+                onClick={onUndo}
+                className="border-white/15 bg-neutral-950/75 text-white backdrop-blur hover:bg-neutral-900"
+              >
+                <Undo className="size-4" />
+              </IconToolbarButton>
+              <IconToolbarButton
+                label="Redo"
+                disabled={!canRedo}
+                onClick={onRedo}
+                className="border-white/15 bg-neutral-950/75 text-white backdrop-blur hover:bg-neutral-900"
+              >
+                <Redo className="size-4" />
+              </IconToolbarButton>
+            </div>
+          </div>
+        )}
+
+        {measurementMode === 'drawing' && (
+          <div aria-hidden="true" className="absolute inset-x-0 top-[38%] z-10 flex -translate-y-1/2 justify-center">
+            <div className="relative size-32 rounded-full border border-white/90 bg-neutral-950/20 shadow-[0_0_0_1px_rgba(0,0,0,0.25)]">
+              <span className="absolute left-1/2 top-1/2 h-8 w-px -translate-x-1/2 -translate-y-1/2 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.45)]" />
+              <span className="absolute left-1/2 top-1/2 h-px w-8 -translate-x-1/2 -translate-y-1/2 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.45)]" />
+            </div>
+          </div>
+        )}
+
+        <div className="absolute bottom-4 right-4 z-20">
+          <button
+            type="button"
+            className="pointer-events-auto flex size-11 items-center justify-center rounded-md border border-white/15 bg-neutral-950/80 text-white shadow-lg backdrop-blur hover:bg-neutral-900"
+            aria-label="Center on measurement"
+          >
+            <Navigation className="size-5" />
+          </button>
+        </div>
+
+        <div className="absolute inset-x-0 bottom-0 z-30">
+          <div
+            role="dialog"
+            aria-labelledby="circle-measurement-title"
+            className="pointer-events-auto overflow-hidden rounded-t-lg bg-neutral-950 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-5 text-white shadow-[0_-2px_16px_rgba(0,0,0,0.3)]"
+          >
+            <div className="mx-auto mb-5 h-1 w-9 rounded-full bg-white/20" />
+            <p id="circle-measurement-title" className="text-lg font-semibold">Circle measurement</p>
+            <Button
+              className="mt-8 h-12 w-full rounded-md bg-pink-500 font-semibold text-white hover:bg-pink-600"
+              onClick={measurementMode === 'drawing' ? onAddPoint : onClearMeasurement}
+            >
+              {measurementMode === 'drawing' ? 'Add point' : 'Done'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 md:hidden">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 -translate-y-full">
@@ -151,10 +237,12 @@ function MobileMeasurementSheet({
         className="pointer-events-auto relative z-10 overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.3)]"
       >
         <header className="border-b border-border px-4 py-3">
-          <p id="area-measurement-title" className="text-base font-semibold">Area measurement</p>
+          <p id="area-measurement-title" className="text-base font-semibold">{measurementShape === 'circle' ? 'Circle measurement' : 'Area measurement'}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {measurementMode === 'drawing'
-              ? `${measurementPoints.length} point${measurementPoints.length === 1 ? '' : 's'} placed`
+              ? measurementShape === 'circle'
+                ? measurementPoints.length === 0 ? 'Place circle center' : 'Set circle radius'
+                : `${measurementPoints.length} point${measurementPoints.length === 1 ? '' : 's'} placed`
               : 'Measurement is visible only in this session.'}
           </p>
         </header>
@@ -162,11 +250,12 @@ function MobileMeasurementSheet({
         <div className="px-4 py-3">
           {measurementMode === 'drawing' ? (
             <Button className="w-full" onClick={onAddPoint}>
-              Add point
+              {measurementShape === 'circle' ? (measurementPoints.length === 0 ? 'Add center' : 'Set radius') : 'Add point'}
             </Button>
           ) : null}
           <div className={cn('grid grid-cols-2 gap-2', measurementMode === 'drawing' && 'mt-3')}>
-            <MeasurementValue label="Perimeter" value={measurementStats ? formatDistance(measurementStats.perimeter) : '-'} />
+            {measurementShape === 'circle' && <MeasurementValue label="Radius" value={measurementStats?.radius ? formatDistance(measurementStats.radius) : '-'} />}
+            <MeasurementValue label={measurementShape === 'circle' ? 'Circumference' : 'Perimeter'} value={measurementStats ? formatDistance(measurementStats.perimeter) : '-'} />
             <MeasurementValue label="Area" value={measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-'} />
           </div>
         </div>
@@ -195,11 +284,13 @@ function IconToolbarButton({
   label,
   disabled,
   onClick,
+  className,
   children,
 }: {
   label: string
   disabled: boolean
   onClick: () => void
+  className?: string
   children: ReactNode
 }) {
   return (
@@ -208,7 +299,10 @@ function IconToolbarButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground shadow-sm disabled:cursor-not-allowed disabled:opacity-45"
+      className={cn(
+        'flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground shadow-sm disabled:cursor-not-allowed disabled:opacity-45',
+        className,
+      )}
     >
       {children}
     </button>

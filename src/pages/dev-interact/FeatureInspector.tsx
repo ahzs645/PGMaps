@@ -1,5 +1,6 @@
 import { MoreHorizontal, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { PointerEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { FeatureActionsMenu } from './FeatureActionsMenu'
 import { getOpenInUrl } from './openIn'
@@ -25,6 +26,7 @@ export function MobileFeatureInspector({
 }) {
   const [open, setOpen] = useState(false)
   const [actionsOpen, setActionsOpen] = useState(false)
+  const dragStartY = useRef<number | null>(null)
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setOpen(true))
@@ -42,6 +44,34 @@ export function MobileFeatureInspector({
     setActionsOpen(false)
   }, [feature, openInPoint])
 
+  const handleDragStart = useCallback((clientY: number) => {
+    dragStartY.current = clientY
+  }, [])
+
+  const handleDragMove = useCallback((clientY: number) => {
+    if (!collapsed || dragStartY.current === null) return
+    if (dragStartY.current - clientY > 24) {
+      dragStartY.current = null
+      onExpand()
+    }
+  }, [collapsed, onExpand])
+
+  const handleDragEnd = useCallback(() => {
+    dragStartY.current = null
+  }, [])
+
+  const handlePointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (!collapsed) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    handleDragStart(event.clientY)
+  }, [collapsed, handleDragStart])
+
+  const handlePointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (!collapsed) return
+    event.preventDefault()
+    handleDragMove(event.clientY)
+  }, [collapsed, handleDragMove])
+
   return (
     <div
       id="feature-inspector"
@@ -55,7 +85,7 @@ export function MobileFeatureInspector({
         type="button"
         className={cn(
           'absolute inset-0 bg-black/20 transition-opacity duration-200 ease-out',
-          open ? 'pointer-events-auto opacity-0' : 'pointer-events-none opacity-0',
+          'pointer-events-none opacity-0',
         )}
         onClick={closeWithAnimation}
         aria-label="Close feature inspector backdrop"
@@ -64,11 +94,17 @@ export function MobileFeatureInspector({
         role="dialog"
         aria-labelledby="feature-inspector-title"
         data-sheet-detent={collapsed ? 'collapsed' : 'default'}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handleDragEnd}
+        onPointerCancel={handleDragEnd}
         className={cn(
           'absolute inset-x-0 bottom-0 pointer-events-auto overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)]',
           'transition-[max-height,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform',
           open ? 'translate-y-0' : 'translate-y-full',
-          collapsed ? 'max-h-[106px]' : 'max-h-[58vh]',
+          collapsed
+            ? 'max-h-[106px] touch-none cursor-ns-resize'
+            : 'max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_4.75rem)]',
         )}
       >
         <div className="flex justify-center py-2" aria-hidden="true">
@@ -133,7 +169,7 @@ export function MobileFeatureInspector({
         <div
           className={cn(
             'overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] transition-[max-height,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-            collapsed ? 'max-h-0 opacity-0' : 'max-h-[42vh] opacity-100',
+            collapsed ? 'max-h-0 opacity-0' : 'max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_12rem)] opacity-100',
           )}
           aria-hidden={collapsed}
         >
