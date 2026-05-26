@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarClock, Eye, EyeOff, Info, Layers, MoreHorizontal, Ruler, Trash2 } from 'lucide-react'
+import { CalendarClock, Eye, EyeOff, Layers, MoreHorizontal, Ruler, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { actionRows, mapDatasetMeta } from './data'
@@ -15,6 +15,7 @@ export function DevInteractSidebar({
   measurementStats,
   measurementPointCount,
   onToggleLayer,
+  onIsolateLayer,
   yearRange,
   onYearRangeChange,
   onOpenSearch,
@@ -32,6 +33,7 @@ export function DevInteractSidebar({
   measurementStats: MeasurementStats
   measurementPointCount: number
   onToggleLayer: (layer: LayerId) => void
+  onIsolateLayer: (layer: LayerId) => void
   yearRange: YearRange
   onYearRangeChange: (range: YearRange) => void
   onOpenSearch: () => void
@@ -142,9 +144,11 @@ export function DevInteractSidebar({
             </div>
           </div>
           <div className="space-y-2">
-            <LegendRow title="Neighbourhood areas" detail="2 polygons" color="#8b5cf6" active={visibleLayers.neighbourhoods} onClick={() => onToggleLayer('neighbourhoods')} />
-            <LegendRow title="Parks" detail="2 polygons" color="#22c55e" active={visibleLayers.parks} onClick={() => onToggleLayer('parks')} />
-            <LegendRow title="Transit routes" detail="2 lines" color="#0ea5e9" active={visibleLayers.routes} onClick={() => onToggleLayer('routes')} line />
+            <div role="list" className="space-y-0.5">
+              <LegendRow title="Neighbourhood areas" color="#8b5cf6" active={visibleLayers.neighbourhoods} onToggle={() => onToggleLayer('neighbourhoods')} onIsolate={() => onIsolateLayer('neighbourhoods')} />
+              <LegendRow title="Parks" color="#22c55e" active={visibleLayers.parks} onToggle={() => onToggleLayer('parks')} onIsolate={() => onIsolateLayer('parks')} />
+              <LegendRow title="Transit routes" color="#0ea5e9" active={visibleLayers.routes} onToggle={() => onToggleLayer('routes')} onIsolate={() => onIsolateLayer('routes')} line />
+            </div>
             <YearFilterWidget value={yearRange} onChange={onYearRangeChange} />
           </div>
         </section>
@@ -317,37 +321,75 @@ function CircleOutlineIcon({ className }: { className?: string }) {
 
 function LegendRow({
   title,
-  detail,
   color,
   active,
   line = false,
-  onClick,
+  onToggle,
+  onIsolate,
 }: {
   title: string
-  detail: string
   color: string
   active: boolean
   line?: boolean
-  onClick: () => void
+  onToggle: () => void
+  onIsolate: () => void
 }) {
   return (
-    <div className={cn('rounded-md border border-border bg-background p-3 shadow-sm', !active && 'opacity-55')}>
-      <div className="flex items-center gap-3">
-        <span
-          className={cn('shrink-0 border', line ? 'h-1 w-8 rounded-full' : 'size-4 rounded')}
-          style={{ backgroundColor: active ? color : 'transparent', borderColor: color }}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium">{title}</div>
-          <div className="text-xs text-muted-foreground">{detail}</div>
-        </div>
-        <button type="button" onClick={onClick} className="rounded-md p-1.5 hover:bg-muted" aria-label={`Toggle ${title}`}>
-          {active ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+    <div
+      role="listitem"
+      data-hidden={!active}
+      className={cn(
+        'group flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60',
+        !active && 'opacity-50',
+      )}
+    >
+      <span className="flex size-5 shrink-0 items-center justify-center" aria-hidden="true">
+        {line ? (
+          <span className="h-1 w-4 rounded-full" style={{ backgroundColor: color, opacity: 0.9 }} />
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 20 20">
+            <circle cx="10" cy="10" r="5.5" fill={color} stroke={color} strokeWidth="1" opacity="0.9" />
+          </svg>
+        )}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium" title={title}>
+        {title}
+      </span>
+      <div
+        className={cn(
+          'flex items-center gap-0.5 transition-opacity',
+          active ? 'opacity-0 group-hover:opacity-100 focus-within:opacity-100' : 'opacity-100',
+        )}
+      >
+        <button
+          type="button"
+          onClick={onIsolate}
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label={`Show only ${title}`}
+        >
+          <IsolateIcon className="size-4" />
         </button>
-        <button type="button" className="rounded-md p-1.5 hover:bg-muted" aria-label={`View info for ${title}`}>
-          <Info className="size-4" />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="Toggle legend item visibility"
+        >
+          {active ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
         </button>
       </div>
     </div>
+  )
+}
+
+function IsolateIcon({ className }: { className?: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <path d="M6.70382 3.4567C7.50536 3.12469 8.4629 3.03403 10 3.00928V5.00952C9.56157 5.01682 9.18622 5.0297 8.85313 5.05243C8.11822 5.10257 7.73618 5.19387 7.46918 5.30446C6.48907 5.71044 5.71037 6.48913 5.3044 7.46924C5.1938 7.73624 5.10251 8.11828 5.05237 8.85319C5.02964 9.18625 5.01676 9.56156 5.00946 9.99994H3.00922C3.03398 8.46291 3.12464 7.5054 3.45664 6.70388C4.0656 5.23371 5.23365 4.06567 6.70382 3.4567Z" fill="currentColor" />
+      <path d="M3.45664 17.2961C3.12463 16.4945 3.03397 15.537 3.00922 13.9999H5.00946C5.01676 14.4384 5.02964 14.8137 5.05237 15.1468C5.10251 15.8817 5.1938 16.2637 5.3044 16.5307C5.71037 17.5108 6.48907 18.2895 7.46918 18.6955C7.73618 18.8061 8.11822 18.8974 8.85313 18.9475C9.18622 18.9703 9.56156 18.9831 10 18.9904V20.9907C8.4629 20.9659 7.50536 20.8753 6.70382 20.5433C5.23365 19.9343 4.0656 18.7662 3.45664 17.2961Z" fill="currentColor" />
+      <path d="M14 20.9907V18.9904C14.4384 18.9831 14.8137 18.9703 15.1467 18.9475C15.8816 18.8974 16.2637 18.8061 16.5307 18.6955C17.5108 18.2895 18.2895 17.5108 18.6954 16.5307C18.806 16.2637 18.8973 15.8817 18.9475 15.1468C18.9702 14.8137 18.9831 14.4384 18.9904 13.9999H20.9906C20.9659 15.537 20.8752 16.4945 20.5432 17.2961C19.9342 18.7662 18.7662 19.9343 17.296 20.5433C16.4945 20.8753 15.537 20.9659 14 20.9907Z" fill="currentColor" />
+      <path d="M20.5432 6.70388C20.8752 7.5054 20.9659 8.46291 20.9906 9.99994H18.9904C18.9831 9.56156 18.9702 9.18625 18.9475 8.85319C18.8973 8.11828 18.806 7.73624 18.6954 7.46924C18.2895 6.48913 17.5108 5.71044 16.5307 5.30446C16.2637 5.19387 15.8816 5.10257 15.1467 5.05243C14.8137 5.02971 14.4384 5.01682 14 5.00952V3.00928C15.537 3.03404 16.4945 3.1247 17.296 3.4567C18.7662 4.06567 19.9342 5.23371 20.5432 6.70388Z" fill="currentColor" />
+      <path d="M13.9999 12C13.9999 13.1046 13.1045 14 11.9999 14C10.8953 14 9.99992 13.1046 9.99992 12C9.99992 10.8954 10.8953 10 11.9999 10C13.1045 10 13.9999 10.8954 13.9999 12Z" fill="currentColor" />
+    </svg>
   )
 }

@@ -143,6 +143,16 @@ function DevInteract() {
     setVisibleLayers((current) => ({ ...current, [layer]: !current[layer] }))
   }, [])
 
+  const isolateLayer = useCallback((layer: LayerId) => {
+    setVisibleLayers((current) => {
+      const layers = Object.keys(current) as LayerId[]
+      const alreadyIsolated = current[layer] && layers.every((id) => id === layer || !current[id])
+      return Object.fromEntries(
+        layers.map((id) => [id, alreadyIsolated ? true : id === layer]),
+      ) as Record<LayerId, boolean>
+    })
+  }, [])
+
   const startMeasurement = useCallback(() => {
     clearSelection()
     setMeasurementShape('polygon')
@@ -278,6 +288,7 @@ function DevInteract() {
       measurementStats={currentMeasurementStats}
       measurementPointCount={measurementPoints.length}
       onToggleLayer={toggleLayer}
+      onIsolateLayer={isolateLayer}
       yearRange={yearRange}
       onYearRangeChange={(range) => {
         clearSelection()

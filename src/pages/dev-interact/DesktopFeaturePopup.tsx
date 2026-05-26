@@ -18,13 +18,13 @@ export function DesktopFeaturePopup({
   onClose: () => void
 }) {
   return (
-    <div className="w-72 overflow-hidden rounded-md bg-popover text-popover-foreground">
+    <div className="flex w-72 flex-col gap-1.5">
       {count > 1 && (
-        <div className="flex items-center justify-center gap-2 border-b border-border bg-background/95 px-2 py-1.5">
+        <div className="flex items-center gap-1 self-center rounded-md border border-border bg-popover px-1.5 py-1 shadow-md">
           <button type="button" className="flex size-7 items-center justify-center rounded-md hover:bg-muted" onClick={onPrevious} aria-label="Previous selected feature">
             <ChevronRight className="size-4 rotate-180" />
           </button>
-          <span className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 text-xs font-medium text-muted-foreground">
+          <span className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 px-1 text-xs font-medium text-muted-foreground">
             <span className="justify-self-end text-foreground">{index + 1}</span>
             <span>of</span>
             <span className="justify-self-start text-foreground">{count}</span>
@@ -34,6 +34,7 @@ export function DesktopFeaturePopup({
           </button>
         </div>
       )}
+      <div className="overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
       <div className="border-b border-border px-3 py-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -57,6 +58,7 @@ export function DesktopFeaturePopup({
             <span className="min-w-0 truncate font-medium text-foreground">{row.value || '-'}</span>
           </div>
         ))}
+      </div>
       </div>
     </div>
   )

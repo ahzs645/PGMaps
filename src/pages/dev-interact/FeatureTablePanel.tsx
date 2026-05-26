@@ -76,7 +76,7 @@ export function FeatureTablePanel({
         />
       </div>
 
-      <div className="absolute bottom-4 right-4 z-30 hidden h-[min(560px,calc(100%-2rem))] w-[min(880px,calc(100%-2rem))] flex-col overflow-hidden rounded-lg border border-border bg-background/95 shadow-2xl backdrop-blur md:flex">
+      <div className="absolute inset-x-0 bottom-0 z-30 hidden h-[33%] min-h-64 max-h-[520px] flex-col overflow-hidden border border-x-0 border-b-0 border-border bg-background/95 shadow-[0_-2px_16px_rgba(0,0,0,0.18)] backdrop-blur md:flex">
         <TableSheetHeader onClose={onClose} />
         <TableBody
           rows={rows}
