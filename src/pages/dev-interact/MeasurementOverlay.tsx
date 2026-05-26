@@ -268,12 +268,10 @@ function MobileMeasurementSheet({
         className="pointer-events-auto relative z-10 overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.3)]"
       >
         <header className="border-b border-border px-4 py-3">
-          <p id="area-measurement-title" className="text-base font-semibold">{measurementShape === 'circle' ? 'Circle measurement' : 'Area measurement'}</p>
+          <p id="area-measurement-title" className="text-base font-semibold">Area measurement</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {measurementMode === 'drawing'
-              ? measurementShape === 'circle'
-                ? measurementPoints.length === 0 ? 'Place circle center' : 'Set circle radius'
-                : `${measurementPoints.length} point${measurementPoints.length === 1 ? '' : 's'} placed`
+              ? `${measurementPoints.length} point${measurementPoints.length === 1 ? '' : 's'} placed`
               : 'Measurement is visible only in this session.'}
           </p>
         </header>
@@ -281,12 +279,11 @@ function MobileMeasurementSheet({
         <div className="px-4 py-3">
           {measurementMode === 'drawing' ? (
             <Button className="w-full" onClick={onAddPoint}>
-              {measurementShape === 'circle' ? (measurementPoints.length === 0 ? 'Add center' : 'Set radius') : 'Add point'}
+              Add point
             </Button>
           ) : null}
           <div className={cn('grid grid-cols-2 gap-2', measurementMode === 'drawing' && 'mt-3')}>
-            {measurementShape === 'circle' && <MeasurementValue label="Radius" value={measurementStats?.radius ? formatDistance(measurementStats.radius) : '-'} />}
-            <MeasurementValue label={measurementShape === 'circle' ? 'Circumference' : 'Perimeter'} value={measurementStats ? formatDistance(measurementStats.perimeter) : '-'} />
+            <MeasurementValue label="Perimeter" value={measurementStats ? formatDistance(measurementStats.perimeter) : '-'} />
             <MeasurementValue label="Area" value={measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-'} />
           </div>
         </div>
