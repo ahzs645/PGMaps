@@ -321,23 +321,27 @@ function DevInteract() {
       mobileInitialSheetState="collapsed"
       suppressMobileSheet={measurementMode !== 'idle'}
       mobilePeek={(
-        <button
-          type="button"
-          className="min-w-0 text-left"
-          aria-label={selectedFeature && mobileInspectorCollapsed ? 'Show selected feature card' : 'Interactive map controls'}
-          onClick={selectedFeature && mobileInspectorCollapsed ? (event) => {
-            event.stopPropagation()
-            setMobileInspectorCollapsed(false)
-          } : undefined}
-          onTouchStart={selectedFeature && mobileInspectorCollapsed ? (event) => event.stopPropagation() : undefined}
-        >
-          <span className="block truncate text-xs font-semibold text-foreground">Interactive map controls</span>
-          <span className="block truncate text-[11px] text-muted-foreground">
-            {measurementMode === 'drawing' ? `${measurementPoints.length} measurement points` : 'Legend, actions, and popup cards'}
-          </span>
-        </button>
+        selectedFeature && !mobileInspectorCollapsed ? (
+          <div className="h-8" aria-hidden="true" />
+        ) : (
+          <button
+            type="button"
+            className="min-w-0 text-left"
+            aria-label={selectedFeature && mobileInspectorCollapsed ? 'Show selected feature card' : 'Interactive map controls'}
+            onClick={selectedFeature && mobileInspectorCollapsed ? (event) => {
+              event.stopPropagation()
+              setMobileInspectorCollapsed(false)
+            } : undefined}
+            onTouchStart={selectedFeature && mobileInspectorCollapsed ? (event) => event.stopPropagation() : undefined}
+          >
+            <span className="block truncate text-xs font-semibold text-foreground">Interactive map controls</span>
+            <span className="block truncate text-[11px] text-muted-foreground">
+              {measurementMode === 'drawing' ? `${measurementPoints.length} measurement points` : 'Legend, actions, and popup cards'}
+            </span>
+          </button>
+        )
       )}
-      mobileSnapVisibleHeight={selectedFeature && mobileInspectorCollapsed ? 420 : undefined}
+      mobileSnapVisibleHeight={selectedFeature ? 420 : undefined}
       mobileSnapKey={mobileSheetSnapKey}
       sidebar={sidebar}
     >

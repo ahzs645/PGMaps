@@ -85,7 +85,7 @@ export function MobileFeatureInspector({
     >
       <div
         className={cn(
-          'absolute inset-x-0 bottom-0 pointer-events-none grid max-h-[min(420px,calc(100dvh_-_5rem))] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform',
+          'absolute inset-x-0 bottom-0 pointer-events-none grid h-[min(420px,calc(100dvh_-_5rem))] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform',
           open ? 'translate-y-0' : 'translate-y-full',
           collapsed && 'translate-y-[calc(100%+0.75rem)]',
         )}
@@ -151,8 +151,8 @@ function FeatureCard({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       className={cn(
-        'col-start-1 row-start-1 flex max-h-[inherit] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-        collapsed ? 'pointer-events-none' : 'pointer-events-auto',
+        'col-start-1 row-start-1 flex h-full flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
+        collapsed ? 'pointer-events-none' : 'pointer-events-auto translate-y-2',
       )}
     >
       <SheetHandle />
