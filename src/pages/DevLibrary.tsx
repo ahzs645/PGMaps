@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, Droplets, MousePointerClick, Palette, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDot, Droplets, MousePointerClick, Palette, Wind } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -48,6 +48,14 @@ const devEntries: DevEntry[] = [
     icon: MousePointerClick,
     color: 'bg-emerald-600',
     label: '/dev/interact',
+  },
+  {
+    title: 'Sewage Sites',
+    description: 'Felt-style proportional-circle point layer (PFAS / sewage spill) with a graduated-circle legend.',
+    href: '/dev/interact/sewage',
+    icon: CircleDot,
+    color: 'bg-pink-600',
+    label: '/dev/interact/sewage',
   },
 ]
 

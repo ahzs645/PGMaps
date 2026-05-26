@@ -54,7 +54,7 @@ export function YearFilterWidget({
         aria-valuemax={maxYear}
         aria-valuetext={`${value[0]} to ${value[1]}, estimated ${selectedCount.toLocaleString()} matching records`}
         tabIndex={0}
-        className="block cursor-crosshair overflow-visible rounded-sm touch-none select-none outline-none focus:ring-1 focus:ring-ring"
+        className="block cursor-pointer overflow-visible rounded-sm touch-none select-none outline-none"
         onPointerDown={(event) => {
           const year = clientXToYear(event.clientX, svgRef.current, minYear, maxYear)
           if (year === null) return
@@ -118,7 +118,7 @@ export function YearFilterWidget({
             y="0"
             width={Math.max(4, yearToX(value[1], minYear, maxYear) - yearToX(value[0], minYear, maxYear))}
             height="42"
-            className="fill-primary/15 stroke-primary/45"
+            className="pointer-events-none fill-primary/15 stroke-primary/45"
           />
           <RangeHandle x={yearToX(value[0], minYear, maxYear)} side="start" />
           <RangeHandle x={yearToX(value[1], minYear, maxYear)} side="end" />

@@ -24,6 +24,7 @@ export function Navbar() {
   const location = useLocation()
   const { resolvedTheme, setTheme } = useTheme()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileToolbarHidden, setMobileToolbarHidden] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const moreButtonRef = useRef<HTMLButtonElement>(null)
@@ -63,6 +64,17 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [mobileMenuOpen])
 
+  useEffect(() => {
+    const handleToolbarVisibility = (event: Event) => {
+      const hidden = event instanceof CustomEvent && event.detail?.hidden === true
+      setMobileToolbarHidden(hidden)
+      if (hidden) setMobileMenuOpen(false)
+    }
+
+    window.addEventListener('pgmaps:mobile-toolbar-visibility', handleToolbarVisibility)
+    return () => window.removeEventListener('pgmaps:mobile-toolbar-visibility', handleToolbarVisibility)
+  }, [])
+
   const mobileMenu = mobileMenuOpen && typeof document !== 'undefined'
     ? createPortal(
         <div
@@ -95,7 +107,10 @@ export function Navbar() {
   return (
     <header className="fixed inset-x-0 top-0 z-[1100] h-0 border-b border-transparent bg-transparent md:relative md:h-14 md:border-border md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/60">
       <div
-        className="pointer-events-none flex h-12 items-center justify-between gap-2 px-3 pt-1 md:pointer-events-auto md:h-full md:px-4 md:pt-0"
+        className={cn(
+          'pointer-events-none flex h-12 items-center justify-between gap-2 px-3 pt-1 md:pointer-events-auto md:h-full md:px-4 md:pt-0',
+          mobileToolbarHidden && 'hidden md:flex',
+        )}
         data-map-mobile-toolbar="true"
       >
         <div className="flex min-w-0 items-center gap-2.5 xl:gap-6">

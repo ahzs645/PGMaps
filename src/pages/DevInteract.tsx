@@ -110,6 +110,16 @@ function DevInteract() {
     return () => window.removeEventListener('pgmaps:open-map-search', openSearch)
   }, [])
 
+  useEffect(() => {
+    const hidden = measurementMode !== 'idle'
+    window.dispatchEvent(new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden } }))
+    return () => {
+      if (hidden) {
+        window.dispatchEvent(new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden: false } }))
+      }
+    }
+  }, [measurementMode])
+
   const selectPolygon = useCallback((id: string, collection: GeoJSON.FeatureCollection<GeoJSON.Polygon, InteractFeatureProperties>) => {
     const feature = collection.features.find((candidate) => candidate.properties.id === id) ?? null
     if (feature) {
@@ -235,6 +245,17 @@ function DevInteract() {
     addMeasurementPoint(action.point)
   }, [addMeasurementPoint, measurementPoints, measurementShape])
 
+  const setCircleRadiusPoint = useCallback((point: [number, number]) => {
+    if (measurementShape !== 'circle') return
+    setMeasurementPoints((current) => {
+      if (current.length === 0) return current
+      return [current[0], point]
+    })
+    setMeasurementMode('complete')
+    setMeasurementCursor(null)
+    setRedoMeasurementPoints([])
+  }, [measurementShape])
+
   const handleFeatureAction = useCallback((action: FeatureAction, feature: InteractFeature) => {
     if (action === 'hide') {
       setHiddenFeatureIds((current) => new Set(current).add(feature.properties.id))
@@ -260,7 +281,7 @@ function DevInteract() {
       })
       return
     }
-    setTableLayer(feature.properties.layer === 'catchments' ? 'parks' : feature.properties.layer)
+    setTableLayer(feature.properties.layer)
   }, [clearSelection])
 
   const sidebar = (
@@ -333,18 +354,6 @@ function DevInteract() {
           />
 
           <MapFillLayer
-            data={filteredCatchmentFeatures}
-            fillColor={catchmentStyle.fillColor}
-            fillOpacity={0.72}
-            lineColor={catchmentStyle.lineColor}
-            lineWidth={0.6}
-            lineOpacity={0.5}
-            idProperty="id"
-            selectedId={selectedFeature?.properties.layer === 'catchments' ? selectedFeature.properties.id : null}
-            visible={visibleLayers.catchments}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => selectPolygon(id, catchmentFeatures)}
-          />
-          <MapFillLayer
             data={filteredNeighbourhoodFeatures}
             fillColor="#8b5cf6"
             fillOpacity={0.12}
@@ -380,9 +389,9 @@ function DevInteract() {
           <MapFillLayer data={measurementPolygonData} fillColor="#f97316" fillOpacity={0.18} lineColor="#ea580c" lineWidth={2} visible={measurementShape === 'polygon' && measurementPoints.length >= 3} />
           <MapLineLayer data={measurementLineData} color="#ea580c" width={2.5} opacity={1} dashArray={measurementMode === 'drawing' ? [2, 1.3] : undefined} visible={measurementShape === 'polygon' && measurementPoints.length > 1} />
           <MapLineLayer data={measurementPreviewLineData} color="#ea580c" width={2} opacity={0.72} dashArray={[1.2, 1.2]} visible={measurementShape === 'polygon' && measurementMode === 'drawing' && measurementPoints.length > 0} />
-          <MapFillLayer data={measurementCircleData} fillColor="#f97316" fillOpacity={0.18} lineColor="#ea580c" lineWidth={2} visible={measurementShape === 'circle' && measurementCircleData.features.length > 0} />
+          <MapFillLayer data={measurementCircleData} fillColor="#ffffff" fillOpacity={0.04} lineColor="#ffffff" lineWidth={0} visible={measurementShape === 'circle' && measurementCircleData.features.length > 0} />
 
-          {measurementPoints.map((point, index) => (
+          {measurementShape === 'polygon' && measurementPoints.map((point, index) => (
             <MapMarker
               key={`${point[0]}:${point[1]}:${index}`}
               longitude={point[0]}
@@ -440,9 +449,12 @@ function DevInteract() {
             measurementShape={measurementShape}
             measurementStats={currentMeasurementStats}
             measurementPoints={measurementPoints}
+            measurementCursor={measurementCursor}
             canUndo={measurementPoints.length > 0}
             canRedo={redoMeasurementPoints.length > 0}
             onAddPoint={(point) => handleMeasurementMapAction({ type: 'add', point })}
+            onPreviewPoint={setMeasurementCursor}
+            onSetCircleRadiusPoint={setCircleRadiusPoint}
             onUndo={undoMeasurementPoint}
             onRedo={redoMeasurementPoint}
             onClearMeasurement={clearMeasurement}
