@@ -421,7 +421,7 @@ function DevInteract() {
           ))}
 
           {measurementMode !== 'drawing' && selectedFeature && selectedLngLat && (
-            <MapPopup longitude={selectedLngLat[0]} latitude={selectedLngLat[1]} onClose={clearSelection} closeButton={false} className="hidden md:block">
+            <MapPopup longitude={selectedLngLat[0]} latitude={selectedLngLat[1]} onClose={clearSelection} closeButton={false} className="hidden border-0 bg-transparent p-0 shadow-none md:block">
               <DesktopFeaturePopup
                 feature={selectedFeatures[selectedFeatureIndex] ?? selectedFeature}
                 count={selectedFeatures.length}

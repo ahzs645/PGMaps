@@ -35,30 +35,30 @@ export function DesktopFeaturePopup({
         </div>
       )}
       <div className="overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md">
-      <div className="border-b border-border px-3 py-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[11px] font-medium uppercase text-muted-foreground">{layerLabel(feature.properties.layer)}</div>
-            <div className="mt-1 truncate text-sm font-semibold">{feature.properties.name}</div>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <button type="button" className="rounded-md p-1.5 hover:bg-muted" aria-label="Feature actions">
-              <MoreHorizontal className="size-4" />
-            </button>
-            <button type="button" className="rounded-md p-1.5 hover:bg-muted" onClick={onClose} aria-label="Close desktop feature popup">
-              <X className="size-4" />
-            </button>
+        <div className="border-b border-border px-3 py-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] font-medium uppercase text-muted-foreground">{layerLabel(feature.properties.layer)}</div>
+              <div className="mt-1 truncate text-sm font-semibold">{feature.properties.name}</div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <button type="button" className="rounded-md p-1.5 hover:bg-muted" aria-label="Feature actions">
+                <MoreHorizontal className="size-4" />
+              </button>
+              <button type="button" className="rounded-md p-1.5 hover:bg-muted" onClick={onClose} aria-label="Close desktop feature popup">
+                <X className="size-4" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-      <div aria-label="Vector feature popup contents" className="max-h-64 overflow-y-auto px-3 py-1">
-        {feature.properties.properties.map((row) => (
-          <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-border/70 py-2 text-sm last:border-b-0">
-            <span className="text-muted-foreground">{row.label}</span>
-            <span className="min-w-0 truncate font-medium text-foreground">{row.value || '-'}</span>
-          </div>
-        ))}
-      </div>
+        <div aria-label="Vector feature popup contents" className="max-h-64 overflow-y-auto px-3 py-1">
+          {feature.properties.properties.map((row) => (
+            <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-border/70 py-2 text-sm last:border-b-0">
+              <span className="text-muted-foreground">{row.label}</span>
+              <span className="min-w-0 truncate font-medium text-foreground">{row.value || '-'}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
