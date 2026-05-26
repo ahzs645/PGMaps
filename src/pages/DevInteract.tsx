@@ -327,12 +327,15 @@ function DevInteract() {
           <button
             type="button"
             className="min-w-0 text-left"
+            data-map-mobile-sheet-peek-action="true"
             aria-label={selectedFeature && mobileInspectorCollapsed ? 'Show selected feature card' : 'Interactive map controls'}
             onClick={selectedFeature && mobileInspectorCollapsed ? (event) => {
               event.stopPropagation()
               setMobileInspectorCollapsed(false)
             } : undefined}
             onTouchStart={selectedFeature && mobileInspectorCollapsed ? (event) => event.stopPropagation() : undefined}
+            onPointerDown={selectedFeature && mobileInspectorCollapsed ? (event) => event.stopPropagation() : undefined}
+            onMouseDown={selectedFeature && mobileInspectorCollapsed ? (event) => event.stopPropagation() : undefined}
           >
             <span className="block truncate text-xs font-semibold text-foreground">Interactive map controls</span>
             <span className="block truncate text-[11px] text-muted-foreground">

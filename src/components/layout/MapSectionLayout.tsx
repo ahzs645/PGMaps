@@ -254,6 +254,7 @@ export function MapSectionLayout({
 
     function onTouchStart(e: TouchEvent) {
       if (window.innerWidth >= 768) return
+      if ((e.target as HTMLElement | null)?.closest('[data-map-mobile-sheet-peek-action="true"]')) return
       const t = e.touches[0]
       const isHandle = handle!.contains(e.target as Node)
 
