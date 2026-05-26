@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ElementType, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, RadioTower, Satellite, ShieldAlert, Trees, Waves, X } from 'lucide-react'
@@ -1860,10 +1860,14 @@ function CanueGraphDrawer({
 
 export default function MiscDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const searchString = searchParams.toString()
-  const previousSearchStringRef = useRef(searchString)
   const [showSidebar, setShowSidebar] = useState(true)
-  const [activeTab, setActiveTab] = useState<MiscDataTab>(() => parseMiscDataTab(searchParams.get('tab')))
+  const activeTab = parseMiscDataTab(searchParams.get('tab'))
+  const setActiveTab = useCallback((tab: MiscDataTab) => {
+    const params = new URLSearchParams(searchParams)
+    if (tab === 'canue') params.delete('tab')
+    else params.set('tab', tab)
+    setSearchParams(params)
+  }, [searchParams, setSearchParams])
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
   const [showMobileLegend, setShowMobileLegend] = useState(false)
   const [canueBoundaryLevel, setCanueBoundaryLevel] = useState<CanueBoundaryLevel>(() => parseCanueBoundaryLevel(searchParams.get('boundary')))
@@ -1936,13 +1940,6 @@ export default function MiscDataSection() {
   )
   const water = useWaterData(activeTab === 'water')
   const flood = useFloodData(activeTab === 'flood')
-
-  useEffect(() => {
-    if (previousSearchStringRef.current === searchString) return
-    previousSearchStringRef.current = searchString
-    const urlTab = parseMiscDataTab(searchParams.get('tab'))
-    if (urlTab !== activeTab) setActiveTab(urlTab)
-  }, [activeTab, searchParams, searchString])
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -3120,7 +3117,7 @@ export default function MiscDataSection() {
   )
 
   const tabsBar = (
-    <div className="min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-2 py-1 backdrop-blur [scrollbar-width:none] md:px-4 md:py-2 [&::-webkit-scrollbar]:hidden">
+    <div className="hidden min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-2 py-1 backdrop-blur [scrollbar-width:none] md:block md:px-4 md:py-2 [&::-webkit-scrollbar]:hidden">
       <div className="flex w-max rounded-md border border-border bg-muted/40 p-0.5 md:rounded-lg md:p-1">
         {MISC_TABS.map(({ id, label, icon: Icon }) => (
           <button

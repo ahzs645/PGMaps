@@ -64,6 +64,24 @@ test.describe('Home Page Navigation', () => {
     await expect(page).toHaveURL(/airquality/)
   })
 
+  test('mobile menu exposes MISC dataset tabs', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/misc?tab=network', { waitUntil: 'domcontentloaded' })
+
+    const menuButton = page.getByRole('button', { name: 'Toggle menu' })
+    await menuButton.click()
+
+    await expect(page.getByRole('button', { name: /MISC/ })).toHaveAttribute('aria-expanded', 'true')
+    await expect(page.getByRole('link', { name: 'Network', exact: true })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Water', exact: true }).click()
+    await expect(page).toHaveURL(/\/misc\?tab=water$/)
+    await expect(page.getByText('MISC Data | Water')).toBeVisible()
+
+    await page.getByRole('button', { name: /Open dataset information/ }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+  })
+
   test('theme toggle switches between light and dark', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 

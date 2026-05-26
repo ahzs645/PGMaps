@@ -53,7 +53,7 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
         <button
           type="button"
           className={cn(
-            'inline-flex h-10 w-10 items-center justify-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            'pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-md border border-white/70 bg-white/90 text-sm font-medium text-zinc-950 shadow-lg backdrop-blur transition-colors hover:bg-white hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:border-zinc-700/70 dark:bg-zinc-950/90 dark:text-zinc-50 dark:shadow-black/50 dark:hover:bg-zinc-900 dark:hover:text-zinc-50 md:h-10 md:w-10 md:border-transparent md:bg-transparent md:text-muted-foreground md:shadow-none md:backdrop-blur-none md:hover:bg-accent md:hover:text-accent-foreground',
             className
           )}
           aria-label={`Open dataset information for ${dataset.title}`}
