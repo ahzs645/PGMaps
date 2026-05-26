@@ -13,10 +13,7 @@ import { MapSearchSheet } from './dev-interact/MapSearchSheet'
 import { MeasurementOverlay } from './dev-interact/MeasurementOverlay'
 import { measurementCircle, measurementLine, measurementPolygon, measurementPreviewLine } from './dev-interact/measurement'
 import { DevInteractSidebar } from './dev-interact/Sidebar'
-import { catchmentFeatures } from './dev-interact/catchments'
-import { buildCatchmentStyle } from './dev-interact/styling'
-import { CatchmentStylePanel } from './dev-interact/CatchmentStylePanel'
-import type { FeatureAction, GraduatedRampName, InteractFeature, InteractFeatureProperties, LayerId, MeasurementMapAction, MeasurementMode, MeasurementShape, StyleAttributeId, YearRange } from './dev-interact/types'
+import type { FeatureAction, InteractFeature, InteractFeatureProperties, LayerId, MeasurementMapAction, MeasurementMode, MeasurementShape, YearRange } from './dev-interact/types'
 
 function DevInteract() {
   const [showSidebar, setShowSidebar] = useState(true)
@@ -24,7 +21,6 @@ function DevInteract() {
     parks: true,
     routes: true,
     neighbourhoods: true,
-    catchments: true,
   })
   const [selectedFeature, setSelectedFeature] = useState<InteractFeature | null>(null)
   const [selectedFeatures, setSelectedFeatures] = useState<InteractFeature[]>([])
@@ -38,8 +34,6 @@ function DevInteract() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [zoomFeature, setZoomFeature] = useState<{ feature: InteractFeature; nonce: number } | null>(null)
   const [yearRange, setYearRange] = useState<YearRange>(YEAR_FILTER_DOMAIN)
-  const [styleAttribute, setStyleAttribute] = useState<StyleAttributeId>('spillHours')
-  const [styleRamp, setStyleRamp] = useState<GraduatedRampName>('red')
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('idle')
   const [measurementShape, setMeasurementShape] = useState<MeasurementShape>('polygon')
   const [measurementPoints, setMeasurementPoints] = useState<[number, number][]>([])
@@ -76,14 +70,6 @@ function DevInteract() {
   const filteredRouteFeatures = useMemo(
     () => filterCollection(routeFeatures, hiddenFeatureIds, isolatedFeatureId, yearRange),
     [hiddenFeatureIds, isolatedFeatureId, yearRange],
-  )
-  const filteredCatchmentFeatures = useMemo(
-    () => filterCollection(catchmentFeatures, hiddenFeatureIds, isolatedFeatureId),
-    [hiddenFeatureIds, isolatedFeatureId],
-  )
-  const catchmentStyle = useMemo(
-    () => buildCatchmentStyle(filteredCatchmentFeatures.features, styleAttribute, styleRamp),
-    [filteredCatchmentFeatures, styleAttribute, styleRamp],
   )
 
   const clearSelection = useCallback(() => {
@@ -461,19 +447,6 @@ function DevInteract() {
             onFinishMeasurement={finishMeasurement}
           />
         </Map>
-
-        {measurementMode === 'idle' && (
-          <CatchmentStylePanel
-            visible={visibleLayers.catchments}
-            onToggleVisible={() => toggleLayer('catchments')}
-            attribute={styleAttribute}
-            onAttributeChange={setStyleAttribute}
-            ramp={styleRamp}
-            onRampChange={setStyleRamp}
-            legend={catchmentStyle.legend}
-            totalCount={filteredCatchmentFeatures.features.length}
-          />
-        )}
 
         {measurementMode !== 'drawing' && selectedFeature && (
           <MobileFeatureInspector

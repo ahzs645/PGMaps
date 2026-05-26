@@ -1,4 +1,4 @@
-export type LayerId = 'parks' | 'routes' | 'neighbourhoods' | 'catchments'
+export type LayerId = 'parks' | 'routes' | 'neighbourhoods'
 
 export interface InteractFeatureProperties extends Record<string, unknown> {
   id: string
@@ -6,9 +6,6 @@ export interface InteractFeatureProperties extends Record<string, unknown> {
   layer: LayerId
   description: string
   value?: string
-  spillHours?: number
-  riskClass?: RiskClass
-  dischargeType?: DischargeType
   issuedYear: number
   cost: number
   properties: Array<{ label: string; value: string }>
@@ -25,21 +22,3 @@ export type FeatureAction = 'hide' | 'zoom' | 'show-only' | 'show-others' | 'ope
 
 export type MeasurementStats = { perimeter: number; area: number; radius?: number } | null
 export type YearRange = [number, number]
-
-// ── Data-driven styling scenario ───────────────────────────────────────────
-export type RiskClass = 'Low' | 'Moderate' | 'High' | 'Severe'
-export type DischargeType = 'Storm overflow' | 'Treated effluent' | 'Industrial' | 'Agricultural'
-export type StyleAttributeId = 'spillHours' | 'riskClass' | 'dischargeType'
-export type StyleAttributeKind = 'graduated' | 'categorical'
-export interface StyleAttribute {
-  id: StyleAttributeId
-  label: string
-  kind: StyleAttributeKind
-}
-export type GraduatedRampName = 'red' | 'amber' | 'blue'
-export interface LegendItem {
-  key: string
-  color: string
-  label: string
-  count: number
-}

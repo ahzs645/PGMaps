@@ -165,6 +165,16 @@ export const DATASETS = {
     downloadUrl: '/data/cell-coverage/manifest.json',
     fields: ['provider', 'technology', 'tileUrl', 'tilejsonUrl', 'bounds', 'minzoom', 'maxzoom'],
   },
+  networkAvailability: {
+    title: 'Canada network availability',
+    description: 'Vector-first national mobile network availability sources, with CRTC coverage packages, NRCan hosted coverage, ISED cell-site points, and carrier API findings.',
+    source: 'CRTC, NRCan, ISED, and carrier public coverage maps',
+    coverage: 'Canada',
+    license: 'Open Government Licence - Canada for CRTC/NRCan sources; source-dependent terms for ISED and carrier map metadata',
+    formats: ['KML', 'MapInfo TAB', 'File Geodatabase', 'Esri REST', 'CSV ZIP', 'JSON manifest'],
+    downloadUrl: '/data/network-availability/manifest.json',
+    fields: ['dataset', 'geometry', 'format', 'contentLength', 'lastModified', 'carrierVectorStatus'],
+  },
   explorer: {
     title: 'Explorer catalogue',
     description: 'Unified searchable layer catalogue combining point, line, and polygon datasets across PGMaps.',

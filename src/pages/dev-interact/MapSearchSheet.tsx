@@ -12,7 +12,6 @@ const layerGlyphs: Record<LayerId, { color: string; shape: 'circle' | 'square' |
   neighbourhoods: { color: '#8b5cf6', shape: 'square' },
   parks: { color: '#22c55e', shape: 'square' },
   routes: { color: '#0ea5e9', shape: 'line' },
-  catchments: { color: '#0284c7', shape: 'square' },
 }
 
 export function MapSearchSheet({

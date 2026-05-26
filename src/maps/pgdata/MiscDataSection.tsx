@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ElementType, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, Satellite, ShieldAlert, Trees, Waves, X } from 'lucide-react'
+import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, RadioTower, Satellite, ShieldAlert, Trees, Waves, X } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -55,10 +55,48 @@ interface HeatShadeManifest {
   caveats?: string[]
 }
 
+interface NetworkAvailabilityDataset {
+  id: string
+  title: string
+  source: string
+  category: string
+  geometry: string
+  formats: string[]
+  url: string
+  apiUrl?: string
+  schemaUrl?: string
+  notes?: string
+  http?: {
+    ok?: boolean
+    status?: number | null
+    contentType?: string | null
+    contentLength?: number | null
+    lastModified?: string | null
+    etag?: string | null
+    error?: string
+  }
+}
+
+interface NetworkAvailabilityCarrierFinding {
+  provider: string
+  vectorStatus: string
+  recommendedUse: string
+  endpoints: string[]
+}
+
+interface NetworkAvailabilityManifest {
+  generatedAt: string
+  title: string
+  description: string
+  recommendedUse?: string
+  datasets: NetworkAvailabilityDataset[]
+  carrierFindings: NetworkAvailabilityCarrierFinding[]
+}
+
 type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
 
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
-type MiscDataTab = 'heatShade' | 'canue' | 'icbc' | 'wars' | 'walkability' | 'water' | 'flood' | 'drought'
+type MiscDataTab = 'heatShade' | 'canue' | 'network' | 'icbc' | 'wars' | 'walkability' | 'water' | 'flood' | 'drought'
 type CanueYearMode = 'single' | 'month' | 'all' | 'range'
 type CanueV2Cadence = 'annual' | 'monthly'
 type CanueBoundarySource = 'bcHealth' | 'regionalDistrict' | 'census' | 'cityPG' | 'watershed' | 'nrAdmin'
@@ -170,6 +208,7 @@ const MISC_LAYERS: Array<{ id: MiscLayerId; label: string; color: string }> = [
 const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = [
   { id: 'heatShade', label: 'Heat & Shade', icon: Trees },
   { id: 'canue', label: 'CANUE', icon: Database },
+  { id: 'network', label: 'Network', icon: RadioTower },
   { id: 'icbc', label: 'ICBC', icon: ShieldAlert },
   { id: 'wars', label: 'WARS', icon: PawPrint },
   { id: 'walkability', label: 'Walkability', icon: Footprints },
@@ -263,6 +302,78 @@ function getDefaultCanueBoundaryLevel(source: CanueBoundarySource): CanueBoundar
   if (source === 'watershed') return 'watershedGroup'
   if (source === 'nrAdmin') return 'nrArea'
   return 'da'
+}
+
+function formatFileSize(bytes?: number | null): string {
+  if (!Number.isFinite(bytes ?? NaN)) return 'Unknown size'
+  const value = bytes ?? 0
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`
+  return `${value} B`
+}
+
+function formatVectorStatus(status: string): string {
+  return status
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function NetworkAvailabilitySidebar({ manifest }: { manifest: ReturnType<typeof useJsonManifest<NetworkAvailabilityManifest>> }) {
+  const mapDatasets = manifest.data?.datasets.filter((dataset) => dataset.geometry !== 'table') ?? []
+  const carrierFindings = manifest.data?.carrierFindings ?? []
+
+  return (
+    <div className="space-y-4 p-4">
+      {!manifest.data && !manifest.error && <div className="text-sm text-muted-foreground">Loading network availability manifest...</div>}
+      {manifest.error && <div className="text-sm text-red-500">{manifest.error}</div>}
+      {manifest.data?.recommendedUse && (
+        <section className="rounded border border-border bg-muted/30 p-3">
+          <h2 className="mb-1 text-sm font-semibold text-foreground">Recommended Source Strategy</h2>
+          <p className="text-xs leading-relaxed text-muted-foreground">{manifest.data.recommendedUse}</p>
+        </section>
+      )}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Map Availability Sources</h2>
+        <div className="space-y-2">
+          {mapDatasets.map((dataset) => (
+            <article key={dataset.id} className="rounded border border-border bg-card p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-foreground">{dataset.title}</div>
+                  <div className="text-xs text-muted-foreground">{dataset.source} | {dataset.geometry} | {dataset.formats.join(', ')}</div>
+                </div>
+                <div className="shrink-0 text-right text-xs text-muted-foreground">
+                  <div>{formatFileSize(dataset.http?.contentLength)}</div>
+                  <div>{dataset.http?.lastModified ? formatDate(dataset.http.lastModified) : 'No date'}</div>
+                </div>
+              </div>
+              {dataset.notes && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{dataset.notes}</p>}
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                <a className="font-medium text-primary hover:underline" href={dataset.url} target="_blank" rel="noreferrer">Download</a>
+                {dataset.apiUrl && <a className="font-medium text-primary hover:underline" href={dataset.apiUrl} target="_blank" rel="noreferrer">API</a>}
+                {dataset.schemaUrl && <a className="font-medium text-primary hover:underline" href={dataset.schemaUrl} target="_blank" rel="noreferrer">Schema</a>}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Carrier API Findings</h2>
+        <div className="space-y-2">
+          {carrierFindings.map((finding) => (
+            <article key={finding.provider} className="rounded border border-border bg-card p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-medium text-foreground">{finding.provider}</div>
+                <div className="text-[11px] font-medium text-muted-foreground">{formatVectorStatus(finding.vectorStatus)}</div>
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{finding.recommendedUse}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
 }
 
 const CANUE_BOUNDARY_CONFIG: Record<CanueBoundaryLevel, BoundaryLevelConfig> = {
@@ -1706,7 +1817,7 @@ export default function MiscDataSection() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [activeTab, setActiveTab] = useState<MiscDataTab>(() => {
     const tab = searchParams.get('tab')
-    return tab === 'heatShade' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'flood' || tab === 'drought' ? tab : 'canue'
+    return tab === 'heatShade' || tab === 'network' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'flood' || tab === 'drought' ? tab : 'canue'
   })
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
   const [showMobileLegend, setShowMobileLegend] = useState(false)
@@ -1748,6 +1859,7 @@ export default function MiscDataSection() {
   const [selectedCanueGraphKeys, setSelectedCanueGraphKeys] = useState<string[]>([])
   const { trees, forests, facilities, loading, error } = useHeatShadeData(activeTab === 'heatShade')
   const heatShadeManifest = useJsonManifest<HeatShadeManifest>(activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null)
+  const networkAvailabilityManifest = useJsonManifest<NetworkAvailabilityManifest>(activeTab === 'network' ? '/data/network-availability/manifest.json' : null)
   const canueManifest = useJsonManifest<CanueManifest>(CANUE_V2_ENABLED ? null : '/data/canue/bc/annual-gzip/manifest.json')
   const canueV2Catalog = useJsonManifest<CanueV2Catalog>(CANUE_V2_ENABLED ? CANUE_V2_CATALOG_URL : null)
   const canueV2MetadataUrl = useMemo(
@@ -2296,8 +2408,8 @@ export default function MiscDataSection() {
     : canueBoundarySource === 'cityPG'
       ? 10.2
       : 9.4
-  const mapCenter = activeTab === 'canue' ? canueMapCenter : activeTab === 'water' ? BC_CENTER : PG_CENTER
-  const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'water' ? 4.4 : activeTab === 'icbc' || activeTab === 'wars' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
+  const mapCenter = activeTab === 'canue' ? canueMapCenter : activeTab === 'water' || activeTab === 'network' ? BC_CENTER : PG_CENTER
+  const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'water' || activeTab === 'network' ? 4.4 : activeTab === 'icbc' || activeTab === 'wars' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
   const mapKey = activeTab === 'canue' ? `${activeTab}-${canueBoundarySource}` : activeTab === 'water' ? `${activeTab}-${water.boundarySource}` : activeTab
 
   useEffect(() => {
@@ -2390,6 +2502,7 @@ export default function MiscDataSection() {
     <>
       {activeTab === 'heatShade' && <p>Heat/shade updated {formatDate(heatShadeManifest.data?.generatedAt)}.</p>}
       {activeTab === 'canue' && <p>CANUE raw extracts updated {formatDate(canueManifest.data?.generatedAt)}.</p>}
+      {activeTab === 'network' && <p>Network availability inventory updated {formatDate(networkAvailabilityManifest.data?.generatedAt)}.</p>}
       {activeTab === 'icbc' && <IcbcSourceNotes icbc={icbc} />}
       {activeTab === 'wars' && <WarsSourceNotes wars={wars} />}
       {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
@@ -2414,7 +2527,9 @@ export default function MiscDataSection() {
       <DatasetInfo
         dataset={{
           ...(activeTab === 'heatShade'
-            ? DATASETS.heatShade
+              ? DATASETS.heatShade
+            : activeTab === 'network'
+              ? DATASETS.networkAvailability
             : activeTab === 'icbc'
               ? DATASETS.icbc
               : activeTab === 'wars'
@@ -2428,6 +2543,8 @@ export default function MiscDataSection() {
                 : DATASETS.canue),
           updated: activeTab === 'heatShade'
             ? heatShadeManifest.data?.generatedAt
+            : activeTab === 'network'
+              ? networkAvailabilityManifest.data?.generatedAt
             : activeTab === 'icbc'
               ? icbc.manifest.data?.generatedAt
               : activeTab === 'wars'
@@ -2933,6 +3050,8 @@ export default function MiscDataSection() {
         </>
         )}
 
+        {activeTab === 'network' && <NetworkAvailabilitySidebar manifest={networkAvailabilityManifest} />}
+
         {activeTab === 'icbc' && <IcbcSidebar icbc={icbc} />}
 
         {activeTab === 'wars' && <WarsSidebar wars={wars} />}
@@ -2991,11 +3110,13 @@ export default function MiscDataSection() {
       mobilePeek={(
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">
-            MISC Data | {activeTab === 'canue' ? 'CANUE' : activeTab === 'icbc' ? 'ICBC' : activeTab === 'wars' ? 'WARS' : activeTab === 'walkability' ? 'Walkability' : activeTab === 'water' ? 'Water' : activeTab === 'flood' ? 'Flood' : 'Heat/shade'}
+            MISC Data | {activeTab === 'canue' ? 'CANUE' : activeTab === 'network' ? 'Network' : activeTab === 'icbc' ? 'ICBC' : activeTab === 'wars' ? 'WARS' : activeTab === 'walkability' ? 'Walkability' : activeTab === 'water' ? 'Water' : activeTab === 'flood' ? 'Flood' : 'Heat/shade'}
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
             {activeTab === 'canue'
               ? `${selectedCanueDataset?.label || 'Dataset'} | ${canuePeriodLabel}`
+              : activeTab === 'network'
+                ? `${networkAvailabilityManifest.data?.datasets.length ?? 0} sources | vector-first availability`
               : activeTab === 'icbc'
                 ? `${icbc.selectedDataset?.title || 'Crash locations'} | ${icbc.crashFeatures.length.toLocaleString()} mapped`
                 : activeTab === 'wars'
@@ -3176,7 +3297,7 @@ export default function MiscDataSection() {
         )}
 
         <MapLegendPanel
-          title={activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : activeTab === 'flood' ? 'Flood Layer' : 'MISC Layers'}
+          title={activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'network' ? 'Network Sources' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : activeTab === 'flood' ? 'Flood Layer' : 'MISC Layers'}
           icon={<Layers className="h-3.5 w-3.5" />}
           collapsible
           collapsed={!showMobileLegend}
@@ -3218,6 +3339,13 @@ export default function MiscDataSection() {
                     maxLabel={formatNullableNumber(activeCanueBoundaryData.maxValue ?? selectedCanueV2Selection?.max)}
                   />
                 </div>
+              </div>
+            )}
+            {activeTab === 'network' && (
+              <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
+                <LegendItem color="#0f766e" label="CRTC/NRCan vector coverage" active swatchShape="square" />
+                <LegendItem color="#64748b" label="ISED site points" active />
+                <LegendItem color="#f97316" label="Carrier raster-only caveat" active swatchShape="square" />
               </div>
             )}
             {activeTab === 'icbc' && <IcbcLegend icbc={icbc} />}

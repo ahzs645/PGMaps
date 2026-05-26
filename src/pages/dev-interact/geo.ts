@@ -19,7 +19,6 @@ export function formatDistance(km: number): string {
 export function layerLabel(layer: LayerId): string {
   if (layer === 'parks') return 'Parks'
   if (layer === 'routes') return 'Transit routes'
-  if (layer === 'catchments') return 'Sewage spill cells'
   return 'Neighbourhood areas'
 }
 
