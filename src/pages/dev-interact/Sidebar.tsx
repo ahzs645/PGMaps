@@ -1,12 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import { CalendarClock, Eye, EyeOff, Layers, MoreHorizontal, Ruler, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { actionRows, mapDatasetMeta } from './data'
 import { formatArea, formatDistance } from './geo'
 import { MeasurementValue, StatCard } from './SmallControls'
-import type { LayerId, MeasurementMode, MeasurementStats, YearRange } from './types'
+import type { LayerId, MeasurementMode, MeasurementStats, ScalePosition, YearRange } from './types'
 import { YearFilterWidget } from './YearFilterWidget'
+
+const scalePositionOptions: Array<{ value: ScalePosition; label: string }> = [
+  { value: 'bottom-center', label: 'Bottom center' },
+  { value: 'bottom-left', label: 'Bottom left' },
+  { value: 'bottom-right', label: 'Bottom right' },
+  { value: 'top-center', label: 'Top center' },
+  { value: 'top-left', label: 'Top left' },
+  { value: 'top-right', label: 'Top right' },
+]
 
 export function DevInteractSidebar({
   className,
@@ -26,6 +36,10 @@ export function DevInteractSidebar({
   onClearMeasurement,
   openInEnabled,
   onOpenInEnabledChange,
+  scaleVisible,
+  onScaleVisibleChange,
+  scalePosition,
+  onScalePositionChange,
 }: {
   className?: string
   visibleLayers: Record<LayerId, boolean>
@@ -44,6 +58,10 @@ export function DevInteractSidebar({
   onClearMeasurement: () => void
   openInEnabled: boolean
   onOpenInEnabledChange: (enabled: boolean) => void
+  scaleVisible: boolean
+  onScaleVisibleChange: (visible: boolean) => void
+  scalePosition: ScalePosition
+  onScalePositionChange: (position: ScalePosition) => void
 }) {
   const [measurementMenuOpen, setMeasurementMenuOpen] = useState(false)
   const [legendMenuOpen, setLegendMenuOpen] = useState(false)
@@ -184,21 +202,34 @@ export function DevInteractSidebar({
 
         <section className="border-t border-border pt-4">
           <div className="mb-2">
-            <h2 className="text-sm font-semibold">Feature actions</h2>
+            <h2 className="text-sm font-semibold">Map components</h2>
           </div>
-          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 shadow-sm">
-            <span>
-              <span className="block text-sm font-medium">Open in menu</span>
-              <span className="block text-xs text-muted-foreground">Show map handoff options in feature sheets</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={openInEnabled}
-              onChange={(event) => onOpenInEnabledChange(event.target.checked)}
-              className="size-4 accent-primary"
-              aria-label="Enable Open in feature action"
+          <div className="space-y-2">
+            <ComponentToggle
+              title="Scale"
+              description="Show the scale, zoom, and source strip"
+              checked={scaleVisible}
+              onCheckedChange={onScaleVisibleChange}
             />
-          </label>
+            <div className="rounded-md border border-border bg-background px-3 py-2 shadow-sm">
+              <label htmlFor="scale-position" className="block text-sm font-medium">Scale position</label>
+              <AppSelect
+                id="scale-position"
+                value={scalePosition}
+                onValueChange={(value) => onScalePositionChange(value as ScalePosition)}
+                options={scalePositionOptions}
+                className="mt-2"
+                triggerClassName="h-8 bg-background"
+                disabled={!scaleVisible}
+              />
+            </div>
+            <ComponentToggle
+              title="Open in menu"
+              description="Show map handoff options in feature sheets"
+              checked={openInEnabled}
+              onCheckedChange={onOpenInEnabledChange}
+            />
+          </div>
         </section>
 
         <section className="border-t border-border pt-4">
@@ -210,6 +241,37 @@ export function DevInteractSidebar({
         </section>
       </div>
     </aside>
+  )
+}
+
+function ComponentToggle({
+  title,
+  description,
+  checked,
+  onCheckedChange,
+}: {
+  title: string
+  description: string
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 shadow-sm">
+      <span>
+        <span className="block text-sm font-medium">{title}</span>
+        <span className="block text-xs text-muted-foreground">{description}</span>
+      </span>
+      <span className="flex items-center gap-2">
+        {checked ? <Eye className="size-4 text-muted-foreground" /> : <EyeOff className="size-4 text-muted-foreground" />}
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onCheckedChange(event.target.checked)}
+          className="size-4 accent-primary"
+          aria-label={title}
+        />
+      </span>
+    </label>
   )
 }
 

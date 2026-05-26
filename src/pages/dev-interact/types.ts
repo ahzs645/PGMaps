@@ -22,3 +22,4 @@ export type FeatureAction = 'hide' | 'zoom' | 'show-only' | 'show-others' | 'ope
 
 export type MeasurementStats = { perimeter: number; area: number; radius?: number } | null
 export type YearRange = [number, number]
+export type ScalePosition = 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'

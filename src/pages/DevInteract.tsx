@@ -12,8 +12,9 @@ import { CollapseInspectorOnMapDrag, DismissSelectionOnMapClick, MapClickCapture
 import { MapSearchSheet } from './dev-interact/MapSearchSheet'
 import { MeasurementOverlay } from './dev-interact/MeasurementOverlay'
 import { measurementCircle, measurementLine, measurementPolygon, measurementPreviewLine } from './dev-interact/measurement'
+import { Scale } from './dev-interact/Scale'
 import { DevInteractSidebar } from './dev-interact/Sidebar'
-import type { FeatureAction, InteractFeature, InteractFeatureProperties, LayerId, MeasurementMapAction, MeasurementMode, MeasurementShape, YearRange } from './dev-interact/types'
+import type { FeatureAction, InteractFeature, InteractFeatureProperties, LayerId, MeasurementMapAction, MeasurementMode, MeasurementShape, ScalePosition, YearRange } from './dev-interact/types'
 
 function DevInteract() {
   const [showSidebar, setShowSidebar] = useState(true)
@@ -27,7 +28,10 @@ function DevInteract() {
   const [selectedFeatureIndex, setSelectedFeatureIndex] = useState(0)
   const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
   const [mobileInspectorCollapsed, setMobileInspectorCollapsed] = useState(false)
+  const [mobileSheetSnapKey, setMobileSheetSnapKey] = useState(0)
   const [openInEnabled, setOpenInEnabled] = useState(true)
+  const [scaleVisible, setScaleVisible] = useState(true)
+  const [scalePosition, setScalePosition] = useState<ScalePosition>('bottom-center')
   const [hiddenFeatureIds, setHiddenFeatureIds] = useState<Set<string>>(() => new Set())
   const [isolatedFeatureId, setIsolatedFeatureId] = useState<string | null>(null)
   const [tableLayer, setTableLayer] = useState<LayerId | null>(null)
@@ -302,6 +306,10 @@ function DevInteract() {
       onClearMeasurement={clearMeasurement}
       openInEnabled={openInEnabled}
       onOpenInEnabledChange={setOpenInEnabled}
+      scaleVisible={scaleVisible}
+      onScaleVisibleChange={setScaleVisible}
+      scalePosition={scalePosition}
+      onScalePositionChange={setScalePosition}
     />
   )
 
@@ -313,17 +321,28 @@ function DevInteract() {
       mobileInitialSheetState="collapsed"
       suppressMobileSheet={measurementMode !== 'idle'}
       mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">Interactive map controls</div>
-          <div className="truncate text-[11px] text-muted-foreground">
+        <button
+          type="button"
+          className="min-w-0 text-left"
+          aria-label={selectedFeature && mobileInspectorCollapsed ? 'Show selected feature card' : 'Interactive map controls'}
+          onClick={selectedFeature && mobileInspectorCollapsed ? (event) => {
+            event.stopPropagation()
+            setMobileInspectorCollapsed(false)
+          } : undefined}
+          onTouchStart={selectedFeature && mobileInspectorCollapsed ? (event) => event.stopPropagation() : undefined}
+        >
+          <span className="block truncate text-xs font-semibold text-foreground">Interactive map controls</span>
+          <span className="block truncate text-[11px] text-muted-foreground">
             {measurementMode === 'drawing' ? `${measurementPoints.length} measurement points` : 'Legend, actions, and popup cards'}
-          </div>
-        </div>
+          </span>
+        </button>
       )}
+      mobileSnapVisibleHeight={selectedFeature && mobileInspectorCollapsed ? 420 : undefined}
+      mobileSnapKey={mobileSheetSnapKey}
       sidebar={sidebar}
     >
       <div className="relative h-full">
-        <Map center={CENTER} zoom={11.1}>
+        <Map center={CENTER} zoom={11.1} attributionControl={false}>
           <MapControls position="top-right" className="top-16 md:top-2" />
           <MapClickCapture
             measurementMode={measurementMode}
@@ -457,17 +476,22 @@ function DevInteract() {
             onClearMeasurement={clearMeasurement}
             onFinishMeasurement={finishMeasurement}
           />
+          {scaleVisible && <Scale position={scalePosition} />}
         </Map>
 
         {measurementMode !== 'drawing' && selectedFeature && (
           <MobileFeatureInspector
             key={selectedFeature.properties.id}
-            feature={selectedFeature}
+            feature={selectedFeatures[selectedFeatureIndex] ?? selectedFeature}
             openInPoint={selectedLngLat}
             openInEnabled={openInEnabled}
             collapsed={mobileInspectorCollapsed}
-            onFeatureAction={(action) => handleFeatureAction(action, selectedFeature)}
+            onFeatureAction={(action) => handleFeatureAction(action, selectedFeatures[selectedFeatureIndex] ?? selectedFeature)}
             onExpand={() => setMobileInspectorCollapsed(false)}
+            onDock={() => {
+              setMobileInspectorCollapsed(true)
+              setMobileSheetSnapKey((current) => current + 1)
+            }}
             onClose={clearSelection}
           />
         )}

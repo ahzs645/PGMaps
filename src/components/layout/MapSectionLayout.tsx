@@ -11,6 +11,10 @@ interface MapSectionLayoutProps {
   desktopSidebarWidth?: number
   mobileInitialSheetState?: MobileSheetState
   mobilePeek?: ReactNode
+  mobileSidebar?: ReactNode
+  mobileSnapTo?: MobileSheetState
+  mobileSnapVisibleHeight?: number
+  mobileSnapKey?: string | number
   rightSidebar?: ReactNode
   showDesktopRightSidebar?: boolean
   onToggleDesktopRightSidebar?: () => void
@@ -91,6 +95,10 @@ export function MapSectionLayout({
   desktopSidebarWidth = 350,
   mobileInitialSheetState = 'collapsed',
   mobilePeek,
+  mobileSidebar,
+  mobileSnapTo,
+  mobileSnapVisibleHeight,
+  mobileSnapKey,
   rightSidebar,
   showDesktopRightSidebar = true,
   onToggleDesktopRightSidebar,
@@ -160,6 +168,20 @@ export function MapSectionLayout({
     },
     [applyTransform, getFullSnapOffset, getSheetHeight],
   )
+
+  useEffect(() => {
+    if (window.innerWidth >= 768) return
+    if (mobileSnapVisibleHeight != null) {
+      const sheetHeight = getSheetHeight()
+      const snaps = getSnapPositions(sheetHeight, getFullSnapOffset())
+      const y = Math.max(snaps.full, Math.min(snaps.collapsed, sheetHeight - mobileSnapVisibleHeight))
+      setMobileSheetState(stateFromTranslate(y, sheetHeight, getFullSnapOffset()))
+      applyTransform(y, true)
+      return
+    }
+    if (!mobileSnapTo) return
+    snapTo(mobileSnapTo)
+  }, [applyTransform, getFullSnapOffset, getSheetHeight, mobileSnapKey, mobileSnapTo, mobileSnapVisibleHeight, snapTo])
 
   // ------ lifecycle --------------------------------------------------------
 
@@ -422,7 +444,16 @@ export function MapSectionLayout({
               mobileSheetState === 'full' ? 'touch-auto' : 'touch-none',
             )}
           >
-            {sidebar}
+            {mobileSidebar ? (
+              <>
+                <div className="h-full md:hidden">
+                  {mobileSidebar}
+                </div>
+                <div className="hidden h-full md:block">
+                  {sidebar}
+                </div>
+              </>
+            ) : sidebar}
           </div>
         </div>
       </div>

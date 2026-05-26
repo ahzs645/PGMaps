@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
-import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, X, UtensilsCrossed, Database, ChevronDown, MoreHorizontal, RadioTower, PawPrint, Footprints, Droplets, Waves } from 'lucide-react'
+import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, X, UtensilsCrossed, Database, ChevronDown, MoreHorizontal, RadioTower, PawPrint, Footprints, Droplets, Waves, Bus } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -32,10 +32,18 @@ const miscTabLinks = [
   { path: '/misc?tab=drought', label: 'Drought', icon: Droplets },
 ]
 
+const pgDataTabLinks = [
+  { path: '/pgdata', label: 'Crime', icon: ShieldAlert },
+  { path: '/pgdata?tab=parks', label: 'Parks & Trails', icon: Trees },
+  { path: '/pgdata?tab=transit', label: 'Transit', icon: Bus },
+]
+
 export function Navbar() {
   const location = useLocation()
+  const isHomePage = location.pathname === '/'
   const { resolvedTheme, setTheme } = useTheme()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobilePgDataOpen, setMobilePgDataOpen] = useState(() => location.pathname === '/pgdata')
   const [mobileMiscOpen, setMobileMiscOpen] = useState(false)
   const [mobileToolbarHidden, setMobileToolbarHidden] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -66,6 +74,12 @@ export function Navbar() {
     if (location.pathname !== '/misc') return false
     const params = new URLSearchParams(path.split('?')[1] ?? '')
     return (params.get('tab') ?? 'canue') === (locationParams.get('tab') ?? 'canue')
+  }
+
+  const isPgDataTabActive = (path: string) => {
+    if (location.pathname !== '/pgdata') return false
+    const params = new URLSearchParams(path.split('?')[1] ?? '')
+    return (params.get('tab') ?? 'crime') === (locationParams.get('tab') ?? 'crime')
   }
 
   // Close mobile menu on outside click
@@ -105,11 +119,52 @@ export function Navbar() {
     ? createPortal(
         <div
           ref={menuRef}
-          className="fixed left-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[1000] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur lg:hidden"
+          className={cn(
+            "fixed left-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[1000] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur lg:hidden",
+            isHomePage && 'left-8 top-[calc(env(safe-area-inset-top)+4.5rem)]',
+          )}
         >
           <nav className="flex flex-col p-1.5">
             {navLinks.map(({ path, label, icon: Icon }) => (
-              path === '/misc' ? (
+              path === '/pgdata' ? (
+                <div key={path}>
+                  <button
+                    type="button"
+                    onClick={() => setMobilePgDataOpen((open) => !open)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium transition-colors",
+                      isNavActive(path)
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                    aria-expanded={mobilePgDataOpen}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="min-w-0 flex-1">{label}</span>
+                    <ChevronDown className={cn('h-4 w-4 transition-transform', mobilePgDataOpen && 'rotate-180')} />
+                  </button>
+                  {mobilePgDataOpen && (
+                    <div className="mt-1 grid grid-cols-2 gap-1 border-l border-border/70 pl-4">
+                      {pgDataTabLinks.map(({ path: tabPath, label: tabLabel, icon: TabIcon }) => (
+                        <Link
+                          key={tabPath}
+                          to={tabPath}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={cn(
+                            "flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                            isPgDataTabActive(tabPath)
+                              ? "bg-accent text-accent-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                          )}
+                        >
+                          <TabIcon className="h-4 w-4 shrink-0" />
+                          <span className="min-w-0 truncate">{tabLabel}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : path === '/misc' ? (
                 <div key={path}>
                   <button
                     type="button"
@@ -175,7 +230,8 @@ export function Navbar() {
       <div
         className={cn(
           'pointer-events-none flex h-12 items-center justify-between gap-2 px-3 pt-1 md:pointer-events-auto md:h-full md:px-4 md:pt-0',
-          mobileToolbarHidden && 'hidden md:flex',
+          isHomePage && 'px-8 pt-4',
+          mobileToolbarHidden && !isHomePage && 'hidden md:flex',
         )}
         data-map-mobile-toolbar="true"
       >

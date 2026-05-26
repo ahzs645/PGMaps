@@ -151,7 +151,7 @@ export default function Home() {
 
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
-      <div className="container mx-auto px-4 py-8 sm:px-6 sm:py-12">
+      <div className="container mx-auto px-4 pb-8 pt-24 sm:px-6 sm:pb-12 sm:pt-28 md:py-12">
         {/* Hero Section */}
         <div className="mb-8 text-center sm:mb-12">
           <h1 className="mb-4 text-5xl font-bold tracking-tight sm:text-6xl">
