@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
-import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, X, UtensilsCrossed, Database, ChevronDown, MoreHorizontal } from 'lucide-react'
+import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, X, UtensilsCrossed, Database, ChevronDown, MoreHorizontal, RadioTower, PawPrint, Footprints, Droplets, Waves } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -20,10 +20,23 @@ const navLinks = [
   { path: '/misc', label: 'MISC', icon: Database },
 ]
 
+const miscTabLinks = [
+  { path: '/misc?tab=heatShade', label: 'Heat & Shade', icon: Trees },
+  { path: '/misc', label: 'CANUE', icon: Database },
+  { path: '/misc?tab=network', label: 'Network', icon: RadioTower },
+  { path: '/misc?tab=icbc', label: 'ICBC', icon: ShieldAlert },
+  { path: '/misc?tab=wars', label: 'WARS', icon: PawPrint },
+  { path: '/misc?tab=walkability', label: 'Walkability', icon: Footprints },
+  { path: '/misc?tab=water', label: 'Water', icon: Droplets },
+  { path: '/misc?tab=flood', label: 'Flood', icon: Waves },
+  { path: '/misc?tab=drought', label: 'Drought', icon: Droplets },
+]
+
 export function Navbar() {
   const location = useLocation()
   const { resolvedTheme, setTheme } = useTheme()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileMiscOpen, setMobileMiscOpen] = useState(false)
   const [mobileToolbarHidden, setMobileToolbarHidden] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -43,7 +56,16 @@ export function Navbar() {
     if (path === '/pgdata') {
       return location.pathname === '/pgdata' && locationParams.get('tab') !== 'parks'
     }
+    if (path === '/misc') {
+      return location.pathname === '/misc'
+    }
     return location.pathname === path
+  }
+
+  const isMiscTabActive = (path: string) => {
+    if (location.pathname !== '/misc') return false
+    const params = new URLSearchParams(path.split('?')[1] ?? '')
+    return (params.get('tab') ?? 'canue') === (locationParams.get('tab') ?? 'canue')
   }
 
   // Close mobile menu on outside click
@@ -65,6 +87,10 @@ export function Navbar() {
   }, [mobileMenuOpen])
 
   useEffect(() => {
+    if (location.pathname === '/misc') setMobileMiscOpen(true)
+  }, [location.pathname])
+
+  useEffect(() => {
     const handleToolbarVisibility = (event: Event) => {
       const hidden = event instanceof CustomEvent && event.detail?.hidden === true
       setMobileToolbarHidden(hidden)
@@ -83,20 +109,60 @@ export function Navbar() {
         >
           <nav className="flex flex-col p-1.5">
             {navLinks.map(({ path, label, icon: Icon }) => (
-              <Link
-                key={path}
-                to={path}
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
-                  isNavActive(path)
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {label}
-              </Link>
+              path === '/misc' ? (
+                <div key={path}>
+                  <button
+                    type="button"
+                    onClick={() => setMobileMiscOpen((open) => !open)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium transition-colors",
+                      isNavActive(path)
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                    aria-expanded={mobileMiscOpen}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="min-w-0 flex-1">{label}</span>
+                    <ChevronDown className={cn('h-4 w-4 transition-transform', mobileMiscOpen && 'rotate-180')} />
+                  </button>
+                  {mobileMiscOpen && (
+                    <div className="mt-1 grid grid-cols-2 gap-1 border-l border-border/70 pl-4">
+                      {miscTabLinks.map(({ path: tabPath, label: tabLabel, icon: TabIcon }) => (
+                        <Link
+                          key={tabPath}
+                          to={tabPath}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={cn(
+                            "flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                            isMiscTabActive(tabPath)
+                              ? "bg-accent text-accent-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                          )}
+                        >
+                          <TabIcon className="h-4 w-4 shrink-0" />
+                          <span className="min-w-0 truncate">{tabLabel}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  key={path}
+                  to={path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
+                    isNavActive(path)
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  {label}
+                </Link>
+              )
             ))}
           </nav>
         </div>,

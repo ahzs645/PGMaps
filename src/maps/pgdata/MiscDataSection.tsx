@@ -93,6 +93,8 @@ interface NetworkAvailabilityManifest {
   carrierFindings: NetworkAvailabilityCarrierFinding[]
 }
 
+type NetworkAvailabilityFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+
 type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
 
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
@@ -205,6 +207,9 @@ const MISC_LAYERS: Array<{ id: MiscLayerId; label: string; color: string }> = [
   { id: 'facilities', label: 'Cooling access proxy', color: '#0ea5e9' },
 ]
 
+const NRCAN_WIRELESS_GEOJSON_URL =
+  'https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/Wireless_Data_Network_Reseau_donnees_sans_fil/MapServer/0/query?where=1%3D1&outFields=OBJECTID%2CYear%2CSpeed&returnGeometry=true&outSR=4326&geometryPrecision=5&maxAllowableOffset=0.01&f=geojson'
+
 const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = [
   { id: 'heatShade', label: 'Heat & Shade', icon: Trees },
   { id: 'canue', label: 'CANUE', icon: Database },
@@ -216,6 +221,10 @@ const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = 
   { id: 'flood', label: 'Flood', icon: Waves },
   { id: 'drought', label: 'Drought', icon: Droplets },
 ]
+
+function parseMiscDataTab(tab: string | null): MiscDataTab {
+  return tab === 'heatShade' || tab === 'network' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'flood' || tab === 'drought' ? tab : 'canue'
+}
 
 const CANUE_SUPPORTED_SOURCES = new Set<string>(['bcHealth', 'regionalDistrict', 'census', 'cityPG', 'watershed', 'nrAdmin'])
 
@@ -317,6 +326,43 @@ function formatVectorStatus(status: string): string {
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function useNetworkAvailabilityLayer(enabled: boolean) {
+  const [data, setData] = useState<NetworkAvailabilityFeatureCollection | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!enabled) return
+    const controller = new AbortController()
+
+    async function load() {
+      try {
+        setError(null)
+        const response = await fetch(NRCAN_WIRELESS_GEOJSON_URL, { signal: controller.signal, cache: 'no-store' })
+        if (!response.ok) throw new Error(`Failed to fetch NRCan wireless layer: ${response.status}`)
+        const geojson = await response.json() as NetworkAvailabilityFeatureCollection
+        setData({
+          ...geojson,
+          features: geojson.features.map((feature, index) => ({
+            ...feature,
+            properties: {
+              ...(feature.properties ?? {}),
+              id: feature.properties?.OBJECTID ?? index,
+            },
+          })),
+        })
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return
+        setError((err as Error).message || 'Unable to load network availability geometry')
+      }
+    }
+
+    void load()
+    return () => controller.abort()
+  }, [enabled])
+
+  return { data, error }
 }
 
 function NetworkAvailabilitySidebar({ manifest }: { manifest: ReturnType<typeof useJsonManifest<NetworkAvailabilityManifest>> }) {
@@ -1815,10 +1861,7 @@ function CanueGraphDrawer({
 export default function MiscDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [showSidebar, setShowSidebar] = useState(true)
-  const [activeTab, setActiveTab] = useState<MiscDataTab>(() => {
-    const tab = searchParams.get('tab')
-    return tab === 'heatShade' || tab === 'network' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'flood' || tab === 'drought' ? tab : 'canue'
-  })
+  const [activeTab, setActiveTab] = useState<MiscDataTab>(() => parseMiscDataTab(searchParams.get('tab')))
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
   const [showMobileLegend, setShowMobileLegend] = useState(false)
   const [canueBoundaryLevel, setCanueBoundaryLevel] = useState<CanueBoundaryLevel>(() => parseCanueBoundaryLevel(searchParams.get('boundary')))
@@ -1860,6 +1903,7 @@ export default function MiscDataSection() {
   const { trees, forests, facilities, loading, error } = useHeatShadeData(activeTab === 'heatShade')
   const heatShadeManifest = useJsonManifest<HeatShadeManifest>(activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null)
   const networkAvailabilityManifest = useJsonManifest<NetworkAvailabilityManifest>(activeTab === 'network' ? '/data/network-availability/manifest.json' : null)
+  const networkAvailabilityLayer = useNetworkAvailabilityLayer(activeTab === 'network')
   const canueManifest = useJsonManifest<CanueManifest>(CANUE_V2_ENABLED ? null : '/data/canue/bc/annual-gzip/manifest.json')
   const canueV2Catalog = useJsonManifest<CanueV2Catalog>(CANUE_V2_ENABLED ? CANUE_V2_CATALOG_URL : null)
   const canueV2MetadataUrl = useMemo(
@@ -1890,6 +1934,11 @@ export default function MiscDataSection() {
   )
   const water = useWaterData(activeTab === 'water')
   const flood = useFloodData(activeTab === 'flood')
+
+  useEffect(() => {
+    const urlTab = parseMiscDataTab(searchParams.get('tab'))
+    if (urlTab !== activeTab) setActiveTab(urlTab)
+  }, [activeTab, searchParams])
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -2503,6 +2552,7 @@ export default function MiscDataSection() {
       {activeTab === 'heatShade' && <p>Heat/shade updated {formatDate(heatShadeManifest.data?.generatedAt)}.</p>}
       {activeTab === 'canue' && <p>CANUE raw extracts updated {formatDate(canueManifest.data?.generatedAt)}.</p>}
       {activeTab === 'network' && <p>Network availability inventory updated {formatDate(networkAvailabilityManifest.data?.generatedAt)}.</p>}
+      {activeTab === 'network' && networkAvailabilityLayer.error && <p>{networkAvailabilityLayer.error}</p>}
       {activeTab === 'icbc' && <IcbcSourceNotes icbc={icbc} />}
       {activeTab === 'wars' && <WarsSourceNotes wars={wars} />}
       {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
@@ -3116,7 +3166,7 @@ export default function MiscDataSection() {
             {activeTab === 'canue'
               ? `${selectedCanueDataset?.label || 'Dataset'} | ${canuePeriodLabel}`
               : activeTab === 'network'
-                ? `${networkAvailabilityManifest.data?.datasets.length ?? 0} sources | vector-first availability`
+                ? `${networkAvailabilityLayer.data?.features.length ?? 0} coverage features | ${networkAvailabilityManifest.data?.datasets.length ?? 0} sources`
               : activeTab === 'icbc'
                 ? `${icbc.selectedDataset?.title || 'Crash locations'} | ${icbc.crashFeatures.length.toLocaleString()} mapped`
                 : activeTab === 'wars'
@@ -3191,6 +3241,18 @@ export default function MiscDataSection() {
               selectionColor="#111827"
               selectionWidth={2.1}
               onFeatureClick={setSelectedCanueBoundaryId}
+            />
+          )}
+
+          {activeTab === 'network' && networkAvailabilityLayer.data && (
+            <MapFillLayer
+              data={networkAvailabilityLayer.data}
+              fillColor={['match', ['get', 'Speed'], '5G', '#0f766e', 'LTE', '#2563eb', '#64748b']}
+              fillOpacity={0.46}
+              lineColor="#083344"
+              lineWidth={0.5}
+              lineOpacity={0.38}
+              idProperty="id"
             />
           )}
 
