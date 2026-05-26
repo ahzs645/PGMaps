@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ElementType, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, RadioTower, Satellite, ShieldAlert, Trees, Waves, X } from 'lucide-react'
-import { Map as PgMap, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
-import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import { point } from '@turf/helpers'
+import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, RadioTower, Satellite, ShieldAlert, Trees, Waves, X, Zap } from 'lucide-react'
+import { Map as PgMap, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
+import { MapFillLayer, MapHeatmapLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector, type StudyAreaLevelOption, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
-import { BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
+import {
+  BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS,
+  getDefaultLevelForSource,
+  getLevelOptionsForSource,
+  isValidLevelForSource,
+  useStudyAreaRegions,
+  type BoundarySource,
+  type RegionLevel,
+} from '@/lib/studyArea'
 import { AppSelect } from '@/components/ui/select'
-import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel, ToggleChip } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
@@ -95,10 +105,50 @@ interface NetworkAvailabilityManifest {
 
 type NetworkAvailabilityFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
 
+interface EvChargingResource {
+  id: string
+  title: string
+  geometry: string
+  format: string
+  url: string
+  rawBytes: number
+  gzipBytes: number
+}
+
+interface EvChargingManifest {
+  generatedAt: string
+  title: string
+  description: string
+  source: string
+  coverage: string
+  license: string
+  apiDocumentationUrl: string
+  recommendedUse: string
+  counts: {
+    stations: number
+    stationFeatures: number
+    chargingUnits: number
+  }
+  resources: EvChargingResource[]
+}
+
+type EvChargingFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point>
+type EvChargingFeature = GeoJSON.Feature<GeoJSON.Point, {
+  id?: number
+  name?: string
+  city?: string
+  province?: string
+  network?: string
+  access?: string
+  connectors?: string
+  level2?: number | null
+  dcFast?: number | null
+}>
+
 type BoundaryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
 
 type MiscLayerId = 'trees' | 'forests' | 'facilities'
-type MiscDataTab = 'heatShade' | 'canue' | 'network' | 'icbc' | 'wars' | 'walkability' | 'water' | 'flood' | 'drought'
+type MiscDataTab = 'heatShade' | 'canue' | 'network' | 'ev' | 'icbc' | 'wars' | 'walkability' | 'water' | 'flood' | 'drought'
 type CanueYearMode = 'single' | 'month' | 'all' | 'range'
 type CanueV2Cadence = 'annual' | 'monthly'
 type CanueBoundarySource = 'bcHealth' | 'regionalDistrict' | 'census' | 'cityPG' | 'watershed' | 'nrAdmin'
@@ -214,6 +264,7 @@ const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = 
   { id: 'heatShade', label: 'Heat & Shade', icon: Trees },
   { id: 'canue', label: 'CANUE', icon: Database },
   { id: 'network', label: 'Network', icon: RadioTower },
+  { id: 'ev', label: 'EV Chargers', icon: Zap },
   { id: 'icbc', label: 'ICBC', icon: ShieldAlert },
   { id: 'wars', label: 'WARS', icon: PawPrint },
   { id: 'walkability', label: 'Walkability', icon: Footprints },
@@ -223,7 +274,7 @@ const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = 
 ]
 
 function parseMiscDataTab(tab: string | null): MiscDataTab {
-  return tab === 'heatShade' || tab === 'network' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'flood' || tab === 'drought' ? tab : 'canue'
+  return tab === 'heatShade' || tab === 'network' || tab === 'ev' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'flood' || tab === 'drought' ? tab : 'canue'
 }
 
 const CANUE_SUPPORTED_SOURCES = new Set<string>(['bcHealth', 'regionalDistrict', 'census', 'cityPG', 'watershed', 'nrAdmin'])
@@ -414,6 +465,122 @@ function NetworkAvailabilitySidebar({ manifest }: { manifest: ReturnType<typeof 
                 <div className="text-[11px] font-medium text-muted-foreground">{formatVectorStatus(finding.vectorStatus)}</div>
               </div>
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{finding.recommendedUse}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function EvChargingSidebar({
+  manifest,
+  stationCount,
+  showPoints,
+  showHeatmap,
+  onTogglePoints,
+  onToggleHeatmap,
+  boundariesVisible,
+  boundarySource,
+  selectedRegionLevel,
+  regionLevelOptions,
+  boundaryLoading,
+  boundaryError,
+  onBoundarySourceChange,
+  onClearBoundaries,
+  onRegionLevelChange,
+}: {
+  manifest: ReturnType<typeof useJsonManifest<EvChargingManifest>>
+  stationCount: number
+  showPoints: boolean
+  showHeatmap: boolean
+  onTogglePoints: () => void
+  onToggleHeatmap: () => void
+  boundariesVisible: boolean
+  boundarySource: BoundarySource
+  selectedRegionLevel: RegionLevel
+  regionLevelOptions: Array<{ value: RegionLevel; label: string }>
+  boundaryLoading: boolean
+  boundaryError: string | null
+  onBoundarySourceChange: (source: BoundarySource) => void
+  onClearBoundaries: () => void
+  onRegionLevelChange: (level: RegionLevel) => void
+}) {
+  const resources = manifest.data?.resources ?? []
+
+  return (
+    <div className="space-y-4 p-4">
+      {!manifest.data && !manifest.error && <div className="text-sm text-muted-foreground">Loading EV charging manifest...</div>}
+      {manifest.error && <div className="text-sm text-red-500">{manifest.error}</div>}
+      <section className="rounded border border-border bg-muted/30 p-3">
+        <div className="mb-3 flex flex-wrap gap-2">
+          <ToggleChip active={showPoints} onClick={onTogglePoints} tone="sky">
+            {showPoints ? 'Hide points' : 'Show points'}
+          </ToggleChip>
+          <ToggleChip active={showHeatmap} onClick={onToggleHeatmap} tone="orange">
+            Heatmap
+          </ToggleChip>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {stationCount.toLocaleString()} stations in current study area.
+        </div>
+      </section>
+      <StudyAreaSelector<BoundarySource, RegionLevel>
+        source={boundariesVisible ? boundarySource : undefined}
+        sourceOptions={ALL_BOUNDARY_SOURCE_OPTIONS}
+        level={selectedRegionLevel}
+        levelOptions={boundariesVisible ? regionLevelOptions : []}
+        onSourceChange={onBoundarySourceChange}
+        onSelectedSourceClick={onClearBoundaries}
+        onLevelChange={onRegionLevelChange}
+        levelSelectId="ev-charging-study-area-level"
+      />
+      {(boundaryLoading || boundaryError) && (
+        <section className="rounded border border-border bg-card p-3 text-xs">
+          {boundaryLoading && <p className="text-muted-foreground">Loading boundaries...</p>}
+          {boundaryError && <p className="text-red-600 dark:text-red-400">{boundaryError}</p>}
+        </section>
+      )}
+      {manifest.data?.recommendedUse && (
+        <section className="rounded border border-border bg-muted/30 p-3">
+          <h2 className="mb-1 text-sm font-semibold text-foreground">Recommended Use</h2>
+          <p className="text-xs leading-relaxed text-muted-foreground">{manifest.data.recommendedUse}</p>
+        </section>
+      )}
+      {manifest.data?.counts && (
+        <section className="grid grid-cols-3 gap-2">
+          <div className="rounded border border-border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Stations</div>
+            <div className="text-sm font-semibold text-foreground">{manifest.data.counts.stations.toLocaleString()}</div>
+          </div>
+          <div className="rounded border border-border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Map points</div>
+            <div className="text-sm font-semibold text-foreground">{manifest.data.counts.stationFeatures.toLocaleString()}</div>
+          </div>
+          <div className="rounded border border-border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Units</div>
+            <div className="text-sm font-semibold text-foreground">{manifest.data.counts.chargingUnits.toLocaleString()}</div>
+          </div>
+        </section>
+      )}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Exports</h2>
+        <div className="space-y-2">
+          {resources.map((resource) => (
+            <article key={resource.id} className="rounded border border-border bg-card p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-foreground">{resource.title}</div>
+                  <div className="text-xs text-muted-foreground">{resource.geometry} | {resource.format}</div>
+                </div>
+                <div className="shrink-0 text-right text-xs text-muted-foreground">
+                  <div>{formatFileSize(resource.rawBytes)} raw</div>
+                  <div>{formatFileSize(resource.gzipBytes)} gzip -9</div>
+                </div>
+              </div>
+              <a className="mt-2 inline-block text-[11px] font-medium text-primary hover:underline" href={resource.url} target="_blank" rel="noreferrer">
+                Open resource
+              </a>
             </article>
           ))}
         </div>
@@ -1870,6 +2037,20 @@ export default function MiscDataSection() {
   }, [searchParams, setSearchParams])
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
   const [showMobileLegend, setShowMobileLegend] = useState(false)
+  const [evShowPoints, setEvShowPoints] = useState(() => searchParams.get('evPoints') !== '0')
+  const [evShowHeatmap, setEvShowHeatmap] = useState(() => searchParams.get('evHeatmap') === '1')
+  const [evShowBoundaries, setEvShowBoundaries] = useState(() => (
+    searchParams.get('evBoundaries') === '1' ||
+    searchParams.has('evSrc') ||
+    searchParams.has('evLevel')
+  ))
+  const [evBoundarySource, setEvBoundarySource] = useState<BoundarySource>(() => (
+    (searchParams.get('evSrc') as BoundarySource | null) || 'bcHealth'
+  ))
+  const [evRegionLevel, setEvRegionLevel] = useState<RegionLevel>(() => (
+    (searchParams.get('evLevel') as RegionLevel | null) || 'healthAuthority'
+  ))
+  const [selectedEvStation, setSelectedEvStation] = useState<EvChargingFeature | null>(null)
   const [canueBoundaryLevel, setCanueBoundaryLevel] = useState<CanueBoundaryLevel>(() => parseCanueBoundaryLevel(searchParams.get('boundary')))
   const [canueBoundarySource, setCanueBoundarySource] = useState<CanueBoundarySource>(() => (
     CANUE_BOUNDARY_LEVEL_TO_SOURCE[parseCanueBoundaryLevel(searchParams.get('boundary'))]
@@ -1910,6 +2091,13 @@ export default function MiscDataSection() {
   const heatShadeManifest = useJsonManifest<HeatShadeManifest>(activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null)
   const networkAvailabilityManifest = useJsonManifest<NetworkAvailabilityManifest>(activeTab === 'network' ? '/data/network-availability/manifest.json' : null)
   const networkAvailabilityLayer = useNetworkAvailabilityLayer(activeTab === 'network')
+  const evChargingManifest = useJsonManifest<EvChargingManifest>(activeTab === 'ev' ? '/data/ev-charging/manifest.json' : null)
+  const evChargingStations = useJsonManifest<EvChargingFeatureCollection>(activeTab === 'ev' ? '/data/ev-charging/stations.geojson' : null)
+  const {
+    regions: evStudyAreaRegions,
+    loading: evBoundaryLoading,
+    error: evBoundaryError,
+  } = useStudyAreaRegions(evBoundarySource, evRegionLevel)
   const canueManifest = useJsonManifest<CanueManifest>(CANUE_V2_ENABLED ? null : '/data/canue/bc/annual-gzip/manifest.json')
   const canueV2Catalog = useJsonManifest<CanueV2Catalog>(CANUE_V2_ENABLED ? CANUE_V2_CATALOG_URL : null)
   const canueV2MetadataUrl = useMemo(
@@ -2001,13 +2189,26 @@ export default function MiscDataSection() {
     } else {
       params.delete('walkabilityHeatmap')
     }
+    if (activeTab === 'ev' && !evShowPoints) params.set('evPoints', '0')
+    else params.delete('evPoints')
+    if (activeTab === 'ev' && evShowHeatmap) params.set('evHeatmap', '1')
+    else params.delete('evHeatmap')
+    if (activeTab === 'ev' && evShowBoundaries) {
+      params.set('evBoundaries', '1')
+      params.set('evSrc', evBoundarySource)
+      params.set('evLevel', evRegionLevel)
+    } else {
+      params.delete('evBoundaries')
+      params.delete('evSrc')
+      params.delete('evLevel')
+    }
     if (activeTab !== 'drought') {
       params.delete('droughtYear')
     }
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueV2Cadence, selectedCanueV2Family, selectedCanueV2Measure, selectedCanueV2Month, selectedCanueV2Property, selectedCanueV2Year, selectedCanueYear, icbc.showHeatmap, icbc.showPoints, icbc.selectedDatasetId, wars.showHeatmap, wars.showPoints, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, setSearchParams])
+  }, [activeTab, canueBoundaryLevel, canueYearMode, searchParams, selectedCanueDatasetId, selectedCanueMonth, selectedCanueV2Cadence, selectedCanueV2Family, selectedCanueV2Measure, selectedCanueV2Month, selectedCanueV2Property, selectedCanueV2Year, selectedCanueYear, icbc.showHeatmap, icbc.showPoints, icbc.selectedDatasetId, wars.showHeatmap, wars.showPoints, wars.selectedSpecies, walkability.displayMode, walkability.selectedHeatmapVariantId, walkability.selectedVariantId, evBoundarySource, evRegionLevel, evShowBoundaries, evShowHeatmap, evShowPoints, setSearchParams])
 
   const forestGeojson = useMemo<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
@@ -2025,6 +2226,88 @@ export default function MiscDataSection() {
 
   const visibleTrees = useMemo(() => trees.slice(0, 900), [trees])
   const visibleFacilities = useMemo(() => facilities.slice(0, 350), [facilities])
+  const evRegionLevelOptions = useMemo(() => (
+    getLevelOptionsForSource(evBoundarySource).map((option) => ({
+      value: option.value as RegionLevel,
+      label: option.label,
+    }))
+  ), [evBoundarySource])
+  const activeEvStudyAreaRegions = useMemo(
+    () => (evShowBoundaries ? evStudyAreaRegions : []),
+    [evShowBoundaries, evStudyAreaRegions],
+  )
+  const evStudyAreaFeatureCollection = useMemo<BoundaryFeatureCollection | null>(() => {
+    if (activeEvStudyAreaRegions.length === 0) return null
+    return {
+      type: 'FeatureCollection',
+      features: activeEvStudyAreaRegions.map((region) => ({
+        ...region.feature,
+        properties: {
+          ...(region.feature.properties ?? {}),
+          id: region.code,
+          code: region.code,
+          name: region.name,
+        },
+      })),
+    }
+  }, [activeEvStudyAreaRegions])
+  const evStudyAreaBounds = useMemo<[number, number, number, number] | null>(() => {
+    if (activeEvStudyAreaRegions.length === 0) return null
+    return activeEvStudyAreaRegions.reduce<[number, number, number, number]>(
+      (bounds, region) => [
+        Math.min(bounds[0], region.bounds[0]),
+        Math.min(bounds[1], region.bounds[1]),
+        Math.max(bounds[2], region.bounds[2]),
+        Math.max(bounds[3], region.bounds[3]),
+      ],
+      [Infinity, Infinity, -Infinity, -Infinity],
+    )
+  }, [activeEvStudyAreaRegions])
+  const filteredEvStations = useMemo<EvChargingFeatureCollection>(() => {
+    const features = (evChargingStations.data?.features ?? []) as EvChargingFeature[]
+    if (activeEvStudyAreaRegions.length === 0 || !evStudyAreaBounds) {
+      return { type: 'FeatureCollection', features }
+    }
+
+    const filtered = features.filter((feature) => {
+      const [longitude, latitude] = feature.geometry.coordinates
+      if (
+        longitude < evStudyAreaBounds[0] ||
+        longitude > evStudyAreaBounds[2] ||
+        latitude < evStudyAreaBounds[1] ||
+        latitude > evStudyAreaBounds[3]
+      ) {
+        return false
+      }
+
+      const stationPoint = point([longitude, latitude])
+      return activeEvStudyAreaRegions.some((region) => (
+        longitude >= region.bounds[0] &&
+        longitude <= region.bounds[2] &&
+        latitude >= region.bounds[1] &&
+        latitude <= region.bounds[3] &&
+        booleanPointInPolygon(stationPoint, region.feature)
+      ))
+    })
+
+    return { type: 'FeatureCollection', features: filtered }
+  }, [activeEvStudyAreaRegions, evChargingStations.data?.features, evStudyAreaBounds])
+  const handleEvBoundarySourceChange = useCallback((source: BoundarySource) => {
+    setEvShowBoundaries(true)
+    setEvBoundarySource(source)
+    setEvRegionLevel((current) => (
+      isValidLevelForSource(source, current) ? current : getDefaultLevelForSource(source)
+    ))
+  }, [])
+
+  const handleEvBoundaryLevelChange = useCallback((level: RegionLevel) => {
+    setEvShowBoundaries(true)
+    setEvRegionLevel(level)
+  }, [])
+
+  const handleEvClearBoundaries = useCallback(() => {
+    setEvShowBoundaries(false)
+  }, [])
 
   const canueFiles = canueManifest.data?.files ?? []
   const canueDatasetGroups = useMemo<CanueDatasetGroup[]>(() => {
@@ -2458,8 +2741,11 @@ export default function MiscDataSection() {
     : canueBoundarySource === 'cityPG'
       ? 10.2
       : 9.4
-  const mapCenter = activeTab === 'canue' ? canueMapCenter : activeTab === 'water' || activeTab === 'network' ? BC_CENTER : PG_CENTER
-  const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'water' || activeTab === 'network' ? 4.4 : activeTab === 'icbc' || activeTab === 'wars' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
+  const evMapCenter: [number, number] = evStudyAreaBounds
+    ? [(evStudyAreaBounds[0] + evStudyAreaBounds[2]) / 2, (evStudyAreaBounds[1] + evStudyAreaBounds[3]) / 2]
+    : BC_CENTER
+  const mapCenter = activeTab === 'canue' ? canueMapCenter : activeTab === 'ev' ? evMapCenter : activeTab === 'water' || activeTab === 'network' ? BC_CENTER : PG_CENTER
+  const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'ev' && evStudyAreaBounds ? 6.2 : activeTab === 'water' || activeTab === 'network' || activeTab === 'ev' ? 4.4 : activeTab === 'icbc' || activeTab === 'wars' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
   const mapKey = activeTab === 'canue' ? `${activeTab}-${canueBoundarySource}` : activeTab === 'water' ? `${activeTab}-${water.boundarySource}` : activeTab
 
   useEffect(() => {
@@ -2554,6 +2840,8 @@ export default function MiscDataSection() {
       {activeTab === 'canue' && <p>CANUE raw extracts updated {formatDate(canueManifest.data?.generatedAt)}.</p>}
       {activeTab === 'network' && <p>Network availability inventory updated {formatDate(networkAvailabilityManifest.data?.generatedAt)}.</p>}
       {activeTab === 'network' && networkAvailabilityLayer.error && <p>{networkAvailabilityLayer.error}</p>}
+      {activeTab === 'ev' && <p>EV charging inventory updated {formatDate(evChargingManifest.data?.generatedAt)}.</p>}
+      {activeTab === 'ev' && evChargingStations.error && <p>{evChargingStations.error}</p>}
       {activeTab === 'icbc' && <IcbcSourceNotes icbc={icbc} />}
       {activeTab === 'wars' && <WarsSourceNotes wars={wars} />}
       {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
@@ -2581,6 +2869,8 @@ export default function MiscDataSection() {
               ? DATASETS.heatShade
             : activeTab === 'network'
               ? DATASETS.networkAvailability
+            : activeTab === 'ev'
+              ? DATASETS.evCharging
             : activeTab === 'icbc'
               ? DATASETS.icbc
               : activeTab === 'wars'
@@ -2596,6 +2886,8 @@ export default function MiscDataSection() {
             ? heatShadeManifest.data?.generatedAt
             : activeTab === 'network'
               ? networkAvailabilityManifest.data?.generatedAt
+            : activeTab === 'ev'
+              ? evChargingManifest.data?.generatedAt
             : activeTab === 'icbc'
               ? icbc.manifest.data?.generatedAt
               : activeTab === 'wars'
@@ -3103,6 +3395,26 @@ export default function MiscDataSection() {
 
         {activeTab === 'network' && <NetworkAvailabilitySidebar manifest={networkAvailabilityManifest} />}
 
+        {activeTab === 'ev' && (
+          <EvChargingSidebar
+            manifest={evChargingManifest}
+            stationCount={filteredEvStations.features.length}
+            showPoints={evShowPoints}
+            showHeatmap={evShowHeatmap}
+            onTogglePoints={() => setEvShowPoints((current) => !current)}
+            onToggleHeatmap={() => setEvShowHeatmap((current) => !current)}
+            boundariesVisible={evShowBoundaries}
+            boundarySource={evBoundarySource}
+            selectedRegionLevel={evRegionLevel}
+            regionLevelOptions={evRegionLevelOptions}
+            boundaryLoading={evShowBoundaries && evBoundaryLoading}
+            boundaryError={evShowBoundaries ? evBoundaryError : null}
+            onBoundarySourceChange={handleEvBoundarySourceChange}
+            onClearBoundaries={handleEvClearBoundaries}
+            onRegionLevelChange={handleEvBoundaryLevelChange}
+          />
+        )}
+
         {activeTab === 'icbc' && <IcbcSidebar icbc={icbc} />}
 
         {activeTab === 'wars' && <WarsSidebar wars={wars} />}
@@ -3161,13 +3473,15 @@ export default function MiscDataSection() {
       mobilePeek={(
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">
-            MISC Data | {activeTab === 'canue' ? 'CANUE' : activeTab === 'network' ? 'Network' : activeTab === 'icbc' ? 'ICBC' : activeTab === 'wars' ? 'WARS' : activeTab === 'walkability' ? 'Walkability' : activeTab === 'water' ? 'Water' : activeTab === 'flood' ? 'Flood' : 'Heat/shade'}
+            MISC Data | {activeTab === 'canue' ? 'CANUE' : activeTab === 'network' ? 'Network' : activeTab === 'ev' ? 'EV Chargers' : activeTab === 'icbc' ? 'ICBC' : activeTab === 'wars' ? 'WARS' : activeTab === 'walkability' ? 'Walkability' : activeTab === 'water' ? 'Water' : activeTab === 'flood' ? 'Flood' : 'Heat/shade'}
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
             {activeTab === 'canue'
               ? `${selectedCanueDataset?.label || 'Dataset'} | ${canuePeriodLabel}`
               : activeTab === 'network'
                 ? `${networkAvailabilityLayer.data?.features.length ?? 0} coverage features | ${networkAvailabilityManifest.data?.datasets.length ?? 0} sources`
+              : activeTab === 'ev'
+                ? `${filteredEvStations.features.length.toLocaleString()} stations | ${evShowPoints ? 'points' : 'points off'}${evShowHeatmap ? ' + heatmap' : ''}`
               : activeTab === 'icbc'
                 ? `${icbc.selectedDataset?.title || 'Crash locations'} | ${icbc.crashFeatures.length.toLocaleString()} mapped`
                 : activeTab === 'wars'
@@ -3255,6 +3569,79 @@ export default function MiscDataSection() {
               lineOpacity={0.38}
               idProperty="id"
             />
+          )}
+
+          {activeTab === 'ev' && evStudyAreaFeatureCollection && (
+            <MapFillLayer
+              data={evStudyAreaFeatureCollection}
+              fillColor="#0ea5e9"
+              fillOpacity={0.08}
+              lineColor="#0284c7"
+              lineWidth={1}
+              lineOpacity={0.7}
+              idProperty="code"
+            />
+          )}
+
+          {activeTab === 'ev' && evShowHeatmap && filteredEvStations.features.length > 0 && (
+            <MapHeatmapLayer
+              data={filteredEvStations}
+              intensityStops={[
+                [0, 0.7],
+                [5, 1.1],
+                [10, 1.5],
+              ]}
+              radiusStops={[
+                [0, 6],
+                [5, 18],
+                [10, 30],
+              ]}
+              opacity={0.78}
+              colorRamp={[
+                [0, 'rgba(14, 165, 233, 0)'],
+                [0.2, '#67e8f9'],
+                [0.5, '#22c55e'],
+                [0.8, '#fde047'],
+                [1, '#f97316'],
+              ]}
+            />
+          )}
+
+          {activeTab === 'ev' && evShowPoints && filteredEvStations.features.length > 0 && (
+            <MapClusterLayer
+              data={filteredEvStations}
+              clusterColors={['#0ea5e9', '#22c55e', '#f97316']}
+              clusterThresholds={[25, 125]}
+              pointColor="#0ea5e9"
+              onPointClick={(feature) => setSelectedEvStation(feature as EvChargingFeature)}
+            />
+          )}
+
+          {activeTab === 'ev' && selectedEvStation && (
+            <MapPopup
+              longitude={selectedEvStation.geometry.coordinates[0]}
+              latitude={selectedEvStation.geometry.coordinates[1]}
+              onClose={() => setSelectedEvStation(null)}
+            >
+              <div className="min-w-48 text-xs">
+                <div className="pr-5 text-sm font-semibold text-foreground">
+                  {selectedEvStation.properties?.name || 'EV charging station'}
+                </div>
+                <div className="text-muted-foreground">
+                  {[selectedEvStation.properties?.city, selectedEvStation.properties?.province].filter(Boolean).join(', ')}
+                </div>
+                <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                  <span className="text-muted-foreground">Network</span>
+                  <span className="font-medium text-foreground">{selectedEvStation.properties?.network || 'Unknown'}</span>
+                  <span className="text-muted-foreground">Connectors</span>
+                  <span className="font-medium text-foreground">{selectedEvStation.properties?.connectors || 'Unknown'}</span>
+                  <span className="text-muted-foreground">Level 2</span>
+                  <span className="font-medium text-foreground">{selectedEvStation.properties?.level2 ?? 0}</span>
+                  <span className="text-muted-foreground">DC fast</span>
+                  <span className="font-medium text-foreground">{selectedEvStation.properties?.dcFast ?? 0}</span>
+                </div>
+              </div>
+            </MapPopup>
           )}
 
           {activeTab === 'walkability' && <WalkabilityLayer walkability={walkability} />}
@@ -3360,7 +3747,7 @@ export default function MiscDataSection() {
         )}
 
         <MapLegendPanel
-          title={activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'network' ? 'Network Sources' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : activeTab === 'flood' ? 'Flood Layer' : 'MISC Layers'}
+          title={activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'network' ? 'Network Sources' : activeTab === 'ev' ? 'EV Chargers' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : activeTab === 'flood' ? 'Flood Layer' : 'MISC Layers'}
           icon={<Layers className="h-3.5 w-3.5" />}
           collapsible
           collapsed={!showMobileLegend}
@@ -3409,6 +3796,12 @@ export default function MiscDataSection() {
                 <LegendItem color="#0f766e" label="CRTC/NRCan vector coverage" active swatchShape="square" />
                 <LegendItem color="#64748b" label="ISED site points" active />
                 <LegendItem color="#f97316" label="Carrier raster-only caveat" active swatchShape="square" />
+              </div>
+            )}
+            {activeTab === 'ev' && (
+              <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
+                <LegendItem color="#22c55e" label="EV charging station density" active />
+                <LegendItem color="#0ea5e9" label="Station and port CSV exports" active swatchShape="square" />
               </div>
             )}
             {activeTab === 'icbc' && <IcbcLegend icbc={icbc} />}

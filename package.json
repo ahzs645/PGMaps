@@ -24,6 +24,7 @@
     "mineral-tenures:sync": "npm --prefix vendor/bcdatamapper run mineral-tenures:sync --",
     "wars:sync": "npm --prefix vendor/bcdatamapper run wars:sync --",
     "cell-coverage:sync": "npm --prefix vendor/bcdatamapper run cell-coverage:sync --",
+    "ev-charging:sync": "npm --prefix vendor/bcdatamapper run ev-charging:sync --",
     "network-availability:sync": "npm --prefix vendor/bcdatamapper run network-availability:sync --",
     "cimd:sync": "npm --prefix vendor/bcdatamapper run cimd:sync --",
     "census:sync": "npm --prefix vendor/bcdatamapper run census:sync --",

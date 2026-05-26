@@ -1,0 +1,44 @@
+{
+  "generatedAt": "2026-05-26T18:46:08.370Z",
+  "title": "Canada EV charging stations",
+  "description": "Station-level and charging-unit exports for open public electric vehicle charging locations in Canada, plus a compact GeoJSON point layer for PGMaps.",
+  "source": "NLR / Alternative Fuel Stations API",
+  "coverage": "Canada",
+  "license": "NLR Alternative Fuel Stations API terms",
+  "apiDocumentationUrl": "https://developer.nlr.gov/docs/transportation/alt-fuel-stations-v1/",
+  "recommendedUse": "Use the compact GeoJSON for map display. Use the station-level CSV for site attributes and the charging-unit CSV when one row per EV charging unit/port is needed.",
+  "counts": {
+    "stations": 15462,
+    "stationFeatures": 15462,
+    "chargingUnits": 42578
+  },
+  "resources": [
+    {
+      "id": "stations-csv",
+      "title": "Station-level Canada EV CSV",
+      "geometry": "point",
+      "format": "CSV",
+      "url": "https://developer.nlr.gov/api/alt-fuel-stations/v1.csv?api_key=DEMO_KEY&fuel_type=ELEC&country=CA&status=E",
+      "rawBytes": 5442701,
+      "gzipBytes": 899831
+    },
+    {
+      "id": "charging-units-csv",
+      "title": "Charging-unit Canada EV CSV",
+      "geometry": "point",
+      "format": "CSV",
+      "url": "https://developer.nlr.gov/api/alt-fuel-stations/v1/ev-charging-units.csv?api_key=DEMO_KEY&country=CA&status=E",
+      "rawBytes": 16648969,
+      "gzipBytes": 1110861
+    },
+    {
+      "id": "stations-geojson",
+      "title": "Compact station point GeoJSON",
+      "geometry": "point",
+      "format": "GeoJSON",
+      "url": "/data/ev-charging/stations.geojson",
+      "rawBytes": 5050164,
+      "gzipBytes": 576022
+    }
+  ]
+}

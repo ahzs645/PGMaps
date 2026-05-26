@@ -175,6 +175,17 @@ export const DATASETS = {
     downloadUrl: '/data/network-availability/manifest.json',
     fields: ['dataset', 'geometry', 'format', 'contentLength', 'lastModified', 'carrierVectorStatus'],
   },
+  evCharging: {
+    title: 'Canada EV charging stations',
+    description: 'Official station-level and charging-unit exports for Canadian public EV charging locations, with a compact point layer for map display.',
+    source: 'NLR / Alternative Fuel Stations API',
+    coverage: 'Canada',
+    license: 'NLR Alternative Fuel Stations API terms',
+    formats: ['CSV', 'CSV.GZ estimate', 'GeoJSON', 'JSON manifest'],
+    downloadUrl: '/data/ev-charging/manifest.json',
+    apiUrl: 'https://developer.nlr.gov/docs/transportation/alt-fuel-stations-v1/',
+    fields: ['id', 'station_name', 'ev_network', 'ev_connector_types', 'latitude', 'longitude', 'rawBytes', 'gzipBytes'],
+  },
   explorer: {
     title: 'Explorer catalogue',
     description: 'Unified searchable layer catalogue combining point, line, and polygon datasets across PGMaps.',
