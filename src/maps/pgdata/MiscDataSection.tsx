@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ElementType, ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, RadioTower, Satellite, ShieldAlert, Trees, Waves, X } from 'lucide-react'
@@ -1860,6 +1860,8 @@ function CanueGraphDrawer({
 
 export default function MiscDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const searchString = searchParams.toString()
+  const previousSearchStringRef = useRef(searchString)
   const [showSidebar, setShowSidebar] = useState(true)
   const [activeTab, setActiveTab] = useState<MiscDataTab>(() => parseMiscDataTab(searchParams.get('tab')))
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
@@ -1936,9 +1938,11 @@ export default function MiscDataSection() {
   const flood = useFloodData(activeTab === 'flood')
 
   useEffect(() => {
+    if (previousSearchStringRef.current === searchString) return
+    previousSearchStringRef.current = searchString
     const urlTab = parseMiscDataTab(searchParams.get('tab'))
     if (urlTab !== activeTab) setActiveTab(urlTab)
-  }, [activeTab, searchParams])
+  }, [activeTab, searchParams, searchString])
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
