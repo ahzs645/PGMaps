@@ -15,6 +15,7 @@ interface RestaurantMapProps {
   restaurants: RestaurantWithStats[]
   selectedRestaurant: RestaurantWithStats | null
   visualizationMode: VisualizationMode
+  loading?: boolean
   onRestaurantClick: (restaurant: RestaurantWithStats) => void
   onViewInspections: (restaurant: RestaurantWithStats) => void
 }
@@ -69,6 +70,7 @@ export function RestaurantMap({
   restaurants,
   selectedRestaurant,
   visualizationMode,
+  loading = false,
   onRestaurantClick,
   onViewInspections
 }: RestaurantMapProps) {
@@ -91,7 +93,7 @@ export function RestaurantMap({
   }, [selectedRestaurant, map])
 
   return (
-    <SharedMap>
+    <SharedMap loading={loading} loadingLabel="Loading food safety data">
       {geocodedRestaurants.map(restaurant => (
         <RestaurantMarker
           key={restaurant.details_url}

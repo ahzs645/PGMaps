@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { PersistentMapProvider, type MapStylePair } from '@/components/ui/persistent-map'
 
 interface SharedMapLayoutProps {
@@ -22,8 +22,15 @@ interface SharedMapLayoutProps {
  * its overlays via the standard useMap() helpers.
  */
 export function SharedMapLayout({ defaultStyles, center, zoom }: SharedMapLayoutProps) {
+  const location = useLocation()
+
   return (
-    <PersistentMapProvider defaultStyles={defaultStyles} center={center} zoom={zoom}>
+    <PersistentMapProvider
+      defaultStyles={defaultStyles}
+      center={center}
+      zoom={zoom}
+      routeLoadingKey={`${location.pathname}${location.search}`}
+    >
       <Outlet />
     </PersistentMapProvider>
   )

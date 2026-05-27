@@ -36,6 +36,7 @@ interface AirQualityMapProps {
   showPoints: boolean
   basemap: AirQualityBasemap
   correctionModel: AirQualityCorrectionModel
+  loading?: boolean
   onBoundsChange?: (bounds: AirQualityMapBounds) => void
   onMonitorClick: (monitor: AirMonitor) => void
   onBrowseBoundaryClick?: (feature: { code: string; name: string }) => void
@@ -351,6 +352,7 @@ export function AirQualityMap({
   showPoints,
   basemap,
   correctionModel,
+  loading = false,
   onBoundsChange,
   onMonitorClick,
   onBrowseBoundaryClick,
@@ -467,7 +469,7 @@ export function AirQualityMap({
   }, [map, onBoundsChange])
 
   return (
-    <SharedMap styles={mapStyles}>
+    <SharedMap styles={mapStyles} loading={loading} loadingLabel="Loading air quality data">
       <BoundaryBrowseLayer
           features={browseBoundaryFeatures}
           visible={browseBoundariesVisible}

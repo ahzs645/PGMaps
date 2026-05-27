@@ -359,6 +359,7 @@ export default function FoodMap() {
           restaurants={geocodedRestaurants}
           selectedRestaurant={selectedRestaurant}
           visualizationMode={visualizationMode}
+          loading={loading}
           onRestaurantClick={handleMapRestaurantClick}
           onViewInspections={handleMapViewInspections}
         />

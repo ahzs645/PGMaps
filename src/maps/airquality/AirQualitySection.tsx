@@ -865,6 +865,7 @@ export default function AirQualitySection() {
           showPoints={showPoints}
           basemap={basemap}
           correctionModel={correctionModel}
+          loading={loading || (showBoundaries && boundaryLoading)}
           onBoundsChange={handleBoundsChange}
           onMonitorClick={setSelectedMonitor}
           onBrowseBoundaryClick={handleBrowseBoundaryClick}

@@ -19,6 +19,7 @@ interface ParksMapProps {
   activeLayers: ActiveLayer[]
   selectedPark: Park | null
   selectedTrail: Trail | null
+  loading?: boolean
   onParkClick: (park: Park) => void
   onTrailClick: (trail: Trail) => void
 }
@@ -31,6 +32,7 @@ export function ParksMap({
   activeLayers,
   selectedPark,
   selectedTrail,
+  loading = false,
   onParkClick,
   onTrailClick,
 }: ParksMapProps) {
@@ -120,7 +122,7 @@ export function ParksMap({
 
   return (
     <div className="h-full w-full">
-      <SharedMap styles={MAP_STYLES}>
+      <SharedMap styles={MAP_STYLES} loading={loading} loadingLabel="Loading parks and trails data">
         <MapFillLayer
           data={parkGeojson}
           fillColor={['get', 'color']}

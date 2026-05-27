@@ -120,7 +120,7 @@ export function MobileFeatureInspector({
       data-sheet-detent={collapsed ? 'collapsed' : 'default'}
       className={cn(
         'pointer-events-none fixed inset-0 md:hidden',
-        collapsed && controlsInFront ? 'z-20' : 'z-50',
+        controlsInFront ? 'z-20' : 'z-50',
       )}
     >
       <div
@@ -182,9 +182,10 @@ function FeatureCard({
       ref={cardRef}
       className={cn(
         'col-start-1 row-start-1 flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[height,transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-        collapsed && controlsInFront && 'pointer-events-none h-10 self-start -translate-y-2.5 shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
-        collapsed && !controlsInFront && 'pointer-events-auto h-[106px] self-end translate-y-0',
-        !collapsed && 'pointer-events-auto h-full self-end translate-y-2',
+        collapsed && controlsInFront && 'pointer-events-none h-[92px] self-end -translate-y-1.5 shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
+        collapsed && !controlsInFront && 'pointer-events-auto h-[92px] self-end translate-y-0',
+        !collapsed && controlsInFront && 'pointer-events-none h-full self-end -translate-y-1.5',
+        !collapsed && !controlsInFront && 'pointer-events-auto h-full self-end translate-y-2',
       )}
     >
       <SheetHandle />

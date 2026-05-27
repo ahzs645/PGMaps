@@ -14,6 +14,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from "./map-styles";
@@ -26,6 +27,7 @@ type PersistentMapContextValue = {
   map: MapLibreGL.Map | null;
   isLoaded: boolean;
   container: HTMLDivElement | null;
+  routeLoadingKey?: string;
   /** Swap the active basemap. Applied via setStyle (no map teardown). */
   setStyles: (styles: MapStylePair) => void;
 };
@@ -46,6 +48,7 @@ type PersistentMapProviderProps = {
   defaultStyles?: MapStylePair;
   center?: [number, number];
   zoom?: number;
+  routeLoadingKey?: string;
 };
 
 /**
@@ -59,6 +62,7 @@ export function PersistentMapProvider({
   defaultStyles = MAP_STYLES,
   center = PG_CENTER,
   zoom = PG_DEFAULT_ZOOM,
+  routeLoadingKey,
 }: PersistentMapProviderProps) {
   const { resolvedTheme } = useTheme();
   const theme = resolvedTheme === "dark" ? "dark" : "light";
@@ -146,8 +150,8 @@ export function PersistentMapProvider({
   const mapContextValue = useMemo(() => ({ map, isLoaded: ready }), [map, ready]);
 
   const persistentValue = useMemo(
-    () => ({ map, isLoaded: ready, container: containerRef.current, setStyles }),
-    [map, ready, setStyles]
+    () => ({ map, isLoaded: ready, container: containerRef.current, routeLoadingKey, setStyles }),
+    [map, ready, routeLoadingKey, setStyles]
   );
 
   return (
@@ -157,19 +161,31 @@ export function PersistentMapProvider({
   );
 }
 
-const PersistentMapLoader = () => (
-  <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-xs">
-    <div className="flex gap-1">
-      <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-pulse" />
-      <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:150ms]" />
-      <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:300ms]" />
+const PersistentMapLoader = ({ label = "Loading map data" }: { label?: string }) => (
+  <div
+    className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-background/45 backdrop-blur-[2px]"
+    role="status"
+    aria-live="polite"
+    aria-label={label}
+  >
+    <div className="relative flex h-28 w-28 items-center justify-center">
+      <span className="absolute h-24 w-24 rounded-full border border-sky-500/20" />
+      <span className="absolute h-20 w-20 animate-ping rounded-full border border-sky-500/25" />
+      <span className="absolute h-16 w-16 rounded-full border-2 border-sky-500/45 border-t-transparent animate-spin" />
+      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-background/95 shadow-lg">
+        <Loader2 className="h-5 w-5 animate-spin text-sky-600 dark:text-sky-400" aria-hidden="true" />
+      </div>
     </div>
+    <span className="absolute translate-y-20 rounded-md border border-border bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
+      {label}
+    </span>
   </div>
 );
 
 type PersistentMapHostProps = {
   className?: string;
   loading?: boolean;
+  loadingLabel?: string;
 };
 
 /**
@@ -178,9 +194,12 @@ type PersistentMapHostProps = {
  * on unmount it releases the container (the next host re-claims it), so the
  * MapLibre instance survives the route change.
  */
-export function PersistentMapHost({ className, loading = false }: PersistentMapHostProps) {
-  const { container, map, isLoaded } = usePersistentMap();
+export function PersistentMapHost({ className, loading = false, loadingLabel }: PersistentMapHostProps) {
+  const { container, map, isLoaded, routeLoadingKey } = usePersistentMap();
   const hostRef = useRef<HTMLDivElement>(null);
+  const previousRouteLoadingKeyRef = useRef(routeLoadingKey);
+  const routeLoadingStartedAtRef = useRef(0);
+  const [routeLoading, setRouteLoading] = useState(false);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -202,10 +221,30 @@ export function PersistentMapHost({ className, loading = false }: PersistentMapH
     };
   }, [container, map]);
 
+  useEffect(() => {
+    if (previousRouteLoadingKeyRef.current === routeLoadingKey) return;
+    previousRouteLoadingKeyRef.current = routeLoadingKey;
+    routeLoadingStartedAtRef.current = Date.now();
+    setRouteLoading(true);
+  }, [routeLoadingKey]);
+
+  useEffect(() => {
+    if (!routeLoading || !isLoaded || loading) return;
+
+    const elapsed = Date.now() - routeLoadingStartedAtRef.current;
+    const remaining = Math.max(0, 250 - elapsed);
+    const timeout = window.setTimeout(() => setRouteLoading(false), remaining);
+    return () => window.clearTimeout(timeout);
+  }, [isLoaded, loading, routeLoading]);
+
   return (
     <div className={cn("relative h-full w-full", className)}>
       <div ref={hostRef} className="absolute inset-0" />
-      {(!isLoaded || loading) && <PersistentMapLoader />}
+      {routeLoading ? (
+        <PersistentMapLoader label="Switching map" />
+      ) : (!isLoaded || loading) ? (
+        <PersistentMapLoader label={loadingLabel} />
+      ) : null}
     </div>
   );
 }
@@ -230,6 +269,7 @@ type SharedMapProps = {
   styles?: MapStylePair;
   className?: string;
   loading?: boolean;
+  loadingLabel?: string;
   /**
    * Map controls to render. Defaults to zoom + compass at top-right. Pass
    * `null` to render none, or your own element to customize.
@@ -249,13 +289,14 @@ export function SharedMap({
   styles,
   className,
   loading,
+  loadingLabel,
   controls,
 }: SharedMapProps) {
   useMapBasemap(styles ?? MAP_STYLES);
 
   return (
     <div className={cn("relative h-full w-full", className)}>
-      <PersistentMapHost loading={loading} />
+      <PersistentMapHost loading={loading} loadingLabel={loadingLabel} />
       {controls === undefined ? (
         <MapControls position="top-right" showZoom showCompass />
       ) : (

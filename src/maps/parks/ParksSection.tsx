@@ -245,6 +245,7 @@ export default function ParksSection() {
           activeLayers={activeLayers}
           selectedPark={selectedPark}
           selectedTrail={selectedTrail}
+          loading={loading}
           onParkClick={handleParkClick}
           onTrailClick={handleTrailClick}
         />
