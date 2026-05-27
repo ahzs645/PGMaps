@@ -125,6 +125,7 @@ function DevInteract() {
   const [isolatedFeatureId, setIsolatedFeatureId] = useState<string | null>(null)
   const [tableLayer, setTableLayer] = useState<LayerId | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [searchMounted, setSearchMounted] = useState(false)
   const [zoomFeature, setZoomFeature] = useState<{ feature: InteractFeature; nonce: number } | null>(null)
   const [yearRange, setYearRange] = useState<YearRange>(YEAR_FILTER_DOMAIN)
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('idle')
@@ -207,7 +208,10 @@ function DevInteract() {
   }, [yearRange])
 
   useEffect(() => {
-    const openSearch = () => setSearchOpen(true)
+    const openSearch = () => {
+      setSearchMounted(true)
+      setSearchOpen(true)
+    }
     window.addEventListener('pgmaps:open-map-search', openSearch)
     return () => window.removeEventListener('pgmaps:open-map-search', openSearch)
   }, [])
@@ -261,6 +265,10 @@ function DevInteract() {
   }, [])
 
   const dismissSelectionForViewport = useCallback(() => {
+    if (searchOpen) {
+      setSearchOpen(false)
+      return
+    }
     if (selectedFeature) {
       if (isMobileViewport) {
         dismissMobileSelection()
@@ -270,7 +278,7 @@ function DevInteract() {
       return
     }
     dispatchMobilePanel({ type: 'dockControls' })
-  }, [clearSelection, dismissMobileSelection, isMobileViewport, selectedFeature])
+  }, [clearSelection, dismissMobileSelection, isMobileViewport, searchOpen, selectedFeature])
 
   const handleMobileFeatureClickOrSelect = useCallback((select: () => void) => {
     if (selectedFeature && isMobileViewport) {
@@ -448,7 +456,10 @@ function DevInteract() {
         clearSelection()
         setYearRange(range)
       }}
-      onOpenSearch={() => setSearchOpen(true)}
+      onOpenSearch={() => {
+        setSearchMounted(true)
+        setSearchOpen(true)
+      }}
       onStartMeasurement={startMeasurement}
       onStartCircleMeasurement={startCircleMeasurement}
       onOpenTable={() => setTableLayer('parks')}
@@ -667,12 +678,14 @@ function DevInteract() {
           />
         )}
 
-        {searchOpen && (
+        {(searchOpen || searchMounted) && (
           <MapSearchSheet
+            open={searchOpen}
             hiddenFeatureIds={hiddenFeatureIds}
             isolatedFeatureId={isolatedFeatureId}
             yearRange={yearRange}
             onClose={() => setSearchOpen(false)}
+            onExited={() => setSearchMounted(false)}
             onSelect={selectFeature}
           />
         )}
