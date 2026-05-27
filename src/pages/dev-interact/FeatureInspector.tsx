@@ -1,6 +1,5 @@
 import { ChevronDown, MoreHorizontal, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PointerEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { FeatureActionsMenu } from './FeatureActionsMenu'
 import { layerLabel } from './geo'
@@ -12,8 +11,10 @@ export function MobileFeatureInspector({
   openInPoint,
   openInEnabled,
   collapsed,
+  controlsInFront,
   onFeatureAction,
   onExpand,
+  onCollapse,
   onDock,
   onClose,
 }: {
@@ -21,13 +22,16 @@ export function MobileFeatureInspector({
   openInPoint: [number, number] | null
   openInEnabled: boolean
   collapsed: boolean
+  controlsInFront: boolean
   onFeatureAction: (action: FeatureAction) => void
   onExpand: () => void
+  onCollapse: () => void
   onDock: () => void
   onClose: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [actionsOpen, setActionsOpen] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
   const dragStartY = useRef<number | null>(null)
 
   useEffect(() => {
@@ -51,28 +55,61 @@ export function MobileFeatureInspector({
   }, [])
 
   const handleDragMove = useCallback((clientY: number) => {
-    if (!collapsed || dragStartY.current === null) return
-    if (dragStartY.current - clientY > 24) {
+    if (dragStartY.current === null) return
+    const deltaY = clientY - dragStartY.current
+    if (collapsed && deltaY < -24) {
       dragStartY.current = null
       onExpand()
+      return
     }
-  }, [collapsed, onExpand])
+    if (!collapsed && deltaY > 24) {
+      dragStartY.current = null
+      onCollapse()
+    }
+  }, [collapsed, onCollapse, onExpand])
 
   const handleDragEnd = useCallback(() => {
     dragStartY.current = null
   }, [])
 
-  const handlePointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    if (!collapsed) return
-    event.currentTarget.setPointerCapture(event.pointerId)
-    handleDragStart(event.clientY)
-  }, [collapsed, handleDragStart])
+  useEffect(() => {
+    const card = cardRef.current
+    if (!card) return
 
-  const handlePointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    if (!collapsed) return
-    event.preventDefault()
-    handleDragMove(event.clientY)
-  }, [collapsed, handleDragMove])
+    const handleTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (!touch) return
+      handleDragStart(touch.clientY)
+    }
+    const handleTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (!touch) return
+      handleDragMove(touch.clientY)
+    }
+    const handleMouseDown = (event: MouseEvent) => {
+      handleDragStart(event.clientY)
+    }
+    const handleMouseMove = (event: MouseEvent) => {
+      handleDragMove(event.clientY)
+    }
+
+    card.addEventListener('touchstart', handleTouchStart, { passive: true })
+    card.addEventListener('touchmove', handleTouchMove, { passive: true })
+    card.addEventListener('touchend', handleDragEnd)
+    card.addEventListener('touchcancel', handleDragEnd)
+    card.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleDragEnd)
+    return () => {
+      card.removeEventListener('touchstart', handleTouchStart)
+      card.removeEventListener('touchmove', handleTouchMove)
+      card.removeEventListener('touchend', handleDragEnd)
+      card.removeEventListener('touchcancel', handleDragEnd)
+      card.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleDragEnd)
+    }
+  }, [handleDragEnd, handleDragMove, handleDragStart])
 
   return (
     <div
@@ -83,7 +120,7 @@ export function MobileFeatureInspector({
       data-sheet-detent={collapsed ? 'collapsed' : 'default'}
       className={cn(
         'pointer-events-none fixed inset-0 md:hidden',
-        collapsed ? 'z-20' : 'z-50',
+        collapsed && controlsInFront ? 'z-20' : 'z-50',
       )}
     >
       <div
@@ -94,14 +131,12 @@ export function MobileFeatureInspector({
       >
         <FeatureCard
           feature={feature}
+          cardRef={cardRef}
           collapsed={collapsed}
+          controlsInFront={controlsInFront}
           actionsOpen={actionsOpen}
           openInEnabled={openInEnabled}
           openInAvailable={Boolean(openInPoint)}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handleDragEnd}
-          onPointerCancel={handleDragEnd}
           onDock={onDock}
           onActionsOpenChange={setActionsOpen}
           onOpenIn={openIn}
@@ -115,14 +150,12 @@ export function MobileFeatureInspector({
 
 function FeatureCard({
   feature,
+  cardRef,
   collapsed,
+  controlsInFront,
   actionsOpen,
   openInEnabled,
   openInAvailable,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
   onDock,
   onActionsOpenChange,
   onOpenIn,
@@ -130,14 +163,12 @@ function FeatureCard({
   onClose,
 }: {
   feature: InteractFeature
+  cardRef: React.RefObject<HTMLDivElement>
   collapsed: boolean
+  controlsInFront: boolean
   actionsOpen: boolean
   openInEnabled: boolean
   openInAvailable: boolean
-  onPointerDown: (event: PointerEvent<HTMLDivElement>) => void
-  onPointerMove: (event: PointerEvent<HTMLDivElement>) => void
-  onPointerUp: () => void
-  onPointerCancel: () => void
   onDock: () => void
   onActionsOpenChange: (open: boolean | ((current: boolean) => boolean)) => void
   onOpenIn: (target: OpenInTarget) => void
@@ -148,13 +179,12 @@ function FeatureCard({
     <div
       role="dialog"
       aria-labelledby="feature-inspector-title"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
+      ref={cardRef}
       className={cn(
-        'col-start-1 row-start-1 flex h-full flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-        collapsed ? 'pointer-events-none -translate-y-2' : 'pointer-events-auto translate-y-2',
+        'col-start-1 row-start-1 flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[height,transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
+        collapsed && controlsInFront && 'pointer-events-none h-8 self-end -translate-y-2',
+        collapsed && !controlsInFront && 'pointer-events-auto h-[106px] self-end translate-y-0',
+        !collapsed && 'pointer-events-auto h-full translate-y-2',
       )}
     >
       <SheetHandle />

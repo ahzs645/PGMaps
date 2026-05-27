@@ -140,8 +140,12 @@ export function CollapseInspectorOnMapDrag({
       onCollapse()
     }
     map.on('dragstart', handleDragStart)
+    map.on('rotatestart', handleDragStart)
+    map.on('pitchstart', handleDragStart)
     return () => {
       map.off('dragstart', handleDragStart)
+      map.off('rotatestart', handleDragStart)
+      map.off('pitchstart', handleDragStart)
     }
   }, [enabled, isLoaded, map, onCollapse])
 

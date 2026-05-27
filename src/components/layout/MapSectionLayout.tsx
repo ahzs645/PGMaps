@@ -14,7 +14,10 @@ interface MapSectionLayoutProps {
   mobileSidebar?: ReactNode
   mobileSnapTo?: MobileSheetState
   mobileSnapVisibleHeight?: number
+  mobileSnapFromVisibleHeight?: number
   mobileSnapKey?: string | number
+  mobileSheetInteractive?: boolean
+  mobileScrimEnabled?: boolean
   rightSidebar?: ReactNode
   showDesktopRightSidebar?: boolean
   onToggleDesktopRightSidebar?: () => void
@@ -98,7 +101,10 @@ export function MapSectionLayout({
   mobileSidebar,
   mobileSnapTo,
   mobileSnapVisibleHeight,
+  mobileSnapFromVisibleHeight,
   mobileSnapKey,
+  mobileSheetInteractive = true,
+  mobileScrimEnabled = true,
   rightSidebar,
   showDesktopRightSidebar = true,
   onToggleDesktopRightSidebar,
@@ -155,11 +161,11 @@ export function MapSectionLayout({
     const range = snaps.collapsed - snaps.full
     const t = Math.max(0, Math.min(1, 1 - (y - snaps.full) / range))
     if (scrimRef.current) {
-      scrimRef.current.style.opacity = String(t * 0.4)
-      scrimRef.current.style.pointerEvents = t > 0.05 ? 'auto' : 'none'
+      scrimRef.current.style.opacity = mobileSheetInteractive && mobileScrimEnabled ? String(t * 0.4) : '0'
+      scrimRef.current.style.pointerEvents = mobileSheetInteractive && mobileScrimEnabled && t > 0.05 ? 'auto' : 'none'
       scrimRef.current.style.transition = animate ? 'opacity 0.35s ease' : 'none'
     }
-  }, [getSheetHeight])
+  }, [getFullSnapOffset, getSheetHeight, mobileScrimEnabled, mobileSheetInteractive])
 
   const snapTo = useCallback(
     (state: MobileSheetState) => {
@@ -175,13 +181,20 @@ export function MapSectionLayout({
       const sheetHeight = getSheetHeight()
       const snaps = getSnapPositions(sheetHeight, getFullSnapOffset())
       const y = Math.max(snaps.full, Math.min(snaps.collapsed, sheetHeight - mobileSnapVisibleHeight))
+      if (mobileSnapFromVisibleHeight != null && sheetRef.current) {
+        const fromY = Math.max(snaps.full, Math.min(snaps.collapsed, sheetHeight - mobileSnapFromVisibleHeight))
+        applyTransform(fromY, false)
+        requestAnimationFrame(() => applyTransform(y, true))
+        setMobileSheetState(stateFromTranslate(y, sheetHeight, getFullSnapOffset()))
+        return
+      }
       setMobileSheetState(stateFromTranslate(y, sheetHeight, getFullSnapOffset()))
       applyTransform(y, true)
       return
     }
     if (!mobileSnapTo) return
     snapTo(mobileSnapTo)
-  }, [applyTransform, getFullSnapOffset, getSheetHeight, mobileSnapKey, mobileSnapTo, mobileSnapVisibleHeight, snapTo])
+  }, [applyTransform, getFullSnapOffset, getSheetHeight, mobileSnapFromVisibleHeight, mobileSnapKey, mobileSnapTo, mobileSnapVisibleHeight, snapTo])
 
   // ------ lifecycle --------------------------------------------------------
 
@@ -401,7 +414,8 @@ export function MapSectionLayout({
         <div
           ref={sheetRef}
           className={cn(
-            'pointer-events-auto absolute inset-x-0 bottom-0 flex h-full max-h-full flex-col overflow-hidden rounded-t-xl border border-b-0 border-border bg-background/95 shadow-2xl backdrop-blur sm:rounded-t-2xl',
+            'absolute inset-x-0 bottom-0 flex h-full max-h-full flex-col overflow-hidden rounded-t-xl border border-b-0 border-border bg-background/95 shadow-2xl backdrop-blur sm:rounded-t-2xl',
+            mobileSheetInteractive ? 'pointer-events-auto' : 'pointer-events-none',
             'md:relative md:inset-auto md:h-full md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-blur-none',
           )}
           data-map-mobile-sheet="true"

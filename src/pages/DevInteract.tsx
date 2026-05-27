@@ -28,6 +28,8 @@ function DevInteract() {
   const [selectedFeatureIndex, setSelectedFeatureIndex] = useState(0)
   const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
   const [mobileInspectorCollapsed, setMobileInspectorCollapsed] = useState(false)
+  const [mobileControlsExpanded, setMobileControlsExpanded] = useState(false)
+  const [mobileSheetSnapTo, setMobileSheetSnapTo] = useState<'collapsed' | 'half' | 'full' | undefined>(undefined)
   const [mobileSheetSnapKey, setMobileSheetSnapKey] = useState(0)
   const [openInEnabled, setOpenInEnabled] = useState(true)
   const [scaleVisible, setScaleVisible] = useState(true)
@@ -44,6 +46,7 @@ function DevInteract() {
   const [redoMeasurementPoints, setRedoMeasurementPoints] = useState<[number, number][]>([])
   const [measurementCursor, setMeasurementCursor] = useState<[number, number] | null>(null)
   const skipNextMapDismiss = useRef(false)
+  const skipMapDismissUntil = useRef(0)
 
   const measurementPolygonData = useMemo(() => measurementPolygon(measurementPoints), [measurementPoints])
   const measurementLineData = useMemo(() => measurementLine(measurementPoints, measurementMode), [measurementMode, measurementPoints])
@@ -82,6 +85,8 @@ function DevInteract() {
     setSelectedFeatureIndex(0)
     setSelectedLngLat(null)
     setMobileInspectorCollapsed(false)
+    setMobileControlsExpanded(false)
+    setMobileSheetSnapTo(undefined)
   }, [])
 
   const setSelection = useCallback((feature: InteractFeature, point: [number, number]) => {
@@ -92,6 +97,8 @@ function DevInteract() {
     setSelectedFeatureIndex(0)
     setSelectedLngLat(point)
     setMobileInspectorCollapsed(false)
+    setMobileControlsExpanded(false)
+    setMobileSheetSnapTo(undefined)
   }, [yearRange])
 
   useEffect(() => {
@@ -332,6 +339,8 @@ function DevInteract() {
             onClick={selectedFeature && mobileInspectorCollapsed ? (event) => {
               event.stopPropagation()
               setMobileInspectorCollapsed(false)
+              setMobileControlsExpanded(false)
+              setMobileSheetSnapTo(undefined)
             } : undefined}
             onTouchStart={selectedFeature && mobileInspectorCollapsed ? (event) => event.stopPropagation() : undefined}
             onPointerDown={selectedFeature && mobileInspectorCollapsed ? (event) => event.stopPropagation() : undefined}
@@ -344,8 +353,11 @@ function DevInteract() {
           </button>
         )
       )}
-      mobileSnapVisibleHeight={selectedFeature ? 420 : undefined}
+      mobileSnapVisibleHeight={selectedFeature ? (!mobileInspectorCollapsed || mobileControlsExpanded ? 420 : 32) : undefined}
+      mobileSnapTo={mobileSheetSnapTo}
       mobileSnapKey={mobileSheetSnapKey}
+      mobileSheetInteractive={!selectedFeature || mobileControlsExpanded}
+      mobileScrimEnabled={false}
       sidebar={sidebar}
     >
       <div className="relative h-full">
@@ -360,15 +372,20 @@ function DevInteract() {
           />
           {zoomFeature && <ZoomToFeature feature={zoomFeature.feature} nonce={zoomFeature.nonce} />}
           <CollapseInspectorOnMapDrag
-            enabled={measurementMode !== 'drawing' && Boolean(selectedFeature)}
+            enabled={measurementMode !== 'drawing'}
             onCollapse={() => {
               skipNextMapDismiss.current = true
+              skipMapDismissUntil.current = Date.now() + 650
               setMobileInspectorCollapsed(true)
+              setMobileControlsExpanded(false)
+              setMobileSheetSnapTo('collapsed')
+              setMobileSheetSnapKey((current) => current + 1)
             }}
           />
           <DismissSelectionOnMapClick
             enabled={measurementMode !== 'drawing' && Boolean(selectedFeature)}
             shouldSkip={() => {
+              if (Date.now() < skipMapDismissUntil.current) return true
               if (!skipNextMapDismiss.current) return false
               skipNextMapDismiss.current = false
               return true
@@ -493,10 +510,19 @@ function DevInteract() {
             openInPoint={selectedLngLat}
             openInEnabled={openInEnabled}
             collapsed={mobileInspectorCollapsed}
+            controlsInFront={mobileControlsExpanded}
             onFeatureAction={(action) => handleFeatureAction(action, selectedFeatures[selectedFeatureIndex] ?? selectedFeature)}
             onExpand={() => setMobileInspectorCollapsed(false)}
+            onCollapse={() => {
+              setMobileInspectorCollapsed(true)
+              setMobileControlsExpanded(false)
+              setMobileSheetSnapTo('collapsed')
+              setMobileSheetSnapKey((current) => current + 1)
+            }}
             onDock={() => {
               setMobileInspectorCollapsed(true)
+              setMobileControlsExpanded(true)
+              setMobileSheetSnapTo(undefined)
               setMobileSheetSnapKey((current) => current + 1)
             }}
             onClose={clearSelection}
