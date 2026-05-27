@@ -107,7 +107,7 @@ export function DevInteractSidebar({
           </div>
         </div>
       </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-4 md:p-4">
         <section>
           <p className="text-xs leading-5 text-muted-foreground">
             Use this map to test the Felt-style presentation against the app's existing MapLibre stack.

@@ -7,7 +7,7 @@ import { CENTER, YEAR_FILTER_DOMAIN, neighbourhoodFeatures, parkFeatures, routeF
 import { DesktopFeaturePopup } from './dev-interact/DesktopFeaturePopup'
 import { FeatureTablePanel } from './dev-interact/FeatureTablePanel'
 import { MobileFeatureInspector } from './dev-interact/FeatureInspector'
-import { circleMeasurementStats, featureBounds, featureMatchesYearRange, filterCollection, measurementCanClose, measurementStats, relatedFeaturesAtPoint } from './dev-interact/geo'
+import { circleMeasurementStats, featureBounds, featureMatchesYearRange, filterCollection, layerLabel, measurementCanClose, measurementStats, relatedFeaturesAtPoint } from './dev-interact/geo'
 import { CollapseInspectorOnMapDrag, DismissSelectionOnMapClick, MapClickCapture, ZoomToFeature } from './dev-interact/MapBehaviors'
 import { MapSearchSheet } from './dev-interact/MapSearchSheet'
 import { MeasurementOverlay } from './dev-interact/MeasurementOverlay'
@@ -481,6 +481,7 @@ function DevInteract() {
       desktopSidebarWidth={320}
       mobileInitialSheetState="collapsed"
       suppressMobileSheet={measurementMode !== 'idle'}
+      showMobilePeek={Boolean(selectedFeature && mobileControlsExpanded)}
       mobilePeek={(
         mobileFeatureExpandedInFront ? (
           <div className="h-8" aria-hidden="true" />
@@ -498,9 +499,13 @@ function DevInteract() {
             onPointerDown={selectedFeature && mobileControlsExpanded ? (event) => event.stopPropagation() : undefined}
             onMouseDown={selectedFeature && mobileControlsExpanded ? (event) => event.stopPropagation() : undefined}
           >
-            <span className="block truncate text-xs font-semibold text-foreground">Interactive map controls</span>
+            <span className="block truncate text-xs font-semibold text-foreground">
+              {selectedFeature && mobileControlsExpanded ? selectedFeature.properties.name : 'Interactive map controls'}
+            </span>
             <span className="block truncate text-[11px] text-muted-foreground">
-              {measurementMode === 'drawing' ? `${measurementPoints.length} measurement points` : 'Legend, actions, and popup cards'}
+              {selectedFeature && mobileControlsExpanded
+                ? layerLabel(selectedFeature.properties.layer)
+                : measurementMode === 'drawing' ? `${measurementPoints.length} measurement points` : 'Legend, actions, and popup cards'}
             </span>
           </button>
         )

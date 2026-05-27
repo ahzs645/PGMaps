@@ -11,6 +11,7 @@ interface MapSectionLayoutProps {
   desktopSidebarWidth?: number
   mobileInitialSheetState?: MobileSheetState
   mobilePeek?: ReactNode
+  showMobilePeek?: boolean
   mobileSidebar?: ReactNode
   mobileSnapTo?: MobileSheetState
   mobileSnapVisibleHeight?: number
@@ -104,6 +105,7 @@ export function MapSectionLayout({
   desktopSidebarWidth = 350,
   mobileInitialSheetState = 'collapsed',
   mobilePeek,
+  showMobilePeek = true,
   mobileSidebar,
   mobileSnapTo,
   mobileSnapVisibleHeight,
@@ -443,16 +445,18 @@ export function MapSectionLayout({
             <div className="flex justify-center py-2" aria-hidden="true">
               <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
             </div>
-            <div className={cn('min-h-0 w-full px-4 pb-3 pr-14', mobilePeek && 'border-b border-border')}>
-              {mobilePeek ?? <div className="h-8" aria-hidden="true" />}
-            </div>
+            {showMobilePeek && (
+              <div className={cn('min-h-0 w-full px-4 pb-3 pr-14', mobilePeek && 'border-b border-border')}>
+                {mobilePeek ?? <div className="h-8" aria-hidden="true" />}
+              </div>
+            )}
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
                 snapTo(mobileSheetState === 'collapsed' ? 'half' : 'collapsed')
               }}
-              className="absolute right-3 top-[calc(50%+0.25rem)] inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:right-4 sm:h-8 sm:w-8"
+              className="absolute right-3 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:right-4 sm:h-8 sm:w-8"
               aria-label={mobileSheetState === 'collapsed' ? 'Show panel' : 'Hide panel'}
             >
               {mobileSheetState === 'collapsed' ? (
