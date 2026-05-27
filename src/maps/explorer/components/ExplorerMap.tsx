@@ -28,6 +28,7 @@ interface ExplorerMapProps {
   onSpatialFilterChange: (filter: SpatialFilter | null) => void
   onMapRightClick?: (lng: number, lat: number) => void
   heatmapLayer?: React.ReactNode
+  loading?: boolean
 }
 
 const ZOOM = 12
@@ -41,7 +42,8 @@ export function ExplorerMap({
   spatialFilter,
   onSpatialFilterChange,
   onMapRightClick,
-  heatmapLayer
+  heatmapLayer,
+  loading = false
 }: ExplorerMapProps) {
   const mapRef = useRef<MapRef>(null)
   const [drawMode, setDrawMode] = useState(false)
@@ -140,7 +142,7 @@ export function ExplorerMap({
 
   return (
     <div className="h-full w-full relative">
-      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES}>
+      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES} loading={loading}>
         <MapControls position="top-right" showZoom showCompass />
 
         {heatmapLayer}

@@ -17,6 +17,7 @@ interface ScoreBuilderMapProps {
   regionFillColors?: Record<string, string> | null
   walkabilitySourceSurface?: boolean
   sourceGridWeights?: ScoreMetricWeightMap
+  loading?: boolean
 }
 
 interface WalkabilityGridData {
@@ -93,6 +94,7 @@ export function ScoreBuilderMap({
   regionFillColors = null,
   walkabilitySourceSurface = false,
   sourceGridWeights,
+  loading = false,
 }: ScoreBuilderMapProps) {
   const mapRef = useRef<MapRef>(null)
 
@@ -158,7 +160,7 @@ export function ScoreBuilderMap({
 
   return (
     <div className="h-full w-full">
-      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES}>
+      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES} loading={loading}>
         <MapControls position="top-right" showZoom showCompass />
 
         {walkabilitySourceSurface && <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} />}

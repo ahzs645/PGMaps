@@ -1483,6 +1483,7 @@ export default function ExplorerSection() {
           onSpatialFilterChange={setSpatialFilter}
           onMapRightClick={(lng, lat) => setNeighborhoodPoint({ lat, lng })}
           heatmapLayer={showHeatmap ? <HeatmapMashupLayer datasets={heatmapDatasets} visible /> : null}
+          loading={loading}
         />
 
         {neighborhoodPoint && (

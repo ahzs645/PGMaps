@@ -9,13 +9,14 @@ interface DroughtMapProps {
   data: DroughtFeatureCollection
   selectedId: string | null
   onFeatureClick: (id: string) => void
+  loading?: boolean
 }
 
 const DROUGHT_FILL_COLOR = ['coalesce', ['get', 'droughtColor'], '#8a8f98']
 const DROUGHT_LINE_COLOR = ['case', ['==', ['get', 'droughtLevel'], null], '#4b5563', '#263238']
 const DROUGHT_MOBILE_CENTER: [number, number] = [-125.4, 53.8]
 
-export function DroughtMap({ data, selectedId, onFeatureClick }: DroughtMapProps) {
+export function DroughtMap({ data, selectedId, onFeatureClick, loading = false }: DroughtMapProps) {
   const mapRef = useRef<MapRef>(null)
   const featureCount = data.features.length
 
@@ -47,7 +48,7 @@ export function DroughtMap({ data, selectedId, onFeatureClick }: DroughtMapProps
   }), [data])
 
   return (
-    <PgMap ref={mapRef} center={DROUGHT_BC_CENTER} zoom={4.3} styles={MAP_STYLES}>
+    <PgMap ref={mapRef} center={DROUGHT_BC_CENTER} zoom={4.3} styles={MAP_STYLES} loading={loading}>
       <MapControls position="top-right" showZoom showCompass />
       <MapFillLayer
         data={mapData}

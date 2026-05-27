@@ -213,6 +213,7 @@ export default function BcAssessmentSection() {
           boundaryAggregates={boundaryAggregates}
           onPropertyClick={handlePropertyClick}
           onBoundaryClick={handleBoundaryClick}
+          loading={loading}
         />
 
         {/* Legend */}

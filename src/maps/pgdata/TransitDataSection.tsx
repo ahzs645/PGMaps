@@ -430,7 +430,11 @@ export default function TransitDataSection() {
       }
     >
       <div className="relative h-full">
-        <SharedMap styles={MAP_STYLES}>
+        <SharedMap
+          styles={MAP_STYLES}
+          loading={stopsLoading || routesLoading}
+          loadingLabel="Loading transit data"
+        >
           {visibleRouteInputs && (
             <TransitRouteLayers routes={visibleRouteInputs} visible={activeLayers.includes('routes')} />
           )}

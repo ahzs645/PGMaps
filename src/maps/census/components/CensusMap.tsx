@@ -11,6 +11,7 @@ interface CensusMapProps {
   bounds: CensusBounds | null
   onUnitClick: (id: string) => void
   variableValuesByGeoUid?: Map<string, number | null> | null
+  loading?: boolean
 }
 
 const ZOOM = 10
@@ -21,7 +22,8 @@ export function CensusMap({
   selectedUnitId,
   bounds,
   onUnitClick,
-  variableValuesByGeoUid
+  variableValuesByGeoUid,
+  loading = false
 }: CensusMapProps) {
   const mapRef = useRef<MapRef>(null)
   const lastBoundsKeyRef = useRef<string | null>(null)
@@ -145,6 +147,7 @@ export function CensusMap({
         center={PG_CENTER}
         zoom={ZOOM}
         styles={MAP_STYLES}
+        loading={loading}
       >
         <MapControls position="top-right" showZoom showCompass />
         <MapFillLayer

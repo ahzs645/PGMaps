@@ -24,6 +24,7 @@ interface BcAssessmentMapProps {
   boundaryAggregates: Map<string, BoundaryAggregate>
   onPropertyClick: (property: Property) => void
   onBoundaryClick: (boundaryId: string) => void
+  loading?: boolean
 }
 
 const ZOOM = 12
@@ -62,6 +63,7 @@ export function BcAssessmentMap({
   boundaryAggregates,
   onPropertyClick,
   onBoundaryClick,
+  loading = false,
 }: BcAssessmentMapProps) {
   const mapRef = useRef<MapRef>(null)
 
@@ -163,6 +165,7 @@ export function BcAssessmentMap({
         center={PG_CENTER}
         zoom={ZOOM}
         styles={MAP_STYLES}
+        loading={loading}
       >
         <MapControls position="top-right" showZoom showCompass />
 

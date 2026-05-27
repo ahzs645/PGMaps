@@ -2629,6 +2629,7 @@ export default function ScoreBuilderSection() {
               regionFillColors={mapRegionFillColors}
               walkabilitySourceSurface={showWalkabilitySourceSurface}
               sourceGridWeights={weights}
+              loading={loading}
             />
 
             <MapLegendPanel title="Legend" width="lg" collapsible>

@@ -96,12 +96,37 @@ export function DismissSelectionOnMapClick({
 
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return
-    const handleClick = () => {
+    const canvas = map.getCanvas()
+    let pointerStart: { x: number; y: number; id: number } | null = null
+    const dismiss = () => {
       if (shouldSkip()) return
       onDismiss()
     }
+    const handleClick = () => {
+      dismiss()
+    }
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return
+      pointerStart = { x: event.clientX, y: event.clientY, id: event.pointerId }
+    }
+    const handlePointerUp = (event: PointerEvent) => {
+      if (!pointerStart || pointerStart.id !== event.pointerId) return
+      const distance = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y)
+      pointerStart = null
+      if (distance > 8) return
+      dismiss()
+    }
+    const handlePointerCancel = () => {
+      pointerStart = null
+    }
+    canvas.addEventListener('pointerdown', handlePointerDown, { capture: true })
+    canvas.addEventListener('pointerup', handlePointerUp, { capture: true })
+    canvas.addEventListener('pointercancel', handlePointerCancel, { capture: true })
     map.on('click', handleClick)
     return () => {
+      canvas.removeEventListener('pointerdown', handlePointerDown, { capture: true })
+      canvas.removeEventListener('pointerup', handlePointerUp, { capture: true })
+      canvas.removeEventListener('pointercancel', handlePointerCancel, { capture: true })
       map.off('click', handleClick)
     }
   }, [enabled, isLoaded, map, onDismiss, shouldSkip])

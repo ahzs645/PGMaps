@@ -179,6 +179,7 @@ export default function CensusSection() {
           bounds={boundsByLevel[selectedHierarchy] || bounds}
           onUnitClick={(id) => setSelectedUnitId(id)}
           variableValuesByGeoUid={variableValuesByGeoUid}
+          loading={loading || variableLoading}
         />
 
         <MapLegendPanel

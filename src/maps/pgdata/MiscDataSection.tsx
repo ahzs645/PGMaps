@@ -2731,6 +2731,31 @@ export default function MiscDataSection() {
   const mapCenter = activeTab === 'canue' ? canueMapCenter : activeTab === 'ev' ? evMapCenter : activeTab === 'water' || activeTab === 'network' ? BC_CENTER : PG_CENTER
   const mapZoom = activeTab === 'canue' ? canueMapZoom : activeTab === 'ev' && evStudyAreaBounds ? 6.2 : activeTab === 'water' || activeTab === 'network' || activeTab === 'ev' ? 4.4 : activeTab === 'icbc' || activeTab === 'wars' ? 10.5 : activeTab === 'walkability' ? 9.7 : 11
   const mapKey = activeTab === 'canue' ? `${activeTab}-${canueBoundarySource}` : activeTab === 'water' ? `${activeTab}-${water.boundarySource}` : activeTab
+  const mapLoading = activeTab === 'heatShade'
+    ? loading || (!heatShadeManifest.data && !heatShadeManifest.error)
+    : activeTab === 'canue'
+      ? (CANUE_V2_ENABLED
+          ? (!canueV2Catalog.data && !canueV2Catalog.error) || (!canueV2Metadata.data && !canueV2Metadata.error) || (showCanueBoundaries && activeCanueBoundaryData.loading)
+          : (!canueManifest.data && !canueManifest.error) || (!canueMembership.data && !canueMembership.error) || (!canueBoundaries.data && !canueBoundaries.error) || (showCanueBoundaries && activeCanueBoundaryData.loading))
+      : activeTab === 'network'
+        ? (!networkAvailabilityManifest.data && !networkAvailabilityManifest.error) || (!networkAvailabilityLayer.data && !networkAvailabilityLayer.error)
+        : activeTab === 'ev'
+          ? (!evChargingManifest.data && !evChargingManifest.error) || (!evChargingStations.data && !evChargingStations.error) || evBoundaryLoading
+          : activeTab === 'icbc'
+            ? (!icbc.manifest.data && !icbc.manifest.error) || (!icbc.crashes.data && !icbc.crashes.error)
+            : activeTab === 'wars'
+              ? (!wars.manifest.data && !wars.manifest.error) || (!wars.crashes.data && !wars.crashes.error)
+              : activeTab === 'walkability'
+                ? (!walkability.manifest.data && !walkability.manifest.error) || (walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'loading')
+                : activeTab === 'water'
+                  ? (!water.manifest.data && !water.manifest.error)
+                    || (!water.facilitiesJson.data && !water.facilitiesJson.error)
+                    || (!water.bacteriologicalJson.data && !water.bacteriologicalJson.error)
+                    || (!water.chemicalJson.data && !water.chemicalJson.error)
+                    || (!water.noticesJson.data && !water.noticesJson.error)
+                  : activeTab === 'flood'
+                    ? flood.loading
+                    : false
 
   useEffect(() => {
     if (!selectedCanueDataset || !selectedCanueFile) return
@@ -3511,7 +3536,13 @@ export default function MiscDataSection() {
       sidebar={sidebar}
     >
       <div className="relative h-full">
-        <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} styles={MAP_STYLES}>
+        <PgMap
+          key={mapKey}
+          center={mapCenter}
+          zoom={mapZoom}
+          styles={MAP_STYLES}
+          loading={mapLoading}
+        >
           <MapControls position="top-right" showZoom showCompass />
 
           <MapFillLayer

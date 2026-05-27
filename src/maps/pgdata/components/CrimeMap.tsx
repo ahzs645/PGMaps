@@ -25,6 +25,7 @@ interface CrimeMapProps {
   airMonitorGeojson: GeoJSON.FeatureCollection<GeoJSON.Point> | null
   censusGeojson: GeoJSON.FeatureCollection | null
   censusFillColor: unknown[] | string
+  loading?: boolean
 }
 
 type CrimeFeatureProperties = {
@@ -118,6 +119,7 @@ export function CrimeMap({
   airMonitorGeojson,
   censusGeojson,
   censusFillColor,
+  loading = false,
 }: CrimeMapProps) {
   const { map } = useMap()
 
@@ -164,7 +166,7 @@ export function CrimeMap({
 
   return (
     <div className="h-full w-full">
-      <SharedMap styles={MAP_STYLES}>
+      <SharedMap styles={MAP_STYLES} loading={loading} loadingLabel="Loading crime map data">
         {/* Census choropleth layer (render first so it's below points) */}
         {showCensusLayer && (
           <MapFillLayer

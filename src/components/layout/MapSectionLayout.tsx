@@ -18,6 +18,7 @@ interface MapSectionLayoutProps {
   mobileSnapKey?: string | number
   mobileSheetInteractive?: boolean
   mobileScrimEnabled?: boolean
+  onMobileSheetStateChange?: (state: MobileSheetState) => void
   rightSidebar?: ReactNode
   showDesktopRightSidebar?: boolean
   onToggleDesktopRightSidebar?: () => void
@@ -86,6 +87,11 @@ function stateFromTranslate(y: number, height: number, fullOffset = DEFAULT_FULL
 }
 
 const SPRING = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)'
+const DESKTOP_MEDIA_MIN_WIDTH = 768
+
+function isMobileViewport() {
+  return typeof window !== 'undefined' && window.innerWidth < DESKTOP_MEDIA_MIN_WIDTH
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -105,6 +111,7 @@ export function MapSectionLayout({
   mobileSnapKey,
   mobileSheetInteractive = true,
   mobileScrimEnabled = true,
+  onMobileSheetStateChange,
   rightSidebar,
   showDesktopRightSidebar = true,
   onToggleDesktopRightSidebar,
@@ -141,7 +148,7 @@ export function MapSectionLayout({
   }, [])
 
   const getFullSnapOffset = useCallback(() => {
-    if (typeof window === 'undefined' || window.innerWidth >= 768) return DEFAULT_FULL_SNAP_OFFSET
+    if (!isMobileViewport()) return DEFAULT_FULL_SNAP_OFFSET
     const toolbar = document.querySelector<HTMLElement>('[data-map-mobile-toolbar="true"]')
     const toolbarBottom = toolbar?.getBoundingClientRect().bottom ?? 0
     return toolbarBottom > 0 ? toolbarBottom + MOBILE_TOOLBAR_GAP : DEFAULT_FULL_SNAP_OFFSET
@@ -167,16 +174,21 @@ export function MapSectionLayout({
     }
   }, [getFullSnapOffset, getSheetHeight, mobileScrimEnabled, mobileSheetInteractive])
 
+  const updateMobileSheetState = useCallback((state: MobileSheetState) => {
+    setMobileSheetState(state)
+    onMobileSheetStateChange?.(state)
+  }, [onMobileSheetStateChange])
+
   const snapTo = useCallback(
     (state: MobileSheetState) => {
-      setMobileSheetState(state)
+      updateMobileSheetState(state)
       applyTransform(getSnapPositions(getSheetHeight(), getFullSnapOffset())[state], true)
     },
-    [applyTransform, getFullSnapOffset, getSheetHeight],
+    [applyTransform, getFullSnapOffset, getSheetHeight, updateMobileSheetState],
   )
 
   useEffect(() => {
-    if (window.innerWidth >= 768) return
+    if (!isMobileViewport()) return
     if (mobileSnapVisibleHeight != null) {
       const sheetHeight = getSheetHeight()
       const snaps = getSnapPositions(sheetHeight, getFullSnapOffset())
@@ -185,22 +197,22 @@ export function MapSectionLayout({
         const fromY = Math.max(snaps.full, Math.min(snaps.collapsed, sheetHeight - mobileSnapFromVisibleHeight))
         applyTransform(fromY, false)
         requestAnimationFrame(() => applyTransform(y, true))
-        setMobileSheetState(stateFromTranslate(y, sheetHeight, getFullSnapOffset()))
+        updateMobileSheetState(stateFromTranslate(y, sheetHeight, getFullSnapOffset()))
         return
       }
-      setMobileSheetState(stateFromTranslate(y, sheetHeight, getFullSnapOffset()))
+      updateMobileSheetState(stateFromTranslate(y, sheetHeight, getFullSnapOffset()))
       applyTransform(y, true)
       return
     }
     if (!mobileSnapTo) return
     snapTo(mobileSnapTo)
-  }, [applyTransform, getFullSnapOffset, getSheetHeight, mobileSnapFromVisibleHeight, mobileSnapKey, mobileSnapTo, mobileSnapVisibleHeight, snapTo])
+  }, [applyTransform, getFullSnapOffset, getSheetHeight, mobileSnapFromVisibleHeight, mobileSnapKey, mobileSnapTo, mobileSnapVisibleHeight, snapTo, updateMobileSheetState])
 
   // ------ lifecycle --------------------------------------------------------
 
   // Position on first paint (before browser paints → no flash)
   useLayoutEffect(() => {
-    if (window.innerWidth < 768) {
+    if (isMobileViewport()) {
       const y = getSnapPositions(getSheetHeight(), getFullSnapOffset())[mobileInitialSheetState]
       if (sheetRef.current) {
         sheetRef.current.style.transform = `translateY(${y}px)`
@@ -219,7 +231,7 @@ export function MapSectionLayout({
   // Handle viewport resize & orientation change
   useEffect(() => {
     const onResize = () => {
-      if (window.innerWidth >= 768) {
+      if (!isMobileViewport()) {
         // Desktop — clear mobile transforms
         if (sheetRef.current) {
           sheetRef.current.style.transform = ''
@@ -266,7 +278,7 @@ export function MapSectionLayout({
     }
 
     function onTouchStart(e: TouchEvent) {
-      if (window.innerWidth >= 768) return
+      if (!isMobileViewport()) return
       if ((e.target as HTMLElement | null)?.closest('[data-map-mobile-sheet-peek-action="true"]')) return
       const t = e.touches[0]
       const isHandle = handle!.contains(e.target as Node)
@@ -290,7 +302,7 @@ export function MapSectionLayout({
     }
 
     function onTouchMove(e: TouchEvent) {
-      if (window.innerWidth >= 768) return
+      if (!isMobileViewport()) return
       const t = e.touches[0]
       const now = performance.now()
       const dt = now - prevTouchTime.current
@@ -351,7 +363,7 @@ export function MapSectionLayout({
     }
 
     function onTouchEnd(e: TouchEvent) {
-      if (window.innerWidth >= 768) return
+      if (!isMobileViewport()) return
       sheet!.style.willChange = ''
 
       if (!dragging.current) return

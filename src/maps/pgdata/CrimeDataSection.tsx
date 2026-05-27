@@ -246,6 +246,7 @@ export default function CrimeDataSection() {
           airMonitorGeojson={airOverlay.geojson}
           censusGeojson={censusOverlay.enrichedGeojson}
           censusFillColor={censusOverlay.fillColorExpression}
+          loading={loading || (showAirQualityLayer && airOverlay.loading) || (showCensusLayer && censusOverlay.loading)}
         />
 
         {/* Timeline */}

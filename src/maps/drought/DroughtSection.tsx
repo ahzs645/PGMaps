@@ -217,6 +217,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
           data={activeCollection}
           selectedId={selectedId}
           onFeatureClick={setSelectedId}
+          loading={loading}
         />
 
         <div className="absolute right-14 top-2 z-10 rounded-md border border-border bg-background/95 px-2 py-1.5 text-[11px] shadow-lg backdrop-blur sm:right-16 sm:top-4 sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs md:right-16">

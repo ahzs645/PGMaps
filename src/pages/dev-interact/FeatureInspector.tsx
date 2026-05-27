@@ -6,6 +6,8 @@ import { layerLabel } from './geo'
 import { getOpenInUrl } from './openIn'
 import type { FeatureAction, InteractFeature, OpenInTarget } from './types'
 
+type FeatureCardState = 'frontExpanded' | 'frontCollapsed' | 'behindExpanded' | 'behindCollapsed'
+
 export function MobileFeatureInspector({
   feature,
   openInPoint,
@@ -175,6 +177,16 @@ function FeatureCard({
   onFeatureAction: (action: FeatureAction) => void
   onClose: () => void
 }) {
+  const cardState: FeatureCardState = controlsInFront
+    ? (collapsed ? 'behindCollapsed' : 'behindExpanded')
+    : (collapsed ? 'frontCollapsed' : 'frontExpanded')
+  const cardStateClasses: Record<FeatureCardState, string> = {
+    frontExpanded: 'pointer-events-auto h-full self-end translate-y-2',
+    frontCollapsed: 'pointer-events-auto h-[92px] self-end translate-y-0',
+    behindExpanded: 'pointer-events-none h-full self-end -translate-y-1.5',
+    behindCollapsed: 'pointer-events-none h-[92px] self-end -translate-y-1.5 shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
+  }
+
   return (
     <div
       role="dialog"
@@ -182,10 +194,7 @@ function FeatureCard({
       ref={cardRef}
       className={cn(
         'col-start-1 row-start-1 flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[height,transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-        collapsed && controlsInFront && 'pointer-events-none h-[92px] self-end -translate-y-1.5 shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
-        collapsed && !controlsInFront && 'pointer-events-auto h-[92px] self-end translate-y-0',
-        !collapsed && controlsInFront && 'pointer-events-none h-full self-end -translate-y-1.5',
-        !collapsed && !controlsInFront && 'pointer-events-auto h-full self-end translate-y-2',
+        cardStateClasses[cardState],
       )}
     >
       <SheetHandle />

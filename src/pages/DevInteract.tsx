@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -16,6 +16,96 @@ import { Scale } from './dev-interact/Scale'
 import { DevInteractSidebar } from './dev-interact/Sidebar'
 import type { FeatureAction, InteractFeature, InteractFeatureProperties, LayerId, MeasurementMapAction, MeasurementMode, MeasurementShape, ScalePosition, YearRange } from './dev-interact/types'
 
+type MobileSheetState = 'collapsed' | 'half' | 'full'
+type MobilePanelMode = 'controls' | 'controlsDocked' | 'featureExpanded' | 'featureCollapsed' | 'controlsOverFeatureExpanded' | 'controlsOverFeatureCollapsed'
+
+interface MobilePanelState {
+  mode: MobilePanelMode
+  snapTo?: MobileSheetState
+  snapKey: number
+}
+
+type MobilePanelAction =
+  | { type: 'reset' }
+  | { type: 'selectFeature' }
+  | { type: 'dismissFeatureToControlsDock' }
+  | { type: 'bringFeatureToFront' }
+  | { type: 'expandFeature' }
+  | { type: 'collapseFeature' }
+  | { type: 'dockFeatureBehindControls' }
+  | { type: 'dockControls' }
+  | { type: 'syncControlsSheet'; sheetState: MobileSheetState }
+
+const MOBILE_FEATURE_SHEET_VISIBLE_HEIGHT = 420
+const MOBILE_FEATURE_COLLAPSED_VISIBLE_HEIGHT = 98
+const MOBILE_CONTROLS_DOCKED_VISIBLE_HEIGHT = 56
+const FEATURE_SELECT_DISMISS_SUPPRESS_MS = 150
+const MAP_DRAG_DISMISS_SUPPRESS_MS = 650
+const MOBILE_MEDIA_QUERY = '(max-width: 767px)'
+
+const initialMobilePanelState: MobilePanelState = {
+  mode: 'controls',
+  snapKey: 0,
+}
+
+function bumpSnap(state: MobilePanelState, mode: MobilePanelMode, snapTo?: MobileSheetState): MobilePanelState {
+  return { mode, snapTo, snapKey: state.snapKey + 1 }
+}
+
+function mobilePanelReducer(state: MobilePanelState, action: MobilePanelAction): MobilePanelState {
+  switch (action.type) {
+    case 'reset':
+      return initialMobilePanelState
+    case 'selectFeature':
+      return { mode: 'featureExpanded', snapKey: state.snapKey }
+    case 'dismissFeatureToControlsDock':
+    case 'dockControls':
+      return bumpSnap(state, 'controlsDocked', 'collapsed')
+    case 'bringFeatureToFront':
+      return bumpSnap(
+        state,
+        state.mode === 'controlsOverFeatureCollapsed' ? 'featureCollapsed' : 'featureExpanded',
+        state.mode === 'controlsOverFeatureCollapsed' ? 'collapsed' : undefined,
+      )
+    case 'expandFeature':
+      return { mode: 'featureExpanded', snapKey: state.snapKey }
+    case 'collapseFeature':
+      return bumpSnap(state, 'featureCollapsed', 'collapsed')
+    case 'dockFeatureBehindControls':
+      return bumpSnap(
+        state,
+        state.mode === 'featureCollapsed' || state.mode === 'controlsOverFeatureCollapsed'
+          ? 'controlsOverFeatureCollapsed'
+          : 'controlsOverFeatureExpanded',
+      )
+    case 'syncControlsSheet':
+      if (state.mode !== 'controls' && state.mode !== 'controlsDocked') return state
+      if (state.snapTo && action.sheetState !== state.snapTo) return state
+      return {
+        mode: action.sheetState === 'collapsed' ? 'controlsDocked' : 'controls',
+        snapKey: state.snapKey,
+      }
+    default:
+      return state
+  }
+}
+
+function useIsMobileViewport() {
+  const [isMobile, setIsMobile] = useState(() => (
+    typeof window === 'undefined' ? false : window.matchMedia(MOBILE_MEDIA_QUERY).matches
+  ))
+
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_MEDIA_QUERY)
+    const update = () => setIsMobile(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  return isMobile
+}
+
 function DevInteract() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [visibleLayers, setVisibleLayers] = useState<Record<LayerId, boolean>>({
@@ -27,11 +117,7 @@ function DevInteract() {
   const [selectedFeatures, setSelectedFeatures] = useState<InteractFeature[]>([])
   const [selectedFeatureIndex, setSelectedFeatureIndex] = useState(0)
   const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
-  const [mobileInspectorCollapsed, setMobileInspectorCollapsed] = useState(false)
-  const [mobileControlsExpanded, setMobileControlsExpanded] = useState(false)
-  const [mobileControlsDocked, setMobileControlsDocked] = useState(false)
-  const [mobileSheetSnapTo, setMobileSheetSnapTo] = useState<'collapsed' | 'half' | 'full' | undefined>(undefined)
-  const [mobileSheetSnapKey, setMobileSheetSnapKey] = useState(0)
+  const [mobilePanel, dispatchMobilePanel] = useReducer(mobilePanelReducer, initialMobilePanelState)
   const [openInEnabled, setOpenInEnabled] = useState(true)
   const [scaleVisible, setScaleVisible] = useState(true)
   const [scalePosition, setScalePosition] = useState<ScalePosition>('bottom-center')
@@ -46,9 +132,17 @@ function DevInteract() {
   const [measurementPoints, setMeasurementPoints] = useState<[number, number][]>([])
   const [redoMeasurementPoints, setRedoMeasurementPoints] = useState<[number, number][]>([])
   const [measurementCursor, setMeasurementCursor] = useState<[number, number] | null>(null)
+  const isMobileViewport = useIsMobileViewport()
   const skipNextMapDismiss = useRef(false)
   const skipMapDismissUntil = useRef(0)
-  const mobileInspectorCollapsedBeforeControls = useRef(false)
+
+  const mobileInspectorCollapsed = mobilePanel.mode === 'featureCollapsed' || mobilePanel.mode === 'controlsOverFeatureCollapsed'
+  const mobileControlsExpanded = mobilePanel.mode === 'controlsOverFeatureExpanded' || mobilePanel.mode === 'controlsOverFeatureCollapsed'
+  const mobileControlsDocked = mobilePanel.mode === 'controlsDocked'
+  const mobileFeatureExpandedInFront = selectedFeature && !mobileInspectorCollapsed && !mobileControlsExpanded
+  const mobileSnapVisibleHeight = selectedFeature
+    ? (!mobileInspectorCollapsed || mobileControlsExpanded ? MOBILE_FEATURE_SHEET_VISIBLE_HEIGHT : MOBILE_FEATURE_COLLAPSED_VISIBLE_HEIGHT)
+    : mobileControlsDocked ? MOBILE_CONTROLS_DOCKED_VISIBLE_HEIGHT : undefined
 
   const measurementPolygonData = useMemo(() => measurementPolygon(measurementPoints), [measurementPoints])
   const measurementLineData = useMemo(() => measurementLine(measurementPoints, measurementMode), [measurementMode, measurementPoints])
@@ -86,20 +180,11 @@ function DevInteract() {
     setSelectedFeatures([])
     setSelectedFeatureIndex(0)
     setSelectedLngLat(null)
-    setMobileInspectorCollapsed(false)
-    setMobileControlsExpanded(false)
-    setMobileControlsDocked(false)
-    setMobileSheetSnapTo(undefined)
-    mobileInspectorCollapsedBeforeControls.current = false
+    dispatchMobilePanel({ type: 'reset' })
   }, [])
 
   const bringMobileInspectorToFront = useCallback(() => {
-    const restoreCollapsed = mobileInspectorCollapsedBeforeControls.current
-    setMobileInspectorCollapsed(restoreCollapsed)
-    setMobileControlsExpanded(false)
-    setMobileControlsDocked(false)
-    setMobileSheetSnapTo(restoreCollapsed ? 'collapsed' : undefined)
-    setMobileSheetSnapKey((current) => current + 1)
+    dispatchMobilePanel({ type: 'bringFeatureToFront' })
   }, [])
 
   const dismissMobileSelection = useCallback(() => {
@@ -107,27 +192,18 @@ function DevInteract() {
     setSelectedFeatures([])
     setSelectedFeatureIndex(0)
     setSelectedLngLat(null)
-    setMobileInspectorCollapsed(false)
-    setMobileControlsExpanded(false)
-    setMobileControlsDocked(true)
-    setMobileSheetSnapTo('collapsed')
-    setMobileSheetSnapKey((current) => current + 1)
-    mobileInspectorCollapsedBeforeControls.current = false
+    dispatchMobilePanel({ type: 'dismissFeatureToControlsDock' })
   }, [])
 
   const setSelection = useCallback((feature: InteractFeature, point: [number, number]) => {
     skipNextMapDismiss.current = true
-    skipMapDismissUntil.current = Date.now() + 150
+    skipMapDismissUntil.current = Date.now() + FEATURE_SELECT_DISMISS_SUPPRESS_MS
     const features = relatedFeaturesAtPoint(point, feature, (candidate) => featureMatchesYearRange(candidate, yearRange))
     setSelectedFeature(feature)
     setSelectedFeatures(features)
     setSelectedFeatureIndex(0)
     setSelectedLngLat(point)
-    setMobileInspectorCollapsed(false)
-    setMobileControlsExpanded(false)
-    setMobileControlsDocked(false)
-    setMobileSheetSnapTo(undefined)
-    mobileInspectorCollapsedBeforeControls.current = false
+    dispatchMobilePanel({ type: 'selectFeature' })
   }, [yearRange])
 
   useEffect(() => {
@@ -165,6 +241,44 @@ function DevInteract() {
       clearSelection()
     }
   }, [clearSelection, setSelection])
+
+  const suppressNextMapDismiss = useCallback((durationMs: number) => {
+    skipNextMapDismiss.current = true
+    skipMapDismissUntil.current = Date.now() + durationMs
+  }, [])
+
+  const shouldSuppressMapDismiss = useCallback(() => {
+    const now = Date.now()
+    if (now < skipMapDismissUntil.current) {
+      if (skipNextMapDismiss.current) {
+        skipNextMapDismiss.current = false
+      }
+      return true
+    }
+    if (!skipNextMapDismiss.current) return false
+    skipNextMapDismiss.current = false
+    return false
+  }, [])
+
+  const dismissSelectionForViewport = useCallback(() => {
+    if (selectedFeature) {
+      if (isMobileViewport) {
+        dismissMobileSelection()
+        return
+      }
+      clearSelection()
+      return
+    }
+    dispatchMobilePanel({ type: 'dockControls' })
+  }, [clearSelection, dismissMobileSelection, isMobileViewport, selectedFeature])
+
+  const handleMobileFeatureClickOrSelect = useCallback((select: () => void) => {
+    if (selectedFeature && isMobileViewport) {
+      dismissMobileSelection()
+      return
+    }
+    select()
+  }, [dismissMobileSelection, isMobileViewport, selectedFeature])
 
   const selectFeature = useCallback((feature: InteractFeature) => {
     if (feature.geometry.type === 'LineString') {
@@ -357,7 +471,7 @@ function DevInteract() {
       mobileInitialSheetState="collapsed"
       suppressMobileSheet={measurementMode !== 'idle'}
       mobilePeek={(
-        selectedFeature && !mobileInspectorCollapsed && !mobileControlsExpanded ? (
+        mobileFeatureExpandedInFront ? (
           <div className="h-8" aria-hidden="true" />
         ) : (
           <button
@@ -380,11 +494,12 @@ function DevInteract() {
           </button>
         )
       )}
-      mobileSnapVisibleHeight={selectedFeature ? (!mobileInspectorCollapsed || mobileControlsExpanded ? 420 : 98) : mobileControlsDocked ? 56 : undefined}
-      mobileSnapTo={mobileSheetSnapTo}
-      mobileSnapKey={mobileSheetSnapKey}
+      mobileSnapVisibleHeight={mobileSnapVisibleHeight}
+      mobileSnapTo={mobilePanel.snapTo}
+      mobileSnapKey={mobilePanel.snapKey}
       mobileSheetInteractive={!selectedFeature || mobileControlsExpanded}
       mobileScrimEnabled={false}
+      onMobileSheetStateChange={(sheetState) => dispatchMobilePanel({ type: 'syncControlsSheet', sheetState })}
       sidebar={sidebar}
     >
       <div className="relative h-full">
@@ -401,43 +516,14 @@ function DevInteract() {
           <CollapseInspectorOnMapDrag
             enabled={measurementMode !== 'drawing'}
             onCollapse={() => {
-              skipNextMapDismiss.current = true
-              skipMapDismissUntil.current = Date.now() + 650
-              mobileInspectorCollapsedBeforeControls.current = true
-              setMobileInspectorCollapsed(true)
-              setMobileControlsExpanded(false)
-              setMobileSheetSnapTo('collapsed')
-              setMobileSheetSnapKey((current) => current + 1)
+              suppressNextMapDismiss(MAP_DRAG_DISMISS_SUPPRESS_MS)
+              dispatchMobilePanel({ type: 'collapseFeature' })
             }}
           />
           <DismissSelectionOnMapClick
             enabled={measurementMode !== 'drawing'}
-            shouldSkip={() => {
-              const now = Date.now()
-              if (now < skipMapDismissUntil.current) {
-                if (skipNextMapDismiss.current) {
-                  skipNextMapDismiss.current = false
-                }
-                return true
-              }
-              if (!skipNextMapDismiss.current) return false
-              skipNextMapDismiss.current = false
-              return false
-            }}
-            onDismiss={() => {
-              if (selectedFeature) {
-                if (window.innerWidth < 768) {
-                  dismissMobileSelection()
-                  return
-                }
-                clearSelection()
-              }
-              setMobileControlsDocked(true)
-              setMobileInspectorCollapsed(true)
-              setMobileControlsExpanded(false)
-              setMobileSheetSnapTo('collapsed')
-              setMobileSheetSnapKey((current) => current + 1)
-            }}
+            shouldSkip={shouldSuppressMapDismiss}
+            onDismiss={dismissSelectionForViewport}
           />
 
           <MapFillLayer
@@ -449,13 +535,7 @@ function DevInteract() {
             idProperty="id"
             selectedId={selectedFeature?.properties.layer === 'neighbourhoods' ? selectedFeature.properties.id : null}
             visible={visibleLayers.neighbourhoods}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => {
-              if (selectedFeature && window.innerWidth < 768) {
-                dismissMobileSelection()
-                return
-              }
-              selectPolygon(id, neighbourhoodFeatures)
-            }}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => handleMobileFeatureClickOrSelect(() => selectPolygon(id, neighbourhoodFeatures))}
           />
           <MapFillLayer
             data={filteredParkFeatures}
@@ -466,13 +546,7 @@ function DevInteract() {
             idProperty="id"
             selectedId={selectedFeature?.properties.layer === 'parks' ? selectedFeature.properties.id : null}
             visible={visibleLayers.parks}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => {
-              if (selectedFeature && window.innerWidth < 768) {
-                dismissMobileSelection()
-                return
-              }
-              selectPolygon(id, parkFeatures)
-            }}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => handleMobileFeatureClickOrSelect(() => selectPolygon(id, parkFeatures))}
           />
           <MapLineLayer
             data={filteredRouteFeatures}
@@ -482,13 +556,7 @@ function DevInteract() {
             idProperty="id"
             selectedId={selectedFeature?.properties.layer === 'routes' ? selectedFeature.properties.id : null}
             visible={visibleLayers.routes}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => {
-              if (selectedFeature && window.innerWidth < 768) {
-                dismissMobileSelection()
-                return
-              }
-              selectRoute(id)
-            }}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => handleMobileFeatureClickOrSelect(() => selectRoute(id))}
           />
 
           <MapFillLayer data={measurementPolygonData} fillColor="#f97316" fillOpacity={0.18} lineColor="#ea580c" lineWidth={2} visible={measurementShape === 'polygon' && measurementPoints.length >= 3} />
@@ -577,24 +645,9 @@ function DevInteract() {
             collapsed={mobileInspectorCollapsed}
             controlsInFront={mobileControlsExpanded}
             onFeatureAction={(action) => handleFeatureAction(action, selectedFeatures[selectedFeatureIndex] ?? selectedFeature)}
-            onExpand={() => {
-              mobileInspectorCollapsedBeforeControls.current = false
-              setMobileInspectorCollapsed(false)
-            }}
-            onCollapse={() => {
-              mobileInspectorCollapsedBeforeControls.current = true
-              setMobileInspectorCollapsed(true)
-              setMobileControlsExpanded(false)
-              setMobileSheetSnapTo('collapsed')
-              setMobileSheetSnapKey((current) => current + 1)
-            }}
-            onDock={() => {
-              mobileInspectorCollapsedBeforeControls.current = mobileInspectorCollapsed
-              setMobileControlsExpanded(true)
-              setMobileControlsDocked(false)
-              setMobileSheetSnapTo(undefined)
-              setMobileSheetSnapKey((current) => current + 1)
-            }}
+            onExpand={() => dispatchMobilePanel({ type: 'expandFeature' })}
+            onCollapse={() => dispatchMobilePanel({ type: 'collapseFeature' })}
+            onDock={() => dispatchMobilePanel({ type: 'dockFeatureBehindControls' })}
             onClose={clearSelection}
           />
         )}

@@ -1277,6 +1277,7 @@ export default function AqMapSection() {
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
           styles={BASEMAP_STYLES[basemap]}
+          loading={loading}
           onViewportChange={(viewport) => {
             if (!isValidMapView(viewport)) return
             setMapView({
