@@ -29,6 +29,7 @@ function DevInteract() {
   const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
   const [mobileInspectorCollapsed, setMobileInspectorCollapsed] = useState(false)
   const [mobileControlsExpanded, setMobileControlsExpanded] = useState(false)
+  const [mobileControlsDocked, setMobileControlsDocked] = useState(false)
   const [mobileSheetSnapTo, setMobileSheetSnapTo] = useState<'collapsed' | 'half' | 'full' | undefined>(undefined)
   const [mobileSheetSnapKey, setMobileSheetSnapKey] = useState(0)
   const [openInEnabled, setOpenInEnabled] = useState(true)
@@ -87,6 +88,7 @@ function DevInteract() {
     setSelectedLngLat(null)
     setMobileInspectorCollapsed(false)
     setMobileControlsExpanded(false)
+    setMobileControlsDocked(false)
     setMobileSheetSnapTo(undefined)
     mobileInspectorCollapsedBeforeControls.current = false
   }, [])
@@ -95,6 +97,7 @@ function DevInteract() {
     const restoreCollapsed = mobileInspectorCollapsedBeforeControls.current
     setMobileInspectorCollapsed(restoreCollapsed)
     setMobileControlsExpanded(false)
+    setMobileControlsDocked(false)
     setMobileSheetSnapTo(restoreCollapsed ? 'collapsed' : undefined)
     setMobileSheetSnapKey((current) => current + 1)
   }, [])
@@ -106,6 +109,7 @@ function DevInteract() {
     setSelectedLngLat(null)
     setMobileInspectorCollapsed(false)
     setMobileControlsExpanded(false)
+    setMobileControlsDocked(true)
     setMobileSheetSnapTo('collapsed')
     setMobileSheetSnapKey((current) => current + 1)
     mobileInspectorCollapsedBeforeControls.current = false
@@ -121,6 +125,7 @@ function DevInteract() {
     setSelectedLngLat(point)
     setMobileInspectorCollapsed(false)
     setMobileControlsExpanded(false)
+    setMobileControlsDocked(false)
     setMobileSheetSnapTo(undefined)
     mobileInspectorCollapsedBeforeControls.current = false
   }, [yearRange])
@@ -375,7 +380,7 @@ function DevInteract() {
           </button>
         )
       )}
-      mobileSnapVisibleHeight={selectedFeature ? (!mobileInspectorCollapsed || mobileControlsExpanded ? 420 : 98) : undefined}
+      mobileSnapVisibleHeight={selectedFeature ? (!mobileInspectorCollapsed || mobileControlsExpanded ? 420 : 98) : mobileControlsDocked ? 56 : undefined}
       mobileSnapTo={mobileSheetSnapTo}
       mobileSnapKey={mobileSheetSnapKey}
       mobileSheetInteractive={!selectedFeature || mobileControlsExpanded}
@@ -427,6 +432,7 @@ function DevInteract() {
                 }
                 clearSelection()
               }
+              setMobileControlsDocked(true)
               setMobileInspectorCollapsed(true)
               setMobileControlsExpanded(false)
               setMobileSheetSnapTo('collapsed')
@@ -443,7 +449,13 @@ function DevInteract() {
             idProperty="id"
             selectedId={selectedFeature?.properties.layer === 'neighbourhoods' ? selectedFeature.properties.id : null}
             visible={visibleLayers.neighbourhoods}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => selectPolygon(id, neighbourhoodFeatures)}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => {
+              if (selectedFeature && window.innerWidth < 768) {
+                dismissMobileSelection()
+                return
+              }
+              selectPolygon(id, neighbourhoodFeatures)
+            }}
           />
           <MapFillLayer
             data={filteredParkFeatures}
@@ -454,7 +466,13 @@ function DevInteract() {
             idProperty="id"
             selectedId={selectedFeature?.properties.layer === 'parks' ? selectedFeature.properties.id : null}
             visible={visibleLayers.parks}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => selectPolygon(id, parkFeatures)}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => {
+              if (selectedFeature && window.innerWidth < 768) {
+                dismissMobileSelection()
+                return
+              }
+              selectPolygon(id, parkFeatures)
+            }}
           />
           <MapLineLayer
             data={filteredRouteFeatures}
@@ -464,7 +482,13 @@ function DevInteract() {
             idProperty="id"
             selectedId={selectedFeature?.properties.layer === 'routes' ? selectedFeature.properties.id : null}
             visible={visibleLayers.routes}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : selectRoute}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => {
+              if (selectedFeature && window.innerWidth < 768) {
+                dismissMobileSelection()
+                return
+              }
+              selectRoute(id)
+            }}
           />
 
           <MapFillLayer data={measurementPolygonData} fillColor="#f97316" fillOpacity={0.18} lineColor="#ea580c" lineWidth={2} visible={measurementShape === 'polygon' && measurementPoints.length >= 3} />
@@ -567,6 +591,7 @@ function DevInteract() {
             onDock={() => {
               mobileInspectorCollapsedBeforeControls.current = mobileInspectorCollapsed
               setMobileControlsExpanded(true)
+              setMobileControlsDocked(false)
               setMobileSheetSnapTo(undefined)
               setMobileSheetSnapKey((current) => current + 1)
             }}
