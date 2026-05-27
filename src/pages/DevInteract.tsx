@@ -197,6 +197,15 @@ function DevInteract() {
   }, [])
 
   const setSelection = useCallback((feature: InteractFeature, point: [number, number]) => {
+    if (selectedFeature?.properties.id === feature.properties.id) {
+      if (isMobileViewport) {
+        dismissMobileSelection()
+        return
+      }
+      clearSelection()
+      return
+    }
+
     skipNextMapDismiss.current = true
     skipMapDismissUntil.current = Date.now() + FEATURE_SELECT_DISMISS_SUPPRESS_MS
     const features = relatedFeaturesAtPoint(point, feature, (candidate) => featureMatchesYearRange(candidate, yearRange))
@@ -205,7 +214,7 @@ function DevInteract() {
     setSelectedFeatureIndex(0)
     setSelectedLngLat(point)
     dispatchMobilePanel({ type: 'selectFeature' })
-  }, [yearRange])
+  }, [clearSelection, dismissMobileSelection, isMobileViewport, selectedFeature?.properties.id, yearRange])
 
   useEffect(() => {
     const openSearch = () => {
@@ -279,14 +288,6 @@ function DevInteract() {
     }
     dispatchMobilePanel({ type: 'dockControls' })
   }, [clearSelection, dismissMobileSelection, isMobileViewport, searchOpen, selectedFeature])
-
-  const handleMobileFeatureClickOrSelect = useCallback((select: () => void) => {
-    if (selectedFeature && isMobileViewport) {
-      dismissMobileSelection()
-      return
-    }
-    select()
-  }, [dismissMobileSelection, isMobileViewport, selectedFeature])
 
   const selectFeature = useCallback((feature: InteractFeature) => {
     if (feature.geometry.type === 'LineString') {
@@ -551,7 +552,7 @@ function DevInteract() {
             idProperty="id"
             selectedId={selectedFeature?.properties.layer === 'neighbourhoods' ? selectedFeature.properties.id : null}
             visible={visibleLayers.neighbourhoods}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => handleMobileFeatureClickOrSelect(() => selectPolygon(id, neighbourhoodFeatures))}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => selectPolygon(id, neighbourhoodFeatures)}
           />
           <MapFillLayer
             data={filteredParkFeatures}
@@ -562,7 +563,7 @@ function DevInteract() {
             idProperty="id"
             selectedId={selectedFeature?.properties.layer === 'parks' ? selectedFeature.properties.id : null}
             visible={visibleLayers.parks}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => handleMobileFeatureClickOrSelect(() => selectPolygon(id, parkFeatures))}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => selectPolygon(id, parkFeatures)}
           />
           <MapLineLayer
             data={filteredRouteFeatures}
@@ -572,7 +573,7 @@ function DevInteract() {
             idProperty="id"
             selectedId={selectedFeature?.properties.layer === 'routes' ? selectedFeature.properties.id : null}
             visible={visibleLayers.routes}
-            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => handleMobileFeatureClickOrSelect(() => selectRoute(id))}
+            onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => selectRoute(id)}
           />
 
           <MapFillLayer data={measurementPolygonData} fillColor="#f97316" fillOpacity={0.18} lineColor="#ea580c" lineWidth={2} visible={measurementShape === 'polygon' && measurementPoints.length >= 3} />
@@ -654,7 +655,6 @@ function DevInteract() {
 
         {measurementMode !== 'drawing' && selectedFeature && (
           <MobileFeatureInspector
-            key={selectedFeature.properties.id}
             feature={selectedFeatures[selectedFeatureIndex] ?? selectedFeature}
             openInPoint={selectedLngLat}
             openInEnabled={openInEnabled}
@@ -664,7 +664,7 @@ function DevInteract() {
             onExpand={() => dispatchMobilePanel({ type: 'expandFeature' })}
             onCollapse={() => dispatchMobilePanel({ type: 'collapseFeature' })}
             onDock={() => dispatchMobilePanel({ type: 'dockFeatureBehindControls' })}
-            onClose={clearSelection}
+            onClose={isMobileViewport ? dismissMobileSelection : clearSelection}
           />
         )}
 

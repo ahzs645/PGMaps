@@ -1,0 +1,263 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic:
+      - button "Main menu" [ref=e5] [cursor=pointer]:
+        - generic [ref=e6]: PGMaps
+        - img [ref=e7]
+      - generic:
+        - button "Open search" [active] [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+        - button "Toggle theme" [ref=e13] [cursor=pointer]:
+          - img
+        - button "Toggle menu" [ref=e14] [cursor=pointer]:
+          - img
+  - main [ref=e15]:
+    - generic [ref=e25]:
+      - generic:
+        - generic:
+          - separator "Drag to resize sheet":
+            - button "Hide panel":
+              - img
+          - generic:
+            - complementary:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - heading "Interactive map shell" [level=1]
+                    - paragraph: Shared sidebar, bottom sheet, popup cards, layer controls, and map actions.
+              - generic:
+                - generic:
+                  - paragraph: Use this map to test the Felt-style presentation against the app's existing MapLibre stack.
+                  - generic:
+                    - generic:
+                      - button "Search locations":
+                        - img
+                        - generic: Search locations
+                    - generic:
+                      - button "Measure areas":
+                        - img
+                        - generic: Measure areas
+                    - generic:
+                      - button "Open table":
+                        - img
+                        - generic: Open table
+                - generic:
+                  - generic:
+                    - heading "Legend" [level=2]
+                    - generic:
+                      - button "More legend options":
+                        - img
+                  - generic:
+                    - list:
+                      - listitem:
+                        - generic:
+                          - img
+                        - generic "Neighbourhood areas"
+                        - generic:
+                          - button "Show only Neighbourhood areas":
+                            - img
+                          - button "Toggle legend item visibility":
+                            - img
+                      - listitem:
+                        - generic:
+                          - img
+                        - generic "Parks"
+                        - generic:
+                          - button "Show only Parks":
+                            - img
+                          - button "Toggle legend item visibility":
+                            - img
+                      - listitem:
+                        - generic "Transit routes"
+                        - generic:
+                          - button "Show only Transit routes":
+                            - img
+                          - button "Toggle legend item visibility":
+                            - img
+                    - generic:
+                      - generic:
+                        - heading "Year issued" [level=3]
+                        - button "Reset year filter":
+                          - img
+                      - slider "Year issued filter":
+                        - generic:
+                          - generic: "359"
+                      - generic:
+                        - generic:
+                          - text: From
+                          - combobox "From":
+                            - option "2014" [selected]
+                            - option "2015"
+                            - option "2016"
+                            - option "2017"
+                            - option "2018"
+                            - option "2019"
+                            - option "2020"
+                            - option "2021"
+                            - option "2022"
+                            - option "2023"
+                            - option "2024"
+                        - generic:
+                          - text: To
+                          - combobox "To":
+                            - option "2014"
+                            - option "2015"
+                            - option "2016"
+                            - option "2017"
+                            - option "2018"
+                            - option "2019"
+                            - option "2020"
+                            - option "2021"
+                            - option "2022"
+                            - option "2023"
+                            - option "2024" [selected]
+                      - paragraph: 2014 to 2024 · filters map, search, and table
+                - generic:
+                  - generic:
+                    - heading "Measurement" [level=2]
+                    - button "Delete measurement":
+                      - img
+                  - generic:
+                    - generic: Start measuring to draw a private polygon or circle on the map.
+                    - generic:
+                      - generic:
+                        - generic: Perimeter
+                        - generic: "-"
+                      - generic:
+                        - generic: Area
+                        - generic: "-"
+                    - generic:
+                      - button "Measure":
+                        - img
+                        - text: Measure
+                      - button "Close" [disabled]
+                - generic:
+                  - generic:
+                    - heading "Map components" [level=2]
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic: Scale
+                        - generic: Show the scale, zoom, and source strip
+                      - generic:
+                        - img
+                        - checkbox "Scale" [checked]
+                    - generic:
+                      - generic: Scale position
+                      - generic:
+                        - combobox "Scale position":
+                          - generic: Bottom center
+                          - img
+                    - generic:
+                      - generic:
+                        - generic: Open in menu
+                        - generic: Show map handoff options in feature sheets
+                      - generic:
+                        - img
+                        - checkbox "Open in menu" [checked]
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic: Visible
+                      - generic: "3"
+                    - generic:
+                      - generic: Features
+                      - generic: "6"
+                    - generic:
+                      - generic: Cards
+                      - generic: "On"
+      - generic [ref=e223]:
+        - generic [ref=e224]:
+          - region "Map" [ref=e225]
+          - generic [ref=e227]:
+            - button "Zoom in" [ref=e228] [cursor=pointer]:
+              - img [ref=e229]
+            - button "Zoom out" [ref=e230] [cursor=pointer]:
+              - img [ref=e231]
+          - generic "Map scale and attribution":
+            - generic:
+              - button "11.1z"
+              - generic: 1mi
+            - generic:
+              - link "Made with Felt." [ref=e232] [cursor=pointer]:
+                - /url: https://felt.com
+              - text: Data from
+              - link "OpenStreetMap" [ref=e233] [cursor=pointer]:
+                - /url: https://www.openstreetmap.org/copyright
+              - generic: · City of Oakland
+        - generic "Feature inspector":
+          - dialog "Cottonwood Island Park" [ref=e234]:
+            - generic [ref=e237]:
+              - generic [ref=e238]:
+                - button "Dock selected feature above map controls" [ref=e239] [cursor=pointer]:
+                  - generic [ref=e240]: Cottonwood Island Park
+                  - img [ref=e241]
+                - generic [ref=e243]:
+                  - button "Feature actions" [ref=e245] [cursor=pointer]:
+                    - img [ref=e246]
+                  - button "Close feature inspector" [ref=e250] [cursor=pointer]:
+                    - img [ref=e251]
+              - paragraph [ref=e254]: Parks
+            - generic "Vector feature popup contents" [ref=e256]:
+              - generic [ref=e257]:
+                - generic [ref=e258]: Category
+                - generic [ref=e259]: Large natural park
+              - generic [ref=e260]:
+                - generic [ref=e261]: Year Issued
+                - generic [ref=e262]: "2016"
+              - generic [ref=e263]:
+                - generic [ref=e264]: Estimated Cost
+                - generic [ref=e265]: $820k
+              - generic [ref=e266]:
+                - generic [ref=e267]: Access
+                - generic [ref=e268]: Public
+              - generic [ref=e269]:
+                - generic [ref=e270]: Trail Connection
+                - generic [ref=e271]: "Yes"
+              - generic [ref=e272]:
+                - generic [ref=e273]: Maintained By
+                - generic [ref=e274]: City of Prince George
+              - generic [ref=e275]:
+                - generic [ref=e276]: Inspection Status
+                - generic [ref=e277]: Active
+        - button "Close search" [ref=e278] [cursor=pointer]
+        - dialog "Search locations" [ref=e279]:
+          - generic [ref=e280]:
+            - generic [ref=e282]:
+              - img
+              - textbox "Search map items" [ref=e283]:
+                - /placeholder: Search map items...
+            - generic [ref=e284]:
+              - generic [ref=e285]:
+                - generic [ref=e286]: Neighbourhood areas
+                - button "Downtown Mixed-use core with civic destinations." [ref=e287] [cursor=pointer]:
+                  - generic [ref=e289]:
+                    - generic [ref=e290]: Downtown
+                    - generic [ref=e291]: Mixed-use core with civic destinations.
+                - button "College Heights Residential area with ridge views." [ref=e292] [cursor=pointer]:
+                  - generic [ref=e294]:
+                    - generic [ref=e295]: College Heights
+                    - generic [ref=e296]: Residential area with ridge views.
+              - generic [ref=e297]:
+                - generic [ref=e298]: Parks
+                - button "Cottonwood Island Park Riverfront park and trail access." [ref=e299] [cursor=pointer]:
+                  - generic [ref=e301]:
+                    - generic [ref=e302]: Cottonwood Island Park
+                    - generic [ref=e303]: Riverfront park and trail access.
+                - button "Lheidli T'enneh Memorial Park Central gathering space near downtown." [ref=e304] [cursor=pointer]:
+                  - generic [ref=e306]:
+                    - generic [ref=e307]: Lheidli T'enneh Memorial Park
+                    - generic [ref=e308]: Central gathering space near downtown.
+              - generic [ref=e309]:
+                - generic [ref=e310]: Transit routes
+                - button "Route 15 East-west transit spine through the city centre." [ref=e311] [cursor=pointer]:
+                  - generic [ref=e313]:
+                    - generic [ref=e314]: Route 15
+                    - generic [ref=e315]: East-west transit spine through the city centre.
+                - button "Route 5 North-south route connecting parks and downtown." [ref=e316] [cursor=pointer]:
+                  - generic [ref=e318]:
+                    - generic [ref=e319]: Route 5
+                    - generic [ref=e320]: North-south route connecting parks and downtown.
+            - generic [ref=e321]: 6 results

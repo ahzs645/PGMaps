@@ -1,0 +1,224 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic:
+      - button "Main menu" [ref=e5] [cursor=pointer]:
+        - generic [ref=e6]: PGMaps
+        - img [ref=e7]
+      - generic:
+        - button "Open search" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+        - button "Toggle theme" [ref=e13] [cursor=pointer]:
+          - img
+        - button "Toggle menu" [ref=e14] [cursor=pointer]:
+          - img
+  - main [ref=e15]:
+    - generic [ref=e25]:
+      - generic:
+        - generic:
+          - separator "Drag to resize sheet":
+            - button "Hide panel":
+              - img
+          - generic:
+            - complementary:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - heading "Interactive map shell" [level=1]
+                    - paragraph: Shared sidebar, bottom sheet, popup cards, layer controls, and map actions.
+              - generic:
+                - generic:
+                  - paragraph: Use this map to test the Felt-style presentation against the app's existing MapLibre stack.
+                  - generic:
+                    - generic:
+                      - button "Search locations":
+                        - img
+                        - generic: Search locations
+                    - generic:
+                      - button "Measure areas":
+                        - img
+                        - generic: Measure areas
+                    - generic:
+                      - button "Open table":
+                        - img
+                        - generic: Open table
+                - generic:
+                  - generic:
+                    - heading "Legend" [level=2]
+                    - generic:
+                      - button "More legend options":
+                        - img
+                  - generic:
+                    - list:
+                      - listitem:
+                        - generic:
+                          - img
+                        - generic "Neighbourhood areas"
+                        - generic:
+                          - button "Show only Neighbourhood areas":
+                            - img
+                          - button "Toggle legend item visibility":
+                            - img
+                      - listitem:
+                        - generic:
+                          - img
+                        - generic "Parks"
+                        - generic:
+                          - button "Show only Parks":
+                            - img
+                          - button "Toggle legend item visibility":
+                            - img
+                      - listitem:
+                        - generic "Transit routes"
+                        - generic:
+                          - button "Show only Transit routes":
+                            - img
+                          - button "Toggle legend item visibility":
+                            - img
+                    - generic:
+                      - generic:
+                        - heading "Year issued" [level=3]
+                        - button "Reset year filter":
+                          - img
+                      - slider "Year issued filter":
+                        - generic:
+                          - generic: "359"
+                      - generic:
+                        - generic:
+                          - text: From
+                          - combobox "From":
+                            - option "2014" [selected]
+                            - option "2015"
+                            - option "2016"
+                            - option "2017"
+                            - option "2018"
+                            - option "2019"
+                            - option "2020"
+                            - option "2021"
+                            - option "2022"
+                            - option "2023"
+                            - option "2024"
+                        - generic:
+                          - text: To
+                          - combobox "To":
+                            - option "2014"
+                            - option "2015"
+                            - option "2016"
+                            - option "2017"
+                            - option "2018"
+                            - option "2019"
+                            - option "2020"
+                            - option "2021"
+                            - option "2022"
+                            - option "2023"
+                            - option "2024" [selected]
+                      - paragraph: 2014 to 2024 · filters map, search, and table
+                - generic:
+                  - generic:
+                    - heading "Measurement" [level=2]
+                    - button "Delete measurement":
+                      - img
+                  - generic:
+                    - generic: Start measuring to draw a private polygon or circle on the map.
+                    - generic:
+                      - generic:
+                        - generic: Perimeter
+                        - generic: "-"
+                      - generic:
+                        - generic: Area
+                        - generic: "-"
+                    - generic:
+                      - button "Measure":
+                        - img
+                        - text: Measure
+                      - button "Close" [disabled]
+                - generic:
+                  - generic:
+                    - heading "Map components" [level=2]
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic: Scale
+                        - generic: Show the scale, zoom, and source strip
+                      - generic:
+                        - img
+                        - checkbox "Scale" [checked]
+                    - generic:
+                      - generic: Scale position
+                      - generic:
+                        - combobox "Scale position":
+                          - generic: Bottom center
+                          - img
+                    - generic:
+                      - generic:
+                        - generic: Open in menu
+                        - generic: Show map handoff options in feature sheets
+                      - generic:
+                        - img
+                        - checkbox "Open in menu" [checked]
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic: Visible
+                      - generic: "3"
+                    - generic:
+                      - generic: Features
+                      - generic: "6"
+                    - generic:
+                      - generic: Cards
+                      - generic: "On"
+      - generic [ref=e223]:
+        - generic [ref=e224]:
+          - region "Map" [ref=e225]
+          - generic [ref=e227]:
+            - button "Zoom in" [ref=e228] [cursor=pointer]:
+              - img [ref=e229]
+            - button "Zoom out" [ref=e230] [cursor=pointer]:
+              - img [ref=e231]
+          - generic "Map scale and attribution":
+            - generic:
+              - button "11.8z"
+              - generic: 1mi
+            - generic:
+              - link "Made with Felt." [ref=e232] [cursor=pointer]:
+                - /url: https://felt.com
+              - text: Data from
+              - link "OpenStreetMap" [ref=e233] [cursor=pointer]:
+                - /url: https://www.openstreetmap.org/copyright
+              - generic: · City of Oakland
+        - generic "Feature inspector":
+          - dialog "College Heights" [ref=e322]:
+            - generic [ref=e237]:
+              - generic [ref=e238]:
+                - button "Dock selected feature above map controls" [ref=e239] [cursor=pointer]:
+                  - generic [ref=e240]: College Heights
+                  - img [ref=e241]
+                - generic [ref=e243]:
+                  - button "Feature actions" [ref=e245] [cursor=pointer]:
+                    - img [ref=e246]
+                  - button "Close feature inspector" [ref=e250] [cursor=pointer]:
+                    - img [ref=e251]
+              - paragraph [ref=e254]: Neighbourhood areas
+            - generic "Vector feature popup contents" [ref=e256]:
+              - generic [ref=e323]:
+                - generic [ref=e324]: Area Type
+                - generic [ref=e325]: Residential
+              - generic [ref=e260]:
+                - generic [ref=e261]: Year Issued
+                - generic [ref=e262]: "2023"
+              - generic [ref=e263]:
+                - generic [ref=e264]: Estimated Cost
+                - generic [ref=e265]: $2.18m
+              - generic [ref=e326]:
+                - generic [ref=e327]: Profile
+                - generic [ref=e328]: Neighbourhood
+              - generic [ref=e329]:
+                - generic [ref=e330]: Map Layer
+                - generic [ref=e331]: Boundary
+              - generic [ref=e332]:
+                - generic [ref=e333]: Feature Count
+                - generic [ref=e334]: "1"
+              - generic [ref=e335]:
+                - generic [ref=e336]: Selection Status
+                - generic [ref=e337]: Active

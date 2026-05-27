@@ -98,12 +98,20 @@ export function DismissSelectionOnMapClick({
     if (!map || !isLoaded || !enabled) return
     const canvas = map.getCanvas()
     let pointerStart: { x: number; y: number; id: number } | null = null
-    const dismiss = () => {
+    const isFeatureTap = (point: { x: number; y: number }) => {
+      const features = map.queryRenderedFeatures(point as never)
+      return features.some((feature) => {
+        const layerId = feature.layer?.id ?? ''
+        return (layerId.startsWith('fill-layer-') || layerId.startsWith('line-layer-')) && feature.properties?.id != null
+      })
+    }
+    const dismiss = (point?: { x: number; y: number }) => {
+      if (point && isFeatureTap(point)) return
       if (shouldSkip()) return
       onDismiss()
     }
-    const handleClick = () => {
-      dismiss()
+    const handleClick = (event: { point?: { x: number; y: number } }) => {
+      dismiss(event.point)
     }
     const handlePointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return
@@ -114,7 +122,8 @@ export function DismissSelectionOnMapClick({
       const distance = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y)
       pointerStart = null
       if (distance > 8) return
-      dismiss()
+      const rect = canvas.getBoundingClientRect()
+      dismiss({ x: event.clientX - rect.left, y: event.clientY - rect.top })
     }
     const handlePointerCancel = () => {
       pointerStart = null
