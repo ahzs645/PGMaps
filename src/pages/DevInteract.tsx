@@ -383,14 +383,22 @@ function DevInteract() {
             }}
           />
           <DismissSelectionOnMapClick
-            enabled={measurementMode !== 'drawing' && Boolean(selectedFeature)}
+            enabled={measurementMode !== 'drawing'}
             shouldSkip={() => {
               if (Date.now() < skipMapDismissUntil.current) return true
               if (!skipNextMapDismiss.current) return false
               skipNextMapDismiss.current = false
               return true
             }}
-            onDismiss={clearSelection}
+            onDismiss={() => {
+              if (selectedFeature) {
+                clearSelection()
+              }
+              setMobileInspectorCollapsed(true)
+              setMobileControlsExpanded(false)
+              setMobileSheetSnapTo('collapsed')
+              setMobileSheetSnapKey((current) => current + 1)
+            }}
           />
 
           <MapFillLayer
