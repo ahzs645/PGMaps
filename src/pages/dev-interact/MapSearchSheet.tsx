@@ -32,18 +32,26 @@ export function MapSearchSheet({
   onSelect: (feature: InteractFeature) => void
 }) {
   const [query, setQuery] = useState('')
+  const [presented, setPresented] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
-    const frame = requestAnimationFrame(() => inputRef.current?.focus())
+    const frame = requestAnimationFrame(() => {
+      setPresented(true)
+      inputRef.current?.focus()
+    })
     return () => cancelAnimationFrame(frame)
   }, [open])
 
   useEffect(() => {
     if (open) return
+    const frame = requestAnimationFrame(() => setPresented(false))
     const timeout = window.setTimeout(onExited, 260)
-    return () => window.clearTimeout(timeout)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(timeout)
+    }
   }, [onExited, open])
 
   const rows = useMemo(() => {
@@ -86,8 +94,8 @@ export function MapSearchSheet({
         type="button"
         aria-label="Close search"
         className={cn(
-          'fixed inset-0 z-[65] bg-black/50 transition-opacity duration-250 md:hidden',
-          open ? 'opacity-100' : 'pointer-events-none opacity-0',
+          'fixed inset-0 z-[1200] bg-black/55 transition-opacity duration-250 md:hidden',
+          presented ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
         onClick={onClose}
       />
@@ -96,8 +104,8 @@ export function MapSearchSheet({
         aria-labelledby="map-search-title"
         data-open={open}
         className={cn(
-          'absolute inset-x-2 bottom-0 z-[70] flex h-[calc(100dvh-4.75rem)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_18px_rgba(0,0,0,0.34)] transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:hidden',
-          open ? 'translate-y-0' : 'translate-y-full',
+          'fixed inset-x-0 bottom-0 z-[1210] flex h-[calc(100dvh-4.75rem)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_18px_rgba(0,0,0,0.34)] transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:hidden',
+          presented ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]',
         )}
       >
         <SearchBody
@@ -114,7 +122,7 @@ export function MapSearchSheet({
         data-open={open}
         className={cn(
           'absolute right-4 top-16 z-[70] hidden h-[min(520px,calc(100%-5rem))] w-[min(420px,calc(100%-2rem))] flex-col overflow-hidden rounded-lg border border-border bg-background/95 shadow-2xl backdrop-blur transition-[opacity,transform] duration-200 ease-out md:flex',
-          open ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
+          presented ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
         )}
       >
         <SearchHeader onClose={onClose} compact />
