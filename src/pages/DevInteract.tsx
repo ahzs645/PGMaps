@@ -99,8 +99,21 @@ function DevInteract() {
     setMobileSheetSnapKey((current) => current + 1)
   }, [])
 
+  const dismissMobileSelection = useCallback(() => {
+    setSelectedFeature(null)
+    setSelectedFeatures([])
+    setSelectedFeatureIndex(0)
+    setSelectedLngLat(null)
+    setMobileInspectorCollapsed(false)
+    setMobileControlsExpanded(false)
+    setMobileSheetSnapTo('collapsed')
+    setMobileSheetSnapKey((current) => current + 1)
+    mobileInspectorCollapsedBeforeControls.current = false
+  }, [])
+
   const setSelection = useCallback((feature: InteractFeature, point: [number, number]) => {
     skipNextMapDismiss.current = true
+    skipMapDismissUntil.current = Date.now() + 150
     const features = relatedFeaturesAtPoint(point, feature, (candidate) => featureMatchesYearRange(candidate, yearRange))
     setSelectedFeature(feature)
     setSelectedFeatures(features)
@@ -395,19 +408,21 @@ function DevInteract() {
           <DismissSelectionOnMapClick
             enabled={measurementMode !== 'drawing'}
             shouldSkip={() => {
-              if (Date.now() < skipMapDismissUntil.current) return true
+              const now = Date.now()
+              if (now < skipMapDismissUntil.current) {
+                if (skipNextMapDismiss.current) {
+                  skipNextMapDismiss.current = false
+                }
+                return true
+              }
               if (!skipNextMapDismiss.current) return false
               skipNextMapDismiss.current = false
-              return true
+              return false
             }}
             onDismiss={() => {
               if (selectedFeature) {
                 if (window.innerWidth < 768) {
-                  mobileInspectorCollapsedBeforeControls.current = true
-                  setMobileInspectorCollapsed(true)
-                  setMobileControlsExpanded(false)
-                  setMobileSheetSnapTo('collapsed')
-                  setMobileSheetSnapKey((current) => current + 1)
+                  dismissMobileSelection()
                   return
                 }
                 clearSelection()
