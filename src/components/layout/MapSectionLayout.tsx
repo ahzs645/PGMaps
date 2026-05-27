@@ -426,7 +426,7 @@ export function MapSectionLayout({
         <div
           ref={sheetRef}
           className={cn(
-            'absolute inset-x-0 bottom-0 flex h-full max-h-full flex-col overflow-hidden rounded-t-xl border border-b-0 border-border bg-background/95 shadow-2xl backdrop-blur sm:rounded-t-2xl',
+            'absolute inset-x-0 bottom-0 flex h-full max-h-full flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)]',
             mobileSheetInteractive ? 'pointer-events-auto' : 'pointer-events-none',
             'md:relative md:inset-auto md:h-full md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-blur-none',
           )}
@@ -435,24 +435,24 @@ export function MapSectionLayout({
           {/* Drag handle */}
           <div
             ref={handleRef}
-            className="relative flex shrink-0 cursor-grab touch-none flex-col items-center justify-center gap-1.5 px-3 py-2 select-none active:cursor-grabbing sm:gap-2 sm:px-4 sm:py-3 md:hidden"
+            className="relative flex shrink-0 cursor-grab touch-none flex-col select-none active:cursor-grabbing md:hidden"
             role="separator"
             aria-label="Drag to resize sheet"
             data-map-mobile-sheet-handle="true"
           >
-            <div className="h-1 w-10 rounded-full bg-muted-foreground/40" />
-            {mobilePeek && (
-              <div className="w-full pr-10">
-                {mobilePeek}
-              </div>
-            )}
+            <div className="flex justify-center py-2" aria-hidden="true">
+              <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+            </div>
+            <div className={cn('min-h-0 w-full px-4 pb-3 pr-14', mobilePeek && 'border-b border-border')}>
+              {mobilePeek ?? <div className="h-8" aria-hidden="true" />}
+            </div>
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
                 snapTo(mobileSheetState === 'collapsed' ? 'half' : 'collapsed')
               }}
-              className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-sm sm:right-4 sm:h-8 sm:w-8"
+              className="absolute right-3 top-[calc(50%+0.25rem)] inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:right-4 sm:h-8 sm:w-8"
               aria-label={mobileSheetState === 'collapsed' ? 'Show panel' : 'Hide panel'}
             >
               {mobileSheetState === 'collapsed' ? (

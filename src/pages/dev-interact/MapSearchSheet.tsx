@@ -104,7 +104,7 @@ export function MapSearchSheet({
         aria-labelledby="map-search-title"
         data-open={open}
         className={cn(
-          'fixed inset-x-0 bottom-0 z-[1210] flex h-[calc(100dvh-4.75rem)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_18px_rgba(0,0,0,0.34)] transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:hidden',
+          'fixed inset-x-0 bottom-0 z-[1210] flex h-[calc(100dvh-4.75rem)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] md:hidden',
           presented ? 'translate-y-0' : 'translate-y-[calc(100%+2rem)]',
         )}
       >
@@ -121,7 +121,7 @@ export function MapSearchSheet({
       <div
         data-open={open}
         className={cn(
-          'absolute right-4 top-16 z-[70] hidden h-[min(520px,calc(100%-5rem))] w-[min(420px,calc(100%-2rem))] flex-col overflow-hidden rounded-lg border border-border bg-background/95 shadow-2xl backdrop-blur transition-[opacity,transform] duration-200 ease-out md:flex',
+          'absolute right-4 top-16 z-[70] hidden h-[min(520px,calc(100%-5rem))] w-[min(420px,calc(100%-2rem))] flex-col overflow-hidden rounded-lg border border-border bg-background shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition-[opacity,transform] duration-200 ease-out md:flex',
           presented ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
         )}
       >
