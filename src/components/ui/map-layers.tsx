@@ -145,7 +145,9 @@ function MapFillLayer({
     }
 
     const handleClick = (event: unknown) => {
-      const e = event as { features?: Array<{ properties?: Record<string, unknown> }> }
+      const e = event as {
+        features?: Array<{ properties?: Record<string, unknown> }>
+      }
       const id = e.features?.[0]?.properties?.[idPropRef.current]
       if (id != null) onClickRef.current?.(String(id))
     }
@@ -332,7 +334,9 @@ function MapLineLayer({
     })
 
     const handleClick = (event: unknown) => {
-      const e = event as { features?: Array<{ properties?: Record<string, unknown> }> }
+      const e = event as {
+        features?: Array<{ properties?: Record<string, unknown> }>
+      }
       const id = e.features?.[0]?.properties?.[idPropRef.current]
       if (id != null) onClickRef.current?.(String(id))
     }

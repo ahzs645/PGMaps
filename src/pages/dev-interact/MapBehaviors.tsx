@@ -86,59 +86,78 @@ export function MapClickCapture({
 export function DismissSelectionOnMapClick({
   enabled,
   shouldSkip,
+  onMapTap,
+  onFeatureTap,
   onDismiss,
 }: {
   enabled: boolean
   shouldSkip: () => boolean
+  onMapTap?: (point: [number, number]) => boolean
+  onFeatureTap?: (featureIds: string[]) => boolean
   onDismiss: () => void
 }) {
   const { map, isLoaded } = useMap()
 
   useEffect(() => {
     if (!map || !isLoaded || !enabled) return
-    const canvas = map.getCanvas()
-    let pointerStart: { x: number; y: number; id: number } | null = null
-    const isFeatureTap = (point: { x: number; y: number }) => {
-      const features = map.queryRenderedFeatures(point as never)
-      return features.some((feature) => {
+    let dismissTimeout: number | null = null
+    const featureIdsAtPoint = (point: { x: number; y: number }) => {
+      const hitRadius = 28
+      const features = map.queryRenderedFeatures([
+        [point.x - hitRadius, point.y - hitRadius],
+        [point.x + hitRadius, point.y + hitRadius],
+      ] as never)
+      const ids = features.flatMap((feature) => {
         const layerId = feature.layer?.id ?? ''
-        return (layerId.startsWith('fill-layer-') || layerId.startsWith('line-layer-')) && feature.properties?.id != null
+        const isFeatureLayer = (
+          layerId.startsWith('fill-layer-')
+          || layerId.startsWith('fill-line-')
+          || layerId.startsWith('fill-sel-')
+          || layerId.startsWith('line-layer-')
+          || layerId.startsWith('line-sel-')
+        )
+        const id = feature.properties?.id
+        return isFeatureLayer && id != null ? [String(id)] : []
       })
+      return [...new Set(ids)]
+    }
+    const isFeatureTap = (point: { x: number; y: number }) => {
+      const ids = featureIdsAtPoint(point)
+      if (ids.length > 0 && onFeatureTap?.(ids)) return true
+      return ids.length > 0
     }
     const dismiss = (point?: { x: number; y: number }) => {
       if (point && isFeatureTap(point)) return
       if (shouldSkip()) return
       onDismiss()
     }
-    const handleClick = (event: { point?: { x: number; y: number } }) => {
-      dismiss(event.point)
+    const handleClick = (event: {
+      lngLat?: { lng: number; lat: number }
+      point?: { x: number; y: number }
+      originalEvent?: { clientX?: number; clientY?: number; defaultPrevented?: boolean }
+    }) => {
+      if (event.originalEvent?.defaultPrevented) return
+      if (event.lngLat && onMapTap?.([event.lngLat.lng, event.lngLat.lat])) return
+      const point = event.point ?? (() => {
+        const { clientX, clientY } = event.originalEvent ?? {}
+        if (clientX == null || clientY == null) return undefined
+        const rect = map.getCanvas().getBoundingClientRect()
+        return { x: clientX - rect.left, y: clientY - rect.top }
+      })()
+      if (!point) return
+      dismissTimeout = window.setTimeout(() => {
+        dismiss(point)
+        dismissTimeout = null
+      }, 0)
     }
-    const handlePointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) return
-      pointerStart = { x: event.clientX, y: event.clientY, id: event.pointerId }
-    }
-    const handlePointerUp = (event: PointerEvent) => {
-      if (!pointerStart || pointerStart.id !== event.pointerId) return
-      const distance = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y)
-      pointerStart = null
-      if (distance > 8) return
-      const rect = canvas.getBoundingClientRect()
-      dismiss({ x: event.clientX - rect.left, y: event.clientY - rect.top })
-    }
-    const handlePointerCancel = () => {
-      pointerStart = null
-    }
-    canvas.addEventListener('pointerdown', handlePointerDown, { capture: true })
-    canvas.addEventListener('pointerup', handlePointerUp, { capture: true })
-    canvas.addEventListener('pointercancel', handlePointerCancel, { capture: true })
     map.on('click', handleClick)
     return () => {
-      canvas.removeEventListener('pointerdown', handlePointerDown, { capture: true })
-      canvas.removeEventListener('pointerup', handlePointerUp, { capture: true })
-      canvas.removeEventListener('pointercancel', handlePointerCancel, { capture: true })
+      if (dismissTimeout != null) {
+        window.clearTimeout(dismissTimeout)
+      }
       map.off('click', handleClick)
     }
-  }, [enabled, isLoaded, map, onDismiss, shouldSkip])
+  }, [enabled, isLoaded, map, onDismiss, onFeatureTap, onMapTap, shouldSkip])
 
   return null
 }

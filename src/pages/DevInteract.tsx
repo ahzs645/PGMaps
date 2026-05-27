@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import { point as turfPoint } from '@turf/helpers'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -42,6 +44,7 @@ const MOBILE_CONTROLS_DOCKED_VISIBLE_HEIGHT = 56
 const FEATURE_SELECT_DISMISS_SUPPRESS_MS = 150
 const MAP_DRAG_DISMISS_SUPPRESS_MS = 650
 const MOBILE_MEDIA_QUERY = '(max-width: 767px)'
+const ROUTE_HIT_DISTANCE_DEGREES = 0.0012
 
 const initialMobilePanelState: MobilePanelState = {
   mode: 'controls',
@@ -104,6 +107,26 @@ function useIsMobileViewport() {
   }, [])
 
   return isMobile
+}
+
+function pointToSegmentDistance(point: [number, number], start: [number, number], end: [number, number]) {
+  const [px, py] = point
+  const [ax, ay] = start
+  const [bx, by] = end
+  const dx = bx - ax
+  const dy = by - ay
+  if (dx === 0 && dy === 0) return Math.hypot(px - ax, py - ay)
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+}
+
+function pointNearLine(point: [number, number], coordinates: GeoJSON.Position[]) {
+  for (let index = 1; index < coordinates.length; index += 1) {
+    const start = coordinates[index - 1] as [number, number]
+    const end = coordinates[index] as [number, number]
+    if (pointToSegmentDistance(point, start, end) <= ROUTE_HIT_DISTANCE_DEGREES) return true
+  }
+  return false
 }
 
 function DevInteract() {
@@ -198,11 +221,6 @@ function DevInteract() {
 
   const setSelection = useCallback((feature: InteractFeature, point: [number, number]) => {
     if (selectedFeature?.properties.id === feature.properties.id) {
-      if (isMobileViewport) {
-        dismissMobileSelection()
-        return
-      }
-      clearSelection()
       return
     }
 
@@ -214,7 +232,7 @@ function DevInteract() {
     setSelectedFeatureIndex(0)
     setSelectedLngLat(point)
     dispatchMobilePanel({ type: 'selectFeature' })
-  }, [clearSelection, dismissMobileSelection, isMobileViewport, selectedFeature?.properties.id, yearRange])
+  }, [selectedFeature?.properties.id, yearRange])
 
   useEffect(() => {
     const openSearch = () => {
@@ -301,6 +319,57 @@ function DevInteract() {
     setSelection(feature, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
     setZoomFeature({ feature, nonce: Date.now() })
   }, [setSelection])
+
+  const findInteractFeature = useCallback((id: string) => {
+    return [...neighbourhoodFeatures.features, ...parkFeatures.features, ...routeFeatures.features]
+      .find((feature) => feature.properties.id === id) ?? null
+  }, [])
+
+  const handleRenderedFeatureTap = useCallback((featureIds: string[]) => {
+    const currentId = selectedFeature?.properties.id ?? null
+    const targetId = featureIds.find((id) => id !== currentId) ?? featureIds[0] ?? null
+    if (!targetId) return false
+
+    if (targetId === currentId) {
+      if (isMobileViewport) {
+        dismissMobileSelection()
+        return true
+      }
+      clearSelection()
+      return true
+    }
+
+    const feature = findInteractFeature(targetId)
+    if (!feature) return false
+    selectFeature(feature)
+    return true
+  }, [clearSelection, dismissMobileSelection, findInteractFeature, isMobileViewport, selectFeature, selectedFeature?.properties.id])
+
+  const handleMapFeatureTap = useCallback((lngLat: [number, number]) => {
+    const clickPoint = turfPoint(lngLat)
+    const polygonHits = [...neighbourhoodFeatures.features, ...parkFeatures.features].filter((feature) => (
+      booleanPointInPolygon(clickPoint, feature)
+    ))
+    const routeHits = routeFeatures.features.filter((feature) => (
+      pointNearLine(lngLat, feature.geometry.coordinates)
+    ))
+    const hits = [...polygonHits, ...routeHits]
+    if (hits.length === 0) return false
+
+    const currentId = selectedFeature?.properties.id ?? null
+    const target = hits.find((feature) => feature.properties.id !== currentId) ?? hits[0]
+    if (target.properties.id === currentId) {
+      if (isMobileViewport) {
+        dismissMobileSelection()
+        return true
+      }
+      clearSelection()
+      return true
+    }
+
+    selectFeature(target)
+    return true
+  }, [clearSelection, dismissMobileSelection, isMobileViewport, selectFeature, selectedFeature?.properties.id])
 
   const toggleLayer = useCallback((layer: LayerId) => {
     setVisibleLayers((current) => ({ ...current, [layer]: !current[layer] }))
@@ -540,6 +609,8 @@ function DevInteract() {
           <DismissSelectionOnMapClick
             enabled={measurementMode !== 'drawing'}
             shouldSkip={shouldSuppressMapDismiss}
+            onMapTap={handleMapFeatureTap}
+            onFeatureTap={handleRenderedFeatureTap}
             onDismiss={dismissSelectionForViewport}
           />
 
@@ -613,7 +684,7 @@ function DevInteract() {
             </MapMarker>
           ))}
 
-          {measurementMode !== 'drawing' && selectedFeature && selectedLngLat && (
+          {measurementMode !== 'drawing' && selectedFeature && selectedLngLat && !isMobileViewport && (
             <MapPopup longitude={selectedLngLat[0]} latitude={selectedLngLat[1]} onClose={clearSelection} closeButton={false} className="hidden border-0 bg-transparent p-0 shadow-none md:block">
               <DesktopFeaturePopup
                 feature={selectedFeatures[selectedFeatureIndex] ?? selectedFeature}
