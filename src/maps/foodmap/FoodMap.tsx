@@ -77,6 +77,7 @@ export default function FoodMap() {
   const [violationTimelineMode, setViolationTimelineMode] = useState<ViolationTimelineMode>(
     () => (searchParams.get('violationTimeline') as ViolationTimelineMode) || 'period'
   )
+  const [pendingRestaurantName, setPendingRestaurantName] = useState(() => searchParams.get('restaurant') || '')
 
   const now = new Date()
   const [timelineDate, setTimelineDate] = useState(startOfMonth(now))
@@ -89,9 +90,9 @@ export default function FoodMap() {
     if (timelineMonths !== 12) params.set('months', String(timelineMonths))
     if (violationTimelineMode !== 'period') params.set('violationTimeline', violationTimelineMode)
     if (selectedRestaurant) params.set('restaurant', selectedRestaurant.name)
-    else if (searchParams.get('restaurant')) params.set('restaurant', searchParams.get('restaurant') as string)
+    else if (pendingRestaurantName) params.set('restaurant', pendingRestaurantName)
     setSearchParams(params, { replace: true })
-  }, [searchParams, searchQuery, selectedRestaurant, visualizationMode, timelineMonths, violationTimelineMode, setSearchParams])
+  }, [pendingRestaurantName, searchQuery, selectedRestaurant, visualizationMode, timelineMonths, violationTimelineMode, setSearchParams])
 
   const violationDateRange = useMemo(() => {
     const end = endOfMonth(timelineDate)
@@ -240,11 +241,13 @@ export default function FoodMap() {
   }, [filteredRestaurants])
 
   useEffect(() => {
-    const restaurantName = searchParams.get('restaurant')
-    if (!restaurantName || selectedRestaurant) return
-    const restaurant = restaurantsWithStats.find((item) => item.name === restaurantName)
-    if (restaurant) setSelectedRestaurant(restaurant)
-  }, [restaurantsWithStats, searchParams, selectedRestaurant])
+    if (!pendingRestaurantName || selectedRestaurant) return
+    const restaurant = restaurantsWithStats.find((item) => item.name === pendingRestaurantName)
+    if (restaurant) {
+      setSelectedRestaurant(restaurant)
+      setPendingRestaurantName('')
+    }
+  }, [pendingRestaurantName, restaurantsWithStats, selectedRestaurant])
 
   useEffect(() => {
     if (!selectedRestaurant) return
@@ -286,6 +289,7 @@ export default function FoodMap() {
   }, [])
 
   const clearSelection = useCallback(() => {
+    setPendingRestaurantName('')
     setSelectedRestaurant(null)
     setShowInspectionPanel(false)
   }, [])

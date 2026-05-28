@@ -147,9 +147,15 @@ function MapFillLayer({
     const handleClick = (event: unknown) => {
       const e = event as {
         features?: Array<{ properties?: Record<string, unknown> }>
+        originalEvent?: Event
+        preventDefault?: () => void
       }
       const id = e.features?.[0]?.properties?.[idPropRef.current]
-      if (id != null) onClickRef.current?.(String(id))
+      if (id != null) {
+        e.preventDefault?.()
+        e.originalEvent?.preventDefault()
+        onClickRef.current?.(String(id))
+      }
     }
 
     const handleMouseEnter = () => {
@@ -336,9 +342,15 @@ function MapLineLayer({
     const handleClick = (event: unknown) => {
       const e = event as {
         features?: Array<{ properties?: Record<string, unknown> }>
+        originalEvent?: Event
+        preventDefault?: () => void
       }
       const id = e.features?.[0]?.properties?.[idPropRef.current]
-      if (id != null) onClickRef.current?.(String(id))
+      if (id != null) {
+        e.preventDefault?.()
+        e.originalEvent?.preventDefault()
+        onClickRef.current?.(String(id))
+      }
     }
 
     const handleMouseEnter = () => {

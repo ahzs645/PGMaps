@@ -237,6 +237,8 @@ function BoundaryBrowseLayer({
       const properties = (firstFeature?.properties ?? {}) as Record<string, unknown>
       const code = String(properties.code ?? '').trim()
       if (!code) return
+      event.preventDefault()
+      event.originalEvent.preventDefault()
       const name = String(properties.name ?? code)
       onBoundaryClick?.({ code, name })
     }

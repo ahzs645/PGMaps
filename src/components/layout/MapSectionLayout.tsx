@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  MOBILE_FEATURE_CARD_HEIGHT,
+  MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT,
+  MOBILE_MAP_INTERACTION_EVENT,
+  MOBILE_MAP_SHEET_COLLAPSE_EVENT,
+  MOBILE_MAP_SHEET_STACK_EVENT,
+} from '@/components/ui/mobile-feature-card'
 
 type MobileSheetState = 'collapsed' | 'half' | 'full'
 
@@ -142,6 +149,7 @@ export function MapSectionLayout({
   const vel = useRef(0)
   const fromHandle = useRef(false)
   const decided = useRef(false)
+  const suppressScrim = useRef(false)
 
   // ------ helpers ----------------------------------------------------------
 
@@ -170,8 +178,9 @@ export function MapSectionLayout({
     const range = snaps.collapsed - snaps.full
     const t = Math.max(0, Math.min(1, 1 - (y - snaps.full) / range))
     if (scrimRef.current) {
-      scrimRef.current.style.opacity = mobileSheetInteractive && mobileScrimEnabled ? String(t * 0.4) : '0'
-      scrimRef.current.style.pointerEvents = mobileSheetInteractive && mobileScrimEnabled && t > 0.05 ? 'auto' : 'none'
+      const showScrim = mobileSheetInteractive && mobileScrimEnabled && !suppressScrim.current
+      scrimRef.current.style.opacity = showScrim ? String(t * 0.4) : '0'
+      scrimRef.current.style.pointerEvents = showScrim && t > 0.05 ? 'auto' : 'none'
       scrimRef.current.style.transition = animate ? 'opacity 0.35s ease' : 'none'
     }
   }, [getFullSnapOffset, getSheetHeight, mobileScrimEnabled, mobileSheetInteractive])
@@ -183,11 +192,29 @@ export function MapSectionLayout({
 
   const snapTo = useCallback(
     (state: MobileSheetState) => {
+      suppressScrim.current = false
       updateMobileSheetState(state)
       applyTransform(getSnapPositions(getSheetHeight(), getFullSnapOffset())[state], true)
     },
     [applyTransform, getFullSnapOffset, getSheetHeight, updateMobileSheetState],
   )
+
+  const stackBehindFeatureCard = useCallback((collapsedFeature = false) => {
+    if (!isMobileViewport()) return
+    const sheetHeight = getSheetHeight()
+    const visibleHeight = collapsedFeature
+      ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT - 6
+      : Math.min(MOBILE_FEATURE_CARD_HEIGHT, Math.max(160, window.innerHeight - 104)) - 6
+    const snaps = getSnapPositions(sheetHeight, getFullSnapOffset())
+    const y = Math.max(snaps.full, Math.min(snaps.collapsed, sheetHeight - visibleHeight))
+    suppressScrim.current = true
+    updateMobileSheetState(stateFromTranslate(y, sheetHeight, getFullSnapOffset()))
+    applyTransform(y, true)
+    if (scrimRef.current) {
+      scrimRef.current.style.opacity = '0'
+      scrimRef.current.style.pointerEvents = 'none'
+    }
+  }, [applyTransform, getFullSnapOffset, getSheetHeight, updateMobileSheetState])
 
   useEffect(() => {
     if (!isMobileViewport()) return
@@ -400,6 +427,23 @@ export function MapSectionLayout({
 
   // Scrim tap → collapse
   const handleScrimClick = useCallback(() => snapTo('collapsed'), [snapTo])
+
+  useEffect(() => {
+    const collapse = () => {
+      if (!isMobileViewport()) return
+      snapTo('collapsed')
+    }
+    const collapseForMapInteraction = () => stackBehindFeatureCard(true)
+    const stack = () => stackBehindFeatureCard(false)
+    window.addEventListener(MOBILE_MAP_INTERACTION_EVENT, collapseForMapInteraction)
+    window.addEventListener(MOBILE_MAP_SHEET_COLLAPSE_EVENT, collapse)
+    window.addEventListener(MOBILE_MAP_SHEET_STACK_EVENT, stack)
+    return () => {
+      window.removeEventListener(MOBILE_MAP_INTERACTION_EVENT, collapseForMapInteraction)
+      window.removeEventListener(MOBILE_MAP_SHEET_COLLAPSE_EVENT, collapse)
+      window.removeEventListener(MOBILE_MAP_SHEET_STACK_EVENT, stack)
+    }
+  }, [snapTo, stackBehindFeatureCard])
 
   // ─── Render ──────────────────────────────────────────────────────────────
 

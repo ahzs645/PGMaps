@@ -21,6 +21,7 @@ import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { MAP_STYLES } from "./map-styles";
+import { MOBILE_MAP_INTERACTION_EVENT } from "./mobile-feature-card";
 
 type MapContextValue = {
   map: MapLibreGL.Map | null;
@@ -119,6 +120,10 @@ function getViewport(map: MapLibreGL.Map): MapViewport {
   };
 }
 
+function dispatchMobileMapInteraction() {
+  window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT));
+}
+
 const Map = forwardRef<MapRef, MapProps>(function Map(
   {
     children,
@@ -199,10 +204,20 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       if (internalUpdateRef.current) return;
       onViewportChangeRef.current?.(getViewport(map));
     };
+    const handleUserMapInteraction = (event?: { originalEvent?: Event; defaultPrevented?: boolean }) => {
+      if (event && !event.originalEvent) return;
+      if (event?.defaultPrevented || event?.originalEvent?.defaultPrevented) return;
+      dispatchMobileMapInteraction();
+    };
 
     map.on("load", loadHandler);
     map.on("styledata", styleDataHandler);
     map.on("move", handleMove);
+    map.on("click", handleUserMapInteraction);
+    map.on("dragstart", handleUserMapInteraction);
+    map.on("rotatestart", handleUserMapInteraction);
+    map.on("pitchstart", handleUserMapInteraction);
+    map.on("zoomstart", handleUserMapInteraction);
     setMapInstance(map);
 
     return () => {
@@ -210,6 +225,11 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       map.off("load", loadHandler);
       map.off("styledata", styleDataHandler);
       map.off("move", handleMove);
+      map.off("click", handleUserMapInteraction);
+      map.off("dragstart", handleUserMapInteraction);
+      map.off("rotatestart", handleUserMapInteraction);
+      map.off("pitchstart", handleUserMapInteraction);
+      map.off("zoomstart", handleUserMapInteraction);
       map.remove();
       setIsLoaded(false);
       setIsStyleLoaded(false);
@@ -1319,12 +1339,15 @@ function MapClusterLayer<
     const handleClusterClick = async (
       e: MapLibreGL.MapMouseEvent & {
         features?: MapLibreGL.MapGeoJSONFeature[];
+        preventDefault?: () => void;
       }
     ) => {
       const features = map.queryRenderedFeatures(e.point, {
         layers: [clusterLayerId],
       });
       if (!features.length) return;
+      e.preventDefault?.();
+      e.originalEvent.preventDefault();
 
       const feature = features[0];
       const clusterId = feature.properties?.cluster_id as number;
@@ -1351,9 +1374,12 @@ function MapClusterLayer<
     const handlePointClick = (
       e: MapLibreGL.MapMouseEvent & {
         features?: MapLibreGL.MapGeoJSONFeature[];
+        preventDefault?: () => void;
       }
     ) => {
       if (!onPointClick || !e.features?.length) return;
+      e.preventDefault?.();
+      e.originalEvent.preventDefault();
 
       const feature = e.features[0];
       const coordinates = (

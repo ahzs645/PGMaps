@@ -82,4 +82,16 @@ test.describe('mobile map sidebars', () => {
     await expect(toolbar).toBeVisible()
     expect(measurements.sheetTop).toBeGreaterThanOrEqual(measurements.toolbarBottom + 7)
   })
+
+  test('mobile food map deep-linked restaurant card can be dismissed', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/foodmap?restaurant=A+%26+W+Restaurant-+5th+Avenue', { waitUntil: 'domcontentloaded' })
+
+    const card = page.locator('[aria-label="Selected feature"]')
+    await expect(card).toBeVisible({ timeout: 30_000 })
+
+    await page.getByRole('button', { name: 'Close feature card' }).click()
+    await expect(card).toBeHidden({ timeout: 5_000 })
+    await expect(page).not.toHaveURL(/restaurant=/)
+  })
 })

@@ -29,7 +29,7 @@ export function SharedMapLayout({ defaultStyles, center, zoom }: SharedMapLayout
       defaultStyles={defaultStyles}
       center={center}
       zoom={zoom}
-      routeLoadingKey={`${location.pathname}${location.search}`}
+      routeLoadingKey={location.pathname}
     >
       <Outlet />
     </PersistentMapProvider>
