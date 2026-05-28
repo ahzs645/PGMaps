@@ -94,4 +94,16 @@ test.describe('mobile map sidebars', () => {
     await expect(card).toBeHidden({ timeout: 5_000 })
     await expect(page).not.toHaveURL(/restaurant=/)
   })
+
+  test('mobile BC Assessment deep-linked property card can be dismissed', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/bc-assessment?property=D0000SJZAC', { waitUntil: 'domcontentloaded' })
+
+    const card = page.locator('[aria-label="Selected feature"]')
+    await expect(card).toBeVisible({ timeout: 30_000 })
+
+    await page.getByRole('button', { name: 'Close feature card' }).click()
+    await expect(card).toBeHidden({ timeout: 5_000 })
+    await expect(page).not.toHaveURL(/property=/)
+  })
 })

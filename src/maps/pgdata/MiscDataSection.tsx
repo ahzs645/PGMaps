@@ -3605,7 +3605,12 @@ export default function MiscDataSection() {
           styles={MAP_STYLES}
           loading={mapLoading}
         >
-          <MapControls position="top-right" showZoom showCompass />
+          <MapControls
+            position="top-right"
+            showZoom
+            showCompass
+            className="top-auto bottom-16 md:top-2 md:bottom-auto"
+          />
 
           <MapFillLayer
             data={forestGeojson}

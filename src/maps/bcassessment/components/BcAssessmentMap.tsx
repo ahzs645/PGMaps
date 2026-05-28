@@ -167,7 +167,12 @@ export function BcAssessmentMap({
         styles={MAP_STYLES}
         loading={loading}
       >
-        <MapControls position="top-right" showZoom showCompass />
+        <MapControls
+          position="top-right"
+          showZoom
+          showCompass
+          className="top-auto bottom-16 md:top-2 md:bottom-auto"
+        />
 
         {/* Property parcels — hidden when boundary overlay is active */}
         <MapFillLayer

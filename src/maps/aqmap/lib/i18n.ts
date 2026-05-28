@@ -22,6 +22,7 @@ const EN: StringMap = {
   'sidebar.basemap.dark': 'Dark Theme',
   'sidebar.pm25Legend': 'PM2.5 Legend',
   'sidebar.iconLegend': 'Monitor Icon Legend',
+  'sidebar.iconMode': 'Monitor Icon Mode',
   'sidebar.export': 'Export Map',
   'sidebar.language': 'Language',
 
@@ -38,6 +39,8 @@ const EN: StringMap = {
   'monitorType.pa': 'PurpleAir (PA)',
   'monitorType.egg': 'AQegg (EGG)',
   'monitorType.missing': 'Missing recent data',
+  'icons.aqmap': 'AQMap',
+  'icons.revealed': 'Reveal',
 
   'aqhi.low': 'Low',
   'aqhi.moderate': 'Moderate',
@@ -101,6 +104,8 @@ const EN: StringMap = {
   'wms.firePerimeters': 'Fire Perimeters',
   'wms.fireDanger': 'Fire Danger',
   'wms.tag': 'WMS',
+  'overlay.raster': 'Raster',
+  'overlay.vector': 'Vector',
 
   'export.png': 'PNG (map only)',
   'export.pngWithOverlays': 'PNG with overlays',
@@ -134,6 +139,7 @@ const FR: StringMap = {
   'sidebar.basemap.dark': 'Thème sombre',
   'sidebar.pm25Legend': 'Légende PM2,5',
   'sidebar.iconLegend': 'Légende des icônes',
+  'sidebar.iconMode': 'Mode des icônes',
   'sidebar.export': 'Exporter la carte',
   'sidebar.language': 'Langue',
 
@@ -150,6 +156,8 @@ const FR: StringMap = {
   'monitorType.pa': 'PurpleAir (PA)',
   'monitorType.egg': 'AQegg (EGG)',
   'monitorType.missing': 'Aucune donnée récente',
+  'icons.aqmap': 'AQMap',
+  'icons.revealed': 'Révéler',
 
   'aqhi.low': 'Faible',
   'aqhi.moderate': 'Modéré',
@@ -213,6 +221,8 @@ const FR: StringMap = {
   'wms.firePerimeters': 'Périmètres des feux',
   'wms.fireDanger': 'Danger d’incendie',
   'wms.tag': 'WMS',
+  'overlay.raster': 'Raster',
+  'overlay.vector': 'Vecteur',
 
   'export.png': 'PNG (carte seule)',
   'export.pngWithOverlays': 'PNG avec habillage',

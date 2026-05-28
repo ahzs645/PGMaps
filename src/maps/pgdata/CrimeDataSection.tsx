@@ -172,6 +172,9 @@ export default function CrimeDataSection() {
     if (!censusOverlay.selectedVariableId) return null
     return censusOverlay.variables.find((v) => v.id === censusOverlay.selectedVariableId)?.label ?? null
   }, [censusOverlay.variables, censusOverlay.selectedVariableId])
+  const showLegend = (showCrimeLayer && showHeatmap)
+    || legendItems.length > 0
+    || (showCensusLayer && Boolean(selectedVariableLabel))
 
   return (
     <MapSectionLayout
@@ -265,37 +268,39 @@ export default function CrimeDataSection() {
         )}
 
         {/* Legend */}
-        <MapLegendPanel
-          elevated={timelineEnabled}
-          title={showCrimeLayer && showHeatmap ? 'Heatmap (Crime Density)' : 'Legend'}
-          collapsible
-        >
-          {showCrimeLayer && showHeatmap ? (
-            <MapGradientLegendItem colors={['#3b82f6', '#22c55e', '#eab308', '#ef4444']} minLabel="Low" maxLabel="High" />
-          ) : (
-            <div className="space-y-2">
-              {/* Point legends */}
-              {legendItems.length > 0 && (
-                <MapLegendSection title="Layers">
-                    {legendItems.map((item) => (
-                      <LegendItem key={item.label} color={item.color} label={item.label} />
-                    ))}
-                </MapLegendSection>
-              )}
+        {showLegend && (
+          <MapLegendPanel
+            elevated={timelineEnabled}
+            title={showCrimeLayer && showHeatmap ? 'Heatmap (Crime Density)' : 'Legend'}
+            collapsible
+          >
+            {showCrimeLayer && showHeatmap ? (
+              <MapGradientLegendItem colors={['#3b82f6', '#22c55e', '#eab308', '#ef4444']} minLabel="Low" maxLabel="High" />
+            ) : (
+              <div className="space-y-2">
+                {/* Point legends */}
+                {legendItems.length > 0 && (
+                  <MapLegendSection title="Layers">
+                      {legendItems.map((item) => (
+                        <LegendItem key={item.label} color={item.color} label={item.label} />
+                      ))}
+                  </MapLegendSection>
+                )}
 
-              {/* Census choropleth legend */}
-              {showCensusLayer && selectedVariableLabel && (
-                <MapLegendSection title={selectedVariableLabel}>
-                  <MapGradientLegendItem
-                    colors={[...COLOR_SCALES.purple]}
-                    minLabel={censusOverlay.legendMin.toLocaleString()}
-                    maxLabel={censusOverlay.legendMax.toLocaleString()}
-                  />
-                </MapLegendSection>
-              )}
-            </div>
-          )}
-        </MapLegendPanel>
+                {/* Census choropleth legend */}
+                {showCensusLayer && selectedVariableLabel && (
+                  <MapLegendSection title={selectedVariableLabel}>
+                    <MapGradientLegendItem
+                      colors={[...COLOR_SCALES.purple]}
+                      minLabel={censusOverlay.legendMin.toLocaleString()}
+                      maxLabel={censusOverlay.legendMax.toLocaleString()}
+                    />
+                  </MapLegendSection>
+                )}
+              </div>
+            )}
+          </MapLegendPanel>
+        )}
       </div>
     </MapSectionLayout>
   )

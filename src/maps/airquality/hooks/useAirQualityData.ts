@@ -91,6 +91,76 @@ interface UseAirQualityDataOptions {
   aqmapCompatible?: boolean
 }
 
+function hashString(value: string): number {
+  let hash = 0
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(index)
+    hash |= 0
+  }
+  return Math.abs(hash)
+}
+
+function roundOneDecimal(value: number): number {
+  return Math.round(value * 10) / 10
+}
+
+function buildFakePm25Value(monitor: AirMonitor): number {
+  const seed = hashString(`${monitor.network}:${monitor.id}:${monitor.latitude}:${monitor.longitude}`)
+  const regionalSignal = (
+    Math.sin((monitor.latitude + 90) * 0.31)
+    + Math.cos((monitor.longitude + 180) * 0.27)
+  ) * 6
+  const networkOffset = monitor.network === 'PA'
+    ? 4
+    : monitor.network === 'EGG'
+      ? 2
+      : monitor.network === 'FEM' || monitor.network === 'BC ENV'
+        ? -1
+        : 1
+  const seededSignal = seed % 37
+  return roundOneDecimal(Math.max(1.8, Math.min(125, 8 + seededSignal + regionalSignal + networkOffset)))
+}
+
+function withFakeAqmapObservations(monitors: AirMonitor[]): AirMonitor[] {
+  const now = new Date().toISOString()
+
+  return monitors.map((monitor) => {
+    if (
+      monitor.pm25Recent !== null
+      || monitor.pm25OneHour !== null
+      || monitor.pm25ThreeHour !== null
+      || monitor.pm25TwentyFourHour !== null
+    ) {
+      return monitor
+    }
+
+    const oneHour = buildFakePm25Value(monitor)
+    const tenMinute = roundOneDecimal(Math.max(0.5, oneHour * 1.08))
+    const threeHour = roundOneDecimal(Math.max(0.5, oneHour * 0.92))
+    const twentyFourHour = roundOneDecimal(Math.max(0.5, oneHour * 0.72))
+
+    return {
+      ...monitor,
+      dateObserved: monitor.dateObserved || now,
+      pm25Recent: tenMinute,
+      pm25RecentRaw: tenMinute,
+      pm25OneHour: oneHour,
+      pm25OneHourRaw: oneHour,
+      pm25ThreeHour: threeHour,
+      pm25ThreeHourRaw: threeHour,
+      pm25TwentyFourHour: twentyFourHour,
+      pm25TwentyFourHourRaw: twentyFourHour,
+      aqhiValue: monitor.aqhiValue ?? oneHour,
+      aqhiOneHourValue: monitor.aqhiOneHourValue ?? oneHour,
+      aqhiTwentyFourHourValue: monitor.aqhiTwentyFourHourValue ?? twentyFourHour,
+      metadata: {
+        ...(monitor.metadata ?? {}),
+        simulated: 'true',
+      },
+    }
+  })
+}
+
 function normalizeParameters(value: RawMonitor['parameters']): string[] {
   if (Array.isArray(value)) {
     return value.filter(Boolean)
@@ -454,9 +524,12 @@ export function useAirQualityData(options: boolean | UseAirQualityDataOptions = 
         const normalized = rows
           .map((row) => normalizeMonitor(row as RawMonitor))
           .filter((row): row is AirMonitor => row !== null)
+        const monitorsForView = aqmapCompatible
+          ? withFakeAqmapObservations(normalized)
+          : normalized
 
-        normalized.sort((a, b) => a.name.localeCompare(b.name))
-        setMonitors(normalized)
+        monitorsForView.sort((a, b) => a.name.localeCompare(b.name))
+        setMonitors(monitorsForView)
       } catch (err) {
         if ((err as Error).name === 'AbortError') return
         setError((err as Error).message || 'Unable to load monitor data')

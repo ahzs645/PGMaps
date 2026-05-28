@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import MapLibreGL from 'maplibre-gl'
 import {
   MapClusterLayer,
   MapMarker,
@@ -11,6 +12,31 @@ import { MAP_STYLES } from '@/components/ui/map-styles'
 import { getClassificationColor, getTrailColor } from '../constants'
 import type { Park, Trail, ParkAmenity, ActiveLayer, CityPgOverlayData } from '../types'
 
+function extendBounds(
+  bounds: MapLibreGL.LngLatBounds,
+  coordinates: GeoJSON.Position[] | GeoJSON.Position[][] | GeoJSON.Position[][][],
+) {
+  for (const item of coordinates) {
+    if (typeof item[0] === 'number' && typeof item[1] === 'number') {
+      bounds.extend(item as [number, number])
+    } else {
+      extendBounds(bounds, item as GeoJSON.Position[] | GeoJSON.Position[][] | GeoJSON.Position[][][])
+    }
+  }
+}
+
+function getParkBounds(park: Park) {
+  const bounds = new MapLibreGL.LngLatBounds()
+  extendBounds(bounds, park.geometry.coordinates)
+  return bounds
+}
+
+function getTrailBounds(trail: Trail) {
+  const bounds = new MapLibreGL.LngLatBounds()
+  trail.coordinates.forEach((coordinate) => bounds.extend(coordinate))
+  return bounds
+}
+
 interface ParksMapProps {
   parks: Park[]
   trails: Trail[]
@@ -19,6 +45,7 @@ interface ParksMapProps {
   activeLayers: ActiveLayer[]
   selectedPark: Park | null
   selectedTrail: Trail | null
+  selectionFocusKey: number
   loading?: boolean
   onParkClick: (park: Park) => void
   onTrailClick: (trail: Trail) => void
@@ -32,6 +59,7 @@ export function ParksMap({
   activeLayers,
   selectedPark,
   selectedTrail,
+  selectionFocusKey,
   loading = false,
   onParkClick,
   onTrailClick,
@@ -93,27 +121,35 @@ export function ParksMap({
     return { type: 'FeatureCollection', features }
   }, [trails])
 
-  // Fly to selected park
+  // Fit selected park
   useEffect(() => {
     if (!selectedPark || !map) return
-    map.flyTo({
-      center: [selectedPark.longitude, selectedPark.latitude],
-      zoom: 15,
+    const bounds = getParkBounds(selectedPark)
+    if (bounds.isEmpty()) {
+      map.flyTo({
+        center: [selectedPark.longitude, selectedPark.latitude],
+        zoom: 15,
+        duration: 800,
+      })
+      return
+    }
+    map.fitBounds(bounds, {
+      padding: { top: 96, right: 96, bottom: 96, left: 96 },
+      maxZoom: 16,
       duration: 800,
     })
-  }, [map, selectedPark])
+  }, [map, selectedPark, selectionFocusKey])
 
-  // Fly to selected trail
+  // Fit selected trail
   useEffect(() => {
     if (!selectedTrail || !map || selectedTrail.coordinates.length === 0) return
-    const midIdx = Math.floor(selectedTrail.coordinates.length / 2)
-    const [lng, lat] = selectedTrail.coordinates[midIdx]
-    map.flyTo({
-      center: [lng, lat],
-      zoom: 15,
+    const bounds = getTrailBounds(selectedTrail)
+    map.fitBounds(bounds, {
+      padding: { top: 96, right: 96, bottom: 96, left: 96 },
+      maxZoom: 16,
       duration: 800,
     })
-  }, [map, selectedTrail])
+  }, [map, selectedTrail, selectionFocusKey])
 
   const visibleAmenities = useMemo(() => {
     if (!showAmenities) return []

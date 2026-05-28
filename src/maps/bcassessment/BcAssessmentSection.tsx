@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -71,6 +71,7 @@ export default function BcAssessmentSection() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [selectedBoundaryId, setSelectedBoundaryId] = useState<string | null>(() => searchParams.get('region'))
   const [showSidebar, setShowSidebar] = useState(true)
+  const ignoreUrlPropertySelectionRef = useRef(false)
 
   const { boundaryData } = useBoundaryData(boundaryLevel)
 
@@ -84,6 +85,11 @@ export default function BcAssessmentSection() {
 
   useEffect(() => {
     const propertyId = searchParams.get('property')
+    if (!propertyId) {
+      ignoreUrlPropertySelectionRef.current = false
+      return
+    }
+    if (ignoreUrlPropertySelectionRef.current) return
     if (propertyId && !selectedProperty) {
       const property = properties.find((item) => item.id === propertyId)
       if (property) setSelectedProperty(property)
@@ -121,10 +127,11 @@ export default function BcAssessmentSection() {
   const boundaryAggregates = useBoundaryAggregates(filteredProperties, boundaryLevel)
   // Clear selection if it's no longer visible
   useEffect(() => {
+    if (!categoriesInitialized) return
     if (selectedProperty && !filteredProperties.some((p) => p.id === selectedProperty.id)) {
       setSelectedProperty(null)
     }
-  }, [filteredProperties, selectedProperty])
+  }, [categoriesInitialized, filteredProperties, selectedProperty])
 
   const toggleCategory = useCallback((category: PropertyCategory) => {
     setSelectedCategories((current) =>
@@ -135,6 +142,7 @@ export default function BcAssessmentSection() {
   }, [])
 
   const handlePropertyClick = useCallback((property: Property) => {
+    ignoreUrlPropertySelectionRef.current = false
     setSelectedProperty(property)
     setSelectedBoundaryId(null)
   }, [])
@@ -145,9 +153,14 @@ export default function BcAssessmentSection() {
   }, [])
 
   const handleClearSelection = useCallback(() => {
+    ignoreUrlPropertySelectionRef.current = true
     setSelectedProperty(null)
     setSelectedBoundaryId(null)
-  }, [])
+    const params = new URLSearchParams(searchParams)
+    params.delete('property')
+    params.delete('region')
+    setSearchParams(params, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const handleBoundarySourceChange = useCallback((source: AssessmentBoundarySource) => {
     setBoundarySource(source)
@@ -230,7 +243,7 @@ export default function BcAssessmentSection() {
         {selectedProperty && (
           <MobileBcAssessmentFeatureCard
             property={selectedProperty}
-            onClose={() => setSelectedProperty(null)}
+            onClose={handleClearSelection}
           />
         )}
       </div>

@@ -504,19 +504,20 @@ function buildScoreBandSummary(regions: ScoredBoundaryRegion[]): ScoreBandSummar
 
 export default function ScoreBuilderSection() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialShareToken = useRef(searchParams.get('s'))
+  const initialShareTokenValue = searchParams.get('s')
+  const initialShareToken = useRef(initialShareTokenValue)
   const appliedQuickPreset = useRef<string | null>(null)
   const initialHasUrlWeights = Boolean(
     searchParams.get('w') ||
     searchParams.get('agg') ||
     searchParams.get('hpDemo') ||
     searchParams.get('hpEnv') ||
-    initialShareToken.current,
+    initialShareTokenValue,
   )
   const hasUrlWeightsOnMount = useRef(initialHasUrlWeights)
 
-  const [showSidebar, setShowSidebar] = useState(true)
-  const [showRightSidebar, setShowRightSidebar] = useState(true)
+  const [showSidebar, setShowSidebar] = useState(() => !initialHasUrlWeights)
+  const [showRightSidebar, setShowRightSidebar] = useState(() => !initialHasUrlWeights)
   const [boundarySource, setBoundarySource] = useState<BoundarySource>(() =>
     parseBoundarySource(searchParams.get('src')),
   )
@@ -2581,7 +2582,7 @@ export default function ScoreBuilderSection() {
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
         desktopSidebarWidth={300}
-        mobileInitialSheetState="half"
+        mobileInitialSheetState={initialHasUrlWeights ? 'collapsed' : 'half'}
         mobilePeek={
           <div className="min-w-0 text-left">
             <div className="truncate text-xs font-semibold text-foreground">

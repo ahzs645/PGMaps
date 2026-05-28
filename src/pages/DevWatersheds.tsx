@@ -300,7 +300,7 @@ function DevWatersheds() {
         center={BC_CENTER}
         zoom={4.2}
       >
-        <MapControls position="top-right" />
+        <MapControls position="top-right" className="top-auto bottom-4 md:top-2 md:bottom-auto" />
         <FitBounds data={activeCollection} />
         <MapFillLayer
           data={activeCollection}

@@ -307,6 +307,9 @@ export default function FoodMap() {
       active: selectedViolationBuckets.includes(bucket.key),
     }))
   }, [restaurantsWithStats, selectedViolationBuckets])
+  const showLegend = visualizationMode === 'violations'
+    ? selectedViolationBuckets.length > 0
+    : selectedHazardRatings.length > 0
 
   const toggleHazardRating = useCallback((hazard: HazardRating) => {
     setSelectedHazardRatings((current) => (
@@ -426,100 +429,102 @@ export default function FoodMap() {
           />
         )}
 
-        <MapLegendPanel
-          className="max-w-[200px]"
-          title={visualizationMode === 'violations' ? 'Violations' : 'Hazard Rating'}
-          description={visualizationMode === 'violations' ? violationTimelineLabel : undefined}
-          collapsible
-          collapsed={legendCollapsed}
-          onCollapsedChange={setLegendCollapsed}
-          elevated={showTimeline}
-          contentClassName="space-y-1 text-xs text-muted-foreground"
-          actions={legendCollapsed ? null : visualizationMode === 'violations' ? (
-            <span className="inline-flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedViolationBuckets(VIOLATION_BUCKETS.map((bucket) => bucket.key))}
-                className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedViolationBuckets([])}
-                className="font-medium text-muted-foreground hover:text-foreground"
-              >
-                None
-              </button>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedHazardRatings(['Low', 'Moderate', 'Unknown'])}
-                className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedHazardRatings([])}
-                className="font-medium text-muted-foreground hover:text-foreground"
-              >
-                None
-              </button>
-            </span>
-          )}
-        >
-          {/* Violations legend */}
-          {visualizationMode === 'violations' && (
-            <div className="space-y-1">
-              {violationBucketRows.map((bucket) => (
+        {showLegend && (
+          <MapLegendPanel
+            className="max-w-[200px]"
+            title={visualizationMode === 'violations' ? 'Violations' : 'Hazard Rating'}
+            collapsible
+            collapsed={legendCollapsed}
+            onCollapsedChange={setLegendCollapsed}
+            elevated={showTimeline}
+            contentClassName="space-y-1 text-xs text-muted-foreground"
+            actions={legendCollapsed ? null : visualizationMode === 'violations' ? (
+              <span className="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedViolationBuckets(VIOLATION_BUCKETS.map((bucket) => bucket.key))}
+                  className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedViolationBuckets([])}
+                  className="font-medium text-muted-foreground hover:text-foreground"
+                >
+                  None
+                </button>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedHazardRatings(['Low', 'Moderate', 'Unknown'])}
+                  className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedHazardRatings([])}
+                  className="font-medium text-muted-foreground hover:text-foreground"
+                >
+                  None
+                </button>
+              </span>
+            )}
+          >
+            {/* Violations legend */}
+            {visualizationMode === 'violations' && (
+              <div className="space-y-1">
+                <div className="pb-0.5 text-xs leading-snug text-muted-foreground">{violationTimelineLabel}</div>
+                {violationBucketRows.map((bucket) => (
+                  <LegendItem
+                    key={bucket.key}
+                    color={bucket.color}
+                    label={bucket.label}
+                    value={bucket.count.toLocaleString()}
+                    active={bucket.active}
+                    onClick={() => toggleViolationBucket(bucket.key)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Hazard rating legend with counts */}
+            {visualizationMode === 'hazard' && (
+              <div className="space-y-1">
                 <LegendItem
-                  key={bucket.key}
-                  color={bucket.color}
-                  label={bucket.label}
-                  value={bucket.count.toLocaleString()}
-                  active={bucket.active}
-                  onClick={() => toggleViolationBucket(bucket.key)}
+                  color="#22c55e"
+                  label="Low"
+                  value={hazardStatsAtDate.Low}
+                  active={selectedHazardRatings.includes('Low')}
+                  onClick={() => toggleHazardRating('Low')}
                 />
-              ))}
-            </div>
-          )}
+                <LegendItem
+                  color="#f59e0b"
+                  label="Moderate"
+                  value={hazardStatsAtDate.Moderate}
+                  active={selectedHazardRatings.includes('Moderate')}
+                  onClick={() => toggleHazardRating('Moderate')}
+                />
+                <LegendItem
+                  color="#6b7280"
+                  label="Unknown"
+                  value={hazardStatsAtDate.Unknown}
+                  active={selectedHazardRatings.includes('Unknown')}
+                  onClick={() => toggleHazardRating('Unknown')}
+                />
+              </div>
+            )}
 
-          {/* Hazard rating legend with counts */}
-          {visualizationMode === 'hazard' && (
-            <div className="space-y-1">
-              <LegendItem
-                color="#22c55e"
-                label="Low"
-                value={hazardStatsAtDate.Low}
-                active={selectedHazardRatings.includes('Low')}
-                onClick={() => toggleHazardRating('Low')}
-              />
-              <LegendItem
-                color="#f59e0b"
-                label="Moderate"
-                value={hazardStatsAtDate.Moderate}
-                active={selectedHazardRatings.includes('Moderate')}
-                onClick={() => toggleHazardRating('Moderate')}
-              />
-              <LegendItem
-                color="#6b7280"
-                label="Unknown"
-                value={hazardStatsAtDate.Unknown}
-                active={selectedHazardRatings.includes('Unknown')}
-                onClick={() => toggleHazardRating('Unknown')}
-              />
-            </div>
-          )}
-
-          {visualizationMode === 'violations' && (
-            <div className="mt-2 border-t border-border pt-2">
-              <MapSizeLegend minLabel="Size" maxLabel="count" sizes={[10, 14, 18]} />
-            </div>
-          )}
-        </MapLegendPanel>
+            {visualizationMode === 'violations' && (
+              <div className="mt-2 border-t border-border pt-2">
+                <MapSizeLegend minLabel="Size" maxLabel="count" sizes={[10, 14, 18]} />
+              </div>
+            )}
+          </MapLegendPanel>
+        )}
         </div>
       </MapSectionLayout>
 

@@ -263,6 +263,9 @@ export default function TransitDataSection() {
   }
 
   const allRoutesHidden = routeLegendItems.length > 0 && routeLegendItems.every((item) => hiddenRoutes.has(item.id))
+  const allStopCategoriesHidden = hiddenStopCategories.size >= 3
+  const showLegend = (activeLayers.includes('routes') && !allRoutesHidden)
+    || (activeLayers.includes('stops') && !allStopCategoriesHidden)
   const toggleAllRoutes = () => {
     if (allRoutesHidden) {
       setHiddenRoutes(new Set())
@@ -475,53 +478,59 @@ export default function TransitDataSection() {
             ))}
         </SharedMap>
 
-        <MapLegendPanel
-          title="Transit layers"
-          icon={<Route className="h-3.5 w-3.5" />}
-          width="md"
-          collapsible
-          actions={
-            routeLegendItems.length > 0 ? (
-              <button
-                type="button"
-                onClick={toggleAllRoutes}
-                className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
-              >
-                {allRoutesHidden ? 'Show all' : 'Hide all'}
-              </button>
-            ) : null
-          }
-        >
-          <MapLegendSection scroll>
-            {routeLegendItems.map((item) => (
-              <LegendItem
-                key={item.id}
-                color={item.color}
-                label={item.label}
-                active={!hiddenRoutes.has(item.id)}
-                onClick={() => toggleRoute(item.id)}
-              />
-            ))}
-            <LegendItem
-              color="#0891b2"
-              label="Shelter / exchange"
-              active={!hiddenStopCategories.has('shelter')}
-              onClick={() => toggleStopCategory('shelter')}
-            />
-            <LegendItem
-              color="#0d9488"
-              label="Accessible / sidewalk proxy"
-              active={!hiddenStopCategories.has('accessible')}
-              onClick={() => toggleStopCategory('accessible')}
-            />
-            <LegendItem
-              color="#64748b"
-              label="Other stop"
-              active={!hiddenStopCategories.has('other')}
-              onClick={() => toggleStopCategory('other')}
-            />
-          </MapLegendSection>
-        </MapLegendPanel>
+        {showLegend && (
+          <MapLegendPanel
+            title="Transit layers"
+            icon={<Route className="h-3.5 w-3.5" />}
+            width="md"
+            collapsible
+            actions={
+              routeLegendItems.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={toggleAllRoutes}
+                  className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                >
+                  {allRoutesHidden ? 'Show all' : 'Hide all'}
+                </button>
+              ) : null
+            }
+          >
+            <MapLegendSection scroll>
+              {activeLayers.includes('routes') && routeLegendItems.map((item) => (
+                <LegendItem
+                  key={item.id}
+                  color={item.color}
+                  label={item.label}
+                  active={!hiddenRoutes.has(item.id)}
+                  onClick={() => toggleRoute(item.id)}
+                />
+              ))}
+              {activeLayers.includes('stops') && (
+                <>
+                  <LegendItem
+                    color="#0891b2"
+                    label="Shelter / exchange"
+                    active={!hiddenStopCategories.has('shelter')}
+                    onClick={() => toggleStopCategory('shelter')}
+                  />
+                  <LegendItem
+                    color="#0d9488"
+                    label="Accessible / sidewalk proxy"
+                    active={!hiddenStopCategories.has('accessible')}
+                    onClick={() => toggleStopCategory('accessible')}
+                  />
+                  <LegendItem
+                    color="#64748b"
+                    label="Other stop"
+                    active={!hiddenStopCategories.has('other')}
+                    onClick={() => toggleStopCategory('other')}
+                  />
+                </>
+              )}
+            </MapLegendSection>
+          </MapLegendPanel>
+        )}
       </div>
     </MapSectionLayout>
   )

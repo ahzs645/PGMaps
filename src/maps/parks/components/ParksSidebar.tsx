@@ -355,6 +355,10 @@ export function ParksSidebar({
           <SelectedItemCard
             tone="green"
             title={selectedPark?.name || selectedTrail?.name}
+            onClick={() => {
+              if (selectedPark) onParkClick(selectedPark)
+              if (selectedTrail) onTrailClick(selectedTrail)
+            }}
             subtitle={
               <>
                 {selectedPark && (

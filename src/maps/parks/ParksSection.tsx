@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
@@ -29,7 +29,9 @@ export default function ParksSection() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [selectedPark, setSelectedPark] = useState<Park | null>(null)
   const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null)
+  const [selectionFocusKey, setSelectionFocusKey] = useState(0)
   const [showSidebar, setShowSidebar] = useState(true)
+  const ignoreUrlSelectionRef = useRef(false)
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -64,6 +66,11 @@ export default function ParksSection() {
   useEffect(() => {
     const parkId = searchParams.get('park')
     const trailId = searchParams.get('trail')
+    if (!parkId && !trailId) {
+      ignoreUrlSelectionRef.current = false
+      return
+    }
+    if (ignoreUrlSelectionRef.current) return
     if (parkId && !selectedPark) {
       const park = parks.find((item) => String(item.id) === parkId)
       if (park) setSelectedPark(park)
@@ -133,19 +140,28 @@ export default function ParksSection() {
   }, [])
 
   const handleParkClick = useCallback((park: Park) => {
+    ignoreUrlSelectionRef.current = false
     setSelectedPark(park)
     setSelectedTrail(null)
+    setSelectionFocusKey((key) => key + 1)
   }, [])
 
   const handleTrailClick = useCallback((trail: Trail) => {
+    ignoreUrlSelectionRef.current = false
     setSelectedTrail(trail)
     setSelectedPark(null)
+    setSelectionFocusKey((key) => key + 1)
   }, [])
 
   const handleClearSelection = useCallback(() => {
+    ignoreUrlSelectionRef.current = true
     setSelectedPark(null)
     setSelectedTrail(null)
-  }, [])
+    const params = new URLSearchParams(searchParams)
+    params.delete('park')
+    params.delete('trail')
+    setSearchParams(params, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const parkLegendRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -191,8 +207,8 @@ export default function ParksSection() {
     return items
   }, [activeLayers])
 
-  const showLegend = (activeLayers.includes('parks') && parkLegendRows.length > 0)
-    || (activeLayers.includes('trails') && trailLegendRows.length > 0)
+  const showLegend = (activeLayers.includes('parks') && selectedClassifications.length > 0)
+    || (activeLayers.includes('trails') && selectedTrailTypes.length > 0)
     || overlayLegendItems.length > 0
 
   return (
@@ -245,6 +261,7 @@ export default function ParksSection() {
           activeLayers={activeLayers}
           selectedPark={selectedPark}
           selectedTrail={selectedTrail}
+          selectionFocusKey={selectionFocusKey}
           loading={loading}
           onParkClick={handleParkClick}
           onTrailClick={handleTrailClick}
@@ -253,34 +270,42 @@ export default function ParksSection() {
         {/* Legend */}
         {showLegend && (
           <MapLegendPanel title="Legend" collapsible contentClassName="space-y-3">
-            {activeLayers.includes('parks') && parkLegendRows.length > 0 && (
+            {activeLayers.includes('parks') && selectedClassifications.length > 0 && (
               <MapLegendSection title="Parks" value={parkLegendRows.length.toLocaleString()}>
-                {parkLegendRows.map((row) => (
-                  <LegendItem
-                    key={row.classification}
-                    color={getClassificationColor(row.classification)}
-                    label={row.classification}
-                    value={row.count.toLocaleString()}
-                    active={row.active}
-                    onClick={() => toggleClassification(row.classification)}
-                  />
-                ))}
+                {parkLegendRows.length > 0 ? (
+                  parkLegendRows.map((row) => (
+                    <LegendItem
+                      key={row.classification}
+                      color={getClassificationColor(row.classification)}
+                      label={row.classification}
+                      value={row.count.toLocaleString()}
+                      active={row.active}
+                      onClick={() => toggleClassification(row.classification)}
+                    />
+                  ))
+                ) : (
+                  <div className="text-xs text-muted-foreground">No visible parks</div>
+                )}
               </MapLegendSection>
             )}
 
-            {activeLayers.includes('trails') && trailLegendRows.length > 0 && (
+            {activeLayers.includes('trails') && selectedTrailTypes.length > 0 && (
               <MapLegendSection title="Trails" value={trailLegendRows.length.toLocaleString()} className="border-t border-border pt-3 first:border-t-0 first:pt-0">
-                {trailLegendRows.map((row) => (
-                  <LegendItem
-                    key={row.type}
-                    color={getTrailColor(row.type)}
-                    label={`${row.type} Trail`}
-                    value={row.count.toLocaleString()}
-                    active={row.active}
-                    swatchShape="dashed-line"
-                    onClick={() => toggleTrailType(row.type)}
-                  />
-                ))}
+                {trailLegendRows.length > 0 ? (
+                  trailLegendRows.map((row) => (
+                    <LegendItem
+                      key={row.type}
+                      color={getTrailColor(row.type)}
+                      label={`${row.type} Trail`}
+                      value={row.count.toLocaleString()}
+                      active={row.active}
+                      swatchShape="dashed-line"
+                      onClick={() => toggleTrailType(row.type)}
+                    />
+                  ))
+                ) : (
+                  <div className="text-xs text-muted-foreground">No visible trails</div>
+                )}
               </MapLegendSection>
             )}
 

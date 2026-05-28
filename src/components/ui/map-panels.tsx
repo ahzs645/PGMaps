@@ -4,6 +4,7 @@ import {
   type ElementType,
   type HTMLAttributes,
   type InputHTMLAttributes,
+  type KeyboardEvent,
   type ReactNode,
 } from 'react'
 import { ChevronDown, X } from 'lucide-react'
@@ -696,6 +697,7 @@ type SelectedItemCardProps = {
   actions?: ReactNode
   rows?: KeyValueRowsProps['rows']
   onClear?: () => void
+  onClick?: () => void
   clearLabel?: string
   children?: ReactNode
   className?: string
@@ -710,12 +712,35 @@ export function SelectedItemCard({
   actions,
   rows,
   onClear,
+  onClick,
   clearLabel = 'Clear selection',
   children,
   className,
 }: SelectedItemCardProps) {
+  const interactiveProps = onClick
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        onClick,
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onClick()
+          }
+        },
+      }
+    : {}
+
   return (
-    <div className={cn('rounded-md border p-3 text-xs', selectedItemToneClasses[tone], className)}>
+    <div
+      className={cn(
+        'rounded-md border p-3 text-xs',
+        onClick && 'cursor-pointer transition-colors hover:bg-green-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:hover:bg-green-950/50',
+        selectedItemToneClasses[tone],
+        className,
+      )}
+      {...interactiveProps}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {eyebrow && (
@@ -729,7 +754,10 @@ export function SelectedItemCard({
           {onClear && (
             <button
               type="button"
-              onClick={onClear}
+              onClick={(event) => {
+                event.stopPropagation()
+                onClear()
+              }}
               className={cn('shrink-0 transition-colors hover:text-foreground', selectedItemSubtleTextClasses[tone])}
               aria-label={clearLabel}
             >

@@ -351,7 +351,12 @@ export function SharedMap({
     <div className={cn("relative h-full w-full", className)}>
       <PersistentMapHost loading={loading} loadingLabel={loadingLabel} />
       {controls === undefined ? (
-        <MapControls position="top-right" showZoom showCompass />
+        <MapControls
+          position="top-right"
+          showZoom
+          showCompass
+          className="top-auto bottom-16 md:top-2 md:bottom-auto"
+        />
       ) : (
         controls
       )}

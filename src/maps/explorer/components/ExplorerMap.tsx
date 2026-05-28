@@ -143,7 +143,12 @@ export function ExplorerMap({
   return (
     <div className="h-full w-full relative">
       <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES} loading={loading}>
-        <MapControls position="top-right" showZoom showCompass />
+        <MapControls
+          position="top-right"
+          showZoom
+          showCompass
+          className="top-auto bottom-16 md:top-2 md:bottom-auto"
+        />
 
         {heatmapLayer}
 
@@ -229,7 +234,7 @@ export function ExplorerMap({
       )}
 
       {/* Spatial filter controls */}
-      <div className="absolute top-4 left-4 z-10 flex gap-2">
+      <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-4.5rem)] flex-wrap gap-1.5 sm:left-4 sm:top-4 sm:max-w-[calc(100%-5rem)] sm:gap-2 md:max-w-none">
         <button
           onClick={() => {
             if (drawMode) {
@@ -241,7 +246,7 @@ export function ExplorerMap({
             }
           }}
           className={cn(
-            'rounded-lg border px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors',
+            'rounded-lg border px-2.5 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors sm:px-3',
             drawMode
               ? 'border-cyan-500 bg-cyan-500 text-white'
               : 'border-border bg-background/95 text-foreground hover:bg-accent'
@@ -257,7 +262,7 @@ export function ExplorerMap({
             setDrawCurrent(null)
           }}
           className={cn(
-            'rounded-lg border px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors',
+            'rounded-lg border px-2.5 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors sm:px-3',
             reportMode
               ? 'border-emerald-500 bg-emerald-500 text-white'
               : 'border-border bg-background/95 text-foreground hover:bg-accent'
@@ -268,7 +273,7 @@ export function ExplorerMap({
         {spatialFilter && (
           <button
             onClick={() => onSpatialFilterChange(null)}
-            className="rounded-lg border border-border bg-background/95 px-3 py-2 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur hover:text-foreground"
+            className="rounded-lg border border-border bg-background/95 px-2.5 py-2 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur hover:text-foreground sm:px-3"
           >
             Clear Filter
           </button>

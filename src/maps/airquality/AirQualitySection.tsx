@@ -745,7 +745,7 @@ export default function AirQualitySection() {
       }))
       .sort((a, b) => b.count - a.count || a.network.localeCompare(b.network))
   }, [mapBounds, monitorsInRegionScope, observationLayers, searchQuery, selectedNetworks])
-  const showLegend = Boolean(boundaryLegendStats) || showHeatmap || (showPoints && legendNetworkRows.length > 0)
+  const showLegend = Boolean(boundaryLegendStats) || showHeatmap || showPoints
 
   const selectLegendNetworks = useCallback(() => {
     setSelectedNetworks((current) => Array.from(new Set([...current, ...legendNetworkRows.map((row) => row.network)])))
@@ -901,11 +901,11 @@ export default function AirQualitySection() {
                 </MapLegendSection>
               )}
 
-              {showPoints && legendNetworkRows.length > 0 && (
+              {showPoints && (
                 <MapLegendSection
                   title="Networks in view"
                   value={legendNetworkRows.length.toLocaleString()}
-                  actions={(
+                  actions={legendNetworkRows.length > 0 ? (
                     <>
                       <button
                         type="button"
@@ -922,21 +922,25 @@ export default function AirQualitySection() {
                         None
                       </button>
                     </>
-                  )}
+                  ) : null}
                   className="border-t border-border pt-3 first:border-t-0 first:pt-0"
                 >
-                  <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
-                    {legendNetworkRows.map((row) => (
-                      <LegendItem
-                        key={row.network}
-                        color={getNetworkColor(row.network)}
-                        label={row.network}
-                        value={row.count.toLocaleString()}
-                        active={row.active}
-                        onClick={() => toggleNetwork(row.network)}
-                      />
-                    ))}
-                  </div>
+                  {legendNetworkRows.length > 0 ? (
+                    <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                      {legendNetworkRows.map((row) => (
+                        <LegendItem
+                          key={row.network}
+                          color={getNetworkColor(row.network)}
+                          label={row.network}
+                          value={row.count.toLocaleString()}
+                          active={row.active}
+                          onClick={() => toggleNetwork(row.network)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">No visible network points</div>
+                  )}
                 </MapLegendSection>
               )}
             </div>

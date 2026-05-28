@@ -71,6 +71,22 @@ interface AqMapFeatureProperties {
 }
 
 const URL_UPDATE_DELAY_MS = 350
+type FireDangerRenderMode = 'raster' | 'vector'
+type AqMonitorIconMode = 'aqmap' | 'revealed'
+
+type FireDangerFeatureProperties = {
+  GRIDCODE?: number
+}
+
+const FIRE_DANGER_VECTOR_URL = 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=public:fdr_current_shp&outputFormat=application/json&srsName=EPSG:4326'
+
+const FIRE_DANGER_FILL_COLORS: Record<number, string> = {
+  1: '#0000ff',
+  2: '#00b050',
+  3: '#ffff00',
+  4: '#ff9900',
+  5: '#ff0000',
+}
 
 const AQHI_STOPS: Array<{ color: string; labelKey: string; rangeKey: string }> = [
   { color: '#3bb54a', labelKey: 'aqhi.low', rangeKey: 'aqhi.range.low' },
@@ -128,15 +144,49 @@ function ToggleButton({
   )
 }
 
+function SegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: Array<{ value: T; label: string }>
+  onChange: (value: T) => void
+}) {
+  return (
+    <div className="grid grid-cols-2 overflow-hidden rounded-md border border-border bg-background">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={cn(
+            'px-2 py-1.5 text-xs font-medium transition-colors',
+            value === option.value
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function AqMapSidebar({
   monitors,
   smokeLayers,
   visibleGroups,
   onToggleGroup,
+  iconMode,
+  onIconModeChange,
   visibleWmsLayers,
   onToggleWmsLayer,
   visibleSmokeLayers,
   onToggleSmokeLayer,
+  fireDangerMode,
+  onFireDangerModeChange,
   windVisible,
   onToggleWind,
   basemap,
@@ -151,10 +201,14 @@ function AqMapSidebar({
   monitors: AirMonitor[]
   visibleGroups: Set<AqMonitorGroup>
   onToggleGroup: (group: AqMonitorGroup) => void
+  iconMode: AqMonitorIconMode
+  onIconModeChange: (mode: AqMonitorIconMode) => void
   visibleWmsLayers: Set<WmsLayerKey>
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
+  fireDangerMode: FireDangerRenderMode
+  onFireDangerModeChange: (mode: FireDangerRenderMode) => void
   windVisible: boolean
   onToggleWind: () => void
   basemap: AqBasemap
@@ -256,6 +310,20 @@ function AqMapSidebar({
           </div>
         </section>
 
+        <section>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {translate('sidebar.iconMode', locale)}
+          </div>
+          <SegmentedControl
+            value={iconMode}
+            onChange={onIconModeChange}
+            options={[
+              { value: 'aqmap', label: translate('icons.aqmap', locale) },
+              { value: 'revealed', label: translate('icons.revealed', locale) },
+            ]}
+          />
+        </section>
+
         {visibleWmsLayers.size > 0 && (
           <section>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.wmsLegends', locale)}</div>
@@ -309,17 +377,32 @@ function AqMapSidebar({
             {WMS_LAYERS.map((layer) => {
               const Icon = layer.icon
               return (
-                <ToggleButton
-                  key={layer.key}
-                  active={visibleWmsLayers.has(layer.key)}
-                  onClick={() => onToggleWmsLayer(layer.key)}
-                >
-                  <span className="flex items-center gap-2">
-                    <Icon className="size-3.5" />
-                    {localizeWmsLabel(layer.key, locale)}
-                  </span>
-                  <span className="text-xs font-medium">{translate('wms.tag', locale)}</span>
-                </ToggleButton>
+                <div key={layer.key} className="space-y-2">
+                  <ToggleButton
+                    active={visibleWmsLayers.has(layer.key)}
+                    onClick={() => onToggleWmsLayer(layer.key)}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Icon className="size-3.5" />
+                      {localizeWmsLabel(layer.key, locale)}
+                    </span>
+                    <span className="text-xs font-medium">
+                      {layer.key === 'fireDanger' && fireDangerMode === 'vector'
+                        ? translate('overlay.vector', locale)
+                        : translate('wms.tag', locale)}
+                    </span>
+                  </ToggleButton>
+                  {layer.key === 'fireDanger' && visibleWmsLayers.has('fireDanger') && (
+                    <SegmentedControl
+                      value={fireDangerMode}
+                      onChange={onFireDangerModeChange}
+                      options={[
+                        { value: 'raster', label: translate('overlay.raster', locale) },
+                        { value: 'vector', label: translate('overlay.vector', locale) },
+                      ]}
+                    />
+                  )}
+                </div>
               )
             })}
           </div>
@@ -463,6 +546,104 @@ function WmsRasterLayer({
   return null
 }
 
+function FireDangerVectorLayer({ visible }: { visible: boolean }) {
+  const { map, isLoaded } = useMap()
+  const sourceId = 'aqmap-fire-danger-vector-source'
+  const fillLayerId = 'aqmap-fire-danger-vector-fill'
+  const lineLayerId = 'aqmap-fire-danger-vector-line'
+  const [data, setData] = useState<GeoJSON.FeatureCollection<GeoJSON.MultiPolygon | GeoJSON.Polygon, FireDangerFeatureProperties> | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!visible || data || error) return
+    const controller = new AbortController()
+
+    fetch(FIRE_DANGER_VECTOR_URL, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to load fire danger polygons: ${response.status}`)
+        return response.json()
+      })
+      .then((payload) => setData(payload as GeoJSON.FeatureCollection<GeoJSON.MultiPolygon | GeoJSON.Polygon, FireDangerFeatureProperties>))
+      .catch((err) => {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Fire danger vector layer failed', err)
+          setError((err as Error).message)
+        }
+      })
+
+    return () => controller.abort()
+  }, [data, error, visible])
+
+  useEffect(() => {
+    if (!isLoaded || !map || !visible || !data) return
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data,
+      })
+    }
+
+    if (!map.getLayer(fillLayerId)) {
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': [
+            'match',
+            ['to-number', ['get', 'GRIDCODE']],
+            1,
+            FIRE_DANGER_FILL_COLORS[1],
+            2,
+            FIRE_DANGER_FILL_COLORS[2],
+            3,
+            FIRE_DANGER_FILL_COLORS[3],
+            4,
+            FIRE_DANGER_FILL_COLORS[4],
+            5,
+            FIRE_DANGER_FILL_COLORS[5],
+            '#94a3b8',
+          ],
+          'fill-opacity': 0.48,
+        },
+      })
+    }
+
+    if (!map.getLayer(lineLayerId)) {
+      map.addLayer({
+        id: lineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': 'rgba(17, 24, 39, 0.35)',
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            2,
+            0.2,
+            7,
+            0.8,
+          ],
+        },
+      })
+    }
+
+    return () => {
+      try {
+        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
+        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+        if (map.getSource(sourceId)) map.removeSource(sourceId)
+      } catch {
+        // MapLibre can throw during style teardown.
+      }
+    }
+  }, [data, fillLayerId, isLoaded, lineLayerId, map, sourceId, visible])
+
+  return null
+}
+
 function SmokePolygonLayer({ definition, visible }: { definition: SmokeLayerDefinition; visible: boolean }) {
   const { map, isLoaded } = useMap()
   const sourceId = `aqmap-smoke-source-${definition.key}`
@@ -535,18 +716,23 @@ function loadMapImage(map: maplibregl.Map, id: string, src: string): Promise<voi
 function AqMonitorLayer({
   monitors,
   visibleGroups,
+  iconMode,
   onMonitorClick,
   onMonitorHover,
 }: {
   monitors: AirMonitor[]
   visibleGroups: Set<AqMonitorGroup>
+  iconMode: AqMonitorIconMode
   onMonitorClick: (monitor: AirMonitor) => void
   onMonitorHover: (monitor: AirMonitor | null) => void
 }) {
   const { map, isLoaded } = useMap()
-  const sourceId = 'aqmap-monitor-source'
-  const offlineLayerId = 'aqmap-monitor-offline-icon'
-  const onlineLayerId = 'aqmap-monitor-online-icon'
+  const sourceId = `aqmap-monitor-source-${iconMode}`
+  const offlineLayerId = `aqmap-monitor-offline-icon-${iconMode}`
+  const onlineLayerId = `aqmap-monitor-online-icon-${iconMode}`
+  const clusterLayerId = `aqmap-monitor-clusters-${iconMode}`
+  const clusterCountLayerId = `aqmap-monitor-cluster-count-${iconMode}`
+  const revealedLayerId = `aqmap-monitor-revealed-icon-${iconMode}`
 
   const features = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, AqMapFeatureProperties>>(() => {
     return {
@@ -591,10 +777,10 @@ function AqMonitorLayer({
     if (!isLoaded || !map) return
     const currentMap = map
     let cancelled = false
-    const interactiveLayers = [onlineLayerId, offlineLayerId]
+    const pointLayers = iconMode === 'revealed' ? [revealedLayerId] : [onlineLayerId, offlineLayerId]
 
     const handleClick = (event: maplibregl.MapMouseEvent) => {
-      const rendered = currentMap.queryRenderedFeatures(event.point, { layers: interactiveLayers })
+      const rendered = currentMap.queryRenderedFeatures(event.point, { layers: pointLayers })
       const feature = rendered[0]
       if (!feature) return
 
@@ -607,7 +793,7 @@ function AqMonitorLayer({
 
     const handleMouseMove = (event: maplibregl.MapMouseEvent) => {
       currentMap.getCanvas().style.cursor = 'pointer'
-      const rendered = currentMap.queryRenderedFeatures(event.point, { layers: interactiveLayers })
+      const rendered = currentMap.queryRenderedFeatures(event.point, { layers: pointLayers })
       const key = String(rendered[0]?.properties?.key ?? '')
       const monitor = monitors.find((item) => monitorKey(item) === key)
       onMonitorHover(monitor ?? null)
@@ -615,6 +801,23 @@ function AqMonitorLayer({
     const handleMouseLeave = () => {
       currentMap.getCanvas().style.cursor = ''
       onMonitorHover(null)
+    }
+    const handleClusterClick = async (event: maplibregl.MapMouseEvent) => {
+      const rendered = currentMap.queryRenderedFeatures(event.point, { layers: [clusterLayerId] })
+      const feature = rendered[0]
+      if (!feature) return
+
+      const clusterId = feature.properties?.cluster_id as number | undefined
+      const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
+      const source = currentMap.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+      if (clusterId === undefined || !source) return
+
+      const zoom = await source.getClusterExpansionZoom(clusterId)
+      currentMap.easeTo({
+        center: coordinates,
+        zoom,
+        duration: 450,
+      })
     }
 
     async function addLayer() {
@@ -630,6 +833,9 @@ function AqMonitorLayer({
         currentMap.addSource(sourceId, {
           type: 'geojson',
           data: features,
+          cluster: iconMode === 'revealed',
+          clusterMaxZoom: 10,
+          clusterRadius: 46,
         })
       }
 
@@ -650,10 +856,81 @@ function AqMonitorLayer({
         })
       }
 
-      addSymbolLayer(offlineLayerId, false)
-      addSymbolLayer(onlineLayerId, true)
+      if (iconMode === 'revealed') {
+        if (!currentMap.getLayer(clusterLayerId)) {
+          currentMap.addLayer({
+            id: clusterLayerId,
+            type: 'circle',
+            source: sourceId,
+            filter: ['has', 'point_count'],
+            paint: {
+              'circle-color': [
+                'step',
+                ['get', 'point_count'],
+                '#0ea5e9',
+                40,
+                '#f59e0b',
+                150,
+                '#dc2626',
+              ],
+              'circle-radius': [
+                'step',
+                ['get', 'point_count'],
+                16,
+                40,
+                23,
+                150,
+                31,
+              ],
+              'circle-opacity': 0.82,
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-width': 2,
+            },
+          })
+        }
 
-      interactiveLayers.forEach((layerId) => {
+        if (!currentMap.getLayer(clusterCountLayerId)) {
+          currentMap.addLayer({
+            id: clusterCountLayerId,
+            type: 'symbol',
+            source: sourceId,
+            filter: ['has', 'point_count'],
+            layout: {
+              'text-field': '{point_count_abbreviated}',
+              'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+              'text-size': 12,
+              'text-allow-overlap': true,
+            },
+            paint: {
+              'text-color': '#ffffff',
+            },
+          })
+        }
+
+        if (!currentMap.getLayer(revealedLayerId)) {
+          currentMap.addLayer({
+            id: revealedLayerId,
+            type: 'symbol',
+            source: sourceId,
+            filter: ['!', ['has', 'point_count']],
+            layout: {
+              'icon-image': ['get', 'iconId'],
+              'icon-size': 0.9,
+              'icon-allow-overlap': false,
+              'icon-ignore-placement': false,
+              'symbol-sort-key': ['get', 'zIndex'],
+            },
+          })
+        }
+        currentMap.on('click', clusterLayerId, handleClusterClick)
+        currentMap.on('mouseenter', clusterLayerId, handleMouseMove)
+        currentMap.on('mouseleave', clusterLayerId, handleMouseLeave)
+      } else {
+        addSymbolLayer(offlineLayerId, false)
+        addSymbolLayer(onlineLayerId, true)
+      }
+
+      pointLayers.forEach((layerId) => {
         currentMap.on('click', layerId, handleClick)
         currentMap.on('mousemove', layerId, handleMouseMove)
         currentMap.on('mouseleave', layerId, handleMouseLeave)
@@ -666,11 +943,17 @@ function AqMonitorLayer({
       cancelled = true
       try {
         currentMap.getCanvas().style.cursor = ''
-        interactiveLayers.forEach((layerId) => {
+        pointLayers.forEach((layerId) => {
           currentMap.off('click', layerId, handleClick)
           currentMap.off('mousemove', layerId, handleMouseMove)
           currentMap.off('mouseleave', layerId, handleMouseLeave)
         })
+        currentMap.off('click', clusterLayerId, handleClusterClick)
+        currentMap.off('mouseenter', clusterLayerId, handleMouseMove)
+        currentMap.off('mouseleave', clusterLayerId, handleMouseLeave)
+        if (currentMap.getLayer(clusterCountLayerId)) currentMap.removeLayer(clusterCountLayerId)
+        if (currentMap.getLayer(clusterLayerId)) currentMap.removeLayer(clusterLayerId)
+        if (currentMap.getLayer(revealedLayerId)) currentMap.removeLayer(revealedLayerId)
         if (currentMap.getLayer(onlineLayerId)) currentMap.removeLayer(onlineLayerId)
         if (currentMap.getLayer(offlineLayerId)) currentMap.removeLayer(offlineLayerId)
         if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId)
@@ -678,13 +961,13 @@ function AqMonitorLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [features, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId])
+  }, [clusterCountLayerId, clusterLayerId, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
 
   useEffect(() => {
     if (!isLoaded || !map) return
     const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
     source?.setData(features)
-  }, [features, isLoaded, map])
+  }, [features, isLoaded, map, sourceId])
 
   return null
 }
@@ -891,10 +1174,14 @@ function FloatingLayerControl({
   onBasemapChange,
   visibleGroups,
   onToggleGroup,
+  iconMode,
+  onIconModeChange,
   visibleWmsLayers,
   onToggleWmsLayer,
   visibleSmokeLayers,
   onToggleSmokeLayer,
+  fireDangerMode,
+  onFireDangerModeChange,
   windVisible,
   onToggleWind,
   smokeLayers,
@@ -904,10 +1191,14 @@ function FloatingLayerControl({
   onBasemapChange: (basemap: AqBasemap) => void
   visibleGroups: Set<AqMonitorGroup>
   onToggleGroup: (group: AqMonitorGroup) => void
+  iconMode: AqMonitorIconMode
+  onIconModeChange: (mode: AqMonitorIconMode) => void
   visibleWmsLayers: Set<WmsLayerKey>
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
+  fireDangerMode: FireDangerRenderMode
+  onFireDangerModeChange: (mode: FireDangerRenderMode) => void
   windVisible: boolean
   onToggleWind: () => void
   smokeLayers: SmokeLayerDefinition[]
@@ -939,6 +1230,17 @@ function FloatingLayerControl({
           <input type="checkbox" checked={windVisible} onChange={onToggleWind} />
           <span>{translate('sidebar.wind', locale)}</span>
         </label>
+        <div className="space-y-1">
+          <div className="font-medium text-foreground">{translate('sidebar.iconMode', locale)}</div>
+          <SegmentedControl
+            value={iconMode}
+            onChange={onIconModeChange}
+            options={[
+              { value: 'aqmap', label: translate('icons.aqmap', locale) },
+              { value: 'revealed', label: translate('icons.revealed', locale) },
+            ]}
+          />
+        </div>
         {smokeLayers.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
             <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
@@ -946,10 +1248,22 @@ function FloatingLayerControl({
           </label>
         ))}
         {WMS_LAYERS.map((layer) => (
-          <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
-            <input type="checkbox" checked={visibleWmsLayers.has(layer.key)} onChange={() => onToggleWmsLayer(layer.key)} />
-            <span>{localizeWmsLabel(layer.key, locale)}</span>
-          </label>
+          <div key={layer.key} className="space-y-1">
+            <label className="flex items-center gap-2 text-muted-foreground">
+              <input type="checkbox" checked={visibleWmsLayers.has(layer.key)} onChange={() => onToggleWmsLayer(layer.key)} />
+              <span>{localizeWmsLabel(layer.key, locale)}</span>
+            </label>
+            {layer.key === 'fireDanger' && visibleWmsLayers.has('fireDanger') && (
+              <SegmentedControl
+                value={fireDangerMode}
+                onChange={onFireDangerModeChange}
+                options={[
+                  { value: 'raster', label: translate('overlay.raster', locale) },
+                  { value: 'vector', label: translate('overlay.vector', locale) },
+                ]}
+              />
+            )}
+          </div>
         ))}
       </div>
     </div>
@@ -1116,6 +1430,14 @@ export default function AqMapSection() {
   const [visibleGroups, setVisibleGroups] = useState<Set<AqMonitorGroup>>(() => initialUrlState.visibleGroups)
   const [visibleWmsLayers, setVisibleWmsLayers] = useState<Set<WmsLayerKey>>(() => initialUrlState.visibleWmsLayers)
   const [visibleSmokeLayers, setVisibleSmokeLayers] = useState<Set<SmokeLayerKey>>(() => initialUrlState.visibleSmokeLayers)
+  const [fireDangerMode, setFireDangerMode] = useState<FireDangerRenderMode>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('fireDanger') === 'vector' ? 'vector' : 'raster'
+  })
+  const [iconMode, setIconMode] = useState<AqMonitorIconMode>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('icons') === 'revealed' ? 'revealed' : 'aqmap'
+  })
   const [basemap, setBasemap] = useState<AqBasemap>(() => initialUrlState.basemap)
   const [mapView, setMapView] = useState(() => initialUrlState.mapView)
   const [locale, setLocale] = useState<AqmapLocale>(() => initialUrlState.locale)
@@ -1159,6 +1481,12 @@ export default function AqMapSection() {
       if (windVisible) next.set('wind', '1')
       else next.delete('wind')
 
+      if (fireDangerMode === 'vector') next.set('fireDanger', 'vector')
+      else next.delete('fireDanger')
+
+      if (iconMode === 'revealed') next.set('icons', 'revealed')
+      else next.delete('icons')
+
       next.delete('time')
 
       if (isValidMapView(mapView)) {
@@ -1183,7 +1511,7 @@ export default function AqMapSection() {
     }, URL_UPDATE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [basemap, locale, mapView, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
+  }, [basemap, fireDangerMode, iconMode, locale, mapView, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
 
   const toggleGroup = useCallback((group: AqMonitorGroup) => {
     setVisibleGroups((current) => {
@@ -1240,10 +1568,14 @@ export default function AqMapSection() {
       smokeLayers={smokeLayers}
       visibleGroups={visibleGroups}
       onToggleGroup={toggleGroup}
+      iconMode={iconMode}
+      onIconModeChange={setIconMode}
       visibleWmsLayers={visibleWmsLayers}
       onToggleWmsLayer={toggleWmsLayer}
       visibleSmokeLayers={visibleSmokeLayers}
       onToggleSmokeLayer={toggleSmokeLayer}
+      fireDangerMode={fireDangerMode}
+      onFireDangerModeChange={setFireDangerMode}
       windVisible={windVisible}
       onToggleWind={toggleWind}
       basemap={basemap}
@@ -1293,13 +1625,16 @@ export default function AqMapSection() {
             <WmsRasterLayer
               key={layer.key}
               definition={layer}
-              visible={visibleWmsLayers.has(layer.key)}
+              visible={visibleWmsLayers.has(layer.key) && (layer.key !== 'fireDanger' || fireDangerMode === 'raster')}
             />
           ))}
+          <FireDangerVectorLayer visible={visibleWmsLayers.has('fireDanger') && fireDangerMode === 'vector'} />
           <WindCanvasLayer visible={windVisible} />
           <AqMonitorLayer
+            key={iconMode}
             monitors={monitors}
             visibleGroups={visibleGroups}
+            iconMode={iconMode}
             onMonitorClick={setSelectedMonitor}
             onMonitorHover={setHoveredMonitor}
           />
@@ -1310,10 +1645,14 @@ export default function AqMapSection() {
             onBasemapChange={setBasemap}
             visibleGroups={visibleGroups}
             onToggleGroup={toggleGroup}
+            iconMode={iconMode}
+            onIconModeChange={setIconMode}
             visibleWmsLayers={visibleWmsLayers}
             onToggleWmsLayer={toggleWmsLayer}
             visibleSmokeLayers={visibleSmokeLayers}
             onToggleSmokeLayer={toggleSmokeLayer}
+            fireDangerMode={fireDangerMode}
+            onFireDangerModeChange={setFireDangerMode}
             windVisible={windVisible}
             onToggleWind={toggleWind}
             smokeLayers={smokeLayers}
