@@ -127,7 +127,7 @@ export function MobileFeatureInspector({
     >
       <div
         className={cn(
-          'absolute inset-x-0 bottom-0 pointer-events-none grid h-[min(420px,calc(100dvh_-_5rem))] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform',
+          'absolute inset-x-0 bottom-0 pointer-events-none grid h-[min(360px,calc(100dvh_-_6.5rem))] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform',
           open ? 'translate-y-0' : 'translate-y-full',
         )}
       >

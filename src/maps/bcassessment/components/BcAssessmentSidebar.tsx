@@ -119,13 +119,13 @@ const REGION_LEVEL_OPTIONS: Record<
   ],
 }
 
-function formatNumber(n: number): string {
+export function formatNumber(n: number): string {
   return n.toLocaleString()
 }
 
 const START_YEAR = 2017
 
-function HistorySparkline({ values }: { values: number[] }) {
+export function HistorySparkline({ values }: { values: number[] }) {
   const [hovered, setHovered] = useState<number | null>(null)
   const max = Math.max(...values)
   const min = Math.min(...values)

@@ -6,9 +6,11 @@ import {
   MarkerContent,
   useMap
 } from '@/components/ui/map'
+import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import bbox from '@turf/bbox'
 import { MAP_STYLES } from '@/components/ui/map-styles'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { getNetworkColor } from '../constants'
 import { calculateCorrectedPm25, formatNumber, formatPm25 } from '../lib/corrections'
 import { AirQualityHeatmapLayer } from './AirQualityHeatmapLayer'
@@ -100,20 +102,26 @@ const AIR_QUALITY_MAP_STYLES: Record<AirQualityBasemap, { light: string; dark: s
 
 function SelectedMonitorDetails({
   monitor,
-  correctionModel
+  correctionModel,
+  showHeading = true,
 }: {
   monitor: AirMonitor
   correctionModel: AirQualityCorrectionModel
+  showHeading?: boolean
 }) {
   const parameters = uniqueParameters(monitor.parameters)
   const correction = calculateCorrectedPm25(monitor, correctionModel)
 
   return (
     <div>
-      <div className="pr-5 text-sm font-semibold text-foreground">{monitor.name}</div>
-      <div className="text-xs text-muted-foreground">
-        {[monitor.city, monitor.province].filter(Boolean).join(', ') || 'Location available'}
-      </div>
+      {showHeading && (
+        <>
+          <div className="pr-5 text-sm font-semibold text-foreground">{monitor.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {[monitor.city, monitor.province].filter(Boolean).join(', ') || 'Location available'}
+          </div>
+        </>
+      )}
       <div className="mt-2 flex items-center gap-2 text-xs">
         <span
           className="h-2.5 w-2.5 rounded-full"
@@ -359,6 +367,7 @@ export function AirQualityMap({
   onMonitorClear
 }: AirQualityMapProps) {
   const { map } = useMap()
+  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
 
   const monitorById = useMemo(() => {
     const map = new globalThis.Map<string, AirMonitor>()
@@ -519,35 +528,102 @@ export function AirQualityMap({
               </MarkerContent>
             </MapMarker>
 
-            <MapPopup
-              key={monitorEntryKey(selectedMonitor)}
-              longitude={selectedMonitor.longitude}
-              latitude={selectedMonitor.latitude}
-              closeButton
-              onClose={onMonitorClear}
-              className={selectedMonitorsAtLocation.length > 1 ? 'max-w-sm' : 'max-w-xs'}
-            >
-              <div>
-                {selectedMonitorsAtLocation.length > 1 && (
-                  <div className="mb-2 pr-5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {selectedMonitorsAtLocation.length} sensors at this location
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {selectedMonitorsAtLocation.map((monitor, index) => (
-                    <div
-                      key={monitorEntryKey(monitor)}
-                      className={index === 0 ? '' : 'border-t border-border pt-2'}
-                    >
-                      <SelectedMonitorDetails monitor={monitor} correctionModel={correctionModel} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </MapPopup>
+            {!isMobileViewport && (
+              <MapPopup
+                key={monitorEntryKey(selectedMonitor)}
+                longitude={selectedMonitor.longitude}
+                latitude={selectedMonitor.latitude}
+                closeButton
+                onClose={onMonitorClear}
+                className={selectedMonitorsAtLocation.length > 1 ? 'max-w-sm' : 'max-w-xs'}
+              >
+                <SelectedMonitorStack
+                  monitors={selectedMonitorsAtLocation}
+                  correctionModel={correctionModel}
+                  showLocationCount
+                />
+              </MapPopup>
+            )}
           </>
         )}
+        {isMobileViewport && selectedMonitor && (
+          <MobileAirQualityFeatureCard
+            monitor={selectedMonitor}
+            monitorsAtLocation={selectedMonitorsAtLocation}
+            correctionModel={correctionModel}
+            onClose={() => onMonitorClear?.()}
+          />
+        )}
     </SharedMap>
+  )
+}
+
+function SelectedMonitorStack({
+  monitors,
+  correctionModel,
+  showLocationCount,
+  showFirstHeading = true,
+}: {
+  monitors: AirMonitor[]
+  correctionModel: AirQualityCorrectionModel
+  showLocationCount?: boolean
+  showFirstHeading?: boolean
+}) {
+  return (
+    <div>
+      {showLocationCount && monitors.length > 1 && (
+        <div className="mb-2 pr-5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {monitors.length} sensors at this location
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {monitors.map((monitor, index) => (
+          <div
+            key={monitorEntryKey(monitor)}
+            className={index === 0 ? '' : 'border-t border-border pt-2'}
+          >
+            <SelectedMonitorDetails
+              monitor={monitor}
+              correctionModel={correctionModel}
+              showHeading={index > 0 || showFirstHeading}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MobileAirQualityFeatureCard({
+  monitor,
+  monitorsAtLocation,
+  correctionModel,
+  onClose,
+}: {
+  monitor: AirMonitor
+  monitorsAtLocation: AirMonitor[]
+  correctionModel: AirQualityCorrectionModel
+  onClose: () => void
+}) {
+  const subtitle = [monitor.city, monitor.province].filter(Boolean).join(', ') || 'Location available'
+
+  return (
+    <MobileFeatureCard
+      title={monitor.name}
+      subtitle={subtitle}
+      onClose={onClose}
+    >
+      {monitorsAtLocation.length > 1 && (
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {monitorsAtLocation.length} sensors at this location
+        </div>
+      )}
+      <SelectedMonitorStack
+        monitors={monitorsAtLocation}
+        correctionModel={correctionModel}
+        showFirstHeading={monitorsAtLocation.length > 1}
+      />
+    </MobileFeatureCard>
   )
 }

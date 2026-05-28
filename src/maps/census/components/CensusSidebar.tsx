@@ -40,7 +40,7 @@ interface CensusSidebarProps {
 
 const MAX_ROWS = 140
 
-function formatUnitLabel(unit: CensusUnit): string {
+export function formatUnitLabel(unit: CensusUnit): string {
   switch (unit.level) {
     case 'cd':
       return `CD ${unit.id}`
@@ -57,11 +57,11 @@ function formatUnitLabel(unit: CensusUnit): string {
   }
 }
 
-function formatArea(value: number): string {
+export function formatArea(value: number): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
 }
 
-function formatValue(value: number | null): string {
+export function formatValue(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return 'N/A'
   if (Number.isInteger(value)) return value.toLocaleString()
   return value.toLocaleString(undefined, { maximumFractionDigits: 2 })

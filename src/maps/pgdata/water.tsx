@@ -5,11 +5,13 @@ import { point } from '@turf/helpers'
 import { Droplets } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
+import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { InlineAlert, LegendItem, MapGradientLegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { StudyAreaSelector, type StudyAreaLevelOption, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { formatDate, useJsonManifest } from './shared'
 
 export const WATER_TIMELINE_WINDOW_OPTIONS: TimelineWindowOption[] = [
@@ -1528,6 +1530,48 @@ function WaterFacilityPopupCard({ facility, onOpenReport }: { facility: WaterFac
   )
 }
 
+function MobileWaterFacilityFeatureCard({
+  facility,
+  onClose,
+  onOpenReport,
+}: {
+  facility: WaterFacility
+  onClose: () => void
+  onOpenReport: () => void
+}) {
+  const sampleRows = facility.bacteriologicalSamples + facility.chemicalResults
+
+  return (
+    <MobileFeatureCard
+      title={facility.name}
+      subtitle={facility.community || facility.address || 'No locality provided'}
+      onClose={onClose}
+    >
+      <div className="grid grid-cols-3 gap-2 text-center text-xs">
+        <div className="rounded border border-border p-2">
+          <div className="font-semibold text-foreground">{sampleRows.toLocaleString()}</div>
+          <div className="text-[10px] text-muted-foreground">samples</div>
+        </div>
+        <div className="rounded border border-border p-2">
+          <div className="font-semibold text-foreground">{facility.activeNotices.toLocaleString()}</div>
+          <div className="text-[10px] text-muted-foreground">notices</div>
+        </div>
+        <div className="rounded border border-border p-2">
+          <div className="font-semibold text-foreground">{formatDate(facility.lastSampleDate?.toISOString())}</div>
+          <div className="text-[10px] text-muted-foreground">latest</div>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onOpenReport}
+        className="mt-3 w-full rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700"
+      >
+        {facility.noticeOnly ? 'Open notice details' : 'Open sampling report'}
+      </button>
+    </MobileFeatureCard>
+  )
+}
+
 function WaterFacilityDetailCard({ water }: { water: WaterState }) {
   const facility = water.selectedFacility
   if (!facility) return null
@@ -1934,6 +1978,7 @@ function WaterSamplingGridRow({ sample }: { sample: WaterSampleRow }) {
 }
 
 export function WaterLayer({ water }: { water: WaterState }) {
+  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const pointCollections = useMemo(() => (
     WATER_POINT_CATEGORIES
       .filter((category) => water.visiblePointCategories.includes(category))
@@ -2031,19 +2076,28 @@ export function WaterLayer({ water }: { water: WaterState }) {
               />
             </MarkerContent>
           </MapMarker>
-          <MapPopup
-            key={water.selectedFacility.id}
-            longitude={water.selectedFacility.longitude}
-            latitude={water.selectedFacility.latitude}
-            closeButton
-            onClose={() => water.setSelectedFacilityId(null)}
-            className="max-w-xs"
-          >
-            <WaterFacilityPopupCard
+          {!isMobileViewport && (
+            <MapPopup
+              key={water.selectedFacility.id}
+              longitude={water.selectedFacility.longitude}
+              latitude={water.selectedFacility.latitude}
+              closeButton
+              onClose={() => water.setSelectedFacilityId(null)}
+              className="max-w-xs"
+            >
+              <WaterFacilityPopupCard
+                facility={water.selectedFacility}
+                onOpenReport={() => water.setShowSelectedFacilityReport(true)}
+              />
+            </MapPopup>
+          )}
+          {isMobileViewport && (
+            <MobileWaterFacilityFeatureCard
               facility={water.selectedFacility}
+              onClose={() => water.setSelectedFacilityId(null)}
               onOpenReport={() => water.setShowSelectedFacilityReport(true)}
             />
-          </MapPopup>
+          )}
         </>
       )}
     </>

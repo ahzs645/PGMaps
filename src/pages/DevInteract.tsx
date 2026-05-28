@@ -38,7 +38,7 @@ type MobilePanelAction =
   | { type: 'dockControls' }
   | { type: 'syncControlsSheet'; sheetState: MobileSheetState }
 
-const MOBILE_FEATURE_SHEET_VISIBLE_HEIGHT = 420
+const MOBILE_FEATURE_SHEET_VISIBLE_HEIGHT = 360
 const MOBILE_FEATURE_COLLAPSED_VISIBLE_HEIGHT = 98
 const MOBILE_CONTROLS_DOCKED_VISIBLE_HEIGHT = 56
 const FEATURE_SELECT_DISMISS_SUPPRESS_MS = 150

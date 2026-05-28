@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { CensusMap } from './components/CensusMap'
-import { CensusSidebar } from './components/CensusSidebar'
-import { CENSUS_HIERARCHIES, CENSUS_METRICS } from './constants'
+import { CensusSidebar, formatArea, formatUnitLabel, formatValue } from './components/CensusSidebar'
+import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from './constants'
 import { useCensusCatalog } from './hooks/useCensusCatalog'
 import { useCensusData } from './hooks/useCensusData'
 import { getVariableValues, useCensusVariableData } from './hooks/useCensusVariableData'
-import type { CensusHierarchyLevel, CensusMetricKey, CensusVariableSelection } from './types'
+import type { CensusHierarchyLevel, CensusMetricKey, CensusUnit, CensusVariableSelection } from './types'
 
 const LEGEND_SWATCHES = ['#fef3c7', '#fde68a', '#fbbf24', '#f59e0b', '#b45309']
 
@@ -21,6 +22,7 @@ export default function CensusSection() {
   const [selectedMetric, setSelectedMetric] = useState<CensusMetricKey>(() => (searchParams.get('metric') as CensusMetricKey) || 'populationDensity')
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(() => searchParams.get('unit'))
+  const previousHierarchyRef = useRef(selectedHierarchy)
   const [variableSelection, setVariableSelection] = useState<CensusVariableSelection | null>(() => {
     const categoryId = searchParams.get('category')
     const variableId = searchParams.get('variable')
@@ -78,6 +80,16 @@ export default function CensusSection() {
     return availableMetrics.find((item) => item.key === selectedMetric)?.label || 'Metric'
   }, [activeVariableLabel, availableMetrics, selectedMetric])
 
+  const selectedMetricDef = useMemo(
+    () => availableMetrics.find((metric) => metric.key === selectedMetric) || availableMetrics[0] || CENSUS_METRICS[0],
+    [availableMetrics, selectedMetric],
+  )
+
+  const activeCategoryName = useMemo(() => {
+    if (!variableSelection || !catalog) return null
+    return catalog.categories.find((category) => category.id === variableSelection.categoryId)?.name || null
+  }, [catalog, variableSelection])
+
   const selectedHierarchyLabel = useMemo(() => {
     return CENSUS_HIERARCHIES.find((item) => item.key === selectedHierarchy)?.label || 'Hierarchy'
   }, [selectedHierarchy])
@@ -91,6 +103,10 @@ export default function CensusSection() {
   }, [availableMetrics, selectedMetric])
 
   useEffect(() => {
+    if (previousHierarchyRef.current === selectedHierarchy) {
+      return
+    }
+    previousHierarchyRef.current = selectedHierarchy
     setSelectedUnitId(null)
     if (selectedHierarchy === 'db') {
       setVariableSelection(null)
@@ -193,7 +209,76 @@ export default function CensusSection() {
           )}
           <MapGradientLegendItem colors={LEGEND_SWATCHES} minLabel="Low" maxLabel="High" />
         </MapLegendPanel>
+
+        {selectedUnit && (
+          <MobileCensusFeatureCard
+            unit={selectedUnit}
+            hierarchyLabel={selectedHierarchyLabel}
+            metricLabel={selectedMetricDef.label}
+            metricValue={formatMetricValue(selectedUnit[selectedMetric], selectedMetricDef.format)}
+            variableCategoryName={activeCategoryName}
+            variableLabel={activeVariableLabel}
+            variableValue={variableValuesByGeoUid?.get(selectedUnit.id) ?? null}
+            isVariableMode={variableSelection != null}
+            onClose={() => setSelectedUnitId(null)}
+          />
+        )}
       </div>
     </MapSectionLayout>
+  )
+}
+
+function MobileCensusFeatureCard({
+  unit,
+  hierarchyLabel,
+  metricLabel,
+  metricValue,
+  variableCategoryName,
+  variableLabel,
+  variableValue,
+  isVariableMode,
+  onClose,
+}: {
+  unit: CensusUnit
+  hierarchyLabel: string
+  metricLabel: string
+  metricValue: string
+  variableCategoryName: string | null
+  variableLabel: string | null
+  variableValue: number | null
+  isVariableMode: boolean
+  onClose: () => void
+}) {
+  return (
+    <MobileFeatureCard
+      title={formatUnitLabel(unit)}
+      subtitle={hierarchyLabel}
+      onClose={onClose}
+    >
+      {isVariableMode ? (
+        <div>
+          <div className="text-[10px] text-amber-700 dark:text-amber-300">{variableCategoryName}</div>
+          <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
+            {formatValue(variableValue)}
+          </div>
+          <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{variableLabel}</div>
+        </div>
+      ) : (
+        <div>
+          <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
+            {metricValue}
+          </div>
+          <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{metricLabel}</div>
+        </div>
+      )}
+      <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/25 dark:text-amber-300">
+        <div>Area: {formatArea(unit.areaSqKm || 0)} km²</div>
+        <div>Pop: {(unit.population || 0).toLocaleString()}</div>
+        <div>Households: {(unit.households || 0).toLocaleString()}</div>
+        <div>Dwellings: {(unit.dwellings || 0).toLocaleString()}</div>
+        <div>DA count: {unit.daCount.toLocaleString()}</div>
+        <div>DB count: {unit.dbCount.toLocaleString()}</div>
+      </div>
+    </MobileFeatureCard>
   )
 }

@@ -49,7 +49,7 @@ export function DroughtMap({ data, selectedId, onFeatureClick, loading = false }
 
   return (
     <PgMap ref={mapRef} center={DROUGHT_BC_CENTER} zoom={4.3} styles={MAP_STYLES} loading={loading}>
-      <MapControls position="top-right" showZoom showCompass />
+      <MapControls position="top-right" showZoom showCompass className="top-16 md:top-2" />
       <MapFillLayer
         data={mapData}
         fillColor={DROUGHT_FILL_COLOR}

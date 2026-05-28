@@ -6,6 +6,7 @@ import { point } from '@turf/helpers'
 import { BarChart3, CalendarDays, Database, Droplets, Footprints, Info, Layers, PawPrint, RadioTower, Satellite, ShieldAlert, Trees, Waves, X, Zap } from 'lucide-react'
 import { Map as PgMap, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
+import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
@@ -25,6 +26,7 @@ import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import {
   WALKABILITY_DEFAULT_VARIANT,
   WALKABILITY_DEFAULT_DISPLAY_MODE,
@@ -201,6 +203,14 @@ interface CanueBoundaryResult {
   maxValue: number | null
   validBoundaryCount: number
   matchedRowCount: number
+}
+
+interface CanueBoundaryFeatureCardData {
+  title: string
+  metricLabel: ReactNode
+  metricValue: string
+  recordCount: number
+  recordLabel: string
 }
 
 interface CanueDatasetGroup {
@@ -2009,8 +2019,35 @@ function CanueGraphDrawer({
   )
 }
 
+function MobileCanueBoundaryFeatureCard({
+  card,
+  onClose,
+}: {
+  card: CanueBoundaryFeatureCardData
+  onClose: () => void
+}) {
+  return (
+    <MobileFeatureCard
+      title={card.title}
+      subtitle="CANUE boundary"
+      onClose={onClose}
+    >
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-muted-foreground">{card.metricLabel}</span>
+          <span className="font-semibold text-foreground">{card.metricValue}</span>
+        </div>
+      </div>
+      <div className="mt-3 text-xs text-muted-foreground">
+        {card.recordCount.toLocaleString()} {card.recordLabel}
+      </div>
+    </MobileFeatureCard>
+  )
+}
+
 export default function MiscDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const [showSidebar, setShowSidebar] = useState(true)
   const activeTab = parseMiscDataTab(searchParams.get('tab'))
   const setActiveTab = useCallback((tab: MiscDataTab) => {
@@ -2609,6 +2646,31 @@ export default function MiscDataSection() {
       return featureId != null && String(featureId) === selectedCanueBoundaryId
     }) ?? null
   }, [activeCanueBoundaryData.data.features, selectedCanueBoundaryId])
+  const selectedCanueBoundaryCard = useMemo<CanueBoundaryFeatureCardData | null>(() => {
+    if (!selectedCanueBoundary) return null
+
+    if (CANUE_V2_ENABLED && selectedCanueV2Selection) {
+      return {
+        title: String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary'),
+        metricLabel: renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection)),
+        metricValue: formatNullableNumber(Number(selectedCanueBoundary.properties?.[selectedCanueV2Selection.property])),
+        recordCount: Number(selectedCanueBoundary.properties?.rowCount ?? 0),
+        recordLabel: 'decoded grid features',
+      }
+    }
+
+    if (selectedCanueFile && selectedCanueVariable) {
+      return {
+        title: String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary'),
+        metricLabel: renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable)),
+        metricValue: formatNullableNumber(Number(selectedCanueBoundary.properties?.[activeCanueBoundaryProperty])),
+        recordCount: Number(selectedCanueBoundary.properties?.rowCount ?? 0),
+        recordLabel: 'source records',
+      }
+    }
+
+    return null
+  }, [activeCanueBoundaryProperty, selectedCanueBoundary, selectedCanueFile, selectedCanueV2Selection, selectedCanueVariable])
   const canueGraphVariableOptions = useMemo<CanueGraphVariableOption[]>(() => {
     if (CANUE_V2_ENABLED && selectedCanueV2Layer && selectedCanueV2FamilySelections.length) {
       const options = new Map<string, CanueGraphVariableOption>()
@@ -3597,6 +3659,13 @@ export default function MiscDataSection() {
               selectionColor="#111827"
               selectionWidth={2.1}
               onFeatureClick={setSelectedCanueBoundaryId}
+            />
+          )}
+
+          {activeTab === 'canue' && isMobileViewport && selectedCanueBoundaryCard && (
+            <MobileCanueBoundaryFeatureCard
+              card={selectedCanueBoundaryCard}
+              onClose={() => setSelectedCanueBoundaryId(null)}
             />
           )}
 

@@ -47,7 +47,7 @@ interface ExplorerSidebarProps {
 
 const MAX_VISIBLE_ROWS = 250
 
-function formatRelevance(value: number): string {
+export function formatRelevance(value: number): string {
   return `${Math.round(value)}`
 }
 

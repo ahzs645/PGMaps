@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { BcAssessmentMap } from './components/BcAssessmentMap'
-import { BcAssessmentSidebar } from './components/BcAssessmentSidebar'
+import { BcAssessmentSidebar, formatNumber, HistorySparkline } from './components/BcAssessmentSidebar'
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
 import { useBoundaryData } from './hooks/useBoundaryData'
 import { useBoundaryAggregates } from './hooks/useBoundaryAggregates'
@@ -225,7 +226,50 @@ export default function BcAssessmentSection() {
             <MapSteppedLegend bands={legendItems} variant="rows" showBandLabels={false} />
           </MapLegendPanel>
         )}
+
+        {selectedProperty && (
+          <MobileBcAssessmentFeatureCard
+            property={selectedProperty}
+            onClose={() => setSelectedProperty(null)}
+          />
+        )}
       </div>
     </MapSectionLayout>
+  )
+}
+
+function MobileBcAssessmentFeatureCard({
+  property,
+  onClose,
+}: {
+  property: Property
+  onClose: () => void
+}) {
+  return (
+    <MobileFeatureCard
+      title={property.address}
+      subtitle={property.description}
+      onClose={onClose}
+    >
+      <div className="text-[10px] font-medium text-blue-700 dark:text-blue-300">Active property</div>
+      <div className="mt-3 space-y-1 rounded-md border border-blue-300/60 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-800/60 dark:bg-blue-950/25 dark:text-blue-100">
+        <PropertyRow label="Total Assessed" value={`$${formatNumber(property.totalAssessed)}`} />
+        <PropertyRow label="Land" value={`$${formatNumber(property.totalLand)}`} />
+        <PropertyRow label="Building" value={`$${formatNumber(property.totalBuilding)}`} />
+        {property.yearBuilt ? <PropertyRow label="Year Built" value={String(property.yearBuilt)} /> : null}
+      </div>
+      {property.histValues && property.histValues.length > 1 && (
+        <HistorySparkline values={property.histValues} />
+      )}
+    </MobileFeatureCard>
+  )
+}
+
+function PropertyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="max-w-[12rem] text-right font-medium text-foreground">{value}</span>
+    </div>
   )
 }

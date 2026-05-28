@@ -362,6 +362,7 @@ export default function FoodMap() {
           loading={loading}
           onRestaurantClick={handleMapRestaurantClick}
           onViewInspections={handleMapViewInspections}
+          onClearSelection={clearSelection}
         />
 
         {/* Timeline */}
