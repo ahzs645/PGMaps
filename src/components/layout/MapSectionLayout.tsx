@@ -4,6 +4,11 @@ import { cn } from '@/lib/utils'
 import {
   MOBILE_FEATURE_CARD_HEIGHT,
   MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT,
+  MOBILE_FEATURE_CARD_FRONT_EVENT,
+  MOBILE_FEATURE_CARD_CLOSE_EVENT,
+  MOBILE_FEATURE_CARD_OPEN_EVENT,
+  MOBILE_FEATURE_CARD_PEEK_EVENT,
+  MOBILE_MAP_CONTROLS_FRONT_EVENT,
   MOBILE_MAP_INTERACTION_EVENT,
   MOBILE_MAP_SHEET_COLLAPSE_EVENT,
   MOBILE_MAP_SHEET_STACK_EVENT,
@@ -96,7 +101,8 @@ function stateFromTranslate(y: number, height: number, fullOffset = DEFAULT_FULL
 
 const SPRING = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)'
 const DESKTOP_MEDIA_MIN_WIDTH = 768
-const MOBILE_STACK_REAR_SHEET_OFFSET = 14
+const MOBILE_STACK_REAR_SHEET_VISIBLE_GAP = 6
+const MOBILE_FEATURE_CARD_FRONT_OFFSET = 8
 
 function isMobileViewport() {
   return typeof window !== 'undefined' && window.innerWidth < DESKTOP_MEDIA_MIN_WIDTH
@@ -131,6 +137,9 @@ export function MapSectionLayout({
   className,
 }: MapSectionLayoutProps) {
   const [mobileSheetState, setMobileSheetState] = useState<MobileSheetState>(mobileInitialSheetState)
+  const [mobileFeatureCardOpen, setMobileFeatureCardOpen] = useState(false)
+  const [mobileControlsInFront, setMobileControlsInFront] = useState(false)
+  const [mobileFeaturePeek, setMobileFeaturePeek] = useState<{ title?: string; subtitle?: string }>({})
 
   // DOM refs
   const rootRef = useRef<HTMLDivElement>(null)
@@ -203,9 +212,12 @@ export function MapSectionLayout({
   const stackBehindFeatureCard = useCallback((collapsedFeature = false) => {
     if (!isMobileViewport()) return
     const sheetHeight = getSheetHeight()
+    const featureHeight = collapsedFeature
+      ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT
+      : Math.min(MOBILE_FEATURE_CARD_HEIGHT, Math.max(160, window.innerHeight - 104))
     const visibleHeight = collapsedFeature
-      ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT + MOBILE_STACK_REAR_SHEET_OFFSET
-      : Math.min(MOBILE_FEATURE_CARD_HEIGHT, Math.max(160, window.innerHeight - 104)) + MOBILE_STACK_REAR_SHEET_OFFSET
+      ? featureHeight + MOBILE_STACK_REAR_SHEET_VISIBLE_GAP
+      : featureHeight + MOBILE_STACK_REAR_SHEET_VISIBLE_GAP - MOBILE_FEATURE_CARD_FRONT_OFFSET
     const snaps = getSnapPositions(sheetHeight, getFullSnapOffset())
     const y = Math.max(snaps.full, Math.min(snaps.collapsed, sheetHeight - visibleHeight))
     suppressScrim.current = true
@@ -216,6 +228,21 @@ export function MapSectionLayout({
       scrimRef.current.style.pointerEvents = 'none'
     }
   }, [applyTransform, getFullSnapOffset, getSheetHeight, updateMobileSheetState])
+
+  const bringControlsToFront = useCallback(() => {
+    if (!isMobileViewport()) return
+    setMobileControlsInFront(true)
+    suppressScrim.current = true
+    window.dispatchEvent(new CustomEvent(MOBILE_MAP_CONTROLS_FRONT_EVENT))
+    snapTo('half')
+  }, [snapTo])
+
+  const bringFeatureCardToFront = useCallback(() => {
+    if (!isMobileViewport()) return
+    setMobileControlsInFront(false)
+    window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_FRONT_EVENT))
+    stackBehindFeatureCard(false)
+  }, [stackBehindFeatureCard])
 
   useEffect(() => {
     if (!isMobileViewport()) return
@@ -432,28 +459,81 @@ export function MapSectionLayout({
   useEffect(() => {
     const collapse = () => {
       if (!isMobileViewport()) return
+      setMobileControlsInFront(false)
       snapTo('collapsed')
     }
-    const collapseForMapInteraction = () => stackBehindFeatureCard(true)
-    const stack = () => stackBehindFeatureCard(false)
+    const collapseForMapInteraction = () => {
+      setMobileControlsInFront(false)
+      stackBehindFeatureCard(true)
+    }
+    const stack = () => {
+      setMobileFeatureCardOpen(true)
+      setMobileControlsInFront(false)
+      stackBehindFeatureCard(false)
+    }
+    const handleFeatureOpen = () => {
+      setMobileFeatureCardOpen(true)
+      setMobileControlsInFront(false)
+    }
+    const handleFeatureClose = () => {
+      setMobileFeatureCardOpen(false)
+      setMobileControlsInFront(false)
+    }
+    const handleFeaturePeek = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return
+      setMobileFeaturePeek({
+        title: typeof event.detail?.title === 'string' ? event.detail.title : undefined,
+        subtitle: typeof event.detail?.subtitle === 'string' ? event.detail.subtitle : undefined,
+      })
+    }
     window.addEventListener(MOBILE_MAP_INTERACTION_EVENT, collapseForMapInteraction)
     window.addEventListener(MOBILE_MAP_SHEET_COLLAPSE_EVENT, collapse)
     window.addEventListener(MOBILE_MAP_SHEET_STACK_EVENT, stack)
+    window.addEventListener(MOBILE_FEATURE_CARD_OPEN_EVENT, handleFeatureOpen)
+    window.addEventListener(MOBILE_FEATURE_CARD_CLOSE_EVENT, handleFeatureClose)
+    window.addEventListener(MOBILE_FEATURE_CARD_PEEK_EVENT, handleFeaturePeek)
     return () => {
       window.removeEventListener(MOBILE_MAP_INTERACTION_EVENT, collapseForMapInteraction)
       window.removeEventListener(MOBILE_MAP_SHEET_COLLAPSE_EVENT, collapse)
       window.removeEventListener(MOBILE_MAP_SHEET_STACK_EVENT, stack)
+      window.removeEventListener(MOBILE_FEATURE_CARD_OPEN_EVENT, handleFeatureOpen)
+      window.removeEventListener(MOBILE_FEATURE_CARD_CLOSE_EVENT, handleFeatureClose)
+      window.removeEventListener(MOBILE_FEATURE_CARD_PEEK_EVENT, handleFeaturePeek)
     }
   }, [snapTo, stackBehindFeatureCard])
 
   // ─── Render ──────────────────────────────────────────────────────────────
+
+  const renderedMobilePeek = mobileControlsInFront && mobileFeatureCardOpen ? (
+    <button
+      type="button"
+      className="min-w-0 text-left"
+      data-map-mobile-sheet-peek-action="true"
+      aria-label="Show selected feature card"
+      onClick={(event) => {
+        event.stopPropagation()
+        bringFeatureCardToFront()
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onTouchStart={(event) => event.stopPropagation()}
+    >
+      <span className="block truncate text-xs font-semibold text-foreground">
+        {mobileFeaturePeek.title || 'Selected feature'}
+      </span>
+      <span className="block truncate text-[11px] text-muted-foreground">
+        {mobileFeaturePeek.subtitle || 'Tap to show selected feature'}
+      </span>
+    </button>
+  ) : mobilePeek
 
   return (
     <div ref={rootRef} className={cn('relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
       {/* Sidebar wrapper */}
       <div
         className={cn(
-          'pointer-events-none absolute inset-0 z-30 md:pointer-events-auto md:relative md:inset-auto md:z-10 md:h-full md:shrink-0',
+          'pointer-events-none absolute inset-0 md:pointer-events-auto md:relative md:inset-auto md:z-10 md:h-full md:shrink-0',
+          mobileControlsInFront ? 'z-[60]' : 'z-30',
           suppressMobileSheet && 'hidden md:block',
           showDesktopSidebar ? 'md:block md:w-[var(--desktop-sidebar-width)]' : 'md:hidden',
         )}
@@ -474,7 +554,7 @@ export function MapSectionLayout({
           ref={sheetRef}
           className={cn(
             'absolute inset-x-0 bottom-0 flex h-full max-h-full flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)]',
-            mobileSheetInteractive ? 'pointer-events-auto' : 'pointer-events-none',
+            mobileSheetInteractive || mobileControlsInFront || mobileFeatureCardOpen ? 'pointer-events-auto' : 'pointer-events-none',
             'md:relative md:inset-auto md:h-full md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-blur-none',
           )}
           data-map-mobile-sheet="true"
@@ -486,13 +566,18 @@ export function MapSectionLayout({
             role="separator"
             aria-label="Drag to resize sheet"
             data-map-mobile-sheet-handle="true"
+            onClick={(event) => {
+              if (!mobileFeatureCardOpen || mobileControlsInFront) return
+              event.stopPropagation()
+              bringControlsToFront()
+            }}
           >
             <div className="flex justify-center py-2" aria-hidden="true">
               <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
             </div>
-            {showMobilePeek && (
-              <div className={cn('min-h-0 w-full px-4 pb-3 pr-14', mobilePeek && 'border-b border-border')}>
-                {mobilePeek ?? <div className="h-8" aria-hidden="true" />}
+            {(showMobilePeek || (mobileFeatureCardOpen && mobileControlsInFront)) && (
+              <div className={cn('min-h-0 w-full px-4 pb-3 pr-14', renderedMobilePeek && 'border-b border-border')}>
+                {renderedMobilePeek ?? <div className="h-8" aria-hidden="true" />}
               </div>
             )}
             <button

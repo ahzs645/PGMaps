@@ -9,6 +9,9 @@ export const MOBILE_MAP_INTERACTION_EVENT = 'pgmaps:mobile-map-interaction'
 export const MOBILE_MAP_BLANK_CLICK_EVENT = 'pgmaps:mobile-map-blank-click'
 export const MOBILE_MAP_SHEET_COLLAPSE_EVENT = 'pgmaps:collapse-mobile-map-sheet'
 export const MOBILE_MAP_SHEET_STACK_EVENT = 'pgmaps:stack-mobile-map-sheet'
+export const MOBILE_MAP_CONTROLS_FRONT_EVENT = 'pgmaps:mobile-map-controls-front'
+export const MOBILE_FEATURE_CARD_FRONT_EVENT = 'pgmaps:mobile-feature-card-front'
+export const MOBILE_FEATURE_CARD_PEEK_EVENT = 'pgmaps:mobile-feature-card-peek'
 export const MOBILE_FEATURE_CARD_OPEN_EVENT = 'pgmaps:mobile-feature-card-open'
 export const MOBILE_FEATURE_CARD_CLOSE_EVENT = 'pgmaps:mobile-feature-card-close'
 
@@ -37,8 +40,12 @@ export function MobileFeatureCard({
 }) {
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [controlsInFront, setControlsInFront] = useState(false)
   const dragStartY = useRef<number | null>(null)
   const lastGestureAtRef = useRef(0)
+
+  const titleText = typeof title === 'string' ? title : undefined
+  const subtitleText = typeof subtitle === 'string' ? subtitle : undefined
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
@@ -50,6 +57,20 @@ export function MobileFeatureCard({
     return () => {
       cancelAnimationFrame(frame)
       window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_CLOSE_EVENT))
+    }
+  }, [])
+
+  useEffect(() => {
+    const sendBehind = () => setControlsInFront(true)
+    const bringFront = () => {
+      setControlsInFront(false)
+      window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
+    }
+    window.addEventListener(MOBILE_MAP_CONTROLS_FRONT_EVENT, sendBehind)
+    window.addEventListener(MOBILE_FEATURE_CARD_FRONT_EVENT, bringFront)
+    return () => {
+      window.removeEventListener(MOBILE_MAP_CONTROLS_FRONT_EVENT, sendBehind)
+      window.removeEventListener(MOBILE_FEATURE_CARD_FRONT_EVENT, bringFront)
     }
   }, [])
 
@@ -70,8 +91,11 @@ export function MobileFeatureCard({
     if (!open) return
     const frame = requestAnimationFrame(() => setCollapsed(false))
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
+    window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_PEEK_EVENT, {
+      detail: { title: titleText, subtitle: subtitleText },
+    }))
     return () => cancelAnimationFrame(frame)
-  }, [cardKey, open, subtitle, title])
+  }, [cardKey, open, subtitleText, titleText])
 
   const closeWithAnimation = useCallback(() => {
     setOpen(false)
@@ -114,7 +138,10 @@ export function MobileFeatureCard({
   }, [])
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 md:hidden" aria-label="Selected feature">
+    <div
+      className={cn('pointer-events-none fixed inset-0 md:hidden', controlsInFront ? 'z-20' : 'z-50')}
+      aria-label="Selected feature"
+    >
       <div
         className={cn(
           'absolute inset-x-0 bottom-0 pointer-events-none grid transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform',
@@ -129,10 +156,12 @@ export function MobileFeatureCard({
           role="dialog"
           className={cn(
             'pointer-events-auto col-start-1 row-start-1 flex self-end flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[height,transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-            collapsed ? 'translate-y-0' : 'h-full translate-y-2',
+            controlsInFront && 'pointer-events-none -translate-y-1.5 shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
+            controlsInFront && !collapsed && 'h-full',
+            !controlsInFront && (collapsed ? 'translate-y-0' : 'h-full translate-y-2'),
             className,
           )}
-          style={collapsed ? { alignSelf: 'end', height: MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT } : undefined}
+          style={collapsed || controlsInFront ? { alignSelf: 'end', height: collapsed ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT : undefined } : undefined}
         >
           <div
             className="flex cursor-grab touch-none justify-center py-2 active:cursor-grabbing"
