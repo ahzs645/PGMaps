@@ -21,7 +21,7 @@ import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { MAP_STYLES } from "./map-styles";
-import { MOBILE_MAP_INTERACTION_EVENT } from "./mobile-feature-card";
+import { MOBILE_MAP_BLANK_CLICK_EVENT, MOBILE_MAP_INTERACTION_EVENT } from "./mobile-feature-card";
 
 type MapContextValue = {
   map: MapLibreGL.Map | null;
@@ -124,6 +124,10 @@ function dispatchMobileMapInteraction() {
   window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT));
 }
 
+function dispatchMobileMapBlankClick() {
+  window.dispatchEvent(new CustomEvent(MOBILE_MAP_BLANK_CLICK_EVENT));
+}
+
 const Map = forwardRef<MapRef, MapProps>(function Map(
   {
     children,
@@ -204,10 +208,13 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       if (internalUpdateRef.current) return;
       onViewportChangeRef.current?.(getViewport(map));
     };
-    const handleUserMapInteraction = (event?: { originalEvent?: Event; defaultPrevented?: boolean }) => {
+    const handleUserMapInteraction = (event?: { originalEvent?: Event; defaultPrevented?: boolean; type?: string }) => {
       if (event && !event.originalEvent) return;
       if (event?.defaultPrevented || event?.originalEvent?.defaultPrevented) return;
       dispatchMobileMapInteraction();
+      if (event?.type === "click") {
+        dispatchMobileMapBlankClick();
+      }
     };
 
     map.on("load", loadHandler);

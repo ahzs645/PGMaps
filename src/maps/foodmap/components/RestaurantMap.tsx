@@ -1,5 +1,4 @@
 import { useMemo, useEffect } from 'react'
-import type maplibregl from 'maplibre-gl'
 import { useTheme } from 'next-themes'
 import {
   MapMarker,
@@ -115,9 +114,6 @@ export function RestaurantMap({
           onViewInspections={() => onViewInspections(restaurant)}
         />
       ))}
-      {selectedRestaurant && (
-        <ClearFoodSelectionOnBlankMapClick onClearSelection={onClearSelection} />
-      )}
       {isMobileViewport && selectedRestaurant && (
         <MobileRestaurantFeatureCard
           restaurant={selectedRestaurant}
@@ -182,21 +178,23 @@ function RestaurantMarker({ restaurant, visualizationMode, isSelected, isMobileV
         />
       </MarkerContent>
 
-      <MarkerTooltip>
-        <div className="p-2 max-w-xs">
-          <div className="font-semibold text-sm mb-1">{restaurant.name}</div>
-          <div className="text-xs text-muted-foreground mb-2">{restaurant.address}</div>
-          {visualizationMode === 'hazard' ? (
-            <span className={cn('text-xs px-1.5 py-0.5 rounded text-white', hazardColorClass)}>
-              {rating}
-            </span>
-          ) : (
-            <span className={cn('text-xs px-1.5 py-0.5 rounded text-white', violationColorClass)}>
-              {stats.total} violation{stats.total !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-      </MarkerTooltip>
+      {!isMobileViewport && (
+        <MarkerTooltip>
+          <div className="p-2 max-w-xs">
+            <div className="font-semibold text-sm mb-1">{restaurant.name}</div>
+            <div className="text-xs text-muted-foreground mb-2">{restaurant.address}</div>
+            {visualizationMode === 'hazard' ? (
+              <span className={cn('text-xs px-1.5 py-0.5 rounded text-white', hazardColorClass)}>
+                {rating}
+              </span>
+            ) : (
+              <span className={cn('text-xs px-1.5 py-0.5 rounded text-white', violationColorClass)}>
+                {stats.total} violation{stats.total !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        </MarkerTooltip>
+      )}
 
       {!isMobileViewport && (
         <MarkerPopup closeButton className="p-0">
@@ -331,26 +329,6 @@ function MobileRestaurantFeatureCard({
       </button>
     </MobileFeatureCard>
   )
-}
-
-function ClearFoodSelectionOnBlankMapClick({ onClearSelection }: { onClearSelection: () => void }) {
-  const { map, isLoaded } = useMap()
-
-  useEffect(() => {
-    if (!map || !isLoaded) return
-
-    const handleClick = (event: maplibregl.MapMouseEvent) => {
-      if (event.defaultPrevented || event.originalEvent.defaultPrevented) return
-      onClearSelection()
-    }
-
-    map.on('click', handleClick)
-    return () => {
-      map.off('click', handleClick)
-    }
-  }, [isLoaded, map, onClearSelection])
-
-  return null
 }
 
 function RestaurantSummaryBadges({

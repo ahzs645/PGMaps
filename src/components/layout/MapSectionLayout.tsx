@@ -96,6 +96,7 @@ function stateFromTranslate(y: number, height: number, fullOffset = DEFAULT_FULL
 
 const SPRING = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)'
 const DESKTOP_MEDIA_MIN_WIDTH = 768
+const MOBILE_STACK_REAR_SHEET_OFFSET = 14
 
 function isMobileViewport() {
   return typeof window !== 'undefined' && window.innerWidth < DESKTOP_MEDIA_MIN_WIDTH
@@ -203,8 +204,8 @@ export function MapSectionLayout({
     if (!isMobileViewport()) return
     const sheetHeight = getSheetHeight()
     const visibleHeight = collapsedFeature
-      ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT - 6
-      : Math.min(MOBILE_FEATURE_CARD_HEIGHT, Math.max(160, window.innerHeight - 104)) - 6
+      ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT + MOBILE_STACK_REAR_SHEET_OFFSET
+      : Math.min(MOBILE_FEATURE_CARD_HEIGHT, Math.max(160, window.innerHeight - 104)) + MOBILE_STACK_REAR_SHEET_OFFSET
     const snaps = getSnapPositions(sheetHeight, getFullSnapOffset())
     const y = Math.max(snaps.full, Math.min(snaps.collapsed, sheetHeight - visibleHeight))
     suppressScrim.current = true

@@ -6,6 +6,7 @@ export const MOBILE_FEATURE_CARD_MEDIA_QUERY = '(max-width: 767px)'
 export const MOBILE_FEATURE_CARD_HEIGHT = 360
 export const MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT = 92
 export const MOBILE_MAP_INTERACTION_EVENT = 'pgmaps:mobile-map-interaction'
+export const MOBILE_MAP_BLANK_CLICK_EVENT = 'pgmaps:mobile-map-blank-click'
 export const MOBILE_MAP_SHEET_COLLAPSE_EVENT = 'pgmaps:collapse-mobile-map-sheet'
 export const MOBILE_MAP_SHEET_STACK_EVENT = 'pgmaps:stack-mobile-map-sheet'
 export const MOBILE_FEATURE_CARD_OPEN_EVENT = 'pgmaps:mobile-feature-card-open'
@@ -20,6 +21,7 @@ export function MobileFeatureCard({
   contentClassName,
   height = MOBILE_FEATURE_CARD_HEIGHT,
   collapseOnMapInteraction = true,
+  closeOnBlankMapClick = true,
   onClose,
 }: {
   title: ReactNode
@@ -30,11 +32,13 @@ export function MobileFeatureCard({
   contentClassName?: string
   height?: number
   collapseOnMapInteraction?: boolean
+  closeOnBlankMapClick?: boolean
   onClose: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const dragStartY = useRef<number | null>(null)
+  const lastGestureAtRef = useRef(0)
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
@@ -52,7 +56,12 @@ export function MobileFeatureCard({
   useEffect(() => {
     if (!collapseOnMapInteraction) return
 
-    const collapse = () => setCollapsed(true)
+    const collapse = (event: Event) => {
+      if (event instanceof CustomEvent && event.detail?.type === 'gesture') {
+        lastGestureAtRef.current = Date.now()
+      }
+      setCollapsed(true)
+    }
     window.addEventListener(MOBILE_MAP_INTERACTION_EVENT, collapse)
     return () => window.removeEventListener(MOBILE_MAP_INTERACTION_EVENT, collapse)
   }, [collapseOnMapInteraction])
@@ -69,6 +78,18 @@ export function MobileFeatureCard({
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_COLLAPSE_EVENT))
     window.setTimeout(onClose, 240)
   }, [onClose])
+
+  useEffect(() => {
+    if (!closeOnBlankMapClick) return
+
+    const closeOnBlankClick = () => {
+      if (Date.now() - lastGestureAtRef.current < 450) return
+      closeWithAnimation()
+    }
+
+    window.addEventListener(MOBILE_MAP_BLANK_CLICK_EVENT, closeOnBlankClick)
+    return () => window.removeEventListener(MOBILE_MAP_BLANK_CLICK_EVENT, closeOnBlankClick)
+  }, [closeOnBlankMapClick, closeWithAnimation])
 
   const handleDragStart = useCallback((clientY: number) => {
     dragStartY.current = clientY
@@ -111,7 +132,7 @@ export function MobileFeatureCard({
             collapsed ? 'translate-y-0' : 'h-full translate-y-2',
             className,
           )}
-          style={collapsed ? { height: MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT } : undefined}
+          style={collapsed ? { alignSelf: 'end', height: MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT } : undefined}
         >
           <div
             className="flex cursor-grab touch-none justify-center py-2 active:cursor-grabbing"

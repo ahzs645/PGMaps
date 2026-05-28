@@ -19,7 +19,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from "./map-styles";
 import { MapContext, MapControls } from "./map";
-import { MOBILE_MAP_INTERACTION_EVENT } from "./mobile-feature-card";
+import { MOBILE_MAP_BLANK_CLICK_EVENT, MOBILE_MAP_INTERACTION_EVENT } from "./mobile-feature-card";
 
 type MapStyleOption = string | MapLibreGL.StyleSpecification;
 export type MapStylePair = { light?: MapStyleOption; dark?: MapStyleOption };
@@ -217,6 +217,8 @@ export function PersistentMapHost({ className, loading = false, loadingLabel }: 
   const hostRef = useRef<HTMLDivElement>(null);
   const previousRouteLoadingKeyRef = useRef(routeLoadingKey);
   const routeLoadingStartedAtRef = useRef(0);
+  const pointerStartRef = useRef<{ x: number; y: number; dispatched: boolean } | null>(null);
+  const lastGestureAtRef = useRef(0);
   const [routeLoading, setRouteLoading] = useState(false);
 
   useLayoutEffect(() => {
@@ -257,7 +259,40 @@ export function PersistentMapHost({ className, loading = false, loadingLabel }: 
 
   return (
     <div className={cn("relative h-full w-full", className)}>
-      <div ref={hostRef} className="absolute inset-0" />
+      <div
+        ref={hostRef}
+        className="absolute inset-0"
+        onPointerDownCapture={(event) => {
+          if (!(event.target instanceof Element)) return;
+          if (!event.target.closest(".maplibregl-canvas-container")) return;
+          pointerStartRef.current = { x: event.clientX, y: event.clientY, dispatched: false };
+        }}
+        onPointerMoveCapture={(event) => {
+          const start = pointerStartRef.current;
+          if (!start || start.dispatched) return;
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (Math.hypot(dx, dy) < 8) return;
+          start.dispatched = true;
+          lastGestureAtRef.current = Date.now();
+          window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT, { detail: { type: "gesture" } }));
+        }}
+        onClickCapture={(event) => {
+          if (!(event.target instanceof Element)) return;
+          if (event.target.closest(".maplibregl-marker")) return;
+          if (!event.target.closest(".maplibregl-canvas-container")) return;
+          if (event.defaultPrevented) return;
+          if (Date.now() - lastGestureAtRef.current < 450) return;
+          window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT, { detail: { type: "click" } }));
+          window.dispatchEvent(new CustomEvent(MOBILE_MAP_BLANK_CLICK_EVENT));
+        }}
+        onPointerUpCapture={() => {
+          pointerStartRef.current = null;
+        }}
+        onPointerCancelCapture={() => {
+          pointerStartRef.current = null;
+        }}
+      />
       {routeLoading ? (
         <PersistentMapLoader label="Switching map" />
       ) : (!isLoaded || loading) ? (
