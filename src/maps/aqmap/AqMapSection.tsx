@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Crosshair, Download, FileImage, FileText, Globe, Layers, LineChart, MapPin, RadioTower, RefreshCw, RotateCcw, Waves } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Map as PgMap, MapControls, MapPopup, useMap } from '@/components/ui/map'
-import { MapImageLegend, MapSteppedLegend } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
 import { useAirQualityData, type AirMonitor } from '@/maps/airquality'
@@ -39,15 +38,15 @@ import {
   formatLocalizedDate,
   localizeHealthMessage,
   localizeMonitorType,
-  localizeSmokeDensity,
   localizeSmokeLabel,
   localizeWmsLabel,
   translate,
   type AqmapLocale,
 } from './lib/i18n'
 import { exportAqmap, type ExportFormat } from './lib/exportMap'
+import { FloatingLegends, WmsLegend } from './components/AqMapLegends'
 import { MonitorPlotChart } from './components/MonitorPlotChart'
-import { WindCanvasLayer, WIND_LEGEND_COLORS } from './components/WindCanvasLayer'
+import { WindCanvasLayer } from './components/WindCanvasLayer'
 import type maplibregl from 'maplibre-gl'
 
 interface AqMapFeatureProperties {
@@ -332,18 +331,7 @@ function AqMapSidebar({
                 const label = localizeWmsLabel(layer.key, locale)
                 return (
                   <div key={layer.key}>
-                    {layer.legendUrl ? (
-                      <MapImageLegend
-                        src={layer.legendUrl}
-                        alt={`${label} legend`}
-                        label={label}
-                      />
-                    ) : (
-                      <div className="rounded-md border border-border bg-secondary/30 p-3">
-                        <div className="mb-2 text-xs font-medium text-foreground">{label}</div>
-                        <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
-                      </div>
-                    )}
+                    <WmsLegend layer={layer} label={label} locale={locale} />
                   </div>
                 )
               })}
@@ -1103,6 +1091,7 @@ function MonitorPopup({ monitor, locale, onClose }: { monitor: AirMonitor; local
               points={plotPoints}
               locale={locale}
               highlightColor={getAqhiColor(pm25)}
+              currentValue={pm25 ?? undefined}
               height={220}
             />
             <div className="mt-1 text-[10px] text-muted-foreground">
@@ -1266,70 +1255,6 @@ function FloatingLayerControl({
           </div>
         ))}
       </div>
-    </div>
-  )
-}
-
-function FloatingLegends({
-  visibleWmsLayers,
-  visibleSmokeLayers,
-  smokeLayers,
-  windVisible,
-  locale,
-}: {
-  visibleWmsLayers: Set<WmsLayerKey>
-  visibleSmokeLayers: Set<SmokeLayerKey>
-  smokeLayers: SmokeLayerDefinition[]
-  windVisible: boolean
-  locale: AqmapLocale
-}) {
-  const visibleWms = WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key) && layer.legendUrl)
-  const visibleSmoke = smokeLayers.filter((layer) => visibleSmokeLayers.has(layer.key))
-  if (visibleWms.length === 0 && visibleSmoke.length === 0 && !windVisible) return null
-
-  return (
-    <div
-      className="absolute z-10 max-w-[260px] space-y-2"
-      style={{ bottom: 40, left: 12 }}
-    >
-      {windVisible && (
-        <div className="rounded border border-border bg-background/95 p-2 text-xs shadow-md">
-          <div className="mb-1 font-medium text-foreground">{translate('wind.legend.title', locale)}</div>
-          <div
-            className="h-2 w-full rounded"
-            style={{ backgroundImage: `linear-gradient(to right, ${WIND_LEGEND_COLORS.join(', ')})` }}
-          />
-          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-            <span>{translate('wind.legend.min', locale)}</span>
-            <span>{translate('wind.legend.max', locale)}</span>
-          </div>
-        </div>
-      )}
-      {visibleWms.map((layer) => {
-        const label = localizeWmsLabel(layer.key, locale)
-        return (
-          <MapImageLegend
-            key={layer.key}
-            className="bg-background/95 p-2 shadow-md"
-            src={layer.legendUrl!}
-            alt={`${label} legend`}
-            label={label}
-          />
-        )
-      })}
-      {visibleSmoke.map((layer) => (
-        <div key={layer.key} className="rounded border border-border bg-background/95 p-2 text-xs shadow-md">
-          <div className="mb-1 font-medium text-foreground">{localizeSmokeLabel(layer.key, locale)}</div>
-          <MapSteppedLegend
-            bands={layer.legend.map((band) => ({
-              ...band,
-              label: localizeSmokeDensity(band.label, locale),
-            }))}
-            variant="rows"
-            showBandLabels={false}
-          />
-        </div>
-      ))}
     </div>
   )
 }

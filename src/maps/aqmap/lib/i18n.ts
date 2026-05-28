@@ -106,6 +106,8 @@ const EN: StringMap = {
   'wms.tag': 'WMS',
   'overlay.raster': 'Raster',
   'overlay.vector': 'Vector',
+  'legend.activeFires.current': 'Active fire',
+  'legend.activeFires.hotspot': 'Hot spot detection',
 
   'export.png': 'PNG (map only)',
   'export.pngWithOverlays': 'PNG with overlays',
@@ -223,6 +225,8 @@ const FR: StringMap = {
   'wms.tag': 'WMS',
   'overlay.raster': 'Raster',
   'overlay.vector': 'Vecteur',
+  'legend.activeFires.current': 'Feu actif',
+  'legend.activeFires.hotspot': 'Point chaud détecté',
 
   'export.png': 'PNG (carte seule)',
   'export.pngWithOverlays': 'PNG avec habillage',
