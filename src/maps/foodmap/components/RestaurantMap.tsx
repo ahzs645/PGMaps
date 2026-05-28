@@ -1,4 +1,5 @@
 import { useMemo, useEffect } from 'react'
+import type maplibregl from 'maplibre-gl'
 import { useTheme } from 'next-themes'
 import {
   MapMarker,
@@ -106,10 +107,17 @@ export function RestaurantMap({
           visualizationMode={visualizationMode}
           isSelected={selectedRestaurant?.details_url === restaurant.details_url}
           isMobileViewport={isMobileViewport}
-          onClick={() => onRestaurantClick(restaurant)}
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onRestaurantClick(restaurant)
+          }}
           onViewInspections={() => onViewInspections(restaurant)}
         />
       ))}
+      {selectedRestaurant && (
+        <ClearFoodSelectionOnBlankMapClick onClearSelection={onClearSelection} />
+      )}
       {isMobileViewport && selectedRestaurant && (
         <MobileRestaurantFeatureCard
           restaurant={selectedRestaurant}
@@ -127,7 +135,7 @@ interface RestaurantMarkerProps {
   visualizationMode: VisualizationMode
   isSelected: boolean
   isMobileViewport: boolean
-  onClick: () => void
+  onClick: (event: MouseEvent) => void
   onViewInspections: () => void
 }
 
@@ -292,6 +300,7 @@ function MobileRestaurantFeatureCard({
 
   return (
     <MobileFeatureCard
+      cardKey={restaurant.details_url}
       title={restaurant.name}
       subtitle={restaurant.full_address || restaurant.address}
       onClose={onClose}
@@ -322,6 +331,26 @@ function MobileRestaurantFeatureCard({
       </button>
     </MobileFeatureCard>
   )
+}
+
+function ClearFoodSelectionOnBlankMapClick({ onClearSelection }: { onClearSelection: () => void }) {
+  const { map, isLoaded } = useMap()
+
+  useEffect(() => {
+    if (!map || !isLoaded) return
+
+    const handleClick = (event: maplibregl.MapMouseEvent) => {
+      if (event.defaultPrevented || event.originalEvent.defaultPrevented) return
+      onClearSelection()
+    }
+
+    map.on('click', handleClick)
+    return () => {
+      map.off('click', handleClick)
+    }
+  }, [isLoaded, map, onClearSelection])
+
+  return null
 }
 
 function RestaurantSummaryBadges({

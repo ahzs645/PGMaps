@@ -214,6 +214,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     map.on("styledata", styleDataHandler);
     map.on("move", handleMove);
     map.on("click", handleUserMapInteraction);
+    map.on("movestart", handleUserMapInteraction);
     map.on("dragstart", handleUserMapInteraction);
     map.on("rotatestart", handleUserMapInteraction);
     map.on("pitchstart", handleUserMapInteraction);
@@ -226,6 +227,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       map.off("styledata", styleDataHandler);
       map.off("move", handleMove);
       map.off("click", handleUserMapInteraction);
+      map.off("movestart", handleUserMapInteraction);
       map.off("dragstart", handleUserMapInteraction);
       map.off("rotatestart", handleUserMapInteraction);
       map.off("pitchstart", handleUserMapInteraction);

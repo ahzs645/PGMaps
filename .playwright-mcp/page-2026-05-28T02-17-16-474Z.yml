@@ -1,0 +1,17 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic:
+      - button "Main menu" [ref=e5] [cursor=pointer]:
+        - generic [ref=e6]: PGMaps
+        - img [ref=e7]
+      - generic:
+        - button "Open search" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+        - button "Toggle theme" [ref=e13] [cursor=pointer]:
+          - img
+        - button "Toggle menu" [ref=e14] [cursor=pointer]:
+          - img
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - img [ref=e22]
+      - generic [ref=e24]: Loading map

@@ -126,6 +126,7 @@ export function PersistentMapProvider({
     instance.on("load", loadHandler);
     instance.on("styledata", styleDataHandler);
     instance.on("click", handleUserMapInteraction);
+    instance.on("movestart", handleUserMapInteraction);
     instance.on("dragstart", handleUserMapInteraction);
     instance.on("rotatestart", handleUserMapInteraction);
     instance.on("pitchstart", handleUserMapInteraction);
@@ -137,6 +138,7 @@ export function PersistentMapProvider({
       instance.off("load", loadHandler);
       instance.off("styledata", styleDataHandler);
       instance.off("click", handleUserMapInteraction);
+      instance.off("movestart", handleUserMapInteraction);
       instance.off("dragstart", handleUserMapInteraction);
       instance.off("rotatestart", handleUserMapInteraction);
       instance.off("pitchstart", handleUserMapInteraction);
