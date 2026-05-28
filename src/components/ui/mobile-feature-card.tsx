@@ -25,6 +25,7 @@ export function MobileFeatureCard({
   cardKey,
   contentClassName,
   height = MOBILE_FEATURE_CARD_HEIGHT,
+  initialCollapsed = true,
   collapseOnMapInteraction = true,
   closeOnBlankMapClick = true,
   onClose,
@@ -36,12 +37,13 @@ export function MobileFeatureCard({
   cardKey?: string | number
   contentClassName?: string
   height?: number
+  initialCollapsed?: boolean
   collapseOnMapInteraction?: boolean
   closeOnBlankMapClick?: boolean
   onClose: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(initialCollapsed)
   const [controlsInFront, setControlsInFront] = useState(false)
   const dragStartY = useRef<number | null>(null)
   const lastGestureAtRef = useRef(0)
@@ -53,14 +55,14 @@ export function MobileFeatureCard({
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_OPEN_EVENT))
     const frame = requestAnimationFrame(() => {
-      setCollapsed(false)
+      setCollapsed(initialCollapsed)
       setOpen(true)
     })
     return () => {
       cancelAnimationFrame(frame)
       window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_CLOSE_EVENT))
     }
-  }, [])
+  }, [initialCollapsed])
 
   useEffect(() => {
     const sendBehind = () => {
@@ -94,13 +96,13 @@ export function MobileFeatureCard({
 
   useEffect(() => {
     if (!open) return
-    const frame = requestAnimationFrame(() => setCollapsed(false))
+    const frame = requestAnimationFrame(() => setCollapsed(initialCollapsed))
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_PEEK_EVENT, {
       detail: { title: titleText, subtitle: subtitleText },
     }))
     return () => cancelAnimationFrame(frame)
-  }, [cardKey, open, subtitleText, titleText])
+  }, [cardKey, initialCollapsed, open, subtitleText, titleText])
 
   useEffect(() => {
     if (!open) return

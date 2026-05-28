@@ -46,7 +46,7 @@ export function RouletteWheel({
 
   if (restaurants.length === 0) {
     return (
-      <div className="relative w-72 h-72">
+      <div className="relative aspect-square w-full max-w-[min(72vw,18rem)]">
         <div className="absolute inset-0 flex items-center justify-center rounded-full border border-border bg-muted">
           <div className="text-center p-4">
             <svg className="w-12 h-12 mx-auto text-muted-foreground mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,8 +60,9 @@ export function RouletteWheel({
   }
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[280px]">
-      <div style={{ transform: 'scale(0.7)', transformOrigin: 'center center', marginTop: '-70px', marginBottom: '-70px', overflow: 'hidden' }}>
+    <div className="flex w-full min-w-0 justify-center overflow-hidden py-1">
+      <div className="relative h-[288px] w-[288px] overflow-visible min-[390px]:h-[316px] min-[390px]:w-[316px] sm:h-[358px] sm:w-[358px]">
+        <div className="absolute left-1/2 top-1/2 h-[465px] w-[465px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.62] min-[390px]:scale-[0.68] sm:scale-[0.77]">
         <SpinnerWheel
           entries={wheel.entries}
           isSpinning={wheel.isSpinning}
@@ -82,6 +83,7 @@ export function RouletteWheel({
           spinDuration={6}
           spinRevolutions={6}
         />
+        </div>
       </div>
     </div>
   )

@@ -81,15 +81,15 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={(event) => event.target === event.currentTarget && onClose()}
     >
-      <div className="flex w-full max-h-[92vh] max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-background/95 shadow-2xl backdrop-blur">
+      <div className="flex h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[92dvh] sm:rounded-2xl">
         {/* Header */}
-        <div className="shrink-0 border-b border-border bg-background/90 p-5 sm:p-6">
+        <div className="shrink-0 border-b border-border bg-background/90 p-4 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="truncate text-xl font-bold text-foreground">{restaurant.name}</h2>
+              <h2 className="max-h-12 overflow-hidden text-lg font-bold leading-tight text-foreground sm:truncate sm:text-xl">{restaurant.name}</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {restaurant.full_address || restaurant.address}
               </p>
@@ -111,17 +111,17 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
           </div>
 
           {/* Summary stats */}
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
-              <div className="text-2xl font-bold text-foreground">{inspections.length}</div>
+              <div className="text-xl font-bold text-foreground sm:text-2xl">{inspections.length}</div>
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Inspections</div>
             </div>
             <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
-              <div className="text-2xl font-bold text-foreground">{totalViolations}</div>
+              <div className="text-xl font-bold text-foreground sm:text-2xl">{totalViolations}</div>
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Violations</div>
             </div>
             <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{totalCritical}</div>
+              <div className="text-xl font-bold text-red-600 dark:text-red-400 sm:text-2xl">{totalCritical}</div>
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Critical</div>
             </div>
             <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
@@ -149,7 +149,7 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
         </div>
 
         {/* Inspection list */}
-        <div className="flex-1 overflow-y-auto bg-muted/20 p-4 sm:p-6">
+        <div className="flex-1 overflow-y-auto overscroll-contain bg-muted/20 p-3 sm:p-6">
           {inspections.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               No inspection records available
@@ -165,12 +165,12 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-border bg-background/90 p-4">
+        <div className="shrink-0 border-t border-border bg-background/90 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs text-muted-foreground">
               Data from Northern Health Authority HealthSpace
             </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3">
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3">
               <a
                 href={restaurant.details_url}
                 target="_blank"

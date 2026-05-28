@@ -60,7 +60,7 @@ function mobilePanelReducer(state: MobilePanelState, action: MobilePanelAction):
     case 'reset':
       return initialMobilePanelState
     case 'selectFeature':
-      return { mode: 'featureExpanded', snapKey: state.snapKey }
+      return bumpSnap(state, 'featureCollapsed', 'collapsed')
     case 'dismissFeatureToControlsDock':
     case 'dockControls':
       return bumpSnap(state, 'controlsDocked', 'collapsed')

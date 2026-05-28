@@ -30,6 +30,14 @@ const SPEED_COLORS = [
   'rgba(230, 85, 190, 0.82)',
 ] as const
 
+const LIGHT_BASEMAP_SPEED_COLORS = [
+  'rgba(30, 105, 210, 0.68)',
+  'rgba(0, 135, 120, 0.72)',
+  'rgba(205, 145, 20, 0.78)',
+  'rgba(220, 80, 40, 0.82)',
+  'rgba(185, 45, 150, 0.86)',
+] as const
+
 function wrapLongitude(lng: number) {
   return ((lng % 360) + 360) % 360
 }
@@ -43,12 +51,12 @@ function randomParticle(): Particle {
   }
 }
 
-function colorForSpeed(speed: number) {
-  if (speed < 4) return SPEED_COLORS[0]
-  if (speed < 8) return SPEED_COLORS[1]
-  if (speed < 13) return SPEED_COLORS[2]
-  if (speed < 19) return SPEED_COLORS[3]
-  return SPEED_COLORS[4]
+function colorForSpeed(speed: number, palette: readonly string[]) {
+  if (speed < 4) return palette[0]
+  if (speed < 8) return palette[1]
+  if (speed < 13) return palette[2]
+  if (speed < 19) return palette[3]
+  return palette[4]
 }
 
 function buildWindSampler() {
@@ -105,11 +113,13 @@ function buildWindSampler() {
 type WindCanvasLayerProps = {
   visible?: boolean
   interactionMode?: WindInteractionMode
+  basemap?: 'light' | 'dark'
 }
 
 export function WindCanvasLayer({
   visible = true,
   interactionMode = 'live',
+  basemap = 'dark',
 }: WindCanvasLayerProps) {
   const { map, isLoaded } = useMap()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -139,6 +149,8 @@ export function WindCanvasLayer({
     const canvasContext = canvas.getContext('2d')
     if (!canvasContext) return
     const context = canvasContext
+    const isLightBasemap = basemap === 'light'
+    const speedColors = isLightBasemap ? LIGHT_BASEMAP_SPEED_COLORS : SPEED_COLORS
 
     let frame = 0
     let width = 0
@@ -167,8 +179,8 @@ export function WindCanvasLayer({
       context.globalCompositeOperation = 'destination-in'
       context.fillStyle = 'rgba(0, 0, 0, 0.91)'
       context.fillRect(0, 0, width, height)
-      context.globalCompositeOperation = 'lighter'
-      context.lineWidth = 1.15
+      context.globalCompositeOperation = isLightBasemap ? 'source-over' : 'lighter'
+      context.lineWidth = isLightBasemap ? 1.35 : 1.15
 
       for (const particle of particles) {
         const wind = sampler(particle.lng, particle.lat)
@@ -204,7 +216,7 @@ export function WindCanvasLayer({
           continue
         }
 
-        context.strokeStyle = colorForSpeed(wind.speed)
+        context.strokeStyle = colorForSpeed(wind.speed, speedColors)
         context.beginPath()
         context.moveTo(start.x, start.y)
         context.lineTo(end.x, end.y)
@@ -226,7 +238,7 @@ export function WindCanvasLayer({
       cancelAnimationFrame(frame)
       mapInstance.off('resize', resize)
     }
-  }, [visible, map, isLoaded, sampler])
+  }, [visible, map, isLoaded, sampler, basemap])
 
   if (!visible) return null
 
@@ -235,7 +247,8 @@ export function WindCanvasLayer({
       ref={canvasRef}
       aria-hidden="true"
       className={cn(
-        'pointer-events-none absolute inset-0 z-[2] h-full w-full mix-blend-screen transition-opacity duration-150',
+        'pointer-events-none absolute inset-0 z-[2] h-full w-full transition-opacity duration-150',
+        basemap === 'dark' && 'mix-blend-screen',
         interactionMode === 'hide-while-moving' && isMoving
           ? 'opacity-0'
           : 'opacity-100',
