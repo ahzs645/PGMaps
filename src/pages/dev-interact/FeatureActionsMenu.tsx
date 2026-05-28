@@ -1,5 +1,5 @@
 import { ChevronRight, Eye, EyeOff, Layers, MapPin, Search } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import type { FeatureAction, OpenInTarget } from './types'
 
@@ -14,27 +14,33 @@ export function FeatureActionsMenu({
   onOpenIn: (target: OpenInTarget) => void
   onFeatureAction: (action: FeatureAction) => void
 }) {
+  const openInIsAvailable = openInEnabled && openInAvailable
+  const [openInExpanded, setOpenInExpanded] = useState(false)
+
   return (
     <div
       role="menu"
       aria-label="Feature actions menu"
       className="absolute right-0 top-[calc(100%+0.35rem)] z-20 w-56 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-xl"
     >
-      <div
+      <button
+        type="button"
         role="menuitem"
         aria-haspopup="menu"
-        aria-expanded={openInEnabled && openInAvailable}
-        data-state={openInEnabled && openInAvailable ? 'open' : 'closed'}
-        tabIndex={0}
+        aria-expanded={openInIsAvailable ? openInExpanded : false}
+        data-state={openInIsAvailable && openInExpanded ? 'open' : 'closed'}
+        disabled={!openInIsAvailable}
         className={cn(
-          'flex items-center justify-between gap-3 px-3 py-2.5 text-sm font-medium',
-          openInEnabled && openInAvailable ? 'bg-muted/60 text-foreground' : 'text-muted-foreground opacity-60',
+          'flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-medium',
+          openInIsAvailable ? 'text-foreground hover:bg-muted' : 'cursor-not-allowed text-muted-foreground opacity-60',
+          openInIsAvailable && openInExpanded && 'bg-muted/60',
         )}
+        onClick={() => setOpenInExpanded((current) => !current)}
       >
         <span>Open in</span>
-        <ChevronRight className="size-3.5 opacity-80" />
-      </div>
-      {openInEnabled && openInAvailable ? (
+        <ChevronRight className={cn('size-3.5 opacity-80 transition-transform', openInExpanded && 'rotate-90')} />
+      </button>
+      {openInIsAvailable && openInExpanded ? (
         <div className="border-t border-border py-1" role="menu" aria-label="Open in destinations">
           <button type="button" role="menuitem" className="block w-full px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => onOpenIn('pgdata')}>
             PG Data map
@@ -46,11 +52,11 @@ export function FeatureActionsMenu({
             OpenStreetMap
           </button>
         </div>
-      ) : (
+      ) : !openInIsAvailable ? (
         <div className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
           Enable this action in the controls sheet.
         </div>
-      )}
+      ) : null}
       <div className="max-h-72 overflow-y-auto border-t border-border py-1">
         <FeatureActionMenuItem icon={<EyeOff className="size-4" />} label="Hide" onClick={() => onFeatureAction('hide')} />
         <FeatureActionMenuItem icon={<Search className="size-4" />} label="Zoom to fit" onClick={() => onFeatureAction('zoom')} />

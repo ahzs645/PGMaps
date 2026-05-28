@@ -745,6 +745,7 @@ export default function AirQualitySection() {
       }))
       .sort((a, b) => b.count - a.count || a.network.localeCompare(b.network))
   }, [mapBounds, monitorsInRegionScope, observationLayers, searchQuery, selectedNetworks])
+  const showLegend = Boolean(boundaryLegendStats) || showHeatmap || (showPoints && legendNetworkRows.length > 0)
 
   const selectLegendNetworks = useCallback(() => {
     setSelectedNetworks((current) => Array.from(new Set([...current, ...legendNetworkRows.map((row) => row.network)])))
@@ -796,19 +797,10 @@ export default function AirQualitySection() {
   }, [handleMapBoundarySelect])
 
   return (
-    <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">
-            Air Quality | {visibleMonitorsInView.length.toLocaleString()} visible
-          </div>
-          <div className="truncate text-[11px] text-muted-foreground">
-            {selectedMonitor?.name || selectedRegion?.name || `${selectedNetworks.length} networks`}
-          </div>
-        </div>
-      )}
+      <MapSectionLayout
+        showDesktopSidebar={showSidebar}
+        onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+      showMobilePeek={false}
       sidebar={(
         <AirQualitySidebar
           className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
@@ -879,79 +871,77 @@ export default function AirQualitySection() {
           onMonitorClear={handleMonitorClear}
         />
 
-        <MapLegendPanel className="max-w-[240px]" title="Legend" collapsible contentClassName="space-y-3">
-          <div className="space-y-3">
-            {boundaryLegendStats && (
-              <MapLegendSection
-                title={`${REGION_LEVEL_LABELS[selectedRegionLevel] ?? 'Study'} areas`}
-                value={boundaryLegendStats.areaCount.toLocaleString()}
-              >
-                <MapGradientLegendItem
-                  colors={boundaryColorMetric === 'correctedPm25' || boundaryColorMetric === 'rawPm25'
-                    ? ['#dcfce7', '#fde047', '#fb923c', '#b91c1c']
-                    : ['#e0f2fe', '#7dd3fc', '#0ea5e9', '#0369a1']}
-                  minLabel={getBoundaryMetricLabel(boundaryColorMetric)}
-                  maxLabel={`${formatBoundaryMetricValue(boundaryLegendStats.maxColorValue, boundaryColorMetric)} max`}
-                />
-                <div className="pt-1 text-xs text-muted-foreground">
-                  {boundaryLegendStats.monitoredAreaCount.toLocaleString()} of {boundaryLegendStats.areaCount.toLocaleString()} areas have monitors
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {boundaryLegendStats.totalMonitors.toLocaleString()} monitors in study area
-                </div>
-              </MapLegendSection>
-            )}
+        {showLegend && (
+          <MapLegendPanel className="max-w-[240px]" title="Legend" collapsible contentClassName="space-y-3">
+            <div className="space-y-3">
+              {boundaryLegendStats && (
+                <MapLegendSection
+                  title={`${REGION_LEVEL_LABELS[selectedRegionLevel] ?? 'Study'} areas`}
+                  value={boundaryLegendStats.areaCount.toLocaleString()}
+                >
+                  <MapGradientLegendItem
+                    colors={boundaryColorMetric === 'correctedPm25' || boundaryColorMetric === 'rawPm25'
+                      ? ['#dcfce7', '#fde047', '#fb923c', '#b91c1c']
+                      : ['#e0f2fe', '#7dd3fc', '#0ea5e9', '#0369a1']}
+                    minLabel={getBoundaryMetricLabel(boundaryColorMetric)}
+                    maxLabel={`${formatBoundaryMetricValue(boundaryLegendStats.maxColorValue, boundaryColorMetric)} max`}
+                  />
+                  <div className="pt-1 text-xs text-muted-foreground">
+                    {boundaryLegendStats.monitoredAreaCount.toLocaleString()} of {boundaryLegendStats.areaCount.toLocaleString()} areas have monitors
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {boundaryLegendStats.totalMonitors.toLocaleString()} monitors in study area
+                  </div>
+                </MapLegendSection>
+              )}
 
-            {showHeatmap && (
-              <MapLegendSection title="Heatmap" className="border-t border-border pt-3 first:border-t-0 first:pt-0">
-                <MapGradientLegendItem colors={['#0ea5e9', '#22c55e', '#ef4444']} minLabel="Low" maxLabel="High" />
-              </MapLegendSection>
-            )}
+              {showHeatmap && (
+                <MapLegendSection title="Heatmap" className="border-t border-border pt-3 first:border-t-0 first:pt-0">
+                  <MapGradientLegendItem colors={['#0ea5e9', '#22c55e', '#ef4444']} minLabel="Low" maxLabel="High" />
+                </MapLegendSection>
+              )}
 
-            {showPoints && (
-              <MapLegendSection
-                title="Networks in view"
-                value={legendNetworkRows.length.toLocaleString()}
-                actions={legendNetworkRows.length > 0 ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={selectLegendNetworks}
-                      className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={clearLegendNetworks}
-                      className="font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      None
-                    </button>
-                  </>
-                ) : null}
-                className="border-t border-border pt-3 first:border-t-0 first:pt-0"
-              >
-                {legendNetworkRows.length > 0 ? (
-                    <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
-                      {legendNetworkRows.map((row) => (
-                        <LegendItem
-                          key={row.network}
-                          color={getNetworkColor(row.network)}
-                          label={row.network}
-                          value={row.count.toLocaleString()}
-                          active={row.active}
-                          onClick={() => toggleNetwork(row.network)}
-                        />
-                      ))}
-                    </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground">No visible network points</div>
-                )}
-              </MapLegendSection>
-            )}
-          </div>
-        </MapLegendPanel>
+              {showPoints && legendNetworkRows.length > 0 && (
+                <MapLegendSection
+                  title="Networks in view"
+                  value={legendNetworkRows.length.toLocaleString()}
+                  actions={(
+                    <>
+                      <button
+                        type="button"
+                        onClick={selectLegendNetworks}
+                        className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearLegendNetworks}
+                        className="font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        None
+                      </button>
+                    </>
+                  )}
+                  className="border-t border-border pt-3 first:border-t-0 first:pt-0"
+                >
+                  <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                    {legendNetworkRows.map((row) => (
+                      <LegendItem
+                        key={row.network}
+                        color={getNetworkColor(row.network)}
+                        label={row.network}
+                        value={row.count.toLocaleString()}
+                        active={row.active}
+                        onClick={() => toggleNetwork(row.network)}
+                      />
+                    ))}
+                  </div>
+                </MapLegendSection>
+              )}
+            </div>
+          </MapLegendPanel>
+        )}
       </div>
     </MapSectionLayout>
   )

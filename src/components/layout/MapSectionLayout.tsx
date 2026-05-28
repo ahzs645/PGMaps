@@ -49,6 +49,7 @@ interface MapSectionLayoutProps {
 
 const DEFAULT_FULL_SNAP_OFFSET = 12
 const MOBILE_TOOLBAR_GAP = 8
+const MOBILE_COLLAPSED_VISIBLE_HEIGHT = 92
 
 /** Snap positions as translateY pixel values. Lower value = more sheet visible. */
 function getSnapPositions(height: number, fullOffset = DEFAULT_FULL_SNAP_OFFSET) {
@@ -56,7 +57,7 @@ function getSnapPositions(height: number, fullOffset = DEFAULT_FULL_SNAP_OFFSET)
   return {
     full: Math.max(DEFAULT_FULL_SNAP_OFFSET, Math.round(fullOffset)),
     half: Math.round(sheetHeight * 0.42),
-    collapsed: Math.max(72, sheetHeight - 56),
+    collapsed: Math.max(72, sheetHeight - MOBILE_COLLAPSED_VISIBLE_HEIGHT),
   }
 }
 
@@ -121,7 +122,7 @@ export function MapSectionLayout({
   desktopSidebarWidth = 350,
   mobileInitialSheetState = 'collapsed',
   mobilePeek,
-  showMobilePeek = true,
+  showMobilePeek = false,
   mobileSidebar,
   mobileSnapTo,
   mobileSnapVisibleHeight,
@@ -624,7 +625,7 @@ export function MapSectionLayout({
             <div className="flex justify-center py-2" aria-hidden="true">
               <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
             </div>
-            {(showMobilePeek || (mobileFeatureCardOpen && mobileControlsInFront)) && (
+            {((showMobilePeek && mobileSheetState === 'collapsed') || (mobileFeatureCardOpen && mobileControlsInFront)) && (
               <div className={cn('min-h-0 w-full px-4 pb-3 pr-14', renderedMobilePeek && 'border-b border-border')}>
                 {renderedMobilePeek ?? <div className="h-8" aria-hidden="true" />}
               </div>

@@ -1680,6 +1680,7 @@ export function ScoreBuilderSidebar({
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
+                    data-map-search-input="true"
                     value={searchQuery}
                     onChange={(event) => onSearchQueryChange(event.target.value)}
                     placeholder="Search boundary by code or name..."

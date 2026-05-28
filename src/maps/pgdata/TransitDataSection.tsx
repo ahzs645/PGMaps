@@ -376,6 +376,7 @@ export default function TransitDataSection() {
 
             <div className="mt-4 space-y-2">
               <input
+                data-map-search-input="true"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search stop name or ID..."

@@ -11,6 +11,20 @@ import { useRestaurantData } from './hooks/useRestaurantData'
 import { createEmptyViolationRiskSummary, summarizeViolationRisk } from './risk'
 import type { RestaurantWithStats, HazardRating, VisualizationMode, ViolationTimelineMode } from './types'
 
+type ViolationBucket = 'zero' | 'low' | 'medium' | 'high'
+
+const VIOLATION_BUCKETS: Array<{
+  key: ViolationBucket
+  label: string
+  color: string
+  matches: (count: number) => boolean
+}> = [
+  { key: 'zero', label: '0 violations', color: '#22c55e', matches: (count) => count === 0 },
+  { key: 'low', label: '1-2 violations', color: '#eab308', matches: (count) => count >= 1 && count <= 2 },
+  { key: 'medium', label: '3-5 violations', color: '#f97316', matches: (count) => count >= 3 && count <= 5 },
+  { key: 'high', label: '6+ violations', color: '#ef4444', matches: (count) => count >= 6 },
+]
+
 // Parse date string like "18-Mar-2024" or "March 18, 2024"
 function parseInspectionDate(dateStr: string | undefined): Date | null {
   if (!dateStr) return null
@@ -49,6 +63,9 @@ export default function FoodMap() {
 
   // Filter state
   const [selectedHazardRatings, setSelectedHazardRatings] = useState<HazardRating[]>(['Low', 'Moderate', 'Unknown'])
+  const [selectedViolationBuckets, setSelectedViolationBuckets] = useState<ViolationBucket[]>(
+    VIOLATION_BUCKETS.map((bucket) => bucket.key)
+  )
   const [selectedFacilityTypes, setSelectedFacilityTypes] = useState<string[]>([
     'Restaurant', 'Food Truck', 'Camp', 'Catering', 'Concession', 'Stand',
     'Bakery', 'Coffee Shop', 'Bar/Pub', 'Brewery/Winery', 'Deli',
@@ -60,6 +77,7 @@ export default function FoodMap() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [showInspectionPanel, setShowInspectionPanel] = useState(false)
   const [showRoulette, setShowRoulette] = useState(false)
+  const [legendCollapsed, setLegendCollapsed] = useState(false)
 
   // Visualization mode: 'hazard' or 'violations'
   const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>(
@@ -228,13 +246,17 @@ export default function FoodMap() {
         : (r.current_hazard_rating || r.hazard_rating || 'Unknown') as HazardRating
 
       const matchesHazard = selectedHazardRatings.includes(ratingToCheck)
+      const violationCount = r.violationStats?.total || 0
+      const matchesViolationBucket = visualizationMode !== 'violations' || VIOLATION_BUCKETS.some((bucket) => (
+        selectedViolationBuckets.includes(bucket.key) && bucket.matches(violationCount)
+      ))
       const matchesFacility = selectedFacilityTypes.includes(r.establishment_type || r.facility_type || 'Unknown')
       const matchesSearch = !searchQuery ||
         r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.address.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesHazard && matchesFacility && matchesSearch
+      return matchesHazard && matchesViolationBucket && matchesFacility && matchesSearch
     })
-  }, [restaurantsWithStats, visualizationMode, selectedHazardRatings, selectedFacilityTypes, searchQuery])
+  }, [restaurantsWithStats, visualizationMode, selectedHazardRatings, selectedViolationBuckets, selectedFacilityTypes, searchQuery])
 
   const geocodedRestaurants = useMemo(() => {
     return filteredRestaurants.filter(r => r.latitude && r.longitude)
@@ -277,6 +299,30 @@ export default function FoodMap() {
       Unknown: all.filter(r => r.hazardRatingAtDate === 'Unknown').length
     }
   }, [restaurantsWithStats])
+
+  const violationBucketRows = useMemo(() => {
+    return VIOLATION_BUCKETS.map((bucket) => ({
+      ...bucket,
+      count: restaurantsWithStats.filter((restaurant) => bucket.matches(restaurant.violationStats?.total || 0)).length,
+      active: selectedViolationBuckets.includes(bucket.key),
+    }))
+  }, [restaurantsWithStats, selectedViolationBuckets])
+
+  const toggleHazardRating = useCallback((hazard: HazardRating) => {
+    setSelectedHazardRatings((current) => (
+      current.includes(hazard)
+        ? current.filter((item) => item !== hazard)
+        : [...current, hazard]
+    ))
+  }, [])
+
+  const toggleViolationBucket = useCallback((bucket: ViolationBucket) => {
+    setSelectedViolationBuckets((current) => (
+      current.includes(bucket)
+        ? current.filter((item) => item !== bucket)
+        : [...current, bucket]
+    ))
+  }, [])
 
   // Handlers
   const handleRestaurantClick = useCallback((restaurant: RestaurantWithStats) => {
@@ -381,27 +427,90 @@ export default function FoodMap() {
         )}
 
         <MapLegendPanel
-          title={visualizationMode === 'violations' ? `Violations (${violationTimelineLabel})` : 'Hazard Rating'}
+          className="max-w-[200px]"
+          title={visualizationMode === 'violations' ? 'Violations' : 'Hazard Rating'}
+          description={visualizationMode === 'violations' ? violationTimelineLabel : undefined}
           collapsible
+          collapsed={legendCollapsed}
+          onCollapsedChange={setLegendCollapsed}
           elevated={showTimeline}
           contentClassName="space-y-1 text-xs text-muted-foreground"
+          actions={legendCollapsed ? null : visualizationMode === 'violations' ? (
+            <span className="inline-flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedViolationBuckets(VIOLATION_BUCKETS.map((bucket) => bucket.key))}
+                className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedViolationBuckets([])}
+                className="font-medium text-muted-foreground hover:text-foreground"
+              >
+                None
+              </button>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedHazardRatings(['Low', 'Moderate', 'Unknown'])}
+                className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedHazardRatings([])}
+                className="font-medium text-muted-foreground hover:text-foreground"
+              >
+                None
+              </button>
+            </span>
+          )}
         >
           {/* Violations legend */}
           {visualizationMode === 'violations' && (
             <div className="space-y-1">
-              <LegendItem color="#22c55e" label="0 violations" />
-              <LegendItem color="#eab308" label="1-2 violations" />
-              <LegendItem color="#f97316" label="3-5 violations" />
-              <LegendItem color="#ef4444" label="6+ violations" />
+              {violationBucketRows.map((bucket) => (
+                <LegendItem
+                  key={bucket.key}
+                  color={bucket.color}
+                  label={bucket.label}
+                  value={bucket.count.toLocaleString()}
+                  active={bucket.active}
+                  onClick={() => toggleViolationBucket(bucket.key)}
+                />
+              ))}
             </div>
           )}
 
           {/* Hazard rating legend with counts */}
           {visualizationMode === 'hazard' && (
             <div className="space-y-1">
-              <LegendItem color="#22c55e" label="Low" value={hazardStatsAtDate.Low} />
-              <LegendItem color="#f59e0b" label="Moderate" value={hazardStatsAtDate.Moderate} />
-              <LegendItem color="#6b7280" label="Unknown" value={hazardStatsAtDate.Unknown} />
+              <LegendItem
+                color="#22c55e"
+                label="Low"
+                value={hazardStatsAtDate.Low}
+                active={selectedHazardRatings.includes('Low')}
+                onClick={() => toggleHazardRating('Low')}
+              />
+              <LegendItem
+                color="#f59e0b"
+                label="Moderate"
+                value={hazardStatsAtDate.Moderate}
+                active={selectedHazardRatings.includes('Moderate')}
+                onClick={() => toggleHazardRating('Moderate')}
+              />
+              <LegendItem
+                color="#6b7280"
+                label="Unknown"
+                value={hazardStatsAtDate.Unknown}
+                active={selectedHazardRatings.includes('Unknown')}
+                onClick={() => toggleHazardRating('Unknown')}
+              />
             </div>
           )}
 

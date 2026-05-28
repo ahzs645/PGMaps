@@ -23,6 +23,20 @@ interface GlobalSearchProps {
 let cachedIndex: SearchItem[] | null = null
 let indexPromise: Promise<SearchItem[]> | null = null
 
+const mapSearchPaths = new Set([
+  '/airquality',
+  '/bc-assessment',
+  '/census',
+  '/dev/aqmap',
+  '/dev/interact',
+  '/explorer',
+  '/foodmap',
+  '/misc',
+  '/pgdata',
+  '/score-builder',
+  '/socioeconomic',
+])
+
 async function buildIndex(): Promise<SearchItem[]> {
   if (cachedIndex) return cachedIndex
 
@@ -239,15 +253,23 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
-  const useMapSearch = location.pathname === '/dev/interact'
+  const useMapSearch = mapSearchPaths.has(location.pathname)
 
   const openSearch = useCallback(() => {
-    if (useMapSearch) {
+    if (location.pathname === '/dev/interact') {
       window.dispatchEvent(new CustomEvent('pgmaps:open-map-search'))
       return
     }
+    if (useMapSearch) {
+      const searchInput = document.querySelector<HTMLInputElement>('[data-map-search-input="true"]')
+      if (searchInput) {
+        searchInput.focus()
+        searchInput.select()
+        return
+      }
+    }
     setOpen(true)
-  }, [useMapSearch])
+  }, [location.pathname, useMapSearch])
 
   // Build the index on first open
   useEffect(() => {
@@ -262,8 +284,16 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        if (useMapSearch) {
+        if (location.pathname === '/dev/interact') {
           window.dispatchEvent(new CustomEvent('pgmaps:open-map-search'))
+        } else if (useMapSearch) {
+          const searchInput = document.querySelector<HTMLInputElement>('[data-map-search-input="true"]')
+          if (searchInput) {
+            searchInput.focus()
+            searchInput.select()
+          } else {
+            setOpen((o) => !o)
+          }
         } else {
           setOpen((o) => !o)
         }
@@ -272,7 +302,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [useMapSearch])
+  }, [location.pathname, useMapSearch])
 
   // Click outside to close
   useEffect(() => {
