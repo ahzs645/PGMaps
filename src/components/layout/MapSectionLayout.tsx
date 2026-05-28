@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import {
   MOBILE_FEATURE_CARD_HEIGHT,
   MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT,
+  MOBILE_FEATURE_CARD_COLLAPSE_STATE_EVENT,
   MOBILE_FEATURE_CARD_DOCK_EVENT,
   MOBILE_FEATURE_CARD_FRONT_EVENT,
   MOBILE_FEATURE_CARD_CLOSE_EVENT,
@@ -511,6 +512,15 @@ export function MapSectionLayout({
         subtitle: typeof event.detail?.subtitle === 'string' ? event.detail.subtitle : undefined,
       })
     }
+    const handleFeatureCollapseState = (event: Event) => {
+      if (!isMobileViewport() || !(event instanceof CustomEvent)) return
+      const collapsed = Boolean(event.detail?.collapsed)
+      if (mobileControlsInFront) {
+        stackControlsOverFeatureCard(collapsed)
+        return
+      }
+      stackBehindFeatureCard(collapsed)
+    }
     const handleFeatureDock = () => {
       setMobileFeatureCardOpen(true)
       bringControlsToFront()
@@ -518,6 +528,7 @@ export function MapSectionLayout({
     window.addEventListener(MOBILE_MAP_INTERACTION_EVENT, collapseForMapInteraction)
     window.addEventListener(MOBILE_MAP_SHEET_COLLAPSE_EVENT, collapse)
     window.addEventListener(MOBILE_MAP_SHEET_STACK_EVENT, stack)
+    window.addEventListener(MOBILE_FEATURE_CARD_COLLAPSE_STATE_EVENT, handleFeatureCollapseState)
     window.addEventListener(MOBILE_FEATURE_CARD_DOCK_EVENT, handleFeatureDock)
     window.addEventListener(MOBILE_FEATURE_CARD_OPEN_EVENT, handleFeatureOpen)
     window.addEventListener(MOBILE_FEATURE_CARD_CLOSE_EVENT, handleFeatureClose)
@@ -526,12 +537,13 @@ export function MapSectionLayout({
       window.removeEventListener(MOBILE_MAP_INTERACTION_EVENT, collapseForMapInteraction)
       window.removeEventListener(MOBILE_MAP_SHEET_COLLAPSE_EVENT, collapse)
       window.removeEventListener(MOBILE_MAP_SHEET_STACK_EVENT, stack)
+      window.removeEventListener(MOBILE_FEATURE_CARD_COLLAPSE_STATE_EVENT, handleFeatureCollapseState)
       window.removeEventListener(MOBILE_FEATURE_CARD_DOCK_EVENT, handleFeatureDock)
       window.removeEventListener(MOBILE_FEATURE_CARD_OPEN_EVENT, handleFeatureOpen)
       window.removeEventListener(MOBILE_FEATURE_CARD_CLOSE_EVENT, handleFeatureClose)
       window.removeEventListener(MOBILE_FEATURE_CARD_PEEK_EVENT, handleFeaturePeek)
     }
-  }, [bringControlsToFront, snapTo, stackBehindFeatureCard])
+  }, [bringControlsToFront, mobileControlsInFront, snapTo, stackBehindFeatureCard, stackControlsOverFeatureCard])
 
   // ─── Render ──────────────────────────────────────────────────────────────
 

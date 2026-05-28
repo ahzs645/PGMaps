@@ -15,6 +15,7 @@ export const MOBILE_FEATURE_CARD_FRONT_EVENT = 'pgmaps:mobile-feature-card-front
 export const MOBILE_FEATURE_CARD_PEEK_EVENT = 'pgmaps:mobile-feature-card-peek'
 export const MOBILE_FEATURE_CARD_OPEN_EVENT = 'pgmaps:mobile-feature-card-open'
 export const MOBILE_FEATURE_CARD_CLOSE_EVENT = 'pgmaps:mobile-feature-card-close'
+export const MOBILE_FEATURE_CARD_COLLAPSE_STATE_EVENT = 'pgmaps:mobile-feature-card-collapse-state'
 
 export function MobileFeatureCard({
   title,
@@ -100,6 +101,13 @@ export function MobileFeatureCard({
     }))
     return () => cancelAnimationFrame(frame)
   }, [cardKey, open, subtitleText, titleText])
+
+  useEffect(() => {
+    if (!open) return
+    window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_COLLAPSE_STATE_EVENT, {
+      detail: { collapsed },
+    }))
+  }, [collapsed, open])
 
   const closeWithAnimation = useCallback(() => {
     setOpen(false)

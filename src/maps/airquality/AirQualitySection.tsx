@@ -683,9 +683,16 @@ export default function AirQualitySection() {
     if (!selectedMonitor) return
     const stillVisible = filteredMonitors.some((monitor) => monitor.id === selectedMonitor.id)
     if (!stillVisible) {
+      closedMonitorIdRef.current = selectedMonitor.id
       setSelectedMonitor(null)
+
+      const params = new URLSearchParams(searchParams)
+      if (params.get('monitor') === selectedMonitor.id) {
+        params.delete('monitor')
+        setSearchParams(params, { replace: true })
+      }
     }
-  }, [filteredMonitors, selectedMonitor])
+  }, [filteredMonitors, searchParams, selectedMonitor, setSearchParams])
 
   useEffect(() => {
     const monitorId = searchParams.get('monitor')
