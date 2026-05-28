@@ -10,6 +10,7 @@ export const MOBILE_MAP_BLANK_CLICK_EVENT = 'pgmaps:mobile-map-blank-click'
 export const MOBILE_MAP_SHEET_COLLAPSE_EVENT = 'pgmaps:collapse-mobile-map-sheet'
 export const MOBILE_MAP_SHEET_STACK_EVENT = 'pgmaps:stack-mobile-map-sheet'
 export const MOBILE_MAP_CONTROLS_FRONT_EVENT = 'pgmaps:mobile-map-controls-front'
+export const MOBILE_FEATURE_CARD_DOCK_EVENT = 'pgmaps:mobile-feature-card-dock'
 export const MOBILE_FEATURE_CARD_FRONT_EVENT = 'pgmaps:mobile-feature-card-front'
 export const MOBILE_FEATURE_CARD_PEEK_EVENT = 'pgmaps:mobile-feature-card-peek'
 export const MOBILE_FEATURE_CARD_OPEN_EVENT = 'pgmaps:mobile-feature-card-open'
@@ -61,7 +62,10 @@ export function MobileFeatureCard({
   }, [])
 
   useEffect(() => {
-    const sendBehind = () => setControlsInFront(true)
+    const sendBehind = () => {
+      setCollapsed(false)
+      setControlsInFront(true)
+    }
     const bringFront = () => {
       setControlsInFront(false)
       window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
@@ -137,6 +141,11 @@ export function MobileFeatureCard({
     dragStartY.current = null
   }, [])
 
+  const dockBehindControls = useCallback(() => {
+    setCollapsed(false)
+    window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_DOCK_EVENT))
+  }, [])
+
   return (
     <div
       className={cn('pointer-events-none fixed inset-0 md:hidden', controlsInFront ? 'z-20' : 'z-50')}
@@ -189,8 +198,8 @@ export function MobileFeatureCard({
               <button
                 type="button"
                 className="group min-w-0 flex-1 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60"
-                onClick={() => setCollapsed((current) => !current)}
-                aria-label={collapsed ? 'Expand feature card' : 'Collapse feature card'}
+                onClick={dockBehindControls}
+                aria-label="Dock selected feature behind map controls"
               >
                 <div className="truncate text-base font-semibold leading-tight text-foreground">
                   {title}
@@ -204,10 +213,10 @@ export function MobileFeatureCard({
               <button
                 type="button"
                 className="shrink-0 rounded-md p-2 hover:bg-muted"
-                aria-label={collapsed ? 'Expand feature card' : 'Collapse feature card'}
-                onClick={() => setCollapsed((current) => !current)}
+                aria-label="Dock selected feature behind map controls"
+                onClick={dockBehindControls}
               >
-                <ChevronDown className={cn('size-4 transition-transform', collapsed && 'rotate-180')} />
+                <ChevronDown className="size-4" />
               </button>
               <button type="button" className="shrink-0 rounded-md p-2 hover:bg-muted" aria-label="Close feature card" onClick={closeWithAnimation}>
                 <X className="size-4" />

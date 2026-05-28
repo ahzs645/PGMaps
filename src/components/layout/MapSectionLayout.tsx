@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import {
   MOBILE_FEATURE_CARD_HEIGHT,
   MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT,
+  MOBILE_FEATURE_CARD_DOCK_EVENT,
   MOBILE_FEATURE_CARD_FRONT_EVENT,
   MOBILE_FEATURE_CARD_CLOSE_EVENT,
   MOBILE_FEATURE_CARD_OPEN_EVENT,
@@ -229,13 +230,30 @@ export function MapSectionLayout({
     }
   }, [applyTransform, getFullSnapOffset, getSheetHeight, updateMobileSheetState])
 
+  const stackControlsOverFeatureCard = useCallback((collapsedFeature = false) => {
+    if (!isMobileViewport()) return
+    const sheetHeight = getSheetHeight()
+    const featureHeight = collapsedFeature
+      ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT
+      : Math.min(MOBILE_FEATURE_CARD_HEIGHT, Math.max(160, window.innerHeight - 104))
+    const snaps = getSnapPositions(sheetHeight, getFullSnapOffset())
+    const y = Math.max(snaps.full, Math.min(snaps.collapsed, sheetHeight - featureHeight))
+    suppressScrim.current = true
+    updateMobileSheetState(stateFromTranslate(y, sheetHeight, getFullSnapOffset()))
+    applyTransform(y, true)
+    if (scrimRef.current) {
+      scrimRef.current.style.opacity = '0'
+      scrimRef.current.style.pointerEvents = 'none'
+    }
+  }, [applyTransform, getFullSnapOffset, getSheetHeight, updateMobileSheetState])
+
   const bringControlsToFront = useCallback(() => {
     if (!isMobileViewport()) return
     setMobileControlsInFront(true)
     suppressScrim.current = true
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_CONTROLS_FRONT_EVENT))
-    snapTo('half')
-  }, [snapTo])
+    stackControlsOverFeatureCard(false)
+  }, [stackControlsOverFeatureCard])
 
   const bringFeatureCardToFront = useCallback(() => {
     if (!isMobileViewport()) return
@@ -339,6 +357,9 @@ export function MapSectionLayout({
       if ((e.target as HTMLElement | null)?.closest('[data-map-mobile-sheet-peek-action="true"]')) return
       const t = e.touches[0]
       const isHandle = handle!.contains(e.target as Node)
+      if (isHandle && mobileFeatureCardOpen && !mobileControlsInFront) {
+        return
+      }
 
       startY.current = t.clientY
       startX.current = t.clientX
@@ -431,6 +452,10 @@ export function MapSectionLayout({
         const ct = e.changedTouches[0]
         const moved = Math.abs(ct.clientY - startY.current) + Math.abs(ct.clientX - startX.current)
         if (moved < 10) {
+          if (mobileFeatureCardOpen && !mobileControlsInFront) {
+            bringControlsToFront()
+            return
+          }
           const s = stateFromTranslate(curY.current, getSheetHeight(), getFullSnapOffset())
           snapTo(s === 'collapsed' ? 'half' : s === 'half' ? 'full' : 'collapsed')
           return
@@ -451,7 +476,7 @@ export function MapSectionLayout({
       sheet.removeEventListener('touchend', onTouchEnd)
       sheet.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [applyTransform, getFullSnapOffset, getSheetHeight, snapTo])
+  }, [applyTransform, bringControlsToFront, getFullSnapOffset, getSheetHeight, mobileControlsInFront, mobileFeatureCardOpen, snapTo])
 
   // Scrim tap → collapse
   const handleScrimClick = useCallback(() => snapTo('collapsed'), [snapTo])
@@ -486,9 +511,14 @@ export function MapSectionLayout({
         subtitle: typeof event.detail?.subtitle === 'string' ? event.detail.subtitle : undefined,
       })
     }
+    const handleFeatureDock = () => {
+      setMobileFeatureCardOpen(true)
+      bringControlsToFront()
+    }
     window.addEventListener(MOBILE_MAP_INTERACTION_EVENT, collapseForMapInteraction)
     window.addEventListener(MOBILE_MAP_SHEET_COLLAPSE_EVENT, collapse)
     window.addEventListener(MOBILE_MAP_SHEET_STACK_EVENT, stack)
+    window.addEventListener(MOBILE_FEATURE_CARD_DOCK_EVENT, handleFeatureDock)
     window.addEventListener(MOBILE_FEATURE_CARD_OPEN_EVENT, handleFeatureOpen)
     window.addEventListener(MOBILE_FEATURE_CARD_CLOSE_EVENT, handleFeatureClose)
     window.addEventListener(MOBILE_FEATURE_CARD_PEEK_EVENT, handleFeaturePeek)
@@ -496,11 +526,12 @@ export function MapSectionLayout({
       window.removeEventListener(MOBILE_MAP_INTERACTION_EVENT, collapseForMapInteraction)
       window.removeEventListener(MOBILE_MAP_SHEET_COLLAPSE_EVENT, collapse)
       window.removeEventListener(MOBILE_MAP_SHEET_STACK_EVENT, stack)
+      window.removeEventListener(MOBILE_FEATURE_CARD_DOCK_EVENT, handleFeatureDock)
       window.removeEventListener(MOBILE_FEATURE_CARD_OPEN_EVENT, handleFeatureOpen)
       window.removeEventListener(MOBILE_FEATURE_CARD_CLOSE_EVENT, handleFeatureClose)
       window.removeEventListener(MOBILE_FEATURE_CARD_PEEK_EVENT, handleFeaturePeek)
     }
-  }, [snapTo, stackBehindFeatureCard])
+  }, [bringControlsToFront, snapTo, stackBehindFeatureCard])
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -558,6 +589,12 @@ export function MapSectionLayout({
             'md:relative md:inset-auto md:h-full md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-blur-none',
           )}
           data-map-mobile-sheet="true"
+          onClickCapture={(event) => {
+            if (!mobileFeatureCardOpen || mobileControlsInFront) return
+            event.preventDefault()
+            event.stopPropagation()
+            bringControlsToFront()
+          }}
         >
           {/* Drag handle */}
           <div

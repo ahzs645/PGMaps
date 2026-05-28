@@ -1,5 +1,4 @@
 import {
-  useEffect,
   useState,
   type ComponentPropsWithoutRef,
   type ElementType,
@@ -10,10 +9,6 @@ import {
 import { ChevronDown, X } from 'lucide-react'
 import { DatasetInfo, type DatasetInfoRecord } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
-import {
-  MOBILE_FEATURE_CARD_CLOSE_EVENT,
-  MOBILE_FEATURE_CARD_OPEN_EVENT,
-} from '@/components/ui/mobile-feature-card'
 
 const overlayPositions = {
   'top-left': 'top-3 left-3',
@@ -781,7 +776,6 @@ export function MapLegendPanel({
   width = 'md',
 }: MapLegendPanelProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed)
-  const [mobileFeatureCardOpen, setMobileFeatureCardOpen] = useState(false)
   const isCollapsed = collapsed ?? internalCollapsed
   const toggleCollapsed = () => {
     const next = !isCollapsed
@@ -791,22 +785,10 @@ export function MapLegendPanel({
     }
   }
 
-  useEffect(() => {
-    const open = () => setMobileFeatureCardOpen(true)
-    const close = () => setMobileFeatureCardOpen(false)
-    window.addEventListener(MOBILE_FEATURE_CARD_OPEN_EVENT, open)
-    window.addEventListener(MOBILE_FEATURE_CARD_CLOSE_EVENT, close)
-    return () => {
-      window.removeEventListener(MOBILE_FEATURE_CARD_OPEN_EVENT, open)
-      window.removeEventListener(MOBILE_FEATURE_CARD_CLOSE_EVENT, close)
-    }
-  }, [])
-
   return (
     <div
       className={cn(
         'absolute right-3 z-10 rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:rounded-xl md:p-4',
-        mobileFeatureCardOpen && 'hidden md:block',
         elevated
           ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
           : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6',
