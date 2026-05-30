@@ -214,6 +214,17 @@ export const DATASETS = {
     formats: ['Score presets', 'Indicator metadata'],
     fields: ['hbeFeature', 'planningPrinciple', 'metric', 'proxyConfidence', 'dataGap'],
   },
+  healthyPlanPg: {
+    title: 'HealthyPlan Prince George inputs',
+    description:
+      'Prince George HealthyPlan-style education, healthy-food, retail, and service-access inputs normalized from BC open data, CityPG business licences, and OpenStreetMap POIs.',
+    source: 'BC Data Catalogue, City of Prince George Open Data, OpenStreetMap',
+    coverage: 'Prince George education facilities and daily-service POIs',
+    license: 'Source-dependent: OGL-BC, CityPG open data terms, and ODbL for OSM-derived POIs',
+    formats: ['GeoJSON', 'JSON manifest'],
+    downloadUrl: '/data/healthyplan-pg/manifest.json',
+    fields: ['name', 'category', 'source', 'healthyFoodOutlet', 'retailService', 'educationLevel'],
+  },
 } satisfies Record<string, DatasetInfoRecord>
 
 export type DatasetKey = keyof typeof DATASETS
