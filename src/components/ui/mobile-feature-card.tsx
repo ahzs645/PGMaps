@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 export const MOBILE_FEATURE_CARD_MEDIA_QUERY = '(max-width: 767px)'
 export const MOBILE_FEATURE_CARD_HEIGHT = 360
+export const MOBILE_FEATURE_CARD_COMPACT_HEIGHT = 300
 export const MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT = 92
 export const MOBILE_MAP_INTERACTION_EVENT = 'pgmaps:mobile-map-interaction'
 export const MOBILE_MAP_BLANK_CLICK_EVENT = 'pgmaps:mobile-map-blank-click'
@@ -25,7 +26,7 @@ export function MobileFeatureCard({
   cardKey,
   contentClassName,
   height = MOBILE_FEATURE_CARD_HEIGHT,
-  initialCollapsed = true,
+  initialVisibleHeight = MOBILE_FEATURE_CARD_COMPACT_HEIGHT,
   collapseOnMapInteraction = true,
   closeOnBlankMapClick = true,
   onClose,
@@ -37,13 +38,14 @@ export function MobileFeatureCard({
   cardKey?: string | number
   contentClassName?: string
   height?: number
-  initialCollapsed?: boolean
+  initialVisibleHeight?: number
   collapseOnMapInteraction?: boolean
   closeOnBlankMapClick?: boolean
   onClose: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(initialCollapsed)
+  const [collapsed, setCollapsed] = useState(false)
+  const [expanded, setExpanded] = useState(initialVisibleHeight >= height)
   const [controlsInFront, setControlsInFront] = useState(false)
   const dragStartY = useRef<number | null>(null)
   const lastGestureAtRef = useRef(0)
@@ -55,18 +57,20 @@ export function MobileFeatureCard({
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_OPEN_EVENT))
     const frame = requestAnimationFrame(() => {
-      setCollapsed(initialCollapsed)
+      setCollapsed(false)
+      setExpanded(initialVisibleHeight >= height)
       setOpen(true)
     })
     return () => {
       cancelAnimationFrame(frame)
       window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_CLOSE_EVENT))
     }
-  }, [initialCollapsed])
+  }, [height, initialVisibleHeight])
 
   useEffect(() => {
     const sendBehind = () => {
       setCollapsed(false)
+      setExpanded(true)
       setControlsInFront(true)
     }
     const bringFront = () => {
@@ -96,20 +100,23 @@ export function MobileFeatureCard({
 
   useEffect(() => {
     if (!open) return
-    const frame = requestAnimationFrame(() => setCollapsed(initialCollapsed))
+    const frame = requestAnimationFrame(() => {
+      setCollapsed(false)
+      setExpanded(initialVisibleHeight >= height)
+    })
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_PEEK_EVENT, {
       detail: { title: titleText, subtitle: subtitleText },
     }))
     return () => cancelAnimationFrame(frame)
-  }, [cardKey, initialCollapsed, open, subtitleText, titleText])
+  }, [cardKey, height, initialVisibleHeight, open, subtitleText, titleText])
 
   useEffect(() => {
     if (!open) return
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_COLLAPSE_STATE_EVENT, {
-      detail: { collapsed },
+      detail: { collapsed, visibleHeight: collapsed ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT : (expanded ? height : initialVisibleHeight) },
     }))
-  }, [collapsed, open])
+  }, [collapsed, expanded, height, initialVisibleHeight, open])
 
   const closeWithAnimation = useCallback(() => {
     setOpen(false)
@@ -139,13 +146,24 @@ export function MobileFeatureCard({
     if (collapsed && deltaY < -24) {
       dragStartY.current = null
       setCollapsed(false)
+      setExpanded(false)
       return
     }
-    if (!collapsed && deltaY > 24) {
+    if (!collapsed && !expanded && deltaY < -24) {
+      dragStartY.current = null
+      setExpanded(true)
+      return
+    }
+    if (expanded && deltaY > 24) {
+      dragStartY.current = null
+      setExpanded(false)
+      return
+    }
+    if (!collapsed && !expanded && deltaY > 24) {
       dragStartY.current = null
       setCollapsed(true)
     }
-  }, [collapsed])
+  }, [collapsed, expanded])
 
   const handleDragEnd = useCallback(() => {
     dragStartY.current = null
@@ -153,8 +171,18 @@ export function MobileFeatureCard({
 
   const dockBehindControls = useCallback(() => {
     setCollapsed(false)
+    setExpanded(true)
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_DOCK_EVENT))
   }, [])
+
+  const handleHandleClick = useCallback(() => {
+    if (collapsed) {
+      setCollapsed(false)
+      setExpanded(false)
+      return
+    }
+    setExpanded((current) => !current)
+  }, [collapsed])
 
   return (
     <div
@@ -177,15 +205,18 @@ export function MobileFeatureCard({
             'pointer-events-auto col-start-1 row-start-1 flex self-end flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[height,transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
             controlsInFront && 'pointer-events-none -translate-y-1.5 shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
             controlsInFront && !collapsed && 'h-full',
-            !controlsInFront && (collapsed ? 'translate-y-0' : 'h-full translate-y-2'),
+            !controlsInFront && (collapsed ? 'translate-y-0' : expanded ? 'h-full translate-y-2' : 'translate-y-2'),
             className,
           )}
-          style={collapsed || controlsInFront ? { alignSelf: 'end', height: collapsed ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT : undefined } : undefined}
+          style={collapsed || controlsInFront || !expanded ? {
+            alignSelf: 'end',
+            height: collapsed ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT : controlsInFront ? undefined : `min(${initialVisibleHeight}px, 100%)`,
+          } : undefined}
         >
           <div
             className="flex cursor-grab touch-none justify-center py-2 active:cursor-grabbing"
             aria-hidden="true"
-            onClick={() => setCollapsed((current) => !current)}
+            onClick={handleHandleClick}
             onMouseDown={(event) => handleDragStart(event.clientY)}
             onMouseMove={(event) => handleDragMove(event.clientY)}
             onMouseUp={handleDragEnd}

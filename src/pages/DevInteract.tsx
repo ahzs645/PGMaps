@@ -38,7 +38,7 @@ type MobilePanelAction =
   | { type: 'dockControls' }
   | { type: 'syncControlsSheet'; sheetState: MobileSheetState }
 
-const MOBILE_FEATURE_SHEET_VISIBLE_HEIGHT = 360
+const MOBILE_FEATURE_SHEET_VISIBLE_HEIGHT = 300
 const MOBILE_FEATURE_COLLAPSED_VISIBLE_HEIGHT = 98
 const MOBILE_CONTROLS_DOCKED_VISIBLE_HEIGHT = 56
 const FEATURE_SELECT_DISMISS_SUPPRESS_MS = 150
@@ -60,7 +60,7 @@ function mobilePanelReducer(state: MobilePanelState, action: MobilePanelAction):
     case 'reset':
       return initialMobilePanelState
     case 'selectFeature':
-      return bumpSnap(state, 'featureCollapsed', 'collapsed')
+      return { mode: 'featureExpanded', snapKey: state.snapKey }
     case 'dismissFeatureToControlsDock':
     case 'dockControls':
       return bumpSnap(state, 'controlsDocked', 'collapsed')

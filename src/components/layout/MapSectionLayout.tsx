@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  MOBILE_FEATURE_CARD_HEIGHT,
+  MOBILE_FEATURE_CARD_COMPACT_HEIGHT,
   MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT,
   MOBILE_FEATURE_CARD_COLLAPSE_STATE_EVENT,
   MOBILE_FEATURE_CARD_DOCK_EVENT,
@@ -212,12 +212,12 @@ export function MapSectionLayout({
     [applyTransform, getFullSnapOffset, getSheetHeight, updateMobileSheetState],
   )
 
-  const stackBehindFeatureCard = useCallback((collapsedFeature = false) => {
+  const stackBehindFeatureCard = useCallback((collapsedFeature = false, visibleFeatureHeight?: number) => {
     if (!isMobileViewport()) return
     const sheetHeight = getSheetHeight()
     const featureHeight = collapsedFeature
       ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT
-      : Math.min(MOBILE_FEATURE_CARD_HEIGHT, Math.max(160, window.innerHeight - 104))
+      : Math.min(visibleFeatureHeight ?? MOBILE_FEATURE_CARD_COMPACT_HEIGHT, Math.max(160, window.innerHeight - 104))
     const visibleHeight = collapsedFeature
       ? featureHeight + MOBILE_STACK_REAR_SHEET_VISIBLE_GAP
       : featureHeight + MOBILE_STACK_REAR_SHEET_VISIBLE_GAP - MOBILE_FEATURE_CARD_FRONT_OFFSET
@@ -232,12 +232,12 @@ export function MapSectionLayout({
     }
   }, [applyTransform, getFullSnapOffset, getSheetHeight, updateMobileSheetState])
 
-  const stackControlsOverFeatureCard = useCallback((collapsedFeature = false) => {
+  const stackControlsOverFeatureCard = useCallback((collapsedFeature = false, visibleFeatureHeight?: number) => {
     if (!isMobileViewport()) return
     const sheetHeight = getSheetHeight()
     const featureHeight = collapsedFeature
       ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT
-      : Math.min(MOBILE_FEATURE_CARD_HEIGHT, Math.max(160, window.innerHeight - 104))
+      : Math.min(visibleFeatureHeight ?? MOBILE_FEATURE_CARD_COMPACT_HEIGHT, Math.max(160, window.innerHeight - 104))
     const snaps = getSnapPositions(sheetHeight, getFullSnapOffset())
     const y = Math.max(snaps.full, Math.min(snaps.collapsed, sheetHeight - featureHeight))
     suppressScrim.current = true
@@ -516,11 +516,12 @@ export function MapSectionLayout({
     const handleFeatureCollapseState = (event: Event) => {
       if (!isMobileViewport() || !(event instanceof CustomEvent)) return
       const collapsed = Boolean(event.detail?.collapsed)
+      const visibleHeight = typeof event.detail?.visibleHeight === 'number' ? event.detail.visibleHeight : undefined
       if (mobileControlsInFront) {
-        stackControlsOverFeatureCard(collapsed)
+        stackControlsOverFeatureCard(collapsed, visibleHeight)
         return
       }
-      stackBehindFeatureCard(collapsed)
+      stackBehindFeatureCard(collapsed, visibleHeight)
     }
     const handleFeatureDock = () => {
       setMobileFeatureCardOpen(true)
