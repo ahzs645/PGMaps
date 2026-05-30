@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react'
 import { ChevronLeft, ChevronRight, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
+import { calculatePercentageChange, formatPercentChange, type PercentageChangeResult } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
 
 export interface TimelineWindowOption {
@@ -17,6 +18,12 @@ export interface TimelineWindowMode {
 
 export type TimelineGranularity = 'week' | 'month' | 'year'
 
+export interface TimelinePercentChangeMode {
+  enabled: boolean
+  label?: string
+  previousOffset?: number
+}
+
 interface TimelineProps {
   startDate: Date
   endDate: Date
@@ -28,6 +35,7 @@ interface TimelineProps {
   statsLabel?: string
   granularity?: TimelineGranularity
   compactBars?: boolean
+  percentChangeMode?: TimelinePercentChangeMode
 }
 
 const SPEED_OPTIONS = [
@@ -147,6 +155,7 @@ export function Timeline({
   statsLabel,
   granularity = 'month',
   compactBars = false,
+  percentChangeMode,
 }: TimelineProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(1000)
@@ -195,6 +204,8 @@ export function Timeline({
   }, [buckets, isVirtualized, visibleStart, visibleSize])
 
   const visibleOffset = isVirtualized ? visibleStart : 0
+  const showPercentChange = Boolean(percentChangeMode?.enabled && bucketCounts)
+  const percentChangeOffset = Math.max(1, Math.floor(percentChangeMode?.previousOffset ?? 1))
 
   const maxCount = useMemo(() => {
     if (!bucketCounts) return 1
@@ -204,6 +215,27 @@ export function Timeline({
     }
     return max
   }, [bucketCounts])
+
+  const percentChanges = useMemo(() => {
+    if (!showPercentChange || !bucketCounts) return new Map<string, PercentageChangeResult>()
+
+    return new Map(
+      buckets.map((bucket, index) => {
+        const previousBucket = buckets[index - percentChangeOffset]
+        const change = calculatePercentageChange(
+          previousBucket ? bucketCounts.get(previousBucket.key) ?? 0 : null,
+          bucketCounts.get(bucket.key) ?? 0,
+        )
+
+        return [bucket.key, change]
+      }),
+    )
+  }, [bucketCounts, buckets, percentChangeOffset, showPercentChange])
+
+  const currentPercentChange = showPercentChange ? percentChanges.get(buckets[currentIndex]?.key ?? '') ?? null : null
+  const currentPercentChangeLabel = currentPercentChange
+    ? `${percentChangeMode?.label ?? 'Change'} ${formatPercentChange(currentPercentChange.percentChange)}`
+    : null
 
   const formattedDate = useMemo(() => {
     if (!windowMode) {
@@ -409,7 +441,11 @@ export function Timeline({
               </button>
             )}
 
-            {statsLabel && <div className="hidden text-xs text-muted-foreground sm:block">{statsLabel}</div>}
+            {(statsLabel || currentPercentChangeLabel) && (
+              <div className="hidden text-xs text-muted-foreground sm:block">
+                {[statsLabel, currentPercentChangeLabel].filter(Boolean).join(' | ')}
+              </div>
+            )}
           </div>
 
           <div className="flex min-w-0 items-center gap-1.5 sm:flex-wrap sm:gap-2 lg:ml-auto lg:justify-end">
@@ -484,6 +520,10 @@ export function Timeline({
               const count = bucketCounts.get(bucket.key) ?? 0
               const height = Math.max(2, (count / maxCount) * 100)
               const inWindow = isInWindow(visibleOffset + i)
+              const change = percentChanges.get(bucket.key)
+              const title = showPercentChange && change
+                ? `${bucket.label}: ${count} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
+                : `${bucket.label}: ${count}`
               return (
                 <div
                   key={bucket.key}
@@ -495,7 +535,7 @@ export function Timeline({
                     borderRadius: '1px 1px 0 0',
                     minWidth: '2px',
                   }}
-                  title={`${bucket.label}: ${count}`}
+                  title={title}
                   onClick={() => {
                     onDateChange(bucket.start)
                     setIsPlaying(false)
@@ -511,11 +551,17 @@ export function Timeline({
               const isJanuary = bucket.start.getMonth() === 0
               const isPeriodStart = granularity === 'week' ? bucket.start.getDate() <= 7 : isJanuary
               const count = bucketCounts?.get(bucket.key) ?? 0
+              const change = percentChanges.get(bucket.key)
+              const title = bucketCounts
+                ? showPercentChange && change
+                  ? `${bucket.label}: ${count} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
+                  : `${bucket.label}: ${count}`
+                : undefined
               return (
                 <div
                   key={bucket.key}
                   className="flex flex-1 cursor-pointer flex-col items-center"
-                  title={bucketCounts ? `${bucket.label}: ${count}` : undefined}
+                  title={title}
                   onClick={() => {
                     onDateChange(bucket.start)
                     setIsPlaying(false)

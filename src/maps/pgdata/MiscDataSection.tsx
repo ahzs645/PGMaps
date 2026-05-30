@@ -3779,6 +3779,7 @@ export default function MiscDataSection() {
             granularity="year"
             bucketCounts={wars.bucketCounts}
             compactBars
+            percentChangeMode={{ enabled: true, label: 'YoY' }}
             windowMode={{
               size: wars.timelineWindowSize,
               onSizeChange: wars.setTimelineWindowSize,
@@ -3795,6 +3796,8 @@ export default function MiscDataSection() {
             onDateChange={icbc.setTimelineDate}
             onClose={icbc.handleTimelineDisable}
             granularity="year"
+            bucketCounts={icbc.yearCounts}
+            percentChangeMode={{ enabled: true, label: 'YoY' }}
             windowMode={{
               size: icbc.timelineWindowSize,
               onSizeChange: icbc.setTimelineWindowSize,
@@ -3831,6 +3834,7 @@ export default function MiscDataSection() {
             granularity={canueTimelineIsMonthly ? 'month' : 'year'}
             bucketCounts={canueTimelineBucketCounts}
             compactBars
+            percentChangeMode={{ enabled: !canueTimelineIsMonthly, label: 'YoY' }}
             windowMode={{
               size: canueTimelineWindowSize,
               onSizeChange: setCanueTimelineWindowSize,
