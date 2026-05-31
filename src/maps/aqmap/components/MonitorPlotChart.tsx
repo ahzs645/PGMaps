@@ -1,5 +1,14 @@
-import { useMemo } from 'react'
-import * as d3 from 'd3'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceArea,
+  ReferenceLine,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import type { AqPlotPoint } from '../lib/plotData'
 import { getAqhiColor } from '@/maps/airquality/lib/monitorPopup'
 import type { AqmapLocale } from '../lib/i18n'
@@ -13,9 +22,7 @@ const AQHI_BANDS: Array<{ from: number; to: number; color: string }> = [
 ]
 
 const AQHI_THRESHOLDS = [30, 60, 100]
-const CHART_WIDTH = 520
-const CHART_HEIGHT = 220
-const CHART_MARGIN = { top: 12, right: 12, bottom: 28, left: 40 }
+const CHART_MARGIN = { top: 12, right: 12, bottom: 14, left: 0 }
 
 interface ChartPoint {
   time: number
@@ -78,6 +85,24 @@ function makeFakePlotData(locale: AqmapLocale, currentValue?: number): ChartPoin
   })
 }
 
+function MonitorPlotTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean
+  payload?: Array<{ payload: ChartPoint }>
+}) {
+  const point = payload?.[0]?.payload
+  if (!active || !point) return null
+
+  return (
+    <div className="rounded border border-border bg-background px-2.5 py-2 text-xs shadow-sm">
+      <div className="font-medium text-foreground">{point.pm25.toFixed(1)} µg m⁻³</div>
+      <div className="text-muted-foreground">{point.label}</div>
+    </div>
+  )
+}
+
 export function MonitorPlotChart({
   points,
   locale,
@@ -91,6 +116,8 @@ export function MonitorPlotChart({
   currentValue?: number
   height?: number
 }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [chartWidth, setChartWidth] = useState(0)
   const data = useMemo<ChartPoint[]>(() => {
     const parsedPoints = points
       .map((point) => {
@@ -117,130 +144,101 @@ export function MonitorPlotChart({
     return Math.ceil((maxValue + 10) / 25) * 25
   }, [data])
 
+  const generatedId = useId()
+  const gradientId = `monitor-pm25-fill-${generatedId.replace(/:/g, '')}`
   const xMin = data[0].time
   const xMax = data[data.length - 1].time
   const strokeColor = highlightColor ?? '#0ea5e9'
-  const plotWidth = CHART_WIDTH - CHART_MARGIN.left - CHART_MARGIN.right
-  const plotHeight = CHART_HEIGHT - CHART_MARGIN.top - CHART_MARGIN.bottom
-  const xScale = d3.scaleTime()
-    .domain([new Date(xMin), new Date(xMax)])
-    .range([CHART_MARGIN.left, CHART_MARGIN.left + plotWidth])
-  const yScale = d3.scaleLinear()
-    .domain([0, yMax])
-    .nice()
-    .range([CHART_MARGIN.top + plotHeight, CHART_MARGIN.top])
-  const linePath = d3.line<ChartPoint>()
-    .x((point) => xScale(new Date(point.time)))
-    .y((point) => yScale(point.pm25))
-    .curve(d3.curveMonotoneX)(data)
-  const areaPath = d3.area<ChartPoint>()
-    .x((point) => xScale(new Date(point.time)))
-    .y0(yScale(0))
-    .y1((point) => yScale(point.pm25))
-    .curve(d3.curveMonotoneX)(data)
-  const xTicks = xScale.ticks(4)
-  const yTicks = yScale.ticks(4).filter((tick) => tick >= 0)
   const latestPoint = data[data.length - 1]
+
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+
+    const updateWidth = () => {
+      setChartWidth(Math.max(0, Math.floor(element.getBoundingClientRect().width)))
+    }
+    updateWidth()
+
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div
+      ref={containerRef}
       className="relative overflow-hidden rounded border border-border bg-background"
       style={{ height }}
       title={`${latestPoint.label}: ${latestPoint.pm25.toFixed(1)} µg m⁻³`}
+      role="img"
+      aria-label={`${translate('popup.hourlyPm25', locale)} ${latestPoint.pm25.toFixed(1)} ${translate('aqhi.unit', locale)}`}
     >
-      <svg
-        className="h-full w-full"
-        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        role="img"
-        aria-label={`${translate('popup.hourlyPm25', locale)} ${latestPoint.pm25.toFixed(1)} ${translate('aqhi.unit', locale)}`}
-        preserveAspectRatio="none"
-      >
-        {AQHI_BANDS.map((band, index) => {
-          const y1 = yScale(Math.min(band.to, yMax))
-          const y2 = yScale(Math.max(band.from, 0))
-          return (
-            <rect
-              key={`band-${index}`}
-              x={CHART_MARGIN.left}
-              y={y1}
-              width={plotWidth}
-              height={Math.max(0, y2 - y1)}
+      {chartWidth > 0 && (
+        <AreaChart width={chartWidth} height={height} data={data} margin={CHART_MARGIN}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="5%" stopColor={strokeColor} stopOpacity={0.22} />
+              <stop offset="95%" stopColor={strokeColor} stopOpacity={0.04} />
+            </linearGradient>
+          </defs>
+          {AQHI_BANDS.map((band) => (
+            <ReferenceArea
+              key={`${band.from}-${band.to}`}
+              y1={band.from}
+              y2={Math.min(band.to, yMax)}
               fill={band.color}
+              ifOverflow="extendDomain"
             />
-          )
-        })}
-        {yTicks.map((tick) => (
-          <g key={`y-${tick}`}>
-            <line
-              x1={CHART_MARGIN.left}
-              x2={CHART_MARGIN.left + plotWidth}
-              y1={yScale(tick)}
-              y2={yScale(tick)}
-              stroke="rgb(15 23 42 / 0.08)"
+          ))}
+          <CartesianGrid stroke="rgb(15 23 42 / 0.08)" vertical={false} />
+          {AQHI_THRESHOLDS.filter((threshold) => threshold <= yMax).map((threshold) => (
+            <ReferenceLine
+              key={threshold}
+              y={threshold}
+              stroke={getAqhiColor(threshold)}
+              strokeDasharray="4 4"
+              strokeOpacity={0.55}
             />
-            <text
-              x={CHART_MARGIN.left - 8}
-              y={yScale(tick)}
-              textAnchor="end"
-              dominantBaseline="middle"
-              className="fill-muted-foreground text-[10px]"
-            >
-              {tick}
-            </text>
-          </g>
-        ))}
-        {AQHI_THRESHOLDS.filter((threshold) => threshold <= yMax).map((threshold) => (
-          <line
-            key={`thr-${threshold}`}
-            x1={CHART_MARGIN.left}
-            x2={CHART_MARGIN.left + plotWidth}
-            y1={yScale(threshold)}
-            y2={yScale(threshold)}
-            stroke={getAqhiColor(threshold)}
-            strokeDasharray="4 4"
-            strokeOpacity={0.55}
+          ))}
+          <XAxis
+            dataKey="time"
+            type="number"
+            domain={[xMin, xMax]}
+            tickFormatter={(value: number) => formatTickLabel(value, locale)}
+            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            minTickGap={28}
           />
-        ))}
-        {areaPath && (
-          <path d={areaPath} fill={strokeColor} opacity={0.12} />
-        )}
-        {linePath && (
-          <path d={linePath} fill="none" stroke={strokeColor} strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
-        )}
-        {data.map((point) => (
-          <circle
-            key={point.time}
-            cx={xScale(new Date(point.time))}
-            cy={yScale(point.pm25)}
-            r={2.2}
-            fill={strokeColor}
-            opacity={point.synthetic ? 0.75 : 0.9}
-            vectorEffect="non-scaling-stroke"
-          >
-            <title>{`${point.label}: ${point.pm25.toFixed(1)} µg m⁻³`}</title>
-          </circle>
-        ))}
-        {xTicks.map((tick) => (
-          <text
-            key={tick.getTime()}
-            x={xScale(tick)}
-            y={CHART_HEIGHT - 8}
-            textAnchor="middle"
-            className="fill-muted-foreground text-[10px]"
-          >
-            {formatTickLabel(tick.getTime(), locale)}
-          </text>
-        ))}
-        <text
-          x={14}
-          y={CHART_HEIGHT / 2}
-          transform={`rotate(-90 14 ${CHART_HEIGHT / 2})`}
-          textAnchor="middle"
-          className="fill-muted-foreground text-[10px]"
-        >
-          {translate('plot.yAxis', locale)}
-        </text>
-      </svg>
+          <YAxis
+            domain={[0, yMax]}
+            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            label={{
+              value: translate('plot.yAxis', locale),
+              angle: -90,
+              position: 'insideLeft',
+              fill: 'hsl(var(--muted-foreground))',
+              fontSize: 10,
+              offset: 8,
+            }}
+            width={40}
+          />
+          <Tooltip cursor={{ stroke: strokeColor, strokeOpacity: 0.25 }} content={<MonitorPlotTooltip />} />
+          <Area
+            type="monotone"
+            dataKey="pm25"
+            stroke={strokeColor}
+            strokeWidth={2.5}
+            fill={`url(#${gradientId})`}
+            dot={{ r: 2.2, fill: strokeColor, strokeWidth: 0, opacity: latestPoint.synthetic ? 0.75 : 0.9 }}
+            activeDot={{ r: 4, fill: strokeColor, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      )}
     </div>
   )
 }
