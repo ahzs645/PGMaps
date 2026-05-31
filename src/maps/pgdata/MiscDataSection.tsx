@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
@@ -34,58 +33,18 @@ import {
   type EvChargingFeatureCollection,
   type EvChargingManifest,
 } from './evCharging'
-import { CanueGraphDrawer, MobileCanueBoundaryFeatureCard, type CanueGraphVariableOption } from './CanueGraphDrawer'
+import { CanueGraphDrawer, MobileCanueBoundaryFeatureCard } from './CanueGraphDrawer'
 import { CanueSidebar } from './CanueSidebar'
+import { useCanueController } from './useCanueController'
 import { MISC_LEGEND_TITLES, MISC_TABS, parseMiscDataTab, type MiscDataTab } from './miscDataTabs'
 import {
-  CANUE_BOUNDARY_CONFIG,
-  CANUE_BOUNDARY_LEVEL_TO_SOURCE,
-  CANUE_CENSUS_LEVEL_OPTIONS,
-  CANUE_CITY_LEVEL_OPTIONS,
-  BC_CENTER,
-  CANUE_HEALTH_LEVEL_OPTIONS,
-  CANUE_MONTH_BY_KEY,
-  CANUE_NR_ADMIN_LEVEL_OPTIONS,
-  CANUE_REGIONAL_DISTRICT_LEVEL_OPTIONS,
   CANUE_TIMELINE_WINDOW_OPTIONS,
-  CANUE_WATERSHED_LEVEL_OPTIONS,
   MISC_LAYERS,
-  canueBoundaryPaint,
   canueV2Paint,
-  formatCanueDisplayLabel,
-  getCanuePeriodLabel,
-  getCanueV2Cadence,
-  getCanueV2DatasetHelp,
-  getCanueV2DatasetTitle,
-  getCanueV2GraphVariableLabel,
-  getCanueV2GridVariableKey,
-  getCanueV2GridVariableLabel,
-  getCanueV2MeasureKey,
-  getCanueV2MonthKey,
-  getCanueV2SelectionDate,
-  getCanueV2TimelineKey,
   getCanueV2VariableLabel,
-  getCanueV2VariableOptionLabel,
   getCanueVariableLabel,
-  getDefaultCanueVariable,
-  getDefaultCanueBoundaryLevel,
-  getPreferredCanueV2MeasureKey,
-  getPreferredCanueV2Selection,
-  getSelectableCanueVariables,
-  parseCanueBoundaryLevel,
   renderCanueDisplayLabel,
-  resolveCanueV2AssetUrl,
-  useCanueBoundaryData,
   type BoundaryFeatureCollection,
-  type CanueBoundaryFeatureCardData,
-  type CanueBoundaryLevel,
-  type CanueBoundarySource,
-  type CanueDatasetGroup,
-  type CanueManifest,
-  type CanuePostalMembership,
-  type CanueV2Cadence,
-  type CanueV2MetadataLookup,
-  type CanueYearMode,
   type MiscLayerId,
 } from './canueCore'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -129,15 +88,7 @@ import {
 import { FloodLayer, FloodLayerControls, FloodLegend, FloodSidebar, FloodSourceNotes, useFloodData } from './flood'
 import { Timeline } from '@/components/ui/timeline'
 import { DroughtSection } from '@/maps/drought'
-import {
-  CANUE_V2_CATALOG_URL,
-  CANUE_V2_ENABLED,
-  listCanueV2Selections,
-  type CanueV2Catalog,
-  type CanueVariableSelection,
-} from './canueV2'
-import { useCanueV2AggregateData, useCanueV2AggregatePrefetch, type CanueAggregateRow } from './canueV2Aggregates'
-import { useCanuePmtilesBoundaryData } from './canuePmtilesAggregate'
+import { CANUE_V2_ENABLED } from './canueV2'
 
 interface HeatShadeManifestSource {
   id: string
@@ -218,7 +169,6 @@ export default function MiscDataSection() {
     setSelectedCanueBoundaryId,
     showCanueGraphs,
     setShowCanueGraphs,
-    canueTimelineEnabled,
     setCanueTimelineEnabled,
     canueTimelineWindowSize,
     setCanueTimelineWindowSize,
@@ -233,7 +183,6 @@ export default function MiscDataSection() {
     canueBoundaryLevelOptions,
     selectedCanueDataset,
     selectedCanueFile,
-    selectedCanueFiles,
     canueV2Families,
     selectedCanueV2FamilyEntry,
     selectedCanueV2FamilySelections,
@@ -245,7 +194,6 @@ export default function MiscDataSection() {
     selectedCanueV2CadenceSelections,
     canueV2MeasureOptions,
     selectedCanueV2MeasureKey,
-    selectedCanueV2MeasureSelections,
     canueV2YearOptions,
     selectedCanueV2ResolvedYear,
     canueV2MonthOptions,
@@ -254,8 +202,6 @@ export default function MiscDataSection() {
     selectedCanueV2Selection,
     selectedCanueV2DatasetHelp,
     canueTimelineIsMonthly,
-    canueTimelineSelections,
-    canueTimelineBucketKeys,
     canueTimelineDateRange,
     canueTimelineDate,
     canueTimelineBucketCounts,
@@ -265,7 +211,6 @@ export default function MiscDataSection() {
     handleCanueTimelineDisable,
     canueTimelinePrefetch,
     canuePeriodLabel,
-    canueBoundaryData,
     canuePmtilesBoundaryData,
     canueV2AggregateData,
     activeCanueBoundaryData,
@@ -275,8 +220,6 @@ export default function MiscDataSection() {
     canueGraphVariableOptions,
     activeCanueGraphRows,
     canueGraphsAvailable,
-    canueBoundaryLayerReady,
-    stableCanueBoundaryLayer,
     renderedCanueBoundaryLayer,
     renderedCanueFillColor,
     canueMapCenter,
@@ -285,6 +228,25 @@ export default function MiscDataSection() {
     handleCanueBoundarySourceChange,
     handleCanueGraphVariableToggle,
   } = useCanueController({ activeTab, searchParams })
+  const { trees, forests, facilities, loading, error } = useHeatShadeData(activeTab === 'heatShade')
+  const heatShadeManifest = useJsonManifest<HeatShadeManifest>(
+    activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null,
+  )
+  const networkAvailabilityManifest = useJsonManifest<NetworkAvailabilityManifest>(
+    activeTab === 'network' ? '/data/network-availability/manifest.json' : null,
+  )
+  const networkAvailabilityLayer = useNetworkAvailabilityLayer(activeTab === 'network')
+  const evChargingManifest = useJsonManifest<EvChargingManifest>(
+    activeTab === 'ev' ? '/data/ev-charging/manifest.json' : null,
+  )
+  const evChargingStations = useJsonManifest<EvChargingFeatureCollection>(
+    activeTab === 'ev' ? '/data/ev-charging/stations.geojson' : null,
+  )
+  const {
+    regions: evStudyAreaRegions,
+    loading: evBoundaryLoading,
+    error: evBoundaryError,
+  } = useStudyAreaRegions(evBoundarySource, evRegionLevel)
   const icbc = useIcbcData(
     activeTab === 'icbc',
     searchParams.get('icbcDataset'),
@@ -571,6 +533,42 @@ export default function MiscDataSection() {
                     : activeTab === 'drought'
                       ? 'Drought'
                       : 'Heat & Shade'
+  const heatShadeSources = heatShadeManifest.data?.sources ?? []
+  const landsatSource = heatShadeSources.find((source) => source.id.includes('landsat'))
+  const evMapCenter = useMemo<[number, number]>(
+    () =>
+      evStudyAreaBounds
+        ? [(evStudyAreaBounds[0] + evStudyAreaBounds[2]) / 2, (evStudyAreaBounds[1] + evStudyAreaBounds[3]) / 2]
+        : PG_CENTER,
+    [evStudyAreaBounds],
+  )
+  const mapCenter =
+    activeTab === 'canue' ? canueMapCenter : activeTab === 'ev' && evShowBoundaries ? evMapCenter : PG_CENTER
+  const mapZoom =
+    activeTab === 'canue'
+      ? canueMapZoom
+      : activeTab === 'ev' && evShowBoundaries
+        ? evBoundarySource === 'census' || evBoundarySource === 'cityPG'
+          ? 9.2
+          : 4.6
+        : 9.4
+  const mapKey = [
+    activeTab,
+    activeTab === 'canue' ? canueBoundaryLevel : '',
+    activeTab === 'ev' ? `${evBoundarySource}-${evRegionLevel}-${evShowBoundaries ? 'boundaries' : 'points'}` : '',
+  ].join(':')
+  const mapLoading =
+    activeTab === 'canue'
+      ? mapLoadingCanue
+      : activeTab === 'heatShade'
+        ? loading
+        : activeTab === 'network'
+          ? !networkAvailabilityLayer.data && !networkAvailabilityLayer.error
+          : activeTab === 'ev'
+            ? (!evChargingStations.data && !evChargingStations.error) || (evShowBoundaries && evBoundaryLoading)
+            : activeTab === 'flood'
+              ? flood.loading
+              : false
 
   const sidebar = (
     <div className="z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">

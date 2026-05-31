@@ -19,6 +19,7 @@ const DevWatersheds = lazy(() => import('@/pages/DevWatersheds'))
 const DevDesign = lazy(() => import('@/pages/DevDesign'))
 const DevInteract = lazy(() => import('@/pages/DevInteract'))
 const DevInteractSewage = lazy(() => import('@/pages/DevInteractSewage'))
+const DevAcknowledgement = lazy(() => import('@/pages/DevAcknowledgement'))
 const AqMapSection = lazy(() => import('@/maps/aqmap').then(m => ({ default: m.AqMapSection })))
 
 function RouteLoadingFallback() {
@@ -63,6 +64,7 @@ function App() {
           <Route path="/dev/design" element={<DevDesign />} />
           <Route path="/dev/interact" element={<DevInteract />} />
           <Route path="/dev/interact/sewage" element={<DevInteractSewage />} />
+          <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
           <Route path="/dev/aqmap" element={<AqMapSection />} />
         </Routes>
       </Suspense>

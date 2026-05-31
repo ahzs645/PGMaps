@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDot, Droplets, MousePointerClick, Palette, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDot, Droplets, Handshake, MousePointerClick, Palette, Wind } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -56,6 +56,14 @@ const devEntries: DevEntry[] = [
     icon: CircleDot,
     color: 'bg-pink-600',
     label: '/dev/interact/sewage',
+  },
+  {
+    title: 'Acknowledgement Builder',
+    description: 'Multi-source acknowledgement prototype for comparing territory, consultation, treaty, and verified wording sources.',
+    href: '/dev/acknowledgement',
+    icon: Handshake,
+    color: 'bg-teal-700',
+    label: '/dev/acknowledgement',
   },
 ]
 
