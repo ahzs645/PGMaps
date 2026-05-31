@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ShieldAlert, X } from 'lucide-react'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapLegendSection, MapSizeLegend, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
@@ -425,6 +426,43 @@ export function IcbcSelectedLocationSection({ icbc }: { icbc: IcbcState }) {
         </div>
       </div>
     </section>
+  )
+}
+
+export function MobileIcbcFeatureCard({ icbc }: { icbc: IcbcState }) {
+  const crash = icbc.selectedCrash
+  if (!crash) return null
+
+  const crashType = getIcbcDatasetLabelById(crash.properties.dataset, crash.properties.datasetTitle)
+
+  return (
+    <MobileFeatureCard
+      cardKey={getIcbcLocationKey(crash)}
+      title={crash.properties.location}
+      subtitle={crashType}
+      onClose={() => icbc.setSelectedLocation(null)}
+    >
+      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
+        <div className="space-y-1">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Crash type</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">{crashType}</span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Crash count</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {crash.properties.crashCount.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Matched to</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {crash.properties.sourceLocationName}
+            </span>
+          </div>
+        </div>
+      </div>
+    </MobileFeatureCard>
   )
 }
 

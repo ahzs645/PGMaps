@@ -1,4 +1,6 @@
 import {
+  useEffect,
+  useRef,
   useState,
   type ComponentPropsWithoutRef,
   type ElementType,
@@ -805,6 +807,7 @@ export function MapLegendPanel({
   width = 'md',
 }: MapLegendPanelProps) {
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed)
+  const panelRef = useRef<HTMLDivElement>(null)
   const isCollapsed = collapsed ?? internalCollapsed
   const toggleCollapsed = () => {
     const next = !isCollapsed
@@ -814,8 +817,28 @@ export function MapLegendPanel({
     }
   }
 
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    const root = panel.closest<HTMLElement>('[data-map-layout-root="true"]')
+    if (!root) return
+
+    const syncLegendHeight = () => {
+      root.style.setProperty('--map-legend-panel-visible-height', `${Math.ceil(panel.getBoundingClientRect().height) + 12}px`)
+    }
+    syncLegendHeight()
+
+    const observer = new ResizeObserver(syncLegendHeight)
+    observer.observe(panel)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--map-legend-panel-visible-height')
+    }
+  }, [])
+
   return (
     <div
+      ref={panelRef}
       className={cn(
         'absolute right-3 z-10 rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:rounded-xl md:p-4',
         elevated

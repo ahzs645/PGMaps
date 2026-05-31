@@ -62,9 +62,9 @@ import {
   IcbcLayer,
   IcbcLayerControls,
   IcbcLegend,
-  IcbcSelectedLocationSection,
   IcbcSidebar,
   IcbcSourceNotes,
+  MobileIcbcFeatureCard,
   useIcbcData,
 } from './icbc'
 import {
@@ -890,23 +890,16 @@ export default function MiscDataSection() {
               </div>
             </div>
           }
-          mobileSidebar={
-            activeTab === 'icbc' && icbc.selectedCrash ? (
-              <>
-                <IcbcSelectedLocationSection icbc={icbc} />
-                <IcbcSidebar icbc={icbc} showSelectedLocation={false} />
-              </>
-            ) : undefined
-          }
+          mobileSidebar={activeTab === 'icbc' ? <IcbcSidebar icbc={icbc} showSelectedLocation={false} /> : undefined}
           sidebar={sidebar}
         >
           <div className="relative h-full">
             <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} styles={MAP_STYLES} loading={mapLoading}>
               <MapControls
-                position="top-right"
+                position="bottom-right"
                 showZoom
                 showCompass
-                className="top-auto bottom-16 z-20 md:top-2 md:bottom-auto"
+                className="z-20 md:top-2 md:bottom-auto"
               />
 
               <MapFillLayer
@@ -1079,6 +1072,10 @@ export default function MiscDataSection() {
               {activeTab === 'flood' && <FloodLayer flood={flood} />}
 
               {activeTab === 'icbc' && <IcbcLayer icbc={icbc} />}
+
+              {activeTab === 'icbc' && isMobileViewport && icbc.selectedCrash && (
+                <MobileIcbcFeatureCard icbc={icbc} />
+              )}
 
               {activeTab === 'wars' && <WarsLayer wars={wars} />}
             </PgMap>

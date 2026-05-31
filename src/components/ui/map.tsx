@@ -713,6 +713,11 @@ const positionClasses = {
   "bottom-right": "bottom-10 right-2",
 };
 
+const mobilePanelAwarePositionClasses = {
+  "bottom-left": "max-md:bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-legend-panel-visible-height,0px)+0.75rem)]",
+  "bottom-right": "max-md:bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-legend-panel-visible-height,0px)+0.75rem)]",
+};
+
 function ControlGroup({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col rounded-md border border-border bg-background shadow-sm overflow-hidden [&>button:not(:last-child)]:border-b [&>button:not(:last-child)]:border-border">
@@ -813,6 +818,9 @@ function MapControls({
       className={cn(
         "absolute z-10 flex flex-col gap-1.5",
         positionClasses[position],
+        position in mobilePanelAwarePositionClasses
+          ? mobilePanelAwarePositionClasses[position as keyof typeof mobilePanelAwarePositionClasses]
+          : null,
         className
       )}
     >

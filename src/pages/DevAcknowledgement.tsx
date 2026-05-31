@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   BookOpen,
@@ -10,6 +10,7 @@ import {
   Globe2,
   Layers3,
   MapPin,
+  Search,
   ShieldCheck,
 } from 'lucide-react'
 
@@ -19,6 +20,7 @@ import { cn } from '@/lib/utils'
 type SourceKey = 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
 type Confidence = 'strong' | 'moderate' | 'review_required'
 type WordingMode = 'general' | 'event' | 'research'
+type GeocodeStatus = 'idle' | 'loading' | 'success' | 'error'
 
 type CandidateNation = {
   id: string
@@ -30,38 +32,66 @@ type CandidateNation = {
   notes: string
 }
 
-const sourceMeta: Record<SourceKey, { label: string; type: string; description: string; enabled: boolean }> = {
+type GeocodeResult = {
+  fullAddress: string
+  latitude: number
+  longitude: number
+  score: number
+  matchPrecision: string
+  precisionPoints: number
+  faults: string[]
+  baseDataDate: string
+  searchTimestamp: string
+}
+
+type BcGeocoderFeature = {
+  geometry?: {
+    coordinates?: [number, number]
+  }
+  properties?: {
+    fullAddress?: string
+    score?: number
+    matchPrecision?: string
+    precisionPoints?: number
+    faults?: unknown[]
+  }
+}
+
+type BcGeocoderResponse = {
+  baseDataDate?: string
+  searchTimestamp?: string
+  features?: BcGeocoderFeature[]
+}
+
+const sourceMeta: Record<SourceKey, { label: string; type: string; description: string }> = {
   nativeLand: {
     label: 'Native Land Digital',
     type: 'Educational territory layer',
     description: 'Territories, languages, and treaties for review-oriented public education.',
-    enabled: true,
   },
   cad: {
     label: 'BC CAD',
     type: 'Consultative area',
     description: 'Candidate First Nations associated with asserted/proven rights or title. Review required.',
-    enabled: true,
   },
   treaty: {
     label: 'Treaty lands',
     type: 'Legal/admin layer',
     description: 'Treaty-related geography where official treaty data is available.',
-    enabled: true,
   },
   reserve: {
     label: 'Reserve boundaries',
     type: 'Administrative layer',
     description: 'Reserve and band-name reference geography, not traditional territory.',
-    enabled: true,
   },
   local: {
     label: 'Local verified',
     type: 'Institution/user verified',
     description: 'Saved wording and local guidance maintained by the organization.',
-    enabled: true,
   },
 }
+
+const BC_GEOCODER_URL = 'https://geocoder.api.gov.bc.ca/addresses.json'
 
 const candidates: CandidateNation[] = [
   {
@@ -139,8 +169,57 @@ function buildAcknowledgement(mode: WordingMode, nationNames: string[]) {
   return `We acknowledge that we are on lands connected to ${names}. We recognize their histories, cultures, and ongoing relationships with these lands.`
 }
 
+function parseFaults(faults: unknown[] | undefined) {
+  if (!faults) return []
+  return faults.map((fault) => {
+    if (typeof fault === 'string') return fault
+    if (fault && typeof fault === 'object' && 'value' in fault) return String(fault.value)
+    return String(fault)
+  })
+}
+
+async function geocodeAddress(address: string, signal?: AbortSignal): Promise<GeocodeResult> {
+  const params = new URLSearchParams({
+    addressString: address,
+    maxResults: '1',
+    interpolation: 'adaptive',
+    echo: 'true',
+    brief: 'false',
+    autoComplete: 'false',
+    setBack: '0',
+    outputSRS: '4326',
+  })
+
+  const response = await fetch(`${BC_GEOCODER_URL}?${params.toString()}`, { signal })
+  if (!response.ok) {
+    throw new Error(`BC Address Geocoder returned ${response.status}`)
+  }
+
+  const data = await response.json() as BcGeocoderResponse
+  const feature = data.features?.[0]
+  const coordinates = feature?.geometry?.coordinates
+  if (!feature || !coordinates || coordinates.length < 2) {
+    throw new Error('No B.C. address match found')
+  }
+
+  return {
+    fullAddress: feature.properties?.fullAddress ?? address,
+    longitude: coordinates[0],
+    latitude: coordinates[1],
+    score: feature.properties?.score ?? 0,
+    matchPrecision: feature.properties?.matchPrecision ?? 'Unknown',
+    precisionPoints: feature.properties?.precisionPoints ?? 0,
+    faults: parseFaults(feature.properties?.faults),
+    baseDataDate: data.baseDataDate ?? '',
+    searchTimestamp: data.searchTimestamp ?? '',
+  }
+}
+
 export default function DevAcknowledgement() {
   const [address, setAddress] = useState('3333 University Way, Prince George, BC')
+  const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null)
+  const [geocodeStatus, setGeocodeStatus] = useState<GeocodeStatus>('idle')
+  const [geocodeError, setGeocodeError] = useState<string | null>(null)
   const [enabledSources, setEnabledSources] = useState<Record<SourceKey, boolean>>(() => ({
     nativeLand: true,
     cad: true,
@@ -150,6 +229,7 @@ export default function DevAcknowledgement() {
   }))
   const [selectedIds, setSelectedIds] = useState<string[]>(['lheidli'])
   const [wordingMode, setWordingMode] = useState<WordingMode>('event')
+  const [customWording, setCustomWording] = useState('')
 
   const visibleCandidates = useMemo(
     () => candidates.filter((candidate) => (
@@ -167,6 +247,53 @@ export default function DevAcknowledgement() {
 
   const wording = useMemo(() => buildAcknowledgement(wordingMode, selectedNames), [selectedNames, wordingMode])
 
+  useEffect(() => {
+    setCustomWording(wording)
+  }, [wording])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setGeocodeStatus('loading')
+    setGeocodeError(null)
+    geocodeAddress(address, controller.signal)
+      .then((result) => {
+        setGeocodeResult(result)
+        setGeocodeStatus('success')
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        setGeocodeResult(null)
+        setGeocodeStatus('error')
+        setGeocodeError(error instanceof Error ? error.message : 'Unable to geocode this address')
+      })
+    return () => controller.abort()
+    // Run once to populate the default sample address.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleGeocode = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault()
+    const trimmedAddress = address.trim()
+    if (!trimmedAddress) {
+      setGeocodeStatus('error')
+      setGeocodeError('Enter a B.C. address to geocode')
+      setGeocodeResult(null)
+      return
+    }
+
+    setGeocodeStatus('loading')
+    setGeocodeError(null)
+    try {
+      const result = await geocodeAddress(trimmedAddress)
+      setGeocodeResult(result)
+      setGeocodeStatus('success')
+    } catch (error) {
+      setGeocodeResult(null)
+      setGeocodeStatus('error')
+      setGeocodeError(error instanceof Error ? error.message : 'Unable to geocode this address')
+    }
+  }
+
   const toggleSource = (source: SourceKey) => {
     setEnabledSources((current) => ({ ...current, [source]: !current[source] }))
   }
@@ -180,7 +307,7 @@ export default function DevAcknowledgement() {
   }
 
   return (
-    <div className="min-h-full bg-stone-50 text-slate-950">
+    <div className="min-h-full bg-stone-50 pt-12 text-slate-950 sm:pt-0">
       <div className="border-b bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -201,7 +328,7 @@ export default function DevAcknowledgement() {
             </Button>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+          <form onSubmit={handleGeocode} className="grid gap-3 lg:grid-cols-[1fr_auto]">
             <label className="flex min-h-12 items-center gap-3 rounded-lg border bg-white px-3 shadow-sm">
               <MapPin className="h-5 w-5 flex-none text-teal-700" />
               <input
@@ -211,28 +338,34 @@ export default function DevAcknowledgement() {
                 aria-label="Address"
               />
             </label>
-            <Button variant="outline" className="min-h-12 justify-center">
-              Run source comparison
-              <ChevronRight className="h-4 w-4" />
+            <Button type="submit" variant="outline" className="min-h-12 justify-center" disabled={geocodeStatus === 'loading'}>
+              <Search className="h-4 w-4 lg:hidden" />
+              <span>{geocodeStatus === 'loading' ? 'Geocoding address' : 'Run source comparison'}</span>
+              <ChevronRight className="hidden h-4 w-4 lg:block" />
             </Button>
-          </div>
+          </form>
+          {geocodeStatus === 'error' && (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {geocodeError}
+            </div>
+          )}
         </div>
       </div>
 
-      <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[280px_1fr_360px] lg:px-8">
-        <aside className="space-y-4">
+      <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[280px_1fr_360px] lg:gap-5 lg:px-8">
+        <aside className="order-3 space-y-4 lg:order-1">
           <section className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <Layers3 className="h-4 w-4 text-teal-700" />
               <h2 className="text-sm font-semibold">Source Layers</h2>
             </div>
-            <div className="space-y-2">
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
               {(Object.keys(sourceMeta) as SourceKey[]).map((source) => (
                 <button
                   key={source}
                   type="button"
                   onClick={() => toggleSource(source)}
-                  className="flex w-full items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300"
+                  className="flex min-w-48 items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300 lg:w-full lg:min-w-0"
                 >
                   <span className={cn(
                     'mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded border',
@@ -267,15 +400,17 @@ export default function DevAcknowledgement() {
           </section>
         </aside>
 
-        <section className="space-y-4">
-          <div className="grid min-h-80 overflow-hidden rounded-lg border bg-white shadow-sm md:grid-cols-[1fr_220px]">
-            <div className="relative min-h-72 bg-[linear-gradient(135deg,#d8eee8_0%,#f4f0df_45%,#dbe7f3_100%)]">
+        <section className="order-1 space-y-4 lg:order-2">
+          <div className="grid overflow-hidden rounded-lg border bg-white shadow-sm md:grid-cols-[1fr_240px]">
+            <div className="relative min-h-56 bg-[linear-gradient(135deg,#d8eee8_0%,#f4f0df_45%,#dbe7f3_100%)] sm:min-h-72">
               <div className="absolute inset-0 opacity-55 [background-image:radial-gradient(circle_at_20%_20%,rgba(15,118,110,.18),transparent_22%),radial-gradient(circle_at_72%_40%,rgba(180,83,9,.15),transparent_24%),linear-gradient(90deg,rgba(15,23,42,.08)_1px,transparent_1px),linear-gradient(rgba(15,23,42,.08)_1px,transparent_1px)] [background-size:auto,auto,48px_48px,48px_48px]" />
-              <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                 <span className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-white bg-teal-700 text-white shadow-lg">
                   <MapPin className="h-6 w-6" />
                 </span>
-                <span className="rounded-md bg-white/95 px-3 py-1 text-xs font-semibold shadow">Sample geocoded point</span>
+                <span className="max-w-56 rounded-md bg-white/95 px-3 py-1 text-center text-xs font-semibold shadow">
+                  {geocodeStatus === 'success' ? 'BC geocoded point' : geocodeStatus === 'loading' ? 'Looking up address' : 'Address lookup needed'}
+                </span>
               </div>
             </div>
             <div className="border-t p-4 md:border-l md:border-t-0">
@@ -283,15 +418,27 @@ export default function DevAcknowledgement() {
               <dl className="mt-3 space-y-3 text-sm">
                 <div>
                   <dt className="text-xs uppercase text-slate-500">Normalized address</dt>
-                  <dd className="mt-1 font-medium">{address}</dd>
+                  <dd className="mt-1 break-words font-medium">{geocodeResult?.fullAddress ?? address}</dd>
                 </div>
                 <div>
                   <dt className="text-xs uppercase text-slate-500">Coordinates</dt>
-                  <dd className="mt-1 font-mono text-xs">53.8931, -122.8139</dd>
+                  <dd className="mt-1 font-mono text-xs">
+                    {geocodeResult ? `${geocodeResult.latitude.toFixed(6)}, ${geocodeResult.longitude.toFixed(6)}` : 'Waiting for match'}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-xs uppercase text-slate-500">Geocoder</dt>
                   <dd className="mt-1">BC Address Geocoder</dd>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <dt className="text-xs uppercase text-slate-500">Score</dt>
+                    <dd className="mt-1">{geocodeResult ? `${geocodeResult.score}/100` : '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase text-slate-500">Precision</dt>
+                    <dd className="mt-1 break-words">{geocodeResult?.matchPrecision ?? '-'}</dd>
+                  </div>
                 </div>
               </dl>
             </div>
@@ -318,7 +465,7 @@ export default function DevAcknowledgement() {
                       >
                         {selectedIds.includes(candidate.id) && <Check className="h-4 w-4" />}
                       </button>
-                      <h3 className="font-semibold">{candidate.name}</h3>
+                      <h3 className="min-w-0 flex-1 text-sm font-semibold sm:text-base">{candidate.name}</h3>
                       <span className={cn('rounded-md border px-2 py-0.5 text-xs font-medium', confidenceStyles[candidate.confidence])}>
                         {confidenceLabels[candidate.confidence]}
                       </span>
@@ -326,7 +473,7 @@ export default function DevAcknowledgement() {
                     <p className="mt-2 text-sm leading-6 text-slate-600">{candidate.reason}</p>
                     <p className="mt-2 text-xs leading-5 text-slate-500">{candidate.notes}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
                     {(Object.keys(sourceMeta) as SourceKey[]).map((source) => (
                       <div
                         key={source}
@@ -346,7 +493,7 @@ export default function DevAcknowledgement() {
           </section>
         </section>
 
-        <aside className="space-y-4">
+        <aside className="order-2 space-y-4 lg:order-3">
           <section className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-teal-700" />
@@ -368,8 +515,8 @@ export default function DevAcknowledgement() {
               ))}
             </div>
             <textarea
-              value={wording}
-              readOnly
+              value={customWording}
+              onChange={(event) => setCustomWording(event.target.value)}
               className="mt-3 min-h-44 w-full resize-none rounded-md border bg-slate-50 p-3 text-sm leading-6 outline-none"
               aria-label="Generated acknowledgement wording"
             />

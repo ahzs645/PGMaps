@@ -580,7 +580,7 @@ export function MapSectionLayout({
   ) : mobilePeek
 
   return (
-    <div ref={rootRef} className={cn('relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
+    <div ref={rootRef} data-map-layout-root="true" className={cn('relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
       {/* Sidebar wrapper */}
       <div
         className={cn(
