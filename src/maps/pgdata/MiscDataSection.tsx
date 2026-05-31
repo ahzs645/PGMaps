@@ -107,13 +107,7 @@ interface HeatShadeManifest {
   caveats?: string[]
 }
 
-function MobileEvStationFeatureCard({
-  station,
-  onClose,
-}: {
-  station: EvChargingFeature
-  onClose: () => void
-}) {
+function MobileEvStationFeatureCard({ station, onClose }: { station: EvChargingFeature; onClose: () => void }) {
   const location = [station.properties?.city, station.properties?.province].filter(Boolean).join(', ')
 
   return (
@@ -941,24 +935,19 @@ export default function MiscDataSection() {
             </div>
           }
           mobileSidebar={
-            activeTab === 'icbc'
-              ? <IcbcSidebar icbc={icbc} showSelectedLocation={false} />
-              : activeTab === 'wars'
-                ? <WarsSidebar wars={wars} showSelectedRecord={false} />
-                : activeTab === 'walkability'
-                  ? <WalkabilitySidebar walkability={walkability} showSelectedCommunity={false} />
-                  : undefined
+            activeTab === 'icbc' ? (
+              <IcbcSidebar icbc={icbc} showSelectedLocation={false} />
+            ) : activeTab === 'wars' ? (
+              <WarsSidebar wars={wars} showSelectedRecord={false} />
+            ) : activeTab === 'walkability' ? (
+              <WalkabilitySidebar walkability={walkability} showSelectedCommunity={false} />
+            ) : undefined
           }
           sidebar={sidebar}
         >
           <div className="relative h-full">
             <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} styles={MAP_STYLES} loading={mapLoading}>
-              <MapControls
-                position="top-right"
-                mobilePosition="bottom-right"
-                showZoom
-                showCompass
-              />
+              <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
               <MapFillLayer
                 data={forestGeojson}
@@ -1089,9 +1078,9 @@ export default function MiscDataSection() {
                   pointColor="#0ea5e9"
                   onPointClick={(feature) => {
                     const station = feature as EvChargingFeature
-                    setSelectedEvStation((current) => (
-                      current?.properties?.id === station.properties?.id ? null : station
-                    ))
+                    setSelectedEvStation((current) =>
+                      current?.properties?.id === station.properties?.id ? null : station,
+                    )
                   }}
                 />
               )}
@@ -1130,10 +1119,7 @@ export default function MiscDataSection() {
               )}
 
               {activeTab === 'ev' && selectedEvStation && isMobileViewport && (
-                <MobileEvStationFeatureCard
-                  station={selectedEvStation}
-                  onClose={() => setSelectedEvStation(null)}
-                />
+                <MobileEvStationFeatureCard station={selectedEvStation} onClose={() => setSelectedEvStation(null)} />
               )}
 
               {activeTab === 'walkability' && <WalkabilityLayer walkability={walkability} />}
@@ -1143,15 +1129,11 @@ export default function MiscDataSection() {
 
               {activeTab === 'icbc' && <IcbcLayer icbc={icbc} />}
 
-              {activeTab === 'icbc' && isMobileViewport && icbc.selectedCrash && (
-                <MobileIcbcFeatureCard icbc={icbc} />
-              )}
+              {activeTab === 'icbc' && isMobileViewport && icbc.selectedCrash && <MobileIcbcFeatureCard icbc={icbc} />}
 
               {activeTab === 'wars' && <WarsLayer wars={wars} />}
 
-              {activeTab === 'wars' && isMobileViewport && wars.selectedCrash && (
-                <MobileWarsFeatureCard wars={wars} />
-              )}
+              {activeTab === 'wars' && isMobileViewport && wars.selectedCrash && <MobileWarsFeatureCard wars={wars} />}
 
               {activeTab === 'walkability' && isMobileViewport && walkability.selectedCommunity && (
                 <MobileWalkabilityFeatureCard walkability={walkability} />
@@ -1168,6 +1150,7 @@ export default function MiscDataSection() {
                 granularity="year"
                 bucketCounts={wars.bucketCounts}
                 compactBars
+                overflowBuckets
                 percentChangeMode={{ enabled: true, label: 'YoY' }}
                 windowMode={{
                   size: wars.timelineWindowSize,
@@ -1186,6 +1169,7 @@ export default function MiscDataSection() {
                 onClose={icbc.handleTimelineDisable}
                 granularity="year"
                 bucketCounts={icbc.yearCounts}
+                overflowBuckets
                 percentChangeMode={{ enabled: true, label: 'YoY' }}
                 windowMode={{
                   size: icbc.timelineWindowSize,
@@ -1204,6 +1188,7 @@ export default function MiscDataSection() {
                 onClose={water.handleTimelineDisable}
                 bucketCounts={water.bucketCounts}
                 compactBars
+                overflowBuckets
                 windowMode={{
                   size: water.timelineWindowSize,
                   onSizeChange: water.setTimelineWindowSize,
@@ -1223,6 +1208,7 @@ export default function MiscDataSection() {
                 granularity={canueTimelineIsMonthly ? 'month' : 'year'}
                 bucketCounts={canueTimelineBucketCounts}
                 compactBars
+                overflowBuckets
                 percentChangeMode={{ enabled: !canueTimelineIsMonthly, label: 'YoY' }}
                 windowMode={{
                   size: canueTimelineWindowSize,

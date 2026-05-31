@@ -95,6 +95,23 @@ test.describe('mobile map sidebars', () => {
     await expect(page).not.toHaveURL(/restaurant=/)
   })
 
+  test('mobile food map docked restaurant card shows restaurant peek text', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/foodmap?restaurant=A+%26+W+Restaurant-+5th+Avenue', { waitUntil: 'domcontentloaded' })
+
+    const card = page.locator('[aria-label="Selected feature"]')
+    await expect(card).toBeVisible({ timeout: 30_000 })
+
+    const dockAction = page.locator('[aria-label="Selected feature"] [data-mobile-feature-card-action="true"][aria-label="Dock selected feature behind map controls"]')
+    await expect(dockAction).toBeVisible()
+    await dockAction.click()
+
+    const peek = page.getByRole('button', { name: 'Show selected feature card' })
+    await expect(peek).toBeVisible({ timeout: 5_000 })
+    await expect(peek).toContainText('A & W Restaurant- 5th Avenue')
+    await expect(peek).not.toContainText('Tap to show selected feature')
+  })
+
   test('mobile BC Assessment deep-linked property card can be dismissed', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/bc-assessment?property=D0000SJZAC', { waitUntil: 'domcontentloaded' })

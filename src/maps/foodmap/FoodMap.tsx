@@ -378,6 +378,10 @@ export default function FoodMap() {
             </div>
           </div>
         )}
+        selectedFeatureMobilePeek={selectedRestaurant ? {
+          title: selectedRestaurant.name,
+          subtitle: selectedRestaurant.full_address || selectedRestaurant.address,
+        } : undefined}
         sidebar={(
           <Sidebar
             className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"

@@ -42,6 +42,7 @@ import {
   createDefaultWeights,
   createMetricValueMap,
   getScorePaletteProfile,
+  getScorePaletteOutputColor,
   getScoreDataSourcesForWeights,
   getWalkabilityReportMiColor,
   LOW_COST_NETWORKS,
@@ -2004,11 +2005,28 @@ export default function ScoreBuilderSection() {
     return colors
   }, [canUseWalkabilitySourceSurface, scoredRegions, showWalkabilitySourceSurface])
 
+  const scoreSpread = useMemo(() => summarizeScores(scoredRegions), [scoredRegions])
+
+  const scoreRegionFillColors = useMemo<Record<string, string> | null>(() => {
+    if (methodSettings.visualOutput === 'binned' || scoreSpread.max <= scoreSpread.min) return null
+    const colors: Record<string, string> = {}
+    const span = scoreSpread.max - scoreSpread.min
+    for (const region of scoredRegions) {
+      const stretchedScore = ((region.score - scoreSpread.min) / span) * 100
+      colors[region.region.id] = getScorePaletteOutputColor(
+        stretchedScore,
+        scorePaletteProfile,
+        methodSettings.visualOutput,
+      )
+    }
+    return colors
+  }, [methodSettings.visualOutput, scoredRegions, scorePaletteProfile, scoreSpread.max, scoreSpread.min])
+
   const mapRegionFillColors = correlateMode
     ? correlateRegionFillColors
     : densityMode
       ? densityRegionFillColors
-      : walkabilityBoundaryRegionFillColors
+      : walkabilityBoundaryRegionFillColors ?? scoreRegionFillColors
 
   const selectedRegion = useMemo(() => {
     if (!selectedRegionId) return null
@@ -2041,7 +2059,6 @@ export default function ScoreBuilderSection() {
     }
   }, [regionInsightRegion, regionInsightRegionId])
 
-  const scoreSpread = useMemo(() => summarizeScores(scoredRegions), [scoredRegions])
   const thinCoverageCount = useMemo(
     () => scoredRegions.filter((region) => region.dataCoverageScore < 0.6).length,
     [scoredRegions],
@@ -2882,7 +2899,7 @@ export default function ScoreBuilderSection() {
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
         desktopSidebarWidth={300}
-        mobileInitialSheetState={initialHasUrlWeights ? 'collapsed' : 'half'}
+        mobileInitialSheetState="collapsed"
         mobilePeek={
           <div className="min-w-0 text-left">
             <div className="truncate text-xs font-semibold text-foreground">

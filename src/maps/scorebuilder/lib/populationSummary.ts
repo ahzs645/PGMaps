@@ -31,9 +31,20 @@ export function computePopulationWeightedEquitySummary({
   const totalPopulation = regions.reduce((sum, region) => sum + Math.max(0, region.counts.populationSum || 0), 0)
   if (totalPopulation <= 0) return null
 
+  const healthyPlanPriorityRegions = regions.filter(
+    (region) =>
+      region.healthyPlanPriority?.demographicMetric === demographicMetric &&
+      region.healthyPlanPriority.environmentMetric === environmentMetric &&
+      region.healthyPlanPriority.equityPriority,
+  )
   const priorityRegions = regions.filter((region) => {
+    if (region.healthyPlanPriority) {
+      return healthyPlanPriorityRegions.includes(region)
+    }
     const vulnerability = region.normalizedMetrics[demographicMetric] ?? 0
-    const environmentBenefit = region.normalizedMetrics[environmentMetric] ?? 0
+    const normalizedEnvironment = region.normalizedMetrics[environmentMetric] ?? 0
+    const environmentBenefit =
+      environmentDefinition.direction === 'higherIsWorse' ? 1 - normalizedEnvironment : normalizedEnvironment
     return vulnerability >= 0.6 && environmentBenefit <= 0.4
   })
   const priorityPopulation = priorityRegions.reduce(

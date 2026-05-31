@@ -27,6 +27,10 @@ interface MapSectionLayoutProps {
   desktopSidebarWidth?: number
   mobileInitialSheetState?: MobileSheetState
   mobilePeek?: ReactNode
+  selectedFeatureMobilePeek?: {
+    title?: string
+    subtitle?: string
+  }
   showMobilePeek?: boolean
   mobileSidebar?: ReactNode
   mobileSnapTo?: MobileSheetState
@@ -124,6 +128,7 @@ export function MapSectionLayout({
   desktopSidebarWidth = 350,
   mobileInitialSheetState = 'collapsed',
   mobilePeek,
+  selectedFeatureMobilePeek,
   showMobilePeek = false,
   mobileSidebar,
   mobileSnapTo,
@@ -557,6 +562,7 @@ export function MapSectionLayout({
       snapTo('collapsed')
     }
     const collapseForMapInteraction = () => {
+      if (!isMobileViewport()) return
       setMobileControlsInFront(false)
       snapTo('collapsed')
     }
@@ -635,10 +641,10 @@ export function MapSectionLayout({
       onTouchStart={(event) => event.stopPropagation()}
     >
       <span className="block truncate text-xs font-semibold text-foreground">
-        {mobileFeaturePeek.title || 'Selected feature'}
+        {mobileFeaturePeek.title || selectedFeatureMobilePeek?.title || 'Selected feature'}
       </span>
       <span className="block truncate text-[11px] text-muted-foreground">
-        {mobileFeaturePeek.subtitle || 'Tap to show selected feature'}
+        {mobileFeaturePeek.subtitle || selectedFeatureMobilePeek?.subtitle || 'Tap to show selected feature'}
       </span>
     </button>
   ) : mobilePeek

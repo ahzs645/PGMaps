@@ -38,6 +38,7 @@ interface TimelineProps {
   statsLabel?: string
   granularity?: TimelineGranularity
   compactBars?: boolean
+  overflowBuckets?: boolean
   percentChangeMode?: TimelinePercentChangeMode
 }
 
@@ -55,11 +56,8 @@ const DEFAULT_WINDOW_OPTIONS: TimelineWindowOption[] = [
   { value: -1, label: 'Cumul.' },
 ]
 
-// When the timeline has more buckets than this, the visible bars virtualize
-// and the view shifts as the scrub crosses the threshold.
-const MAX_VISIBLE_BUCKETS = 84
-const VIEW_SHIFT_TRIGGER = 0.8
-const VIEW_SHIFT_TARGET = 0.3
+const COMPACT_BUCKET_WIDTH = 30
+const BAR_BUCKET_WIDTH = 8
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -160,12 +158,15 @@ export function Timeline({
   statsLabel,
   granularity = 'month',
   compactBars = false,
+  overflowBuckets = false,
   percentChangeMode,
 }: TimelineProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(1000)
+  const [barViewportWidth, setBarViewportWidth] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
+  const barViewportRef = useRef<HTMLDivElement>(null)
 
   const buckets = useMemo(() => buildBuckets(startDate, endDate, granularity), [startDate, endDate, granularity])
 
@@ -173,7 +174,12 @@ export function Timeline({
   const windowSize = windowMode && !isCumulative ? windowMode.size : 1
   const windowAnchor = windowMode?.anchor ?? 'start'
   const unitLabel = granularity === 'year' ? 'year' : granularity === 'week' ? 'week' : 'month'
-  const formatBucketValue = useCallback((value: number) => bucketValueFormatter?.(value) ?? String(value), [bucketValueFormatter])
+  const shouldUseCompactBars = compactBars || granularity === 'week'
+  const usesCompactStrip = !bucketCounts || shouldUseCompactBars
+  const formatBucketValue = useCallback(
+    (value: number) => bucketValueFormatter?.(value) ?? String(value),
+    [bucketValueFormatter],
+  )
 
   const currentIndex = useMemo(() => {
     const currentKey = bucketKeyFromDate(currentDate, granularity)
@@ -194,22 +200,13 @@ export function Timeline({
     }
   }, [maxPosition, currentIndex, onDateChange, buckets])
 
-  const isVirtualized = buckets.length > MAX_VISIBLE_BUCKETS
-  const visibleSize = isVirtualized ? MAX_VISIBLE_BUCKETS : buckets.length
-  const visibleStart = useMemo(() => {
-    if (!isVirtualized) return 0
-    const maxStart = Math.max(0, buckets.length - visibleSize)
-    const targetIndex =
-      currentIndex > visibleSize * VIEW_SHIFT_TRIGGER ? currentIndex - Math.floor(visibleSize * VIEW_SHIFT_TARGET) : 0
-    return Math.max(0, Math.min(maxStart, targetIndex))
-  }, [buckets.length, currentIndex, isVirtualized, visibleSize])
-
-  const visibleBuckets = useMemo(() => {
-    if (!isVirtualized) return buckets
-    return buckets.slice(visibleStart, visibleStart + visibleSize)
-  }, [buckets, isVirtualized, visibleStart, visibleSize])
-
-  const visibleOffset = isVirtualized ? visibleStart : 0
+  const bucketWidth = usesCompactStrip ? COMPACT_BUCKET_WIDTH : BAR_BUCKET_WIDTH
+  const barStripWidth = Math.max(barViewportWidth, buckets.length * bucketWidth)
+  const barScrollMax = Math.max(0, barStripWidth - barViewportWidth)
+  const barScrollLeft =
+    overflowBuckets && barViewportWidth > 0
+      ? Math.max(0, Math.min(barScrollMax, currentIndex * bucketWidth + bucketWidth / 2 - barViewportWidth / 2))
+      : 0
   const showPercentChange = Boolean(percentChangeMode?.enabled && bucketCounts)
   const percentChangeOffset = Math.max(1, Math.floor(percentChangeMode?.previousOffset ?? 1))
 
@@ -229,7 +226,7 @@ export function Timeline({
       buckets.map((bucket, index) => {
         const previousBucket = buckets[index - percentChangeOffset]
         const change = calculatePercentageChange(
-          previousBucket ? bucketCounts.get(previousBucket.key) ?? 0 : null,
+          previousBucket ? (bucketCounts.get(previousBucket.key) ?? 0) : null,
           bucketCounts.get(bucket.key) ?? 0,
         )
 
@@ -238,7 +235,7 @@ export function Timeline({
     )
   }, [bucketCounts, buckets, percentChangeOffset, showPercentChange])
 
-  const currentPercentChange = showPercentChange ? percentChanges.get(buckets[currentIndex]?.key ?? '') ?? null : null
+  const currentPercentChange = showPercentChange ? (percentChanges.get(buckets[currentIndex]?.key ?? '') ?? null) : null
   const currentPercentChangeLabel = currentPercentChange
     ? `${percentChangeMode?.label ?? 'Change'} ${formatPercentChange(currentPercentChange.percentChange)}`
     : null
@@ -366,22 +363,47 @@ export function Timeline({
     }
   }, [])
 
+  useLayoutEffect(() => {
+    const viewport = barViewportRef.current
+    if (!viewport) return
+
+    const syncViewportWidth = () => {
+      setBarViewportWidth(viewport.getBoundingClientRect().width)
+    }
+
+    syncViewportWidth()
+    const observer = new ResizeObserver(syncViewportWidth)
+    observer.observe(viewport)
+    window.addEventListener('resize', syncViewportWidth)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', syncViewportWidth)
+    }
+  }, [])
+
   if (buckets.length === 0) return null
 
   const windowOptions = windowMode?.options ?? DEFAULT_WINDOW_OPTIONS
-  const shouldUseCompactBars = compactBars || granularity === 'week'
+  const barStripStyle = {
+    width: overflowBuckets && barStripWidth > 0 ? `${barStripWidth}px` : '100%',
+    transform: `translateX(-${barScrollLeft}px)`,
+  } satisfies CSSProperties
   const controlButtonClass =
     'flex size-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:size-8'
   const selectClass = 'sm:hidden'
-  const selectTriggerClass =
-    'h-10 border-input bg-background px-3 text-base font-semibold text-foreground shadow-sm'
+  const selectTriggerClass = 'h-10 border-input bg-background px-3 text-base font-semibold text-foreground shadow-sm'
 
   return (
     <div
       ref={timelineRef}
       data-map-timeline="true"
       className="absolute inset-x-2 z-20 sm:inset-x-3 md:inset-x-6"
-      style={{ bottom: 'calc(var(--map-mobile-sheet-visible-height, 0px) + var(--map-safe-bottom-offset, 0px) + 0.5rem)' } as CSSProperties}
+      style={
+        {
+          bottom: 'calc(var(--map-mobile-sheet-visible-height, 0px) + var(--map-safe-bottom-offset, 0px) + 0.5rem)',
+        } as CSSProperties
+      }
     >
       <div className="rounded-lg border border-border/60 bg-background/95 p-2.5 shadow-xl backdrop-blur-sm sm:rounded-xl sm:p-3 md:p-4">
         <div className="mb-3 flex flex-col gap-2 sm:mb-3 sm:gap-2 lg:flex-row lg:items-center lg:gap-3">
@@ -514,84 +536,106 @@ export function Timeline({
         </div>
 
         {bucketCounts && !shouldUseCompactBars ? (
-          <div className="mb-1 hidden h-10 items-end gap-px sm:flex">
-            {visibleBuckets.map((bucket, i) => {
-              const count = bucketCounts.get(bucket.key) ?? 0
-              const height = Math.max(2, (count / maxCount) * 100)
-              const inWindow = isInWindow(visibleOffset + i)
-              const change = percentChanges.get(bucket.key)
-              const formattedCount = formatBucketValue(count)
-              const title = showPercentChange && change
-                ? `${bucket.label}: ${formattedCount} ${bucketValueLabel} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
-                : `${bucket.label}: ${formattedCount} ${bucketValueLabel}`
-              return (
-                <div
-                  key={bucket.key}
-                  className="flex-1 cursor-pointer transition-colors"
-                  style={{
-                    height: `${height}%`,
-                    backgroundColor: inWindow ? 'var(--color-primary)' : 'var(--color-muted-foreground)',
-                    opacity: inWindow ? 1 : 0.2,
-                    borderRadius: '1px 1px 0 0',
-                    minWidth: '2px',
-                  }}
-                  title={title}
-                  onClick={() => {
-                    onDateChange(bucket.start)
-                    setIsPlaying(false)
-                  }}
-                />
-              )
-            })}
+          <div
+            ref={barViewportRef}
+            className={cn(
+              'mb-1 hidden h-10 overflow-y-visible sm:block',
+              overflowBuckets ? 'overflow-x-hidden' : 'overflow-visible',
+            )}
+          >
+            <div
+              className="flex h-full items-end gap-px transition-transform duration-200 ease-out"
+              style={barStripStyle}
+            >
+              {buckets.map((bucket, i) => {
+                const count = bucketCounts.get(bucket.key) ?? 0
+                const height = Math.max(2, (count / maxCount) * 100)
+                const inWindow = isInWindow(i)
+                const change = percentChanges.get(bucket.key)
+                const formattedCount = formatBucketValue(count)
+                const title =
+                  showPercentChange && change
+                    ? `${bucket.label}: ${formattedCount} ${bucketValueLabel} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
+                    : `${bucket.label}: ${formattedCount} ${bucketValueLabel}`
+                return (
+                  <div
+                    key={bucket.key}
+                    className={cn('cursor-pointer transition-colors', overflowBuckets ? 'shrink-0' : 'flex-1')}
+                    style={{
+                      width: overflowBuckets ? `${bucketWidth}px` : undefined,
+                      height: `${height}%`,
+                      backgroundColor: inWindow ? 'var(--color-primary)' : 'var(--color-muted-foreground)',
+                      opacity: inWindow ? 1 : 0.2,
+                      borderRadius: '1px 1px 0 0',
+                      minWidth: '2px',
+                    }}
+                    title={title}
+                    onClick={() => {
+                      onDateChange(bucket.start)
+                      setIsPlaying(false)
+                    }}
+                  />
+                )
+              })}
+            </div>
           </div>
         ) : (
-          <div className="mb-1 flex h-5 items-end sm:h-4">
-            {visibleBuckets.map((bucket, i) => {
-              const inWindow = isInWindow(visibleOffset + i)
-              const isJanuary = bucket.start.getMonth() === 0
-              const isPeriodStart = granularity === 'week' ? bucket.start.getDate() <= 7 : isJanuary
-              const count = bucketCounts?.get(bucket.key) ?? 0
-              const change = percentChanges.get(bucket.key)
-              const formattedCount = formatBucketValue(count)
-              const title = bucketCounts
-                ? showPercentChange && change
-                  ? `${bucket.label}: ${formattedCount} ${bucketValueLabel} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
-                  : `${bucket.label}: ${formattedCount} ${bucketValueLabel}`
-                : undefined
-              return (
-                <div
-                  key={bucket.key}
-                  className="flex flex-1 cursor-pointer flex-col items-center"
-                  title={title}
-                  onClick={() => {
-                    onDateChange(bucket.start)
-                    setIsPlaying(false)
-                  }}
-                >
-                  {isPeriodStart && (
-                    <>
-                      <span className="text-[10px] leading-none text-muted-foreground sm:hidden">
-                        {granularity === 'week' ? MONTH_NAMES[bucket.start.getMonth()] : bucket.start.getFullYear()}
-                      </span>
-                      <span className="hidden text-[9px] text-muted-foreground sm:block">
-                        {granularity === 'week' ? bucket.shortLabel : bucket.start.getFullYear()}
-                      </span>
-                    </>
-                  )}
+          <div
+            ref={barViewportRef}
+            className={cn(
+              'mb-1 h-7 overflow-y-visible sm:h-6',
+              overflowBuckets ? 'overflow-x-hidden' : 'overflow-visible',
+            )}
+          >
+            <div className="flex h-full items-end transition-transform duration-200 ease-out" style={barStripStyle}>
+              {buckets.map((bucket, i) => {
+                const inWindow = isInWindow(i)
+                const isJanuary = bucket.start.getMonth() === 0
+                const isPeriodStart = granularity === 'week' ? bucket.start.getDate() <= 7 : isJanuary
+                const count = bucketCounts?.get(bucket.key) ?? 0
+                const change = percentChanges.get(bucket.key)
+                const formattedCount = formatBucketValue(count)
+                const title = bucketCounts
+                  ? showPercentChange && change
+                    ? `${bucket.label}: ${formattedCount} ${bucketValueLabel} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
+                    : `${bucket.label}: ${formattedCount} ${bucketValueLabel}`
+                  : undefined
+                return (
                   <div
-                    className={cn(
-                      'w-full transition-colors',
-                      inWindow
-                        ? 'h-3.5 bg-primary sm:h-3'
-                        : isPeriodStart
-                          ? 'h-2.5 bg-muted-foreground/30 sm:h-2'
-                          : 'h-1 bg-muted-foreground/15',
+                    key={bucket.key}
+                    className={cn('flex cursor-pointer flex-col items-center', overflowBuckets ? 'shrink-0' : 'flex-1')}
+                    style={{ width: overflowBuckets ? `${bucketWidth}px` : undefined }}
+                    title={title}
+                    onClick={() => {
+                      onDateChange(bucket.start)
+                      setIsPlaying(false)
+                    }}
+                  >
+                    {isPeriodStart && (
+                      <>
+                        <span className="text-[10px] leading-none text-muted-foreground sm:hidden">
+                          {granularity === 'week' ? MONTH_NAMES[bucket.start.getMonth()] : bucket.start.getFullYear()}
+                        </span>
+                        <span className="hidden text-[9px] text-muted-foreground sm:block">
+                          {granularity === 'week' ? bucket.shortLabel : bucket.start.getFullYear()}
+                        </span>
+                      </>
                     )}
-                    style={{ borderRadius: '1px 1px 0 0', minWidth: '2px' }}
-                  />
-                </div>
-              )
-            })}
+                    <div
+                      className={cn(
+                        'w-full transition-colors',
+                        inWindow
+                          ? 'h-3.5 bg-primary sm:h-3'
+                          : isPeriodStart
+                            ? 'h-2.5 bg-muted-foreground/30 sm:h-2'
+                            : 'h-1 bg-muted-foreground/15',
+                      )}
+                      style={{ borderRadius: '1px 1px 0 0', minWidth: '2px' }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
