@@ -347,7 +347,7 @@ export function Timeline({
 
   useLayoutEffect(() => {
     const timeline = timelineRef.current
-    const container = timeline?.parentElement
+    const container = timeline?.closest<HTMLElement>('[data-map-layout-root="true"]') ?? timeline?.parentElement
     if (!timeline || !container) return
 
     const syncTimelineHeight = () => {
@@ -381,7 +381,7 @@ export function Timeline({
       ref={timelineRef}
       data-map-timeline="true"
       className="absolute inset-x-2 z-20 sm:inset-x-3 md:inset-x-6"
-      style={{ bottom: 'calc(var(--map-mobile-sheet-visible-height, 0px) + 0.5rem)' } as CSSProperties}
+      style={{ bottom: 'calc(var(--map-mobile-sheet-visible-height, 0px) + var(--map-safe-bottom-offset, 0px) + 0.5rem)' } as CSSProperties}
     >
       <div className="rounded-lg border border-border/60 bg-background/95 p-2.5 shadow-xl backdrop-blur-sm sm:rounded-xl sm:p-3 md:p-4">
         <div className="mb-3 flex flex-col gap-2 sm:mb-3 sm:gap-2 lg:flex-row lg:items-center lg:gap-3">

@@ -12,6 +12,7 @@ import {
 import { ChevronDown, X } from 'lucide-react'
 import { DatasetInfo, type DatasetInfoRecord } from '@/components/DatasetInfo'
 import { cn } from '@/lib/utils'
+import { MAP_OVERLAY_Z } from './map-overlay'
 
 const overlayPositions = {
   'top-left': 'top-3 left-3',
@@ -32,7 +33,8 @@ export function MapOverlay({ position = 'top-left', className, children, ...prop
   return (
     <div
       className={cn(
-        'absolute z-10 rounded-md border border-border bg-background/90 shadow-sm backdrop-blur-sm',
+        'absolute rounded-md border border-border bg-background/90 shadow-sm backdrop-blur-sm',
+        MAP_OVERLAY_Z.controls,
         overlayPositions[position],
         className,
       )}
@@ -103,7 +105,8 @@ export function MapFloatingButton({
     <button
       type={type}
       className={cn(
-        'absolute z-10 flex size-9 cursor-pointer items-center justify-center rounded-lg shadow-lg backdrop-blur-sm transition-colors',
+        'absolute flex size-9 cursor-pointer items-center justify-center rounded-lg shadow-lg backdrop-blur-sm transition-colors',
+        MAP_OVERLAY_Z.controls,
         overlayPositions[position],
         active ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-background/95 hover:bg-accent',
         className,
@@ -840,10 +843,11 @@ export function MapLegendPanel({
     <div
       ref={panelRef}
       className={cn(
-        'absolute right-3 z-10 rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:rounded-xl md:p-4',
+        'absolute right-3 rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:rounded-xl md:p-4',
+        MAP_OVERLAY_Z.legend,
         elevated
-          ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,5.5rem)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,5.5rem)_+_1.5rem)]'
-          : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] md:bottom-6',
+          ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,0px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,0px)_+_1.5rem)]'
+          : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-6',
         width === 'sm' && 'w-[min(14rem,calc(100vw-2rem))] md:w-56',
         width === 'md' && 'w-[min(18rem,calc(100vw-2rem))] md:w-auto',
         width === 'lg' && 'w-[min(22rem,calc(100vw-2rem))] md:w-88',

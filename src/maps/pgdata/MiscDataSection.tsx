@@ -896,10 +896,10 @@ export default function MiscDataSection() {
           <div className="relative h-full">
             <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} styles={MAP_STYLES} loading={mapLoading}>
               <MapControls
-                position="bottom-right"
+                position="top-right"
+                mobilePosition="bottom-right"
                 showZoom
                 showCompass
-                className="z-20 md:top-2 md:bottom-auto"
               />
 
               <MapFillLayer

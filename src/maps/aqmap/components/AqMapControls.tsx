@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Crosshair, RotateCcw } from 'lucide-react'
 import { useMap } from '@/components/ui/map'
+import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { cn } from '@/lib/utils'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
@@ -112,10 +113,7 @@ export function FloatingLayerControl({
   locale: AqmapLocale
 }) {
   return (
-    <div
-      className="absolute z-10 w-56 rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur"
-      style={{ top: 12, right: 12 }}
-    >
+    <MapFloatingPanel position="top-right" className="w-56 rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur">
       <div className="font-semibold text-foreground">{translate('controls.basemaps', locale)}</div>
       <div className="mt-1 space-y-1">
         {(['light', 'dark'] as AqBasemap[]).map((option) => (
@@ -173,7 +171,7 @@ export function FloatingLayerControl({
           </div>
         ))}
       </div>
-    </div>
+    </MapFloatingPanel>
   )
 }
 
@@ -192,28 +190,22 @@ export function MapUtilityControls({ onReset, locale }: { onReset: () => void; l
   }
 
   return (
-    <div
-      className="absolute z-10 flex flex-col overflow-hidden rounded border border-border bg-background shadow-md"
-      style={{ top: 12, left: 12 }}
-    >
+    <MapFloatingPanel position="top-left" className="flex flex-col overflow-hidden rounded border border-border bg-background shadow-md">
       <button type="button" title={translate('controls.zoomToLocation', locale)} onClick={locate} className="p-2 hover:bg-secondary">
         <Crosshair className="size-4" />
       </button>
       <button type="button" title={translate('controls.resetView', locale)} onClick={onReset} className="border-t border-border p-2 hover:bg-secondary">
         <RotateCcw className="size-4" />
       </button>
-    </div>
+    </MapFloatingPanel>
   )
 }
 
 export function MapTimestamp({ latestDate, locale }: { latestDate: string | null | undefined; locale: AqmapLocale }) {
   return (
-    <div
-      className="absolute z-10 rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md"
-      style={{ bottom: 12, left: 12 }}
-    >
+    <MapFloatingPanel position="bottom-left" className="rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md">
       {translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}
-    </div>
+    </MapFloatingPanel>
   )
 }
 
@@ -255,12 +247,9 @@ export function ScaleBar() {
   }, [map])
 
   return (
-    <div
-      className="absolute z-10 rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md"
-      style={{ bottom: 12, right: 220 }}
-    >
+    <MapFloatingPanel position="bottom-right" className="rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md md:mr-52">
       <div className="h-1 border-x border-b border-foreground" style={{ width: scale.width }} />
       <div className="mt-0.5 text-center">{scale.label}</div>
-    </div>
+    </MapFloatingPanel>
   )
 }

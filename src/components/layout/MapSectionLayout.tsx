@@ -16,6 +16,7 @@ import {
   MOBILE_MAP_SHEET_COLLAPSE_EVENT,
   MOBILE_MAP_SHEET_STACK_EVENT,
 } from '@/components/ui/mobile-feature-card'
+import { MAP_OVERLAY_ROOT_STYLE } from '@/components/ui/map-overlay'
 
 type MobileSheetState = 'collapsed' | 'half' | 'full'
 
@@ -580,7 +581,14 @@ export function MapSectionLayout({
   ) : mobilePeek
 
   return (
-    <div ref={rootRef} data-map-layout-root="true" className={cn('relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
+    <div
+      ref={rootRef}
+      data-map-layout-root="true"
+      className={cn('relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950', className)}
+      style={{
+        ...MAP_OVERLAY_ROOT_STYLE,
+      } as CSSProperties}
+    >
       {/* Sidebar wrapper */}
       <div
         className={cn(

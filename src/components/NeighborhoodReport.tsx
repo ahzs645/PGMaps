@@ -142,7 +142,7 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
   }, [lat, lng])
 
   return (
-    <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+0.75rem)] left-4 z-30 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-background/95 shadow-2xl backdrop-blur md:bottom-6 md:left-auto md:right-72 md:w-80">
+    <div className="absolute bottom-[calc(var(--map-mobile-sheet-visible-height,72px)+var(--map-legend-panel-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] left-4 z-30 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-background/95 shadow-2xl backdrop-blur md:bottom-6 md:left-auto md:right-72 md:w-80">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <MapPin className="h-4 w-4 text-primary" />

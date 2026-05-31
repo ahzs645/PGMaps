@@ -1,4 +1,5 @@
 import { MapImageLegend, MapSteppedLegend } from '@/components/ui/map-panels'
+import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { cn } from '@/lib/utils'
 import {
   localizeSmokeDensity,
@@ -29,10 +30,7 @@ export function FloatingLegends({
   if (visibleWms.length === 0 && visibleSmoke.length === 0 && !windVisible) return null
 
   return (
-    <div
-      className="absolute z-10 max-w-[260px] space-y-2"
-      style={{ bottom: 40, left: 12 }}
-    >
+    <MapFloatingPanel position="bottom-left" className="mb-7 max-w-[260px] space-y-2">
       {windVisible && <WindLegend locale={locale} />}
       {visibleWms.map((layer) => (
         <WmsLegend
@@ -46,7 +44,7 @@ export function FloatingLegends({
       {visibleSmoke.map((layer) => (
         <SmokeLegend key={layer.key} layer={layer} locale={locale} />
       ))}
-    </div>
+    </MapFloatingPanel>
   )
 }
 

@@ -21,6 +21,7 @@ import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { MAP_STYLES } from "./map-styles";
+import { MAP_OVERLAY_Z } from "./map-overlay";
 import { MOBILE_MAP_BLANK_CLICK_EVENT, MOBILE_MAP_INTERACTION_EVENT } from "./mobile-feature-card";
 
 type MapContextValue = {
@@ -692,6 +693,8 @@ function MarkerLabel({
 type MapControlsProps = {
   /** Position of the controls on the map (default: "bottom-right") */
   position?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  /** Optional mobile-only position. Desktop keeps `position`. */
+  mobilePosition?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
   /** Show zoom in/out buttons (default: true) */
   showZoom?: boolean;
   /** Show compass button to reset bearing (default: false) */
@@ -713,9 +716,16 @@ const positionClasses = {
   "bottom-right": "bottom-10 right-2",
 };
 
+const desktopPositionClasses = {
+  "top-left": "md:top-2 md:bottom-auto md:left-2 md:right-auto",
+  "top-right": "md:top-2 md:bottom-auto md:right-2 md:left-auto",
+  "bottom-left": "md:bottom-2 md:top-auto md:left-2 md:right-auto",
+  "bottom-right": "md:bottom-10 md:top-auto md:right-2 md:left-auto",
+};
+
 const mobilePanelAwarePositionClasses = {
-  "bottom-left": "max-md:bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-legend-panel-visible-height,0px)+0.75rem)]",
-  "bottom-right": "max-md:bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-legend-panel-visible-height,0px)+0.75rem)]",
+  "bottom-left": "max-md:bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-legend-panel-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+2.5rem)]",
+  "bottom-right": "max-md:bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-legend-panel-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+2.5rem)]",
 };
 
 function ControlGroup({ children }: { children: React.ReactNode }) {
@@ -755,6 +765,7 @@ function ControlButton({
 
 function MapControls({
   position = "bottom-right",
+  mobilePosition,
   showZoom = true,
   showCompass = false,
   showLocate = false,
@@ -816,10 +827,12 @@ function MapControls({
   return (
     <div
       className={cn(
-        "absolute z-10 flex flex-col gap-1.5",
-        positionClasses[position],
-        position in mobilePanelAwarePositionClasses
-          ? mobilePanelAwarePositionClasses[position as keyof typeof mobilePanelAwarePositionClasses]
+        "absolute flex flex-col gap-1.5",
+        MAP_OVERLAY_Z.controls,
+        positionClasses[mobilePosition ?? position],
+        mobilePosition ? desktopPositionClasses[position] : null,
+        (mobilePosition ?? position) in mobilePanelAwarePositionClasses
+          ? mobilePanelAwarePositionClasses[(mobilePosition ?? position) as keyof typeof mobilePanelAwarePositionClasses]
           : null,
         className
       )}

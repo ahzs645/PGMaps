@@ -19,6 +19,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from "./map-styles";
 import { MapContext, MapControls } from "./map";
+import { MapOverlayRoot } from "./map-overlays";
 import { MOBILE_MAP_BLANK_CLICK_EVENT, MOBILE_MAP_INTERACTION_EVENT } from "./mobile-feature-card";
 
 type MapStyleOption = string | MapLibreGL.StyleSpecification;
@@ -348,19 +349,19 @@ export function SharedMap({
   useMapBasemap(styles ?? MAP_STYLES);
 
   return (
-    <div className={cn("relative h-full w-full", className)}>
+    <MapOverlayRoot className={className}>
       <PersistentMapHost loading={loading} loadingLabel={loadingLabel} />
       {controls === undefined ? (
         <MapControls
           position="top-right"
+          mobilePosition="bottom-right"
           showZoom
           showCompass
-          className="top-auto bottom-16 md:top-2 md:bottom-auto"
         />
       ) : (
         controls
       )}
       {children}
-    </div>
+    </MapOverlayRoot>
   );
 }

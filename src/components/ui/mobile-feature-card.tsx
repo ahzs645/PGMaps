@@ -1,6 +1,7 @@
 import { ChevronDown, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { MAP_OVERLAY_Z } from './map-overlay'
 
 export const MOBILE_FEATURE_CARD_MEDIA_QUERY = '(max-width: 767px)'
 export const MOBILE_FEATURE_CARD_HEIGHT = 360
@@ -210,7 +211,7 @@ export function MobileFeatureCard({
 
   return (
     <div
-      className={cn('pointer-events-none fixed inset-0 md:hidden', controlsInFront ? 'z-20' : 'z-50')}
+      className={cn('pointer-events-none fixed inset-0 md:hidden', controlsInFront ? MAP_OVERLAY_Z.passiveOverlay : MAP_OVERLAY_Z.activeOverlay)}
       aria-label="Selected feature"
     >
       <div
