@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
+import { AppSelect } from '@/components/ui/select'
 import { YEAR_FILTER_DOMAIN, yearHistogramBins } from './data'
 import type { YearRange } from './types'
 
@@ -23,6 +24,7 @@ export function YearFilterWidget({
 
   const setStart = (year: number) => onChange([Math.min(year, value[1]), value[1]])
   const setEnd = (year: number) => onChange([value[0], Math.max(year, value[0])])
+  const yearOptions = years().map((year) => ({ value: String(year), label: year }))
   const updateRangeFromPointer = (clientX: number, anchorYear: number) => {
     const year = clientXToYear(clientX, svgRef.current, minYear, maxYear)
     if (year === null) return
@@ -142,27 +144,23 @@ export function YearFilterWidget({
       <div className="mt-2 grid grid-cols-2 gap-2">
         <label className="grid gap-1 text-[11px] font-medium text-muted-foreground">
           From
-          <select
-            value={value[0]}
-            onChange={(event) => setStart(Number(event.target.value))}
-            className="h-8 rounded-md border border-border bg-background/80 px-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring"
-          >
-            {years().map((year) => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
+          <AppSelect
+            value={String(value[0])}
+            onValueChange={(nextValue) => setStart(Number(nextValue))}
+            options={yearOptions}
+            triggerClassName="h-8 border-border bg-background/80 px-2 text-sm text-foreground"
+            triggerAriaLabel="From year"
+          />
         </label>
         <label className="grid gap-1 text-[11px] font-medium text-muted-foreground">
           To
-          <select
-            value={value[1]}
-            onChange={(event) => setEnd(Number(event.target.value))}
-            className="h-8 rounded-md border border-border bg-background/80 px-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring"
-          >
-            {years().map((year) => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
+          <AppSelect
+            value={String(value[1])}
+            onValueChange={(nextValue) => setEnd(Number(nextValue))}
+            options={yearOptions}
+            triggerClassName="h-8 border-border bg-background/80 px-2 text-sm text-foreground"
+            triggerAriaLabel="To year"
+          />
         </label>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Layers, Plus, Trash2 } from 'lucide-react'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
@@ -229,6 +230,13 @@ function parseFilterScalar(value: string): string | number | boolean {
   return value !== '' && Number.isFinite(numeric) ? numeric : value
 }
 
+const metricSelectTriggerClass = 'h-8 border-input bg-background px-2 py-1.5 text-xs text-foreground'
+const filterOperatorOptions = [
+  { value: 'equals', label: '=' },
+  { value: 'in', label: 'in' },
+  { value: 'exists', label: 'exists' },
+]
+
 export function CustomMetricBuilder({
   recipes,
   datasetProfiles,
@@ -271,10 +279,10 @@ export function CustomMetricBuilder({
           className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
           placeholder="Metric label"
         />
-        <select
+        <AppSelect
           value={source}
-          onChange={(event) => {
-            const next = event.target.value as MetricRecipeSource
+          onValueChange={(nextValue) => {
+            const next = nextValue as MetricRecipeSource
             setSource(next)
             if (next === 'custom') setOperation('derivedExpression')
             if (next === 'census') {
@@ -284,14 +292,10 @@ export function CustomMetricBuilder({
               setLabel(selectedCensusPreset?.label ?? 'Census demographic metric')
             }
           }}
-          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-        >
-          {SCORE_BUILDER_DATASETS.map((entry) => (
-            <option key={entry.id} value={entry.id}>
-              {entry.label}
-            </option>
-          ))}
-        </select>
+          options={SCORE_BUILDER_DATASETS.map((entry) => ({ value: entry.id, label: entry.label }))}
+          triggerClassName={metricSelectTriggerClass}
+          triggerAriaLabel="Metric data source"
+        />
         <div className="text-[10px] text-muted-foreground">{dataset?.description}</div>
 
         {profile && source !== 'custom' && (
@@ -308,42 +312,40 @@ export function CustomMetricBuilder({
 
         {selectedIsCensus ? (
           <>
-            <select
+            <AppSelect
               value={censusPresetId}
-              onChange={(event) => {
-                const preset = CENSUS_COMPOSER_PRESETS.find((entry) => entry.id === event.target.value)
-                setCensusPresetId(event.target.value)
+              onValueChange={(nextValue) => {
+                const preset = CENSUS_COMPOSER_PRESETS.find((entry) => entry.id === nextValue)
+                setCensusPresetId(nextValue)
                 if (preset) {
                   setLabel(preset.label)
                   setDirection(preset.direction)
                   setFormat(preset.format)
                 }
               }}
-              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-            >
-              {CENSUS_COMPOSER_PRESETS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
+              options={CENSUS_COMPOSER_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
+              triggerClassName={metricSelectTriggerClass}
+              triggerAriaLabel="Census preset"
+            />
             <div className="rounded border border-border bg-muted/30 p-2 text-[10px] text-muted-foreground">
               {selectedCensusPreset?.description}
             </div>
           </>
         ) : !selectedIsFormula ? (
           <>
-            <select
+            <AppSelect
               value={operation}
-              onChange={(event) => setOperation(event.target.value as MetricRecipeOperation)}
-              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-            >
-              <option value="pointCountInPolygon">Count inside boundary</option>
-              <option value="pointDensityInPolygon">Density inside boundary</option>
-              <option value="countWithinCentroidRadius">Count within centroid radius</option>
-              <option value="accessWithinCentroidRadius">Access within centroid radius</option>
-              <option value="averagePropertyInPolygon">Average property inside boundary</option>
-            </select>
+              onValueChange={(nextValue) => setOperation(nextValue as MetricRecipeOperation)}
+              options={[
+                { value: 'pointCountInPolygon', label: 'Count inside boundary' },
+                { value: 'pointDensityInPolygon', label: 'Density inside boundary' },
+                { value: 'countWithinCentroidRadius', label: 'Count within centroid radius' },
+                { value: 'accessWithinCentroidRadius', label: 'Access within centroid radius' },
+                { value: 'averagePropertyInPolygon', label: 'Average property inside boundary' },
+              ]}
+              triggerClassName={metricSelectTriggerClass}
+              triggerAriaLabel="Metric operation"
+            />
             {(operation === 'countWithinCentroidRadius' || operation === 'accessWithinCentroidRadius') && (
               <input
                 type="number"
@@ -362,15 +364,13 @@ export function CustomMetricBuilder({
                 className="min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
                 placeholder="field"
               />
-              <select
+              <AppSelect
                 value={filterOperator}
-                onChange={(event) => setFilterOperator(event.target.value as typeof filterOperator)}
-                className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-              >
-                <option value="equals">=</option>
-                <option value="in">in</option>
-                <option value="exists">exists</option>
-              </select>
+                onValueChange={(nextValue) => setFilterOperator(nextValue as typeof filterOperator)}
+                options={filterOperatorOptions}
+                triggerClassName={metricSelectTriggerClass}
+                triggerAriaLabel="Filter operator"
+              />
               <input
                 value={filterValue}
                 onChange={(event) => setFilterValue(event.target.value)}
@@ -393,21 +393,19 @@ export function CustomMetricBuilder({
                   className="min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
                   placeholder="field"
                 />
-                <select
+                <AppSelect
                   value={filter.operator}
-                  onChange={(event) =>
+                  onValueChange={(nextValue) =>
                     setExtraFilters((current) =>
                       current.map((entry, entryIndex) =>
-                        entryIndex === index ? { ...entry, operator: event.target.value as typeof filter.operator } : entry,
+                        entryIndex === index ? { ...entry, operator: nextValue as typeof filter.operator } : entry,
                       ),
                     )
                   }
-                  className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-                >
-                  <option value="equals">=</option>
-                  <option value="in">in</option>
-                  <option value="exists">exists</option>
-                </select>
+                  options={filterOperatorOptions}
+                  triggerClassName={metricSelectTriggerClass}
+                  triggerAriaLabel="Extra filter operator"
+                />
                 <input
                   value={filter.value}
                   onChange={(event) =>
@@ -448,25 +446,29 @@ export function CustomMetricBuilder({
         )}
 
         <div className="grid grid-cols-2 gap-1">
-          <select
+          <AppSelect
             value={direction}
-            onChange={(event) => setDirection(event.target.value as typeof direction)}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-          >
-            <option value="higherIsBetter">Higher helps</option>
-            <option value="higherIsWorse">Higher hurts</option>
-          </select>
-          <select
+            onValueChange={(nextValue) => setDirection(nextValue as typeof direction)}
+            options={[
+              { value: 'higherIsBetter', label: 'Higher helps' },
+              { value: 'higherIsWorse', label: 'Higher hurts' },
+            ]}
+            triggerClassName={metricSelectTriggerClass}
+            triggerAriaLabel="Metric direction"
+          />
+          <AppSelect
             value={format}
-            onChange={(event) => setFormat(event.target.value as typeof format)}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
-          >
-            <option value="count">Count</option>
-            <option value="density">Density</option>
-            <option value="ratio">Ratio</option>
-            <option value="percent">Percent</option>
-            <option value="index">Index</option>
-          </select>
+            onValueChange={(nextValue) => setFormat(nextValue as typeof format)}
+            options={[
+              { value: 'count', label: 'Count' },
+              { value: 'density', label: 'Density' },
+              { value: 'ratio', label: 'Ratio' },
+              { value: 'percent', label: 'Percent' },
+              { value: 'index', label: 'Index' },
+            ]}
+            triggerClassName={metricSelectTriggerClass}
+            triggerAriaLabel="Metric format"
+          />
         </div>
         <button
           type="button"

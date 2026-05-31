@@ -161,6 +161,7 @@ type AppSelectProps = {
   className?: string
   triggerClassName?: string
   contentClassName?: string
+  triggerAriaLabel?: string
   id?: string
   disabled?: boolean
 }
@@ -175,6 +176,7 @@ function AppSelect({
   className,
   triggerClassName,
   contentClassName,
+  triggerAriaLabel,
   id,
   disabled,
   ...props
@@ -191,7 +193,7 @@ function AppSelect({
         onValueChange={(nextValue) => onValueChange(nextValue === EMPTY_SELECT_VALUE ? '' : nextValue)}
         disabled={disabled}
       >
-        <SelectTrigger id={id} className={triggerClassName}>
+        <SelectTrigger id={id} className={triggerClassName} aria-label={triggerAriaLabel}>
           <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent className={contentClassName}>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react'
 import { ChevronLeft, ChevronRight, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react'
+import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { calculatePercentageChange, formatPercentChange, type PercentageChangeResult } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
@@ -371,8 +372,9 @@ export function Timeline({
   const shouldUseCompactBars = compactBars || granularity === 'week'
   const controlButtonClass =
     'flex size-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:size-8'
-  const selectClass =
-    'h-10 rounded-md border border-input bg-background px-3 text-base font-semibold text-foreground shadow-sm outline-none focus:ring-1 focus:ring-ring sm:hidden'
+  const selectClass = 'sm:hidden'
+  const selectTriggerClass =
+    'h-10 border-input bg-background px-3 text-base font-semibold text-foreground shadow-sm'
 
   return (
     <div
@@ -456,18 +458,14 @@ export function Timeline({
           <div className="flex min-w-0 items-center gap-1.5 sm:flex-wrap sm:gap-2 lg:ml-auto lg:justify-end">
             {windowMode && (
               <>
-                <select
-                  value={windowMode.size}
-                  onChange={(event) => windowMode.onSizeChange(Number(event.target.value))}
+                <AppSelect
+                  value={String(windowMode.size)}
+                  onValueChange={(nextValue) => windowMode.onSizeChange(Number(nextValue))}
+                  options={windowOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
                   className={cn(selectClass, 'min-w-0 flex-1')}
-                  aria-label="Timeline range"
-                >
-                  {windowOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  triggerClassName={selectTriggerClass}
+                  triggerAriaLabel="Timeline range"
+                />
                 <div className="hidden min-w-0 flex-1 grid-cols-4 gap-0.5 rounded-md border border-input p-0.5 sm:flex sm:flex-none sm:items-center sm:gap-1">
                   {windowOptions.map((opt) => (
                     <button
@@ -487,18 +485,14 @@ export function Timeline({
               </>
             )}
 
-            <select
-              value={speed}
-              onChange={(event) => setSpeed(Number(event.target.value))}
+            <AppSelect
+              value={String(speed)}
+              onValueChange={(nextValue) => setSpeed(Number(nextValue))}
+              options={SPEED_OPTIONS.map((opt) => ({ value: String(opt.value), label: opt.label }))}
               className={selectClass}
-              aria-label="Timeline speed"
-            >
-              {SPEED_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              triggerClassName={selectTriggerClass}
+              triggerAriaLabel="Timeline speed"
+            />
 
             <div className="hidden items-center gap-0.5 rounded-md border border-input p-0.5 sm:flex sm:gap-1">
               {SPEED_OPTIONS.map((opt) => (
