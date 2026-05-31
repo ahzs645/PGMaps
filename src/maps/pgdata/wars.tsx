@@ -385,6 +385,7 @@ export function WarsSidebar({ wars }: { wars: WarsState }) {
                 ...(manifest?.species ?? []).slice(0, 40).map((species) => ({
                   value: species.name,
                   label: `${species.name} (${species.count.toLocaleString()})`,
+                  selectedLabel: species.name,
                 })),
               ]}
               className="mt-1"

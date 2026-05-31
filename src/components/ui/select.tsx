@@ -148,6 +148,7 @@ SelectSeparator.displayName = SelectPrimitive.Separator.displayName
 type SelectOption = {
   value: string
   label: React.ReactNode
+  selectedLabel?: React.ReactNode
   disabled?: boolean
   title?: string
 }
@@ -180,6 +181,8 @@ function AppSelect({
 }: AppSelectProps & React.HTMLAttributes<HTMLDivElement>) {
   const hasEmptyOption = options.some((option) => option.value === '')
   const radixValue = hasEmptyOption && value === '' ? EMPTY_SELECT_VALUE : value
+  const selectedOption = options.find((option) => option.value === value)
+  const selectedLabel = selectedOption?.selectedLabel ?? selectedOption?.label
 
   return (
     <div className={className} {...props}>
@@ -189,7 +192,7 @@ function AppSelect({
         disabled={disabled}
       >
         <SelectTrigger id={id} className={triggerClassName}>
-          <SelectValue placeholder={placeholder} />
+          <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent className={contentClassName}>
           {options.map((option) => (
