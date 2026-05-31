@@ -44,6 +44,28 @@ function getRiskCategoryClass(category: string): string {
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 
+function formatRate(value: number): string {
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: value >= 10 ? 0 : 1,
+    minimumFractionDigits: value > 0 && value < 10 ? 1 : 0
+  })
+}
+
+interface ViolationDetailMismatch {
+  missingDetails: number
+  extraDetails: number
+}
+
+function getInspectionViolationDetailMismatch(inspection: Inspection): ViolationDetailMismatch {
+  const healthSpaceCount = (inspection.critical_violations_count || 0) + (inspection.non_critical_violations_count || 0)
+  const detailedCount = inspection.violations?.length || 0
+
+  return {
+    missingDetails: Math.max(0, healthSpaceCount - detailedCount),
+    extraDetails: Math.max(0, detailedCount - healthSpaceCount)
+  }
+}
+
 export function InspectionPanel({ restaurant, periodLabel, useFilteredInspections = false, onClose }: InspectionPanelProps) {
   const inspections = useMemo(() => {
     const source = useFilteredInspections ? restaurant.filteredInspections : restaurant.inspections
@@ -60,6 +82,16 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
     return inspections.reduce((sum, insp) => {
       return sum + (insp.critical_violations_count || 0)
     }, 0)
+  }, [inspections])
+
+  const criticalPerInspection = inspections.length > 0 ? totalCritical / inspections.length : 0
+
+  const missingViolationDetails = useMemo(() => {
+    return inspections.reduce((sum, inspection) => sum + getInspectionViolationDetailMismatch(inspection).missingDetails, 0)
+  }, [inspections])
+
+  const extraViolationDetails = useMemo(() => {
+    return inspections.reduce((sum, inspection) => sum + getInspectionViolationDetailMismatch(inspection).extraDetails, 0)
   }, [inspections])
 
   const riskSummary = useMemo(() => {
@@ -81,7 +113,7 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={(event) => event.target === event.currentTarget && onClose()}
     >
       <div className="flex h-[96dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[92dvh] sm:rounded-2xl">
@@ -111,41 +143,71 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
           </div>
 
           {/* Summary stats */}
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-4 sm:gap-3">
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 sm:px-3">
-              <div className="text-xl font-bold text-foreground sm:text-2xl">{inspections.length}</div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Inspections</div>
+          <div className="mt-3 grid grid-cols-4 gap-1.5 sm:mt-4 sm:gap-3">
+            <div className="rounded-lg border border-border bg-muted/40 px-2 py-2 sm:px-3">
+              <div className="text-lg font-bold text-foreground sm:text-2xl">{inspections.length}</div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+                <span className="sm:hidden">Insp.</span>
+                <span className="hidden sm:inline">Inspections</span>
+              </div>
             </div>
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 sm:px-3">
-              <div className="text-xl font-bold text-foreground sm:text-2xl">{totalViolations}</div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Violations</div>
+            <div className="rounded-lg border border-border bg-muted/40 px-2 py-2 sm:px-3">
+              <div className="text-lg font-bold text-foreground sm:text-2xl">{totalViolations}</div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+                <span className="sm:hidden">Total</span>
+                <span className="hidden sm:inline">Total Violations</span>
+              </div>
             </div>
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 sm:px-3">
-              <div className="text-xl font-bold text-red-600 dark:text-red-400 sm:text-2xl">{totalCritical}</div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">HealthSpace Critical</div>
+            <div className="rounded-lg border border-border bg-muted/40 px-2 py-2 sm:px-3">
+              <div className="text-lg font-bold text-red-600 dark:text-red-400 sm:text-2xl">{totalCritical}</div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+                <span className="sm:hidden">HS Critical</span>
+                <span className="hidden sm:inline">HealthSpace Critical</span>
+              </div>
             </div>
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 sm:px-3">
-              <div className={cn('inline-flex rounded-full px-2.5 py-1 text-sm font-medium', getHazardColor(currentRating))}>
+            <div className="rounded-lg border border-border bg-muted/40 px-2 py-2 sm:px-3">
+              <div className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium sm:px-2.5 sm:py-1 sm:text-sm', getHazardColor(currentRating))}>
                 {currentRating || 'Unknown'}
               </div>
-              <div className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">Current Rating</div>
+              <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+                <span className="sm:hidden">Rating</span>
+                <span className="hidden sm:inline">Current Rating</span>
+              </div>
             </div>
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span>
+              <span className="font-semibold text-foreground">{formatRate(criticalPerInspection)}</span> HealthSpace critical per inspection
+            </span>
+            {missingViolationDetails > 0 && (
+              <span>
+                Detailed violation text unavailable for <span className="font-semibold text-foreground">{missingViolationDetails}</span>{' '}
+                {missingViolationDetails === 1 ? 'finding' : 'findings'}
+              </span>
+            )}
+            {extraViolationDetails > 0 && (
+              <span>
+                Detailed rows include <span className="font-semibold text-foreground">{extraViolationDetails}</span>{' '}
+                {extraViolationDetails === 1 ? 'finding' : 'findings'} outside HealthSpace critical/non-critical totals
+              </span>
+            )}
           </div>
 
           <div className="mt-3 text-xs font-medium text-muted-foreground">
             App risk bands from report text
           </div>
           <div className="mt-2 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
-            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Severe'))}>
+            <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Severe'))}>
               Severe: {riskSummary.severe}
             </span>
-            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Elevated'))}>
+            <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Elevated'))}>
               Elevated: {riskSummary.elevated}
             </span>
-            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Moderate'))}>
+            <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Moderate'))}>
               Moderate: {riskSummary.moderate}
             </span>
-            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Administrative'))}>
+            <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Administrative'))}>
               Administrative: {riskSummary.administrative}
             </span>
           </div>
@@ -180,7 +242,8 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent sm:px-4"
               >
-                HealthSpace
+                <span className="sm:hidden">HealthSpace</span>
+                <span className="hidden sm:inline">View on HealthSpace</span>
               </a>
               <button
                 onClick={onClose}
@@ -200,6 +263,7 @@ function InspectionItem({ inspection }: { inspection: Inspection }) {
   const inspectionType = inspection.inspection_type || inspection.type || 'Inspection'
   const inspectionDate = inspection.inspection_date || inspection.date || 'Date unavailable'
   const violationCount = inspection.violations?.length || 0
+  const { missingDetails, extraDetails } = getInspectionViolationDetailMismatch(inspection)
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:rounded-xl">
@@ -240,6 +304,18 @@ function InspectionItem({ inspection }: { inspection: Inspection }) {
           {' '}total violations
         </span>
       </div>
+
+      {(missingDetails > 0 || extraDetails > 0) && (
+        <div className="border-b border-border bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 sm:px-4">
+          {missingDetails > 0
+            ? `Detailed violation text unavailable for ${missingDetails} ${
+                missingDetails === 1 ? 'HealthSpace finding' : 'HealthSpace findings'
+              } in this inspection.`
+            : `Detailed rows include ${extraDetails} ${
+                extraDetails === 1 ? 'finding' : 'findings'
+              } outside the HealthSpace critical/non-critical totals for this inspection.`}
+        </div>
+      )}
 
       {/* Violations list */}
       {violationCount > 0 ? (

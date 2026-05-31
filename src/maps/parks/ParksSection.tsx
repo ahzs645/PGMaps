@@ -44,11 +44,20 @@ export default function ParksSection() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [selectedPark, setSelectedPark] = useState<Park | null>(null)
   const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null)
+  const [mobileFeatureSheetOpen, setMobileFeatureSheetOpen] = useState(false)
   const [selectionFocusKey, setSelectionFocusKey] = useState(0)
   const [showSidebar, setShowSidebar] = useState(true)
   const ignoreUrlSelectionRef = useRef(false)
 
   useEffect(() => {
+    const parkParam = searchParams.get('park')
+    const trailParam = searchParams.get('trail')
+    const urlSelectionPending = !ignoreUrlSelectionRef.current && (
+      (parkParam && !selectedPark && (parks.length === 0 || parks.some((item) => String(item.id) === parkParam))) ||
+      (trailParam && !selectedTrail && (trails.length === 0 || trails.some((item) => String(item.id) === trailParam)))
+    )
+    if (urlSelectionPending) return
+
     const params = new URLSearchParams(searchParams)
     if (activeLayers.join(',') !== 'parks,trails') params.set('layers', activeLayers.join(','))
     else params.delete('layers')
@@ -61,7 +70,7 @@ export default function ParksSection() {
     if (params.toString() !== searchParams.toString()) {
       setSearchParams(params, { replace: true })
     }
-  }, [activeLayers, searchParams, searchQuery, selectedPark, selectedTrail, setSearchParams])
+  }, [activeLayers, parks, searchParams, searchQuery, selectedPark, selectedTrail, setSearchParams, trails])
 
   // Initialize filters with all available classifications/types
   useEffect(() => {
@@ -158,6 +167,7 @@ export default function ParksSection() {
     ignoreUrlSelectionRef.current = false
     setSelectedPark(park)
     setSelectedTrail(null)
+    setMobileFeatureSheetOpen(true)
     setSelectionFocusKey((key) => key + 1)
   }, [])
 
@@ -165,6 +175,7 @@ export default function ParksSection() {
     ignoreUrlSelectionRef.current = false
     setSelectedTrail(trail)
     setSelectedPark(null)
+    setMobileFeatureSheetOpen(true)
     setSelectionFocusKey((key) => key + 1)
   }, [])
 
@@ -172,6 +183,7 @@ export default function ParksSection() {
     ignoreUrlSelectionRef.current = true
     setSelectedPark(null)
     setSelectedTrail(null)
+    setMobileFeatureSheetOpen(false)
     const params = new URLSearchParams(searchParams)
     params.delete('park')
     params.delete('trail')
@@ -282,11 +294,11 @@ export default function ParksSection() {
           onTrailClick={handleTrailClick}
         />
 
-        {isMobileViewport && selectedPark && (
+        {isMobileViewport && mobileFeatureSheetOpen && selectedPark && (
           <MobileParkFeatureCard park={selectedPark} onClose={handleClearSelection} />
         )}
 
-        {isMobileViewport && selectedTrail && (
+        {isMobileViewport && mobileFeatureSheetOpen && selectedTrail && (
           <MobileTrailFeatureCard trail={selectedTrail} onClose={handleClearSelection} />
         )}
 
