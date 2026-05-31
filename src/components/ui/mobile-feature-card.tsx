@@ -70,7 +70,7 @@ export function MobileFeatureCard({
   useEffect(() => {
     const sendBehind = () => {
       setCollapsed(false)
-      setExpanded(true)
+      setExpanded(false)
       setControlsInFront(true)
     }
     const bringFront = () => {
@@ -171,7 +171,7 @@ export function MobileFeatureCard({
 
   const dockBehindControls = useCallback(() => {
     setCollapsed(false)
-    setExpanded(true)
+    setExpanded(false)
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_DOCK_EVENT))
   }, [])
 
@@ -204,13 +204,13 @@ export function MobileFeatureCard({
           className={cn(
             'pointer-events-auto col-start-1 row-start-1 flex self-end flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[height,transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
             controlsInFront && 'pointer-events-none -translate-y-1.5 shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
-            controlsInFront && !collapsed && 'h-full',
+            controlsInFront && !collapsed && expanded && 'h-full',
             !controlsInFront && (collapsed ? 'translate-y-0' : expanded ? 'h-full translate-y-2' : 'translate-y-2'),
             className,
           )}
           style={collapsed || controlsInFront || !expanded ? {
             alignSelf: 'end',
-            height: collapsed ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT : controlsInFront ? undefined : `min(${initialVisibleHeight}px, 100%)`,
+            height: collapsed ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT : expanded ? undefined : `min(${initialVisibleHeight}px, 100%)`,
           } : undefined}
         >
           <div

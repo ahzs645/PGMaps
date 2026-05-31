@@ -84,13 +84,13 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={(event) => event.target === event.currentTarget && onClose()}
     >
-      <div className="flex h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[92dvh] sm:rounded-2xl">
+      <div className="flex h-[96dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[92dvh] sm:rounded-2xl">
         {/* Header */}
-        <div className="shrink-0 border-b border-border bg-background/90 p-4 sm:p-6">
+        <div className="shrink-0 border-b border-border bg-background/90 p-3 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="max-h-12 overflow-hidden text-lg font-bold leading-tight text-foreground sm:truncate sm:text-xl">{restaurant.name}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <h2 className="text-lg font-bold leading-tight text-foreground sm:truncate sm:text-xl">{restaurant.name}</h2>
+              <p className="mt-1 text-sm leading-snug text-muted-foreground">
                 {restaurant.full_address || restaurant.address}
               </p>
               {useFilteredInspections && periodLabel && (
@@ -111,20 +111,20 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
           </div>
 
           {/* Summary stats */}
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-4 sm:gap-3">
+            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 sm:px-3">
               <div className="text-xl font-bold text-foreground sm:text-2xl">{inspections.length}</div>
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Inspections</div>
             </div>
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 sm:px-3">
               <div className="text-xl font-bold text-foreground sm:text-2xl">{totalViolations}</div>
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Violations</div>
             </div>
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 sm:px-3">
               <div className="text-xl font-bold text-red-600 dark:text-red-400 sm:text-2xl">{totalCritical}</div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Critical</div>
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">HealthSpace Critical</div>
             </div>
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 sm:px-3">
               <div className={cn('inline-flex rounded-full px-2.5 py-1 text-sm font-medium', getHazardColor(currentRating))}>
                 {currentRating || 'Unknown'}
               </div>
@@ -132,7 +132,10 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 text-xs font-medium text-muted-foreground">
+            App risk bands from report text
+          </div>
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
             <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Severe'))}>
               Severe: {riskSummary.severe}
             </span>
@@ -149,14 +152,14 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
         </div>
 
         {/* Inspection list */}
-        <div className="flex-1 overflow-y-auto overscroll-contain bg-muted/20 p-3 sm:p-6">
+        <div className="flex-1 overflow-y-auto overscroll-contain bg-muted/20 p-2 sm:p-6">
           {inspections.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               No inspection records available
               {useFilteredInspections && periodLabel ? ` for ${periodLabel}` : ''}
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-3 sm:space-y-6">
               {inspections.map((inspection, index) => (
                 <InspectionItem key={index} inspection={inspection} />
               ))}
@@ -165,23 +168,23 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-border bg-background/90 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs text-muted-foreground">
+        <div className="shrink-0 border-t border-border bg-background/90 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs text-muted-foreground max-sm:hidden">
               Data from Northern Health Authority HealthSpace
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
               <a
                 href={restaurant.details_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent sm:px-4"
               >
-                View on HealthSpace
+                HealthSpace
               </a>
               <button
                 onClick={onClose}
-                className="inline-flex items-center justify-center rounded-lg border border-input bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-accent"
+                className="inline-flex items-center justify-center rounded-lg border border-input bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-accent sm:px-4"
               >
                 Close
               </button>
@@ -199,16 +202,16 @@ function InspectionItem({ inspection }: { inspection: Inspection }) {
   const violationCount = inspection.violations?.length || 0
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:rounded-xl">
       {/* Inspection header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/35 px-4 py-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/35 px-3 py-3 sm:px-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className={cn('text-sm font-medium px-3 py-1 rounded-full', getInspectionTypeColor(inspectionType))}>
             {inspectionType}
           </span>
           <span className="text-sm text-muted-foreground">{inspectionDate}</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className={cn('rounded px-2 py-1 text-sm', getHazardColor(inspection.hazard_rating))}>
             {inspection.hazard_rating}
           </span>
@@ -221,7 +224,7 @@ function InspectionItem({ inspection }: { inspection: Inspection }) {
       </div>
 
       {/* Violation summary */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2.5 text-sm">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-2.5 text-sm sm:px-4">
         <span className="text-muted-foreground">
           <span className="font-medium text-red-600 dark:text-red-400">{inspection.critical_violations_count || 0}</span>
           {' '}critical
@@ -240,17 +243,17 @@ function InspectionItem({ inspection }: { inspection: Inspection }) {
 
       {/* Violations list */}
       {violationCount > 0 ? (
-        <div className="p-4 space-y-3">
+        <div className="space-y-3 p-2 sm:p-4">
           {inspection.violations?.map((violation, vIndex) => {
             const risk = assessViolationRisk(violation)
             return (
               <div
                 key={vIndex}
-                className="rounded-lg border border-border bg-background p-3"
+                className="rounded-lg border border-border bg-background p-3 sm:p-3"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
                       <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
                         {violation.code}
                       </span>
@@ -266,14 +269,14 @@ function InspectionItem({ inspection }: { inspection: Inspection }) {
                         </span>
                       )}
                     </div>
-                    <div className="mb-2 text-sm font-medium text-foreground">
+                    <div className="mb-2 text-base font-semibold leading-snug text-foreground sm:text-sm sm:font-medium">
                       {violation.description}
                     </div>
-                    <div className="mb-2 text-sm leading-relaxed text-muted-foreground">
+                    <div className="mb-3 text-base leading-7 text-muted-foreground sm:mb-2 sm:text-sm sm:leading-relaxed">
                       <span className="font-medium">Observation:</span> {violation.observation}
                     </div>
                     {violation.corrective_action && (
-                      <div className="text-sm leading-relaxed text-muted-foreground">
+                      <div className="text-base leading-7 text-muted-foreground sm:text-sm sm:leading-relaxed">
                         <span className="font-medium">Corrective Action:</span> {violation.corrective_action}
                       </div>
                     )}

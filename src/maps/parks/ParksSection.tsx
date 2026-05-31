@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
+import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { ParksMap } from './components/ParksMap'
 import { ParksSidebar } from './components/ParksSidebar'
 import { useParksData } from './hooks/useParksData'
@@ -15,8 +17,21 @@ const ALL_CLASSIFICATIONS: ParkClassification[] = [
 
 const ALL_TRAIL_TYPES: TrailUserClass[] = ['Walking', 'Multiuse', 'Equine']
 
+function formatArea(sqm: number | null): string {
+  if (!sqm) return ''
+  if (sqm >= 10000) return `${(sqm / 10000).toFixed(1)} ha`
+  return `${Math.round(sqm)} m²`
+}
+
+function formatLength(m: number | null): string {
+  if (!m) return ''
+  if (m >= 1000) return `${(m / 1000).toFixed(1)} km`
+  return `${Math.round(m)} m`
+}
+
 export default function ParksSection() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const [activeLayers, setActiveLayers] = useState<ActiveLayer[]>(() => {
     const layers = (searchParams.get('layers') || '').split(',').filter(Boolean) as ActiveLayer[]
     return layers.length ? layers : ['parks', 'trails']
@@ -267,6 +282,14 @@ export default function ParksSection() {
           onTrailClick={handleTrailClick}
         />
 
+        {isMobileViewport && selectedPark && (
+          <MobileParkFeatureCard park={selectedPark} onClose={handleClearSelection} />
+        )}
+
+        {isMobileViewport && selectedTrail && (
+          <MobileTrailFeatureCard trail={selectedTrail} onClose={handleClearSelection} />
+        )}
+
         {/* Legend */}
         {showLegend && (
           <MapLegendPanel title="Legend" collapsible contentClassName="space-y-3">
@@ -326,5 +349,62 @@ export default function ParksSection() {
         )}
       </div>
     </MapSectionLayout>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  if (!value) return null
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border/70 py-2 first:pt-0 last:border-b-0 last:pb-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 max-w-[13rem] text-right font-medium text-foreground">{value}</span>
+    </div>
+  )
+}
+
+function MobileParkFeatureCard({ park, onClose }: { park: Park; onClose: () => void }) {
+  const subtitle = [
+    `${park.classification || 'Unknown'} ${park.subType || 'Park'}`,
+    park.area ? formatArea(park.area) : null,
+  ].filter(Boolean).join(' · ')
+
+  return (
+    <MobileFeatureCard
+      cardKey={`park-${park.id}`}
+      title={park.name}
+      subtitle={subtitle}
+      onClose={onClose}
+    >
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+        <DetailRow label="Type" value={`${park.classification || 'Unknown'} ${park.subType || 'Park'}`} />
+        <DetailRow label="Area" value={park.area ? formatArea(park.area) : 'Not listed'} />
+        <DetailRow label="Developed" value={park.developed ? 'Yes' : 'No'} />
+      </div>
+    </MobileFeatureCard>
+  )
+}
+
+function MobileTrailFeatureCard({ trail, onClose }: { trail: Trail; onClose: () => void }) {
+  const subtitle = [
+    trail.userClass || 'Trail',
+    trail.surfaceMaterial,
+    trail.length ? formatLength(trail.length) : null,
+  ].filter(Boolean).join(' · ')
+
+  return (
+    <MobileFeatureCard
+      cardKey={`trail-${trail.id}`}
+      title={trail.name}
+      subtitle={subtitle}
+      onClose={onClose}
+    >
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+        <DetailRow label="Trail type" value={trail.userClass || 'Trail'} />
+        <DetailRow label="Surface" value={trail.surfaceMaterial || trail.surfaceClass || 'Not listed'} />
+        <DetailRow label="Length" value={trail.length ? formatLength(trail.length) : 'Not listed'} />
+        <DetailRow label="Park" value={trail.parkName || 'Not listed'} />
+        <DetailRow label="Winter maintenance" value={trail.winterMaintenance ? 'Yes' : 'No'} />
+      </div>
+    </MobileFeatureCard>
   )
 }
