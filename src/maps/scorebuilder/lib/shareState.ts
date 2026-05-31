@@ -8,6 +8,7 @@ import type {
   WatershedBoundaryLevel,
 } from '@/maps/airquality'
 import type { ScoreDataSource, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
+import type { MetricRecipe } from './metricRecipes'
 
 export interface ScoreBuilderShareState {
   version: 1
@@ -22,6 +23,7 @@ export interface ScoreBuilderShareState {
   weights: Partial<ScoreMetricWeightMap>
   methodSettings?: ScoreMethodSettings
   mapSurface?: 'source' | 'boundary'
+  customMetricRecipes?: MetricRecipe[]
 }
 
 const shareEngine = createWebShareEngine<ScoreBuilderShareState>({

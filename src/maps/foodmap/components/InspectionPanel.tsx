@@ -94,6 +94,19 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
     return inspections.reduce((sum, inspection) => sum + getInspectionViolationDetailMismatch(inspection).extraDetails, 0)
   }, [inspections])
 
+  const detailMismatchNote = [
+    missingViolationDetails > 0
+      ? `Detailed violation text unavailable for ${missingViolationDetails} ${
+          missingViolationDetails === 1 ? 'finding' : 'findings'
+        }.`
+      : '',
+    extraViolationDetails > 0
+      ? `Detailed rows include ${extraViolationDetails} ${
+          extraViolationDetails === 1 ? 'finding' : 'findings'
+        } outside HealthSpace critical/non-critical totals.`
+      : ''
+  ].filter(Boolean).join(' ')
+
   const riskSummary = useMemo(() => {
     return summarizeViolationRisk(inspections)
   }, [inspections])
@@ -176,28 +189,15 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
             </div>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <div
+            className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+            title={detailMismatchNote || undefined}
+          >
             <span>
               <span className="font-semibold text-foreground">{formatRate(criticalPerInspection)}</span> HealthSpace critical per inspection
             </span>
-            {missingViolationDetails > 0 && (
-              <span>
-                Detailed violation text unavailable for <span className="font-semibold text-foreground">{missingViolationDetails}</span>{' '}
-                {missingViolationDetails === 1 ? 'finding' : 'findings'}
-              </span>
-            )}
-            {extraViolationDetails > 0 && (
-              <span>
-                Detailed rows include <span className="font-semibold text-foreground">{extraViolationDetails}</span>{' '}
-                {extraViolationDetails === 1 ? 'finding' : 'findings'} outside HealthSpace critical/non-critical totals
-              </span>
-            )}
           </div>
-
-          <div className="mt-3 text-xs font-medium text-muted-foreground">
-            App risk bands from report text
-          </div>
-          <div className="mt-2 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
             <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Severe'))}>
               Severe: {riskSummary.severe}
             </span>
@@ -263,7 +263,6 @@ function InspectionItem({ inspection }: { inspection: Inspection }) {
   const inspectionType = inspection.inspection_type || inspection.type || 'Inspection'
   const inspectionDate = inspection.inspection_date || inspection.date || 'Date unavailable'
   const violationCount = inspection.violations?.length || 0
-  const { missingDetails, extraDetails } = getInspectionViolationDetailMismatch(inspection)
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:rounded-xl">
@@ -304,18 +303,6 @@ function InspectionItem({ inspection }: { inspection: Inspection }) {
           {' '}total violations
         </span>
       </div>
-
-      {(missingDetails > 0 || extraDetails > 0) && (
-        <div className="border-b border-border bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200 sm:px-4">
-          {missingDetails > 0
-            ? `Detailed violation text unavailable for ${missingDetails} ${
-                missingDetails === 1 ? 'HealthSpace finding' : 'HealthSpace findings'
-              } in this inspection.`
-            : `Detailed rows include ${extraDetails} ${
-                extraDetails === 1 ? 'finding' : 'findings'
-              } outside the HealthSpace critical/non-critical totals for this inspection.`}
-        </div>
-      )}
 
       {/* Violations list */}
       {violationCount > 0 ? (

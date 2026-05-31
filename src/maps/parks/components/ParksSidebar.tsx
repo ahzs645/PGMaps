@@ -351,7 +351,7 @@ export function ParksSidebar({
 
       {/* Selected Detail */}
       {(selectedPark || selectedTrail) && (
-        <SidebarSection>
+        <SidebarSection className="hidden md:block">
           <SelectedItemCard
             tone="green"
             title={selectedPark?.name || selectedTrail?.name}

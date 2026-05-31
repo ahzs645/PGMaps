@@ -1,28 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import {
-  ArrowDown,
-  ArrowUp,
-  BarChart3,
-  BookOpen,
-  Check,
-  Copy,
-  Download,
-  Filter,
-  FlipHorizontal,
-  GripVertical,
-  Plus,
-  Search,
-  X,
-} from 'lucide-react'
+import { ArrowDown, ArrowUp, BookOpen, Check, Copy, FlipHorizontal, GripVertical, Plus, Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import {
-  DENSITY_METRIC_OPTIONS,
-  HEALTHYPLAN_PAIRWISE_PRESETS,
-  SCORE_ACCESS_THRESHOLD_METRICS,
   SCORE_BUILDER_EXAMPLES,
   SCORE_INDEX_MODULE_LABELS,
   SCORE_METRICS,
@@ -35,61 +18,32 @@ import type {
   RobustnessResult,
   ScoredBoundaryRegion,
   ScoreComponentSummary,
-  ScoreDataSource,
-  ScoreBandSummary,
-  ScoreFilterKey,
-  ScoreFilterState,
   ScoreMetricKey,
   ScoreMetricRangeMap,
   ScoreMetricWeightMap,
   ScoreMethodSettings,
-  ScoreIndexModule,
   ScenarioComparison,
 } from '../types'
-import { formatMetricValue, formatScore, getMetricDescription, getMetricLabel } from '../lib/metrics'
+import { formatMetricValue, formatScore, getMetricLabel } from '../lib/metrics'
 import { presetAppliesToBoundary } from '../lib/presets'
-import { formatDriverDelta, getScoreDrivers, type ScoreDriver } from '../lib/scoreDrivers'
+import { getScoreDrivers } from '../lib/scoreDrivers'
 import type { CorrelationResult, MetricCorrelation } from '../lib/correlation'
-import { RadarChart } from './RadarChart'
+import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
+import { DensityTab } from './DensityTab'
+import { RegionsTab } from './RegionsTab'
 import { ScorePresetDialog } from './ScorePresetDialog'
+import {
+  MAX_VISIBLE_REGION_ROWS,
+  clampWeight,
+  formatAggregationMethod,
+  formatNormalizationMethod,
+  getCategoryTone,
+  getDataSourceLabel,
+  getDefaultMetricWeight,
+  getWeightIntent,
+} from './scoreBuilderPanelUtils'
 
 type RightPanelTab = 'equation' | 'density' | 'correlate' | 'regions'
-
-function formatNormalizationMethod(method: ScoreMethodSettings['normalization']): string {
-  if (method === 'percentile') return 'percentile rank'
-  if (method === 'winsorizedMinMax') return 'winsorized min-max'
-  if (method === 'zScore') return 'z-score'
-  return 'min-max'
-}
-
-function formatAggregationMethod(method: ScoreMethodSettings['aggregation']): string {
-  if (method === 'healthyPlanPairwisePriority') return 'HealthyPlan-style pairwise priority'
-  if (method === 'modulePercentileRankedSum') return 'EJI-style module ranked sum'
-  if (method === 'accessThreshold') return 'access threshold'
-  if (method === 'cumulativeBurden') return 'cumulative burden'
-  if (method === 'geometric') return 'geometric mean'
-  return 'weighted average'
-}
-
-function isHealthyPlanDemographicMetric(metric: (typeof SCORE_METRICS)[number]): boolean {
-  return metric.component === 'sensitivity' || metric.category === 'demographics' || metric.category === 'deprivation'
-}
-
-function isHealthyPlanEnvironmentMetric(metric: (typeof SCORE_METRICS)[number]): boolean {
-  return (
-    metric.component === 'environmentalBurden' ||
-    metric.component === 'serviceAccess' ||
-    metric.component === 'adaptiveCapacity' ||
-    metric.category === 'airQuality' ||
-    metric.category === 'parksRec' ||
-    metric.category === 'heatShade' ||
-    metric.category === 'transit' ||
-    metric.category === 'walkability'
-  )
-}
-
-const healthyPlanDemographicMetrics = SCORE_METRICS.filter(isHealthyPlanDemographicMetric)
-const healthyPlanEnvironmentMetrics = SCORE_METRICS.filter(isHealthyPlanEnvironmentMetric)
 
 interface ScoreBuilderRightPanelProps {
   className?: string
@@ -105,6 +59,7 @@ interface ScoreBuilderRightPanelProps {
   equationPreview: string
   metricRanges: ScoreMetricRangeMap
   scoreSpread: { min: number; max: number; average: number }
+  populationEquitySummary: PopulationWeightedEquitySummary | null
   densityMetric: ScoreMetricKey
   onDensityMetricChange: (metric: ScoreMetricKey) => void
   onBuildDensityScore: (metric: ScoreMetricKey) => void
@@ -140,63 +95,11 @@ interface ScoreBuilderRightPanelProps {
   onApplyTopPair: (metricX: ScoreMetricKey, metricY: ScoreMetricKey) => void
 }
 
-const MAX_VISIBLE_ROWS = 220
-
 const TAB_LABELS: Record<RightPanelTab, string> = {
   equation: 'Equation',
   density: 'Density',
   correlate: 'Correlate',
   regions: 'Regions',
-}
-
-function getDataSourceLabel(source: ScoreDataSource): string {
-  if (source === 'airQuality') return 'Air'
-  if (source === 'parks') return 'Parks'
-  if (source === 'heatShade') return 'Heat/Shade'
-  if (source === 'restaurants') return 'Food'
-  if (source === 'census') return 'Census'
-  if (source === 'bcAssessment') return 'Property'
-  if (source === 'crime') return 'Crime'
-  if (source === 'transit') return 'Transit'
-  if (source === 'walkability') return 'Walk'
-  return source
-}
-
-function clampWeight(value: number): number {
-  return Math.max(-100, Math.min(100, Math.round(value)))
-}
-
-function getDefaultMetricWeight(metric: ScoreMetricKey): number {
-  if (
-    metric === 'foodRiskScore' ||
-    metric === 'criticalViolationRate' ||
-    metric === 'followUpRate' ||
-    metric === 'buildingAge' ||
-    metric === 'crimeDensity' ||
-    metric === 'crimePerCapita' ||
-    metric === 'recentCrimeShare'
-  ) {
-    return -35
-  }
-  return 35
-}
-
-function getWeightIntent(value: number): string {
-  if (value === 0) return 'Disabled'
-  return value > 0 ? 'Prefer high' : 'Prefer low'
-}
-
-function getCategoryTone(category: string): string {
-  if (category === 'airQuality') return 'bg-sky-500'
-  if (category === 'parksRec') return 'bg-emerald-500'
-  if (category === 'heatShade') return 'bg-lime-600'
-  if (category === 'foodSafety') return 'bg-orange-500'
-  if (category === 'demographics') return 'bg-amber-500'
-  if (category === 'property') return 'bg-violet-500'
-  if (category === 'safety') return 'bg-rose-500'
-  if (category === 'transit') return 'bg-teal-500'
-  if (category === 'walkability') return 'bg-emerald-600'
-  return 'bg-cyan-500'
 }
 
 export function ScoreBuilderRightPanel({
@@ -213,6 +116,7 @@ export function ScoreBuilderRightPanel({
   equationPreview,
   metricRanges,
   scoreSpread,
+  populationEquitySummary,
   densityMetric,
   onDensityMetricChange,
   onBuildDensityScore,
@@ -280,7 +184,7 @@ export function ScoreBuilderRightPanel({
   }, [activeTab, hasActiveBoundarySurface])
 
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
-  const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_ROWS), [filteredRegions])
+  const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_REGION_ROWS), [filteredRegions])
   const topRegions = useMemo(() => regions.slice(0, 3), [regions])
 
   const activeExample = useMemo(
@@ -420,6 +324,7 @@ export function ScoreBuilderRightPanel({
 
         {activeTab === 'density' && (
           <DensityTab
+            className="p-4"
             densityMetric={densityMetric}
             onDensityMetricChange={onDensityMetricChange}
             onBuildDensityScore={onBuildDensityScore}
@@ -448,6 +353,7 @@ export function ScoreBuilderRightPanel({
 
         {hasActiveBoundarySurface && activeTab === 'regions' && (
           <RegionsTab
+            className="p-4"
             loading={loading}
             regions={regions}
             visibleRows={visibleRows}
@@ -458,6 +364,7 @@ export function ScoreBuilderRightPanel({
             comparisonSet={comparisonSet}
             weights={weights}
             scoreSpread={scoreSpread}
+            populationEquitySummary={populationEquitySummary}
             searchQuery={searchQuery}
             onSearchQueryChange={onSearchQueryChange}
             onRegionSelect={onRegionSelect}
@@ -1391,33 +1298,6 @@ function MetricPickerDialog({
   )
 }
 
-const SCORE_FILTER_DEFINITIONS: Array<{
-  key: ScoreFilterKey
-  label: string
-  description: string
-}> = [
-  {
-    key: 'requirePopulation',
-    label: 'Require population data',
-    description: 'Exclude regions without census population assigned.',
-  },
-  {
-    key: 'requireParks',
-    label: 'Require parks or trails',
-    description: 'Exclude regions with no parks, trails, or park amenities.',
-  },
-  {
-    key: 'limitCrime',
-    label: 'Lower crime pressure',
-    description: 'Keep regions at or below the current median crime-per-capita value.',
-  },
-  {
-    key: 'limitFoodRisk',
-    label: 'Lower food-risk pressure',
-    description: 'Keep regions at or below the current median food risk score.',
-  },
-]
-
 export function MethodologyTab({
   weights,
   methodSettings,
@@ -1631,571 +1511,6 @@ export function RobustnessTab({
   )
 }
 
-export function ModelTab({
-  weights,
-  totalAbsoluteWeight,
-  scoreFilters,
-  onToggleScoreFilter,
-  methodSettings,
-  onMethodSettingsChange,
-  scoreBands,
-  scenarioComparison,
-  regions,
-  totalRegionCount,
-  excludedRegionCount,
-  scoreSpread,
-}: {
-  weights: ScoreMetricWeightMap
-  totalAbsoluteWeight: number
-  scoreFilters: ScoreFilterState
-  onToggleScoreFilter: (filter: ScoreFilterKey) => void
-  methodSettings: ScoreMethodSettings
-  onMethodSettingsChange: (settings: ScoreMethodSettings) => void
-  scoreBands: ScoreBandSummary[]
-  scenarioComparison: ScenarioComparison | null
-  regions: ScoredBoundaryRegion[]
-  totalRegionCount: number
-  excludedRegionCount: number
-  scoreSpread: { min: number; max: number; average: number }
-}) {
-  const activeFilters = SCORE_FILTER_DEFINITIONS.filter((filter) => scoreFilters[filter.key])
-  const maxBandCount = Math.max(...scoreBands.map((band) => band.count), 1)
-  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
-  const deprivationRegions = regions.filter((region) => region.equityAudit.deprivationQuintile !== null)
-  const deprivationWeightedAverage = deprivationRegions.length
-    ? deprivationRegions.reduce(
-        (sum, region) => sum + region.score * (region.equityAudit.deprivationQuintile || 1),
-        0,
-      ) / deprivationRegions.reduce((sum, region) => sum + (region.equityAudit.deprivationQuintile || 1), 0)
-    : null
-  const topBurdenOverlap = [...regions]
-    .sort((a, b) => b.equityAudit.burdenOverlap - a.equityAudit.burdenOverlap)
-    .slice(0, 3)
-  const updateMethodSettings = <Key extends keyof ScoreMethodSettings>(key: Key, value: ScoreMethodSettings[Key]) =>
-    onMethodSettingsChange({ ...methodSettings, [key]: value })
-  const activeHealthyPlanPairKey = useMemo(() => {
-    return (
-      HEALTHYPLAN_PAIRWISE_PRESETS.find(
-        (preset) =>
-          preset.demographicMetric === methodSettings.healthyPlanPriority.demographicMetric &&
-          preset.environmentMetric === methodSettings.healthyPlanPriority.environmentMetric,
-      )?.key ?? 'custom'
-    )
-  }, [
-    methodSettings.healthyPlanPriority.demographicMetric,
-    methodSettings.healthyPlanPriority.environmentMetric,
-  ])
-
-  return (
-    <div className="space-y-3 p-4" data-score-builder-section="model">
-      <div className="rounded-lg border border-border bg-background p-3">
-        <div className="mb-2 flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-cyan-600" />
-          <div className="text-sm font-semibold text-foreground">Methodology</div>
-        </div>
-        <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
-          <p>
-            Each metric is automatically normalized from 0 to 1 with the selected method against the currently loaded
-            regions. Positive weights prefer high normalized values; negative weights prefer low values.
-          </p>
-          <p>
-            Scores are relative to the currently loaded boundary level; filters do not redefine percentiles. Use for
-            planning triage, not validated exposure, health, or funding eligibility determination.
-          </p>
-          <p>
-            The final score uses the selected aggregation method after active weights are converted to weight shares.
-            EJI-style mode uses active metric weights only to select indicators; module ranks are weighted equally.
-            Active weights are normalized by total influence, so a useful model can use any total.
-          </p>
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-          <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Influence</div>
-            <div className="font-semibold text-foreground">{totalAbsoluteWeight.toLocaleString()}</div>
-          </div>
-          <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Metrics</div>
-            <div className="font-semibold text-foreground">{activeMetrics.length}</div>
-          </div>
-          <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Average</div>
-            <div className="font-semibold text-foreground">{formatScore(scoreSpread.average)}</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border bg-background p-3">
-        <div className="mb-2 text-sm font-semibold text-foreground">Equity audit</div>
-        <div className="space-y-2 text-xs text-muted-foreground">
-          <div>
-            Deprivation-weighted average:{' '}
-            <span className="font-semibold text-foreground">
-              {deprivationWeightedAverage == null ? 'No CIMD data loaded' : formatScore(deprivationWeightedAverage)}
-            </span>
-          </div>
-          <div className="space-y-1">
-            {topBurdenOverlap.map((region) => (
-              <div key={region.region.id} className="flex items-center justify-between rounded bg-muted/25 px-2 py-1">
-                <span className="truncate">
-                  #{region.rank} {region.region.name}
-                </span>
-                <span className="font-semibold text-foreground">
-                  {(region.equityAudit.burdenOverlap * 100).toFixed(0)} overlap
-                </span>
-              </div>
-            ))}
-          </div>
-          {regions.some((region) => region.equityAudit.cutoffWarning) && (
-            <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
-              Some regions sit near score-band cutoffs; treat hard thresholds as sensitive.
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border bg-background p-3">
-        <div className="mb-2 text-sm font-semibold text-foreground">Method controls</div>
-        <div className="grid gap-2 text-xs">
-          <label className="space-y-1">
-            <span className="block font-medium text-muted-foreground">Normalization</span>
-            <AppSelect
-              value={methodSettings.normalization}
-              onValueChange={(value) =>
-                updateMethodSettings('normalization', value as ScoreMethodSettings['normalization'])
-              }
-              options={[
-                { value: 'percentile', label: 'Percentile rank' },
-                { value: 'winsorizedMinMax', label: 'Winsorized min-max' },
-                { value: 'minMax', label: 'Min-max' },
-                { value: 'zScore', label: 'Z-score' },
-              ]}
-              triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="block font-medium text-muted-foreground">Aggregation</span>
-            <AppSelect
-              value={methodSettings.aggregation}
-              onValueChange={(value) =>
-                updateMethodSettings('aggregation', value as ScoreMethodSettings['aggregation'])
-              }
-              options={[
-                { value: 'additive', label: 'Weighted average' },
-                { value: 'geometric', label: 'Geometric mean' },
-                { value: 'cumulativeBurden', label: 'Cumulative burden' },
-                { value: 'modulePercentileRankedSum', label: 'EJI-style module ranked sum' },
-                { value: 'healthyPlanPairwisePriority', label: 'HealthyPlan-style pairwise priority' },
-                { value: 'accessThreshold', label: 'Access threshold score' },
-              ]}
-              triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
-            />
-          </label>
-          {methodSettings.aggregation === 'healthyPlanPairwisePriority' && (
-            <div className="grid gap-2 rounded-md border border-amber-200 bg-amber-50/70 p-2 dark:border-amber-900/70 dark:bg-amber-950/25">
-              <label className="space-y-1">
-                <span className="block font-medium text-amber-950 dark:text-amber-100">Pairwise recipe</span>
-                <AppSelect
-                  value={activeHealthyPlanPairKey}
-                  onValueChange={(value) => {
-                    if (value === 'custom') return
-                    const preset = HEALTHYPLAN_PAIRWISE_PRESETS.find((entry) => entry.key === value)
-                    if (!preset) return
-                    updateMethodSettings('healthyPlanPriority', {
-                      demographicMetric: preset.demographicMetric,
-                      environmentMetric: preset.environmentMetric,
-                    })
-                  }}
-                  options={[
-                    ...HEALTHYPLAN_PAIRWISE_PRESETS.map((preset) => ({
-                      value: preset.key,
-                      label: preset.label,
-                    })),
-                    { value: 'custom', label: 'Custom pair' },
-                  ]}
-                  triggerClassName="h-8 rounded border-amber-300 text-xs focus:ring-1 focus:ring-amber-500 dark:border-amber-900"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="block font-medium text-amber-950 dark:text-amber-100">
-                  Vulnerable population proxy
-                </span>
-                <AppSelect
-                  value={methodSettings.healthyPlanPriority.demographicMetric ?? ''}
-                  onValueChange={(value) =>
-                    updateMethodSettings('healthyPlanPriority', {
-                      ...methodSettings.healthyPlanPriority,
-                      demographicMetric: value as ScoreMetricKey,
-                    })
-                  }
-                  options={healthyPlanDemographicMetrics.map((metric) => ({ value: metric.key, label: metric.label }))}
-                  triggerClassName="h-8 rounded border-amber-300 text-xs focus:ring-1 focus:ring-amber-500 dark:border-amber-900"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="block font-medium text-amber-950 dark:text-amber-100">Built environment proxy</span>
-                <AppSelect
-                  value={methodSettings.healthyPlanPriority.environmentMetric ?? ''}
-                  onValueChange={(value) =>
-                    updateMethodSettings('healthyPlanPriority', {
-                      ...methodSettings.healthyPlanPriority,
-                      environmentMetric: value as ScoreMetricKey,
-                    })
-                  }
-                  options={healthyPlanEnvironmentMetrics.map((metric) => ({ value: metric.key, label: metric.label }))}
-                  triggerClassName="h-8 rounded border-amber-300 text-xs focus:ring-1 focus:ring-amber-500 dark:border-amber-900"
-                />
-              </label>
-              <p className="text-[10px] leading-snug text-amber-900 dark:text-amber-100/85">
-                This applies the HealthyPlan threshold to the selected pair; it is a screening mode, not a weighted
-                composite score.
-              </p>
-            </div>
-          )}
-          {methodSettings.aggregation === 'accessThreshold' && (
-            <div className="grid gap-2 rounded-md border border-emerald-200 bg-emerald-50/70 p-2 dark:border-emerald-900/70 dark:bg-emerald-950/25">
-              <label className="space-y-1">
-                <span className="block font-medium text-emerald-950 dark:text-emerald-100">Access threshold</span>
-                <input
-                  type="number"
-                  min={5}
-                  max={100}
-                  step={5}
-                  value={Math.round(methodSettings.accessThreshold.minimumAccess * 100)}
-                  onChange={(event) =>
-                    updateMethodSettings('accessThreshold', {
-                      ...methodSettings.accessThreshold,
-                      minimumAccess: Math.max(0.05, Math.min(1, Number(event.target.value) / 100)),
-                    })
-                  }
-                  className="h-8 rounded border border-emerald-300 bg-background px-2 text-xs dark:border-emerald-900"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="block font-medium text-emerald-950 dark:text-emerald-100">Required access hits</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={SCORE_ACCESS_THRESHOLD_METRICS.length}
-                  value={methodSettings.accessThreshold.minimumHits}
-                  onChange={(event) =>
-                    updateMethodSettings('accessThreshold', {
-                      ...methodSettings.accessThreshold,
-                      minimumHits: Math.max(1, Math.min(SCORE_ACCESS_THRESHOLD_METRICS.length, Number(event.target.value))),
-                    })
-                  }
-                  className="h-8 rounded border border-emerald-300 bg-background px-2 text-xs dark:border-emerald-900"
-                />
-              </label>
-              <p className="text-[10px] leading-snug text-emerald-900 dark:text-emerald-100/85">
-                Counts access indicators at or above the threshold, then scores against the required number of hits.
-              </p>
-            </div>
-          )}
-          {methodSettings.aggregation === 'modulePercentileRankedSum' && (
-            <div className="grid gap-2 rounded-md border border-cyan-200 bg-cyan-50/70 p-2 dark:border-cyan-900/70 dark:bg-cyan-950/25">
-              <div className="font-medium text-cyan-950 dark:text-cyan-100">Module editor</div>
-              {SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).map((metric) => (
-                <label key={metric.key} className="grid gap-1">
-                  <span className="text-[10px] font-medium text-cyan-950 dark:text-cyan-100">{metric.shortLabel}</span>
-                  <AppSelect
-                    value={methodSettings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext'}
-                    onValueChange={(value) =>
-                      updateMethodSettings('metricModuleOverrides', {
-                        ...methodSettings.metricModuleOverrides,
-                        [metric.key]: value as ScoreIndexModule,
-                      })
-                    }
-                    options={Object.entries(SCORE_INDEX_MODULE_LABELS).map(([value, label]) => ({ value, label }))}
-                    triggerClassName="h-8 rounded border-cyan-300 text-xs focus:ring-1 focus:ring-cyan-500 dark:border-cyan-900"
-                  />
-                </label>
-              ))}
-            </div>
-          )}
-          <label className="space-y-1">
-            <span className="block font-medium text-muted-foreground">Missing data</span>
-            <AppSelect
-              value={methodSettings.missingData}
-              onValueChange={(value) =>
-                updateMethodSettings('missingData', value as ScoreMethodSettings['missingData'])
-              }
-              options={[
-                { value: 'zero', label: 'Treat missing as zero' },
-                { value: 'neutral', label: 'Treat missing as neutral' },
-              ]}
-              triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="block font-medium text-muted-foreground">Map output</span>
-            <AppSelect
-              value={methodSettings.visualOutput}
-              onValueChange={(value) =>
-                updateMethodSettings('visualOutput', value as ScoreMethodSettings['visualOutput'])
-              }
-              options={[
-                { value: 'interpolated', label: 'Interpolated ramp' },
-                { value: 'binned', label: '5 score bins' },
-              ]}
-              triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => updateMethodSettings('sensitivity', !methodSettings.sensitivity)}
-            className={cn(
-              'flex items-center justify-between rounded-md border px-3 py-2 text-left transition-colors',
-              methodSettings.sensitivity
-                ? 'border-cyan-500/60 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/35 dark:text-cyan-100'
-                : 'border-input text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <span>
-              <span className="block font-semibold">Sensitivity test</span>
-              <span className="block text-[10px] text-muted-foreground">
-                Perturb active weights by 15% across 24 trials.
-              </span>
-            </span>
-            <span className="font-bold">{methodSettings.sensitivity ? 'ON' : 'OFF'}</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border bg-background p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <div className="text-sm font-semibold text-foreground">Hard filters</div>
-          </div>
-          <span className="text-[11px] text-muted-foreground">
-            {regions.length} of {totalRegionCount} eligible
-          </span>
-        </div>
-        <div className="space-y-2">
-          {SCORE_FILTER_DEFINITIONS.map((filter) => {
-            const active = scoreFilters[filter.key]
-            return (
-              <button
-                key={filter.key}
-                type="button"
-                data-score-builder-hard-filter={filter.key}
-                onClick={() => onToggleScoreFilter(filter.key)}
-                className={cn(
-                  'flex w-full items-start justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors',
-                  active
-                    ? 'border-cyan-500/60 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/35 dark:text-cyan-100'
-                    : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <span>
-                  <span className="block text-xs font-semibold">{filter.label}</span>
-                  <span className="mt-0.5 block text-[10px] text-muted-foreground">{filter.description}</span>
-                </span>
-                <span className={cn('shrink-0 text-xs font-bold', active ? 'text-cyan-600' : 'text-muted-foreground')}>
-                  {active ? 'ON' : 'OFF'}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-        <div className="mt-2 text-[11px] text-muted-foreground">
-          {activeFilters.length
-            ? `${excludedRegionCount} region${excludedRegionCount === 1 ? '' : 's'} excluded before ranking.`
-            : 'No hard filters are active; all loaded regions remain eligible.'}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border bg-background p-3">
-        <div className="mb-2 flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          <div className="text-sm font-semibold text-foreground">Score bands</div>
-        </div>
-        <div className="space-y-2">
-          {scoreBands.map((band) => (
-            <div key={band.key}>
-              <div className="mb-1 flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-foreground">{band.label}</span>
-                <span className="text-muted-foreground">{band.count} regions</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn(
-                    'h-full rounded-full',
-                    band.key === 'high'
-                      ? 'bg-emerald-500'
-                      : band.key === 'moderate'
-                        ? 'bg-cyan-500'
-                        : band.key === 'low'
-                          ? 'bg-amber-500'
-                          : 'bg-rose-500',
-                  )}
-                  style={{ width: `${Math.max(3, (band.count / maxBandCount) * 100)}%` }}
-                />
-              </div>
-              <div className="mt-0.5 text-[10px] text-muted-foreground">
-                {band.min}-{band.max} · {band.description}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {scenarioComparison && (
-        <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
-          <div className="mb-2 text-sm font-semibold text-amber-950 dark:text-amber-100">Scenario compare</div>
-          <div className="grid grid-cols-2 gap-2 text-[11px] text-amber-900 dark:text-amber-100">
-            <div className="rounded border border-amber-200/70 bg-white/50 p-2 dark:border-amber-900 dark:bg-amber-950/20">
-              <div className="text-[10px] uppercase text-amber-700 dark:text-amber-300">Current top</div>
-              <div className="font-semibold">{scenarioComparison.currentTopName || 'None'}</div>
-              <div>{formatScore(scenarioComparison.currentTopScore)}</div>
-            </div>
-            <div className="rounded border border-amber-200/70 bg-white/50 p-2 dark:border-amber-900 dark:bg-amber-950/20">
-              <div className="text-[10px] uppercase text-amber-700 dark:text-amber-300">{scenarioComparison.label}</div>
-              <div className="font-semibold">{scenarioComparison.referenceTopName || 'None'}</div>
-              <div>{formatScore(scenarioComparison.referenceTopScore)}</div>
-            </div>
-          </div>
-          <div className="mt-2 text-[11px] text-amber-800 dark:text-amber-200">
-            Average delta vs {scenarioComparison.label}:{' '}
-            <span className="font-semibold">
-              {scenarioComparison.averageDelta >= 0 ? '+' : ''}
-              {formatScore(scenarioComparison.averageDelta)}
-            </span>
-            {scenarioComparison.topChanged ? ' · top region changed' : ' · top region unchanged'}
-            <br />
-            Sensitivity: top area held in {(scenarioComparison.stableTopShare * 100).toFixed(0)}% of trials · avg rank
-            shift {scenarioComparison.averageRankShift.toFixed(1)}
-          </div>
-          <div className="mt-2 grid gap-2 text-[11px] text-amber-900 dark:text-amber-100 sm:grid-cols-3">
-            <div>
-              <div className="font-semibold">Changed most</div>
-              {scenarioComparison.changedMost.slice(0, 3).map((entry) => (
-                <div key={entry.regionId} className="truncate">
-                  {entry.regionName} {entry.delta >= 0 ? '+' : ''}
-                  {formatScore(entry.delta)}
-                </div>
-              ))}
-            </div>
-            <div>
-              <div className="font-semibold">Always high</div>
-              {scenarioComparison.alwaysHighPriority.slice(0, 3).map((entry) => (
-                <div key={entry.regionId} className="truncate">
-                  {entry.regionName}
-                </div>
-              ))}
-            </div>
-            <div>
-              <div className="font-semibold">Sensitive</div>
-              {scenarioComparison.sensitiveRegions.slice(0, 3).map((entry) => (
-                <div key={entry.regionId} className="truncate">
-                  {entry.regionName} {entry.rankShift.toFixed(1)}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="rounded-lg border border-dashed border-border bg-muted/10 p-3 text-xs text-muted-foreground">
-        Rubric mode is the next larger model change: metric values would be binned into named classes before weighting,
-        similar to GIS-MCDA scoring matrices.
-      </div>
-    </div>
-  )
-}
-
-function DensityTab({
-  densityMetric,
-  onDensityMetricChange,
-  onBuildDensityScore,
-  densitySummary,
-  densityLeaders,
-  selectedRegion,
-  onRegionSelect,
-}: {
-  densityMetric: ScoreMetricKey
-  onDensityMetricChange: (metric: ScoreMetricKey) => void
-  onBuildDensityScore: (metric: ScoreMetricKey) => void
-  densitySummary: { min: number; max: number; median: number; average: number } | null
-  densityLeaders: ScoredBoundaryRegion[]
-  selectedRegion: ScoredBoundaryRegion | null
-  onRegionSelect: (regionId: string) => void
-}) {
-  return (
-    <div className="space-y-2 p-4" data-score-builder-section="density">
-      <div className="flex items-center justify-between gap-2">
-        <label htmlFor="score-builder-density" className="text-xs font-medium text-muted-foreground">
-          Heat-map metric
-        </label>
-        <AppSelect
-          id="score-builder-density"
-          aria-label="Density metric"
-          value={densityMetric}
-          onValueChange={(value) => onDensityMetricChange(value as ScoreMetricKey)}
-          options={DENSITY_METRIC_OPTIONS.map((metric) => ({ value: metric, label: getMetricLabel(metric) }))}
-          className="w-44"
-          triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
-        />
-      </div>
-
-      <div className="rounded-lg border border-border bg-muted/20 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-xs font-semibold text-foreground">Build score from heat map</div>
-            <div className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
-              Use the selected metric as a one-layer score so the map, rankings, exports, and share URL all follow this
-              dataset.
-            </div>
-          </div>
-          <button
-            type="button"
-            data-score-builder-build-density-score="true"
-            onClick={() => onBuildDensityScore(densityMetric)}
-            className="shrink-0 rounded-md border border-cyan-500/50 bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-800 transition-colors hover:bg-cyan-100 dark:bg-cyan-950/30 dark:text-cyan-100"
-          >
-            Build score
-          </button>
-        </div>
-      </div>
-
-      {densitySummary ? (
-        <>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            {(['median', 'average', 'min', 'max'] as const).map((stat) => (
-              <div key={stat} className="rounded border border-border bg-muted/30 p-2">
-                <div className="text-[10px] capitalize text-muted-foreground">{stat}</div>
-                <div className="font-semibold text-foreground">
-                  {formatMetricValue(densityMetric, densitySummary[stat], true)}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="space-y-1">
-            {densityLeaders.map((entry) => (
-              <button
-                key={`density-${entry.region.id}`}
-                onClick={() => onRegionSelect(entry.region.id)}
-                className={cn(
-                  'flex w-full items-center justify-between rounded border border-border bg-background px-2 py-1.5 text-xs transition-colors hover:bg-accent',
-                  selectedRegion?.region.id === entry.region.id && 'bg-cyan-50 dark:bg-cyan-950/40',
-                )}
-              >
-                <span className="truncate text-left text-foreground">{entry.region.name}</span>
-                <span className="font-medium text-cyan-700 dark:text-cyan-300">
-                  {formatMetricValue(densityMetric, entry.metrics[densityMetric], true)}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="text-[10px] text-muted-foreground">{getMetricDescription(densityMetric)}</div>
-        </>
-      ) : (
-        <div className="text-xs text-muted-foreground">No values available for this density lens.</div>
-      )}
-    </div>
-  )
-}
-
 function CorrelateTab({
   correlateMode,
   onToggleCorrelateMode,
@@ -2226,8 +1541,7 @@ function CorrelateTab({
     const out: Array<{ value: ScoreMetricKey; label: string }> = []
     for (const category of groups) {
       const categoryMetrics = SCORE_METRICS_BY_CATEGORY[category]
-      const categoryLabel =
-        METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] ?? category
+      const categoryLabel = METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] ?? category
       for (const metric of categoryMetrics) {
         out.push({ value: metric.key, label: `${categoryLabel} · ${metric.label}` })
       }
@@ -2252,7 +1566,8 @@ function CorrelateTab({
           <div className="min-w-0">
             <div className="text-xs font-semibold text-foreground">Correlation mode</div>
             <div className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
-              Repaints regions by the relationship between two metrics. The current scoring map is hidden while this is on.
+              Repaints regions by the relationship between two metrics. The current scoring map is hidden while this is
+              on.
             </div>
           </div>
           <button
@@ -2363,21 +1678,18 @@ function CorrelateTab({
           }
           value={stats ? stats.spearman.toFixed(2) : '–'}
         />
-        <StatTile
-          label="Strength"
-          value={stats ? describeStrength(stats.pearson) : '–'}
-        />
+        <StatTile label="Strength" value={stats ? describeStrength(stats.pearson) : '–'} />
       </div>
 
       <CorrelationScatter result={result} xLabel={xLabel} yLabel={yLabel} active={correlateMode} />
 
       <div>
-        <div className="mb-1 text-[11px] font-semibold uppercase text-muted-foreground">
-          Strongest pairs (|r|)
-        </div>
+        <div className="mb-1 text-[11px] font-semibold uppercase text-muted-foreground">Strongest pairs (|r|)</div>
         {topPairs.length === 0 ? (
           <div className="text-xs text-muted-foreground">
-            {correlateMode ? 'Computing pairs…' : 'Turn correlation mode on to see the strongest pairs across all metrics.'}
+            {correlateMode
+              ? 'Computing pairs…'
+              : 'Turn correlation mode on to see the strongest pairs across all metrics.'}
           </div>
         ) : (
           <div className="space-y-1">
@@ -2507,14 +1819,7 @@ function CorrelationScatter({
         role="img"
         aria-label={`Scatter density for ${xLabel} vs ${yLabel}`}
       >
-        <rect
-          x={margin.left}
-          y={margin.top}
-          width={innerW}
-          height={innerH}
-          fill="hsl(var(--muted))"
-          opacity={0.25}
-        />
+        <rect x={margin.left} y={margin.top} width={innerW} height={innerH} fill="hsl(var(--muted))" opacity={0.25} />
         {cells}
         <line
           x1={xAt(lineX0)}
@@ -2525,8 +1830,24 @@ function CorrelationScatter({
           strokeWidth={1.25}
           strokeDasharray="3 3"
         />
-        <line x1={margin.left} y1={margin.top + innerH} x2={margin.left + innerW} y2={margin.top + innerH} stroke="currentColor" strokeWidth={0.75} opacity={0.4} />
-        <line x1={margin.left} y1={margin.top} x2={margin.left} y2={margin.top + innerH} stroke="currentColor" strokeWidth={0.75} opacity={0.4} />
+        <line
+          x1={margin.left}
+          y1={margin.top + innerH}
+          x2={margin.left + innerW}
+          y2={margin.top + innerH}
+          stroke="currentColor"
+          strokeWidth={0.75}
+          opacity={0.4}
+        />
+        <line
+          x1={margin.left}
+          y1={margin.top}
+          x2={margin.left}
+          y2={margin.top + innerH}
+          stroke="currentColor"
+          strokeWidth={0.75}
+          opacity={0.4}
+        />
         <text
           x={margin.left + innerW / 2}
           y={height - 6}
@@ -2553,286 +1874,6 @@ function CorrelationScatter({
         <span>Cells shaded by region count · dashed line = least-squares fit</span>
         <span>{points.length} regions</span>
       </div>
-    </div>
-  )
-}
-
-function RegionsTab({
-  loading,
-  regions,
-  visibleRows,
-  filteredRegions,
-  selectedRegion,
-  selectedRegionDrivers,
-  comparisonRegions,
-  comparisonSet,
-  weights,
-  scoreSpread,
-  searchQuery,
-  onSearchQueryChange,
-  onRegionSelect,
-  onClearRegionSelection,
-  onOpenRegionInsight,
-  onToggleComparison,
-  onClearComparison,
-  onExport,
-}: {
-  loading: boolean
-  regions: ScoredBoundaryRegion[]
-  visibleRows: ScoredBoundaryRegion[]
-  filteredRegions: ScoredBoundaryRegion[]
-  selectedRegion: ScoredBoundaryRegion | null
-  selectedRegionDrivers: ScoreDriver[]
-  comparisonRegions: ScoredBoundaryRegion[]
-  comparisonSet: Set<string>
-  weights: ScoreMetricWeightMap
-  scoreSpread: { min: number; max: number; average: number }
-  searchQuery: string
-  onSearchQueryChange: (query: string) => void
-  onRegionSelect: (regionId: string) => void
-  onClearRegionSelection: () => void
-  onOpenRegionInsight: (regionId: string) => void
-  onToggleComparison: (regionId: string) => void
-  onClearComparison: () => void
-  onExport: (format: 'csv' | 'geojson') => void
-}) {
-  return (
-    <div className="space-y-3 p-4" data-score-builder-section="regions">
-      {/* Search + export */}
-      <div className="space-y-2 rounded-lg border border-border bg-muted/10 p-2 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              data-map-search-input="true"
-              value={searchQuery}
-              onChange={(event) => onSearchQueryChange(event.target.value)}
-              placeholder="Search by code or name..."
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 pl-7 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => onExport('csv')}
-              title="Export CSV"
-              className="rounded border border-input p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => onExport('geojson')}
-              title="Export GeoJSON"
-              className="rounded border border-input px-1.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              .geo
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center justify-between" data-score-builder-region-stats="true">
-          <span>
-            {filteredRegions.length} of {regions.length} regions
-          </span>
-          {filteredRegions.length > MAX_VISIBLE_ROWS && <span>Showing {MAX_VISIBLE_ROWS}</span>}
-        </div>
-        <div className="flex items-center justify-between text-[11px]">
-          <span>
-            Score range {formatScore(scoreSpread.min)} - {formatScore(scoreSpread.max)}
-          </span>
-          <span>Avg {formatScore(scoreSpread.average)}</span>
-        </div>
-      </div>
-
-      {/* Comparison panel */}
-      {comparisonRegions.length > 0 && (
-        <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
-              Compare ({comparisonRegions.length}/3)
-            </span>
-            <button
-              onClick={onClearComparison}
-              className="text-[11px] text-amber-700 hover:text-amber-900 dark:text-amber-300"
-            >
-              Clear
-            </button>
-          </div>
-          <div className="space-y-1">
-            {comparisonRegions.map((r) => (
-              <div key={r.region.id} className="flex items-center justify-between text-[11px]">
-                <span className="truncate text-amber-900 dark:text-amber-100">
-                  #{r.rank} {r.region.name}
-                </span>
-                <span className="font-semibold text-amber-700 dark:text-amber-300">{formatScore(r.score)}</span>
-              </div>
-            ))}
-          </div>
-          {comparisonRegions.length >= 2 && (
-            <>
-              <RadarChart regions={comparisonRegions} weights={weights} className="mt-2" />
-              <div className="mt-2 overflow-x-auto">
-                <table className="w-full text-[10px]">
-                  <thead>
-                    <tr className="text-amber-700 dark:text-amber-300">
-                      <th className="pr-2 text-left font-medium">Metric</th>
-                      {comparisonRegions.map((r) => (
-                        <th key={r.region.id} className="px-1 text-right font-medium">
-                          {r.region.name.slice(0, 12)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {SCORE_METRICS.filter((m) => weights[m.key] !== 0)
-                      .slice(0, 6)
-                      .map((m) => (
-                        <tr key={m.key} className="text-amber-800 dark:text-amber-200">
-                          <td className="pr-2 text-left">{m.shortLabel}</td>
-                          {comparisonRegions.map((r) => (
-                            <td key={r.region.id} className="px-1 text-right font-mono">
-                              {formatMetricValue(m.key, r.metrics[m.key], true)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Selected region card */}
-      {selectedRegion && (
-        <div className="rounded-lg border border-cyan-300/50 bg-cyan-50 p-3 dark:border-cyan-900/70 dark:bg-cyan-950/25">
-          <div className="mb-2">
-            <div className="text-sm font-semibold text-cyan-900 dark:text-cyan-100">{selectedRegion.region.name}</div>
-            <div className="text-xs text-cyan-700 dark:text-cyan-300">
-              Rank #{selectedRegion.rank} | Score {formatScore(selectedRegion.score)}
-            </div>
-            <div className="mt-0.5 text-[11px] font-medium text-cyan-800 dark:text-cyan-200">
-              {selectedRegion.rankConfidence} · rank #{selectedRegion.rankInterval[0]}-#
-              {selectedRegion.rankInterval[1]} · score {formatScore(selectedRegion.scoreInterval[0])}-
-              {formatScore(selectedRegion.scoreInterval[1])}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-cyan-800 dark:text-cyan-200">
-            <div>Area: {selectedRegion.region.areaKm2.toFixed(1)} km²</div>
-            <div>Sensors: {selectedRegion.counts.monitorCount.toLocaleString()}</div>
-            <div>Parks: {selectedRegion.counts.parkCount.toLocaleString()}</div>
-            <div>Restaurants: {selectedRegion.counts.restaurantCount.toLocaleString()}</div>
-            <div>Coverage: {(selectedRegion.dataCoverageScore * 100).toFixed(0)}%</div>
-          </div>
-          {selectedRegionDrivers.length > 0 && (
-            <div className="mt-2 text-[11px] text-cyan-800 dark:text-cyan-200">
-              Top drivers:{' '}
-              {selectedRegionDrivers
-                .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
-                .join(', ')}{' '}
-              pts
-            </div>
-          )}
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              data-score-builder-region-insight={selectedRegion.region.id}
-              onClick={() => onOpenRegionInsight(selectedRegion.region.id)}
-              className="rounded border border-cyan-400/70 bg-white/70 px-2 py-1 text-xs font-medium text-cyan-900 transition-colors hover:bg-white dark:border-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-100"
-            >
-              View Insight
-            </button>
-            <button
-              onClick={() => onToggleComparison(selectedRegion.region.id)}
-              className={cn(
-                'rounded border px-2 py-1 text-xs transition-colors',
-                comparisonSet.has(selectedRegion.region.id)
-                  ? 'border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200'
-                  : 'border-cyan-300/70 text-cyan-800 hover:bg-cyan-100/70 dark:border-cyan-900 dark:text-cyan-300',
-              )}
-            >
-              {comparisonSet.has(selectedRegion.region.id) ? 'Unpin' : 'Compare'}
-            </button>
-            <button
-              onClick={onClearRegionSelection}
-              className="rounded border border-cyan-300/70 px-2 py-1 text-xs text-cyan-800 transition-colors hover:bg-cyan-100/70 dark:border-cyan-900 dark:text-cyan-300 dark:hover:bg-cyan-950/40"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Region list */}
-      {loading ? (
-        <div className="flex min-h-24 items-center justify-center text-sm text-muted-foreground">
-          Building region scores...
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {visibleRows.map((entry) => {
-            const selected = selectedRegion?.region.id === entry.region.id
-            const pinned = comparisonSet.has(entry.region.id)
-            const topDrivers = getScoreDrivers(entry, weights, 2)
-            return (
-              <div
-                key={entry.region.id}
-                className={cn(
-                  'rounded-lg border border-border bg-background p-2 transition-colors',
-                  selected && 'border-cyan-300 bg-cyan-50 dark:border-cyan-900 dark:bg-cyan-950/35',
-                  pinned && !selected && 'border-amber-300/60 dark:border-amber-900/60',
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <button onClick={() => onRegionSelect(entry.region.id)} className="min-w-0 flex-1 text-left">
-                    <div className="line-clamp-1 text-sm font-medium text-foreground">
-                      #{entry.rank} {entry.region.name}
-                    </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      Code {entry.region.code} | Density{' '}
-                      {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
-                    </div>
-                    {topDrivers.length > 0 && (
-                      <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
-                        Top:{' '}
-                        {topDrivers
-                          .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
-                          .join(', ')}{' '}
-                        pts
-                      </div>
-                    )}
-                    {entry.dataCoverageScore < 0.6 && (
-                      <div className="mt-1 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
-                        Thin data coverage
-                      </div>
-                    )}
-                    <div className="mt-1 text-[10px] text-muted-foreground">
-                      {entry.rankConfidence} · rank #{entry.rankInterval[0]}-#{entry.rankInterval[1]} · score{' '}
-                      {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
-                    </div>
-                  </button>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">
-                      {formatScore(entry.score)}
-                    </span>
-                    <button
-                      data-score-builder-region-insight={entry.region.id}
-                      onClick={() => onOpenRegionInsight(entry.region.id)}
-                      className="rounded border border-input px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      Insight
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-          {visibleRows.length === 0 && (
-            <div className="rounded border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
-              No regions match this filter.
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

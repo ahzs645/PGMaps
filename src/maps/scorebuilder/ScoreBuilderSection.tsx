@@ -23,6 +23,7 @@ import {
   type WatershedBoundaryLevel,
 } from '@/maps/airquality'
 import { useCensusData } from '@/maps/census/hooks/useCensusData'
+import type { CensusCategoryData } from '@/maps/census/types'
 import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
 import { useParksData } from '@/maps/parks/hooks/useParksData'
 import { useBcAssessmentData } from '@/maps/bcassessment/hooks/useBcAssessmentData'
@@ -72,6 +73,25 @@ import {
 } from './lib/scoring'
 import { scoreRegionRowsWithModulePercentiles } from './lib/modulePercentileScoring'
 import { scoreRegionRowsWithHealthyPlanPriority } from './lib/healthyPlanPriorityScoring'
+import {
+  HEALTHYPLAN_PG_STARTER_RECIPES,
+  computeDerivedExpressionMetric,
+  computePointMetricRecipe,
+  recipeFormulaPreview,
+  pointRecordsFromFeatureCollection,
+  type MetricRecipe,
+  type MetricRecipeSource,
+} from './lib/metricRecipes'
+import { SCORE_BUILDER_DATASETS, profileFeatureCollection, type DatasetProfile } from './lib/datasetCatalog'
+import {
+  censusVariableDataPath,
+  computeCensusMetricValue,
+  getCensusRecipeCategories,
+} from './lib/censusComposer'
+import {
+  computePopulationWeightedEquitySummary,
+  type PopulationWeightedEquitySummary,
+} from './lib/populationSummary'
 import {
   computeCorrelation,
   topMetricCorrelations,
@@ -353,6 +373,7 @@ const ALL_DATA_SOURCES: ScoreDataSource[] = [
   'transit',
   'walkability',
   'deprivation',
+  'healthyPlanPg',
 ]
 const CURRENT_YEAR = new Date().getFullYear()
 const DEFAULT_SCORE_FILTERS: ScoreFilterState = {
@@ -475,6 +496,78 @@ function parseScoreMetricKey(value: string | null, fallback: ScoreMetricKey): Sc
   return SCORE_METRICS.some((metric) => metric.key === value) ? (value as ScoreMetricKey) : fallback
 }
 
+function parseCustomMetricRecipes(value: string | null): MetricRecipe[] {
+  if (!value) return []
+  try {
+    const decoded = decodeURIComponent(value)
+    const parsed = JSON.parse(decoded)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((recipe): recipe is MetricRecipe => {
+      return (
+        recipe &&
+        typeof recipe.id === 'string' &&
+        typeof recipe.label === 'string' &&
+        typeof recipe.source === 'string' &&
+        typeof recipe.operation === 'string'
+      )
+    })
+  } catch {
+    return []
+  }
+}
+
+function encodeCustomMetricRecipes(recipes: MetricRecipe[]): string {
+  return encodeURIComponent(JSON.stringify(recipes))
+}
+
+function parseCustomMetricWeights(value: string | null): Record<string, number> {
+  if (!value) return {}
+  try {
+    const parsed = JSON.parse(decodeURIComponent(value))
+    if (!parsed || typeof parsed !== 'object') return {}
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .map(([key, raw]) => [key, Math.max(-100, Math.min(100, Math.round(Number(raw))))] as const)
+        .filter(([, weight]) => Number.isFinite(weight)),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function encodeCustomMetricWeights(weights: ScoreMetricWeightMap, recipes: MetricRecipe[]): string {
+  const customWeights = Object.fromEntries(
+    recipes.map((recipe) => [recipe.id, weights[recipe.id] ?? 0]).filter(([, value]) => value !== 0),
+  )
+  return encodeURIComponent(JSON.stringify(customWeights))
+}
+
+function metricRecipeToDefinition(recipe: MetricRecipe) {
+  return {
+    key: recipe.id,
+    label: recipe.label,
+    shortLabel: recipe.label.length > 18 ? `${recipe.label.slice(0, 17)}...` : recipe.label,
+    description: recipe.description || recipeFormulaPreview(recipe),
+    format: recipe.format === 'index' ? ('ratio' as const) : recipe.format,
+    category: recipe.source === 'census' ? ('demographics' as const) : ('custom' as const),
+    direction: recipe.direction,
+    component: recipe.source === 'census' ? ('sensitivity' as const) : ('serviceAccess' as const),
+    dataSourceLabel: SCORE_BUILDER_DATASETS.find((dataset) => dataset.id === recipe.source)?.label || 'Custom recipe',
+    spatialMethod: recipe.operation === 'derivedExpression' ? ('derivedRatio' as const) : ('pointInPolygon' as const),
+    uncertainty: recipe.proxyLevel === 'official' ? ('low' as const) : recipe.proxyLevel === 'proxy' ? ('medium' as const) : ('high' as const),
+    caveat: recipe.caveats?.join(' '),
+    directionLabel: recipe.direction === 'higherIsWorse' ? 'lower helps' : 'higher helps',
+    sourceUrl: recipe.sourcePath,
+    freshnessLabel: 'User-created recipe',
+    comparisonBasis: 'Compared within the currently loaded boundary level',
+    indexModule: recipe.source === 'census' ? ('socialVulnerability' as const) : ('localContext' as const),
+    indexDomain: recipe.source === 'census' ? ('demographics' as const) : ('services' as const),
+    valueBehavior: recipe.direction === 'higherIsWorse' ? ('continuous' as const) : ('inverseContinuous' as const),
+    missingDataPolicy: 'neutral' as const,
+    proxyLevel: recipe.proxyLevel,
+  }
+}
+
 function summarizeScores(regions: ScoredBoundaryRegion[]): { min: number; max: number; average: number } {
   if (!regions.length) return { min: 0, max: 0, average: 0 }
   const values = regions.map((entry) => entry.score)
@@ -512,6 +605,8 @@ export default function ScoreBuilderSection() {
     searchParams.get('agg') ||
     searchParams.get('hpDemo') ||
     searchParams.get('hpEnv') ||
+    searchParams.get('recipes') ||
+    searchParams.get('cw') ||
     initialShareTokenValue,
   )
   const hasUrlWeightsOnMount = useRef(initialHasUrlWeights)
@@ -544,6 +639,17 @@ export default function ScoreBuilderSection() {
   const [regionInsightOpen, setRegionInsightOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedNetworks, setSelectedNetworks] = useState<string[]>([])
+  const [customMetricRecipes, setCustomMetricRecipes] = useState<MetricRecipe[]>(() =>
+    parseCustomMetricRecipes(searchParams.get('recipes')),
+  )
+  const customMetricDefinitions = useMemo(
+    () => customMetricRecipes.map(metricRecipeToDefinition),
+    [customMetricRecipes],
+  )
+  const activeMetricDefinitions = useMemo(
+    () => [...SCORE_METRICS, ...customMetricDefinitions],
+    [customMetricDefinitions],
+  )
   const [weights, setWeights] = useState<ScoreMetricWeightMap>(() => {
     const quickPreset = SCORE_PRESETS.find(
       (preset) => preset.key === getQuickIndexLabPresetKey(searchParams.get('quick')),
@@ -552,9 +658,9 @@ export default function ScoreBuilderSection() {
     const fromUrl = searchParams.get('w')
     if (fromUrl) {
       const decoded = decodeWeightsFromParams(fromUrl)
-      if (decoded) return decoded
+      if (decoded) return { ...decoded, ...parseCustomMetricWeights(searchParams.get('cw')) }
     }
-    return createDefaultWeights()
+    return { ...createDefaultWeights(), ...parseCustomMetricWeights(searchParams.get('cw')) }
   })
   const [densityMetric, setDensityMetric] = useState<ScoreMetricKey>('overallDensity')
   const [densityMode, setDensityMode] = useState(false)
@@ -585,8 +691,8 @@ export default function ScoreBuilderSection() {
     })
   }, [])
   const totalAbsoluteWeight = useMemo(
-    () => SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0),
-    [weights],
+    () => activeMetricDefinitions.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0),
+    [activeMetricDefinitions, weights],
   )
   const [correlateMetricX, setCorrelateMetricX] = useState<ScoreMetricKey>('populationDensity')
   const [correlateMetricY, setCorrelateMetricY] = useState<ScoreMetricKey>('crimeDensity')
@@ -708,6 +814,9 @@ export default function ScoreBuilderSection() {
                 : watershedBoundaryLevel,
     )
     params.set('w', encodeWeightsToParams(weights))
+    if (customMetricRecipes.some((recipe) => (weights[recipe.id] ?? 0) !== 0)) {
+      params.set('cw', encodeCustomMetricWeights(weights, customMetricRecipes))
+    }
     params.set('ds', enabledDataSources.join(','))
     params.set('norm', methodSettings.normalization)
     params.set('agg', methodSettings.aggregation)
@@ -716,6 +825,7 @@ export default function ScoreBuilderSection() {
     params.set('scope', methodSettings.normalizationScope)
     params.set('vis', methodSettings.visualOutput)
     params.set('surface', mapSurface)
+    if (customMetricRecipes.length) params.set('recipes', encodeCustomMetricRecipes(customMetricRecipes))
     if (methodSettings.healthyPlanPriority.demographicMetric) {
       params.set('hpDemo', methodSettings.healthyPlanPriority.demographicMetric)
     }
@@ -737,6 +847,7 @@ export default function ScoreBuilderSection() {
     enabledDataSources,
     mapSurface,
     methodSettings,
+    customMetricRecipes,
     setSearchParams,
   ])
 
@@ -752,6 +863,48 @@ export default function ScoreBuilderSection() {
             : boundarySource === 'nrAdmin'
               ? nrAdminBoundaryLevel
               : watershedBoundaryLevel
+
+  const censusVariableLevel = CENSUS_BOUNDARY_LEVEL_VALUES.has(selectedRegionLevel as CensusBoundaryLevel)
+    ? (selectedRegionLevel as CensusBoundaryLevel)
+    : 'da'
+  const customCensusCategories = useMemo(
+    () => getCensusRecipeCategories(customMetricRecipes),
+    [customMetricRecipes],
+  )
+  const shouldLoadCustomCensus = customCensusCategories.length > 0
+  const censusAgeVariables = useJsonManifest<CensusCategoryData>(
+    shouldLoadCustomCensus ? censusVariableDataPath(censusVariableLevel, 'age') : null,
+  )
+  const censusVisibleMinorityVariables = useJsonManifest<CensusCategoryData>(
+    shouldLoadCustomCensus
+      ? censusVariableDataPath(censusVariableLevel, 'visible_minority_and_ethnic_origin')
+      : null,
+  )
+  const censusImmigrationVariables = useJsonManifest<CensusCategoryData>(
+    shouldLoadCustomCensus ? censusVariableDataPath(censusVariableLevel, 'citizenship_and_immigration') : null,
+  )
+  const censusHouseholdVariables = useJsonManifest<CensusCategoryData>(
+    shouldLoadCustomCensus ? censusVariableDataPath(censusVariableLevel, 'households') : null,
+  )
+  const censusIncomeVariables = useJsonManifest<CensusCategoryData>(
+    shouldLoadCustomCensus ? censusVariableDataPath(censusVariableLevel, 'income_100') : null,
+  )
+  const censusCategoryData = useMemo<Partial<Record<string, CensusCategoryData>>>(
+    () => ({
+      age: censusAgeVariables.data ?? undefined,
+      visible_minority_and_ethnic_origin: censusVisibleMinorityVariables.data ?? undefined,
+      citizenship_and_immigration: censusImmigrationVariables.data ?? undefined,
+      households: censusHouseholdVariables.data ?? undefined,
+      income_100: censusIncomeVariables.data ?? undefined,
+    }),
+    [
+      censusAgeVariables.data,
+      censusHouseholdVariables.data,
+      censusImmigrationVariables.data,
+      censusIncomeVariables.data,
+      censusVisibleMinorityVariables.data,
+    ],
+  )
 
   const boundaryLevelOptions = useMemo<Array<{ value: RegionLevel; label: string }>>(() => {
     if (boundarySource === 'bcHealth') {
@@ -849,6 +1002,32 @@ export default function ScoreBuilderSection() {
   )
   const walkabilityPedestrianCrashes = useJsonManifest<GeoJSON.FeatureCollection>(
     walkabilityEnabled ? '/data/icbc/prince_george_pedestrian_crashes.geojson' : null,
+  )
+  const healthyPlanPgEnabled = enabledSourceSet.has('healthyPlanPg')
+  const healthyPlanBusinessPois = useJsonManifest<GeoJSON.FeatureCollection>(
+    healthyPlanPgEnabled ? '/data/healthyplan-pg/business_pois.geojson' : null,
+  )
+  const healthyPlanEducationFacilities = useJsonManifest<GeoJSON.FeatureCollection>(
+    healthyPlanPgEnabled ? '/data/healthyplan-pg/education_facilities.geojson' : null,
+  )
+  const healthyPlanBusinessLicences = useJsonManifest<GeoJSON.FeatureCollection>(
+    healthyPlanPgEnabled ? '/data/healthyplan-pg/business_licences_bc_geocoded.geojson' : null,
+  )
+  const datasetCollections = useMemo<Partial<Record<MetricRecipeSource, GeoJSON.FeatureCollection | null>>>(
+    () => ({
+      'healthyplanPg.businessPois': healthyPlanBusinessPois.data,
+      'healthyplanPg.educationFacilities': healthyPlanEducationFacilities.data,
+      'healthyplanPg.businessLicencesBcGeocoded': healthyPlanBusinessLicences.data,
+    }),
+    [healthyPlanBusinessLicences.data, healthyPlanBusinessPois.data, healthyPlanEducationFacilities.data],
+  )
+  const datasetProfiles = useMemo<Partial<Record<MetricRecipeSource, DatasetProfile>>>(
+    () => ({
+      'healthyplanPg.businessPois': profileFeatureCollection(healthyPlanBusinessPois.data),
+      'healthyplanPg.educationFacilities': profileFeatureCollection(healthyPlanEducationFacilities.data),
+      'healthyplanPg.businessLicencesBcGeocoded': profileFeatureCollection(healthyPlanBusinessLicences.data),
+    }),
+    [healthyPlanBusinessLicences.data, healthyPlanBusinessPois.data, healthyPlanEducationFacilities.data],
   )
 
   const networkCounts = useMemo(() => {
@@ -1188,6 +1367,42 @@ export default function ScoreBuilderSection() {
       .filter((record): record is CimdPointRecord => record !== null)
   }, [cimdRecords, enabledSourceSet, unitsByLevel.da])
 
+  const pointRecipeValues = useMemo(() => {
+    const empty = new Map<ScoreMetricKey, Map<string, { value: number; matchedFeatureCount: number }>>()
+    if (!healthyPlanPgEnabled || regions.length === 0) return empty
+
+    const datasets = {
+      'healthyplanPg.businessPois': datasetCollections['healthyplanPg.businessPois']
+        ? pointRecordsFromFeatureCollection(datasetCollections['healthyplanPg.businessPois'])
+        : [],
+      'healthyplanPg.educationFacilities': datasetCollections['healthyplanPg.educationFacilities']
+        ? pointRecordsFromFeatureCollection(datasetCollections['healthyplanPg.educationFacilities'])
+        : [],
+      'healthyplanPg.businessLicencesBcGeocoded': datasetCollections['healthyplanPg.businessLicencesBcGeocoded']
+        ? pointRecordsFromFeatureCollection(datasetCollections['healthyplanPg.businessLicencesBcGeocoded'])
+        : [],
+    }
+
+    const values = new Map<ScoreMetricKey, Map<string, { value: number; matchedFeatureCount: number }>>()
+    const pointRecipes = [...HEALTHYPLAN_PG_STARTER_RECIPES, ...customMetricRecipes].filter(
+      (recipe) => recipe.operation !== 'derivedExpression' && recipe.operation !== 'censusVariable',
+    )
+    pointRecipes.forEach((recipe) => {
+      const records = datasets[recipe.source as keyof typeof datasets] ?? []
+      const computed = computePointMetricRecipe(recipe, regions, records)
+      values.set(
+        recipe.id as ScoreMetricKey,
+        new Map(
+          computed.map((entry) => [
+            entry.regionId,
+            { value: entry.value, matchedFeatureCount: entry.matchedFeatureCount },
+          ]),
+        ),
+      )
+    })
+    return values
+  }, [customMetricRecipes, datasetCollections, healthyPlanPgEnabled, regions])
+
   const regionMetricRows = useMemo<RegionMetricRow[]>(() => {
     return regions.map((region) => {
       const counts: RegionDataCounts = {
@@ -1241,6 +1456,10 @@ export default function ScoreBuilderSection() {
         canopyProxyAreaSqKm: 0,
         coolingFacilityCount: 0,
         responseFacilityCount: 0,
+        healthyFoodOutletAccessCount: 0,
+        retailServiceAccessCount: 0,
+        educationFacilityAccessCount: 0,
+        geocodedBusinessCount: 0,
         cimdJoinedCount: 0,
         cimdPopulationWeight: 0,
         cimdCompositeSum: 0,
@@ -1504,6 +1723,31 @@ export default function ScoreBuilderSection() {
         counts.cimdPopulationWeight > 0 ? counts.cimdSituationalVulnerabilitySum / cimdWeight : 0
       metricValues.cimdEthnoCulturalComposition =
         counts.cimdPopulationWeight > 0 ? counts.cimdEthnoCulturalCompositionSum / cimdWeight : 0
+      const healthyFoodAccess = pointRecipeValues.get('healthyFoodOutletAccess1km')?.get(region.id)
+      const retailServiceAccess = pointRecipeValues.get('retailServiceAccess1km')?.get(region.id)
+      const educationFacilityAccess = pointRecipeValues.get('educationFacilityAccess1km')?.get(region.id)
+      const geocodedBusinessDensity = pointRecipeValues.get('geocodedBusinessDensity')?.get(region.id)
+
+      counts.healthyFoodOutletAccessCount = healthyFoodAccess?.matchedFeatureCount ?? 0
+      counts.retailServiceAccessCount = retailServiceAccess?.matchedFeatureCount ?? 0
+      counts.educationFacilityAccessCount = educationFacilityAccess?.matchedFeatureCount ?? 0
+      counts.geocodedBusinessCount = geocodedBusinessDensity?.matchedFeatureCount ?? 0
+
+      metricValues.healthyFoodOutletAccess1km = healthyFoodAccess?.value ?? 0
+      metricValues.retailServiceAccess1km = retailServiceAccess?.value ?? 0
+      metricValues.educationFacilityAccess1km = educationFacilityAccess?.value ?? 0
+      metricValues.geocodedBusinessDensity = geocodedBusinessDensity?.value ?? 0
+      customMetricRecipes.forEach((recipe) => {
+        if (recipe.operation === 'censusVariable') {
+          metricValues[recipe.id] = computeCensusMetricValue(recipe, region.id, censusCategoryData)
+          return
+        }
+        if (recipe.operation === 'derivedExpression') {
+          metricValues[recipe.id] = computeDerivedExpressionMetric(recipe, metricValues)
+          return
+        }
+        metricValues[recipe.id] = pointRecipeValues.get(recipe.id)?.get(region.id)?.value ?? 0
+      })
 
       return { region, metrics: metricValues, counts }
     })
@@ -1525,14 +1769,20 @@ export default function ScoreBuilderSection() {
     heatShadeForestRecords,
     heatShadeFacilityPointRecords,
     cimdPointRecords,
+    customMetricRecipes,
+    censusCategoryData,
+    pointRecipeValues,
     regions,
   ])
 
-  const metricRanges = useMemo(() => buildMetricRanges(regionMetricRows), [regionMetricRows])
+  const metricRanges = useMemo(
+    () => buildMetricRanges(regionMetricRows, activeMetricDefinitions),
+    [activeMetricDefinitions, regionMetricRows],
+  )
 
   const metricValueLists = useMemo(() => {
-    return buildMetricValueLists(regionMetricRows)
-  }, [regionMetricRows])
+    return buildMetricValueLists(regionMetricRows, activeMetricDefinitions)
+  }, [activeMetricDefinitions, regionMetricRows])
 
   const correlationResult = useMemo<CorrelationResult>(() => {
     if (!correlateMode) return { stats: null, points: [], residualMaxAbs: 0 }
@@ -1656,9 +1906,10 @@ export default function ScoreBuilderSection() {
         metricRanges,
         metricValueLists,
         paletteProfile: scorePaletteProfile,
+        metrics: activeMetricDefinitions,
       })
     },
-    [methodSettings, metricRanges, metricValueLists, regionMetricRows, scorePaletteProfile],
+    [activeMetricDefinitions, methodSettings, metricRanges, metricValueLists, regionMetricRows, scorePaletteProfile],
   )
 
   const unfilteredScoredRegions = useMemo<ScoredBoundaryRegion[]>(() => scoreRows(weights), [scoreRows, weights])
@@ -1739,6 +1990,23 @@ export default function ScoreBuilderSection() {
     })
   }, [filterThresholds, scoreFilters, scoreRows, unfilteredScoredRegions])
 
+  const populationEquitySummary = useMemo<PopulationWeightedEquitySummary | null>(() => {
+    const demographicMetric =
+      methodSettings.healthyPlanPriority.demographicMetric ||
+      activeMetricDefinitions.find((metric) => metric.component === 'sensitivity' && weights[metric.key] !== 0)?.key ||
+      null
+    const environmentMetric =
+      methodSettings.healthyPlanPriority.environmentMetric ||
+      activeMetricDefinitions.find((metric) => metric.component === 'serviceAccess' && weights[metric.key] !== 0)?.key ||
+      null
+    return computePopulationWeightedEquitySummary({
+      regions: scoredRegions,
+      metrics: activeMetricDefinitions,
+      demographicMetric,
+      environmentMetric,
+    })
+  }, [activeMetricDefinitions, methodSettings.healthyPlanPriority, scoredRegions, weights])
+
   const filteredRegions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return scoredRegions
@@ -1812,14 +2080,14 @@ export default function ScoreBuilderSection() {
         activeMetricCount: module.activeMetricCount,
       }))
     }
-    const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
+    const totalWeight = activeMetricDefinitions.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
     if (!referenceRegion || totalWeight <= 0) return []
 
     return Object.entries(METRIC_CATEGORY_LABELS)
       .map(([category, label]) => {
-        const metrics = SCORE_METRICS.filter((metric) => metric.category === category && weights[metric.key] !== 0)
-        const categoryWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
-        const categoryContribution = metrics.reduce((sum, metric) => sum + referenceRegion.contributions[metric.key], 0)
+        const metrics = activeMetricDefinitions.filter((metric) => metric.category === category && weights[metric.key] !== 0)
+        const categoryWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
+        const categoryContribution = metrics.reduce((sum, metric) => sum + (referenceRegion.contributions[metric.key] ?? 0), 0)
         return {
           key: category as ScoreComponentSummary['key'],
           label,
@@ -1829,7 +2097,7 @@ export default function ScoreBuilderSection() {
         }
       })
       .filter((summary) => summary.activeMetricCount > 0)
-  }, [scoredRegions, selectedRegion, weights])
+  }, [activeMetricDefinitions, scoredRegions, selectedRegion, weights])
 
   const robustnessResults = useMemo<RobustnessResult[]>(() => {
     if (!methodSettings.sensitivity || !scoredRegions.length) return []
@@ -1854,7 +2122,7 @@ export default function ScoreBuilderSection() {
 
     for (let trial = 0; trial < 24; trial += 1) {
       const perturbedWeights = { ...weights }
-      SCORE_METRICS.forEach((metric, index) => {
+      activeMetricDefinitions.forEach((metric, index) => {
         const weight = weights[metric.key]
         if (weight === 0) return
         const wave = Math.sin((trial + 1) * (index + 3) * 1.618)
@@ -1863,7 +2131,7 @@ export default function ScoreBuilderSection() {
       sampleRows(scoreRows(perturbedWeights))
     }
 
-    SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).forEach((metric) => {
+    activeMetricDefinitions.filter((metric) => weights[metric.key] !== 0).forEach((metric) => {
       sampleRows(scoreRows({ ...weights, [metric.key]: 0 }))
     })
     ;(['minMax', 'winsorizedMinMax', 'percentile', 'zScore'] as const).forEach((normalization) => {
@@ -1883,13 +2151,13 @@ export default function ScoreBuilderSection() {
         rankInterval: [ranks[0], ranks[ranks.length - 1]],
         scoreInterval: [scores[0], scores[scores.length - 1]],
         stability: rankSpread <= 2 ? 'stable' : rankSpread <= 6 ? 'moderate' : 'sensitive',
-        topDrivers: SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+        topDrivers: activeMetricDefinitions.filter((metric) => weights[metric.key] !== 0)
           .sort((a, b) => Math.abs(entry.contributions[b.key]) - Math.abs(entry.contributions[a.key]))
           .slice(0, 3)
           .map((metric) => metric.key),
       }
     })
-  }, [methodSettings, scoreRows, scoredRegions, weights])
+  }, [activeMetricDefinitions, methodSettings, scoreRows, scoredRegions, weights])
 
   const scenarioComparison = useMemo<ScenarioComparison | null>(() => {
     const referencePreset = SCORE_PRESETS.find((preset) => preset.key === 'balancedCoverage') || SCORE_PRESETS[0]
@@ -1931,7 +2199,7 @@ export default function ScoreBuilderSection() {
       const baseRankById = new Map(scoredRegions.map((entry) => [entry.region.id, entry.rank]))
       for (let trial = 0; trial < trials; trial += 1) {
         const perturbedWeights = { ...weights }
-        SCORE_METRICS.forEach((metric, index) => {
+        activeMetricDefinitions.forEach((metric, index) => {
           const weight = weights[metric.key]
           if (weight === 0) return
           const wave = Math.sin((trial + 1) * (index + 3) * 1.618)
@@ -1976,6 +2244,7 @@ export default function ScoreBuilderSection() {
     }
   }, [
     methodSettings.sensitivity,
+    activeMetricDefinitions,
     scoreRows,
     scoreSpread.average,
     scoredRegions,
@@ -2001,15 +2270,15 @@ export default function ScoreBuilderSection() {
 
   const equationPreview = useMemo(() => {
     if (methodSettings.aggregation === 'healthyPlanPairwisePriority') {
-      const demographicMetric = SCORE_METRICS.find(
+      const demographicMetric = activeMetricDefinitions.find(
         (metric) => metric.key === methodSettings.healthyPlanPriority.demographicMetric,
       )
-      const environmentMetric = SCORE_METRICS.find(
+      const environmentMetric = activeMetricDefinitions.find(
         (metric) => metric.key === methodSettings.healthyPlanPriority.environmentMetric,
       )
       return `priority_score = ${demographicMetric?.shortLabel ?? 'vulnerability'} decile - ${environmentMetric?.shortLabel ?? 'environment'} decile where vulnerability decile > 5 and environment benefit decile < 6`
     }
-    const activeTerms = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+    const activeTerms = activeMetricDefinitions.filter((metric) => weights[metric.key] !== 0)
     if (!activeTerms.length) return 'No active terms. Move any weight above or below zero.'
     if (methodSettings.aggregation === 'modulePercentileRankedSum') {
       const moduleNames = Array.from(new Set(activeTerms.map((metric) => metric.indexModule || 'localContext')))
@@ -2023,13 +2292,37 @@ export default function ScoreBuilderSection() {
       return weight < 0 ? `${Math.abs(weight)}×low ${metric.shortLabel}` : `${weight}×${metric.shortLabel}`
     })
     return `score = weighted average(${terms.join(' + ')})`
-  }, [methodSettings.aggregation, methodSettings.accessThreshold, methodSettings.healthyPlanPriority, weights])
+  }, [activeMetricDefinitions, methodSettings.aggregation, methodSettings.accessThreshold, methodSettings.healthyPlanPriority, weights])
 
   const normalizationLegendText = useMemo(() => getMethodLegendText(methodSettings), [methodSettings])
 
   const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
     setActiveExampleKey(null)
     setWeights((current) => ({ ...current, [metric]: value }))
+  }, [])
+
+  const handleCreateCustomMetric = useCallback((recipe: MetricRecipe) => {
+    setActiveExampleKey(null)
+    const existingIds = new Set(customMetricRecipes.map((entry) => entry.id))
+    const baseId = recipe.id || `custom_metric_${customMetricRecipes.length + 1}`
+    let registeredId = baseId
+    let suffix = 2
+    while (existingIds.has(registeredId) || SCORE_METRICS.some((metric) => metric.key === registeredId)) {
+      registeredId = `${baseId}_${suffix}`
+      suffix += 1
+    }
+    setCustomMetricRecipes((current) => [...current, { ...recipe, id: registeredId }])
+    setWeights((current) => ({ ...current, [registeredId]: recipe.direction === 'higherIsWorse' ? -35 : 35 }))
+    if (recipe.source === 'census') {
+      setEnabledDataSources((current) => (current.includes('census') ? current : [...current, 'census']))
+    } else if (recipe.source !== 'custom') {
+      setEnabledDataSources((current) => (current.includes('healthyPlanPg') ? current : [...current, 'healthyPlanPg']))
+    }
+  }, [customMetricRecipes])
+
+  const handleRemoveCustomMetric = useCallback((id: string) => {
+    setCustomMetricRecipes((current) => current.filter((recipe) => recipe.id !== id))
+    setWeights((current) => ({ ...current, [id]: 0 }))
   }, [])
 
   const applyExample = useCallback(
@@ -2086,7 +2379,8 @@ export default function ScoreBuilderSection() {
         setWatershedBoundaryLevel(parseWatershedBoundaryLevel(state.watershedBoundaryLevel ?? null))
         setEnabledDataSources([...state.enabledDataSources])
         setSelectedNetworks([...state.selectedNetworks])
-        setWeights({ ...createDefaultWeights(), ...state.weights })
+        setCustomMetricRecipes([...(state.customMetricRecipes ?? [])])
+        setWeights({ ...createDefaultWeights(), ...state.weights } as ScoreMetricWeightMap)
         if (state.methodSettings) {
           setMethodSettings((current) => ({ ...current, ...state.methodSettings }))
         }
@@ -2152,7 +2446,7 @@ export default function ScoreBuilderSection() {
   const handleAddMetric = useCallback(
     (metric: ScoreMetricKey, value: number) => {
       handleWeightChange(metric, value)
-      const definition = SCORE_METRICS.find((entry) => entry.key === metric)
+      const definition = activeMetricDefinitions.find((entry) => entry.key === metric)
       const source = definition ? metricToDataSource(definition.category) : null
       if (!source) return
       setEnabledDataSources((current) => (current.includes(source) ? current : [...current, source]))
@@ -2160,12 +2454,12 @@ export default function ScoreBuilderSection() {
         setSelectedNetworks((current) => (current.length ? current : allNetworks))
       }
     },
-    [allNetworks, handleWeightChange],
+    [activeMetricDefinitions, allNetworks, handleWeightChange],
   )
 
   const handleBuildDensityScore = useCallback(
     (metric: ScoreMetricKey) => {
-      const definition = SCORE_METRICS.find((entry) => entry.key === metric)
+      const definition = activeMetricDefinitions.find((entry) => entry.key === metric)
       const source = definition ? metricToDataSource(definition.category) : null
       const nextWeights = createMetricValueMap(0) as ScoreMetricWeightMap
       nextWeights[metric] = 100
@@ -2184,7 +2478,7 @@ export default function ScoreBuilderSection() {
         }
       }
     },
-    [allNetworks],
+    [activeMetricDefinitions, allNetworks],
   )
 
   const handleShareUrl = useCallback(async () => {
@@ -2201,6 +2495,7 @@ export default function ScoreBuilderSection() {
       weights,
       methodSettings,
       mapSurface,
+      customMetricRecipes,
     })
     const url = new URL(window.location.href)
     url.search = ''
@@ -2216,6 +2511,7 @@ export default function ScoreBuilderSection() {
     boundarySource,
     censusBoundaryLevel,
     cityBoundaryLevel,
+    customMetricRecipes,
     enabledDataSources,
     healthBoundaryLevel,
     methodSettings,
@@ -2303,7 +2599,7 @@ export default function ScoreBuilderSection() {
   const handleExport = useCallback(
     (format: 'csv' | 'geojson') => {
       if (format === 'csv') {
-        const metricKeys = SCORE_METRICS.map((m) => m.key)
+        const metricKeys = activeMetricDefinitions.map((m) => m.key)
         const header = [
           'Rank',
           'Rank confidence',
@@ -2323,7 +2619,7 @@ export default function ScoreBuilderSection() {
           'Name',
           'Code',
           'Area (km²)',
-          ...SCORE_METRICS.map((m) => m.label),
+          ...activeMetricDefinitions.map((m) => m.label),
         ]
         const rows = scoredRegions.map((r) => [
           r.rank,
@@ -2370,14 +2666,14 @@ export default function ScoreBuilderSection() {
               comparisonUniverse: r.comparisonUniverseLabel,
               equityAudit: r.equityAudit,
               areaKm2: r.region.areaKm2,
-              ...Object.fromEntries(SCORE_METRICS.map((m) => [m.key, r.metrics[m.key]])),
+              ...Object.fromEntries(activeMetricDefinitions.map((m) => [m.key, r.metrics[m.key]])),
             },
           })),
         }
         downloadBlob(JSON.stringify(fc, null, 2), 'score-builder-regions.geojson', 'application/geo+json')
       }
     },
-    [methodSettings.aggregation, scoredRegions],
+    [activeMetricDefinitions, methodSettings.aggregation, scoredRegions],
   )
 
   const loading =
@@ -2413,6 +2709,14 @@ export default function ScoreBuilderSection() {
     if (walkabilitySupplementalPoi.error) errors.push(walkabilitySupplementalPoi.error)
     if (walkabilityIntercityStops.error) errors.push(walkabilityIntercityStops.error)
     if (walkabilityPedestrianCrashes.error) errors.push(walkabilityPedestrianCrashes.error)
+    if (healthyPlanBusinessPois.error) errors.push(healthyPlanBusinessPois.error)
+    if (healthyPlanEducationFacilities.error) errors.push(healthyPlanEducationFacilities.error)
+    if (healthyPlanBusinessLicences.error) errors.push(healthyPlanBusinessLicences.error)
+    if (censusAgeVariables.error) errors.push(censusAgeVariables.error)
+    if (censusVisibleMinorityVariables.error) errors.push(censusVisibleMinorityVariables.error)
+    if (censusImmigrationVariables.error) errors.push(censusImmigrationVariables.error)
+    if (censusHouseholdVariables.error) errors.push(censusHouseholdVariables.error)
+    if (censusIncomeVariables.error) errors.push(censusIncomeVariables.error)
     return errors
   }, [
     monitorsError,
@@ -2435,6 +2739,14 @@ export default function ScoreBuilderSection() {
     walkabilitySupplementalPoi.error,
     walkabilityIntercityStops.error,
     walkabilityPedestrianCrashes.error,
+    healthyPlanBusinessPois.error,
+    healthyPlanEducationFacilities.error,
+    healthyPlanBusinessLicences.error,
+    censusAgeVariables.error,
+    censusVisibleMinorityVariables.error,
+    censusImmigrationVariables.error,
+    censusHouseholdVariables.error,
+    censusIncomeVariables.error,
   ])
 
   const desktopLeftPanel = (
@@ -2457,6 +2769,10 @@ export default function ScoreBuilderSection() {
       canUseWalkabilitySourceSurface={canUseWalkabilitySourceSurface}
       mapSurface={mapSurface}
       onMapSurfaceChange={handleMapSurfaceChange}
+      customMetricRecipes={customMetricRecipes}
+      datasetProfiles={datasetProfiles}
+      onCreateCustomMetric={handleCreateCustomMetric}
+      onRemoveCustomMetric={handleRemoveCustomMetric}
     />
   )
 
@@ -2474,6 +2790,7 @@ export default function ScoreBuilderSection() {
       equationPreview={equationPreview}
       metricRanges={metricRanges}
       scoreSpread={scoreSpread}
+      populationEquitySummary={populationEquitySummary}
       densityMetric={densityMetric}
       onDensityMetricChange={setDensityMetric}
       onBuildDensityScore={handleBuildDensityScore}
@@ -2541,6 +2858,7 @@ export default function ScoreBuilderSection() {
       activePresetKey={activePresetKey}
       equationPreview={equationPreview}
       scoreSpread={scoreSpread}
+      populationEquitySummary={populationEquitySummary}
       densityMetric={densityMetric}
       onDensityMetricChange={setDensityMetric}
       onBuildDensityScore={handleBuildDensityScore}
@@ -2573,6 +2891,10 @@ export default function ScoreBuilderSection() {
       activeExampleKey={resolvedExampleKey}
       onApplyExample={applyExample}
       isDesktop={isDesktop}
+      customMetricRecipes={customMetricRecipes}
+      datasetProfiles={datasetProfiles}
+      onCreateCustomMetric={handleCreateCustomMetric}
+      onRemoveCustomMetric={handleRemoveCustomMetric}
     />
   )
 
@@ -2603,6 +2925,7 @@ export default function ScoreBuilderSection() {
           {isDesktop && (
             <ScoreBuilderEquationBar
               weights={weights}
+              metrics={activeMetricDefinitions}
               methodSettings={methodSettings}
               activePresetKey={activePresetKey}
               activeRecipeLabel={activeExample?.label || activePreset?.label || 'Custom index'}

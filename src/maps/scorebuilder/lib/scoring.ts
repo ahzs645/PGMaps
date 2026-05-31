@@ -9,6 +9,7 @@ import type {
   RegionDataCounts,
   ScoredBoundaryRegion,
   ScoreBuilderRegion,
+  ScoreMetricDefinition,
   ScoreMetricKey,
   ScoreMetricRangeMap,
   ScoreMetricValueMap,
@@ -24,6 +25,7 @@ export interface RegionMetricRow {
 }
 
 export type MetricValueListMap = Record<ScoreMetricKey, number[]>
+const DEFAULT_METRICS = SCORE_METRICS as ScoreMetricDefinition[]
 
 export function normalizeMetric(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return 0
@@ -69,15 +71,19 @@ export function clampScore(value: number): number {
   return Math.max(0, Math.min(100, value))
 }
 
-export function computeDataCoverageScore(counts: RegionDataCounts, weights: ScoreMetricWeightMap): number {
-  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+export function computeDataCoverageScore(
+  counts: RegionDataCounts,
+  weights: ScoreMetricWeightMap,
+  metrics: ScoreMetricDefinition[] = DEFAULT_METRICS,
+): number {
+  const activeMetrics = metrics.filter((metric) => weights[metric.key] !== 0)
   if (!activeMetrics.length) return 1
   const coveredMetrics = activeMetrics.filter((metric) => metricHasCoverage(metric.key, counts)).length
   return coveredMetrics / activeMetrics.length
 }
 
-export function buildMetricRanges(rows: RegionMetricRow[]): ScoreMetricRangeMap {
-  return SCORE_METRICS.reduce((accumulator, metric) => {
+export function buildMetricRanges(rows: RegionMetricRow[], metrics: ScoreMetricDefinition[] = DEFAULT_METRICS): ScoreMetricRangeMap {
+  return metrics.reduce((accumulator, metric) => {
     const values = rows.map((row) => row.metrics[metric.key]).filter((value) => Number.isFinite(value))
     const min = values.length ? Math.min(...values) : 0
     const max = values.length ? Math.max(...values) : 1
@@ -85,8 +91,8 @@ export function buildMetricRanges(rows: RegionMetricRow[]): ScoreMetricRangeMap 
   }, {} as ScoreMetricRangeMap)
 }
 
-export function buildMetricValueLists(rows: RegionMetricRow[]): MetricValueListMap {
-  return SCORE_METRICS.reduce((accumulator, metric) => {
+export function buildMetricValueLists(rows: RegionMetricRow[], metrics: ScoreMetricDefinition[] = DEFAULT_METRICS): MetricValueListMap {
+  return metrics.reduce((accumulator, metric) => {
     accumulator[metric.key] = rows
       .map((row) => row.metrics[metric.key])
       .filter((value) => Number.isFinite(value))
@@ -102,6 +108,7 @@ export function scoreRegionRows({
   metricRanges,
   metricValueLists,
   paletteProfile,
+  metrics = DEFAULT_METRICS,
 }: {
   rows: RegionMetricRow[]
   weights: ScoreMetricWeightMap
@@ -109,15 +116,16 @@ export function scoreRegionRows({
   metricRanges: ScoreMetricRangeMap
   metricValueLists: MetricValueListMap
   paletteProfile: ScorePaletteProfile
+  metrics?: ScoreMetricDefinition[]
 }): ScoredBoundaryRegion[] {
-  const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
+  const totalWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
   const ranked = rows.map((row) => {
     const normalizedMetrics = createMetricValueMap(0)
     const contributions = createMetricValueMap(0)
     let rawScore = 0
     let rawProduct = 1
 
-    SCORE_METRICS.forEach((metric) => {
+    metrics.forEach((metric) => {
       const value = row.metrics[metric.key]
       const range = metricRanges[metric.key]
       const hasCoverage = metricHasCoverage(metric.key, row.counts)
@@ -125,7 +133,7 @@ export function scoreRegionRows({
         settings.missingData === 'neutral' && !hasCoverage
           ? 0.5
           : normalizeWithMethod(value, metricValueLists[metric.key] ?? [], range, settings.normalization)
-      const weight = weights[metric.key]
+      const weight = weights[metric.key] ?? 0
       const directionalValue = weight >= 0 ? normalizedValue : 1 - normalizedValue
       normalizedMetrics[metric.key] = normalizedValue
       contributions[metric.key] = totalWeight > 0 ? (Math.abs(weight) * directionalValue) / totalWeight : 0
@@ -152,7 +160,7 @@ export function scoreRegionRows({
       score,
       scoreColor: getScorePaletteOutputColor(score, paletteProfile, settings.visualOutput),
       rank: 0,
-      dataCoverageScore: computeDataCoverageScore(row.counts, weights),
+      dataCoverageScore: computeDataCoverageScore(row.counts, weights, metrics),
       rankConfidence: 'Stable priority' as const,
       rankInterval: [0, 0],
       scoreInterval: [score, score] as [number, number],

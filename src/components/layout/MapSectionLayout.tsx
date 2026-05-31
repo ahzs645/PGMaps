@@ -11,6 +11,7 @@ import {
   MOBILE_FEATURE_CARD_OPEN_EVENT,
   MOBILE_FEATURE_CARD_PEEK_EVENT,
   MOBILE_MAP_CONTROLS_FRONT_EVENT,
+  MOBILE_MAP_CONTROLS_VISIBLE_HEIGHT_EVENT,
   MOBILE_MAP_INTERACTION_EVENT,
   MOBILE_MAP_SHEET_COLLAPSE_EVENT,
   MOBILE_MAP_SHEET_STACK_EVENT,
@@ -184,7 +185,13 @@ export function MapSectionLayout({
     sheet.style.transition = animate ? SPRING : 'none'
     sheet.style.transform = `translateY(${y}px)`
     curY.current = y
-    rootRef.current?.style.setProperty('--map-mobile-sheet-visible-height', `${Math.max(0, sheetHeight - y)}px`)
+    const visibleHeight = Math.max(0, sheetHeight - y)
+    rootRef.current?.style.setProperty('--map-mobile-sheet-visible-height', `${visibleHeight}px`)
+    if (mobileControlsInFront && mobileFeatureCardOpen) {
+      window.dispatchEvent(new CustomEvent(MOBILE_MAP_CONTROLS_VISIBLE_HEIGHT_EVENT, {
+        detail: { visibleHeight },
+      }))
+    }
 
     // Scrim opacity (0 at collapsed → 0.4 at full)
     const snaps = getSnapPositions(sheetHeight, getFullSnapOffset())
@@ -196,7 +203,7 @@ export function MapSectionLayout({
       scrimRef.current.style.pointerEvents = showScrim && t > 0.05 ? 'auto' : 'none'
       scrimRef.current.style.transition = animate ? 'opacity 0.35s ease' : 'none'
     }
-  }, [getFullSnapOffset, getSheetHeight, mobileScrimEnabled, mobileSheetInteractive])
+  }, [getFullSnapOffset, getSheetHeight, mobileControlsInFront, mobileFeatureCardOpen, mobileScrimEnabled, mobileSheetInteractive])
 
   const updateMobileSheetState = useCallback((state: MobileSheetState) => {
     setMobileSheetState(state)

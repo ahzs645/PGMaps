@@ -13,7 +13,8 @@ import type {
   ScenarioComparison,
 } from '../types'
 import { SCORE_PRESETS } from '../constants'
-import { ExamplesTab, MethodologyTab, ModelTab, RobustnessTab } from './ScoreBuilderRightPanel'
+import { ModelTab } from './ModelTab'
+import { ExamplesTab, MethodologyTab, RobustnessTab } from './ScoreBuilderRightPanel'
 
 type SettingsTab = 'examples' | 'methodology' | 'model' | 'robustness'
 
@@ -140,6 +141,7 @@ export function ScoreBuilderSettingsDialog({
                 totalRegionCount={totalRegionCount}
                 excludedRegionCount={excludedRegionCount}
                 scoreSpread={scoreSpread}
+                activePreset={activePreset}
               />
             )}
             {activeTab === 'robustness' && (

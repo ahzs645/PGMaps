@@ -11,6 +11,7 @@ export const MOBILE_MAP_BLANK_CLICK_EVENT = 'pgmaps:mobile-map-blank-click'
 export const MOBILE_MAP_SHEET_COLLAPSE_EVENT = 'pgmaps:collapse-mobile-map-sheet'
 export const MOBILE_MAP_SHEET_STACK_EVENT = 'pgmaps:stack-mobile-map-sheet'
 export const MOBILE_MAP_CONTROLS_FRONT_EVENT = 'pgmaps:mobile-map-controls-front'
+export const MOBILE_MAP_CONTROLS_VISIBLE_HEIGHT_EVENT = 'pgmaps:mobile-map-controls-visible-height'
 export const MOBILE_FEATURE_CARD_DOCK_EVENT = 'pgmaps:mobile-feature-card-dock'
 export const MOBILE_FEATURE_CARD_FRONT_EVENT = 'pgmaps:mobile-feature-card-front'
 export const MOBILE_FEATURE_CARD_PEEK_EVENT = 'pgmaps:mobile-feature-card-peek'
@@ -47,6 +48,7 @@ export function MobileFeatureCard({
   const [collapsed, setCollapsed] = useState(false)
   const [expanded, setExpanded] = useState(initialVisibleHeight >= height)
   const [controlsInFront, setControlsInFront] = useState(false)
+  const [controlsVisibleHeight, setControlsVisibleHeight] = useState<number | null>(null)
   const dragStartY = useRef<number | null>(null)
   const lastGestureAtRef = useRef(0)
 
@@ -75,12 +77,22 @@ export function MobileFeatureCard({
     }
     const bringFront = () => {
       setControlsInFront(false)
+      setControlsVisibleHeight(null)
       window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
     }
+    const syncControlsHeight = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return
+      const visibleHeight = event.detail?.visibleHeight
+      if (typeof visibleHeight === 'number') {
+        setControlsVisibleHeight(visibleHeight)
+      }
+    }
     window.addEventListener(MOBILE_MAP_CONTROLS_FRONT_EVENT, sendBehind)
+    window.addEventListener(MOBILE_MAP_CONTROLS_VISIBLE_HEIGHT_EVENT, syncControlsHeight)
     window.addEventListener(MOBILE_FEATURE_CARD_FRONT_EVENT, bringFront)
     return () => {
       window.removeEventListener(MOBILE_MAP_CONTROLS_FRONT_EVENT, sendBehind)
+      window.removeEventListener(MOBILE_MAP_CONTROLS_VISIBLE_HEIGHT_EVENT, syncControlsHeight)
       window.removeEventListener(MOBILE_FEATURE_CARD_FRONT_EVENT, bringFront)
     }
   }, [])
@@ -113,10 +125,15 @@ export function MobileFeatureCard({
 
   useEffect(() => {
     if (!open) return
+    const visibleCardHeight = collapsed
+      ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT
+      : controlsInFront && controlsVisibleHeight != null
+        ? Math.max(MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT, Math.min(height, controlsVisibleHeight))
+        : expanded ? height : initialVisibleHeight
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_COLLAPSE_STATE_EVENT, {
-      detail: { collapsed, visibleHeight: collapsed ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT : (expanded ? height : initialVisibleHeight) },
+      detail: { collapsed, visibleHeight: visibleCardHeight },
     }))
-  }, [collapsed, expanded, height, initialVisibleHeight, open])
+  }, [collapsed, controlsInFront, controlsVisibleHeight, expanded, height, initialVisibleHeight, open])
 
   const closeWithAnimation = useCallback(() => {
     setOpen(false)
@@ -172,6 +189,7 @@ export function MobileFeatureCard({
   const dockBehindControls = useCallback(() => {
     setCollapsed(false)
     setExpanded(false)
+    setControlsVisibleHeight(null)
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_DOCK_EVENT))
   }, [])
 
@@ -183,6 +201,12 @@ export function MobileFeatureCard({
     }
     setExpanded((current) => !current)
   }, [collapsed])
+
+  const visibleCardHeight = collapsed
+    ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT
+    : controlsInFront && controlsVisibleHeight != null
+      ? Math.max(MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT, Math.min(height, controlsVisibleHeight))
+      : expanded ? height : initialVisibleHeight
 
   return (
     <div
@@ -210,7 +234,7 @@ export function MobileFeatureCard({
           )}
           style={collapsed || controlsInFront || !expanded ? {
             alignSelf: 'end',
-            height: collapsed ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT : expanded ? undefined : `min(${initialVisibleHeight}px, 100%)`,
+            height: expanded && !collapsed && !controlsInFront ? undefined : `min(${visibleCardHeight}px, 100%)`,
           } : undefined}
         >
           <div

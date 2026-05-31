@@ -126,6 +126,7 @@ function getDataSourceLabel(source: string): string {
   if (source === 'transit') return 'Transit'
   if (source === 'walkability') return 'Walk'
   if (source === 'deprivation') return 'CIMD'
+  if (source === 'healthyPlanPg') return 'HealthyPlan PG'
   return source
 }
 

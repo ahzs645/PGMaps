@@ -11,6 +11,8 @@ export type ScoreMetricCategory =
   | 'transit'
   | 'walkability'
   | 'deprivation'
+  | 'healthyPlanPg'
+  | 'custom'
 
 export type ScoreIndexModule =
   | 'socialVulnerability'
@@ -38,7 +40,7 @@ export type ScoreIndexDomain =
 export type ScoreMetricValueBehavior = 'continuous' | 'inverseContinuous' | 'topTertileFlag'
 export type ScoreMissingDataPolicy = 'neutral' | 'zero' | 'excludeRegion' | 'zeroWithFlag'
 
-export type ScoreMetricKey =
+export type BuiltInScoreMetricKey =
   // Air Quality
   | 'overallDensity'
   | 'lowCostDensity'
@@ -111,7 +113,13 @@ export type ScoreMetricKey =
   | 'cimdEconomicDependency'
   | 'cimdSituationalVulnerability'
   | 'cimdEthnoCulturalComposition'
+  // Recipe-created / HealthyPlan PG metrics
+  | 'healthyFoodOutletAccess1km'
+  | 'retailServiceAccess1km'
+  | 'educationFacilityAccess1km'
+  | 'geocodedBusinessDensity'
 
+export type ScoreMetricKey = BuiltInScoreMetricKey | (string & {})
 export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
 export type ScoreNormalizationMethod = 'minMax' | 'winsorizedMinMax' | 'percentile' | 'zScore'
 export type ScoreVisualOutputMode = 'interpolated' | 'binned'
@@ -273,6 +281,10 @@ export interface RegionDataCounts {
   canopyProxyAreaSqKm: number
   coolingFacilityCount: number
   responseFacilityCount: number
+  healthyFoodOutletAccessCount: number
+  retailServiceAccessCount: number
+  educationFacilityAccessCount: number
+  geocodedBusinessCount: number
   cimdJoinedCount: number
   cimdPopulationWeight: number
   cimdCompositeSum: number
@@ -370,6 +382,7 @@ export type ScoreDataSource =
   | 'transit'
   | 'walkability'
   | 'deprivation'
+  | 'healthyPlanPg'
 
 export type ScoreFilterKey = 'requirePopulation' | 'requireParks' | 'limitCrime' | 'limitFoodRisk'
 
@@ -410,6 +423,7 @@ export const SCORE_DATA_SOURCES: Array<{ id: ScoreDataSource; label: string; des
   { id: 'transit', label: 'Transit', description: 'City of Prince George transit stops and stop amenities' },
   { id: 'walkability', label: 'Walkability', description: 'Pedestrian network study layers and public-data supplements' },
   { id: 'deprivation', label: 'Deprivation', description: 'Statistics Canada CIMD deprivation context' },
+  { id: 'healthyPlanPg', label: 'HealthyPlan PG', description: 'Education, food, retail/service, and geocoded business point datasets' },
 ]
 
 export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
@@ -423,4 +437,6 @@ export const METRIC_CATEGORY_LABELS: Record<ScoreMetricCategory, string> = {
   transit: 'Transit',
   walkability: 'Walkability',
   deprivation: 'Deprivation',
+  healthyPlanPg: 'HealthyPlan PG',
+  custom: 'Custom',
 }

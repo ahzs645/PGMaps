@@ -17,9 +17,9 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
-import { SCORE_METRICS, SCORE_METRICS_BY_CATEGORY, SCORE_PRESETS } from '../constants'
+import { SCORE_PRESETS } from '../constants'
 import { METRIC_CATEGORY_LABELS } from '../types'
-import type { ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
+import type { ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { ScorePresetDialog } from './ScorePresetDialog'
 
@@ -31,6 +31,7 @@ interface ScoreBuilderEquationBarProps {
   boundarySource: BoundarySource
   equationPreview: string
   methodSettings: ScoreMethodSettings
+  metrics: ScoreMetricDefinition[]
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
@@ -83,6 +84,7 @@ export function ScoreBuilderEquationBar({
   boundarySource,
   equationPreview,
   methodSettings,
+  metrics,
   onWeightChange,
   onAddMetric,
   onApplyPreset,
@@ -102,19 +104,19 @@ export function ScoreBuilderEquationBar({
     () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, boundarySource)),
     [boundarySource],
   )
-  const activeTerms = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0), [weights])
+  const activeTerms = useMemo(() => metrics.filter((metric) => weights[metric.key] !== 0), [metrics, weights])
   const totalAbsoluteWeight = useMemo(
     () => activeTerms.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0),
     [activeTerms, weights],
   )
   const isHealthyPlanMode = methodSettings.aggregation === 'healthyPlanPairwisePriority'
   const healthyPlanDemographicMetric = useMemo(
-    () => SCORE_METRICS.find((metric) => metric.key === methodSettings.healthyPlanPriority.demographicMetric),
-    [methodSettings.healthyPlanPriority.demographicMetric],
+    () => metrics.find((metric) => metric.key === methodSettings.healthyPlanPriority.demographicMetric),
+    [methodSettings.healthyPlanPriority.demographicMetric, metrics],
   )
   const healthyPlanEnvironmentMetric = useMemo(
-    () => SCORE_METRICS.find((metric) => metric.key === methodSettings.healthyPlanPriority.environmentMetric),
-    [methodSettings.healthyPlanPriority.environmentMetric],
+    () => metrics.find((metric) => metric.key === methodSettings.healthyPlanPriority.environmentMetric),
+    [methodSettings.healthyPlanPriority.environmentMetric, metrics],
   )
   const formulaText = isHealthyPlanMode
     ? `// for each region: ${equationPreview} // non-priority areas render transparent`
@@ -328,6 +330,7 @@ export function ScoreBuilderEquationBar({
         open={metricDialogOpen}
         onOpenChange={setMetricDialogOpen}
         weights={weights}
+        metrics={metrics}
         onPick={(metric) => {
           onAddMetric(metric, getDefaultMetricWeight(metric))
           setMetricDialogOpen(false)
@@ -341,16 +344,27 @@ function EquationMetricPickerDialog({
   open,
   onOpenChange,
   weights,
+  metrics,
   onPick,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   weights: ScoreMetricWeightMap
+  metrics: ScoreMetricDefinition[]
   onPick: (metric: ScoreMetricKey) => void
 }) {
   const [query, setQuery] = useState('')
   const normalizedQuery = query.trim().toLowerCase()
-  const groupedMetrics = Object.entries(SCORE_METRICS_BY_CATEGORY).map(([category, metrics]) => ({
+  const groupedMetrics = Object.entries(
+    metrics.reduce(
+      (accumulator, metric) => {
+        if (!accumulator[metric.category]) accumulator[metric.category] = []
+        accumulator[metric.category].push(metric)
+        return accumulator
+      },
+      {} as Record<string, ScoreMetricDefinition[]>,
+    ),
+  ).map(([category, metrics]) => ({
     category,
     metrics: metrics.filter((metric) => {
       if (!normalizedQuery) return true

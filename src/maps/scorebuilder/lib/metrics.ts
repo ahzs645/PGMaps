@@ -12,6 +12,8 @@ export function metricToDataSource(category: string): ScoreDataSource | null {
   if (category === 'transit') return 'transit'
   if (category === 'walkability') return 'walkability'
   if (category === 'deprivation') return 'deprivation'
+  if (category === 'healthyPlanPg') return 'healthyPlanPg'
+  if (category === 'custom') return null
   return null
 }
 
@@ -47,6 +49,14 @@ export function metricHasCoverage(metric: ScoreMetricKey, counts: RegionDataCoun
       0
     )
   if (source === 'deprivation') return counts.cimdJoinedCount > 0
+  if (source === 'healthyPlanPg')
+    return (
+      counts.healthyFoodOutletAccessCount +
+        counts.retailServiceAccessCount +
+        counts.educationFacilityAccessCount +
+        counts.geocodedBusinessCount >
+      0
+    )
   return true
 }
 
