@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PawPrint } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
@@ -351,7 +352,13 @@ export function WarsLayerControls({ wars }: { wars: WarsState }) {
   )
 }
 
-export function WarsSidebar({ wars }: { wars: WarsState }) {
+export function WarsSidebar({
+  wars,
+  showSelectedRecord = true,
+}: {
+  wars: WarsState
+  showSelectedRecord?: boolean
+}) {
   const manifest = wars.manifest.data
   const yearLabel = wars.yearMode === RECENT_YEARS && wars.recentYearStart && manifest?.yearEnd
     ? `${wars.recentYearStart}-${manifest.yearEnd}`
@@ -423,7 +430,7 @@ export function WarsSidebar({ wars }: { wars: WarsState }) {
         </div>
       </SidebarSection>
 
-      {wars.selectedCrash && (
+      {showSelectedRecord && wars.selectedCrash && (
         <SidebarSection title="Selected Record">
           <SelectedItemCard
             title={wars.selectedCrash.properties.species}
@@ -437,6 +444,43 @@ export function WarsSidebar({ wars }: { wars: WarsState }) {
         </SidebarSection>
       )}
     </>
+  )
+}
+
+export function MobileWarsFeatureCard({ wars }: { wars: WarsState }) {
+  const crash = wars.selectedCrash
+  if (!crash) return null
+
+  return (
+    <MobileFeatureCard
+      cardKey={wars.selectedId ?? crash.properties.id}
+      title={crash.properties.species || 'Wildlife record'}
+      subtitle={crash.properties.accidentDate || String(crash.properties.year)}
+      onClose={() => wars.setSelectedId(null)}
+    >
+      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
+        <div className="space-y-1">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Date</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {crash.properties.accidentDate || 'Unknown'}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Quantity</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {crash.properties.quantity.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Nearest town</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {crash.properties.nearestTown}
+            </span>
+          </div>
+        </div>
+      </div>
+    </MobileFeatureCard>
   )
 }
 
@@ -516,7 +560,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
             clusterThresholds={[25, 100]}
             onPointClick={(feature) => {
               const featureKey = feature.properties?.featureKey
-              if (featureKey) wars.setSelectedId(featureKey)
+              if (featureKey) wars.setSelectedId(wars.selectedId === featureKey ? null : featureKey)
             }}
           />
         )
@@ -531,6 +575,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
           <MapMarker
             longitude={longitude}
             latitude={latitude}
+            onClick={() => wars.setSelectedId(null)}
           >
             <MarkerContent>
               <div

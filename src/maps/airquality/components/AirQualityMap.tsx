@@ -521,6 +521,7 @@ export function AirQualityMap({
             <MapMarker
               longitude={selectedMonitor.longitude}
               latitude={selectedMonitor.latitude}
+              onClick={onMonitorClear}
             >
               <MarkerContent>
                 <div

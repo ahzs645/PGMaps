@@ -2,14 +2,16 @@ import type { CSSProperties, ComponentPropsWithoutRef, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { MAP_OVERLAY_ROOT_STYLE, MAP_OVERLAY_Z } from './map-overlay'
 
-type MapOverlayRootProps = ComponentPropsWithoutRef<'div'>
+type MapOverlayRootProps = ComponentPropsWithoutRef<'div'> & {
+  initializeVariables?: boolean
+}
 
-export function MapOverlayRoot({ className, style, ...props }: MapOverlayRootProps) {
+export function MapOverlayRoot({ className, style, initializeVariables = true, ...props }: MapOverlayRootProps) {
   return (
     <div
       data-map-layout-root="true"
       className={cn('relative h-full w-full', className)}
-      style={{ ...MAP_OVERLAY_ROOT_STYLE, ...style } as CSSProperties}
+      style={{ ...(initializeVariables ? MAP_OVERLAY_ROOT_STYLE : null), ...style } as CSSProperties}
       {...props}
     />
   )
@@ -46,4 +48,3 @@ export function MapFloatingPanel({
     </div>
   )
 }
-

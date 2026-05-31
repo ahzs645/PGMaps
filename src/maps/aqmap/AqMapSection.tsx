@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Map as PgMap, MapControls } from '@/components/ui/map'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useAirQualityData, type AirMonitor } from '@/maps/airquality'
+import { getAqhiCategory, getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import {
   type AqBasemap,
   type AqMonitorGroup,
@@ -20,6 +23,10 @@ import {
 } from './lib/urlState'
 import { WMS_LAYERS, type WmsLayerKey } from './lib/wmsLayers'
 import {
+  formatAqmapPm25Localized,
+  formatLocalizedDate,
+  localizeHealthMessage,
+  localizeMonitorType,
   translate,
   type AqmapLocale,
 } from './lib/i18n'
@@ -36,6 +43,7 @@ import type maplibregl from 'maplibre-gl'
 
 export default function AqMapSection() {
   const { monitors, loading, error } = useAirQualityData({ aqmapCompatible: true })
+  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const { layers: smokeLayers, error: smokeError } = useAqmapSmokeLayers()
   const initialUrlState = useMemo(() => parseAqmapHash(window.location.hash, new URLSearchParams(window.location.search)), [])
   const [showSidebar, setShowSidebar] = useState(false)
@@ -156,6 +164,10 @@ export default function AqMapSection() {
     setMapView({ center: CANADA_CENTER, zoom: DEFAULT_ZOOM })
   }, [])
 
+  const handleMonitorClick = useCallback((monitor: AirMonitor) => {
+    setSelectedMonitor((current) => current?.id === monitor.id ? null : monitor)
+  }, [])
+
   const handleExport = useCallback(async (format: ExportFormat) => {
     if (!mapRef.current) return
     setExportStatus({ format, error: null })
@@ -247,11 +259,18 @@ export default function AqMapSection() {
             monitors={monitors}
             visibleGroups={visibleGroups}
             iconMode={iconMode}
-            onMonitorClick={setSelectedMonitor}
+            onMonitorClick={handleMonitorClick}
             onMonitorHover={setHoveredMonitor}
           />
           {hoveredMonitor && selectedMonitor !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} locale={locale} />}
-          {selectedMonitor && <MonitorPopup monitor={selectedMonitor} locale={locale} onClose={() => setSelectedMonitor(null)} />}
+          {selectedMonitor && !isMobileViewport && <MonitorPopup monitor={selectedMonitor} locale={locale} onClose={() => setSelectedMonitor(null)} />}
+          {selectedMonitor && isMobileViewport && (
+            <MobileAqMonitorFeatureCard
+              monitor={selectedMonitor}
+              locale={locale}
+              onClose={() => setSelectedMonitor(null)}
+            />
+          )}
           <FloatingLayerControl
             basemap={basemap}
             onBasemapChange={setBasemap}
@@ -284,5 +303,45 @@ export default function AqMapSection() {
         </PgMap>
       </div>
     </MapSectionLayout>
+  )
+}
+
+function MobileAqMonitorFeatureCard({
+  monitor,
+  locale,
+  onClose,
+}: {
+  monitor: AirMonitor
+  locale: AqmapLocale
+  onClose: () => void
+}) {
+  const pm25 = getMonitorAqhiPm25(monitor)
+  const aqhiCategory = getAqhiCategory(pm25)
+  const health = localizeHealthMessage(aqhiCategory, locale)
+  const monitorTypeLabel = localizeMonitorType(monitor.network, locale)
+
+  return (
+    <MobileFeatureCard
+      title={monitor.name}
+      subtitle={`${monitorTypeLabel} ${translate('popup.monitor', locale)}`}
+      cardKey={monitor.id}
+      onClose={onClose}
+    >
+      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
+        <div className="space-y-1">
+          {[
+            { label: 'Observed', value: formatLocalizedDate(monitor.dateObserved, locale) },
+            { label: 'PM2.5', value: `${formatAqmapPm25Localized(pm25, locale)} ${translate('aqhi.unit', locale)}` },
+            { label: translate('popup.healthMessage', locale), value: health.heading },
+            { label: 'Network', value: monitor.network },
+          ].map((row) => (
+            <div key={row.label} className="flex items-start justify-between gap-3">
+              <span className="text-muted-foreground">{row.label}</span>
+              <span className="max-w-[12rem] text-right font-medium text-foreground">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </MobileFeatureCard>
   )
 }

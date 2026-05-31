@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Calculator, Footprints, RotateCcw } from 'lucide-react'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { InlineAlert, KeyValueRows, MapGradientLegendItem, MapSteppedLegend, SelectedItemCard, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
@@ -567,7 +568,13 @@ export function useWalkabilityData(
 
 export type WalkabilityState = ReturnType<typeof useWalkabilityData>
 
-export function WalkabilitySidebar({ walkability }: { walkability: WalkabilityState }) {
+export function WalkabilitySidebar({
+  walkability,
+  showSelectedCommunity = true,
+}: {
+  walkability: WalkabilityState
+  showSelectedCommunity?: boolean
+}) {
   const selectedCommunity = walkability.selectedCommunity
   const heatmapLogic = useMemo(
     () => describeHeatmapLogic(walkability.heatmapOptionState),
@@ -772,7 +779,7 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
         )}
       </SidebarSection>
 
-      {selectedCommunity && (
+      {showSelectedCommunity && selectedCommunity && (
         <SidebarSection title="Selected Community">
           <SelectedItemCard
             title={selectedCommunity.properties.communityName}
@@ -802,6 +809,38 @@ export function WalkabilitySidebar({ walkability }: { walkability: WalkabilitySt
         </SidebarSection>
       )}
     </>
+  )
+}
+
+export function MobileWalkabilityFeatureCard({ walkability }: { walkability: WalkabilityState }) {
+  const selectedCommunity = walkability.selectedCommunity
+  if (!selectedCommunity) return null
+
+  const scoreLabel = walkability.selectedVariant?.label ?? 'Score'
+  const scoreValue = formatNullableNumber(Number(selectedCommunity.properties[walkability.selectedScoreField]))
+
+  return (
+    <MobileFeatureCard
+      cardKey={selectedCommunity.properties.communityId}
+      title={selectedCommunity.properties.communityName}
+      subtitle={`${scoreLabel}: ${scoreValue}`}
+      onClose={() => walkability.setSelectedCommunityId(null)}
+    >
+      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
+        <KeyValueRows
+          rows={[
+            { label: scoreLabel, value: scoreValue },
+            { label: 'Sidewalk km', value: formatNullableNumber(selectedCommunity.properties.sidewalkKm) },
+            { label: 'Walkway km', value: formatNullableNumber(selectedCommunity.properties.walkwayKm) },
+            { label: 'Intersections', value: selectedCommunity.properties.intersectionCount.toLocaleString() },
+            { label: 'Transit stops', value: selectedCommunity.properties.transitStopCount.toLocaleString() },
+            { label: 'Park amenities', value: selectedCommunity.properties.parkAmenityCount.toLocaleString() },
+            { label: 'Pedestrian crashes', value: selectedCommunity.properties.pedestrianCrashCount.toLocaleString() },
+            { label: 'Crossings', value: selectedCommunity.properties.crossingCount.toLocaleString() },
+          ]}
+        />
+      </div>
+    </MobileFeatureCard>
   )
 }
 
@@ -846,7 +885,7 @@ export function WalkabilityLayer({ walkability }: { walkability: WalkabilityStat
       selectedId={walkability.selectedCommunityId}
       selectionColor="#064e3b"
       selectionWidth={2.2}
-      onFeatureClick={walkability.setSelectedCommunityId}
+      onFeatureClick={(id) => walkability.setSelectedCommunityId(walkability.selectedCommunityId === id ? null : id)}
     />
   )
 }

@@ -161,7 +161,7 @@ export function ScoreBuilderMap({
   return (
     <div className="h-full w-full">
       <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES} loading={loading}>
-        <MapControls position="top-right" showZoom showCompass />
+        <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
         {walkabilitySourceSurface && <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} />}
 

@@ -348,7 +348,7 @@ export function Sidebar({
 
       {/* Selected restaurant detail */}
       {selectedRestaurant && (
-        <div className="flex max-h-[40vh] shrink-0 flex-col border-b border-sky-300/60 bg-sky-50 dark:border-sky-800/60 dark:bg-sky-950/30">
+        <div className="hidden max-h-[40vh] shrink-0 flex-col border-b border-sky-300/60 bg-sky-50 dark:border-sky-800/60 dark:bg-sky-950/30 md:flex">
           <SelectedItemCard
             tone="sky"
             title="Selected"

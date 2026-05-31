@@ -408,7 +408,7 @@ export default function TransitDataSection() {
                   <button
                     key={stop.id}
                     type="button"
-                    onClick={() => setSelectedStopId(stop.id)}
+                    onClick={() => setSelectedStopId((current) => current === stop.id ? null : stop.id)}
                     className={cn(
                       'w-full rounded-md border px-3 py-2 text-left transition-colors',
                       selectedStopId === stop.id
@@ -448,7 +448,7 @@ export default function TransitDataSection() {
                 key={stop.id}
                 longitude={stop.longitude}
                 latitude={stop.latitude}
-                onClick={() => setSelectedStopId(stop.id)}
+                onClick={() => setSelectedStopId((current) => current === stop.id ? null : stop.id)}
               >
                 <MarkerContent>
                   <span

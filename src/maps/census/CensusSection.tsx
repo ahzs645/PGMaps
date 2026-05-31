@@ -193,7 +193,7 @@ export default function CensusSection() {
           selectedMetric={selectedMetric}
           selectedUnitId={selectedUnitId}
           bounds={boundsByLevel[selectedHierarchy] || bounds}
-          onUnitClick={(id) => setSelectedUnitId(id)}
+          onUnitClick={(id) => setSelectedUnitId((current) => current === id ? null : id)}
           variableValuesByGeoUid={variableValuesByGeoUid}
           loading={loading || variableLoading}
         />

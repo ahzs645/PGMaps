@@ -5,7 +5,7 @@ import { point } from '@turf/helpers'
 import { Layers, Satellite, Trees } from 'lucide-react'
 import { Map as PgMap, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY } from '@/components/ui/mobile-feature-card'
+import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
@@ -53,6 +53,7 @@ import {
   WALKABILITY_DEFAULT_DISPLAY_MODE,
   WalkabilityLayer,
   WalkabilityLegend,
+  MobileWalkabilityFeatureCard,
   WalkabilitySidebar,
   WalkabilitySourceNotes,
   useWalkabilityData,
@@ -72,6 +73,7 @@ import {
   WarsLayer,
   WarsLayerControls,
   WarsLegend,
+  MobileWarsFeatureCard,
   WarsSidebar,
   WarsSourceNotes,
   useWarsData,
@@ -103,6 +105,54 @@ interface HeatShadeManifest {
   generatedAt: string
   sources: HeatShadeManifestSource[]
   caveats?: string[]
+}
+
+function MobileEvStationFeatureCard({
+  station,
+  onClose,
+}: {
+  station: EvChargingFeature
+  onClose: () => void
+}) {
+  const location = [station.properties?.city, station.properties?.province].filter(Boolean).join(', ')
+
+  return (
+    <MobileFeatureCard
+      cardKey={station.properties?.id ?? station.properties?.name}
+      title={station.properties?.name || 'EV charging station'}
+      subtitle={location || station.properties?.network || 'EV charging'}
+      onClose={onClose}
+    >
+      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
+        <div className="space-y-1">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Network</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {station.properties?.network || 'Unknown'}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Connectors</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {station.properties?.connectors || 'Unknown'}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Level 2</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {station.properties?.level2 ?? 0}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">DC fast</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {station.properties?.dcFast ?? 0}
+            </span>
+          </div>
+        </div>
+      </div>
+    </MobileFeatureCard>
+  )
 }
 
 export default function MiscDataSection() {
@@ -890,7 +940,15 @@ export default function MiscDataSection() {
               </div>
             </div>
           }
-          mobileSidebar={activeTab === 'icbc' ? <IcbcSidebar icbc={icbc} showSelectedLocation={false} /> : undefined}
+          mobileSidebar={
+            activeTab === 'icbc'
+              ? <IcbcSidebar icbc={icbc} showSelectedLocation={false} />
+              : activeTab === 'wars'
+                ? <WarsSidebar wars={wars} showSelectedRecord={false} />
+                : activeTab === 'walkability'
+                  ? <WalkabilitySidebar walkability={walkability} showSelectedCommunity={false} />
+                  : undefined
+          }
           sidebar={sidebar}
         >
           <div className="relative h-full">
@@ -964,7 +1022,7 @@ export default function MiscDataSection() {
                     selectedId={selectedCanueBoundaryId}
                     selectionColor="#111827"
                     selectionWidth={2.1}
-                    onFeatureClick={setSelectedCanueBoundaryId}
+                    onFeatureClick={(id) => setSelectedCanueBoundaryId(selectedCanueBoundaryId === id ? null : id)}
                   />
                 )}
 
@@ -1029,11 +1087,16 @@ export default function MiscDataSection() {
                   clusterColors={['#0ea5e9', '#22c55e', '#f97316']}
                   clusterThresholds={[25, 125]}
                   pointColor="#0ea5e9"
-                  onPointClick={(feature) => setSelectedEvStation(feature as EvChargingFeature)}
+                  onPointClick={(feature) => {
+                    const station = feature as EvChargingFeature
+                    setSelectedEvStation((current) => (
+                      current?.properties?.id === station.properties?.id ? null : station
+                    ))
+                  }}
                 />
               )}
 
-              {activeTab === 'ev' && selectedEvStation && (
+              {activeTab === 'ev' && selectedEvStation && !isMobileViewport && (
                 <MapPopup
                   longitude={selectedEvStation.geometry.coordinates[0]}
                   latitude={selectedEvStation.geometry.coordinates[1]}
@@ -1066,6 +1129,13 @@ export default function MiscDataSection() {
                 </MapPopup>
               )}
 
+              {activeTab === 'ev' && selectedEvStation && isMobileViewport && (
+                <MobileEvStationFeatureCard
+                  station={selectedEvStation}
+                  onClose={() => setSelectedEvStation(null)}
+                />
+              )}
+
               {activeTab === 'walkability' && <WalkabilityLayer walkability={walkability} />}
 
               {activeTab === 'water' && <WaterLayer water={water} />}
@@ -1078,6 +1148,14 @@ export default function MiscDataSection() {
               )}
 
               {activeTab === 'wars' && <WarsLayer wars={wars} />}
+
+              {activeTab === 'wars' && isMobileViewport && wars.selectedCrash && (
+                <MobileWarsFeatureCard wars={wars} />
+              )}
+
+              {activeTab === 'walkability' && isMobileViewport && walkability.selectedCommunity && (
+                <MobileWalkabilityFeatureCard walkability={walkability} />
+              )}
             </PgMap>
 
             {activeTab === 'wars' && wars.timelineEnabled && wars.timelineDate && (

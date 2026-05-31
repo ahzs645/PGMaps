@@ -514,7 +514,7 @@ export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
             key={locationKey}
             longitude={longitude}
             latitude={latitude}
-            onClick={() => icbc.setSelectedLocation(locationKey)}
+            onClick={() => icbc.setSelectedLocation(selected ? null : locationKey)}
           >
             <MarkerContent>
               <div

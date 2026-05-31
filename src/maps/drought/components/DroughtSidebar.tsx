@@ -15,6 +15,7 @@ interface DroughtSidebarProps {
   loading: boolean
   error: string | null
   selectedFeature: DroughtFeature | null
+  showSelectedFeature?: boolean
   timelineEnabled: boolean
   onYearChange: (year: number) => void
   onClearSelection: () => void
@@ -39,6 +40,7 @@ export function DroughtSidebar({
   loading,
   error,
   selectedFeature,
+  showSelectedFeature = true,
   timelineEnabled,
   onYearChange,
   onClearSelection,
@@ -105,7 +107,7 @@ export function DroughtSidebar({
           />
         </SidebarSection>
 
-        {selectedFeature && (
+        {showSelectedFeature && selectedFeature && (
           <SidebarSection title="Selected Basin">
             <SelectedItemCard
               title={selectedFeature.properties.basinName || 'Drought basin'}

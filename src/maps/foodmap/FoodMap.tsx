@@ -329,11 +329,15 @@ export default function FoodMap() {
 
   // Handlers
   const handleRestaurantClick = useCallback((restaurant: RestaurantWithStats) => {
-    setSelectedRestaurant(restaurant)
+    setSelectedRestaurant((current) => (
+      current?.details_url === restaurant.details_url ? null : restaurant
+    ))
   }, [])
 
   const handleMapRestaurantClick = useCallback((restaurant: RestaurantWithStats) => {
-    setSelectedRestaurant(restaurant)
+    setSelectedRestaurant((current) => (
+      current?.details_url === restaurant.details_url ? null : restaurant
+    ))
     setShowSidebar(true)
   }, [])
 

@@ -47,8 +47,8 @@ interface ParksMapProps {
   selectedTrail: Trail | null
   selectionFocusKey: number
   loading?: boolean
-  onParkClick: (park: Park) => void
-  onTrailClick: (trail: Trail) => void
+  onParkClick: (park: Park | null) => void
+  onTrailClick: (trail: Trail | null) => void
 }
 
 export function ParksMap({
@@ -171,6 +171,10 @@ export function ParksMap({
           selectionFillOpacity={0.5}
           visible={showParks}
           onFeatureClick={(id) => {
+            if (selectedPark?.id === Number(id)) {
+              onParkClick(null)
+              return
+            }
             const park = parksByIdRef.current.get(Number(id))
             if (park) onParkClick(park)
           }}
@@ -188,6 +192,10 @@ export function ParksMap({
           selectionWidth={5}
           visible={showTrails}
           onFeatureClick={(id) => {
+            if (selectedTrail?.id === Number(id)) {
+              onTrailClick(null)
+              return
+            }
             const trail = trailsByIdRef.current.get(Number(id))
             if (trail) onTrailClick(trail)
           }}

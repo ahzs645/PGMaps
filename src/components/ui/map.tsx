@@ -22,7 +22,11 @@ import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MAP_STYLES } from "./map-styles";
 import { MAP_OVERLAY_Z } from "./map-overlay";
-import { MOBILE_MAP_BLANK_CLICK_EVENT, MOBILE_MAP_INTERACTION_EVENT } from "./mobile-feature-card";
+import {
+  MOBILE_MAP_BLANK_CLICK_EVENT,
+  MOBILE_MAP_FEATURE_CLICK_EVENT,
+  MOBILE_MAP_INTERACTION_EVENT,
+} from "./mobile-feature-card";
 
 type MapContextValue = {
   map: MapLibreGL.Map | null;
@@ -121,12 +125,16 @@ function getViewport(map: MapLibreGL.Map): MapViewport {
   };
 }
 
-function dispatchMobileMapInteraction() {
-  window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT));
+function dispatchMobileMapInteraction(type: "click" | "gesture" = "gesture") {
+  window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT, { detail: { type } }));
 }
 
 function dispatchMobileMapBlankClick() {
   window.dispatchEvent(new CustomEvent(MOBILE_MAP_BLANK_CLICK_EVENT));
+}
+
+function dispatchMobileMapFeatureClick() {
+  window.dispatchEvent(new CustomEvent(MOBILE_MAP_FEATURE_CLICK_EVENT));
 }
 
 const Map = forwardRef<MapRef, MapProps>(function Map(
@@ -152,6 +160,9 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   const currentStyleRef = useRef<MapStyleOption | null>(null);
   const styleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const internalUpdateRef = useRef(false);
+  const pointerStartRef = useRef<{ x: number; y: number; dispatched: boolean } | null>(null);
+  const lastGestureAtRef = useRef(0);
+  const lastFeatureClickAtRef = useRef(0);
 
   const isControlled = viewport !== undefined && onViewportChange !== undefined;
 
@@ -209,12 +220,16 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       if (internalUpdateRef.current) return;
       onViewportChangeRef.current?.(getViewport(map));
     };
+    const handleFeatureClick = () => {
+      lastFeatureClickAtRef.current = Date.now();
+    };
     const handleUserMapInteraction = (event?: { originalEvent?: Event; defaultPrevented?: boolean; type?: string }) => {
       if (event && !event.originalEvent) return;
       if (event?.defaultPrevented || event?.originalEvent?.defaultPrevented) return;
-      dispatchMobileMapInteraction();
+      dispatchMobileMapInteraction(event?.type === "click" ? "click" : "gesture");
       if (event?.type === "click") {
         window.setTimeout(() => {
+          if (Date.now() - lastFeatureClickAtRef.current < 250) return;
           if (event.defaultPrevented || event.originalEvent?.defaultPrevented) return;
           dispatchMobileMapBlankClick();
         }, 0);
@@ -230,6 +245,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     map.on("rotatestart", handleUserMapInteraction);
     map.on("pitchstart", handleUserMapInteraction);
     map.on("zoomstart", handleUserMapInteraction);
+    window.addEventListener(MOBILE_MAP_FEATURE_CLICK_EVENT, handleFeatureClick);
     setMapInstance(map);
 
     return () => {
@@ -243,6 +259,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       map.off("rotatestart", handleUserMapInteraction);
       map.off("pitchstart", handleUserMapInteraction);
       map.off("zoomstart", handleUserMapInteraction);
+      window.removeEventListener(MOBILE_MAP_FEATURE_CLICK_EVENT, handleFeatureClick);
       map.remove();
       setIsLoaded(false);
       setIsStyleLoaded(false);
@@ -305,7 +322,32 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
 
   return (
     <MapContext.Provider value={contextValue}>
-      <div ref={containerRef} className={cn("relative h-full w-full", className)}>
+      <div
+        ref={containerRef}
+        data-map-layout-root="true"
+        className={cn("relative h-full w-full", className)}
+        onPointerDownCapture={(event) => {
+          if (!(event.target instanceof Element)) return;
+          if (!event.target.closest(".maplibregl-canvas-container")) return;
+          pointerStartRef.current = { x: event.clientX, y: event.clientY, dispatched: false };
+        }}
+        onPointerMoveCapture={(event) => {
+          const start = pointerStartRef.current;
+          if (!start || start.dispatched) return;
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (Math.hypot(dx, dy) < 8) return;
+          start.dispatched = true;
+          lastGestureAtRef.current = Date.now();
+          dispatchMobileMapInteraction("gesture");
+        }}
+        onPointerUpCapture={() => {
+          pointerStartRef.current = null;
+        }}
+        onPointerCancelCapture={() => {
+          pointerStartRef.current = null;
+        }}
+      >
         {isLoading && <DefaultLoader />}
         {/* SSR-safe: children render only when map is loaded on client */}
         {mapInstance && children}
@@ -389,7 +431,13 @@ function MapMarker({
       draggable,
     }).setLngLat([longitude, latitude]);
 
-    const handleClick = (e: MouseEvent) => callbacksRef.current.onClick?.(e);
+    const handleClick = (e: MouseEvent) => {
+      if (!callbacksRef.current.onClick) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dispatchMobileMapFeatureClick();
+      callbacksRef.current.onClick(e);
+    };
     const handleMouseEnter = (e: MouseEvent) =>
       callbacksRef.current.onMouseEnter?.(e);
     const handleMouseLeave = (e: MouseEvent) =>
@@ -1138,6 +1186,7 @@ function MapRoute({
     if (!isLoaded || !map || !interactive) return;
 
     const handleClick = () => {
+      dispatchMobileMapFeatureClick();
       onClick?.();
     };
     const handleMouseEnter = () => {
@@ -1381,6 +1430,7 @@ function MapClusterLayer<
       if (!features.length) return;
       e.preventDefault?.();
       e.originalEvent.preventDefault();
+      dispatchMobileMapFeatureClick();
 
       const feature = features[0];
       const clusterId = feature.properties?.cluster_id as number;
@@ -1413,6 +1463,7 @@ function MapClusterLayer<
       if (!onPointClick || !e.features?.length) return;
       e.preventDefault?.();
       e.originalEvent.preventDefault();
+      dispatchMobileMapFeatureClick();
 
       const feature = e.features[0];
       const coordinates = (

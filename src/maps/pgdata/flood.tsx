@@ -415,7 +415,9 @@ export function FloodLayer({ flood }: { flood: FloodState }) {
           pointColor={bucket.color}
           clusterColors={[`${bucket.color}99`, `${bucket.color}cc`, bucket.color]}
           clusterThresholds={[20, 80]}
-          onPointClick={(feature) => flood.setSelectedStationId(feature.properties.id)}
+          onPointClick={(feature) => flood.setSelectedStationId(
+            flood.selectedStationId === feature.properties.id ? null : feature.properties.id,
+          )}
         />
       ))}
       {flood.selectedStation && (

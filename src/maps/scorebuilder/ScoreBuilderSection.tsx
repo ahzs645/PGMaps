@@ -2555,7 +2555,7 @@ export default function ScoreBuilderSection() {
 
   const handleMapRegionClick = useCallback(
     (regionId: string) => {
-      setSelectedRegionId(regionId)
+      setSelectedRegionId((current) => current === regionId ? null : regionId)
       if (showWalkabilitySourceSurface) setMapSurface('boundary')
     },
     [showWalkabilitySourceSurface],
@@ -2952,7 +2952,7 @@ export default function ScoreBuilderSection() {
               />
             )}
 
-            <MapLegendPanel title="Legend" width="md" collapsible>
+            <MapLegendPanel title="Legend" width={isDesktop ? 'md' : 'sm'} collapsible>
               {correlateMode ? (
                 <CorrelationMapLegend
                   metricX={correlateMetricX}

@@ -768,6 +768,14 @@ export default function AirQualitySection() {
     setSearchParams(params, { replace: true })
   }, [searchParams, selectedMonitor, setSearchParams])
 
+  const handleMonitorClick = useCallback((monitor: AirMonitor) => {
+    if (selectedMonitor?.id === monitor.id) {
+      handleMonitorClear()
+      return
+    }
+    setSelectedMonitor(monitor)
+  }, [handleMonitorClear, selectedMonitor])
+
   const handleRegionLevelChange = useCallback((level: RegionLevel) => {
     setShowBoundaries(true)
     setSelectedRegionLevel(level)
@@ -841,7 +849,7 @@ export default function AirQualitySection() {
           onToggleNetwork={toggleNetwork}
           onSelectAllNetworks={() => setSelectedNetworks(allNetworks)}
           onClearNetworks={() => setSelectedNetworks([])}
-          onMonitorClick={setSelectedMonitor}
+          onMonitorClick={handleMonitorClick}
           onClearSelection={() => setSelectedMonitor(null)}
         />
       )}
@@ -866,7 +874,7 @@ export default function AirQualitySection() {
           correctionModel={correctionModel}
           loading={loading || (showBoundaries && boundaryLoading)}
           onBoundsChange={handleBoundsChange}
-          onMonitorClick={setSelectedMonitor}
+          onMonitorClick={handleMonitorClick}
           onBrowseBoundaryClick={handleBrowseBoundaryClick}
           onMonitorClear={handleMonitorClear}
         />

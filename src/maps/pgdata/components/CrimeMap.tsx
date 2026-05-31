@@ -202,6 +202,10 @@ export function CrimeMap({
                   const id = feature.properties?.id
                   if (id == null) return
                   const selected = incidentById.get(id)
+                  if (selectedIncident?.id === id) {
+                    onIncidentClear()
+                    return
+                  }
                   if (selected) onIncidentClick(selected)
                 }}
               />
@@ -226,6 +230,7 @@ export function CrimeMap({
             <MapMarker
               longitude={selectedIncident.longitude}
               latitude={selectedIncident.latitude}
+              onClick={onIncidentClear}
             >
               <MarkerContent>
                 <div

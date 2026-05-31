@@ -2016,7 +2016,7 @@ export function WaterLayer({ water }: { water: WaterState }) {
           selectedId={water.selectedBoundaryId}
           selectionColor="#0f172a"
           selectionWidth={2}
-          onFeatureClick={water.setSelectedBoundaryId}
+          onFeatureClick={(id) => water.setSelectedBoundaryId(water.selectedBoundaryId === id ? null : id)}
           visible
         />
       )}
@@ -2058,7 +2058,7 @@ export function WaterLayer({ water }: { water: WaterState }) {
             clusterThresholds={[40, 150]}
             onPointClick={(feature) => {
               const id = feature.properties?.id
-              if (id) water.setSelectedFacilityId(id)
+              if (id) water.setSelectedFacilityId(water.selectedFacilityId === id ? null : id)
             }}
           />
         )
@@ -2068,6 +2068,7 @@ export function WaterLayer({ water }: { water: WaterState }) {
           <MapMarker
             longitude={water.selectedFacility.longitude}
             latitude={water.selectedFacility.latitude}
+            onClick={() => water.setSelectedFacilityId(null)}
           >
             <MarkerContent>
               <div

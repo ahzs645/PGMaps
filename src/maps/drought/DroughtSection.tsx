@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Timeline } from '@/components/ui/timeline'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { DroughtMap } from './components/DroughtMap'
 import { DroughtSidebar } from './components/DroughtSidebar'
 import { useDroughtData } from './hooks/useDroughtData'
-import type { DroughtFeatureCollection, DroughtTimeSeriesRecord } from './types'
+import type { DroughtFeature, DroughtFeatureCollection, DroughtTimeSeriesRecord } from './types'
 
 const DEFAULT_YEAR = 2025
 const FALLBACK_YEARS = Array.from({ length: 11 }, (_, index) => 2025 - index)
@@ -74,6 +76,7 @@ interface DroughtSectionProps {
 
 export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
   const [searchParams, setSearchParams] = useSearchParams()
+  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const initialYear = Number(searchParams.get(yearParam)) || DEFAULT_YEAR
   const [selectedYear, setSelectedYear] = useState(initialYear)
   const [showSidebar, setShowSidebar] = useState(true)
@@ -205,6 +208,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
           loading={loading}
           error={error}
           selectedFeature={selectedFeature}
+          showSelectedFeature={!isMobileViewport}
           timelineEnabled={timelineEnabled}
           onYearChange={handleYearChange}
           onClearSelection={() => setSelectedId(null)}
@@ -216,7 +220,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
         <DroughtMap
           data={activeCollection}
           selectedId={selectedId}
-          onFeatureClick={setSelectedId}
+          onFeatureClick={(id) => setSelectedId((current) => current === id ? null : id)}
           loading={loading}
         />
 
@@ -226,6 +230,13 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
             {timelineDate?.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         </div>
+
+        {isMobileViewport && selectedFeature && (
+          <MobileDroughtFeatureCard
+            feature={selectedFeature}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
 
         {timelineEnabled && timelineDate && (
           <Timeline
@@ -246,5 +257,37 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
         )}
       </div>
     </MapSectionLayout>
+  )
+}
+
+function MobileDroughtFeatureCard({
+  feature,
+  onClose,
+}: {
+  feature: DroughtFeature
+  onClose: () => void
+}) {
+  return (
+    <MobileFeatureCard
+      title={feature.properties.basinName || 'Drought basin'}
+      subtitle="Selected Basin"
+      cardKey={String(feature.id)}
+      onClose={onClose}
+    >
+      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
+        <div className="space-y-1">
+          {[
+            { label: 'Level', value: feature.properties.droughtLevelRaw ?? 'Not updated' },
+            { label: 'Start', value: feature.properties.startDate ?? 'Unknown' },
+            { label: 'End', value: feature.properties.endDate ?? 'Unknown' },
+          ].map((row) => (
+            <div key={row.label} className="flex items-start justify-between gap-3">
+              <span className="text-muted-foreground">{row.label}</span>
+              <span className="max-w-[12rem] text-right font-medium text-foreground">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </MobileFeatureCard>
   )
 }

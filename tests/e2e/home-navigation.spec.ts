@@ -47,7 +47,7 @@ test.describe('Home Page Navigation', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    const menuButton = page.getByRole('button', { name: 'Toggle menu' })
+    const menuButton = page.getByRole('button', { name: 'Main menu' })
     await expect(menuButton).toBeVisible()
 
     await menuButton.click()
@@ -68,7 +68,7 @@ test.describe('Home Page Navigation', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/misc?tab=network', { waitUntil: 'domcontentloaded' })
 
-    const menuButton = page.getByRole('button', { name: 'Toggle menu' })
+    const menuButton = page.getByRole('button', { name: 'Main menu' })
     await menuButton.click()
 
     await expect(page.getByRole('button', { name: /MISC/ })).toHaveAttribute('aria-expanded', 'true')

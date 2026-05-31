@@ -4,11 +4,12 @@ import { cn } from '@/lib/utils'
 import { MAP_OVERLAY_Z } from './map-overlay'
 
 export const MOBILE_FEATURE_CARD_MEDIA_QUERY = '(max-width: 767px)'
-export const MOBILE_FEATURE_CARD_HEIGHT = 360
+export const MOBILE_FEATURE_CARD_HEIGHT = 720
 export const MOBILE_FEATURE_CARD_COMPACT_HEIGHT = 300
 export const MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT = 92
 export const MOBILE_MAP_INTERACTION_EVENT = 'pgmaps:mobile-map-interaction'
 export const MOBILE_MAP_BLANK_CLICK_EVENT = 'pgmaps:mobile-map-blank-click'
+export const MOBILE_MAP_FEATURE_CLICK_EVENT = 'pgmaps:mobile-map-feature-click'
 export const MOBILE_MAP_SHEET_COLLAPSE_EVENT = 'pgmaps:collapse-mobile-map-sheet'
 export const MOBILE_MAP_SHEET_STACK_EVENT = 'pgmaps:stack-mobile-map-sheet'
 export const MOBILE_MAP_CONTROLS_FRONT_EVENT = 'pgmaps:mobile-map-controls-front'
@@ -51,6 +52,7 @@ export function MobileFeatureCard({
   const [controlsInFront, setControlsInFront] = useState(false)
   const [controlsVisibleHeight, setControlsVisibleHeight] = useState<number | null>(null)
   const dragStartY = useRef<number | null>(null)
+  const dragMovedRef = useRef(false)
   const lastGestureAtRef = useRef(0)
 
   const titleText = typeof title === 'string' ? title : undefined
@@ -104,6 +106,7 @@ export function MobileFeatureCard({
     const collapse = (event: Event) => {
       if (event instanceof CustomEvent && event.detail?.type === 'gesture') {
         lastGestureAtRef.current = Date.now()
+        window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_COLLAPSE_EVENT))
       }
       setCollapsed(true)
     }
@@ -156,6 +159,7 @@ export function MobileFeatureCard({
 
   const handleDragStart = useCallback((clientY: number) => {
     dragStartY.current = clientY
+    dragMovedRef.current = false
   }, [])
 
   const handleDragMove = useCallback((clientY: number) => {
@@ -163,22 +167,26 @@ export function MobileFeatureCard({
     const deltaY = clientY - dragStartY.current
     if (collapsed && deltaY < -24) {
       dragStartY.current = null
+      dragMovedRef.current = true
       setCollapsed(false)
       setExpanded(false)
       return
     }
     if (!collapsed && !expanded && deltaY < -24) {
       dragStartY.current = null
+      dragMovedRef.current = true
       setExpanded(true)
       return
     }
     if (expanded && deltaY > 24) {
       dragStartY.current = null
+      dragMovedRef.current = true
       setExpanded(false)
       return
     }
     if (!collapsed && !expanded && deltaY > 24) {
       dragStartY.current = null
+      dragMovedRef.current = true
       setCollapsed(true)
     }
   }, [collapsed, expanded])
@@ -187,6 +195,44 @@ export function MobileFeatureCard({
     dragStartY.current = null
   }, [])
 
+  const startMouseDrag = useCallback((clientY: number) => {
+    handleDragStart(clientY)
+
+    const handleWindowMouseMove = (event: MouseEvent) => {
+      event.preventDefault()
+      handleDragMove(event.clientY)
+    }
+    const handleWindowMouseUp = () => {
+      handleDragEnd()
+      window.removeEventListener('mousemove', handleWindowMouseMove)
+      window.removeEventListener('mouseup', handleWindowMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleWindowMouseMove)
+    window.addEventListener('mouseup', handleWindowMouseUp)
+  }, [handleDragEnd, handleDragMove, handleDragStart])
+
+  const startTouchDrag = useCallback((clientY: number) => {
+    handleDragStart(clientY)
+
+    const handleWindowTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      if (!touch) return
+      event.preventDefault()
+      handleDragMove(touch.clientY)
+    }
+    const handleWindowTouchEnd = () => {
+      handleDragEnd()
+      window.removeEventListener('touchmove', handleWindowTouchMove)
+      window.removeEventListener('touchend', handleWindowTouchEnd)
+      window.removeEventListener('touchcancel', handleWindowTouchEnd)
+    }
+
+    window.addEventListener('touchmove', handleWindowTouchMove, { passive: false })
+    window.addEventListener('touchend', handleWindowTouchEnd)
+    window.addEventListener('touchcancel', handleWindowTouchEnd)
+  }, [handleDragEnd, handleDragMove, handleDragStart])
+
   const dockBehindControls = useCallback(() => {
     setCollapsed(false)
     setExpanded(false)
@@ -194,7 +240,19 @@ export function MobileFeatureCard({
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_DOCK_EVENT))
   }, [])
 
+  const handleDockClick = useCallback(() => {
+    if (dragMovedRef.current) {
+      dragMovedRef.current = false
+      return
+    }
+    dockBehindControls()
+  }, [dockBehindControls])
+
   const handleHandleClick = useCallback(() => {
+    if (dragMovedRef.current) {
+      dragMovedRef.current = false
+      return
+    }
     if (collapsed) {
       setCollapsed(false)
       setExpanded(false)
@@ -220,7 +278,7 @@ export function MobileFeatureCard({
           open ? 'translate-y-0' : 'translate-y-full',
         )}
         style={{
-          height: `min(${height}px, calc(100dvh - 6.5rem))`,
+          height: `min(${height}px, calc(100dvh - 4.75rem))`,
           bottom: 0,
         }}
       >
@@ -242,29 +300,31 @@ export function MobileFeatureCard({
             className="flex cursor-grab touch-none justify-center py-2 active:cursor-grabbing"
             aria-hidden="true"
             onClick={handleHandleClick}
-            onMouseDown={(event) => handleDragStart(event.clientY)}
-            onMouseMove={(event) => handleDragMove(event.clientY)}
-            onMouseUp={handleDragEnd}
-            onMouseLeave={handleDragEnd}
+            onMouseDown={(event) => startMouseDrag(event.clientY)}
             onTouchStart={(event) => {
               const touch = event.touches[0]
-              if (touch) handleDragStart(touch.clientY)
+              if (touch) startTouchDrag(touch.clientY)
             }}
-            onTouchMove={(event) => {
-              const touch = event.touches[0]
-              if (touch) handleDragMove(touch.clientY)
-            }}
-            onTouchEnd={handleDragEnd}
-            onTouchCancel={handleDragEnd}
           >
             <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
           </div>
-          <header className="border-b border-border px-4 pb-3">
+          <header
+            className="cursor-grab border-b border-border px-4 pb-3 active:cursor-grabbing"
+            onMouseDown={(event) => {
+              if ((event.target as HTMLElement).closest('[data-mobile-feature-card-action="true"]')) return
+              startMouseDrag(event.clientY)
+            }}
+            onTouchStart={(event) => {
+              if ((event.target as HTMLElement).closest('[data-mobile-feature-card-action="true"]')) return
+              const touch = event.touches[0]
+              if (touch) startTouchDrag(touch.clientY)
+            }}
+          >
             <div className="flex items-start justify-between gap-3">
               <button
                 type="button"
                 className="group min-w-0 flex-1 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60"
-                onClick={dockBehindControls}
+                onClick={handleDockClick}
                 aria-label="Dock selected feature behind map controls"
               >
                 <div className="truncate text-base font-semibold leading-tight text-foreground">
@@ -280,11 +340,12 @@ export function MobileFeatureCard({
                 type="button"
                 className="shrink-0 rounded-md p-2 hover:bg-muted"
                 aria-label="Dock selected feature behind map controls"
+                data-mobile-feature-card-action="true"
                 onClick={dockBehindControls}
               >
                 <ChevronDown className="size-4" />
               </button>
-              <button type="button" className="shrink-0 rounded-md p-2 hover:bg-muted" aria-label="Close feature card" onClick={closeWithAnimation}>
+              <button type="button" className="shrink-0 rounded-md p-2 hover:bg-muted" aria-label="Close feature card" data-mobile-feature-card-action="true" onClick={closeWithAnimation}>
                 <X className="size-4" />
               </button>
             </div>

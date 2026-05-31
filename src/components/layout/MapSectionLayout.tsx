@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -165,6 +165,7 @@ export function MapSectionLayout({
   const fromHandle = useRef(false)
   const decided = useRef(false)
   const suppressScrim = useRef(false)
+  const pointerDragId = useRef<number | null>(null)
 
   // ------ helpers ----------------------------------------------------------
 
@@ -368,7 +369,7 @@ export function MapSectionLayout({
       const t = e.touches[0]
       const isHandle = handle!.contains(e.target as Node)
       if (isHandle && mobileFeatureCardOpen && !mobileControlsInFront) {
-        return
+        bringControlsToFront()
       }
 
       startY.current = t.clientY
@@ -491,6 +492,64 @@ export function MapSectionLayout({
   // Scrim tap → collapse
   const handleScrimClick = useCallback(() => snapTo('collapsed'), [snapTo])
 
+  const startHandlePointerDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isMobileViewport() || event.pointerType === 'touch') return
+    if (mobileFeatureCardOpen && !mobileControlsInFront) {
+      bringControlsToFront()
+    }
+
+    pointerDragId.current = event.pointerId
+    dragging.current = true
+    fromHandle.current = true
+    decided.current = true
+    startY.current = event.clientY
+    startX.current = event.clientX
+    startTranslate.current = curY.current
+    prevTouchY.current = event.clientY
+    prevTouchTime.current = performance.now()
+    vel.current = 0
+    sheetRef.current?.style.setProperty('transition', 'none')
+    sheetRef.current?.style.setProperty('will-change', 'transform')
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.preventDefault()
+  }, [bringControlsToFront, mobileControlsInFront, mobileFeatureCardOpen])
+
+  const moveHandlePointerDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isMobileViewport() || event.pointerId !== pointerDragId.current || !dragging.current) return
+
+    const now = performance.now()
+    const dt = now - prevTouchTime.current
+    if (dt > 0) vel.current = (event.clientY - prevTouchY.current) / dt
+    prevTouchY.current = event.clientY
+    prevTouchTime.current = now
+
+    const delta = event.clientY - startY.current
+    let nextY = startTranslate.current + delta
+    const snaps = getSnapPositions(getSheetHeight(), getFullSnapOffset())
+    if (nextY < snaps.full) nextY = snaps.full - (snaps.full - nextY) * 0.25
+    if (nextY > snaps.collapsed) nextY = snaps.collapsed + (nextY - snaps.collapsed) * 0.25
+    applyTransform(nextY, false)
+    event.preventDefault()
+  }, [applyTransform, getFullSnapOffset, getSheetHeight])
+
+  const endHandlePointerDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerId !== pointerDragId.current) return
+
+    pointerDragId.current = null
+    sheetRef.current?.style.setProperty('will-change', '')
+    if (!dragging.current) return
+    dragging.current = false
+
+    const moved = Math.abs(event.clientY - startY.current) + Math.abs(event.clientX - startX.current)
+    if (moved < 10) {
+      const state = stateFromTranslate(curY.current, getSheetHeight(), getFullSnapOffset())
+      snapTo(state === 'collapsed' ? 'half' : state === 'half' ? 'full' : 'collapsed')
+      return
+    }
+
+    snapTo(resolveSnap(curY.current, vel.current, getSheetHeight(), getFullSnapOffset()))
+  }, [getFullSnapOffset, getSheetHeight, snapTo])
+
   useEffect(() => {
     const collapse = () => {
       if (!isMobileViewport()) return
@@ -499,7 +558,7 @@ export function MapSectionLayout({
     }
     const collapseForMapInteraction = () => {
       setMobileControlsInFront(false)
-      stackBehindFeatureCard(true)
+      snapTo('collapsed')
     }
     const stack = () => {
       setMobileFeatureCardOpen(true)
@@ -527,6 +586,10 @@ export function MapSectionLayout({
       const visibleHeight = typeof event.detail?.visibleHeight === 'number' ? event.detail.visibleHeight : undefined
       if (mobileControlsInFront) {
         stackControlsOverFeatureCard(collapsed, visibleHeight)
+        return
+      }
+      if (collapsed) {
+        snapTo('collapsed')
         return
       }
       stackBehindFeatureCard(collapsed, visibleHeight)
@@ -632,6 +695,10 @@ export function MapSectionLayout({
             role="separator"
             aria-label="Drag to resize sheet"
             data-map-mobile-sheet-handle="true"
+            onPointerDown={startHandlePointerDrag}
+            onPointerMove={moveHandlePointerDrag}
+            onPointerUp={endHandlePointerDrag}
+            onPointerCancel={endHandlePointerDrag}
             onClick={(event) => {
               if (!mobileFeatureCardOpen || mobileControlsInFront) return
               event.stopPropagation()

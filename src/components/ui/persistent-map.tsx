@@ -121,7 +121,9 @@ export function PersistentMapProvider({
     const handleUserMapInteraction = (event?: { originalEvent?: Event; defaultPrevented?: boolean }) => {
       if (event && !event.originalEvent) return;
       if (event?.defaultPrevented || event?.originalEvent?.defaultPrevented) return;
-      window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT));
+      window.dispatchEvent(new CustomEvent(MOBILE_MAP_INTERACTION_EVENT, {
+        detail: { type: event?.originalEvent?.type === "click" ? "click" : "gesture" },
+      }));
     };
 
     instance.on("load", loadHandler);
@@ -349,7 +351,7 @@ export function SharedMap({
   useMapBasemap(styles ?? MAP_STYLES);
 
   return (
-    <MapOverlayRoot className={className}>
+    <MapOverlayRoot className={className} initializeVariables={false}>
       <PersistentMapHost loading={loading} loadingLabel={loadingLabel} />
       {controls === undefined ? (
         <MapControls

@@ -10,6 +10,7 @@ import {
 import type MapLibreGL from 'maplibre-gl'
 import MapLibreGLRuntime from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
+import { MOBILE_MAP_FEATURE_CLICK_EVENT } from './mobile-feature-card'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StyleExpression = any
@@ -21,6 +22,10 @@ function ensurePmtilesProtocol() {
   const protocol = new Protocol()
   MapLibreGLRuntime.addProtocol('pmtiles', protocol.tile)
   pmtilesProtocolRegistered = true
+}
+
+function dispatchMobileMapFeatureClick() {
+  window.dispatchEvent(new CustomEvent(MOBILE_MAP_FEATURE_CLICK_EVENT))
 }
 
 // =============================================================================
@@ -154,6 +159,7 @@ function MapFillLayer({
       if (id != null) {
         e.preventDefault?.()
         e.originalEvent?.preventDefault()
+        dispatchMobileMapFeatureClick()
         onClickRef.current?.(String(id))
       }
     }
@@ -349,6 +355,7 @@ function MapLineLayer({
       if (id != null) {
         e.preventDefault?.()
         e.originalEvent?.preventDefault()
+        dispatchMobileMapFeatureClick()
         onClickRef.current?.(String(id))
       }
     }

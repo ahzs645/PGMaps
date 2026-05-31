@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
-import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, X, UtensilsCrossed, Database, ChevronDown, MoreHorizontal, RadioTower, PawPrint, Footprints, Droplets, Waves, Bus } from 'lucide-react'
+import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, RadioTower, PawPrint, Footprints, Droplets, Waves, Bus } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -48,7 +48,6 @@ export function Navbar() {
   const [mobileToolbarHidden, setMobileToolbarHidden] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
-  const moreButtonRef = useRef<HTMLButtonElement>(null)
   const locationParams = new URLSearchParams(location.search)
   const mobileGlassButtonClass = 'border-white/70 bg-white/90 text-zinc-950 shadow-lg backdrop-blur hover:bg-white hover:text-zinc-950 dark:border-zinc-700/70 dark:bg-zinc-950/90 dark:text-zinc-50 dark:shadow-black/50 dark:hover:bg-zinc-900 dark:hover:text-zinc-50'
 
@@ -90,8 +89,7 @@ export function Navbar() {
       if (
         menuRef.current &&
         !menuRef.current.contains(target) &&
-        !menuButtonRef.current?.contains(target) &&
-        !moreButtonRef.current?.contains(target)
+        !menuButtonRef.current?.contains(target)
       ) {
         setMobileMenuOpen(false)
       }
@@ -290,7 +288,6 @@ export function Navbar() {
           <GlobalSearch className={cn('pointer-events-auto h-11 w-11 rounded-md md:h-9 md:w-9 md:border-input md:bg-background/80 md:text-muted-foreground md:shadow-none md:backdrop-blur-none md:hover:bg-accent md:hover:text-foreground', mobileGlassButtonClass)} />
           <div id="dataset-info-toolbar-slot" className="contents" />
           <Button
-            ref={moreButtonRef}
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
@@ -302,21 +299,6 @@ export function Navbar() {
             ) : (
               <Moon className="h-5 w-5" />
             )}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onPointerDown={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              setMobileMenuOpen(!mobileMenuOpen)
-            }}
-            aria-label={mobileMenuOpen ? 'Close menu' : 'Toggle menu'}
-            aria-expanded={mobileMenuOpen}
-            className={cn('pointer-events-auto h-11 w-11 rounded-md border md:hidden', mobileGlassButtonClass)}
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <MoreHorizontal className="h-5 w-5" />}
           </Button>
         </div>
       </div>

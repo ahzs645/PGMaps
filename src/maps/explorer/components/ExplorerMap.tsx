@@ -145,9 +145,9 @@ export function ExplorerMap({
       <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES} loading={loading}>
         <MapControls
           position="top-right"
+          mobilePosition="bottom-right"
           showZoom
           showCompass
-          className="top-[calc(env(safe-area-inset-top)+3.75rem)] md:top-2"
         />
 
         {heatmapLayer}

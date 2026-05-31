@@ -149,7 +149,7 @@ export function CensusMap({
         styles={MAP_STYLES}
         loading={loading}
       >
-        <MapControls position="top-right" showZoom showCompass />
+        <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
         <MapFillLayer
           data={featureCollection}
           fillColor={['coalesce', ['get', 'color'], '#475569']}

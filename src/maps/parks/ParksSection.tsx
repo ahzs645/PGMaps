@@ -163,22 +163,6 @@ export default function ParksSection() {
     )
   }, [])
 
-  const handleParkClick = useCallback((park: Park) => {
-    ignoreUrlSelectionRef.current = false
-    setSelectedPark(park)
-    setSelectedTrail(null)
-    setMobileFeatureSheetOpen(true)
-    setSelectionFocusKey((key) => key + 1)
-  }, [])
-
-  const handleTrailClick = useCallback((trail: Trail) => {
-    ignoreUrlSelectionRef.current = false
-    setSelectedTrail(trail)
-    setSelectedPark(null)
-    setMobileFeatureSheetOpen(true)
-    setSelectionFocusKey((key) => key + 1)
-  }, [])
-
   const handleClearSelection = useCallback(() => {
     ignoreUrlSelectionRef.current = true
     setSelectedPark(null)
@@ -189,6 +173,30 @@ export default function ParksSection() {
     params.delete('trail')
     setSearchParams(params, { replace: true })
   }, [searchParams, setSearchParams])
+
+  const handleParkClick = useCallback((park: Park | null) => {
+    if (!park) {
+      handleClearSelection()
+      return
+    }
+    ignoreUrlSelectionRef.current = false
+    setSelectedPark(park)
+    setSelectedTrail(null)
+    setMobileFeatureSheetOpen(true)
+    setSelectionFocusKey((key) => key + 1)
+  }, [handleClearSelection])
+
+  const handleTrailClick = useCallback((trail: Trail | null) => {
+    if (!trail) {
+      handleClearSelection()
+      return
+    }
+    ignoreUrlSelectionRef.current = false
+    setSelectedTrail(trail)
+    setSelectedPark(null)
+    setMobileFeatureSheetOpen(true)
+    setSelectionFocusKey((key) => key + 1)
+  }, [handleClearSelection])
 
   const parkLegendRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()

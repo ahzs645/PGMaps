@@ -205,17 +205,6 @@ export default function BcAssessmentSection() {
     )
   }, [])
 
-  const handlePropertyClick = useCallback((property: Property) => {
-    ignoreUrlPropertySelectionRef.current = false
-    setSelectedProperty(property)
-    setSelectedBoundaryId(null)
-  }, [])
-
-  const handleBoundaryClick = useCallback((boundaryId: string) => {
-    setSelectedBoundaryId(boundaryId)
-    setSelectedProperty(null)
-  }, [])
-
   const handleClearSelection = useCallback(() => {
     ignoreUrlPropertySelectionRef.current = true
     setSelectedProperty(null)
@@ -225,6 +214,25 @@ export default function BcAssessmentSection() {
     params.delete('region')
     setSearchParams(params, { replace: true })
   }, [searchParams, setSearchParams])
+
+  const handlePropertyClick = useCallback((property: Property) => {
+    if (selectedProperty?.id === property.id) {
+      handleClearSelection()
+      return
+    }
+    ignoreUrlPropertySelectionRef.current = false
+    setSelectedProperty(property)
+    setSelectedBoundaryId(null)
+  }, [handleClearSelection, selectedProperty])
+
+  const handleBoundaryClick = useCallback((boundaryId: string) => {
+    if (selectedBoundaryId === boundaryId) {
+      handleClearSelection()
+      return
+    }
+    setSelectedBoundaryId(boundaryId)
+    setSelectedProperty(null)
+  }, [handleClearSelection, selectedBoundaryId])
 
   const handleBoundarySourceChange = useCallback((source: AssessmentBoundarySource) => {
     setBoundarySource(source)

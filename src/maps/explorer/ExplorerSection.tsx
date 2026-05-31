@@ -1480,7 +1480,7 @@ export default function ExplorerSection() {
           lineCollections={mapCollections.lineCollections}
           polygonCollections={mapCollections.polygonCollections}
           selectedItem={selectedItem}
-          onItemSelect={setSelectedItemId}
+          onItemSelect={(itemId) => setSelectedItemId((current) => current === itemId ? null : itemId)}
           spatialFilter={spatialFilter}
           onSpatialFilterChange={setSpatialFilter}
           onMapRightClick={(lng, lat) => setNeighborhoodPoint({ lat, lng })}
