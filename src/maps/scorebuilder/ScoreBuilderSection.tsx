@@ -191,26 +191,6 @@ interface CimdPointRecord extends PointRecord {
   cimd: CimdRecord
 }
 
-function getNormalizationLegendText(method: ScoreMethodSettings['normalization']): string {
-  if (method === 'percentile') return 'Score uses percentile-normalized indicators within this boundary level.'
-  if (method === 'winsorizedMinMax') return 'Score uses winsorized min-max normalization within this boundary level.'
-  if (method === 'zScore') return 'Score uses z-score normalized indicators within this boundary level.'
-  return 'Score uses min-max normalized indicators within this boundary level.'
-}
-
-function getMethodLegendText(settings: ScoreMethodSettings): string {
-  if (settings.aggregation === 'healthyPlanPairwisePriority') {
-    return 'HealthyPlan-style mode uses one vulnerability metric and one built-environment metric, ranks both into deciles, and colors only areas with vulnerability rank > 5 and environment benefit rank < 6.'
-  }
-  if (settings.aggregation === 'modulePercentileRankedSum') {
-    return 'EJI-style mode ranks indicators, sums them within modules, ranks module sums, then ranks the combined module score.'
-  }
-  if (settings.aggregation === 'accessThreshold') {
-    return 'Access threshold mode counts how many selected access indicators meet the configured threshold, then scores areas by whether they meet enough essential-access hits.'
-  }
-  return getNormalizationLegendText(settings.normalization)
-}
-
 function computeMedian(values: number[]): number {
   if (!values.length) return 0
   const sorted = [...values].sort((a, b) => a - b)
@@ -2293,8 +2273,6 @@ export default function ScoreBuilderSection() {
     })
     return `score = weighted average(${terms.join(' + ')})`
   }, [activeMetricDefinitions, methodSettings.aggregation, methodSettings.accessThreshold, methodSettings.healthyPlanPriority, weights])
-
-  const normalizationLegendText = useMemo(() => getMethodLegendText(methodSettings), [methodSettings])
 
   const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
     setActiveExampleKey(null)
