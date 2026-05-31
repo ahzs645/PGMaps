@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ShieldAlert } from 'lucide-react'
+import { ShieldAlert, X } from 'lucide-react'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapLegendSection, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
+import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapLegendSection, MapSizeLegend, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -331,7 +331,13 @@ export function IcbcLayerControls({ icbc }: { icbc: IcbcState }) {
   )
 }
 
-export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
+export function IcbcSidebar({
+  icbc,
+  showSelectedLocation = true,
+}: {
+  icbc: IcbcState
+  showSelectedLocation?: boolean
+}) {
   return (
     <>
       <SidebarSection title="ICBC Crash Locations" icon={ShieldAlert} iconClassName="text-rose-600">
@@ -366,20 +372,59 @@ export function IcbcSidebar({ icbc }: { icbc: IcbcState }) {
         </div>
       </SidebarSection>
 
-      {icbc.selectedCrash && (
-        <SidebarSection title="Selected Location">
-          <SelectedItemCard
-            title={icbc.selectedCrash.properties.location}
-            onClear={() => icbc.setSelectedLocation(null)}
-            rows={[
-              { label: 'Crash type', value: getIcbcDatasetLabelById(icbc.selectedCrash.properties.dataset, icbc.selectedCrash.properties.datasetTitle) },
-              { label: 'Crash count', value: icbc.selectedCrash.properties.crashCount.toLocaleString() },
-              { label: 'Matched to', value: icbc.selectedCrash.properties.sourceLocationName },
-            ]}
-          />
-        </SidebarSection>
-      )}
+      {showSelectedLocation && <IcbcSelectedLocationSection icbc={icbc} />}
     </>
+  )
+}
+
+export function IcbcSelectedLocationSection({ icbc }: { icbc: IcbcState }) {
+  if (!icbc.selectedCrash) return null
+
+  return (
+    <section className="border-b border-border bg-background/95 p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="truncate text-sm font-semibold text-foreground">Selected Location</h2>
+        </div>
+      </div>
+      <div className="rounded-md border p-3 text-xs border-border bg-background text-foreground">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-semibold leading-5">{icbc.selectedCrash.properties.location}</div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              className="shrink-0 transition-colors hover:text-foreground text-muted-foreground"
+              aria-label="Clear selection"
+              onClick={() => icbc.setSelectedLocation(null)}
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+        <div className="space-y-1 text-xs mt-2">
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Crash type</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {getIcbcDatasetLabelById(icbc.selectedCrash.properties.dataset, icbc.selectedCrash.properties.datasetTitle)}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Crash count</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {icbc.selectedCrash.properties.crashCount.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Matched to</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {icbc.selectedCrash.properties.sourceLocationName}
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
 
