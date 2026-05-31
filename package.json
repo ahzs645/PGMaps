@@ -33,6 +33,7 @@
     "bc-assessment:refresh": "npm --prefix vendor/bcdatamapper run bc-assessment:refresh --",
     "food-health:refresh": "npm --prefix vendor/bcdatamapper run food-health:refresh --",
     "food-health:geocode": "npm --prefix vendor/bcdatamapper run food-health:geocode --",
+    "food-health:bc-geocoder-check": "npm --prefix vendor/bcdatamapper run food-health:bc-geocoder-check --",
     "healthyplan-pg:sync": "npm --prefix vendor/bcdatamapper run healthyplan-pg:sync --",
     "healthyplan-pg:sync:education": "npm --prefix vendor/bcdatamapper run healthyplan-pg:sync:education --",
     "healthyplan-pg:sync:citypg-business": "npm --prefix vendor/bcdatamapper run healthyplan-pg:sync:citypg-business --",
