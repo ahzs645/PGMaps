@@ -147,7 +147,7 @@ export function ExplorerMap({
           position="top-right"
           showZoom
           showCompass
-          className="top-auto bottom-16 md:top-2 md:bottom-auto"
+          className="top-[calc(env(safe-area-inset-top)+3.75rem)] md:top-2"
         />
 
         {heatmapLayer}
@@ -234,7 +234,7 @@ export function ExplorerMap({
       )}
 
       {/* Spatial filter controls */}
-      <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-4.5rem)] flex-wrap gap-1.5 sm:left-4 sm:top-4 sm:max-w-[calc(100%-5rem)] sm:gap-2 md:max-w-none">
+      <div className="absolute left-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-10 flex max-w-[calc(100%-4.5rem)] flex-wrap gap-1.5 sm:left-4 sm:max-w-[calc(100%-5rem)] sm:gap-2 md:top-4 md:max-w-none">
         <button
           onClick={() => {
             if (drawMode) {

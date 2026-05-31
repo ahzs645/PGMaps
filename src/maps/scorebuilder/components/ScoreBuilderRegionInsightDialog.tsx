@@ -283,12 +283,12 @@ export function ScoreBuilderRegionInsightDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-h-[90vh] overflow-hidden p-0 sm:max-w-2xl"
+        className="bottom-0 top-auto flex max-h-[min(88dvh,720px)] w-full translate-y-0 flex-col overflow-hidden rounded-b-none p-0 sm:bottom-auto sm:top-[50%] sm:grid sm:w-[calc(100%-2rem)] sm:max-w-2xl sm:translate-y-[-50%] sm:rounded-b-xl"
         data-score-builder-region-insight-dialog="true"
       >
-        <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
-          <DialogTitle>{region ? 'Region Score Drivers' : 'Region Insight'}</DialogTitle>
-          <DialogDescription>
+        <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
+          <DialogTitle className="pr-8 text-base sm:text-lg">{region ? 'Region Score Drivers' : 'Region Insight'}</DialogTitle>
+          <DialogDescription className="line-clamp-3 pr-4 text-xs leading-relaxed sm:text-sm">
             {region
               ? `${region.region.name} (Code ${region.region.code})${topDriverSummary ? ` | Top drivers: ${topDriverSummary} pts` : ''}`
               : 'Select a region to review detailed score contributions.'}
@@ -296,11 +296,11 @@ export function ScoreBuilderRegionInsightDialog({
         </DialogHeader>
 
         {!region ? (
-          <div className="px-6 pb-6 text-sm text-muted-foreground">
+          <div className="px-4 pb-6 text-sm text-muted-foreground sm:px-6">
             Region details will appear here after selecting a boundary.
           </div>
         ) : (
-          <div className="space-y-4 overflow-y-auto px-6 pb-6">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-1 sm:px-6 sm:pb-6">
             {/* Stats grid */}
             <div className="grid grid-cols-2 gap-2 pt-2 text-xs sm:grid-cols-3">
               <div className="rounded-md border border-border bg-muted/30 p-2">

@@ -2974,7 +2974,7 @@ export default function ScoreBuilderSection() {
               />
             )}
 
-            <MapLegendPanel title="Legend" width="lg" collapsible>
+            <MapLegendPanel title="Legend" width="md" collapsible>
               {correlateMode ? (
                 <CorrelationMapLegend
                   metricX={correlateMetricX}
@@ -3045,11 +3045,11 @@ export default function ScoreBuilderSection() {
                           maxLabel={scorePaletteProfile.legend.high}
                         />
                       )}
-                      <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
-                        {methodSettings.visualOutput === 'binned'
-                          ? 'Map output uses five fixed score classes: 0-20, 20-40, 40-60, 60-80, 80-100.'
-                          : 'Map output uses continuous color interpolation between palette stops.'}
-                      </div>
+                      {methodSettings.visualOutput === 'binned' && (
+                        <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                          Map output uses five fixed score classes: 0-20, 20-40, 40-60, 60-80, 80-100.
+                        </div>
+                      )}
                     </>
                   )}
                   <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
@@ -3069,7 +3069,6 @@ export default function ScoreBuilderSection() {
                   <div className="mt-2 text-[10px] text-muted-foreground">
                     {enabledDataSources.length} data source(s) active across {regions.length} regions.
                   </div>
-                  <div className="mt-1 text-[10px] leading-snug text-muted-foreground">{normalizationLegendText}</div>
                   {thinCoverageCount > 0 && (
                     <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
                       {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'} have thin active-data coverage.

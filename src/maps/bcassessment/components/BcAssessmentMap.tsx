@@ -8,11 +8,14 @@ import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import {
   getValueColor,
+  getInterpolatedValueColor,
   VALUE_STOPS,
   YEAR_STOPS,
   formatCurrency,
 } from '../constants'
 import type { Property, ColorMetric, BoundaryAggregate, BoundaryLevel } from '../types'
+
+type ColorScaleMode = 'stepped' | 'continuous'
 
 interface BcAssessmentMapProps {
   properties: Property[]
@@ -22,6 +25,7 @@ interface BcAssessmentMapProps {
   boundaryLevel: BoundaryLevel
   boundaryData: GeoJSON.FeatureCollection | null
   boundaryAggregates: Map<string, BoundaryAggregate>
+  colorScaleMode?: ColorScaleMode
   onPropertyClick: (property: Property) => void
   onBoundaryClick: (boundaryId: string) => void
   loading?: boolean
@@ -61,6 +65,7 @@ export function BcAssessmentMap({
   boundaryLevel,
   boundaryData,
   boundaryAggregates,
+  colorScaleMode = 'stepped',
   onPropertyClick,
   onBoundaryClick,
   loading = false,
@@ -70,13 +75,14 @@ export function BcAssessmentMap({
   const showBoundaries = !!boundaryData && boundaryAggregates.size > 0
 
   const geojson = useMemo<GeoJSON.FeatureCollection>(() => {
+    const getColor = colorScaleMode === 'continuous' ? getInterpolatedValueColor : getValueColor
     const features = properties.map((prop, idx) => {
       let color: string
       if (colorMetric === 'yearBuilt') {
-        color = prop.yearBuilt ? getValueColor(prop.yearBuilt, YEAR_STOPS) : '#d4d4d4'
+        color = prop.yearBuilt ? getColor(prop.yearBuilt, YEAR_STOPS) : '#d4d4d4'
       } else {
         const value = prop[colorMetric]
-        color = typeof value === 'number' ? getValueColor(value, VALUE_STOPS) : '#d4d4d4'
+        color = typeof value === 'number' ? getColor(value, VALUE_STOPS) : '#d4d4d4'
       }
 
       return {
@@ -91,7 +97,7 @@ export function BcAssessmentMap({
       }
     })
     return { type: 'FeatureCollection', features }
-  }, [properties, colorMetric])
+  }, [properties, colorMetric, colorScaleMode])
 
   // Build a numeric index -> property lookup for click handling
   const indexToProperty = useRef(new globalThis.Map<number, Property>())
@@ -108,6 +114,7 @@ export function BcAssessmentMap({
     if (!boundaryData || boundaryAggregates.size === 0) return EMPTY_FC
 
     const stops = colorMetric === 'yearBuilt' ? YEAR_STOPS : VALUE_STOPS
+    const getColor = colorScaleMode === 'continuous' ? getInterpolatedValueColor : getValueColor
     const features = boundaryData.features.map((feat, idx) => {
       const bid = String(feat.properties?.id ?? '')
       const agg = boundaryAggregates.get(bid)
@@ -117,7 +124,7 @@ export function BcAssessmentMap({
       if (agg) {
         const val = getAggregateValue(agg, colorMetric)
         if (val != null) {
-          color = getValueColor(val, stops)
+          color = getColor(val, stops)
           label = colorMetric === 'yearBuilt' ? String(val) : formatCurrency(val)
         }
       }
@@ -137,7 +144,7 @@ export function BcAssessmentMap({
     })
 
     return { type: 'FeatureCollection', features }
-  }, [boundaryData, boundaryAggregates, colorMetric])
+  }, [boundaryData, boundaryAggregates, colorMetric, colorScaleMode])
 
   // Fly to selected property
   useEffect(() => {

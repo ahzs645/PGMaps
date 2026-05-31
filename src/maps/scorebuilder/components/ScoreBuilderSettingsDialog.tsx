@@ -13,8 +13,10 @@ import type {
   ScenarioComparison,
 } from '../types'
 import { SCORE_PRESETS } from '../constants'
+import { ExamplesTab } from './ExamplesTab'
+import { MethodologyTab } from './MethodologyTab'
 import { ModelTab } from './ModelTab'
-import { ExamplesTab, MethodologyTab, RobustnessTab } from './ScoreBuilderRightPanel'
+import { RobustnessTab } from './RobustnessTab'
 
 type SettingsTab = 'examples' | 'methodology' | 'model' | 'robustness'
 

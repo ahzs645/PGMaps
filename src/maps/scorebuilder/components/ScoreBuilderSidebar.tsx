@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Check, ChevronDown, ChevronUp, Copy } from 'lucide-react'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
@@ -8,7 +8,6 @@ import { Slider } from '@/components/ui/slider'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import {
   BOUNDARY_SOURCE_OPTIONS,
-  SCORE_INDEX_MODULE_LABELS,
   SCORE_METRICS,
   SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
@@ -34,31 +33,21 @@ import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
 import { formatScore } from '../lib/metrics'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { getScoreDrivers } from '../lib/scoreDrivers'
+import {
+  SCORE_BUILDER_SECTION_LABELS,
+  SCORE_BUILDER_SECTION_ORDER,
+  type ScoreBuilderSectionId,
+  useScoreBuilderSections,
+} from '../hooks/useScoreBuilderSections'
 import { DensityTab } from './DensityTab'
+import { ExamplesTab } from './ExamplesTab'
+import { MethodologyTab } from './MethodologyTab'
 import { ModelTab } from './ModelTab'
 import { RegionsTab } from './RegionsTab'
+import { RobustnessTab } from './RobustnessTab'
 import { ScorePresetDialog } from './ScorePresetDialog'
 import { CustomMetricBuilder } from './ScoreBuilderLeftPanel'
-import {
-  MAX_VISIBLE_REGION_ROWS,
-  clampWeight,
-  formatAggregationMethod,
-  formatNormalizationMethod,
-  getDataSourceLabel,
-} from './scoreBuilderPanelUtils'
-
-type ScoreBuilderSectionId =
-  | 'examples'
-  | 'setup'
-  | 'dataSources'
-  | 'equation'
-  | 'methodology'
-  | 'model'
-  | 'robustness'
-  | 'density'
-  | 'regions'
-
-type ExpandedSectionsState = Record<ScoreBuilderSectionId, boolean>
+import { MAX_VISIBLE_REGION_ROWS, clampWeight } from './scoreBuilderPanelUtils'
 
 interface ScoreBuilderSidebarProps {
   className?: string
@@ -124,56 +113,6 @@ interface ScoreBuilderSidebarProps {
   datasetProfiles: Partial<Record<MetricRecipeSource, DatasetProfile>>
   onCreateCustomMetric: (recipe: MetricRecipe) => void
   onRemoveCustomMetric: (id: string) => void
-}
-
-const SECTION_ORDER: ScoreBuilderSectionId[] = [
-  'examples',
-  'setup',
-  'dataSources',
-  'equation',
-  'methodology',
-  'model',
-  'robustness',
-  'density',
-  'regions',
-]
-const SECTION_LABELS: Record<ScoreBuilderSectionId, string> = {
-  examples: 'Examples',
-  setup: 'Setup',
-  dataSources: 'Data Sources',
-  equation: 'Equation',
-  methodology: 'Method',
-  model: 'Model',
-  robustness: 'Robust',
-  density: 'Density',
-  regions: 'Regions',
-}
-
-function createExpandedSections(isDesktop: boolean): ExpandedSectionsState {
-  if (isDesktop) {
-    return {
-      examples: true,
-      setup: false,
-      dataSources: false,
-      equation: false,
-      methodology: false,
-      model: false,
-      robustness: false,
-      density: false,
-      regions: true,
-    }
-  }
-  return {
-    examples: true,
-    setup: false,
-    dataSources: false,
-    equation: false,
-    methodology: false,
-    model: false,
-    robustness: false,
-    density: false,
-    regions: true,
-  }
 }
 
 export function ScoreBuilderSidebar({
@@ -269,102 +208,10 @@ export function ScoreBuilderSidebar({
   }, [weights])
   const activeMetricCount = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length, [weights])
 
-  const [expandedSections, setExpandedSections] = useState<ExpandedSectionsState>(() =>
-    createExpandedSections(isDesktop),
-  )
-  const [activeSection, setActiveSection] = useState<ScoreBuilderSectionId>('examples')
   const [showAllEquationMetrics, setShowAllEquationMetrics] = useState(false)
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
-
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
-  const sectionRefs = useRef<Record<ScoreBuilderSectionId, HTMLElement | null>>({
-    examples: null,
-    setup: null,
-    dataSources: null,
-    equation: null,
-    methodology: null,
-    model: null,
-    robustness: null,
-    density: null,
-    regions: null,
-  })
-  const sectionRatios = useRef<Record<ScoreBuilderSectionId, number>>({
-    examples: 0,
-    setup: 0,
-    dataSources: 0,
-    equation: 0,
-    methodology: 0,
-    model: 0,
-    robustness: 0,
-    density: 0,
-    regions: 0,
-  })
-
-  useEffect(() => {
-    setExpandedSections(createExpandedSections(isDesktop))
-  }, [isDesktop])
-
-  const evaluateActiveSection = useCallback(() => {
-    const root = scrollContainerRef.current
-    if (!root) return
-    const referenceTop = root.scrollTop + 120
-    let candidate: ScoreBuilderSectionId = SECTION_ORDER[0]
-    SECTION_ORDER.forEach((id) => {
-      const section = sectionRefs.current[id]
-      if (!section) return
-      if (section.offsetTop <= referenceTop) candidate = id
-    })
-    setActiveSection(candidate)
-  }, [])
-
-  useEffect(() => {
-    const root = scrollContainerRef.current
-    if (!root) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const sectionId = entry.target.getAttribute('data-score-builder-section-id') as ScoreBuilderSectionId | null
-          if (!sectionId) return
-          sectionRatios.current[sectionId] = entry.isIntersecting ? entry.intersectionRatio : 0
-        })
-        evaluateActiveSection()
-      },
-      { root, threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] },
-    )
-    SECTION_ORDER.forEach((id) => {
-      const section = sectionRefs.current[id]
-      if (section) observer.observe(section)
-    })
-    const handleScroll = () => evaluateActiveSection()
-    root.addEventListener('scroll', handleScroll, { passive: true })
-    evaluateActiveSection()
-    return () => {
-      observer.disconnect()
-      root.removeEventListener('scroll', handleScroll)
-    }
-  }, [evaluateActiveSection])
-
-  const setSectionRef = useCallback((sectionId: ScoreBuilderSectionId, element: HTMLElement | null) => {
-    sectionRefs.current[sectionId] = element
-  }, [])
-
-  const toggleSection = useCallback((sectionId: ScoreBuilderSectionId) => {
-    setExpandedSections((current) => ({ ...current, [sectionId]: !current[sectionId] }))
-  }, [])
-
-  const scrollToSection = useCallback((sectionId: ScoreBuilderSectionId) => {
-    const root = scrollContainerRef.current
-    if (!root || !sectionRefs.current[sectionId]) return
-    setExpandedSections((current) => ({ ...current, [sectionId]: true }))
-    setActiveSection(sectionId)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const nextSection = sectionRefs.current[sectionId]
-        if (!nextSection) return
-        root.scrollTo({ top: Math.max(0, nextSection.offsetTop - 62), behavior: 'smooth' })
-      })
-    })
-  }, [])
+  const { activeSection, expandedSections, scrollContainerRef, scrollToSection, setSectionRef, toggleSection } =
+    useScoreBuilderSections(isDesktop)
 
   const handleShare = useCallback(async () => {
     if (!onShareUrl) return
@@ -388,7 +235,7 @@ export function ScoreBuilderSidebar({
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
         aria-expanded={sectionOpen}
       >
-        <h2 className="text-sm font-semibold text-foreground">{SECTION_LABELS[sectionId]}</h2>
+        <h2 className="text-sm font-semibold text-foreground">{SCORE_BUILDER_SECTION_LABELS[sectionId]}</h2>
         {sectionOpen ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
         ) : (
@@ -441,7 +288,7 @@ export function ScoreBuilderSidebar({
         {/* Section nav ribbon */}
         <div className="sticky top-0 z-20 border-b border-border bg-background/95 px-3 py-2 backdrop-blur">
           <div className="flex flex-wrap gap-1.5">
-            {SECTION_ORDER.map((sectionId) => (
+            {SCORE_BUILDER_SECTION_ORDER.map((sectionId) => (
               <button
                 key={sectionId}
                 type="button"
@@ -454,7 +301,7 @@ export function ScoreBuilderSidebar({
                     : 'border-input text-muted-foreground hover:text-foreground',
                 )}
               >
-                {SECTION_LABELS[sectionId]}
+                {SCORE_BUILDER_SECTION_LABELS[sectionId]}
               </button>
             ))}
           </div>
@@ -469,95 +316,14 @@ export function ScoreBuilderSidebar({
         >
           {renderSectionHeader('examples')}
           {expandedSections.examples && (
-            <div className="space-y-3 px-4 pb-4">
-              <div className="rounded-lg border border-cyan-200 bg-cyan-50/70 p-3 text-xs dark:border-cyan-900/60 dark:bg-cyan-950/25">
-                <div className="mb-2 font-semibold text-cyan-900 dark:text-cyan-100">Guided index workflow</div>
-                <div className="grid grid-cols-2 gap-2 text-[11px] text-cyan-900/80 dark:text-cyan-100/80">
-                  <div>
-                    <span className="font-semibold">1.</span> Choose scenario
-                  </div>
-                  <div>
-                    <span className="font-semibold">2.</span> Review data
-                  </div>
-                  <div>
-                    <span className="font-semibold">3.</span> Tune weights
-                  </div>
-                  <div>
-                    <span className="font-semibold">4.</span> Inspect regions
-                  </div>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {activeExample
-                  ? `Active scenario configures ${activeExample.boundaryLevel.toUpperCase()} boundaries, ${activeExample.dataSources.map(getDataSourceLabel).join(', ')}, and the matching weights.`
-                  : 'Pick a PG scenario to configure boundaries, data sources, and scoring weights.'}
-              </p>
-
-              {/* Group examples by boundary source */}
-              {[
-                { source: 'census' as const, title: 'Census Boundaries (Prince George)' },
-                { source: 'bcHealth' as const, title: 'Health Boundaries (CHSA)' },
-              ].map(({ source, title }) => {
-                const group = SCORE_BUILDER_EXAMPLES.filter((e) => e.boundarySource === source)
-                if (!group.length) return null
-                return (
-                  <div key={source}>
-                    <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {title}
-                    </div>
-                    <div className="space-y-2">
-                      {group.map((example) => {
-                        const active = activeExampleKey === example.key
-                        const levelLabel =
-                          { ct: 'CT', da: 'DA', chsa: 'CHSA' }[example.boundaryLevel as 'ct' | 'da' | 'chsa'] ||
-                          example.boundaryLevel
-                        return (
-                          <button
-                            key={example.key}
-                            onClick={() => onApplyExample(example.key)}
-                            className={cn(
-                              'w-full rounded-lg border p-3 text-left transition-colors',
-                              active
-                                ? 'border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500/30 dark:bg-cyan-950/40 dark:ring-cyan-400/20'
-                                : 'border-border bg-background hover:border-cyan-300 hover:bg-accent dark:hover:border-cyan-800',
-                            )}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="text-sm font-semibold text-foreground">{example.label}</div>
-                              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                                {levelLabel}
-                              </span>
-                            </div>
-                            <div className="mt-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">
-                              {example.question}
-                            </div>
-                            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
-                              {example.description}
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {example.dataSources.map((ds) => (
-                                <span
-                                  key={ds}
-                                  className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-                                >
-                                  {getDataSourceLabel(ds)}
-                                </span>
-                              ))}
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
+            <ExamplesTab className="px-4 pb-4 pt-0" activeExampleKey={activeExampleKey} onApplyExample={onApplyExample}>
               <CustomMetricBuilder
                 recipes={customMetricRecipes}
                 datasetProfiles={datasetProfiles}
                 onCreate={onCreateCustomMetric}
                 onRemove={onRemoveCustomMetric}
               />
-            </div>
+            </ExamplesTab>
           )}
         </section>
 
@@ -834,79 +600,13 @@ export function ScoreBuilderSidebar({
         >
           {renderSectionHeader('methodology')}
           {expandedSections.methodology && (
-            <div className="space-y-3 px-4 pb-4">
-              <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
-                <div className="mb-1 text-sm font-semibold text-foreground">COINr-lite method</div>
-                <p>
-                  Metrics are normalized across the current region set, directionalized by signed weights, then
-                  aggregated into a 0-100 composite score.
-                </p>
-                <p className="mt-2">
-                  Scores are relative to the currently loaded boundary level; filters do not redefine percentiles. Use
-                  for planning triage, not validated exposure, health, or funding eligibility determination.
-                </p>
-                <p className="mt-2">
-                  Current settings: {formatNormalizationMethod(methodSettings.normalization)},{' '}
-                  {formatAggregationMethod(methodSettings.aggregation)}, missing data {methodSettings.missingData}.
-                </p>
-              </div>
-
-              {componentSummaries.length > 0 && (
-                <div className="rounded-lg border border-border bg-background p-3">
-                  <div className="mb-2 text-sm font-semibold text-foreground">Component sub-scores</div>
-                  <div className="space-y-2">
-                    {componentSummaries.map((component) => (
-                      <div key={component.key}>
-                        <div className="mb-1 flex items-center justify-between text-[11px]">
-                          <span className="font-semibold text-foreground">{component.label}</span>
-                          <span className="text-muted-foreground">
-                            {formatScore(component.score)} · {(component.weightShare * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-muted">
-                          <div className="h-full rounded-full bg-cyan-500" style={{ width: `${component.score}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-lg border border-border bg-background p-3">
-                <div className="mb-2 text-sm font-semibold text-foreground">Active indicator metadata</div>
-                <div className="space-y-2">
-                  {SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).map((metric) => (
-                    <div key={metric.key} className="rounded border border-border bg-muted/15 p-2 text-xs">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="font-semibold text-foreground">{metric.label}</div>
-                        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {metric.uncertainty}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-[11px] text-muted-foreground">
-                        {metric.directionLabel} · weight {weights[metric.key]} · {metric.dataSourceLabel} ·{' '}
-                        {metric.spatialMethod}
-                      </div>
-                      <div className="mt-1 text-[10px] text-muted-foreground">
-                        {metric.freshnessLabel} · {metric.comparisonBasis}
-                      </div>
-                      <div className="mt-1 text-[10px] text-muted-foreground">
-                        Module{' '}
-                        {
-                          SCORE_INDEX_MODULE_LABELS[
-                            methodSettings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext'
-                          ]
-                        }{' '}
-                        · domain {metric.indexDomain || 'local context'} · {metric.proxyLevel || 'proxy'} metric
-                      </div>
-                      {metric.caveat && (
-                        <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">{metric.caveat}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <MethodologyTab
+              className="px-4 pb-4 pt-0"
+              weights={weights}
+              methodSettings={methodSettings}
+              componentSummaries={componentSummaries}
+              activePreset={activePreset}
+            />
           )}
         </section>
 
@@ -947,48 +647,11 @@ export function ScoreBuilderSidebar({
         >
           {renderSectionHeader('robustness')}
           {expandedSections.robustness && (
-            <div className="space-y-3 px-4 pb-4">
-              <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
-                <div className="mb-1 text-sm font-semibold text-foreground">Rank confidence</div>
-                <p>
-                  Checks 15% weight perturbations, leave-one-indicator-out runs, and alternate normalization methods.
-                </p>
-              </div>
-              {scenarioComparison && (
-                <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
-                  Top area held in {(scenarioComparison.stableTopShare * 100).toFixed(0)}% of perturbation trials;
-                  average rank shift was {scenarioComparison.averageRankShift.toFixed(1)}.
-                </div>
-              )}
-              <div className="space-y-2">
-                {robustnessResults.map((result) => (
-                  <div key={result.regionId} className="rounded-lg border border-border bg-background p-3 text-xs">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="font-semibold text-foreground">
-                          #{result.baseRank} {result.regionName}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          median {result.medianRank.toFixed(1)} · rank #{result.rankInterval[0]}-#
-                          {result.rankInterval[1]}
-                        </div>
-                      </div>
-                      <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                        {result.stability}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-[11px] text-muted-foreground">
-                      Score {formatScore(result.scoreInterval[0])}-{formatScore(result.scoreInterval[1])}
-                    </div>
-                  </div>
-                ))}
-                {robustnessResults.length === 0 && (
-                  <div className="rounded border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
-                    Turn on sensitivity testing in the Model section to generate results.
-                  </div>
-                )}
-              </div>
-            </div>
+            <RobustnessTab
+              className="px-4 pb-4 pt-0"
+              robustnessResults={robustnessResults}
+              scenarioComparison={scenarioComparison}
+            />
           )}
         </section>
 

@@ -3,12 +3,13 @@ import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
+import { Timeline } from '@/components/ui/timeline'
 import { BcAssessmentMap } from './components/BcAssessmentMap'
 import { BcAssessmentSidebar, formatNumber, HistorySparkline } from './components/BcAssessmentSidebar'
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
 import { useBoundaryData } from './hooks/useBoundaryData'
 import { useBoundaryAggregates } from './hooks/useBoundaryAggregates'
-import { ALL_CATEGORIES, formatCurrency, VALUE_STOPS, YEAR_STOPS } from './constants'
+import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, formatCurrency, VALUE_STOPS, YEAR_STOPS } from './constants'
 import type {
   AssessmentBoundaryLevel,
   AssessmentBoundarySource,
@@ -17,6 +18,10 @@ import type {
   ColorMetric,
   BoundaryLevel,
 } from './types'
+
+type AssessmentLegendMode = 'rows' | 'horizontal' | 'gradient'
+
+const ASSESSMENT_LEGEND_MODE: AssessmentLegendMode = 'horizontal'
 
 const DEFAULT_LEVEL_BY_SOURCE: Record<AssessmentBoundarySource, AssessmentBoundaryLevel> = {
   bcHealth: 'chsa',
@@ -71,6 +76,7 @@ export default function BcAssessmentSection() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [selectedBoundaryId, setSelectedBoundaryId] = useState<string | null>(() => searchParams.get('region'))
   const [showSidebar, setShowSidebar] = useState(true)
+  const [showTimeline, setShowTimeline] = useState(false)
   const ignoreUrlPropertySelectionRef = useRef(false)
 
   const { boundaryData } = useBoundaryData(boundaryLevel)
@@ -115,7 +121,19 @@ export default function BcAssessmentSection() {
     }
   }, [boundaryLevel, boundarySource, colorMetric, searchParams, searchQuery, selectedBoundaryId, selectedProperty, setSearchParams])
 
-  const filteredProperties = useMemo(() => {
+  const timelineYearOptions = useMemo(() => {
+    const maxHistoryLength = properties.reduce((max, property) => Math.max(max, property.histValues?.length ?? 0), 0)
+    if (maxHistoryLength === 0) return [new Date().getFullYear()]
+    return Array.from({ length: maxHistoryLength }, (_, index) => ASSESSMENT_HISTORY_START_YEAR + index)
+  }, [properties])
+  const [timelineYear, setTimelineYear] = useState(new Date().getFullYear())
+
+  useEffect(() => {
+    const latestYear = timelineYearOptions[timelineYearOptions.length - 1]
+    if (latestYear && !timelineYearOptions.includes(timelineYear)) setTimelineYear(latestYear)
+  }, [timelineYear, timelineYearOptions])
+
+  const filteredBaseProperties = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     return properties.filter((prop) => {
       const matchesCategory = selectedCategories.includes(prop.category)
@@ -124,14 +142,60 @@ export default function BcAssessmentSection() {
     })
   }, [properties, selectedCategories, searchQuery])
 
+  const filteredProperties = useMemo(() => {
+    if (!showTimeline) return filteredBaseProperties
+    const historyIndex = timelineYear - ASSESSMENT_HISTORY_START_YEAR
+
+    return filteredBaseProperties.map((property) => {
+      const historicalValue = property.histValues?.[historyIndex]
+      if (typeof historicalValue !== 'number' || !Number.isFinite(historicalValue)) return property
+
+      return {
+        ...property,
+        totalAssessed: historicalValue,
+      }
+    })
+  }, [filteredBaseProperties, showTimeline, timelineYear])
+
+  const selectedDisplayProperty = useMemo(() => {
+    if (!selectedProperty) return null
+    return filteredProperties.find((property) => property.id === selectedProperty.id) ?? selectedProperty
+  }, [filteredProperties, selectedProperty])
+
+  const timelineBucketValues = useMemo(() => {
+    const totals = new Map<string, { total: number; count: number }>()
+    for (const property of filteredBaseProperties) {
+      property.histValues?.forEach((value, index) => {
+        if (typeof value !== 'number' || !Number.isFinite(value)) return
+        const year = String(ASSESSMENT_HISTORY_START_YEAR + index)
+        const current = totals.get(year) ?? { total: 0, count: 0 }
+        current.total += value
+        current.count += 1
+        totals.set(year, current)
+      })
+    }
+
+    return new Map(
+      Array.from(totals.entries()).map(([year, summary]) => [
+        year,
+        summary.count === 0 ? 0 : Math.round(summary.total / summary.count),
+      ]),
+    )
+  }, [filteredBaseProperties])
+
+  const timelineDateRange = useMemo(() => ({
+    start: new Date(timelineYearOptions[0] ?? timelineYear, 0, 1),
+    end: new Date(timelineYearOptions[timelineYearOptions.length - 1] ?? timelineYear, 0, 1),
+  }), [timelineYear, timelineYearOptions])
+
   const boundaryAggregates = useBoundaryAggregates(filteredProperties, boundaryLevel)
   // Clear selection if it's no longer visible
   useEffect(() => {
     if (!categoriesInitialized) return
-    if (selectedProperty && !filteredProperties.some((p) => p.id === selectedProperty.id)) {
+    if (selectedProperty && !filteredBaseProperties.some((p) => p.id === selectedProperty.id)) {
       setSelectedProperty(null)
     }
-  }, [categoriesInitialized, filteredProperties, selectedProperty])
+  }, [categoriesInitialized, filteredBaseProperties, selectedProperty])
 
   const toggleCategory = useCallback((category: PropertyCategory) => {
     setSelectedCategories((current) =>
@@ -177,6 +241,19 @@ export default function BcAssessmentSection() {
     }))
   }, [colorMetric])
 
+  const continuousLegendLabels = useMemo(() => {
+    if (legendItems.length <= 4) return legendItems.map((item) => item.label)
+
+    const indexes = [
+      0,
+      Math.round((legendItems.length - 1) / 3),
+      Math.round(((legendItems.length - 1) * 2) / 3),
+      legendItems.length - 1,
+    ]
+
+    return Array.from(new Set(indexes)).map((index) => legendItems[index].label)
+  }, [legendItems])
+
   return (
     <MapSectionLayout
       showDesktopSidebar={showSidebar}
@@ -197,7 +274,7 @@ export default function BcAssessmentSection() {
           properties={properties}
           filteredProperties={filteredProperties}
           selectedCategories={selectedCategories}
-          selectedProperty={selectedProperty}
+          selectedProperty={selectedDisplayProperty}
           boundaryAggregates={boundaryAggregates}
           searchQuery={searchQuery}
           colorMetric={colorMetric}
@@ -205,6 +282,9 @@ export default function BcAssessmentSection() {
           boundaryLevel={boundaryLevel}
           loading={loading}
           error={error}
+          showTimeline={showTimeline}
+          timelineYear={timelineYear}
+          timelineYearOptions={timelineYearOptions}
           onSearchQueryChange={setSearchQuery}
           onToggleCategory={toggleCategory}
           onColorMetricChange={setColorMetric}
@@ -213,6 +293,8 @@ export default function BcAssessmentSection() {
           onBoundaryLevelChange={(level) => { setBoundaryLevel(level); setSelectedBoundaryId(null) }}
           onPropertyClick={handlePropertyClick}
           onClearSelection={handleClearSelection}
+          onToggleTimeline={() => setShowTimeline((current) => !current)}
+          onTimelineYearChange={setTimelineYear}
         />
       )}
     >
@@ -220,11 +302,12 @@ export default function BcAssessmentSection() {
         <BcAssessmentMap
           properties={filteredProperties}
           colorMetric={colorMetric}
-          selectedProperty={selectedProperty}
+          selectedProperty={selectedDisplayProperty}
           selectedBoundaryId={selectedBoundaryId}
           boundaryLevel={boundaryLevel}
           boundaryData={boundaryData}
           boundaryAggregates={boundaryAggregates}
+          colorScaleMode={ASSESSMENT_LEGEND_MODE === 'gradient' ? 'continuous' : 'stepped'}
           onPropertyClick={handlePropertyClick}
           onBoundaryClick={handleBoundaryClick}
           loading={loading}
@@ -235,15 +318,40 @@ export default function BcAssessmentSection() {
           <MapLegendPanel
             title={`${boundaryLevel !== 'none' ? 'Avg ' : ''}${colorMetric === 'yearBuilt' ? 'Year Built' : 'Assessed Value'}`}
             collapsible
+            width={ASSESSMENT_LEGEND_MODE === 'rows' ? 'md' : 'lg'}
           >
-            <MapSteppedLegend bands={legendItems} variant="rows" showBandLabels={false} />
+            {ASSESSMENT_LEGEND_MODE === 'rows' ? (
+              <MapSteppedLegend bands={legendItems} variant="rows" showBandLabels={false} />
+            ) : (
+              <MapSteppedLegend
+                bands={legendItems}
+                variant={ASSESSMENT_LEGEND_MODE === 'gradient' ? 'gradient' : 'strip'}
+                labels={ASSESSMENT_LEGEND_MODE === 'gradient' ? continuousLegendLabels : undefined}
+              />
+            )}
           </MapLegendPanel>
         )}
 
         {selectedProperty && (
           <MobileBcAssessmentFeatureCard
-            property={selectedProperty}
+            property={selectedDisplayProperty ?? selectedProperty}
             onClose={handleClearSelection}
+          />
+        )}
+
+        {showTimeline && timelineYearOptions.length > 1 && (
+          <Timeline
+            startDate={timelineDateRange.start}
+            endDate={timelineDateRange.end}
+            currentDate={new Date(timelineYear, 0, 1)}
+            onDateChange={(date) => setTimelineYear(date.getFullYear())}
+            onClose={() => setShowTimeline(false)}
+            granularity="year"
+            bucketCounts={timelineBucketValues}
+            bucketValueFormatter={formatCurrency}
+            bucketValueLabel="avg assessed"
+            percentChangeMode={{ enabled: true, label: 'YoY' }}
+            statsLabel={`${formatCurrency(timelineBucketValues.get(String(timelineYear)) ?? 0)} avg assessed`}
           />
         )}
       </div>
@@ -260,11 +368,11 @@ function MobileBcAssessmentFeatureCard({
 }) {
   return (
     <MobileFeatureCard
+      cardKey={property.id}
       title={property.address}
       subtitle={property.description}
       onClose={onClose}
     >
-      <div className="text-[10px] font-medium text-blue-700 dark:text-blue-300">Active property</div>
       <div className="mt-3 space-y-1 rounded-md border border-blue-300/60 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-800/60 dark:bg-blue-950/25 dark:text-blue-100">
         <PropertyRow label="Total Assessed" value={`$${formatNumber(property.totalAssessed)}`} />
         <PropertyRow label="Land" value={`$${formatNumber(property.totalLand)}`} />

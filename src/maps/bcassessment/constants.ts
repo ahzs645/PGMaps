@@ -1,5 +1,7 @@
 import type { PropertyCategory, ColorMetric } from './types'
 
+export const ASSESSMENT_HISTORY_START_YEAR = 2017
+
 export const CATEGORY_COLORS: Record<PropertyCategory, string> = {
   residential: '#3b82f6',
   'multi-family': '#8b5cf6',
@@ -73,6 +75,39 @@ export function getValueColor(value: number, stops: [number, string][]): string 
   for (let i = 1; i < stops.length; i++) {
     if (value <= stops[i][0]) return stops[i][1]
   }
+  return stops[stops.length - 1][1]
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const normalized = hex.replace('#', '')
+  const value = Number.parseInt(normalized, 16)
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+}
+
+function rgbToHex([r, g, b]: [number, number, number]): string {
+  return `#${[r, g, b].map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('')}`
+}
+
+export function getInterpolatedValueColor(value: number, stops: [number, string][]): string {
+  if (value <= stops[0][0]) return stops[0][1]
+
+  for (let i = 1; i < stops.length; i++) {
+    const [upperValue, upperColor] = stops[i]
+    if (value > upperValue) continue
+
+    const [lowerValue, lowerColor] = stops[i - 1]
+    const span = upperValue - lowerValue || 1
+    const ratio = Math.min(1, Math.max(0, (value - lowerValue) / span))
+    const lowerRgb = hexToRgb(lowerColor)
+    const upperRgb = hexToRgb(upperColor)
+
+    return rgbToHex([
+      lowerRgb[0] + (upperRgb[0] - lowerRgb[0]) * ratio,
+      lowerRgb[1] + (upperRgb[1] - lowerRgb[1]) * ratio,
+      lowerRgb[2] + (upperRgb[2] - lowerRgb[2]) * ratio,
+    ])
+  }
+
   return stops[stops.length - 1][1]
 }
 

@@ -283,6 +283,19 @@ const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = 
   { id: 'drought', label: 'Drought', icon: Droplets },
 ]
 
+const MISC_LEGEND_TITLES: Record<MiscDataTab, string> = {
+  heatShade: 'Heat & Shade Layers',
+  canue: 'CANUE Layer',
+  network: 'Network Sources',
+  ev: 'EV Chargers',
+  icbc: 'ICBC Layer',
+  wars: 'WARS Layer',
+  walkability: 'Walkability Layer',
+  water: 'Water Layer',
+  flood: 'Flood Layer',
+  drought: 'Drought Layer',
+}
+
 function parseMiscDataTab(tab: string | null): MiscDataTab {
   return tab === 'heatShade' || tab === 'network' || tab === 'ev' || tab === 'icbc' || tab === 'wars' || tab === 'walkability' || tab === 'water' || tab === 'flood' || tab === 'drought' ? tab : 'canue'
 }
@@ -3866,7 +3879,7 @@ export default function MiscDataSection() {
         )}
 
         <MapLegendPanel
-          title={activeTab === 'canue' ? 'CANUE Layer' : activeTab === 'network' ? 'Network Sources' : activeTab === 'ev' ? 'EV Chargers' : activeTab === 'icbc' ? 'ICBC Layer' : activeTab === 'wars' ? 'WARS Layer' : activeTab === 'walkability' ? 'Walkability Layer' : activeTab === 'water' ? 'Water Layer' : activeTab === 'flood' ? 'Flood Layer' : 'MISC Layers'}
+          title={MISC_LEGEND_TITLES[activeTab]}
           icon={<Layers className="h-3.5 w-3.5" />}
           collapsible
           collapsed={!showMobileLegend}

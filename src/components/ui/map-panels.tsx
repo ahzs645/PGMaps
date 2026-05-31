@@ -1006,7 +1006,7 @@ type MapSteppedLegendBand = {
 
 type MapSteppedLegendProps = ComponentPropsWithoutRef<'div'> & {
   bands: readonly MapSteppedLegendBand[]
-  variant?: 'strip' | 'rows'
+  variant?: 'strip' | 'rows' | 'gradient'
   labels?: ReactNode[]
   showBandLabels?: boolean
   swatchShape?: 'square' | 'circle'
@@ -1048,6 +1048,29 @@ export function MapSteppedLegend({
   }
 
   const footerLabels = labels ?? bands.map((band) => band.label)
+
+  if (variant === 'gradient') {
+    const gradient = `linear-gradient(to right, ${bands.map((band, index) => {
+      const position = bands.length <= 1 ? 0 : (index / (bands.length - 1)) * 100
+      return `${band.color} ${position}%`
+    }).join(', ')})`
+
+    return (
+      <div className={cn('space-y-1.5', className)} {...props}>
+        <div
+          className="h-4 rounded-sm border border-border"
+          style={{ background: gradient }}
+        />
+        {footerLabels.length > 0 && (
+          <div className="flex items-center justify-between gap-2 text-[9px] tabular-nums text-muted-foreground sm:text-[10px]">
+            {footerLabels.map((label, index) => (
+              <span key={`${String(label)}-${index}`}>{label}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className={cn('space-y-1', className)} {...props}>

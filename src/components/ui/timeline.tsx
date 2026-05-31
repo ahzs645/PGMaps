@@ -31,6 +31,8 @@ interface TimelineProps {
   onDateChange: (date: Date) => void
   onClose?: () => void
   bucketCounts?: Map<string, number>
+  bucketValueFormatter?: (value: number) => string
+  bucketValueLabel?: string
   windowMode?: TimelineWindowMode
   statsLabel?: string
   granularity?: TimelineGranularity
@@ -151,6 +153,8 @@ export function Timeline({
   onDateChange,
   onClose,
   bucketCounts,
+  bucketValueFormatter,
+  bucketValueLabel = 'value',
   windowMode,
   statsLabel,
   granularity = 'month',
@@ -168,6 +172,7 @@ export function Timeline({
   const windowSize = windowMode && !isCumulative ? windowMode.size : 1
   const windowAnchor = windowMode?.anchor ?? 'start'
   const unitLabel = granularity === 'year' ? 'year' : granularity === 'week' ? 'week' : 'month'
+  const formatBucketValue = useCallback((value: number) => bucketValueFormatter?.(value) ?? String(value), [bucketValueFormatter])
 
   const currentIndex = useMemo(() => {
     const currentKey = bucketKeyFromDate(currentDate, granularity)
@@ -521,9 +526,10 @@ export function Timeline({
               const height = Math.max(2, (count / maxCount) * 100)
               const inWindow = isInWindow(visibleOffset + i)
               const change = percentChanges.get(bucket.key)
+              const formattedCount = formatBucketValue(count)
               const title = showPercentChange && change
-                ? `${bucket.label}: ${count} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
-                : `${bucket.label}: ${count}`
+                ? `${bucket.label}: ${formattedCount} ${bucketValueLabel} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
+                : `${bucket.label}: ${formattedCount} ${bucketValueLabel}`
               return (
                 <div
                   key={bucket.key}
@@ -552,10 +558,11 @@ export function Timeline({
               const isPeriodStart = granularity === 'week' ? bucket.start.getDate() <= 7 : isJanuary
               const count = bucketCounts?.get(bucket.key) ?? 0
               const change = percentChanges.get(bucket.key)
+              const formattedCount = formatBucketValue(count)
               const title = bucketCounts
                 ? showPercentChange && change
-                  ? `${bucket.label}: ${count} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
-                  : `${bucket.label}: ${count}`
+                  ? `${bucket.label}: ${formattedCount} ${bucketValueLabel} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
+                  : `${bucket.label}: ${formattedCount} ${bucketValueLabel}`
                 : undefined
               return (
                 <div

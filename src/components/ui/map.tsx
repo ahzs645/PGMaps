@@ -213,7 +213,10 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       if (event?.defaultPrevented || event?.originalEvent?.defaultPrevented) return;
       dispatchMobileMapInteraction();
       if (event?.type === "click") {
-        dispatchMobileMapBlankClick();
+        window.setTimeout(() => {
+          if (event.defaultPrevented || event.originalEvent?.defaultPrevented) return;
+          dispatchMobileMapBlankClick();
+        }, 0);
       }
     };
 

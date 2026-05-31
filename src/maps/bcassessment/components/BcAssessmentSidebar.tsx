@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { Clock } from 'lucide-react'
 import { StudyAreaSelector, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
+import { AppSelect } from '@/components/ui/select'
 import {
   FilterChipGroup,
   MapSidebarShell,
@@ -11,7 +13,7 @@ import {
 import { BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
-import { ALL_CATEGORIES, CATEGORY_LABELS, getCategoryColor, COLOR_METRICS, formatCurrency } from '../constants'
+import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, CATEGORY_LABELS, getCategoryColor, COLOR_METRICS, formatCurrency } from '../constants'
 import type {
   AssessmentBoundaryLevel,
   AssessmentBoundarySource,
@@ -60,6 +62,9 @@ interface BcAssessmentSidebarProps {
   boundaryLevel: BoundaryLevel
   loading: boolean
   error: string | null
+  showTimeline: boolean
+  timelineYear: number
+  timelineYearOptions: number[]
   onSearchQueryChange: (query: string) => void
   onToggleCategory: (category: PropertyCategory) => void
   onColorMetricChange: (metric: ColorMetric) => void
@@ -67,6 +72,8 @@ interface BcAssessmentSidebarProps {
   onBoundaryLevelChange: (level: BoundaryLevel) => void
   onPropertyClick: (property: Property) => void
   onClearSelection: () => void
+  onToggleTimeline: () => void
+  onTimelineYearChange: (year: number) => void
 }
 
 const ASSESSMENT_BOUNDARY_SOURCES = new Set<AssessmentBoundarySource>(['bcHealth', 'census', 'cityPG', 'watershed'])
@@ -123,8 +130,6 @@ export function formatNumber(n: number): string {
   return n.toLocaleString()
 }
 
-const START_YEAR = 2017
-
 export function HistorySparkline({ values }: { values: number[] }) {
   const [hovered, setHovered] = useState<number | null>(null)
   const max = Math.max(...values)
@@ -137,27 +142,38 @@ export function HistorySparkline({ values }: { values: number[] }) {
         <span className="text-xs text-blue-600 dark:text-blue-400">10-Year Assessment History</span>
         {hovered !== null && (
           <span className="text-xs font-semibold text-blue-900 dark:text-blue-200">
-            {START_YEAR + hovered}: ${formatNumber(values[hovered])}
+            {ASSESSMENT_HISTORY_START_YEAR + hovered}: ${formatNumber(values[hovered])}
           </span>
         )}
       </div>
       <div className="flex items-end gap-0.5" style={{ height: 40 }}>
         {values.map((v, i) => (
-          <div
+          <button
             key={i}
+            type="button"
+            aria-label={`${ASSESSMENT_HISTORY_START_YEAR + i}: $${formatNumber(v)}`}
             className={cn(
-              'flex-1 cursor-pointer rounded-t transition-colors',
-              hovered === i ? 'bg-blue-600 dark:bg-blue-300' : 'bg-blue-400 dark:bg-blue-500',
+              'flex h-full flex-1 cursor-pointer items-end rounded-t focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600',
             )}
-            style={{ height: `${((v - min) / range) * 100}%`, minHeight: 2 }}
             onMouseEnter={() => setHovered(i)}
             onMouseLeave={() => setHovered(null)}
-          />
+            onFocus={() => setHovered(i)}
+            onBlur={() => setHovered(null)}
+            onPointerDown={() => setHovered(i)}
+          >
+            <span
+              className={cn(
+                'w-full rounded-t transition-colors',
+                hovered === i ? 'bg-blue-600 dark:bg-blue-300' : 'bg-blue-400 dark:bg-blue-500',
+              )}
+              style={{ height: `${((v - min) / range) * 100}%`, minHeight: 2 }}
+            />
+          </button>
         ))}
       </div>
       <div className="mt-0.5 flex justify-between text-[10px] text-blue-500 dark:text-blue-400">
-        <span>{START_YEAR}</span>
-        <span>{START_YEAR + values.length - 1}</span>
+        <span>{ASSESSMENT_HISTORY_START_YEAR}</span>
+        <span>{ASSESSMENT_HISTORY_START_YEAR + values.length - 1}</span>
       </div>
     </div>
   )
@@ -175,27 +191,38 @@ function BoundaryHistorySparkline({ values }: { values: number[] }) {
         <span className="text-xs text-orange-600 dark:text-orange-400">Avg 10-Year History</span>
         {hovered !== null && (
           <span className="text-xs font-semibold text-orange-900 dark:text-orange-200">
-            {START_YEAR + hovered}: ${formatNumber(values[hovered])}
+            {ASSESSMENT_HISTORY_START_YEAR + hovered}: ${formatNumber(values[hovered])}
           </span>
         )}
       </div>
       <div className="flex items-end gap-0.5" style={{ height: 40 }}>
         {values.map((v, i) => (
-          <div
+          <button
             key={i}
+            type="button"
+            aria-label={`${ASSESSMENT_HISTORY_START_YEAR + i}: $${formatNumber(v)}`}
             className={cn(
-              'flex-1 cursor-pointer rounded-t transition-colors',
-              hovered === i ? 'bg-orange-600 dark:bg-orange-300' : 'bg-orange-400 dark:bg-orange-500',
+              'flex h-full flex-1 cursor-pointer items-end rounded-t focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600',
             )}
-            style={{ height: `${((v - min) / range) * 100}%`, minHeight: 2 }}
             onMouseEnter={() => setHovered(i)}
             onMouseLeave={() => setHovered(null)}
-          />
+            onFocus={() => setHovered(i)}
+            onBlur={() => setHovered(null)}
+            onPointerDown={() => setHovered(i)}
+          >
+            <span
+              className={cn(
+                'w-full rounded-t transition-colors',
+                hovered === i ? 'bg-orange-600 dark:bg-orange-300' : 'bg-orange-400 dark:bg-orange-500',
+              )}
+              style={{ height: `${((v - min) / range) * 100}%`, minHeight: 2 }}
+            />
+          </button>
         ))}
       </div>
       <div className="mt-0.5 flex justify-between text-[10px] text-orange-500 dark:text-orange-400">
-        <span>{START_YEAR}</span>
-        <span>{START_YEAR + values.length - 1}</span>
+        <span>{ASSESSMENT_HISTORY_START_YEAR}</span>
+        <span>{ASSESSMENT_HISTORY_START_YEAR + values.length - 1}</span>
       </div>
     </div>
   )
@@ -215,6 +242,9 @@ export function BcAssessmentSidebar({
   boundaryLevel,
   loading,
   error,
+  showTimeline,
+  timelineYear,
+  timelineYearOptions,
   onSearchQueryChange,
   onToggleCategory,
   onColorMetricChange,
@@ -222,6 +252,8 @@ export function BcAssessmentSidebar({
   onBoundaryLevelChange,
   onPropertyClick,
   onClearSelection,
+  onToggleTimeline,
+  onTimelineYearChange,
 }: BcAssessmentSidebarProps) {
   const categoryCounts = useMemo(() => {
     const counts = new globalThis.Map<PropertyCategory, number>()
@@ -274,6 +306,31 @@ export function BcAssessmentSidebar({
       title="BC Assessment"
       subtitle="Prince George Property Data"
       dataset={DATASETS.bcAssessment}
+      actions={
+        <div className="flex items-center gap-2">
+          {showTimeline && (
+            <AppSelect
+              value={String(timelineYear)}
+              onValueChange={(value) => onTimelineYearChange(Number(value))}
+              options={timelineYearOptions.map((year) => ({ value: String(year), label: String(year) }))}
+              className="w-24"
+              triggerClassName="h-9 rounded-md text-xs"
+            />
+          )}
+          <button
+            type="button"
+            onClick={onToggleTimeline}
+            className={cn(
+              'flex size-9 items-center justify-center rounded-lg transition-colors',
+              showTimeline ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground',
+            )}
+            aria-pressed={showTimeline}
+            title={showTimeline ? 'Hide timeline' : 'Show timeline'}
+          >
+            <Clock className="size-5" />
+          </button>
+        </div>
+      }
     >
       <StudyAreaSelector<AssessmentBoundarySource, AssessmentBoundaryLevel>
         source={boundaryLevel === 'none' ? undefined : boundarySource}

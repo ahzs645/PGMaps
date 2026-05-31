@@ -231,7 +231,7 @@ export default function ExplorerSection() {
     to: searchParams.get('to') || '',
   }))
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
-  const [showMobileLegend, setShowMobileLegend] = useState(false)
+  const [showMobileLegend, setShowMobileLegend] = useState(true)
   const [neighborhoodPoint, setNeighborhoodPoint] = useState<{ lat: number; lng: number } | null>(null)
 
   const activeDatasetSetForLoading = useMemo(() => new Set(activeDatasetIds), [activeDatasetIds])
