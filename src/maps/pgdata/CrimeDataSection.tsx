@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { COLOR_SCALES } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { CrimeMap } from './components/CrimeMap'
@@ -8,8 +7,6 @@ import { CrimeSidebar } from './components/CrimeSidebar'
 import { Timeline } from '@/components/ui/timeline'
 import { getCrimeCategory, CRIME_CATEGORY_COLORS } from './constants'
 import { useCrimeData } from './hooks/useCrimeData'
-import { useAirMonitorOverlay } from './hooks/useAirMonitorOverlay'
-import { useCensusOverlay } from './hooks/useCensusOverlay'
 import type { CrimeIncident, CrimeCategory } from './types'
 
 const ALL_CATEGORIES = Object.keys(CRIME_CATEGORY_COLORS) as CrimeCategory[]
@@ -18,13 +15,9 @@ export default function CrimeDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const currentTab = searchParams.get('tab')
   const { incidents, loading, error } = useCrimeData()
-  const airOverlay = useAirMonitorOverlay()
-  const censusOverlay = useCensusOverlay()
 
   // Layer visibility
   const [showCrimeLayer, setShowCrimeLayer] = useState(true)
-  const [showAirQualityLayer, setShowAirQualityLayer] = useState(false)
-  const [showCensusLayer, setShowCensusLayer] = useState(false)
 
   // Crime filters
   const [selectedCategories, setSelectedCategories] = useState<CrimeCategory[]>(ALL_CATEGORIES)
@@ -161,20 +154,11 @@ export default function CrimeDataSection() {
         items.push({ color: CRIME_CATEGORY_COLORS[cat], label: cat })
       })
     }
-    if (showAirQualityLayer) {
-      items.push({ color: '#22c55e', label: 'Air Quality Sensor' })
-    }
 
     return items
-  }, [showCrimeLayer, showHeatmap, selectedCategories, showAirQualityLayer])
+  }, [showCrimeLayer, showHeatmap, selectedCategories])
 
-  const selectedVariableLabel = useMemo(() => {
-    if (!censusOverlay.selectedVariableId) return null
-    return censusOverlay.variables.find((v) => v.id === censusOverlay.selectedVariableId)?.label ?? null
-  }, [censusOverlay.variables, censusOverlay.selectedVariableId])
-  const showLegend = (showCrimeLayer && showHeatmap)
-    || legendItems.length > 0
-    || (showCensusLayer && Boolean(selectedVariableLabel))
+  const showLegend = (showCrimeLayer && showHeatmap) || legendItems.length > 0
 
   return (
     <MapSectionLayout
@@ -219,20 +203,7 @@ export default function CrimeDataSection() {
           onClearSelection={() => setSelectedIncident(null)}
           // Layers
           showCrimeLayer={showCrimeLayer}
-          showAirQualityLayer={showAirQualityLayer}
-          showCensusLayer={showCensusLayer}
           onToggleCrimeLayer={() => setShowCrimeLayer((v) => !v)}
-          onToggleAirQualityLayer={() => setShowAirQualityLayer((v) => !v)}
-          onToggleCensusLayer={() => setShowCensusLayer((v) => !v)}
-          airMonitorCount={airOverlay.monitors.length}
-          // Census
-          censusCategories={censusOverlay.categories}
-          censusVariables={censusOverlay.variables}
-          selectedCensusCategoryId={censusOverlay.selectedCategoryId}
-          selectedCensusVariableId={censusOverlay.selectedVariableId}
-          onCensusCategoryChange={censusOverlay.setCategoryId}
-          onCensusVariableChange={censusOverlay.setVariableId}
-          censusLoading={censusOverlay.loading}
         />
       }
     >
@@ -244,12 +215,7 @@ export default function CrimeDataSection() {
           onIncidentClick={setSelectedIncident}
           onIncidentClear={() => setSelectedIncident(null)}
           showCrimeLayer={showCrimeLayer}
-          showAirQualityLayer={showAirQualityLayer}
-          showCensusLayer={showCensusLayer}
-          airMonitorGeojson={airOverlay.geojson}
-          censusGeojson={censusOverlay.enrichedGeojson}
-          censusFillColor={censusOverlay.fillColorExpression}
-          loading={loading || (showAirQualityLayer && airOverlay.loading) || (showCensusLayer && censusOverlay.loading)}
+          loading={loading}
         />
 
         {/* Timeline */}
@@ -284,17 +250,6 @@ export default function CrimeDataSection() {
                       {legendItems.map((item) => (
                         <LegendItem key={item.label} color={item.color} label={item.label} />
                       ))}
-                  </MapLegendSection>
-                )}
-
-                {/* Census choropleth legend */}
-                {showCensusLayer && selectedVariableLabel && (
-                  <MapLegendSection title={selectedVariableLabel}>
-                    <MapGradientLegendItem
-                      colors={[...COLOR_SCALES.purple]}
-                      minLabel={censusOverlay.legendMin.toLocaleString()}
-                      maxLabel={censusOverlay.legendMax.toLocaleString()}
-                    />
                   </MapLegendSection>
                 )}
               </div>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { formatNullableNumber } from './shared'
 import { CANUE_V2_ENABLED, type CanueVariableSelection } from './canueV2'
 import {
@@ -108,9 +108,17 @@ export function useCanueBoundaryLayer({
     canueBoundaryLayerReady,
     canueBoundaryLevel,
   ])
+  const lastReadyCanueBoundaryLayerRef = useRef<typeof stableCanueBoundaryLayer>(null)
+  if (stableCanueBoundaryLayer) {
+    lastReadyCanueBoundaryLayerRef.current = stableCanueBoundaryLayer
+  }
 
   const renderedCanueBoundaryLayer =
-    stableCanueBoundaryLayer?.boundaryLevel === canueBoundaryLevel ? stableCanueBoundaryLayer : null
+    stableCanueBoundaryLayer?.boundaryLevel === canueBoundaryLevel
+      ? stableCanueBoundaryLayer
+      : lastReadyCanueBoundaryLayerRef.current?.boundaryLevel === canueBoundaryLevel
+        ? lastReadyCanueBoundaryLayerRef.current
+        : null
   const renderedCanueFillColor = useMemo(() => {
     if (!renderedCanueBoundaryLayer) return '#e5e7eb'
     return canueBoundaryPaint(

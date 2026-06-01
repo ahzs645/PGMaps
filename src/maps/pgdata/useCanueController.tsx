@@ -258,11 +258,11 @@ export function useCanueController({ activeTab, searchParams }: UseCanueControll
   const mapLoadingCanue = CANUE_V2_ENABLED
     ? (!canueV2Catalog.data && !canueV2Catalog.error) ||
       (!canueV2Metadata.data && !canueV2Metadata.error) ||
-      (showCanueBoundaries && activeCanueBoundaryData.loading)
+      (showCanueBoundaries && activeCanueBoundaryData.loading && !renderedCanueBoundaryLayer)
     : (!canueManifest.data && !canueManifest.error) ||
       (!canueMembership.data && !canueMembership.error) ||
       (!canueBoundaries.data && !canueBoundaries.error) ||
-      (showCanueBoundaries && activeCanueBoundaryData.loading)
+      (showCanueBoundaries && activeCanueBoundaryData.loading && !renderedCanueBoundaryLayer)
 
   const handleCanueBoundarySourceChange = (source: CanueBoundarySource) => {
     setCanueBoundarySource(source)

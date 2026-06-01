@@ -6,7 +6,7 @@ import {
   MarkerContent,
   useMap,
 } from '@/components/ui/map'
-import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
+import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { MAP_STYLES } from '@/components/ui/map-styles'
@@ -20,13 +20,7 @@ interface CrimeMapProps {
   showHeatmap: boolean
   onIncidentClick: (incident: CrimeIncident) => void
   onIncidentClear: () => void
-  // Overlay layers
   showCrimeLayer: boolean
-  showAirQualityLayer: boolean
-  showCensusLayer: boolean
-  airMonitorGeojson: GeoJSON.FeatureCollection<GeoJSON.Point> | null
-  censusGeojson: GeoJSON.FeatureCollection | null
-  censusFillColor: unknown[] | string
   loading?: boolean
 }
 
@@ -107,8 +101,6 @@ function CrimeHeatmapLayer({ incidents }: { incidents: CrimeIncident[] }) {
   )
 }
 
-const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-
 export function CrimeMap({
   incidents,
   selectedIncident,
@@ -116,11 +108,6 @@ export function CrimeMap({
   onIncidentClick,
   onIncidentClear,
   showCrimeLayer,
-  showAirQualityLayer,
-  showCensusLayer,
-  airMonitorGeojson,
-  censusGeojson,
-  censusFillColor,
   loading = false,
 }: CrimeMapProps) {
   const { map } = useMap()
@@ -170,18 +157,6 @@ export function CrimeMap({
   return (
     <div className="h-full w-full">
       <SharedMap styles={MAP_STYLES} loading={loading} loadingLabel="Loading crime map data">
-        {/* Census choropleth layer (render first so it's below points) */}
-        {showCensusLayer && (
-          <MapFillLayer
-            data={censusGeojson ?? EMPTY_FC}
-            fillColor={censusFillColor as string}
-            fillOpacity={0.55}
-            lineOpacity={0.3}
-            lineWidth={0.5}
-            idProperty="GeoUID"
-          />
-        )}
-
         {/* Crime cluster layers */}
         {showCrimeLayer && !showHeatmap &&
           collectionsByCategory.map(([category, collection]) => {
@@ -213,16 +188,6 @@ export function CrimeMap({
           })}
 
         {showCrimeLayer && showHeatmap && <CrimeHeatmapLayer incidents={incidents} />}
-
-        {/* Air quality monitor layer */}
-        {showAirQualityLayer && airMonitorGeojson && (
-          <MapClusterLayer
-            data={airMonitorGeojson}
-            pointColor="#22c55e"
-            clusterColors={['rgba(34,197,94,0.5)', 'rgba(34,197,94,0.7)', '#22c55e']}
-            clusterThresholds={[5, 15]}
-          />
-        )}
 
         {/* Selected crime incident */}
         {selectedIncident && (

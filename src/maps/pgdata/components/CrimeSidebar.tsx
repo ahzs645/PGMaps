@@ -12,7 +12,6 @@ import {
 import { DATASETS } from '@/lib/dataCatalog'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
-import type { CensusCategory, CensusVariable } from '@/maps/census/types'
 
 interface CrimeSidebarProps {
   className?: string
@@ -42,21 +41,7 @@ interface CrimeSidebarProps {
   onClearSelection: () => void
   // Data layers
   showCrimeLayer: boolean
-  showAirQualityLayer: boolean
-  showCensusLayer: boolean
   onToggleCrimeLayer: () => void
-  onToggleAirQualityLayer: () => void
-  onToggleCensusLayer: () => void
-  // Air quality
-  airMonitorCount: number
-  // Census overlay
-  censusCategories: CensusCategory[]
-  censusVariables: CensusVariable[]
-  selectedCensusCategoryId: string | null
-  selectedCensusVariableId: string | null
-  onCensusCategoryChange: (id: string) => void
-  onCensusVariableChange: (id: string) => void
-  censusLoading: boolean
 }
 
 const MAX_VISIBLE_ROWS = 200
@@ -96,19 +81,7 @@ export function CrimeSidebar({
   onIncidentClick,
   onClearSelection,
   showCrimeLayer,
-  showAirQualityLayer,
-  showCensusLayer,
   onToggleCrimeLayer,
-  onToggleAirQualityLayer,
-  onToggleCensusLayer,
-  airMonitorCount,
-  censusCategories,
-  censusVariables,
-  selectedCensusCategoryId,
-  selectedCensusVariableId,
-  onCensusCategoryChange,
-  onCensusVariableChange,
-  censusLoading,
 }: CrimeSidebarProps) {
   const categoryCounts = useMemo(() => {
     const counts = new Map<CrimeCategory, number>()
@@ -162,55 +135,8 @@ export function CrimeSidebar({
             </div>
             <span className="text-xs text-muted-foreground">{incidents.length.toLocaleString()}</span>
           </label>
-          <label className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={showAirQualityLayer}
-                onChange={onToggleAirQualityLayer}
-                className="h-3.5 w-3.5 rounded border-input accent-green-500"
-              />
-              <span className="text-sm text-foreground">Air Quality Sensors</span>
-            </div>
-            <span className="text-xs text-muted-foreground">{airMonitorCount}</span>
-          </label>
-          <label className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={showCensusLayer}
-                onChange={onToggleCensusLayer}
-                className="h-3.5 w-3.5 rounded border-input accent-purple-500"
-              />
-              <span className="text-sm text-foreground">Census Socioeconomic</span>
-            </div>
-            <span className="text-xs text-muted-foreground">DA level</span>
-          </label>
         </div>
       </SidebarSection>
-
-      {/* Census Variable Selector */}
-      {showCensusLayer && (
-        <div className="border-b border-border bg-purple-50/50 p-4 dark:bg-purple-950/20">
-          <h3 className="mb-2 text-xs font-semibold text-foreground">Census Variable</h3>
-          <AppSelect
-            value={selectedCensusCategoryId ?? ''}
-            onValueChange={onCensusCategoryChange}
-            disabled={censusLoading}
-            options={censusCategories.map((cat) => ({ value: cat.id, label: cat.name }))}
-            className="mb-2"
-            triggerClassName="h-8 rounded-md text-xs focus:ring-2 focus:ring-ring"
-          />
-          <AppSelect
-            value={selectedCensusVariableId ?? ''}
-            onValueChange={onCensusVariableChange}
-            disabled={censusLoading || censusVariables.length === 0}
-            options={censusVariables.map((v) => ({ value: v.id, label: v.label }))}
-            triggerClassName="h-8 rounded-md text-xs focus:ring-2 focus:ring-ring"
-          />
-          {censusLoading && <div className="mt-2 text-[10px] text-muted-foreground">Loading census data...</div>}
-        </div>
-      )}
 
       {/* Crime Filters (only show when crime layer is on) */}
       {showCrimeLayer && (

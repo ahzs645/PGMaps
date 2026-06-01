@@ -40,7 +40,7 @@ type BoundaryDataStatus = {
   maxValue: number | null
 }
 type CanueBoundaryConfig = { label: string }
-type CanueFamily = { id: string; label: string; layerCount: number; years: number[] }
+type CanueFamily = { id: string; label: string; layerCount: number; datasetCount?: number; years: number[] }
 type CanueLayer = { year: number; features: number }
 type CanueManifestResult<T> = ReturnType<typeof useJsonManifest<T>>
 type CanuePmtilesStatus = {
@@ -49,6 +49,15 @@ type CanuePmtilesStatus = {
   capped: boolean
   decodedFeatureCount: number
   matchedFeatureCount: number
+}
+
+function getCanueFamilyDisplayLabel(family: CanueFamily): string {
+  if (family.id === 'other' && family.datasetCount === 1) return 'Night-time Lights'
+  return family.label
+}
+
+function getCanueFamilyOptionLabel(family: CanueFamily): string {
+  return `${getCanueFamilyDisplayLabel(family)} (${family.datasetCount ?? 1})`
 }
 
 interface CanueSidebarProps {
@@ -270,7 +279,7 @@ export function CanueSidebar({
                 }}
                 options={canueV2Families.map((family) => ({
                   value: family.id,
-                  label: `${family.label} (${family.layerCount})`,
+                  label: getCanueFamilyOptionLabel(family),
                 }))}
                 className="mt-1"
                 triggerClassName="h-8 rounded-md text-xs"

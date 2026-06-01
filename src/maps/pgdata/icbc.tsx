@@ -144,8 +144,8 @@ export function useIcbcData(
   initialShowHeatmap: string | null = null,
 ) {
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(initialDatasetId)
-  const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
-  const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
+  const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints === '1')
+  const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap !== '0')
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const [timelineEnabled, setTimelineEnabled] = useState(false)
   const [timelineDate, setTimelineDate] = useState<Date | null>(null)
