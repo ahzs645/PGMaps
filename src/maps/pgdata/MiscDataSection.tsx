@@ -1169,6 +1169,7 @@ export default function MiscDataSection() {
                 onClose={icbc.handleTimelineDisable}
                 granularity="year"
                 bucketCounts={icbc.yearCounts}
+                compactBars
                 overflowBuckets
                 percentChangeMode={{ enabled: true, label: 'YoY' }}
                 windowMode={{
