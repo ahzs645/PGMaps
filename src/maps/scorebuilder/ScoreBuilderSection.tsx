@@ -1972,21 +1972,40 @@ export default function ScoreBuilderSection() {
   }, [filterThresholds, scoreFilters, scoreRows, unfilteredScoredRegions])
 
   const populationEquitySummary = useMemo<PopulationWeightedEquitySummary | null>(() => {
+    const configuredDemographicMetric = methodSettings.healthyPlanPriority.demographicMetric
+    const configuredEnvironmentMetric = methodSettings.healthyPlanPriority.environmentMetric
+    const hasActiveConfiguredPair =
+      methodSettings.aggregation === 'healthyPlanPairwisePriority' ||
+      Boolean(
+        configuredDemographicMetric &&
+          configuredEnvironmentMetric &&
+          weights[configuredDemographicMetric] !== 0 &&
+          weights[configuredEnvironmentMetric] !== 0,
+      )
     const demographicMetric =
-      methodSettings.healthyPlanPriority.demographicMetric ||
+      (hasActiveConfiguredPair ? configuredDemographicMetric : null) ||
       activeMetricDefinitions.find((metric) => metric.component === 'sensitivity' && weights[metric.key] !== 0)?.key ||
       null
     const environmentMetric =
-      methodSettings.healthyPlanPriority.environmentMetric ||
+      (hasActiveConfiguredPair ? configuredEnvironmentMetric : null) ||
       activeMetricDefinitions.find((metric) => metric.component === 'serviceAccess' && weights[metric.key] !== 0)?.key ||
       null
+    if (
+      methodSettings.aggregation !== 'healthyPlanPairwisePriority' &&
+      (!demographicMetric ||
+        !environmentMetric ||
+        weights[demographicMetric] === 0 ||
+        weights[environmentMetric] === 0)
+    ) {
+      return null
+    }
     return computePopulationWeightedEquitySummary({
       regions: scoredRegions,
       metrics: activeMetricDefinitions,
       demographicMetric,
       environmentMetric,
     })
-  }, [activeMetricDefinitions, methodSettings.healthyPlanPriority, scoredRegions, weights])
+  }, [activeMetricDefinitions, methodSettings.aggregation, methodSettings.healthyPlanPriority, scoredRegions, weights])
 
   const filteredRegions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
