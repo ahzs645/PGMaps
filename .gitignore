@@ -67,3 +67,6 @@ healthspace_debug.html
 
 # Generated source inventories can exceed GitHub's blob size limits.
 data-sources/drivebc/historical/schema-inventory.json
+
+# Generated Indigenous support layers can be large; rebuild with npm run indigenous:sync.
+public/data/indigenous/

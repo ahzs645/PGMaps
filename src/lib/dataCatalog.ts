@@ -175,6 +175,16 @@ export const DATASETS = {
     downloadUrl: '/data/network-availability/manifest.json',
     fields: ['dataset', 'geometry', 'format', 'contentLength', 'lastModified', 'carrierVectorStatus'],
   },
+  indigenousAcknowledgementSources: {
+    title: 'Indigenous acknowledgement support sources',
+    description: 'CAD/PIP access metadata plus public BC and Canada First Nations community, treaty, reserve, and location layers for review-oriented acknowledgement context.',
+    source: 'BC Data Catalogue, BC Geographic Warehouse, BC ArcGIS REST, Government of Canada',
+    coverage: 'British Columbia and Canada, source-dependent',
+    license: 'Source-dependent: Access Only metadata, Open Government Licence - Canada, and public BC service terms',
+    formats: ['GeoJSON', 'JSON manifest'],
+    downloadUrl: '/data/indigenous/manifest.json',
+    fields: ['source', 'featureCount', 'BAND_NAME', 'FIRST_NATION_NAME', 'TREATY', 'caveat'],
+  },
   evCharging: {
     title: 'Canada EV charging stations',
     description: 'Official station-level and charging-unit exports for Canadian public EV charging locations, with a compact point layer for map display.',

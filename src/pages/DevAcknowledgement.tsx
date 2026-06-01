@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 type SourceKey = 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
 type Confidence = 'strong' | 'moderate' | 'review_required'
-type WordingMode = 'general' | 'event' | 'research'
+type WordingMode = 'general' | 'event' | 'research' | 'reflective'
 type GeocodeStatus = 'idle' | 'loading' | 'success' | 'error'
 type SourceStatus = 'idle' | 'loading' | 'success' | 'error' | 'skipped'
 
@@ -29,6 +29,7 @@ type CandidateNation = {
   name: string
   preferredName: string
   confidence: Confidence
+  pronunciation?: PronunciationInfo
   reason: string
   sources: Partial<Record<SourceKey, string>>
   notes: string
@@ -45,6 +46,53 @@ type SourceLookupState = {
   status: SourceStatus
   matches: SourceMatch[]
   message?: string
+}
+
+type DataGap = {
+  name: string
+  status: string
+  use: string
+  limitation: string
+  url: string
+}
+
+type TemplatePrompt = {
+  label: string
+  prompt: string
+}
+
+type PracticeSource = {
+  name: string
+  status: string
+  use: string
+  limitation: string
+  path: string
+}
+
+type PronunciationInfo = {
+  phonetic?: string
+  audioUrl?: string
+  sourceLabel: string
+  sourceUrl: string
+  caveat: string
+}
+
+type PronunciationSource = {
+  name: string
+  status: string
+  use: string
+  caveat: string
+  url: string
+}
+
+type LocalLanguageResource = {
+  name: string
+  status: string
+  use: string
+  caveat: string
+  url: string
+  audioUrl?: string
+  qrUrl?: string
 }
 
 type GeocodeResult = {
@@ -107,7 +155,7 @@ const sourceMeta: Record<SourceKey, { label: string; type: string; description: 
   cad: {
     label: 'BC CAD',
     type: 'Consultative area',
-    description: 'Candidate First Nations associated with asserted/proven rights or title. Review required.',
+    description: 'External report workflow for preliminary First Nations consultation contacts. Boundaries are not public.',
   },
   treaty: {
     label: 'Treaty lands',
@@ -128,7 +176,7 @@ const sourceMeta: Record<SourceKey, { label: string; type: string; description: 
 
 const sourceUrls: Record<SourceKey, string> = {
   nativeLand: 'https://api-docs.native-land.ca/by-names-and-or-position',
-  cad: 'https://maps.gov.bc.ca/ess/hm/imap4m/',
+  cad: 'https://www2.gov.bc.ca/assets/gov/environment/natural-resource-stewardship/consulting-with-first-nations/first_nations_consultative_areas_database_cad_-_faqs.pdf',
   treaty: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_legal_admin_boundaries/MapServer',
   reserve: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/34',
   local: 'https://github.com/ahmadjalil/PGMaps',
@@ -143,11 +191,266 @@ const NATIVE_LAND_API_KEY = import.meta.env.VITE_NATIVE_LAND_API_KEY as string |
 
 const initialLookupState: Record<SourceKey, SourceLookupState> = {
   nativeLand: { status: 'idle', matches: [] },
-  cad: { status: 'skipped', matches: [], message: 'CAD is available through B.C.’s external iMapBC report workflow, not a stable public point-query layer.' },
+  cad: { status: 'skipped', matches: [], message: 'Use the B.C. CAD map/report manually. Public CAD docs say boundaries are not viewable and outputs are preliminary contact lists.' },
   treaty: { status: 'idle', matches: [] },
   reserve: { status: 'idle', matches: [] },
   local: { status: 'idle', matches: [] },
 }
+
+const unincorporatedDataGaps: DataGap[] = [
+  {
+    name: 'BC CAD / PIP consultation areas',
+    status: 'Manual candidate',
+    use: 'Generate a preliminary First Nations contact list for a point, line, or polygon in iMapBC.',
+    limitation: 'Not a public boundary layer; it should inform outreach and review, not automatic acknowledgement wording.',
+    url: 'https://www2.gov.bc.ca/assets/gov/environment/natural-resource-stewardship/consulting-with-first-nations/first_nations_consultative_areas_database_cad_-_faqs.pdf',
+  },
+  {
+    name: 'Contacts for First Nations Consultation Areas map',
+    status: 'Manual candidate',
+    use: 'Current public entry point for the CAD-style spatial contact query.',
+    limitation: 'Interactive map/report workflow, so a proxy or documented API discovery pass is needed before live integration.',
+    url: 'https://maps.gov.bc.ca/ess/hm/cadb/',
+  },
+  {
+    name: 'First Nation Community Locations',
+    status: 'Service candidate',
+    use: 'Approximate community locations and administrative context for Nations in B.C.',
+    limitation: 'Point locations are not territory and may be incomplete or approximate.',
+    url: 'https://catalogue.data.gov.bc.ca/dataset/first-nation-community-locations',
+  },
+  {
+    name: 'First Peoples Map of B.C.',
+    status: 'Research candidate',
+    use: 'Community-facing context for Nations, languages, art, heritage, and place-based learning.',
+    limitation: 'Best treated as educational context and cross-checking, not an authoritative point-in-polygon source.',
+    url: 'https://maps.fpcc.ca/',
+  },
+  {
+    name: 'First Nation Profiles in Canada',
+    status: 'Reference candidate',
+    use: 'Federal profile/contact reference for First Nations and governing organizations.',
+    limitation: 'Administrative profile data; it does not establish traditional territory or acknowledgement wording.',
+    url: 'https://fnp-ppn.aadnc-aandc.gc.ca/fnp/Main/index.aspx',
+  },
+  {
+    name: 'Sector CAD-derived reports',
+    status: 'Workflow candidate',
+    use: 'Mineral Title Overlap Reports and PNG tenure guidance can expose sector-specific CAD contact expectations.',
+    limitation: 'Project/tenure-specific and not reusable as a general public boundary dataset.',
+    url: 'https://www2.gov.bc.ca/gov/content/industry/mineral-exploration-mining/mineral-titles/first-nations-engagement',
+  },
+]
+
+const acknowledgementTemplatePrompts: TemplatePrompt[] = [
+  {
+    label: 'Locate the speaker',
+    prompt: 'Name your relationship to this place, including whether you are a host, visitor, resident, settler, immigrant, or guest.',
+  },
+  {
+    label: 'Name the gathering',
+    prompt: 'Connect the acknowledgement to why people are meeting, learning, building, or making decisions together today.',
+  },
+  {
+    label: 'Use local names with care',
+    prompt: 'Practice pronunciation and leave room for multiple Nations, overlapping relationships, and changed guidance.',
+  },
+  {
+    label: 'People before layers',
+    prompt: 'Do not let treaty, reserve, CAD, or other administrative layers substitute for Nation-specific relationships.',
+  },
+  {
+    label: 'Avoid one-size wording',
+    prompt: 'Replace rote scripts with context-specific wording that reflects the place, audience, and current relationships.',
+  },
+  {
+    label: 'Connect words to action',
+    prompt: 'State one concrete action, responsibility, or follow-up that sits beyond the acknowledgement itself.',
+  },
+  {
+    label: 'Invite correction',
+    prompt: 'Make space for feedback without shifting emotional labour or protocol work onto Indigenous attendees.',
+  },
+  {
+    label: 'Keep wording living',
+    prompt: 'Record when wording was reviewed and revisit it when local guidance, relationships, or event context changes.',
+  },
+]
+
+const PRONUNCIATION_GUIDE_URL = 'https://www2.gov.bc.ca/assets/gov/british-columbians-our-governments/indigenous-people/aboriginal-peoples-documents/a_guide_to_pronunciation_of_bc_first_nations_-_oct_29_2018.pdf'
+const LHEIDLI_LANGUAGE_URL = 'https://www.lheidli.ca/about/our-language/'
+const LHEIDLI_DICTIONARY_URL = 'https://www.billposer.org/LheidliCarrierDictionary/'
+const LHEIDLI_SOUND_SYSTEM_URL = 'https://www.billposer.org/LheidliDialect/SoundSystemIntro/LheidliPronunciation.html'
+const LHEIDLI_UNBC_ENTRY_URL = 'https://www.billposer.org/LheidliCarrierDictionary/Entries/006439.html'
+const LHEIDLI_UNBC_AUDIO_URL = 'https://www.billposer.org/LheidliCarrierDictionary/Audio/edifre_2021-11-29_009.wav'
+const LHEIDLI_UNBC_QR_URL = 'https://www.billposer.org/LheidliCarrierDictionary/EntryQRCodes/006439.png'
+
+const pronunciationSources: PronunciationSource[] = [
+  {
+    name: 'Lheidli T’enneh language page',
+    status: 'Local authority',
+    use: 'Local language portal for Carrier/Dakelh resources, including links to dictionary and learning materials.',
+    caveat: 'Use as a local verification and learning source; it is not a structured pronunciation API.',
+    url: LHEIDLI_LANGUAGE_URL,
+  },
+  {
+    name: 'Lheidli Dakelh Dictionary',
+    status: 'Audio link-out',
+    use: 'Lheidli-specific dictionary entries with syllabics, IPA hover notes, playable speaker recordings, and QR codes.',
+    caveat: 'Audio reuse rights are not clearly permissive. Link out rather than bundling or mirroring audio unless permission is obtained.',
+    url: LHEIDLI_DICTIONARY_URL,
+  },
+  {
+    name: 'Meaning and pronunciation of Lheidli T’enneh',
+    status: 'Local guide',
+    use: 'Explains pronunciation issues such as lh, dl, and ejective t’ and links to Lheidli pronunciation resources.',
+    caveat: 'Use for learning context and source linking; verify public wording with Lheidli T’enneh guidance.',
+    url: 'https://www.ydli.org/ParkName.pdf',
+  },
+  {
+    name: 'BC pronunciation guide',
+    status: 'Text phonetics',
+    use: 'Seed English-style pronunciation approximations for many B.C. Indigenous communities and organizations.',
+    caveat: 'Introductory only. The guide says final authority rests with each community and many sounds cannot be expressed in English.',
+    url: PRONUNCIATION_GUIDE_URL,
+  },
+  {
+    name: 'First Peoples Map of B.C.',
+    status: 'Audio candidate',
+    use: 'Indigenous-led map with pronounce buttons and audio where available, plus language and greeting context.',
+    caveat: 'Do not scrape. Request API/data permission from FPCC before automating audio or pronunciation pulls.',
+    url: 'https://maps.fpcc.ca/',
+  },
+  {
+    name: 'Nation websites',
+    status: 'Preferred audio',
+    use: 'Use Nation-published phonetics, audio, or video where the Nation provides clear public guidance.',
+    caveat: 'Reuse depends on each site. Link out unless the Nation provides permission or clear reusable media terms.',
+    url: 'https://www.sfu.ca/main/about/truth-reconciliation/ways-to-learn/terminology-language/host-nations-pronunciation-guide.html',
+  },
+  {
+    name: 'BC Geographical Names',
+    status: 'Place-name audio',
+    use: 'Some official place-name records include pronunciation keys and sometimes audio.',
+    caveat: 'Mostly place names, not Nation names. Use as supporting context only.',
+    url: 'https://www2.gov.bc.ca/gov/content/governments/celebrating-british-columbia/historic-places/geographical-names?keyword=2021',
+  },
+]
+
+const localLanguageResources: LocalLanguageResource[] = [
+  {
+    name: 'Lheidli T’enneh: Our Language',
+    status: 'Nation source',
+    use: 'Nation-maintained language page with Dakelh learning context, videos, and recommended language links.',
+    caveat: 'Use as the preferred public starting point for local language learning resources.',
+    url: LHEIDLI_LANGUAGE_URL,
+  },
+  {
+    name: 'Lheidli Dakelh Dictionary',
+    status: 'Dictionary',
+    use: 'Searchable Dakelh dictionary compiled by Bill Poser and linked from Lheidli T’enneh’s language page.',
+    caveat: 'Treat as a learning/reference source; avoid bulk copying entries or audio into PGMaps.',
+    url: LHEIDLI_DICTIONARY_URL,
+  },
+  {
+    name: 'Lheidli sound system',
+    status: 'Pronunciation guide',
+    use: 'Explains the Lheidli dialect sound system and writing system with audio examples.',
+    caveat: 'Better for learning pronunciation patterns than for auto-generating phonetics.',
+    url: LHEIDLI_SOUND_SYSTEM_URL,
+  },
+  {
+    name: 'UNBC in Dakelh',
+    status: 'Local term',
+    use: 'Dictionary entry for “University of Northern British Columbia,” with audio spoken by Edith Frederick and a QR code for sharing.',
+    caveat: 'Keep this as a linked pronunciation aid for local UNBC contexts; verify before embedding in formal acknowledgement wording.',
+    url: LHEIDLI_UNBC_ENTRY_URL,
+    audioUrl: LHEIDLI_UNBC_AUDIO_URL,
+    qrUrl: LHEIDLI_UNBC_QR_URL,
+  },
+]
+
+const pronunciationDatabase: Record<string, PronunciationInfo> = {
+  [normalizeName("Lheidli-T'enneh Band")]: {
+    phonetic: 'clayt-clay den-ay',
+    sourceLabel: 'BC pronunciation guide',
+    sourceUrl: PRONUNCIATION_GUIDE_URL,
+    caveat: 'Approximation only; verify with Lheidli T’enneh First Nation or local guidance before public use.',
+  },
+  [normalizeName("Lheidli T'enneh First Nation")]: {
+    phonetic: 'clayt-clay den-ay',
+    sourceLabel: 'Lheidli language resources',
+    sourceUrl: LHEIDLI_LANGUAGE_URL,
+    caveat: 'Approximation only. Use Lheidli language resources and Nation guidance for local pronunciation practice.',
+  },
+  [normalizeName('Lhoosk’uz Dené Nation')]: {
+    phonetic: "looze-k' U z den-ay",
+    sourceLabel: 'BC pronunciation guide',
+    sourceUrl: PRONUNCIATION_GUIDE_URL,
+    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
+  },
+  [normalizeName('Lhtako Dene Nation')]: {
+    phonetic: 'lah-ta-ko den-ay',
+    sourceLabel: 'BC pronunciation guide',
+    sourceUrl: PRONUNCIATION_GUIDE_URL,
+    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
+  },
+  [normalizeName("Nadleh Whut'en Band")]: {
+    phonetic: 'nad-lee woo-ten',
+    sourceLabel: 'BC pronunciation guide',
+    sourceUrl: PRONUNCIATION_GUIDE_URL,
+    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
+  },
+  [normalizeName("Nak'azdli Band")]: {
+    phonetic: 'na-caused-lee',
+    sourceLabel: 'BC pronunciation guide',
+    sourceUrl: PRONUNCIATION_GUIDE_URL,
+    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
+  },
+  [normalizeName('Tsay Keh Dene Band')]: {
+    phonetic: 'say-kay-denay',
+    sourceLabel: 'BC pronunciation guide',
+    sourceUrl: PRONUNCIATION_GUIDE_URL,
+    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
+  },
+  [normalizeName("TseK'hene First Nation")]: {
+    phonetic: 'tse-kan-ay',
+    sourceLabel: 'BC pronunciation guide',
+    sourceUrl: PRONUNCIATION_GUIDE_URL,
+    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
+  },
+}
+
+const acknowledgementPracticeSources: PracticeSource[] = [
+  {
+    name: 'LISSA Land Acknowledgement template',
+    status: 'Template source',
+    use: 'Structured components for personalization, speaker protocol, reflection prompts, and fixed web wording.',
+    limitation: 'Created for a library/information-studies context; reuse the pattern, not its institution-specific wording.',
+    path: '/Users/ahmadjalil/Downloads/New Folder With Items 4/2018_2019_LISSA_Land_Acknowledgement (1).docx',
+  },
+  {
+    name: 'Khelsilem acknowledgement tips',
+    status: 'Practice source',
+    use: 'Guidance to elevate Indigenous polity, avoid simplistic ceded/unceded framing, and keep acknowledgement tied to action.',
+    limitation: 'Blog guidance from a particular perspective; use as advice to consider, not a universal rulebook.',
+    path: '/Users/ahmadjalil/Downloads/New Folder With Items 4/Liberated_Yet_—_Khelsilem\'s_Tips_for_Acknowledging_Territory_1_0.pdf',
+  },
+  {
+    name: 'Rethinking land acknowledgement',
+    status: 'Critical source',
+    use: 'Scholarly discussion of site-specific, context-specific acknowledgements and the limits of standardized performance.',
+    limitation: 'Academic article; adapt ideas into prompts rather than copying performance text.',
+    path: '/Users/ahmadjalil/Downloads/New Folder With Items 4/2019_Rethinking_the_Practice_and_Performance_of_Indigenous_Land.pdf',
+  },
+  {
+    name: 'Land-based practice article',
+    status: 'Relational source',
+    use: 'Frames land as relational, pedagogical, and connected to wellness rather than only physical territory.',
+    limitation: 'Health and land-based healing context, not an acknowledgement manual.',
+    path: '/Users/ahmadjalil/Downloads/New Folder With Items 4/Redvers (2020) Land based practice.pdf',
+  },
+]
 
 const confidenceStyles: Record<Confidence, string> = {
   strong: 'border-emerald-200 bg-emerald-50 text-emerald-800',
@@ -170,6 +473,10 @@ function buildAcknowledgement(mode: WordingMode, nationNames: string[]) {
 
   if (mode === 'research') {
     return `This work takes place in areas connected to ${names}. We recognize the importance of respectful relationship-building, local protocols, and Indigenous rights and title.`
+  }
+
+  if (mode === 'reflective') {
+    return `I acknowledge that I am speaking from lands connected to ${names}. I am still learning my responsibilities in this place, and I commit to pairing these words with respectful relationship-building, local guidance, and concrete action beyond this acknowledgement.`
   }
 
   return `We acknowledge that we are on lands connected to ${names}. We recognize their histories, cultures, and ongoing relationships with these lands.`
@@ -239,6 +546,10 @@ function normalizeName(name: string) {
 
 function candidateId(name: string) {
   return normalizeName(name).replace(/\s+/g, '-') || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+}
+
+function findPronunciation(name: string) {
+  return pronunciationDatabase[normalizeName(name)]
 }
 
 function uniqueMatches(matches: SourceMatch[]) {
@@ -406,6 +717,7 @@ function buildCandidatesFromLookups(lookups: Record<SourceKey, SourceLookupState
       name: existing?.name ?? match.name,
       preferredName: existing?.preferredName ?? match.name,
       confidence,
+      pronunciation: existing?.pronunciation ?? findPronunciation(match.name),
       reason: `${match.name} appears in ${sourceLabels.join(', ')} for this location.`,
       sources: nextSources,
       notes: confidence === 'strong'
@@ -681,6 +993,34 @@ export default function DevAcknowledgement() {
               ))}
             </div>
           </section>
+
+          <section className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <Database className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-semibold">Data Gaps</h2>
+            </div>
+            <div className="space-y-3 text-xs leading-5 text-slate-600">
+              {unincorporatedDataGaps.map((gap) => (
+                <a
+                  key={gap.name}
+                  href={gap.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-md border p-3 transition hover:border-teal-300 hover:bg-teal-50/40"
+                >
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="font-semibold text-slate-900">{gap.name}</span>
+                    <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-none text-slate-400" />
+                  </span>
+                  <span className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                    {gap.status}
+                  </span>
+                  <span className="mt-2 block">{gap.use}</span>
+                  <span className="mt-1 block text-slate-500">{gap.limitation}</span>
+                </a>
+              ))}
+            </div>
+          </section>
         </aside>
 
         <section className="order-1 space-y-4 lg:order-2">
@@ -759,6 +1099,38 @@ export default function DevAcknowledgement() {
                       </span>
                     </div>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{candidate.reason}</p>
+                    {candidate.pronunciation && (
+                      <div className="mt-3 rounded-md border border-teal-100 bg-teal-50 p-3 text-xs leading-5 text-teal-950">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold">Pronunciation</span>
+                          {candidate.pronunciation.phonetic && (
+                            <span className="rounded bg-white px-2 py-0.5 font-medium text-teal-900">
+                              {candidate.pronunciation.phonetic}
+                            </span>
+                          )}
+                          {candidate.pronunciation.audioUrl && (
+                            <a
+                              href={candidate.pronunciation.audioUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-medium underline"
+                            >
+                              Listen
+                            </a>
+                          )}
+                          <a
+                            href={candidate.pronunciation.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 font-medium underline"
+                          >
+                            {candidate.pronunciation.sourceLabel}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                        <p className="mt-1 text-teal-800">{candidate.pronunciation.caveat}</p>
+                      </div>
+                    )}
                     <p className="mt-2 text-xs leading-5 text-slate-500">{candidate.notes}</p>
                   </div>
                   <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
@@ -787,8 +1159,8 @@ export default function DevAcknowledgement() {
               <BookOpen className="h-4 w-4 text-teal-700" />
               <h2 className="text-sm font-semibold">Wording Mode</h2>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {(['general', 'event', 'research'] as WordingMode[]).map((mode) => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+              {(['general', 'event', 'research', 'reflective'] as WordingMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
@@ -813,7 +1185,93 @@ export default function DevAcknowledgement() {
                 <AlertTriangle className="h-4 w-4" />
                 Review needed
               </div>
-              Confirm wording with local or Nation-specific guidance where possible. CAD, reserve, and treaty layers should not be treated as automatic acknowledgement text.
+              Confirm wording with local or Nation-specific guidance where possible. CAD outputs are preliminary contact lists, and reserve or treaty layers should not be treated as automatic acknowledgement text.
+            </div>
+          </section>
+
+          <section className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <FileText className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-semibold">Template Prompts</h2>
+            </div>
+            <div className="space-y-2 text-xs leading-5 text-slate-600">
+              {acknowledgementTemplatePrompts.map((item) => (
+                <div key={item.label} className="rounded-md border p-3">
+                  <div className="font-semibold text-slate-900">{item.label}</div>
+                  <p className="mt-1">{item.prompt}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <Globe2 className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-semibold">Pronunciation Sources</h2>
+            </div>
+            <div className="space-y-3 text-xs leading-5 text-slate-600">
+              {pronunciationSources.map((source) => (
+                <a
+                  key={source.name}
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-md border p-3 transition hover:border-teal-300 hover:bg-teal-50/40"
+                >
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="font-semibold text-slate-900">{source.name}</span>
+                    <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-none text-slate-400" />
+                  </span>
+                  <span className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                    {source.status}
+                  </span>
+                  <span className="mt-2 block">{source.use}</span>
+                  <span className="mt-1 block text-slate-500">{source.caveat}</span>
+                </a>
+              ))}
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                Audio links are only shown when they come from a Nation site, FPCC permission/API access, or another source with clear reuse rights.
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-semibold">Local Language Resources</h2>
+            </div>
+            <div className="space-y-3 text-xs leading-5 text-slate-600">
+              {localLanguageResources.map((resource) => (
+                <div key={resource.name} className="rounded-md border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-semibold text-slate-900">{resource.name}</div>
+                      <div className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                        {resource.status}
+                      </div>
+                    </div>
+                    <a href={resource.url} target="_blank" rel="noreferrer" aria-label={`Open ${resource.name}`}>
+                      <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-none text-slate-400" />
+                    </a>
+                  </div>
+                  <p className="mt-2">{resource.use}</p>
+                  <p className="mt-1 text-slate-500">{resource.caveat}</p>
+                  {(resource.audioUrl || resource.qrUrl) && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {resource.audioUrl && (
+                        <a href={resource.audioUrl} target="_blank" rel="noreferrer" className="rounded border bg-white px-2 py-1 font-medium text-teal-800">
+                          Audio
+                        </a>
+                      )}
+                      {resource.qrUrl && (
+                        <a href={resource.qrUrl} target="_blank" rel="noreferrer" className="rounded border bg-white px-2 py-1 font-medium text-teal-800">
+                          QR code
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </section>
 
@@ -837,6 +1295,26 @@ export default function DevAcknowledgement() {
                     {sourceLookups[source].matches.length > 0 && ` · ${sourceLookups[source].matches.length} match${sourceLookups[source].matches.length === 1 ? '' : 'es'}`}
                   </p>
                   {sourceLookups[source].message && <p className="mt-1">{sourceLookups[source].message}</p>}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-semibold">Practice Sources</h2>
+            </div>
+            <div className="space-y-3 text-xs leading-5 text-slate-600">
+              {acknowledgementPracticeSources.map((source) => (
+                <div key={source.name} className="rounded-md border p-3">
+                  <div className="font-semibold text-slate-900">{source.name}</div>
+                  <div className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                    {source.status}
+                  </div>
+                  <p className="mt-2">{source.use}</p>
+                  <p className="mt-1 text-slate-500">{source.limitation}</p>
+                  <p className="mt-2 break-words font-mono text-[10px] text-slate-400">{source.path}</p>
                 </div>
               ))}
             </div>

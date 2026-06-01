@@ -16,6 +16,7 @@
     "watersheds:dev": "npm --prefix vendor/bcdatamapper run watersheds:dev --",
     "nr-admin:sync": "npm --prefix vendor/bcdatamapper run nr-admin:sync --",
     "uwr:sync": "npm --prefix vendor/bcdatamapper run uwr:sync --",
+    "indigenous:sync": "npm --prefix vendor/bcdatamapper run indigenous:sync --",
     "drought:sync": "npm --prefix vendor/bcdatamapper run drought:sync --",
     "drought:canonical": "npm --prefix vendor/bcdatamapper run drought:canonical --",
     "flood:sync": "npm --prefix vendor/bcdatamapper run flood:sync --",
