@@ -23,6 +23,9 @@ const EN: StringMap = {
   'sidebar.pm25Legend': 'PM2.5 Legend',
   'sidebar.iconLegend': 'Monitor Icon Legend',
   'sidebar.iconMode': 'Monitor Icon Mode',
+  'sidebar.featureDisplay': 'Feature Display (mobile)',
+  'featureDisplay.card': 'Card',
+  'featureDisplay.popup': 'Popup',
   'sidebar.export': 'Export Map',
   'sidebar.language': 'Language',
 
@@ -142,6 +145,9 @@ const FR: StringMap = {
   'sidebar.pm25Legend': 'Légende PM2,5',
   'sidebar.iconLegend': 'Légende des icônes',
   'sidebar.iconMode': 'Mode des icônes',
+  'sidebar.featureDisplay': 'Affichage des détails (mobile)',
+  'featureDisplay.card': 'Carte',
+  'featureDisplay.popup': 'Infobulle',
   'sidebar.export': 'Exporter la carte',
   'sidebar.language': 'Langue',
 

@@ -32,7 +32,7 @@ import {
 } from './lib/i18n'
 import { exportAqmap, type ExportFormat } from './lib/exportMap'
 import { BASEMAP_STYLES, URL_UPDATE_DELAY_MS } from './lib/aqMapConstants'
-import type { AqMonitorIconMode, FireDangerRenderMode } from './lib/aqMapTypes'
+import type { AqMonitorIconMode, FireDangerRenderMode, MobileFeatureDisplay } from './lib/aqMapTypes'
 import { FloatingLayerControl, MapTimestamp, MapUtilityControls, ScaleBar } from './components/AqMapControls'
 import { FloatingLegends } from './components/AqMapLegends'
 import { AqMapSidebar } from './components/AqMapSidebar'
@@ -57,6 +57,10 @@ export default function AqMapSection() {
   const [iconMode, setIconMode] = useState<AqMonitorIconMode>(() => {
     const params = new URLSearchParams(window.location.search)
     return params.get('icons') === 'revealed' ? 'revealed' : 'aqmap'
+  })
+  const [mobileFeatureDisplay, setMobileFeatureDisplay] = useState<MobileFeatureDisplay>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('feature') === 'popup' ? 'popup' : 'card'
   })
   const [basemap, setBasemap] = useState<AqBasemap>(() => initialUrlState.basemap)
   const [mapView, setMapView] = useState(() => initialUrlState.mapView)
@@ -107,6 +111,9 @@ export default function AqMapSection() {
       if (iconMode === 'revealed') next.set('icons', 'revealed')
       else next.delete('icons')
 
+      if (mobileFeatureDisplay === 'popup') next.set('feature', 'popup')
+      else next.delete('feature')
+
       next.delete('time')
 
       if (isValidMapView(mapView)) {
@@ -131,7 +138,7 @@ export default function AqMapSection() {
     }, URL_UPDATE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [basemap, fireDangerMode, iconMode, locale, mapView, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
+  }, [basemap, fireDangerMode, iconMode, locale, mapView, mobileFeatureDisplay, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
 
   const toggleGroup = useCallback((group: AqMonitorGroup) => {
     setVisibleGroups((current) => {
@@ -194,6 +201,8 @@ export default function AqMapSection() {
       onToggleGroup={toggleGroup}
       iconMode={iconMode}
       onIconModeChange={setIconMode}
+      mobileFeatureDisplay={mobileFeatureDisplay}
+      onMobileFeatureDisplayChange={setMobileFeatureDisplay}
       visibleWmsLayers={visibleWmsLayers}
       onToggleWmsLayer={toggleWmsLayer}
       visibleSmokeLayers={visibleSmokeLayers}
@@ -263,32 +272,36 @@ export default function AqMapSection() {
             onMonitorHover={setHoveredMonitor}
           />
           {hoveredMonitor && selectedMonitor !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} locale={locale} />}
-          {selectedMonitor && !isMobileViewport && <MonitorPopup monitor={selectedMonitor} locale={locale} onClose={() => setSelectedMonitor(null)} />}
-          {selectedMonitor && isMobileViewport && (
+          {selectedMonitor && (!isMobileViewport || mobileFeatureDisplay === 'popup') && (
+            <MonitorPopup monitor={selectedMonitor} locale={locale} onClose={() => setSelectedMonitor(null)} />
+          )}
+          {selectedMonitor && isMobileViewport && mobileFeatureDisplay === 'card' && (
             <MobileAqMonitorFeatureCard
               monitor={selectedMonitor}
               locale={locale}
               onClose={() => setSelectedMonitor(null)}
             />
           )}
-          <FloatingLayerControl
-            basemap={basemap}
-            onBasemapChange={setBasemap}
-            visibleGroups={visibleGroups}
-            onToggleGroup={toggleGroup}
-            iconMode={iconMode}
-            onIconModeChange={setIconMode}
-            visibleWmsLayers={visibleWmsLayers}
-            onToggleWmsLayer={toggleWmsLayer}
-            visibleSmokeLayers={visibleSmokeLayers}
-            onToggleSmokeLayer={toggleSmokeLayer}
-            fireDangerMode={fireDangerMode}
-            onFireDangerModeChange={setFireDangerMode}
-            windVisible={windVisible}
-            onToggleWind={toggleWind}
-            smokeLayers={smokeLayers}
-            locale={locale}
-          />
+          {!isMobileViewport && (
+            <FloatingLayerControl
+              basemap={basemap}
+              onBasemapChange={setBasemap}
+              visibleGroups={visibleGroups}
+              onToggleGroup={toggleGroup}
+              iconMode={iconMode}
+              onIconModeChange={setIconMode}
+              visibleWmsLayers={visibleWmsLayers}
+              onToggleWmsLayer={toggleWmsLayer}
+              visibleSmokeLayers={visibleSmokeLayers}
+              onToggleSmokeLayer={toggleSmokeLayer}
+              fireDangerMode={fireDangerMode}
+              onFireDangerModeChange={setFireDangerMode}
+              windVisible={windVisible}
+              onToggleWind={toggleWind}
+              smokeLayers={smokeLayers}
+              locale={locale}
+            />
+          )}
           <FloatingLegends
             visibleWmsLayers={visibleWmsLayers}
             visibleSmokeLayers={visibleSmokeLayers}

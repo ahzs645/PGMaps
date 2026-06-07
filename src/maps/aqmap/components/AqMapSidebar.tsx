@@ -20,7 +20,7 @@ import {
 } from '../lib/i18n'
 import type { ExportFormat } from '../lib/exportMap'
 import { AQHI_STOPS, EXPORT_OPTIONS } from '../lib/aqMapConstants'
-import type { AqMonitorIconMode, FireDangerRenderMode } from '../lib/aqMapTypes'
+import type { AqMonitorIconMode, FireDangerRenderMode, MobileFeatureDisplay } from '../lib/aqMapTypes'
 import { basemapLabel, SegmentedControl, ToggleButton } from './AqMapControls'
 import { WmsLegend } from './AqMapLegends'
 
@@ -31,6 +31,8 @@ export function AqMapSidebar({
   onToggleGroup,
   iconMode,
   onIconModeChange,
+  mobileFeatureDisplay,
+  onMobileFeatureDisplayChange,
   visibleWmsLayers,
   onToggleWmsLayer,
   visibleSmokeLayers,
@@ -53,6 +55,8 @@ export function AqMapSidebar({
   onToggleGroup: (group: AqMonitorGroup) => void
   iconMode: AqMonitorIconMode
   onIconModeChange: (mode: AqMonitorIconMode) => void
+  mobileFeatureDisplay: MobileFeatureDisplay
+  onMobileFeatureDisplayChange: (mode: MobileFeatureDisplay) => void
   visibleWmsLayers: Set<WmsLayerKey>
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
@@ -170,6 +174,20 @@ export function AqMapSidebar({
             options={[
               { value: 'aqmap', label: translate('icons.aqmap', locale) },
               { value: 'revealed', label: translate('icons.revealed', locale) },
+            ]}
+          />
+        </section>
+
+        <section className="md:hidden">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {translate('sidebar.featureDisplay', locale)}
+          </div>
+          <SegmentedControl
+            value={mobileFeatureDisplay}
+            onChange={onMobileFeatureDisplayChange}
+            options={[
+              { value: 'card', label: translate('featureDisplay.card', locale) },
+              { value: 'popup', label: translate('featureDisplay.popup', locale) },
             ]}
           />
         </section>
