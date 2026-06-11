@@ -11,6 +11,7 @@ import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components
 import { SharedMap } from '@/components/ui/persistent-map'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { formatDate } from '@/lib/format'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
 
@@ -39,14 +40,6 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(full.slice(2, 4), 16)
   const b = parseInt(full.slice(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-CA', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
 }
 
 function formatTime(time: string): string {

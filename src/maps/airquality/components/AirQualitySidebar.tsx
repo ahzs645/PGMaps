@@ -16,13 +16,11 @@ import { DATASETS } from '@/lib/dataCatalog'
 import { cn } from '@/lib/utils'
 import { getNetworkColor } from '../constants'
 import { calculateCorrectedPm25, formatNumber, formatPm25 } from '../lib/corrections'
+import type { AirQualityActions, AirQualityViewState } from '../hooks/useAirQualityState'
 import type {
   AirMonitor,
   AirQualityAreaStats,
-  AirQualityBasemap,
   AirQualityBoundaryColorMetric,
-  AirQualityCorrectionModel,
-  AirQualityObservationLayer,
   BoundarySource,
   RegionLevel,
   SensorDensityStats,
@@ -30,45 +28,20 @@ import type {
 
 interface AirQualitySidebarProps {
   className?: string
+  state: AirQualityViewState
+  actions: AirQualityActions
   monitors: AirMonitor[]
   filteredMonitors: AirMonitor[]
   visibleMonitorCount: number
   visibleMonitorCountLabel: string
-  selectedMonitor: AirMonitor | null
-  selectedNetworks: string[]
-  boundariesVisible: boolean
-  boundarySource: BoundarySource
-  selectedRegionLevel: RegionLevel
   regionLevelOptions: Array<{ value: RegionLevel; label: string }>
   boundaryLoading: boolean
   boundaryError: string | null
   densityStats: SensorDensityStats | null
   areaStats: AirQualityAreaStats | null
   densityScopeLabel: string
-  searchQuery: string
-  showHeatmap: boolean
-  showPoints: boolean
-  basemap: AirQualityBasemap
-  boundaryColorMetric: AirQualityBoundaryColorMetric
-  correctionModel: AirQualityCorrectionModel
-  observationLayers: AirQualityObservationLayer[]
   loading: boolean
   error: string | null
-  onBasemapChange: (basemap: AirQualityBasemap) => void
-  onBoundaryColorMetricChange: (metric: AirQualityBoundaryColorMetric) => void
-  onCorrectionModelChange: (model: AirQualityCorrectionModel) => void
-  onToggleObservationLayer: (layer: AirQualityObservationLayer) => void
-  onBoundarySourceChange: (source: BoundarySource) => void
-  onClearBoundaries: () => void
-  onRegionLevelChange: (level: RegionLevel) => void
-  onSearchQueryChange: (query: string) => void
-  onToggleHeatmap: () => void
-  onTogglePoints: () => void
-  onToggleNetwork: (network: string) => void
-  onSelectAllNetworks: () => void
-  onClearNetworks: () => void
-  onMonitorClick: (monitor: AirMonitor) => void
-  onClearSelection: () => void
 }
 
 const MAX_VISIBLE_ROWS = 250
@@ -99,41 +72,33 @@ function formatAveragePm25(value: number | null): string {
 
 export function AirQualitySidebar({
   className,
+  state,
+  actions,
   monitors,
   filteredMonitors,
   visibleMonitorCount,
   visibleMonitorCountLabel,
-  selectedMonitor,
-  selectedNetworks,
-  boundariesVisible,
-  boundarySource,
-  selectedRegionLevel,
   regionLevelOptions,
   boundaryLoading,
   boundaryError,
   densityStats,
   areaStats,
   densityScopeLabel,
-  searchQuery,
-  showHeatmap,
-  showPoints,
-  boundaryColorMetric,
-  correctionModel,
   loading,
   error,
-  onBoundarySourceChange,
-  onClearBoundaries,
-  onRegionLevelChange,
-  onSearchQueryChange,
-  onToggleHeatmap,
-  onTogglePoints,
-  onBoundaryColorMetricChange,
-  onToggleNetwork,
-  onSelectAllNetworks,
-  onClearNetworks,
-  onMonitorClick,
-  onClearSelection,
 }: AirQualitySidebarProps) {
+  const {
+    searchQuery,
+    selectedNetworks,
+    showHeatmap,
+    showPoints,
+    boundariesVisible,
+    boundarySource,
+    selectedRegionLevel,
+    boundaryColorMetric,
+    correctionModel,
+    selectedMonitor,
+  } = state
   const networkCounts = useMemo(() => {
     const counts = new Map<string, number>()
     monitors.forEach((monitor) => {
@@ -166,10 +131,10 @@ export function AirQualitySidebar({
       dataset={DATASETS.airQuality}
       actions={
         <>
-          <ToggleChip active={showPoints} onClick={onTogglePoints} tone="sky">
+          <ToggleChip active={showPoints} onClick={actions.togglePoints} tone="sky">
             {showPoints ? 'Hide points' : 'Show points'}
           </ToggleChip>
-          <ToggleChip active={showHeatmap} onClick={onToggleHeatmap} tone="orange">
+          <ToggleChip active={showHeatmap} onClick={actions.toggleHeatmap} tone="orange">
             Heatmap
           </ToggleChip>
         </>
@@ -183,9 +148,9 @@ export function AirQualitySidebar({
         sourceOptions={BOUNDARY_SOURCE_OPTIONS}
         level={selectedRegionLevel}
         levelOptions={boundariesVisible ? regionLevelOptions : []}
-        onSourceChange={onBoundarySourceChange}
-        onSelectedSourceClick={onClearBoundaries}
-        onLevelChange={onRegionLevelChange}
+        onSourceChange={actions.setBoundarySource}
+        onSelectedSourceClick={actions.clearBoundaries}
+        onLevelChange={actions.setRegionLevel}
         levelSelectId="air-quality-study-area-level"
       />
 
@@ -206,7 +171,7 @@ export function AirQualitySidebar({
               <AppSelect
                 id="air-quality-boundary-color"
                 value={boundaryColorMetric}
-                onValueChange={(value) => onBoundaryColorMetricChange(value as AirQualityBoundaryColorMetric)}
+                onValueChange={(value) => actions.setBoundaryColorMetric(value as AirQualityBoundaryColorMetric)}
                 options={BOUNDARY_COLOR_OPTIONS}
                 triggerClassName="h-8 text-xs"
               />
@@ -286,7 +251,7 @@ export function AirQualitySidebar({
         <label className="mb-2 block text-xs font-medium text-foreground">Search monitors</label>
         <SearchInput
           value={searchQuery}
-          onChange={(event) => onSearchQueryChange(event.target.value)}
+          onChange={(event) => actions.setSearchQuery(event.target.value)}
           placeholder="Search monitors, city, network, parameter..."
           className="focus:ring-sky-500"
         />
@@ -297,12 +262,12 @@ export function AirQualitySidebar({
         actions={
           <>
             <button
-              onClick={onSelectAllNetworks}
+              onClick={() => actions.setNetworks(networkCounts.map(([network]) => network))}
               className="text-xs text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
             >
               All
             </button>
-            <button onClick={onClearNetworks} className="text-xs text-muted-foreground hover:text-foreground">
+            <button onClick={() => actions.setNetworks([])} className="text-xs text-muted-foreground hover:text-foreground">
               None
             </button>
             <button
@@ -324,7 +289,7 @@ export function AirQualitySidebar({
             color: getNetworkColor(network),
           }))}
           selectedValues={selectedNetworks}
-          onToggle={onToggleNetwork}
+          onToggle={actions.toggleNetwork}
           layout={showExpandedNetworks ? 'wrap' : 'scroll'}
           className={showExpandedNetworks ? 'max-h-36 overflow-y-auto' : undefined}
           chipClassName="px-3 py-1"
@@ -339,7 +304,7 @@ export function AirQualitySidebar({
             subtitle={
               [selectedMonitor.city, selectedMonitor.province].filter(Boolean).join(', ') || 'Location available'
             }
-            onClear={onClearSelection}
+            onClear={actions.clearMonitor}
             clearLabel="Clear selected monitor"
             badges={
               <>
@@ -432,7 +397,7 @@ export function AirQualitySidebar({
               return (
                 <button
                   key={`${monitor.id}-${monitor.network}`}
-                  onClick={() => onMonitorClick(monitor)}
+                  onClick={() => actions.selectMonitor(monitor)}
                   className={cn(
                     'w-full px-4 py-3 text-left transition-colors hover:bg-accent',
                     isSelected && 'bg-sky-50 dark:bg-sky-950/30',

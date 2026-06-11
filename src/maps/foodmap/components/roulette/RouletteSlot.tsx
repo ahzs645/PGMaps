@@ -66,38 +66,44 @@ export function RouletteSlot({
   }
 
   useEffect(() => {
-    if (isSpinning && eligibleRestaurants.length > 0 && winnerIndex !== null) {
-      setShowWinner(false)
+    if (!isSpinning || eligibleRestaurants.length === 0 || winnerIndex === null) return
 
-      const winner = eligibleRestaurants[winnerIndex]
-      const totalCards = 35
+    setShowWinner(false)
 
-      const cards: SlotCard[] = []
-      for (let i = 0; i < totalCards; i++) {
-        if (i === totalCards - 3) {
-          cards.push({ ...winner, id: `winner-${Date.now()}` })
-        } else {
-          const idx = Math.floor(Math.random() * eligibleRestaurants.length)
-          cards.push({ ...eligibleRestaurants[idx], id: `spin-${i}-${Date.now()}` })
-        }
+    const winner = eligibleRestaurants[winnerIndex]
+    const totalCards = 35
+
+    const cards: SlotCard[] = []
+    for (let i = 0; i < totalCards; i++) {
+      if (i === totalCards - 3) {
+        cards.push({ ...winner, id: `winner-${Date.now()}` })
+      } else {
+        const idx = Math.floor(Math.random() * eligibleRestaurants.length)
+        cards.push({ ...eligibleRestaurants[idx], id: `spin-${i}-${Date.now()}` })
       }
+    }
 
-      let currentTime = 0
-      for (let i = 0; i < totalCards; i++) {
-        const progress = i / totalCards
-        const interval = 40 + Math.pow(progress, 2) * 310
+    const timeoutIds: number[] = []
 
-        setTimeout(() => {
-          setVisibleCards(prev => [cards[i], ...prev.slice(0, 4)])
-        }, currentTime)
+    let currentTime = 0
+    for (let i = 0; i < totalCards; i++) {
+      const progress = i / totalCards
+      const interval = 40 + Math.pow(progress, 2) * 310
 
-        currentTime += interval
-      }
+      timeoutIds.push(window.setTimeout(() => {
+        setVisibleCards(prev => [cards[i], ...prev.slice(0, 4)])
+      }, currentTime))
 
-      setTimeout(() => {
-        setShowWinner(true)
-        onSpinComplete()
-      }, currentTime + 600)
+      currentTime += interval
+    }
+
+    timeoutIds.push(window.setTimeout(() => {
+      setShowWinner(true)
+      onSpinComplete()
+    }, currentTime + 600))
+
+    return () => {
+      timeoutIds.forEach((id) => window.clearTimeout(id))
     }
   }, [isSpinning, eligibleRestaurants, winnerIndex, onSpinComplete])
 

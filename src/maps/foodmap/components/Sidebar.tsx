@@ -1,22 +1,21 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { RestaurantCard } from './RestaurantCard'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
 import { AddToIndexLabLink } from '@/components/AddToIndexLabLink'
 import { FilterChipGroup, MapSidebarShell, SearchInput, SelectedItemCard } from '@/components/ui/map-panels'
 import { DATASETS } from '@/lib/dataCatalog'
+import { useToggleArray } from '@/hooks/useToggleArray'
+import type { FoodMapFilters, FoodMapFilterActions } from '../hooks/useFoodMapFilters'
 import type {
   RestaurantWithStats,
   RestaurantStats,
   TimelineStats,
   HazardStatsAtDate,
   HazardRating,
-  VisualizationMode,
-  ViolationTimelineMode,
 } from '../types'
 
-interface SidebarProps {
-  className?: string
+export interface SidebarData {
   restaurants: RestaurantWithStats[]
   geocodedRestaurants: RestaurantWithStats[]
   loading: boolean
@@ -24,24 +23,19 @@ interface SidebarProps {
   stats: RestaurantStats
   timelineStats: TimelineStats
   hazardStatsAtDate: HazardStatsAtDate
-  selectedRestaurant: RestaurantWithStats | null
-  searchQuery: string
-  selectedHazardRatings: HazardRating[]
-  selectedFacilityTypes: string[]
-  timelineMonths: number
-  violationTimelineMode: ViolationTimelineMode
   violationTimelineLabel: string
-  visualizationMode: VisualizationMode
-  onSearchQueryChange: (query: string) => void
-  onHazardRatingsChange: (ratings: HazardRating[]) => void
-  onFacilityTypesChange: (types: string[]) => void
-  onTimelineMonthsChange: (months: number) => void
-  onViolationTimelineModeChange: (mode: ViolationTimelineMode) => void
-  onVisualizationModeChange: (mode: VisualizationMode) => void
+}
+
+interface SidebarProps {
+  className?: string
+  data: SidebarData
+  filters: FoodMapFilters
+  filterActions: FoodMapFilterActions
+  selectedRestaurant: RestaurantWithStats | null
+  showTimeline: boolean
   onRestaurantClick: (restaurant: RestaurantWithStats) => void
   onClearSelection: () => void
   onOpenInspectionPanel: () => void
-  showTimeline: boolean
   onToggleTimeline: () => void
   onOpenRoulette: () => void
 }
@@ -64,63 +58,40 @@ const hazardChipColors: Record<HazardRating, string> = {
 
 export function Sidebar({
   className,
-  restaurants,
-  geocodedRestaurants,
-  loading,
-  error,
-  stats,
-  timelineStats,
-  hazardStatsAtDate,
+  data,
+  filters,
+  filterActions,
   selectedRestaurant,
-  searchQuery,
-  selectedHazardRatings,
-  selectedFacilityTypes,
-  timelineMonths,
-  violationTimelineMode,
-  violationTimelineLabel,
-  visualizationMode,
-  onSearchQueryChange,
-  onHazardRatingsChange,
-  onFacilityTypesChange,
-  onTimelineMonthsChange,
-  onViolationTimelineModeChange,
-  onVisualizationModeChange,
+  showTimeline,
   onRestaurantClick,
   onClearSelection,
   onOpenInspectionPanel,
-  showTimeline,
   onToggleTimeline,
   onOpenRoulette,
 }: SidebarProps) {
+  const {
+    restaurants,
+    geocodedRestaurants,
+    loading,
+    error,
+    stats,
+    timelineStats,
+    hazardStatsAtDate,
+    violationTimelineLabel,
+  } = data
+  const {
+    hazardRatings: selectedHazardRatings,
+    facilityTypes: selectedFacilityTypes,
+    searchQuery,
+    visualizationMode,
+    timelineMonths,
+    violationTimelineMode,
+  } = filters
+
   const [showFilters, setShowFilters] = useState(false)
 
-  const toggleHazard = useCallback(
-    (hazard: HazardRating) => {
-      const current = [...selectedHazardRatings]
-      const index = current.indexOf(hazard)
-      if (index > -1) {
-        current.splice(index, 1)
-      } else {
-        current.push(hazard)
-      }
-      onHazardRatingsChange(current)
-    },
-    [selectedHazardRatings, onHazardRatingsChange],
-  )
-
-  const toggleFacility = useCallback(
-    (facility: string) => {
-      const current = [...selectedFacilityTypes]
-      const index = current.indexOf(facility)
-      if (index > -1) {
-        current.splice(index, 1)
-      } else {
-        current.push(facility)
-      }
-      onFacilityTypesChange(current)
-    },
-    [selectedFacilityTypes, onFacilityTypesChange],
-  )
+  const toggleHazard = useToggleArray(selectedHazardRatings, filterActions.setHazardRatings)
+  const toggleFacility = useToggleArray(selectedFacilityTypes, filterActions.setFacilityTypes)
 
   return (
     <MapSidebarShell
@@ -169,7 +140,7 @@ export function Sidebar({
         <AddToIndexLabLink quick="foodSafety" label="Add food-risk metric to Index Lab" className="mb-3 w-full" />
         <div className="flex rounded-lg bg-secondary p-1">
           <button
-            onClick={() => onVisualizationModeChange('violations')}
+            onClick={() => filterActions.setVisualizationMode('violations')}
             className={cn(
               'flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors',
               visualizationMode === 'violations'
@@ -180,7 +151,7 @@ export function Sidebar({
             Violations
           </button>
           <button
-            onClick={() => onVisualizationModeChange('hazard')}
+            onClick={() => filterActions.setVisualizationMode('hazard')}
             className={cn(
               'flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors',
               visualizationMode === 'hazard'
@@ -201,7 +172,7 @@ export function Sidebar({
         {visualizationMode === 'violations' && (
           <AppSelect
             value={String(timelineMonths)}
-            onValueChange={(value) => onTimelineMonthsChange(parseInt(value))}
+            onValueChange={(value) => filterActions.setTimelineMonths(parseInt(value))}
             options={timelineOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
             className="w-32"
             triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
@@ -213,7 +184,7 @@ export function Sidebar({
         <div className="border-b border-border bg-background/95 px-4 py-2">
           <div className="mb-2 flex rounded-md bg-secondary p-0.5">
             <button
-              onClick={() => onViolationTimelineModeChange('period')}
+              onClick={() => filterActions.setViolationTimelineMode('period')}
               className={cn(
                 'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
                 violationTimelineMode === 'period'
@@ -224,7 +195,7 @@ export function Sidebar({
               Period
             </button>
             <button
-              onClick={() => onViolationTimelineModeChange('cumulative')}
+              onClick={() => filterActions.setViolationTimelineMode('cumulative')}
               className={cn(
                 'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
                 violationTimelineMode === 'cumulative'
@@ -286,7 +257,7 @@ export function Sidebar({
       <div className="border-b border-border p-4">
         <SearchInput
           value={searchQuery}
-          onChange={(e) => onSearchQueryChange(e.target.value)}
+          onChange={(e) => filterActions.setSearchQuery(e.target.value)}
           placeholder="Search restaurants..."
           className="focus:ring-sky-500"
         />

@@ -10,6 +10,7 @@ import {
   ToggleChip,
 } from '@/components/ui/map-panels'
 import { DATASETS } from '@/lib/dataCatalog'
+import { formatDate } from '@/lib/format'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
 
@@ -45,14 +46,6 @@ interface CrimeSidebarProps {
 }
 
 const MAX_VISIBLE_ROWS = 200
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-CA', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
 
 export function CrimeSidebar({
   className,

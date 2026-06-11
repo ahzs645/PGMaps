@@ -1,5 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useMemo, useCallback } from 'react'
 import { RestaurantMap } from './components/RestaurantMap'
 import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
@@ -8,8 +7,11 @@ import { LegendItem, MapLegendPanel, MapSizeLegend } from '@/components/ui/map-p
 import { RouletteModal } from './components/roulette'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { useRestaurantData } from './hooks/useRestaurantData'
+import { HAZARD_RATING_OPTIONS, useFoodMapFilters } from './hooks/useFoodMapFilters'
+import { stringCodec, useUrlState } from '@/hooks/useUrlState'
+import { toggleArrayItem, useToggleArray } from '@/hooks/useToggleArray'
 import { createEmptyViolationRiskSummary, summarizeViolationRisk } from './risk'
-import type { RestaurantWithStats, HazardRating, VisualizationMode, ViolationTimelineMode } from './types'
+import type { RestaurantWithStats, HazardRating } from './types'
 
 type ViolationBucket = 'zero' | 'low' | 'medium' | 'high'
 
@@ -24,6 +26,9 @@ const VIOLATION_BUCKETS: Array<{
   { key: 'medium', label: '3-5 violations', color: '#f97316', matches: (count) => count >= 3 && count <= 5 },
   { key: 'high', label: '6+ violations', color: '#ef4444', matches: (count) => count >= 6 },
 ]
+
+// Codec for the selected restaurant's name in the URL (absent = no selection)
+const restaurantNameCodec = stringCodec('')
 
 // Parse date string like "18-Mar-2024" or "March 18, 2024"
 function parseInspectionDate(dateStr: string | undefined): Date | null {
@@ -58,59 +63,33 @@ function formatMonthYear(date: Date): string {
 }
 
 export default function FoodMap() {
-  const [searchParams, setSearchParams] = useSearchParams()
   const { restaurants, loading, error, stats } = useRestaurantData()
 
-  // Filter state
-  const [selectedHazardRatings, setSelectedHazardRatings] = useState<HazardRating[]>(['Low', 'Moderate', 'Unknown'])
+  // Filter state, persisted to URL search params for shareable links
+  const { filters, actions } = useFoodMapFilters()
+  const {
+    hazardRatings: selectedHazardRatings,
+    facilityTypes: selectedFacilityTypes,
+    searchQuery,
+    visualizationMode,
+    timelineMonths,
+    violationTimelineMode,
+  } = filters
+
   const [selectedViolationBuckets, setSelectedViolationBuckets] = useState<ViolationBucket[]>(
     VIOLATION_BUCKETS.map((bucket) => bucket.key)
   )
-  const [selectedFacilityTypes, setSelectedFacilityTypes] = useState<string[]>([
-    'Restaurant', 'Food Truck', 'Camp', 'Catering', 'Concession', 'Stand',
-    'Bakery', 'Coffee Shop', 'Bar/Pub', 'Brewery/Winery', 'Deli',
-    'Community Kitchen', 'Social Services', 'Gas Station', 'Hotel',
-    'Recreation', 'Farm', 'Institutional Kitchen', 'Store', 'Other', 'Unknown'
-  ])
-  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
-  const [selectedRestaurant, setSelectedRestaurant] = useState<RestaurantWithStats | null>(null)
+  const [restaurantName, setRestaurantName] = useUrlState('restaurant', restaurantNameCodec)
   const [showSidebar, setShowSidebar] = useState(true)
   const [showInspectionPanel, setShowInspectionPanel] = useState(false)
   const [showRoulette, setShowRoulette] = useState(false)
   const [legendCollapsed, setLegendCollapsed] = useState(false)
 
-  // Visualization mode: 'hazard' or 'violations'
-  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>(
-    () => (searchParams.get('mode') as VisualizationMode) || 'violations'
-  )
-
   // Timeline toggle
   const [showTimeline, setShowTimeline] = useState(false)
 
-  // Timeline filter - default to past year
-  const [timelineMonths, setTimelineMonths] = useState(() => {
-    const fromUrl = searchParams.get('months')
-    return fromUrl ? parseInt(fromUrl, 10) || 12 : 12
-  })
-  const [violationTimelineMode, setViolationTimelineMode] = useState<ViolationTimelineMode>(
-    () => (searchParams.get('violationTimeline') as ViolationTimelineMode) || 'period'
-  )
-  const [pendingRestaurantName, setPendingRestaurantName] = useState(() => searchParams.get('restaurant') || '')
-
   const now = new Date()
   const [timelineDate, setTimelineDate] = useState(startOfMonth(now))
-
-  // Sync key filters to URL for shareable links
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (searchQuery) params.set('q', searchQuery)
-    if (visualizationMode !== 'violations') params.set('mode', visualizationMode)
-    if (timelineMonths !== 12) params.set('months', String(timelineMonths))
-    if (violationTimelineMode !== 'period') params.set('violationTimeline', violationTimelineMode)
-    if (selectedRestaurant) params.set('restaurant', selectedRestaurant.name)
-    else if (pendingRestaurantName) params.set('restaurant', pendingRestaurantName)
-    setSearchParams(params, { replace: true })
-  }, [pendingRestaurantName, searchQuery, selectedRestaurant, visualizationMode, timelineMonths, violationTimelineMode, setSearchParams])
 
   const violationDateRange = useMemo(() => {
     const end = endOfMonth(timelineDate)
@@ -262,22 +241,14 @@ export default function FoodMap() {
     return filteredRestaurants.filter(r => r.latitude && r.longitude)
   }, [filteredRestaurants])
 
-  useEffect(() => {
-    if (!pendingRestaurantName || selectedRestaurant) return
-    const restaurant = restaurantsWithStats.find((item) => item.name === pendingRestaurantName)
-    if (restaurant) {
-      setSelectedRestaurant(restaurant)
-      setPendingRestaurantName('')
-    }
-  }, [pendingRestaurantName, restaurantsWithStats, selectedRestaurant])
-
-  useEffect(() => {
-    if (!selectedRestaurant) return
-    const updatedRestaurant = restaurantsWithStats.find((item) => item.details_url === selectedRestaurant.details_url)
-    if (updatedRestaurant && updatedRestaurant !== selectedRestaurant) {
-      setSelectedRestaurant(updatedRestaurant)
-    }
-  }, [restaurantsWithStats, selectedRestaurant])
+  // The URL param is the single source of truth for the selection: deriving
+  // the selected restaurant from it (rather than mirroring it into local
+  // state) means clearing the param dismisses the card, deep links restore
+  // it, and the object always carries the latest timeline-filtered stats.
+  const selectedRestaurant = useMemo<RestaurantWithStats | null>(() => {
+    if (!restaurantName) return null
+    return restaurantsWithStats.find((item) => item.name === restaurantName) ?? null
+  }, [restaurantName, restaurantsWithStats])
 
   // Stats for the current timeline
   const timelineStats = useMemo(() => {
@@ -311,57 +282,46 @@ export default function FoodMap() {
     ? selectedViolationBuckets.length > 0
     : selectedHazardRatings.length > 0
 
-  const toggleHazardRating = useCallback((hazard: HazardRating) => {
-    setSelectedHazardRatings((current) => (
-      current.includes(hazard)
-        ? current.filter((item) => item !== hazard)
-        : [...current, hazard]
-    ))
-  }, [])
+  const toggleHazardRating = useToggleArray(selectedHazardRatings, actions.setHazardRatings)
 
   const toggleViolationBucket = useCallback((bucket: ViolationBucket) => {
-    setSelectedViolationBuckets((current) => (
-      current.includes(bucket)
-        ? current.filter((item) => item !== bucket)
-        : [...current, bucket]
-    ))
+    setSelectedViolationBuckets((current) => toggleArrayItem(current, bucket))
   }, [])
 
   // Handlers
+  const selectRestaurant = useCallback((restaurant: RestaurantWithStats | null) => {
+    setRestaurantName(restaurant ? restaurant.name : '')
+  }, [setRestaurantName])
+
   const handleRestaurantClick = useCallback((restaurant: RestaurantWithStats) => {
-    setSelectedRestaurant((current) => (
-      current?.details_url === restaurant.details_url ? null : restaurant
-    ))
-  }, [])
+    selectRestaurant(selectedRestaurant?.details_url === restaurant.details_url ? null : restaurant)
+  }, [selectRestaurant, selectedRestaurant])
 
   const handleMapRestaurantClick = useCallback((restaurant: RestaurantWithStats) => {
-    setSelectedRestaurant((current) => (
-      current?.details_url === restaurant.details_url ? null : restaurant
-    ))
+    handleRestaurantClick(restaurant)
     setShowSidebar(true)
-  }, [])
+  }, [handleRestaurantClick])
 
   const clearSelection = useCallback(() => {
-    setPendingRestaurantName('')
-    setSelectedRestaurant(null)
+    selectRestaurant(null)
     setShowInspectionPanel(false)
-  }, [])
+  }, [selectRestaurant])
 
   const openInspectionPanel = useCallback(() => {
     setShowInspectionPanel(true)
   }, [])
 
   const handleMapViewInspections = useCallback((restaurant: RestaurantWithStats) => {
-    setSelectedRestaurant(restaurant)
+    selectRestaurant(restaurant)
     setShowSidebar(true)
     setShowInspectionPanel(true)
-  }, [])
+  }, [selectRestaurant])
 
   const handleRouletteSelectOnMap = useCallback((restaurant: RestaurantWithStats) => {
-    setSelectedRestaurant(restaurant)
+    selectRestaurant(restaurant)
     setShowRoulette(false)
     setShowSidebar(true)
-  }, [])
+  }, [selectRestaurant])
 
   return (
     <>
@@ -385,31 +345,23 @@ export default function FoodMap() {
         sidebar={(
           <Sidebar
             className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
-            restaurants={filteredRestaurants}
-            geocodedRestaurants={geocodedRestaurants}
-            loading={loading}
-            error={error}
-            stats={stats}
-            timelineStats={timelineStats}
-            hazardStatsAtDate={hazardStatsAtDate}
+            data={{
+              restaurants: filteredRestaurants,
+              geocodedRestaurants,
+              loading,
+              error,
+              stats,
+              timelineStats,
+              hazardStatsAtDate,
+              violationTimelineLabel,
+            }}
+            filters={filters}
+            filterActions={actions}
             selectedRestaurant={selectedRestaurant}
-            searchQuery={searchQuery}
-            selectedHazardRatings={selectedHazardRatings}
-            selectedFacilityTypes={selectedFacilityTypes}
-            timelineMonths={timelineMonths}
-            violationTimelineMode={violationTimelineMode}
-            violationTimelineLabel={violationTimelineLabel}
-            visualizationMode={visualizationMode}
-            onSearchQueryChange={setSearchQuery}
-            onHazardRatingsChange={setSelectedHazardRatings}
-            onFacilityTypesChange={setSelectedFacilityTypes}
-            onTimelineMonthsChange={setTimelineMonths}
-            onViolationTimelineModeChange={setViolationTimelineMode}
-            onVisualizationModeChange={setVisualizationMode}
+            showTimeline={showTimeline}
             onRestaurantClick={handleRestaurantClick}
             onClearSelection={clearSelection}
             onOpenInspectionPanel={openInspectionPanel}
-            showTimeline={showTimeline}
             onToggleTimeline={() => setShowTimeline(!showTimeline)}
             onOpenRoulette={() => setShowRoulette(true)}
           />
@@ -467,14 +419,14 @@ export default function FoodMap() {
               <span className="inline-flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedHazardRatings(['Low', 'Moderate', 'Unknown'])}
+                  onClick={() => actions.setHazardRatings([...HAZARD_RATING_OPTIONS])}
                   className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
                 >
                   All
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedHazardRatings([])}
+                  onClick={() => actions.setHazardRatings([])}
                   className="font-medium text-muted-foreground hover:text-foreground"
                 >
                   None

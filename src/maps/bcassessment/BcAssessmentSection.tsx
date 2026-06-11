@@ -4,6 +4,7 @@ import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { Timeline } from '@/components/ui/timeline'
+import { toggleArrayItem } from '@/hooks/useToggleArray'
 import { BcAssessmentMap } from './components/BcAssessmentMap'
 import { BcAssessmentSidebar, formatNumber, HistorySparkline } from './components/BcAssessmentSidebar'
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
@@ -198,11 +199,7 @@ export default function BcAssessmentSection() {
   }, [categoriesInitialized, filteredBaseProperties, selectedProperty])
 
   const toggleCategory = useCallback((category: PropertyCategory) => {
-    setSelectedCategories((current) =>
-      current.includes(category)
-        ? current.filter((c) => c !== category)
-        : [...current, category]
-    )
+    setSelectedCategories((current) => toggleArrayItem(current, category))
   }, [])
 
   const handleClearSelection = useCallback(() => {

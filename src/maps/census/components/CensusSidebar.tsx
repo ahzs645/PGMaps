@@ -195,10 +195,9 @@ export function CensusSidebar({
       <StudyAreaSelector<string, CensusHierarchyLevel>
         level={selectedHierarchy}
         levelOptions={CENSUS_HIERARCHIES.map((level) => ({ value: level.key, label: level.label }))}
-        onLevelChange={(level) => {
-          onHierarchyChange(level)
-          onClearSelection()
-        }}
+        // Clearing the selected unit on level change is handled atomically by
+        // onHierarchyChange so the two URL updates land in a single write.
+        onLevelChange={onHierarchyChange}
         levelSelectId="census-study-area-level"
       />
 
@@ -307,6 +306,7 @@ export function CensusSidebar({
                   <button
                     onClick={() => setSelectedCategoryId(null)}
                     className="text-sm text-muted-foreground hover:text-foreground"
+                    aria-label="Back to category list"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

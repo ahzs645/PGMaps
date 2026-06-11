@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useFetchData } from '@/hooks/useFetchData'
 import type { Property, PropertyCategory } from '../types'
 
 function centroid(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon): [number, number] {
@@ -63,40 +64,15 @@ function parseFeatures(geojson: GeoJSON.FeatureCollection): Property[] {
 }
 
 export function useBcAssessmentData(enabled = true) {
-  const [properties, setProperties] = useState<Property[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useFetchData<Property[]>('/data/bc-assessment/parcels.geojson', {
+    enabled,
+    transform: (json) => parseFeatures(json as GeoJSON.FeatureCollection),
+  })
 
-  useEffect(() => {
-    if (!enabled) {
-      setLoading(false)
-      setError(null)
-      return
-    }
+  // Keep the last loaded properties when `enabled` flips back to false or a
+  // refetch fails, matching the previous hook's state-retention behavior.
+  const [lastProperties, setLastProperties] = useState<Property[]>([])
+  if (data && data !== lastProperties) setLastProperties(data)
 
-    const controller = new AbortController()
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch('/data/bc-assessment/parcels.geojson', {
-          signal: controller.signal,
-        })
-        if (!response.ok) throw new Error(`Failed to load: ${response.status}`)
-        const geojson: GeoJSON.FeatureCollection = await response.json()
-        setProperties(parseFeatures(geojson))
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return
-        setError((err as Error).message || 'Unable to load BC Assessment data')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    load()
-    return () => controller.abort()
-  }, [enabled])
-
-  return { properties, loading, error }
+  return { properties: data ?? lastProperties, loading, error }
 }

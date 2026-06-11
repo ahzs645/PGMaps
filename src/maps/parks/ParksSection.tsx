@@ -4,6 +4,7 @@ import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { toggleArrayItem } from '@/hooks/useToggleArray'
 import { ParksMap } from './components/ParksMap'
 import { ParksSidebar } from './components/ParksSidebar'
 import { useParksData } from './hooks/useParksData'
@@ -140,27 +141,15 @@ export default function ParksSection() {
   }, [filteredTrails, selectedTrail])
 
   const toggleLayer = useCallback((layer: ActiveLayer) => {
-    setActiveLayers((current) =>
-      current.includes(layer)
-        ? current.filter((l) => l !== layer)
-        : [...current, layer]
-    )
+    setActiveLayers((current) => toggleArrayItem(current, layer))
   }, [])
 
   const toggleClassification = useCallback((classification: ParkClassification) => {
-    setSelectedClassifications((current) =>
-      current.includes(classification)
-        ? current.filter((c) => c !== classification)
-        : [...current, classification]
-    )
+    setSelectedClassifications((current) => toggleArrayItem(current, classification))
   }, [])
 
   const toggleTrailType = useCallback((type: TrailUserClass) => {
-    setSelectedTrailTypes((current) =>
-      current.includes(type)
-        ? current.filter((t) => t !== type)
-        : [...current, type]
-    )
+    setSelectedTrailTypes((current) => toggleArrayItem(current, type))
   }, [])
 
   const handleClearSelection = useCallback(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useFetchData } from '@/hooks/useFetchData'
 import type { AssessmentBoundaryLevel, BoundaryLevel } from '../types'
 
 const BOUNDARY_FILES: Record<AssessmentBoundaryLevel, string> = {
@@ -69,36 +69,13 @@ function normalizeBoundaryData(
 }
 
 export function useBoundaryData(level: BoundaryLevel) {
-  const [data, setData] = useState<GeoJSON.FeatureCollection | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (level === 'none') {
-      setData(null)
-      return
-    }
-
-    const controller = new AbortController()
-    setLoading(true)
-
-    fetch(BOUNDARY_FILES[level], { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed: ${res.status}`)
-        return res.json()
-      })
-      .then((geojson: GeoJSON.FeatureCollection) => {
-        setData(normalizeBoundaryData(geojson, level))
-      })
-      .catch((err) => {
-        if ((err as Error).name !== 'AbortError') {
-          console.error('Failed to load boundary data:', err)
-          setData(null)
-        }
-      })
-      .finally(() => setLoading(false))
-
-    return () => controller.abort()
-  }, [level])
+  const { data, loading } = useFetchData<GeoJSON.FeatureCollection>(
+    level === 'none' ? null : BOUNDARY_FILES[level],
+    {
+      // The transform only runs when a URL is provided, i.e. level !== 'none'.
+      transform: (json) => normalizeBoundaryData(json as GeoJSON.FeatureCollection, level as AssessmentBoundaryLevel),
+    },
+  )
 
   return { boundaryData: data, boundaryLoading: loading }
 }

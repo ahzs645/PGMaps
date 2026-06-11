@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { stringCodec, stringUnionCodec, useUrlState, type UrlCodec } from '@/hooks/useUrlState'
 import { CensusMap } from './components/CensusMap'
 import { CensusSidebar, formatArea, formatUnitLabel, formatValue } from './components/CensusSidebar'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from './constants'
@@ -13,21 +14,62 @@ import type { CensusHierarchyLevel, CensusMetricKey, CensusUnit, CensusVariableS
 
 const LEGEND_SWATCHES = ['#fef3c7', '#fde68a', '#fbbf24', '#f59e0b', '#b45309']
 
+const levelCodec = stringUnionCodec<CensusHierarchyLevel>(
+  CENSUS_HIERARCHIES.map((option) => option.key),
+  'da',
+)
+const metricCodec = stringUnionCodec<CensusMetricKey>(
+  CENSUS_METRICS.map((metric) => metric.key),
+  'populationDensity',
+)
+const queryCodec = stringCodec('')
+/** Nullable id param: absent from the URL means nothing is selected. */
+const idCodec: UrlCodec<string | null> = {
+  encode: (value) => value,
+  decode: (raw) => raw,
+}
+
 export default function CensusSection() {
-  const [searchParams, setSearchParams] = useSearchParams()
   const { unitsByLevel, boundsByLevel, bounds, loading, error } = useCensusData()
   const { catalog } = useCensusCatalog()
   const [showSidebar, setShowSidebar] = useState(true)
-  const [selectedHierarchy, setSelectedHierarchy] = useState<CensusHierarchyLevel>(() => (searchParams.get('level') as CensusHierarchyLevel) || 'da')
-  const [selectedMetric, setSelectedMetric] = useState<CensusMetricKey>(() => (searchParams.get('metric') as CensusMetricKey) || 'populationDensity')
-  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
-  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(() => searchParams.get('unit'))
-  const previousHierarchyRef = useRef(selectedHierarchy)
-  const [variableSelection, setVariableSelection] = useState<CensusVariableSelection | null>(() => {
-    const categoryId = searchParams.get('category')
-    const variableId = searchParams.get('variable')
-    return categoryId && variableId ? { categoryId, variableId } : null
-  })
+  const [selectedHierarchy] = useUrlState('level', levelCodec)
+  const [selectedMetric, setSelectedMetric] = useUrlState('metric', metricCodec)
+  const [searchQuery, setSearchQuery] = useUrlState('q', queryCodec)
+  const [selectedUnitId, setSelectedUnitId] = useUrlState('unit', idCodec)
+  const [selectedCategoryId] = useUrlState('category', idCodec)
+  const [selectedVariableId] = useUrlState('variable', idCodec)
+  const [, setSearchParams] = useSearchParams()
+
+  const variableSelection = useMemo<CensusVariableSelection | null>(
+    () => (selectedCategoryId && selectedVariableId
+      ? { categoryId: selectedCategoryId, variableId: selectedVariableId }
+      : null),
+    [selectedCategoryId, selectedVariableId],
+  )
+
+  /**
+   * Apply several encoded params in a single history replace. Updates that
+   * span multiple keys (e.g. level change clearing the selected unit) must go
+   * through one setSearchParams call: consecutive per-key writes within one
+   * handler would each start from the stale render params and clobber.
+   */
+  const applyParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      setSearchParams(
+        (current) => {
+          const params = new URLSearchParams(current)
+          for (const [key, encoded] of Object.entries(updates)) {
+            if (encoded === null || encoded === '') params.delete(key)
+            else params.set(key, encoded)
+          }
+          return params
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams],
+  )
 
   const { data: variableData, loading: variableLoading } = useCensusVariableData(
     selectedHierarchy,
@@ -100,51 +142,31 @@ export default function CensusSection() {
     if (!currentSupported) {
       setSelectedMetric(availableMetrics[0].key)
     }
-  }, [availableMetrics, selectedMetric])
+  }, [availableMetrics, selectedMetric, setSelectedMetric])
 
-  useEffect(() => {
-    if (previousHierarchyRef.current === selectedHierarchy) {
-      return
-    }
-    previousHierarchyRef.current = selectedHierarchy
-    setSelectedUnitId(null)
-    if (selectedHierarchy === 'db') {
-      setVariableSelection(null)
-    }
-  }, [selectedHierarchy])
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams)
-    params.set('level', selectedHierarchy)
-    if (selectedMetric !== 'populationDensity') params.set('metric', selectedMetric)
-    else params.delete('metric')
-    if (searchQuery.trim()) params.set('q', searchQuery.trim())
-    else params.delete('q')
-    if (selectedUnitId) params.set('unit', selectedUnitId)
-    else params.delete('unit')
-    if (variableSelection) {
-      params.set('category', variableSelection.categoryId)
-      params.set('variable', variableSelection.variableId)
-    } else {
-      params.delete('category')
-      params.delete('variable')
-    }
-    if (params.toString() !== searchParams.toString()) {
-      setSearchParams(params, { replace: true })
-    }
-  }, [searchParams, searchQuery, selectedHierarchy, selectedMetric, selectedUnitId, setSearchParams, variableSelection])
+  function handleHierarchyChange(level: CensusHierarchyLevel) {
+    if (level === selectedHierarchy) return
+    applyParams({
+      level: levelCodec.encode(level),
+      unit: null,
+      ...(level === 'db' ? { category: null, variable: null } : {}),
+    })
+  }
 
   function handleMetricChange(metric: CensusMetricKey) {
-    setSelectedMetric(metric)
-    setVariableSelection(null)
+    applyParams({
+      metric: metricCodec.encode(metric),
+      category: null,
+      variable: null,
+    })
   }
 
   function handleVariableSelect(categoryId: string, variableId: string) {
-    setVariableSelection({ categoryId, variableId })
+    applyParams({ category: categoryId, variable: variableId })
   }
 
   function handleClearVariable() {
-    setVariableSelection(null)
+    applyParams({ category: null, variable: null })
   }
 
   return (
@@ -178,7 +200,7 @@ export default function CensusSection() {
           variableLoading={variableLoading}
           variableValuesByGeoUid={variableValuesByGeoUid}
           onMetricChange={handleMetricChange}
-          onHierarchyChange={setSelectedHierarchy}
+          onHierarchyChange={handleHierarchyChange}
           onSearchQueryChange={setSearchQuery}
           onUnitClick={(unit) => setSelectedUnitId(unit.id)}
           onClearSelection={() => setSelectedUnitId(null)}
@@ -193,7 +215,7 @@ export default function CensusSection() {
           selectedMetric={selectedMetric}
           selectedUnitId={selectedUnitId}
           bounds={boundsByLevel[selectedHierarchy] || bounds}
-          onUnitClick={(id) => setSelectedUnitId((current) => current === id ? null : id)}
+          onUnitClick={(id) => setSelectedUnitId(selectedUnitId === id ? null : id)}
           variableValuesByGeoUid={variableValuesByGeoUid}
           loading={loading || variableLoading}
         />

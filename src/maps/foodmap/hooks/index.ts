@@ -1,3 +1,5 @@
 export { useRestaurantData } from './useRestaurantData'
 export { useRouletteState } from './useRouletteState'
 export { useGeolocation } from './useGeolocation'
+export { useFoodMapFilters, HAZARD_RATING_OPTIONS, FACILITY_TYPE_OPTIONS } from './useFoodMapFilters'
+export type { FoodMapFilters, FoodMapFilterActions } from './useFoodMapFilters'

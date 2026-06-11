@@ -4,6 +4,7 @@ import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Timeline } from '@/components/ui/timeline'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { formatDate } from '@/lib/format'
 import { DroughtMap } from './components/DroughtMap'
 import { DroughtSidebar } from './components/DroughtSidebar'
 import { useDroughtData } from './hooks/useDroughtData'
@@ -227,7 +228,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
         <div className="absolute right-14 top-16 z-10 rounded-md border border-border bg-background/95 px-2 py-1.5 text-[11px] shadow-lg backdrop-blur sm:right-16 sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs md:right-16 md:top-4">
           <div className="font-semibold leading-tight text-foreground">{selectedYear}</div>
           <div className="leading-tight text-muted-foreground">
-            {timelineDate?.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {formatDate(timelineDate, { fallback: '' })}
           </div>
         </div>
 

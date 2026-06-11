@@ -119,7 +119,7 @@ function formatArcGisDate(value: number | undefined): string {
 }
 
 async function fetchArcGis<T>(url: string, signal: AbortSignal): Promise<ArcGisResponse<T>> {
-  const response = await fetch(url, { signal, cache: 'no-store' })
+  const response = await fetch(url, { signal })
   if (!response.ok) throw new Error(`BC RFC request failed: ${response.status}`)
   const json = await response.json() as ArcGisResponse<T>
   if (json.error?.message) throw new Error(json.error.message)
@@ -221,7 +221,7 @@ export function useFloodData(active: boolean) {
           mode === 'current'
             ? fetchArcGis<CurrentStationAttributes>(FLOOD_ENDPOINTS.current, controller.signal)
             : fetchArcGis<ForecastStationAttributes>(FLOOD_ENDPOINTS[mode], controller.signal),
-          fetch(FLOOD_BASINS_URL, { signal: controller.signal, cache: 'no-store' }),
+          fetch(FLOOD_BASINS_URL, { signal: controller.signal }),
         ])
         const nextStations = (stationResponse.features ?? [])
           .map((feature) => mode === 'current'

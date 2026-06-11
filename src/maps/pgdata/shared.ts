@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
+import { formatDate as formatDateShared } from '@/lib/format'
 
 export function formatDate(value: string | undefined): string {
-  if (!value) return 'Unknown'
-  return new Date(value).toLocaleDateString('en-CA', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  return formatDateShared(value)
 }
 
+// Not migrated to @/lib/format's formatNumber: this intentionally formats with the
+// runtime's default locale (`toLocaleString(undefined, ...)`), while the shared
+// helper pins 'en-CA'. Outputs differ for non-en-CA runtimes.
 export function formatNullableNumber(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return 'No value'
   return value.toLocaleString(undefined, { maximumFractionDigits: 3 })
@@ -31,7 +30,7 @@ export function useJsonManifest<T>(path: string | null) {
     async function load() {
       try {
         setError(null)
-        const response = await fetch(resolvedPath, { signal: controller.signal, cache: 'no-store' })
+        const response = await fetch(resolvedPath, { signal: controller.signal })
         if (!response.ok) throw new Error(`Failed to fetch ${resolvedPath}: ${response.status}`)
         const contentType = response.headers.get('content-type') ?? ''
         const text = await response.text()

@@ -56,7 +56,7 @@ export function useNetworkAvailabilityLayer(enabled: boolean) {
     async function load() {
       try {
         setError(null)
-        const response = await fetch(NRCAN_WIRELESS_GEOJSON_URL, { signal: controller.signal, cache: 'no-store' })
+        const response = await fetch(NRCAN_WIRELESS_GEOJSON_URL, { signal: controller.signal })
         if (!response.ok) throw new Error(`Failed to fetch NRCan wireless layer: ${response.status}`)
         const geojson = (await response.json()) as NetworkAvailabilityFeatureCollection
         setData({
