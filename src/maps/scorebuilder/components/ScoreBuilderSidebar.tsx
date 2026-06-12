@@ -315,7 +315,7 @@ export function ScoreBuilderSidebar({
 
         {/* Section nav ribbon */}
         <div className="sticky top-0 z-20 border-b border-border bg-background/95 px-3 py-2 backdrop-blur">
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {SCORE_BUILDER_SECTION_ORDER.map((sectionId) => (
               <button
                 key={sectionId}
@@ -323,7 +323,7 @@ export function ScoreBuilderSidebar({
                 data-score-builder-section-nav={sectionId}
                 onClick={() => scrollToSection(sectionId)}
                 className={cn(
-                  'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                  'shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                   activeSection === sectionId
                     ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100'
                     : 'border-input text-muted-foreground hover:text-foreground',
@@ -430,6 +430,7 @@ export function ScoreBuilderSidebar({
                   <div key={ds.id}>
                     <button
                       aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
+                      title={ds.description}
                       onClick={() => onToggleDataSource(ds.id)}
                       className={cn(
                         'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors',
@@ -438,10 +439,7 @@ export function ScoreBuilderSidebar({
                           : 'border-input bg-background text-muted-foreground hover:text-foreground',
                       )}
                     >
-                      <div>
-                        <div className="font-medium">{ds.label}</div>
-                        <div className="text-[11px] text-muted-foreground">{ds.description}</div>
-                      </div>
+                      <span className="min-w-0 truncate font-medium">{ds.label}</span>
                       <span className={cn('text-xs font-semibold', active ? 'text-cyan-600' : 'text-muted-foreground')}>
                         {active ? 'ON' : 'OFF'}
                       </span>

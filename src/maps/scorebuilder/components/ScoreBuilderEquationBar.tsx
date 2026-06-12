@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
+  BookMarked,
   Check,
   ChevronDown,
   ChevronUp,
@@ -8,7 +9,6 @@ import {
   Download,
   FlipHorizontal,
   Flame,
-  GripVertical,
   Info,
   Plus,
   Redo2,
@@ -209,60 +209,76 @@ export function ScoreBuilderEquationBar({
               >
                 <Redo2 className="h-4 w-4" />
               </button>
-              <button
-                type="button"
-                onClick={onToggleDensityMode}
-                aria-pressed={densityMode}
-                title={
-                  densityMode
-                    ? 'Density mode is on — map paints regions by a single metric'
-                    : 'Turn on density mode to paint the map by a single metric'
-                }
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                  densityMode
-                    ? 'border-amber-500 bg-amber-500 text-white hover:bg-amber-600'
-                    : 'border-input bg-background text-foreground hover:bg-muted',
-                )}
+              <div
+                role="group"
+                aria-label="Map lens"
+                className="inline-flex h-8 items-stretch overflow-hidden rounded-md border border-input bg-background"
               >
-                <Flame className="h-3.5 w-3.5" />
-                {densityMode ? 'Density · On' : 'Density'}
-              </button>
-              <button
-                type="button"
-                onClick={onToggleCorrelateMode}
-                aria-pressed={correlateMode}
-                title={
-                  correlateMode
-                    ? 'Correlation mode is on — map shows relationship between two metrics'
-                    : 'Turn on correlation mode to compare any two metrics'
-                }
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                  correlateMode
-                    ? 'border-cyan-500 bg-cyan-500 text-white hover:bg-cyan-600'
-                    : 'border-input bg-background text-foreground hover:bg-muted',
-                )}
-              >
-                <Activity className="h-3.5 w-3.5" />
-                {correlateMode ? 'Correlate · On' : 'Correlate'}
-              </button>
+                <button
+                  type="button"
+                  aria-pressed={!densityMode && !correlateMode}
+                  title="Score lens — map colored by the composite index"
+                  onClick={() => {
+                    if (densityMode) onToggleDensityMode()
+                    if (correlateMode) onToggleCorrelateMode()
+                  }}
+                  className={cn(
+                    'px-2.5 text-xs font-medium transition-colors',
+                    !densityMode && !correlateMode
+                      ? 'bg-cyan-500 text-white'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  Score
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={densityMode}
+                  title="Density lens — map painted by a single metric"
+                  onClick={() => {
+                    if (!densityMode) onToggleDensityMode()
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-1 border-l border-input px-2.5 text-xs font-medium transition-colors',
+                    densityMode ? 'bg-amber-500 text-white' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Flame className="h-3.5 w-3.5" />
+                  Density
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={correlateMode}
+                  title="Correlate lens — map shows the relationship between two metrics"
+                  onClick={() => {
+                    if (!correlateMode) onToggleCorrelateMode()
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-1 border-l border-input px-2.5 text-xs font-medium transition-colors',
+                    correlateMode ? 'bg-cyan-500 text-white' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Activity className="h-3.5 w-3.5" />
+                  Correlate
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => setPresetDialogOpen(true)}
                 title="Browse presets"
-                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                aria-label="Browse presets"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
               >
-                Presets
+                <BookMarked className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={onOpenSettings}
-                title="Open index settings (examples, methodology, model, robustness)"
-                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                title="Index settings (examples, saved indexes, methodology, model, robustness)"
+                aria-label="Index settings"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
               >
-                <SettingsIcon className="h-3.5 w-3.5" />
-                Settings
+                <SettingsIcon className="h-4 w-4" />
               </button>
               <div ref={exportMenuRef} className="relative">
                 <button
@@ -336,6 +352,7 @@ export function ScoreBuilderEquationBar({
                     {index > 0 && <span className="text-muted-foreground">+</span>}
                     <div
                       data-score-builder-equation-term={metric.key}
+                      title={`${metric.label} — ${(share * 100).toFixed(0)}% of total weight · ${metric.directionLabel}`}
                       className={cn(
                         'inline-flex items-stretch overflow-hidden rounded-lg border bg-background text-xs shadow-sm',
                         isNegative
@@ -358,14 +375,9 @@ export function ScoreBuilderEquationBar({
                       >
                         {isNegative ? '-' : '+'}
                       </button>
-                      <div className="flex items-center gap-2 border-l border-r border-border px-2 py-1.5">
-                        <span className="font-mono font-semibold text-foreground">{share.toFixed(2)}</span>
-                        <GripVertical className="h-3 w-3 text-muted-foreground" />
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2 py-1.5">
+                      <div className="flex items-center gap-1.5 border-l border-border px-2 py-1.5">
                         <span className={cn('h-2 w-2 rounded-sm', getCategoryDot(metric.category))} />
                         <span className="max-w-[10rem] truncate font-medium text-foreground">{metric.shortLabel}</span>
-                        <span className="text-[10px] text-muted-foreground">· {metric.directionLabel}</span>
                       </div>
                       <button
                         type="button"

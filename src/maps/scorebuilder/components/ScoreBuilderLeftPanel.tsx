@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Layers, Plus, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, ChevronUp, Layers, Plus, Trash2, Upload } from 'lucide-react'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
@@ -129,20 +129,16 @@ export function ScoreBuilderLeftPanel({
                   <button
                     type="button"
                     aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
+                    title={ds.description}
                     onClick={() => onToggleDataSource(ds.id)}
                     className={cn(
-                      'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors',
+                      'flex w-full items-center justify-between rounded-md border px-3 py-1.5 text-left text-xs transition-colors',
                       active
                         ? 'border-cyan-500/60 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-100'
                         : 'border-input bg-background text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    <div className="min-w-0">
-                      <div className="font-medium">{ds.label}</div>
-                      <div className="line-clamp-1 text-[10px] text-muted-foreground">
-                        {ds.description}
-                      </div>
-                    </div>
+                    <span className="min-w-0 truncate font-medium">{ds.label}</span>
                     <span
                       className={cn(
                         'ml-2 shrink-0 text-xs font-semibold',
@@ -277,6 +273,9 @@ export function CustomMetricBuilder({
   const [censusPresetId, setCensusPresetId] = useState(CENSUS_COMPOSER_PRESETS[0]?.id ?? '')
   const [direction, setDirection] = useState<'higherIsBetter' | 'higherIsWorse'>('higherIsBetter')
   const [format, setFormat] = useState<'count' | 'density' | 'ratio' | 'percent' | 'index'>('count')
+  // Both heavy forms stay collapsed until needed so the panel reads as a short list.
+  const [uploadsOpen, setUploadsOpen] = useState(false)
+  const [builderOpen, setBuilderOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadLabel, setUploadLabel] = useState('')
   const [uploadStatus, setUploadStatus] = useState<{ tone: 'info' | 'error'; message: string } | null>(null)
@@ -308,6 +307,7 @@ export function CustomMetricBuilder({
       // Clear the prefilled education filter so it doesn't silently zero out the upload.
       setFilterField('')
       setFilterValue('')
+      setBuilderOpen(true)
       setUploadStatus({
         tone: 'info',
         message:
@@ -324,9 +324,23 @@ export function CustomMetricBuilder({
 
   return (
     <section className="border-t border-border p-4">
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Your data (this device)
-      </h3>
+      <button
+        type="button"
+        onClick={() => setUploadsOpen((current) => !current)}
+        aria-expanded={uploadsOpen}
+        className="mb-2 flex w-full items-center justify-between gap-2 text-left"
+        data-score-builder-uploads-toggle="true"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Your data (this device){userDatasets.length > 0 ? ` · ${userDatasets.length}` : ''}
+        </span>
+        {uploadsOpen ? (
+          <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+      </button>
+      {uploadsOpen && (
       <div className="space-y-2 rounded-md border border-border bg-card p-3" data-score-builder-user-uploads="true">
         <p className="text-[11px] text-muted-foreground">
           Upload GeoJSON or CSV (with lat/lon columns) point data to use in custom metrics. Files are stored in this
@@ -392,10 +406,25 @@ export function CustomMetricBuilder({
           </div>
         )}
       </div>
+      )}
 
-      <h3 className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Custom metric recipe
-      </h3>
+      <button
+        type="button"
+        onClick={() => setBuilderOpen((current) => !current)}
+        aria-expanded={builderOpen}
+        className="mb-2 mt-4 flex w-full items-center justify-between gap-2 text-left"
+        data-score-builder-recipe-toggle="true"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Custom metric recipe
+        </span>
+        {builderOpen ? (
+          <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+      </button>
+      {builderOpen && (
       <div className="space-y-2 rounded-md border border-border bg-card p-3">
         <input
           value={label}
@@ -648,6 +677,7 @@ export function CustomMetricBuilder({
           Add recipe metric
         </button>
       </div>
+      )}
 
       {recipes.length > 0 && (
         <div className="mt-3 space-y-1">

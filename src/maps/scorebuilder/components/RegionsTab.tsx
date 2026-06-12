@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Download, Image as ImageIcon, Search } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, Image as ImageIcon, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from '../constants'
 import type { ScoredBoundaryRegion, ScoreMetricWeightMap } from '../types'
@@ -70,6 +70,7 @@ export function RegionsTab({
   const visibleCount = pagination.query === searchQuery ? pagination.count : MAX_VISIBLE_REGION_ROWS
   const visibleRows = useMemo(() => filteredRegions.slice(0, visibleCount), [filteredRegions, visibleCount])
   const remainingRows = Math.max(0, filteredRegions.length - visibleRows.length)
+  const [equityOpen, setEquityOpen] = useState(false)
 
   return (
     <div className={cn('space-y-3', className)} data-score-builder-section="regions">
@@ -143,16 +144,34 @@ export function RegionsTab({
       />
 
       {populationEquitySummary && (
-        <div className="rounded-lg border border-cyan-200 bg-cyan-50/70 p-3 text-xs text-cyan-950 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-100">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">
-            Equity by the numbers
-          </div>
-          <div className="mt-1 text-sm font-semibold">{populationEquitySummary.narrative}</div>
-          <div className="mt-1 text-[11px] text-cyan-800/80 dark:text-cyan-200/80">
-            {populationEquitySummary.priorityPopulation.toLocaleString()} of{' '}
-            {populationEquitySummary.totalPopulation.toLocaleString()} people ·{' '}
-            {populationEquitySummary.priorityRegionCount} regions
-          </div>
+        <div className="rounded-lg border border-cyan-200 bg-cyan-50/70 text-xs text-cyan-950 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-100">
+          <button
+            type="button"
+            onClick={() => setEquityOpen((current) => !current)}
+            aria-expanded={equityOpen}
+            className="flex w-full items-center justify-between gap-2 p-3 text-left"
+          >
+            <span
+              className={cn(
+                'min-w-0 text-xs font-semibold',
+                !equityOpen && 'line-clamp-1',
+              )}
+            >
+              {populationEquitySummary.narrative}
+            </span>
+            {equityOpen ? (
+              <ChevronUp className="h-3.5 w-3.5 shrink-0 text-cyan-700 dark:text-cyan-300" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-cyan-700 dark:text-cyan-300" />
+            )}
+          </button>
+          {equityOpen && (
+            <div className="px-3 pb-3 text-[11px] text-cyan-800/80 dark:text-cyan-200/80">
+              {populationEquitySummary.priorityPopulation.toLocaleString()} of{' '}
+              {populationEquitySummary.totalPopulation.toLocaleString()} people ·{' '}
+              {populationEquitySummary.priorityRegionCount} regions
+            </div>
+          )}
         </div>
       )}
 
@@ -291,7 +310,8 @@ export function RegionsTab({
           {visibleRows.map((entry) => {
             const selected = selectedRegion?.region.id === entry.region.id
             const pinned = comparisonSet.has(entry.region.id)
-            const topDrivers = getScoreDrivers(entry, weights, 2)
+            // Drivers and confidence intervals render only for the selected row to keep the list scannable.
+            const topDrivers = selected ? getScoreDrivers(entry, weights, 2) : []
             return (
               <div
                 key={entry.region.id}
@@ -306,28 +326,34 @@ export function RegionsTab({
                     <div className="line-clamp-1 text-sm font-medium text-foreground">
                       #{entry.rank} {entry.region.name}
                     </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      Code {entry.region.code} | Density{' '}
-                      {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
+                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>
+                        Code {entry.region.code} | Density{' '}
+                        {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
+                      </span>
+                      {entry.dataCoverageScore < 0.6 && (
+                        <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                          Thin data
+                        </span>
+                      )}
                     </div>
-                    {topDrivers.length > 0 && (
-                      <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
-                        Top:{' '}
-                        {topDrivers
-                          .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
-                          .join(', ')}{' '}
-                        pts
-                      </div>
+                    {selected && (
+                      <>
+                        {topDrivers.length > 0 && (
+                          <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
+                            Top:{' '}
+                            {topDrivers
+                              .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
+                              .join(', ')}{' '}
+                            pts
+                          </div>
+                        )}
+                        <div className="mt-1 text-[11px] text-muted-foreground">
+                          {entry.rankConfidence} · rank #{entry.rankInterval[0]}-#{entry.rankInterval[1]} · score{' '}
+                          {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
+                        </div>
+                      </>
                     )}
-                    {entry.dataCoverageScore < 0.6 && (
-                      <div className="mt-1 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
-                        Thin data coverage
-                      </div>
-                    )}
-                    <div className="mt-1 text-[10px] text-muted-foreground">
-                      {entry.rankConfidence} · rank #{entry.rankInterval[0]}-#{entry.rankInterval[1]} · score{' '}
-                      {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
-                    </div>
                   </button>
                   <div className="flex shrink-0 items-center gap-1">
                     <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">
