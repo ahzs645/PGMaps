@@ -573,7 +573,7 @@ export function buildIcbcItems(features: GeoJSON.Feature<GeoJSON.Point, IcbcCras
   const maxCount = features.reduce((max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0), 0)
   return features
     .filter((feature) => feature.geometry.type === 'Point')
-    .map((feature) => {
+    .map((feature, index) => {
       const [longitude, latitude] = feature.geometry.coordinates
       const props = feature.properties
       const crashCount = Number(props.crashCount) || 0
@@ -582,7 +582,9 @@ export function buildIcbcItems(features: GeoJSON.Feature<GeoJSON.Point, IcbcCras
       const matchPts = props.geocodeMatchType?.includes('intersection') ? 10 : 5
       const relevance = clampScore(20 + countPts + matchPts)
       return {
-        id: `icbc:${props.dataset}-${props.location}`,
+        // Location strings repeat across crash sites, so the id needs the
+        // feature index to stay unique (it doubles as the React list key).
+        id: `icbc:${props.dataset}-${props.location}-${index}`,
         datasetId: 'icbcCrashes' as const,
         geometryType: 'point' as const,
         name: props.location || 'Crash location',

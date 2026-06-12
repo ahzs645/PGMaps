@@ -26,6 +26,8 @@ interface CensusSidebarProps {
   loading: boolean
   error: string | null
   catalog: CensusCatalog | null
+  catalogLoading: boolean
+  catalogError: string | null
   variableSelection: CensusVariableSelection | null
   variableLoading: boolean
   variableValuesByGeoUid: Map<string, number | null> | null
@@ -79,6 +81,8 @@ export function CensusSidebar({
   loading,
   error,
   catalog,
+  catalogLoading,
+  catalogError,
   variableSelection,
   variableLoading,
   variableValuesByGeoUid,
@@ -189,7 +193,13 @@ export function CensusSidebar({
     <MapSidebarShell
       className={className}
       title="Census Data Explorer"
-      subtitle={`${catalog ? `${catalog.totalVariables.toLocaleString()} variables` : 'Loading catalog...'} across 5 geographic levels`}
+      subtitle={
+        catalog
+          ? `${catalog.totalVariables.toLocaleString()} variables across 5 geographic levels`
+          : catalogLoading
+            ? 'Loading catalog... across 5 geographic levels'
+            : 'Census patterns across 5 geographic levels'
+      }
       dataset={DATASETS.census}
     >
       <StudyAreaSelector<string, CensusHierarchyLevel>
@@ -251,17 +261,27 @@ export function CensusSidebar({
                 </button>
               </div>
             )}
-            <button
-              onClick={() => setShowVariableBrowser((v) => !v)}
-              className={cn(
-                'w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-                showVariableBrowser
-                  ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200'
-                  : 'border-input bg-background text-foreground hover:bg-accent',
-              )}
-            >
-              {showVariableBrowser ? 'Hide Variable Browser' : 'Browse Census Variables...'}
-            </button>
+            {catalog ? (
+              <button
+                onClick={() => setShowVariableBrowser((v) => !v)}
+                className={cn(
+                  'w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors',
+                  showVariableBrowser
+                    ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200'
+                    : 'border-input bg-background text-foreground hover:bg-accent',
+                )}
+              >
+                {showVariableBrowser ? 'Hide Variable Browser' : 'Browse Census Variables...'}
+              </button>
+            ) : catalogLoading ? (
+              <div className="rounded-lg border border-muted bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Loading census variable catalog...
+              </div>
+            ) : (
+              <div className="rounded-lg border border-muted bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                {catalogError || 'Census variable catalog is not available.'} Core metrics above still work.
+              </div>
+            )}
           </>
         )}
       </div>

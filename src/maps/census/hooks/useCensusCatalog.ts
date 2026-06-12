@@ -19,6 +19,12 @@ export function useCensusCatalog() {
       try {
         const response = await fetch(CATALOG_URL, { signal: controller.signal })
         if (!response.ok) throw new Error(`Failed to load census catalog (${response.status})`)
+        // Dev servers answer missing files with the SPA index.html and a 200,
+        // so the content type is the only reliable missing-file signal.
+        const contentType = response.headers.get('content-type') || ''
+        if (!contentType.includes('json')) {
+          throw new Error('Census variable catalog is not available in this build.')
+        }
         const data = await response.json() as CensusCatalog
         cachedCatalog = data
         setCatalog(data)

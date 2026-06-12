@@ -31,7 +31,7 @@ const idCodec: UrlCodec<string | null> = {
 
 export default function CensusSection() {
   const { unitsByLevel, boundsByLevel, bounds, loading, error } = useCensusData()
-  const { catalog } = useCensusCatalog()
+  const { catalog, loading: catalogLoading, error: catalogError } = useCensusCatalog()
   const [showSidebar, setShowSidebar] = useState(true)
   const [selectedHierarchy] = useUrlState('level', levelCodec)
   const [selectedMetric, setSelectedMetric] = useUrlState('metric', metricCodec)
@@ -196,6 +196,8 @@ export default function CensusSection() {
           loading={loading}
           error={error}
           catalog={catalog}
+          catalogLoading={catalogLoading}
+          catalogError={catalogError}
           variableSelection={variableSelection}
           variableLoading={variableLoading}
           variableValuesByGeoUid={variableValuesByGeoUid}

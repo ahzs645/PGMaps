@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, Download, Image as ImageIcon, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from '../constants'
-import type { ScoredBoundaryRegion, ScoreMetricWeightMap } from '../types'
+import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
-import { formatMetricValue, formatScore } from '../lib/metrics'
+import { formatMetricValue, formatScore, getMetricLabel } from '../lib/metrics'
 import { formatDriverDelta, getScoreDrivers, type ScoreDriver } from '../lib/scoreDrivers'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
 import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
@@ -71,6 +71,21 @@ export function RegionsTab({
   const visibleRows = useMemo(() => filteredRegions.slice(0, visibleCount), [filteredRegions, visibleCount])
   const remainingRows = Math.max(0, filteredRegions.length - visibleRows.length)
   const [equityOpen, setEquityOpen] = useState(false)
+
+  // Region cards summarize the heaviest active metric; a fixed metric would
+  // read as 0 whenever its data source is switched off.
+  const topWeightedMetric = useMemo<ScoreMetricKey | null>(() => {
+    let top: ScoreMetricKey | null = null
+    let topWeight = 0
+    for (const metric of SCORE_METRICS) {
+      const weight = Math.abs(weights[metric.key] ?? 0)
+      if (weight > topWeight) {
+        top = metric.key
+        topWeight = weight
+      }
+    }
+    return top
+  }, [weights])
 
   return (
     <div className={cn('space-y-3', className)} data-score-builder-section="regions">
@@ -327,9 +342,15 @@ export function RegionsTab({
                       #{entry.rank} {entry.region.name}
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span>
-                        Code {entry.region.code} | Density{' '}
-                        {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
+                      <span className="line-clamp-1">
+                        Code {entry.region.code}
+                        {topWeightedMetric && (
+                          <>
+                            {' | '}
+                            {getMetricLabel(topWeightedMetric)}{' '}
+                            {formatMetricValue(topWeightedMetric, entry.metrics[topWeightedMetric] ?? 0, true)}
+                          </>
+                        )}
                       </span>
                       {entry.dataCoverageScore < 0.6 && (
                         <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">

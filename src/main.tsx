@@ -5,6 +5,20 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './index.css'
 
+// The service worker caches aggressively, so it stays production-only; in dev
+// it would keep serving stale modules across edits.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    if (import.meta.env.PROD) {
+      void navigator.serviceWorker.register('/sw.js')
+    } else {
+      void navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => void registration.unregister())
+      })
+    }
+  })
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>

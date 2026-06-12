@@ -134,7 +134,7 @@ export function ExplorerSidebar({
           </div>
         }
       >
-        <div className="max-h-32 space-y-1 overflow-y-auto pr-1">
+        <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
           {datasetStats.map((stat) => {
             const active = datasetSet.has(stat.dataset.id)
             return (
@@ -193,14 +193,14 @@ export function ExplorerSidebar({
             type="date"
             value={dateRange.from}
             onChange={(e) => onDateRangeChange({ ...dateRange, from: e.target.value })}
-            className="rounded border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
           <span className="text-muted-foreground">to</span>
           <input
             type="date"
             value={dateRange.to}
             onChange={(e) => onDateRangeChange({ ...dateRange, to: e.target.value })}
-            className="rounded border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
           {(dateRange.from || dateRange.to) && (
             <button
@@ -224,8 +224,8 @@ export function ExplorerSidebar({
 
         {/* Export + relevance info */}
         <div className="flex items-center justify-between">
-          <div className="text-[11px] text-muted-foreground" title={RELEVANCE_DESCRIPTION}>
-            {RELEVANCE_DESCRIPTION.slice(0, 60)}...
+          <div className="line-clamp-2 min-w-0 text-[11px] text-muted-foreground" title={RELEVANCE_DESCRIPTION}>
+            {RELEVANCE_DESCRIPTION}
           </div>
           <div className="flex gap-1">
             <button
