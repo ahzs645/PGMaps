@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, Flame, Settings as SettingsIcon, Undo2 } from 'lucide-react'
 import {
   DESKTOP_SIDEBAR_MAX_WIDTH,
@@ -23,7 +23,14 @@ import { useScoreBuilderMetricRows } from './hooks/useScoreBuilderMetricRows'
 import { useScoreBuilderPointRecords } from './hooks/useScoreBuilderPointRecords'
 import { useScoreBuilderResults } from './hooks/useScoreBuilderResults'
 import { useScoreBuilderState } from './hooks/useScoreBuilderState'
+import { useUserDatasets } from './hooks/useUserDatasets'
 import { exportMapImage, exportScoredRegions, type ScoreBuilderExportFormat } from './lib/exportRegions'
+import { exportPdfReport } from './lib/exportPdfReport'
+import {
+  captureBaselineSnapshot,
+  compareAgainstBaseline,
+  type BaselineSnapshot,
+} from './lib/baselineComparison'
 
 const LAYOUT_STORAGE_KEY = 'pgmaps.indexLab.layout'
 
@@ -127,6 +134,17 @@ export default function ScoreBuilderSection() {
     customMetricRecipes: state.customMetricRecipes,
   })
 
+  // User-uploaded datasets (Dexie/IndexedDB) join the recipe pipeline as `user.*` sources.
+  const userDatasets = useUserDatasets()
+  const datasetCollections = useMemo(
+    () => ({ ...datasets.datasetCollections, ...userDatasets.collections }),
+    [datasets.datasetCollections, userDatasets.collections],
+  )
+  const datasetProfiles = useMemo(
+    () => ({ ...datasets.datasetProfiles, ...userDatasets.profiles }),
+    [datasets.datasetProfiles, userDatasets.profiles],
+  )
+
   const points = useScoreBuilderPointRecords({
     enabledSourceSet: sb.enabledSourceSet,
     datasets,
@@ -145,7 +163,7 @@ export default function ScoreBuilderSection() {
     points,
     customMetricRecipes: state.customMetricRecipes,
     censusCategoryData: datasets.censusCategoryData,
-    datasetCollections: datasets.datasetCollections,
+    datasetCollections,
     healthyPlanPgEnabled: sb.enabledSourceSet.has('healthyPlanPg'),
     activeMetricDefinitions: sb.activeMetricDefinitions,
   })
@@ -189,10 +207,27 @@ export default function ScoreBuilderSection() {
   const excludedRegionCount = Math.max(0, results.unfilteredScoredRegions.length - results.scoredRegions.length)
   const activeRecipeLabel = results.activeExample?.label || results.activePreset?.label || 'Custom index'
 
+  // Scenario A/B: a user-pinned snapshot of the ranking that later edits are diffed against.
+  const [baseline, setBaseline] = useState<BaselineSnapshot | null>(null)
+  const pinBaseline = useCallback(() => {
+    setBaseline(captureBaselineSnapshot(results.scoredRegions, activeRecipeLabel))
+  }, [activeRecipeLabel, results.scoredRegions])
+  const clearBaseline = useCallback(() => setBaseline(null), [])
+  const baselineComparison = useMemo(
+    () => (baseline ? compareAgainstBaseline(baseline, results.scoredRegions) : null),
+    [baseline, results.scoredRegions],
+  )
+
   const mapInstanceRef = useRef<MapRef | null>(null)
   const handleMapInstance = useCallback((map: MapRef | null) => {
     mapInstanceRef.current = map
   }, [])
+
+  const activeRecipeDescription = results.activeExample
+    ? results.activeExample.question
+    : results.activePreset
+      ? results.activePreset.description
+      : 'Custom index built in the PGMaps Index Lab.'
 
   const handleExport = useCallback(
     (format: ScoreBuilderExportFormat) => {
@@ -201,9 +236,30 @@ export default function ScoreBuilderSection() {
         if (map) void exportMapImage(map, activeRecipeLabel).catch(() => {})
         return
       }
+      if (format === 'pdf') {
+        void exportPdfReport({
+          map: mapInstanceRef.current,
+          title: activeRecipeLabel,
+          description: activeRecipeDescription,
+          equationPreview: results.equationPreview,
+          methodSettings: state.methodSettings,
+          scoredRegions: results.scoredRegions,
+          metrics: sb.activeMetricDefinitions,
+          scoreSpread: results.scoreSpread,
+        }).catch(() => {})
+        return
+      }
       exportScoredRegions(format, results.scoredRegions, sb.activeMetricDefinitions, state.methodSettings.aggregation)
     },
-    [activeRecipeLabel, results.scoredRegions, sb.activeMetricDefinitions, state.methodSettings.aggregation],
+    [
+      activeRecipeDescription,
+      activeRecipeLabel,
+      results.equationPreview,
+      results.scoreSpread,
+      results.scoredRegions,
+      sb.activeMetricDefinitions,
+      state.methodSettings,
+    ],
   )
 
   const desktopLeftPanel = (
@@ -227,9 +283,12 @@ export default function ScoreBuilderSection() {
       mapSurface={state.mapSurface}
       onMapSurfaceChange={sb.handleMapSurfaceChange}
       customMetricRecipes={state.customMetricRecipes}
-      datasetProfiles={datasets.datasetProfiles}
+      datasetProfiles={datasetProfiles}
       onCreateCustomMetric={sb.handleCreateCustomMetric}
       onRemoveCustomMetric={sb.handleRemoveCustomMetric}
+      userDatasets={userDatasets.summaries}
+      onUploadUserDataset={userDatasets.uploadDataset}
+      onRemoveUserDataset={userDatasets.removeDataset}
     />
   )
 
@@ -281,6 +340,10 @@ export default function ScoreBuilderSection() {
       correlationResult={correlationResult}
       correlationTopPairs={correlationTopPairs}
       onApplyTopPair={sb.applyCorrelatePair}
+      baseline={baseline}
+      baselineComparison={baselineComparison}
+      onPinBaseline={pinBaseline}
+      onClearBaseline={clearBaseline}
     />
   )
 
@@ -346,9 +409,16 @@ export default function ScoreBuilderSection() {
       onApplyExample={sb.applyExample}
       isDesktop={isDesktop}
       customMetricRecipes={state.customMetricRecipes}
-      datasetProfiles={datasets.datasetProfiles}
+      datasetProfiles={datasetProfiles}
       onCreateCustomMetric={sb.handleCreateCustomMetric}
       onRemoveCustomMetric={sb.handleRemoveCustomMetric}
+      userDatasets={userDatasets.summaries}
+      onUploadUserDataset={userDatasets.uploadDataset}
+      onRemoveUserDataset={userDatasets.removeDataset}
+      baseline={baseline}
+      baselineComparison={baselineComparison}
+      onPinBaseline={pinBaseline}
+      onClearBaseline={clearBaseline}
     />
   )
 
@@ -385,13 +455,7 @@ export default function ScoreBuilderSection() {
               methodSettings={state.methodSettings}
               activePresetKey={results.activePresetKey}
               activeRecipeLabel={activeRecipeLabel}
-              activeRecipeDescription={
-                results.activeExample
-                  ? results.activeExample.question
-                  : results.activePreset
-                    ? results.activePreset.description
-                    : 'Custom weights saved in the URL.'
-              }
+              activeRecipeDescription={activeRecipeDescription}
               boundarySource={state.boundarySource}
               equationPreview={results.equationPreview}
               onWeightChange={sb.handleWeightChange}
@@ -426,7 +490,7 @@ export default function ScoreBuilderSection() {
 
             {!isDesktop && (
               <div
-                className="absolute left-2 top-2 z-20 flex items-center gap-1.5"
+                className="absolute left-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 flex items-center gap-1.5"
                 data-score-builder-mobile-actions="true"
               >
                 <button
@@ -518,6 +582,7 @@ export default function ScoreBuilderSection() {
         weights={state.weights}
         methodSettings={state.methodSettings}
         isMobile={!isDesktop}
+        metrics={sb.activeMetricDefinitions}
       />
 
       <ScoreBuilderSettingsDialog

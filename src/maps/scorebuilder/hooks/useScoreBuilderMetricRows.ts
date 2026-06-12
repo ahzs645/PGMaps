@@ -68,27 +68,28 @@ export function useScoreBuilderMetricRows({
 
   const pointRecipeValues = useMemo(() => {
     const empty = new Map<ScoreMetricKey, Map<string, { value: number; matchedFeatureCount: number }>>()
-    if (!healthyPlanPgEnabled || regions.length === 0) return empty
+    if (regions.length === 0) return empty
 
-    const datasets = {
-      'healthyplanPg.businessPois': datasetCollections['healthyplanPg.businessPois']
-        ? pointRecordsFromFeatureCollection(datasetCollections['healthyplanPg.businessPois'])
-        : [],
-      'healthyplanPg.educationFacilities': datasetCollections['healthyplanPg.educationFacilities']
-        ? pointRecordsFromFeatureCollection(datasetCollections['healthyplanPg.educationFacilities'])
-        : [],
-      'healthyplanPg.businessLicencesBcGeocoded': datasetCollections['healthyplanPg.businessLicencesBcGeocoded']
-        ? pointRecordsFromFeatureCollection(datasetCollections['healthyplanPg.businessLicencesBcGeocoded'])
-        : [],
+    // Point records are extracted lazily per source so user-uploaded datasets
+    // (`user.*` keys in datasetCollections) join through the same code path as
+    // the built-in HealthyPlan collections.
+    const recordCache = new Map<MetricRecipeSource, ReturnType<typeof pointRecordsFromFeatureCollection>>()
+    const recordsForSource = (source: MetricRecipeSource) => {
+      const cached = recordCache.get(source)
+      if (cached) return cached
+      const collection = datasetCollections[source]
+      const records = collection ? pointRecordsFromFeatureCollection(collection) : []
+      recordCache.set(source, records)
+      return records
     }
 
     const values = new Map<ScoreMetricKey, Map<string, { value: number; matchedFeatureCount: number }>>()
-    const pointRecipes = [...HEALTHYPLAN_PG_STARTER_RECIPES, ...customMetricRecipes].filter(
+    const pointRecipes = [...(healthyPlanPgEnabled ? HEALTHYPLAN_PG_STARTER_RECIPES : []), ...customMetricRecipes].filter(
       (recipe) => recipe.operation !== 'derivedExpression' && recipe.operation !== 'censusVariable',
     )
     pointRecipes.forEach((recipe) => {
-      const records = datasets[recipe.source as keyof typeof datasets] ?? []
-      const computed = computePointMetricRecipe(recipe, regions, records)
+      if (recipe.source.startsWith('healthyplanPg.') && !healthyPlanPgEnabled) return
+      const computed = computePointMetricRecipe(recipe, regions, recordsForSource(recipe.source))
       values.set(
         recipe.id as ScoreMetricKey,
         new Map(

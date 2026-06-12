@@ -7,7 +7,9 @@ import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import { formatMetricValue, formatScore } from '../lib/metrics'
 import { formatDriverDelta, getScoreDrivers, type ScoreDriver } from '../lib/scoreDrivers'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
+import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import { MAX_VISIBLE_REGION_ROWS } from './scoreBuilderPanelUtils'
+import { BaselineComparisonCard } from './BaselineComparisonCard'
 import { RadarChart } from './RadarChart'
 
 interface RegionsTabProps {
@@ -31,6 +33,10 @@ interface RegionsTabProps {
   onToggleComparison: (regionId: string) => void
   onClearComparison: () => void
   onExport: (format: ScoreBuilderExportFormat) => void
+  baseline: BaselineSnapshot | null
+  baselineComparison: BaselineComparisonResult | null
+  onPinBaseline: () => void
+  onClearBaseline: () => void
 }
 
 export function RegionsTab({
@@ -54,6 +60,10 @@ export function RegionsTab({
   onToggleComparison,
   onClearComparison,
   onExport,
+  baseline,
+  baselineComparison,
+  onPinBaseline,
+  onClearBaseline,
 }: RegionsTabProps) {
   // The expanded row count is tied to the query it was expanded for, so a new search resets it.
   const [pagination, setPagination] = useState({ query: searchQuery, count: MAX_VISIBLE_REGION_ROWS })
@@ -101,6 +111,14 @@ export function RegionsTab({
             >
               <ImageIcon className="h-4 w-4" />
             </button>
+            <button
+              onClick={() => onExport('pdf')}
+              title="Export PDF report"
+              aria-label="Export PDF report"
+              className="rounded-md border border-input px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              PDF
+            </button>
           </div>
         </div>
         <div className="flex items-center justify-between" data-score-builder-region-stats="true">
@@ -116,6 +134,13 @@ export function RegionsTab({
           <span>Avg {formatScore(scoreSpread.average)}</span>
         </div>
       </div>
+
+      <BaselineComparisonCard
+        baseline={baseline}
+        comparison={baselineComparison}
+        onPinBaseline={onPinBaseline}
+        onClearBaseline={onClearBaseline}
+      />
 
       {populationEquitySummary && (
         <div className="rounded-lg border border-cyan-200 bg-cyan-50/70 p-3 text-xs text-cyan-950 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-100">

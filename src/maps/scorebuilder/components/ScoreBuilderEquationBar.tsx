@@ -282,6 +282,7 @@ export function ScoreBuilderEquationBar({
                         ['csv', 'Regions CSV'],
                         ['geojson', 'Regions GeoJSON'],
                         ['png', 'Map image (PNG)'],
+                        ['pdf', 'PDF report'],
                       ] as Array<[ScoreBuilderExportFormat, string]>
                     ).map(([format, label]) => (
                       <button

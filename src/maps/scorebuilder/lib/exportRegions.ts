@@ -1,7 +1,7 @@
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { ScoredBoundaryRegion, ScoreMetricDefinition, ScoreMethodSettings } from '../types'
 
-export type ScoreBuilderExportFormat = 'csv' | 'geojson' | 'png'
+export type ScoreBuilderExportFormat = 'csv' | 'geojson' | 'png' | 'pdf'
 
 function downloadBlob(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })

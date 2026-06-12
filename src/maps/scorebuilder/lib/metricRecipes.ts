@@ -11,6 +11,8 @@ export type MetricRecipeSource =
   | 'restaurants'
   | 'census'
   | 'custom'
+  /** A dataset uploaded by the user, stored locally in IndexedDB (`user.<datasetId>`). */
+  | `user.${string}`
 
 export type MetricRecipeOperation =
   | 'pointCountInPolygon'

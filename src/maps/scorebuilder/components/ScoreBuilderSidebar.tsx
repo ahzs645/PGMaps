@@ -30,6 +30,9 @@ import { SCORE_DATA_SOURCES, METRIC_CATEGORY_LABELS } from '../types'
 import type { MetricRecipe, MetricRecipeSource } from '../lib/metricRecipes'
 import type { DatasetProfile } from '../lib/datasetCatalog'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
+import type { UserDatasetSummary } from '../lib/userDatasets'
+import type { UserDatasetUploadResult } from '../hooks/useUserDatasets'
+import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
 import { formatScore } from '../lib/metrics'
 import { presetAppliesToBoundary } from '../lib/presets'
@@ -114,6 +117,13 @@ interface ScoreBuilderSidebarProps {
   datasetProfiles: Partial<Record<MetricRecipeSource, DatasetProfile>>
   onCreateCustomMetric: (recipe: MetricRecipe) => void
   onRemoveCustomMetric: (id: string) => void
+  userDatasets: UserDatasetSummary[]
+  onUploadUserDataset: (file: File, label: string) => Promise<UserDatasetUploadResult>
+  onRemoveUserDataset: (id: string) => Promise<void> | void
+  baseline: BaselineSnapshot | null
+  baselineComparison: BaselineComparisonResult | null
+  onPinBaseline: () => void
+  onClearBaseline: () => void
 }
 
 export function ScoreBuilderSidebar({
@@ -180,6 +190,13 @@ export function ScoreBuilderSidebar({
   datasetProfiles,
   onCreateCustomMetric,
   onRemoveCustomMetric,
+  userDatasets,
+  onUploadUserDataset,
+  onRemoveUserDataset,
+  baseline,
+  baselineComparison,
+  onPinBaseline,
+  onClearBaseline,
 }: ScoreBuilderSidebarProps) {
   const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
@@ -333,6 +350,9 @@ export function ScoreBuilderSidebar({
                 datasetProfiles={datasetProfiles}
                 onCreate={onCreateCustomMetric}
                 onRemove={onRemoveCustomMetric}
+                userDatasets={userDatasets}
+                onUploadUserDataset={onUploadUserDataset}
+                onRemoveUserDataset={onRemoveUserDataset}
               />
             </ExamplesTab>
           )}
@@ -729,6 +749,10 @@ export function ScoreBuilderSidebar({
               onToggleComparison={onToggleComparison}
               onClearComparison={onClearComparison}
               onExport={onExport}
+              baseline={baseline}
+              baselineComparison={baselineComparison}
+              onPinBaseline={onPinBaseline}
+              onClearBaseline={onClearBaseline}
             />
           )}
         </section>
