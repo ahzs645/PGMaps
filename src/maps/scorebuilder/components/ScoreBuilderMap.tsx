@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Map as PgMap, MapClusterLayer, MapControls, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
@@ -18,6 +18,7 @@ interface ScoreBuilderMapProps {
   walkabilitySourceSurface?: boolean
   sourceGridWeights?: ScoreMetricWeightMap
   loading?: boolean
+  onMapInstance?: (map: MapRef | null) => void
 }
 
 interface WalkabilityGridData {
@@ -99,8 +100,16 @@ export function ScoreBuilderMap({
   walkabilitySourceSurface = false,
   sourceGridWeights,
   loading = false,
+  onMapInstance,
 }: ScoreBuilderMapProps) {
-  const mapRef = useRef<MapRef>(null)
+  const mapRef = useRef<MapRef | null>(null)
+  const setMapRef = useCallback(
+    (instance: MapRef | null) => {
+      mapRef.current = instance
+      onMapInstance?.(instance)
+    },
+    [onMapInstance],
+  )
 
   const featureCollection = useMemo<
     GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, GeoJSON.GeoJsonProperties>
@@ -164,7 +173,7 @@ export function ScoreBuilderMap({
 
   return (
     <div className="h-full w-full">
-      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={SCORE_BUILDER_MAP_STYLES} loading={loading}>
+      <PgMap ref={setMapRef} center={PG_CENTER} zoom={ZOOM} styles={SCORE_BUILDER_MAP_STYLES} loading={loading}>
         <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
         {walkabilitySourceSurface && <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} />}

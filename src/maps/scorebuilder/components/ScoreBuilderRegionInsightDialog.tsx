@@ -304,37 +304,37 @@ export function ScoreBuilderRegionInsightDialog({
             {/* Stats grid */}
             <div className="grid grid-cols-2 gap-2 pt-2 text-xs sm:grid-cols-3">
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Rank</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Rank</div>
                 <div className="text-sm font-semibold text-foreground">#{region.rank}</div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Score</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Score</div>
                 <div className="text-sm font-semibold text-foreground">{formatScore(region.score)}</div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Area</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Area</div>
                 <div className="text-sm font-semibold text-foreground">{region.region.areaKm2.toFixed(1)} km²</div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Sensors</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Sensors</div>
                 <div className="text-sm font-semibold text-foreground">
                   {region.counts.monitorCount.toLocaleString()}
                 </div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Data coverage</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Data coverage</div>
                 <div className={cn('text-sm font-semibold', coverage?.tone)}>
                   {(region.dataCoverageScore * 100).toFixed(0)}%
                 </div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Normalization</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Normalization</div>
                 <div className="text-sm font-semibold text-foreground">
                   {formatNormalizationMethod(methodSettings.normalization)}
                 </div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
-                <div className="text-[10px] uppercase text-muted-foreground">Rank confidence</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Rank confidence</div>
                 <div className="text-sm font-semibold text-foreground">{region.rankConfidence}</div>
                 <div className="mt-0.5 text-[11px] text-muted-foreground">
                   Rank #{region.rankInterval[0]}-#{region.rankInterval[1]} · score{' '}
@@ -343,7 +343,7 @@ export function ScoreBuilderRegionInsightDialog({
               </div>
               {region.scoreMethodLabel && (
                 <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
-                  <div className="text-[10px] uppercase text-muted-foreground">Score method</div>
+                  <div className="text-[11px] uppercase text-muted-foreground">Score method</div>
                   <div className="text-sm font-semibold text-foreground">{region.scoreMethodLabel}</div>
                 </div>
               )}

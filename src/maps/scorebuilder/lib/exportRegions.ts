@@ -1,4 +1,7 @@
+import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { ScoredBoundaryRegion, ScoreMetricDefinition, ScoreMethodSettings } from '../types'
+
+export type ScoreBuilderExportFormat = 'csv' | 'geojson' | 'png'
 
 function downloadBlob(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
@@ -10,6 +13,53 @@ function downloadBlob(content: string, filename: string, mimeType: string) {
   anchor.click()
   document.body.removeChild(anchor)
   URL.revokeObjectURL(url)
+}
+
+function downloadDataUrl(dataUrl: string, filename: string) {
+  const anchor = document.createElement('a')
+  anchor.href = dataUrl
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+}
+
+/**
+ * Downloads the current map view as a PNG with a title banner.
+ *
+ * The map canvas is captured inside a `render` callback because the WebGL
+ * context is created without `preserveDrawingBuffer` — outside a render
+ * frame the buffer would read back blank.
+ */
+export function exportMapImage(map: MapLibreMap, title: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    map.once('render', () => {
+      try {
+        const source = map.getCanvas()
+        const banner = 56
+        const output = document.createElement('canvas')
+        output.width = source.width
+        output.height = source.height + banner
+        const context = output.getContext('2d')
+        if (!context) throw new Error('Canvas 2D context unavailable')
+        context.fillStyle = '#0f172a'
+        context.fillRect(0, 0, output.width, banner)
+        context.fillStyle = '#f8fafc'
+        context.font = `600 ${Math.round(banner * 0.4)}px system-ui, sans-serif`
+        context.textBaseline = 'middle'
+        context.fillText(title, 16, Math.round(banner * 0.38))
+        context.font = `400 ${Math.round(banner * 0.24)}px system-ui, sans-serif`
+        context.fillStyle = '#94a3b8'
+        context.fillText(`PGMaps Index Lab · ${new Date().toISOString().slice(0, 10)}`, 16, Math.round(banner * 0.78))
+        context.drawImage(source, 0, banner)
+        downloadDataUrl(output.toDataURL('image/png'), 'score-builder-map.png')
+        resolve()
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error(String(error)))
+      }
+    })
+    map.triggerRepaint()
+  })
 }
 
 /** Downloads the scored regions as a CSV or GeoJSON file. */

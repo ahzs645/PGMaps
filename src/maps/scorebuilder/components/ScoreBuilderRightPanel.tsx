@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
 import { SCORE_BUILDER_EXAMPLES, SCORE_METRICS, SCORE_PRESETS } from '../constants'
 import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricRangeMap, ScoreMetricWeightMap } from '../types'
+import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { getScoreDrivers } from '../lib/scoreDrivers'
 import type { CorrelationResult, MetricCorrelation } from '../lib/correlation'
@@ -12,7 +13,6 @@ import { CorrelateTab } from './CorrelateTab'
 import { EquationTab } from './EquationTab'
 import { DensityTab } from './DensityTab'
 import { RegionsTab } from './RegionsTab'
-import { MAX_VISIBLE_REGION_ROWS } from './scoreBuilderPanelUtils'
 
 type RightPanelTab = 'equation' | 'density' | 'correlate' | 'regions'
 
@@ -48,7 +48,7 @@ interface ScoreBuilderRightPanelProps {
   comparisonRegions: ScoredBoundaryRegion[]
   onToggleComparison: (regionId: string) => void
   onClearComparison: () => void
-  onExport: (format: 'csv' | 'geojson') => void
+  onExport: (format: ScoreBuilderExportFormat) => void
   onShareUrl: () => Promise<string>
   activeExampleKey: string | null
   isDesktop: boolean
@@ -159,7 +159,6 @@ export function ScoreBuilderRightPanel({
   }, [activeTab, hasActiveBoundarySurface])
 
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
-  const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_REGION_ROWS), [filteredRegions])
   const topRegions = useMemo(() => regions.slice(0, 3), [regions])
 
   const activeExample = useMemo(
@@ -331,7 +330,6 @@ export function ScoreBuilderRightPanel({
             className="p-4"
             loading={loading}
             regions={regions}
-            visibleRows={visibleRows}
             filteredRegions={filteredRegions}
             selectedRegion={selectedRegion}
             selectedRegionDrivers={selectedRegionDrivers}

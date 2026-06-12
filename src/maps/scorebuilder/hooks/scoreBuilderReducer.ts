@@ -127,6 +127,7 @@ export type ScoreBuilderAction =
   | { type: 'applyCorrelatePair'; metricX: ScoreMetricKey; metricY: ScoreMetricKey }
   | { type: 'toggleScoreFilter'; filter: ScoreFilterKey }
   | { type: 'setMethodSettings'; settings: ScoreMethodSettings }
+  | { type: 'restoreState'; state: ScoreBuilderControlState }
 
 export function getSelectedRegionLevel(state: ScoreBuilderControlState): RegionLevel {
   return state.boundarySource === 'bcHealth'
@@ -496,6 +497,8 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       }
     case 'setMethodSettings':
       return { ...state, methodSettings: action.settings }
+    case 'restoreState':
+      return action.state
   }
 }
 

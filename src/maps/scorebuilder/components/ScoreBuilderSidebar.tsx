@@ -29,6 +29,7 @@ import type {
 import { SCORE_DATA_SOURCES, METRIC_CATEGORY_LABELS } from '../types'
 import type { MetricRecipe, MetricRecipeSource } from '../lib/metricRecipes'
 import type { DatasetProfile } from '../lib/datasetCatalog'
+import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
 import { formatScore } from '../lib/metrics'
 import { presetAppliesToBoundary } from '../lib/presets'
@@ -47,7 +48,7 @@ import { RegionsTab } from './RegionsTab'
 import { RobustnessTab } from './RobustnessTab'
 import { ScorePresetDialog } from './ScorePresetDialog'
 import { CustomMetricBuilder } from './ScoreBuilderLeftPanel'
-import { MAX_VISIBLE_REGION_ROWS, clampWeight } from './scoreBuilderPanelUtils'
+import { clampWeight } from './scoreBuilderPanelUtils'
 
 interface ScoreBuilderSidebarProps {
   className?: string
@@ -104,7 +105,7 @@ interface ScoreBuilderSidebarProps {
   comparisonRegions: ScoredBoundaryRegion[]
   onToggleComparison: (regionId: string) => void
   onClearComparison: () => void
-  onExport: (format: 'csv' | 'geojson') => void
+  onExport: (format: ScoreBuilderExportFormat) => void
   onShareUrl?: () => Promise<string>
   activeExampleKey: string | null
   onApplyExample: (key: string) => void
@@ -186,7 +187,6 @@ export function ScoreBuilderSidebar({
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
   const displayedBoundarySource = canUseWalkabilitySourceSurface && mapSurface === 'source' ? undefined : boundarySource
 
-  const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_REGION_ROWS), [filteredRegions])
   const activeExample = useMemo(
     () => SCORE_BUILDER_EXAMPLES.find((example) => example.key === activeExampleKey) || null,
     [activeExampleKey],
@@ -225,6 +225,17 @@ export function ScoreBuilderSidebar({
       window.setTimeout(() => setShareStatus('idle'), 2400)
     }
   }, [onShareUrl])
+
+  const [equationCopied, setEquationCopied] = useState(false)
+  const handleCopyEquation = useCallback(async () => {
+    try {
+      await navigator.clipboard?.writeText(equationPreview)
+      setEquationCopied(true)
+      window.setTimeout(() => setEquationCopied(false), 1800)
+    } catch {
+      // Clipboard may be unavailable; the equation text stays visible for manual copy.
+    }
+  }, [equationPreview])
 
   const renderSectionHeader = (sectionId: ScoreBuilderSectionId) => {
     const sectionOpen = expandedSections[sectionId]
@@ -368,15 +379,15 @@ export function ScoreBuilderSidebar({
               <div className="mx-4 mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-md bg-muted/40 p-2">
                   <div className="text-base font-semibold text-foreground">{regions.length}</div>
-                  <div className="text-[10px] text-muted-foreground">regions</div>
+                  <div className="text-[11px] text-muted-foreground">regions</div>
                 </div>
                 <div className="rounded-md bg-muted/40 p-2">
                   <div className="text-base font-semibold text-foreground">{enabledDataSources.length}</div>
-                  <div className="text-[10px] text-muted-foreground">sources</div>
+                  <div className="text-[11px] text-muted-foreground">sources</div>
                 </div>
                 <div className="rounded-md bg-muted/40 p-2">
                   <div className="text-base font-semibold text-foreground">{formatScore(scoreSpread.average)}</div>
-                  <div className="text-[10px] text-muted-foreground">avg score</div>
+                  <div className="text-[11px] text-muted-foreground">avg score</div>
                 </div>
               </div>
             </div>
@@ -409,7 +420,7 @@ export function ScoreBuilderSidebar({
                     >
                       <div>
                         <div className="font-medium">{ds.label}</div>
-                        <div className="text-[10px] text-muted-foreground">{ds.description}</div>
+                        <div className="text-[11px] text-muted-foreground">{ds.description}</div>
                       </div>
                       <span className={cn('text-xs font-semibold', active ? 'text-cyan-600' : 'text-muted-foreground')}>
                         {active ? 'ON' : 'OFF'}
@@ -508,7 +519,7 @@ export function ScoreBuilderSidebar({
                   <div className="text-xs font-semibold text-foreground">
                     {showAllEquationMetrics ? 'All metrics' : 'Active terms'}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-[11px] text-muted-foreground">
                     {activeMetricCount} active · {totalAbsoluteWeight.toLocaleString()} total influence
                   </div>
                 </div>
@@ -545,7 +556,7 @@ export function ScoreBuilderSidebar({
                             <div className="mb-2 flex items-start justify-between gap-2">
                               <div>
                                 <div className="text-xs font-semibold text-foreground">{metric.label}</div>
-                                <div className="text-[10px] text-muted-foreground">{metric.description}</div>
+                                <div className="text-[11px] text-muted-foreground">{metric.description}</div>
                               </div>
                               <input
                                 type="number"
@@ -581,9 +592,20 @@ export function ScoreBuilderSidebar({
               </div>
 
               <div className="rounded-md border border-border bg-background p-2">
-                <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Equation</div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Equation</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyEquation}
+                    title="Copy equation to clipboard"
+                    className="inline-flex items-center gap-1 rounded border border-input px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {equationCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    {equationCopied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
                 <div className="font-mono text-[11px] text-foreground">{equationPreview}</div>
-                <div className="mt-1 text-[10px] text-muted-foreground">
+                <div className="mt-1 text-[11px] text-muted-foreground">
                   |weights| sum: {totalAbsoluteWeight.toLocaleString()}
                 </div>
               </div>
@@ -691,7 +713,6 @@ export function ScoreBuilderSidebar({
               loading={loading}
               dataErrors={dataErrors}
               regions={regions}
-              visibleRows={visibleRows}
               filteredRegions={filteredRegions}
               selectedRegion={selectedRegion}
               selectedRegionDrivers={selectedRegionDrivers}

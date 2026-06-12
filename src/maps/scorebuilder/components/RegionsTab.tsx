@@ -1,7 +1,9 @@
-import { Download, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Download, Image as ImageIcon, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from '../constants'
 import type { ScoredBoundaryRegion, ScoreMetricWeightMap } from '../types'
+import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import { formatMetricValue, formatScore } from '../lib/metrics'
 import { formatDriverDelta, getScoreDrivers, type ScoreDriver } from '../lib/scoreDrivers'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
@@ -13,7 +15,6 @@ interface RegionsTabProps {
   loading: boolean
   dataErrors?: string[]
   regions: ScoredBoundaryRegion[]
-  visibleRows: ScoredBoundaryRegion[]
   filteredRegions: ScoredBoundaryRegion[]
   selectedRegion: ScoredBoundaryRegion | null
   selectedRegionDrivers: ScoreDriver[]
@@ -29,7 +30,7 @@ interface RegionsTabProps {
   onOpenRegionInsight: (regionId: string) => void
   onToggleComparison: (regionId: string) => void
   onClearComparison: () => void
-  onExport: (format: 'csv' | 'geojson') => void
+  onExport: (format: ScoreBuilderExportFormat) => void
 }
 
 export function RegionsTab({
@@ -37,7 +38,6 @@ export function RegionsTab({
   loading,
   dataErrors = [],
   regions,
-  visibleRows,
   filteredRegions,
   selectedRegion,
   selectedRegionDrivers,
@@ -55,6 +55,12 @@ export function RegionsTab({
   onClearComparison,
   onExport,
 }: RegionsTabProps) {
+  // The expanded row count is tied to the query it was expanded for, so a new search resets it.
+  const [pagination, setPagination] = useState({ query: searchQuery, count: MAX_VISIBLE_REGION_ROWS })
+  const visibleCount = pagination.query === searchQuery ? pagination.count : MAX_VISIBLE_REGION_ROWS
+  const visibleRows = useMemo(() => filteredRegions.slice(0, visibleCount), [filteredRegions, visibleCount])
+  const remainingRows = Math.max(0, filteredRegions.length - visibleRows.length)
+
   return (
     <div className={cn('space-y-3', className)} data-score-builder-section="regions">
       <div className="space-y-2 rounded-lg border border-border bg-muted/10 p-2 text-xs text-muted-foreground">
@@ -74,16 +80,26 @@ export function RegionsTab({
             <button
               onClick={() => onExport('csv')}
               title="Export CSV"
-              className="rounded border border-input p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Export CSV"
+              className="rounded-md border border-input p-2 text-muted-foreground transition-colors hover:text-foreground"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-4 w-4" />
             </button>
             <button
               onClick={() => onExport('geojson')}
               title="Export GeoJSON"
-              className="rounded border border-input px-1.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Export GeoJSON"
+              className="rounded-md border border-input px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               .geo
+            </button>
+            <button
+              onClick={() => onExport('png')}
+              title="Export map image (PNG)"
+              aria-label="Export map image"
+              className="rounded-md border border-input p-2 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ImageIcon className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -91,7 +107,7 @@ export function RegionsTab({
           <span>
             {filteredRegions.length} of {regions.length} regions
           </span>
-          {filteredRegions.length > MAX_VISIBLE_REGION_ROWS && <span>Showing {MAX_VISIBLE_REGION_ROWS}</span>}
+          {filteredRegions.length > visibleRows.length && <span>Showing {visibleRows.length}</span>}
         </div>
         <div className="flex items-center justify-between text-[11px]">
           <span>
@@ -304,6 +320,15 @@ export function RegionsTab({
               </div>
             )
           })}
+          {remainingRows > 0 && (
+            <button
+              type="button"
+              onClick={() => setPagination({ query: searchQuery, count: visibleCount + MAX_VISIBLE_REGION_ROWS })}
+              className="w-full rounded-lg border border-dashed border-input px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground"
+            >
+              Show {Math.min(MAX_VISIBLE_REGION_ROWS, remainingRows)} more ({remainingRows.toLocaleString()} remaining)
+            </button>
+          )}
           {visibleRows.length === 0 && (
             <div className="rounded border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
               No regions match this filter.

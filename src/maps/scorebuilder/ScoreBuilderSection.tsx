@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Activity, Flame, Settings as SettingsIcon, Undo2 } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { cn } from '@/lib/utils'
+import type { MapRef } from '@/components/ui/map'
 import { ScoreBuilderEquationBar } from './components/ScoreBuilderEquationBar'
 import { ScoreBuilderLeftPanel } from './components/ScoreBuilderLeftPanel'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
@@ -16,7 +19,33 @@ import { useScoreBuilderMetricRows } from './hooks/useScoreBuilderMetricRows'
 import { useScoreBuilderPointRecords } from './hooks/useScoreBuilderPointRecords'
 import { useScoreBuilderResults } from './hooks/useScoreBuilderResults'
 import { useScoreBuilderState } from './hooks/useScoreBuilderState'
-import { exportScoredRegions } from './lib/exportRegions'
+import { exportMapImage, exportScoredRegions, type ScoreBuilderExportFormat } from './lib/exportRegions'
+
+const LAYOUT_STORAGE_KEY = 'pgmaps.indexLab.layout'
+
+interface StoredLayoutPrefs {
+  showSidebar?: boolean
+  showRightSidebar?: boolean
+}
+
+function readLayoutPrefs(): StoredLayoutPrefs {
+  try {
+    const raw = window.localStorage.getItem(LAYOUT_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed: unknown = JSON.parse(raw)
+    return typeof parsed === 'object' && parsed !== null ? (parsed as StoredLayoutPrefs) : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeLayoutPrefs(prefs: StoredLayoutPrefs) {
+  try {
+    window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(prefs))
+  } catch {
+    // Private browsing or full storage — layout prefs just won't persist.
+  }
+}
 
 /**
  * Composition root for the Index Lab (score builder).
@@ -35,9 +64,31 @@ export default function ScoreBuilderSection() {
   const { state } = sb
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
-  const [showSidebar, setShowSidebar] = useState(() => !sb.initializedFromUrlWeights)
-  const [showRightSidebar, setShowRightSidebar] = useState(() => !sb.initializedFromUrlWeights)
+  // Panel visibility: explicit user choice (localStorage) wins; otherwise default to open,
+  // except the right panel on narrow desktops/tablets where both panels would crowd out the map.
+  const [showSidebar, setShowSidebar] = useState(
+    () => readLayoutPrefs().showSidebar ?? !sb.initializedFromUrlWeights,
+  )
+  const [showRightSidebar, setShowRightSidebar] = useState(() => {
+    const stored = readLayoutPrefs().showRightSidebar
+    if (stored != null) return stored
+    if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 1100px)').matches) return false
+    return !sb.initializedFromUrlWeights
+  })
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const toggleSidebar = useCallback(() => {
+    setShowSidebar((current) => {
+      writeLayoutPrefs({ ...readLayoutPrefs(), showSidebar: !current })
+      return !current
+    })
+  }, [])
+  const toggleRightSidebar = useCallback(() => {
+    setShowRightSidebar((current) => {
+      writeLayoutPrefs({ ...readLayoutPrefs(), showRightSidebar: !current })
+      return !current
+    })
+  }, [])
 
   const datasets = useScoreBuilderDatasets({
     enabledSourceSet: sb.enabledSourceSet,
@@ -105,15 +156,25 @@ export default function ScoreBuilderSection() {
     if (state.regionInsightRegionId && !results.regionInsightRegion) closeRegionInsight()
   }, [closeRegionInsight, results.regionInsightRegion, state.regionInsightRegionId])
 
-  const handleExport = useCallback(
-    (format: 'csv' | 'geojson') => {
-      exportScoredRegions(format, results.scoredRegions, sb.activeMetricDefinitions, state.methodSettings.aggregation)
-    },
-    [results.scoredRegions, sb.activeMetricDefinitions, state.methodSettings.aggregation],
-  )
-
   const excludedRegionCount = Math.max(0, results.unfilteredScoredRegions.length - results.scoredRegions.length)
   const activeRecipeLabel = results.activeExample?.label || results.activePreset?.label || 'Custom index'
+
+  const mapInstanceRef = useRef<MapRef | null>(null)
+  const handleMapInstance = useCallback((map: MapRef | null) => {
+    mapInstanceRef.current = map
+  }, [])
+
+  const handleExport = useCallback(
+    (format: ScoreBuilderExportFormat) => {
+      if (format === 'png') {
+        const map = mapInstanceRef.current
+        if (map) void exportMapImage(map, activeRecipeLabel).catch(() => {})
+        return
+      }
+      exportScoredRegions(format, results.scoredRegions, sb.activeMetricDefinitions, state.methodSettings.aggregation)
+    },
+    [activeRecipeLabel, results.scoredRegions, sb.activeMetricDefinitions, state.methodSettings.aggregation],
+  )
 
   const desktopLeftPanel = (
     <ScoreBuilderLeftPanel
@@ -265,7 +326,7 @@ export default function ScoreBuilderSection() {
     <>
       <MapSectionLayout
         showDesktopSidebar={showSidebar}
-        onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+        onToggleDesktopSidebar={toggleSidebar}
         desktopSidebarWidth={300}
         mobileInitialSheetState="collapsed"
         mobilePeek={
@@ -281,7 +342,7 @@ export default function ScoreBuilderSection() {
         sidebar={isDesktop ? desktopLeftPanel : mobileSidebar}
         rightSidebar={isDesktop ? desktopRightPanel : undefined}
         showDesktopRightSidebar={showRightSidebar}
-        onToggleDesktopRightSidebar={() => setShowRightSidebar((current) => !current)}
+        onToggleDesktopRightSidebar={toggleRightSidebar}
         desktopRightSidebarWidth={380}
       >
         <div className="relative flex h-full min-h-0 flex-col">
@@ -310,6 +371,10 @@ export default function ScoreBuilderSection() {
               densityMode={state.densityMode}
               onToggleDensityMode={sb.handleToggleDensityMode}
               onOpenSettings={() => setSettingsOpen(true)}
+              onUndo={sb.undo}
+              onRedo={sb.redo}
+              canUndo={sb.canUndo}
+              canRedo={sb.canRedo}
             />
           )}
 
@@ -324,7 +389,61 @@ export default function ScoreBuilderSection() {
               walkabilitySourceSurface={sb.showWalkabilitySourceSurface}
               sourceGridWeights={state.weights}
               loading={datasets.loading}
+              onMapInstance={handleMapInstance}
             />
+
+            {!isDesktop && (
+              <div
+                className="absolute left-2 top-2 z-20 flex items-center gap-1.5"
+                data-score-builder-mobile-actions="true"
+              >
+                <button
+                  type="button"
+                  onClick={sb.handleToggleDensityMode}
+                  aria-pressed={state.densityMode}
+                  className={cn(
+                    'inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors',
+                    state.densityMode
+                      ? 'border-amber-500 bg-amber-500 text-white'
+                      : 'border-border bg-background/95 text-foreground',
+                  )}
+                >
+                  <Flame className="h-3.5 w-3.5" />
+                  Density
+                </button>
+                <button
+                  type="button"
+                  onClick={sb.handleToggleCorrelateMode}
+                  aria-pressed={state.correlateMode}
+                  className={cn(
+                    'inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium shadow-sm backdrop-blur transition-colors',
+                    state.correlateMode
+                      ? 'border-cyan-500 bg-cyan-500 text-white'
+                      : 'border-border bg-background/95 text-foreground',
+                  )}
+                >
+                  <Activity className="h-3.5 w-3.5" />
+                  Correlate
+                </button>
+                <button
+                  type="button"
+                  onClick={sb.undo}
+                  disabled={!sb.canUndo}
+                  aria-label="Undo"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm backdrop-blur transition-colors disabled:opacity-40"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  aria-label="Open index settings"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-sm backdrop-blur transition-colors"
+                >
+                  <SettingsIcon className="h-4 w-4" />
+                </button>
+              </div>
+            )}
 
             {!isDesktop && results.selectedRegion && (
               <ScoreBuilderMobileRegionCard
@@ -389,6 +508,11 @@ export default function ScoreBuilderSection() {
         excludedRegionCount={excludedRegionCount}
         scoreSpread={results.scoreSpread}
         robustnessResults={results.robustnessResults}
+        savedIndexes={sb.savedIndexes}
+        onSaveIndex={sb.saveCurrentIndex}
+        onApplySavedIndex={sb.applySavedIndex}
+        onDeleteSavedIndex={sb.deleteSavedIndex}
+        activeRecipeLabel={activeRecipeLabel}
       />
     </>
   )

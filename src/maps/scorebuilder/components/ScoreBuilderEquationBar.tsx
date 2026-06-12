@@ -1,17 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
   Check,
   ChevronDown,
   ChevronUp,
+  Copy,
   Download,
   FlipHorizontal,
   Flame,
   GripVertical,
   Info,
   Plus,
+  Redo2,
   Search,
   Settings as SettingsIcon,
+  Undo2,
   X,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -20,6 +23,7 @@ import type { BoundarySource } from '@/maps/airquality'
 import { SCORE_PRESETS } from '../constants'
 import { METRIC_CATEGORY_LABELS } from '../types'
 import type { ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
+import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { ScorePresetDialog } from './ScorePresetDialog'
 
@@ -35,12 +39,16 @@ interface ScoreBuilderEquationBarProps {
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
-  onExport: (format: 'csv' | 'geojson') => void
+  onExport: (format: ScoreBuilderExportFormat) => void
   correlateMode: boolean
   onToggleCorrelateMode: () => void
   densityMode: boolean
   onToggleDensityMode: () => void
   onOpenSettings: () => void
+  onUndo: () => void
+  onRedo: () => void
+  canUndo: boolean
+  canRedo: boolean
 }
 
 function getDefaultMetricWeight(metric: ScoreMetricKey): number {
@@ -94,11 +102,37 @@ export function ScoreBuilderEquationBar({
   densityMode,
   onToggleDensityMode,
   onOpenSettings,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: ScoreBuilderEquationBarProps) {
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [metricDialogOpen, setMetricDialogOpen] = useState(false)
   const [formulaOpen, setFormulaOpen] = useState(false)
   const [equationOpen, setEquationOpen] = useState(true)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [equationCopied, setEquationCopied] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!exportMenuOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!exportMenuRef.current?.contains(event.target as Node)) setExportMenuOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    return () => window.removeEventListener('pointerdown', onPointerDown)
+  }, [exportMenuOpen])
+
+  const handleCopyEquation = async () => {
+    try {
+      await navigator.clipboard?.writeText(equationPreview)
+      setEquationCopied(true)
+      window.setTimeout(() => setEquationCopied(false), 1800)
+    } catch {
+      // Clipboard may be unavailable; the formula text stays visible for manual copy.
+    }
+  }
 
   const visiblePresets = useMemo(
     () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, boundarySource)),
@@ -157,6 +191,26 @@ export function ScoreBuilderEquationBar({
               </button>
               <button
                 type="button"
+                onClick={onUndo}
+                disabled={!canUndo}
+                title="Undo (Ctrl+Z)"
+                aria-label="Undo"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onRedo}
+                disabled={!canRedo}
+                title="Redo (Shift+Ctrl+Z)"
+                aria-label="Redo"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Redo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
                 onClick={onToggleDensityMode}
                 aria-pressed={densityMode}
                 title={
@@ -210,15 +264,41 @@ export function ScoreBuilderEquationBar({
                 <SettingsIcon className="h-3.5 w-3.5" />
                 Settings
               </button>
-              <button
-                type="button"
-                onClick={() => onExport('csv')}
-                title="Export CSV"
-                aria-label="Export CSV"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <Download className="h-4 w-4" />
-              </button>
+              <div ref={exportMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setExportMenuOpen((current) => !current)}
+                  title="Export results"
+                  aria-label="Export results"
+                  aria-expanded={exportMenuOpen}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+                {exportMenuOpen && (
+                  <div className="absolute right-0 top-9 z-30 w-44 rounded-md border border-border bg-background p-1 shadow-lg">
+                    {(
+                      [
+                        ['csv', 'Regions CSV'],
+                        ['geojson', 'Regions GeoJSON'],
+                        ['png', 'Map image (PNG)'],
+                      ] as Array<[ScoreBuilderExportFormat, string]>
+                    ).map(([format, label]) => (
+                      <button
+                        key={format}
+                        type="button"
+                        onClick={() => {
+                          setExportMenuOpen(false)
+                          onExport(format)
+                        }}
+                        className="block w-full rounded px-2.5 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -313,8 +393,19 @@ export function ScoreBuilderEquationBar({
         )}
 
         {(isHealthyPlanMode || activeTerms.length > 0) && formulaOpen && equationOpen && (
-          <div className="mt-3 overflow-x-auto rounded-md bg-muted px-3 py-2 font-mono text-[11px] text-muted-foreground">
-            {formulaText}
+          <div className="mt-3 flex items-start gap-2 rounded-md bg-muted px-3 py-2">
+            <div className="min-w-0 flex-1 overflow-x-auto font-mono text-[11px] text-muted-foreground">
+              {formulaText}
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyEquation}
+              title="Copy equation to clipboard"
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-input bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {equationCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {equationCopied ? 'Copied' : 'Copy'}
+            </button>
           </div>
         )}
       </div>

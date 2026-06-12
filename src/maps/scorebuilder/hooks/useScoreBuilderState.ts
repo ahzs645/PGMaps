@@ -14,7 +14,17 @@ import {
 } from '../constants'
 import { metricRecipeToDefinition } from '../lib/metricDefinitions'
 import type { MetricRecipe } from '../lib/metricRecipes'
-import { decodeScoreBuilderShareState, encodeScoreBuilderShareState } from '../lib/shareState'
+import {
+  createSavedIndexId,
+  loadSavedIndexes,
+  persistSavedIndexes,
+  type SavedIndexEntry,
+} from '../lib/savedIndexes'
+import {
+  decodeScoreBuilderShareState,
+  encodeScoreBuilderShareState,
+  type ScoreBuilderShareState,
+} from '../lib/shareState'
 import {
   encodeCustomMetricRecipes,
   encodeCustomMetricWeights,
@@ -34,7 +44,32 @@ import {
   hasUrlWeightParams,
   scoreBuilderReducer,
   showsWalkabilitySourceSurface,
+  type ScoreBuilderAction,
+  type ScoreBuilderControlState,
 } from './scoreBuilderReducer'
+
+const UNDO_HISTORY_LIMIT = 50
+/** Slider drags emit a burst of setWeight actions; treat same-metric edits inside this window as one step. */
+const WEIGHT_COALESCE_MS = 1200
+
+/** Actions that change the index composition and therefore deserve an undo step. */
+const HISTORY_ACTION_TYPES = new Set<ScoreBuilderAction['type']>([
+  'setBoundarySource',
+  'setRegionLevel',
+  'setWeight',
+  'addMetric',
+  'buildDensityScore',
+  'applyExample',
+  'applyPreset',
+  'applyShareState',
+  'createCustomMetric',
+  'removeCustomMetric',
+  'toggleDataSource',
+  'toggleNetwork',
+  'setSelectedNetworks',
+  'toggleScoreFilter',
+  'setMethodSettings',
+])
 
 /**
  * Owns every piece of sidebar/control state for the score builder (boundary focus, weights,
@@ -58,6 +93,90 @@ export function useScoreBuilderState() {
 
   // The latest known air-monitor networks, fed in by the section once monitors load.
   const allNetworksRef = useRef<string[]>([])
+
+  // Undo/redo history. Snapshots are taken just before composition-changing actions;
+  // `stateRef` mirrors the committed state so snapshots never capture mid-dispatch values.
+  const stateRef = useRef(state)
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+  const undoStack = useRef<ScoreBuilderControlState[]>([])
+  const redoStack = useRef<ScoreBuilderControlState[]>([])
+  const lastWeightEdit = useRef<{ metric: ScoreMetricKey; time: number } | null>(null)
+  const [historyStatus, setHistoryStatus] = useState({ canUndo: false, canRedo: false })
+
+  const syncHistoryStatus = useCallback(() => {
+    setHistoryStatus((current) => {
+      const canUndo = undoStack.current.length > 0
+      const canRedo = redoStack.current.length > 0
+      return current.canUndo === canUndo && current.canRedo === canRedo ? current : { canUndo, canRedo }
+    })
+  }, [])
+
+  const dispatchTracked = useCallback(
+    (action: ScoreBuilderAction) => {
+      if (HISTORY_ACTION_TYPES.has(action.type)) {
+        const now = Date.now()
+        const coalesce =
+          action.type === 'setWeight' &&
+          lastWeightEdit.current?.metric === action.metric &&
+          now - lastWeightEdit.current.time < WEIGHT_COALESCE_MS
+        lastWeightEdit.current = action.type === 'setWeight' ? { metric: action.metric, time: now } : null
+        if (!coalesce) {
+          undoStack.current.push(stateRef.current)
+          if (undoStack.current.length > UNDO_HISTORY_LIMIT) undoStack.current.shift()
+          redoStack.current = []
+          syncHistoryStatus()
+        }
+      }
+      dispatch(action)
+    },
+    [syncHistoryStatus],
+  )
+
+  const undo = useCallback(() => {
+    const previous = undoStack.current.pop()
+    if (!previous) return
+    redoStack.current.push(stateRef.current)
+    lastWeightEdit.current = null
+    dispatch({ type: 'restoreState', state: previous })
+    syncHistoryStatus()
+  }, [syncHistoryStatus])
+
+  const redo = useCallback(() => {
+    const next = redoStack.current.pop()
+    if (!next) return
+    undoStack.current.push(stateRef.current)
+    lastWeightEdit.current = null
+    dispatch({ type: 'restoreState', state: next })
+    syncHistoryStatus()
+  }, [syncHistoryStatus])
+
+  const { canUndo, canRedo } = historyStatus
+
+  // Cmd/Ctrl+Z to undo, Shift+Cmd/Ctrl+Z (or Ctrl+Y) to redo, except while typing.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return
+      const key = event.key.toLowerCase()
+      if (key !== 'z' && key !== 'y') return
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+      event.preventDefault()
+      if (key === 'y' || event.shiftKey) redo()
+      else undo()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [redo, undo])
 
   // Quick links from other modules land with a `quick` param that maps to a preset.
   useEffect(() => {
@@ -166,45 +285,48 @@ export function useScoreBuilderState() {
     dispatch({ type: 'networksLoaded', allNetworks })
   }, [])
 
-  const setBoundarySource = useCallback((source: BoundarySource) => {
-    dispatch({ type: 'setBoundarySource', source })
-  }, [])
+  const setBoundarySource = useCallback(
+    (source: BoundarySource) => {
+      dispatchTracked({ type: 'setBoundarySource', source })
+    },
+    [dispatchTracked],
+  )
   const handleRegionLevelChange = useCallback((level: RegionLevel) => {
-    dispatch({ type: 'setRegionLevel', level })
-  }, [])
+    dispatchTracked({ type: 'setRegionLevel', level })
+  }, [dispatchTracked])
   const handleWeightChange = useCallback((metric: ScoreMetricKey, value: number) => {
-    dispatch({ type: 'setWeight', metric, value })
-  }, [])
+    dispatchTracked({ type: 'setWeight', metric, value })
+  }, [dispatchTracked])
   const handleAddMetric = useCallback((metric: ScoreMetricKey, value: number) => {
-    dispatch({ type: 'addMetric', metric, value, allNetworks: allNetworksRef.current })
-  }, [])
+    dispatchTracked({ type: 'addMetric', metric, value, allNetworks: allNetworksRef.current })
+  }, [dispatchTracked])
   const handleBuildDensityScore = useCallback((metric: ScoreMetricKey) => {
-    dispatch({ type: 'buildDensityScore', metric, allNetworks: allNetworksRef.current })
-  }, [])
+    dispatchTracked({ type: 'buildDensityScore', metric, allNetworks: allNetworksRef.current })
+  }, [dispatchTracked])
   const applyExample = useCallback((exampleKey: string) => {
-    dispatch({ type: 'applyExample', exampleKey, allNetworks: allNetworksRef.current })
-  }, [])
+    dispatchTracked({ type: 'applyExample', exampleKey, allNetworks: allNetworksRef.current })
+  }, [dispatchTracked])
   const handleApplyPreset = useCallback((presetKey: string) => {
-    dispatch({ type: 'applyPreset', presetKey, allNetworks: allNetworksRef.current })
-  }, [])
+    dispatchTracked({ type: 'applyPreset', presetKey, allNetworks: allNetworksRef.current })
+  }, [dispatchTracked])
   const handleCreateCustomMetric = useCallback((recipe: MetricRecipe) => {
-    dispatch({ type: 'createCustomMetric', recipe })
-  }, [])
+    dispatchTracked({ type: 'createCustomMetric', recipe })
+  }, [dispatchTracked])
   const handleRemoveCustomMetric = useCallback((id: string) => {
-    dispatch({ type: 'removeCustomMetric', id })
-  }, [])
+    dispatchTracked({ type: 'removeCustomMetric', id })
+  }, [dispatchTracked])
   const toggleDataSource = useCallback((source: ScoreDataSource) => {
-    dispatch({ type: 'toggleDataSource', source })
-  }, [])
+    dispatchTracked({ type: 'toggleDataSource', source })
+  }, [dispatchTracked])
   const toggleNetwork = useCallback((network: string) => {
-    dispatch({ type: 'toggleNetwork', network })
-  }, [])
+    dispatchTracked({ type: 'toggleNetwork', network })
+  }, [dispatchTracked])
   const selectAllNetworks = useCallback(() => {
-    dispatch({ type: 'setSelectedNetworks', networks: allNetworksRef.current })
-  }, [])
+    dispatchTracked({ type: 'setSelectedNetworks', networks: allNetworksRef.current })
+  }, [dispatchTracked])
   const clearNetworks = useCallback(() => {
-    dispatch({ type: 'setSelectedNetworks', networks: [] })
-  }, [])
+    dispatchTracked({ type: 'setSelectedNetworks', networks: [] })
+  }, [dispatchTracked])
   const togglePoints = useCallback(() => {
     dispatch({ type: 'togglePoints' })
   }, [])
@@ -260,14 +382,14 @@ export function useScoreBuilderState() {
     dispatch({ type: 'applyCorrelatePair', metricX, metricY })
   }, [])
   const toggleScoreFilter = useCallback((filter: ScoreFilterKey) => {
-    dispatch({ type: 'toggleScoreFilter', filter })
-  }, [])
+    dispatchTracked({ type: 'toggleScoreFilter', filter })
+  }, [dispatchTracked])
   const setMethodSettings = useCallback((settings: ScoreMethodSettings) => {
-    dispatch({ type: 'setMethodSettings', settings })
-  }, [])
+    dispatchTracked({ type: 'setMethodSettings', settings })
+  }, [dispatchTracked])
 
-  const handleShareUrl = useCallback(async () => {
-    const token = await encodeScoreBuilderShareState({
+  const buildShareState = useCallback(
+    (): ScoreBuilderShareState => ({
       version: 1,
       boundarySource: state.boundarySource,
       healthBoundaryLevel: state.healthBoundaryLevel,
@@ -281,7 +403,12 @@ export function useScoreBuilderState() {
       methodSettings: state.methodSettings,
       mapSurface: state.mapSurface,
       customMetricRecipes: state.customMetricRecipes,
-    })
+    }),
+    [state],
+  )
+
+  const handleShareUrl = useCallback(async () => {
+    const token = await encodeScoreBuilderShareState(buildShareState())
     const url = new URL(window.location.href)
     url.search = ''
     url.searchParams.set('s', token)
@@ -292,7 +419,38 @@ export function useScoreBuilderState() {
       // The URL is still visible in the address bar if clipboard permissions are unavailable.
     }
     return url.toString()
-  }, [state])
+  }, [buildShareState])
+
+  // Named index recipes saved on this device.
+  const [savedIndexes, setSavedIndexes] = useState<SavedIndexEntry[]>(() => loadSavedIndexes())
+
+  const saveCurrentIndex = useCallback(
+    (label: string) => {
+      const trimmed = label.trim()
+      if (!trimmed) return
+      const entry: SavedIndexEntry = {
+        id: createSavedIndexId(),
+        label: trimmed,
+        savedAt: new Date().toISOString(),
+        state: buildShareState(),
+      }
+      setSavedIndexes((current) => persistSavedIndexes([entry, ...current]))
+    },
+    [buildShareState],
+  )
+
+  const applySavedIndex = useCallback(
+    (id: string) => {
+      const entry = savedIndexes.find((candidate) => candidate.id === id)
+      if (!entry) return
+      dispatchTracked({ type: 'applyShareState', share: entry.state })
+    },
+    [dispatchTracked, savedIndexes],
+  )
+
+  const deleteSavedIndex = useCallback((id: string) => {
+    setSavedIndexes((current) => persistSavedIndexes(current.filter((entry) => entry.id !== id)))
+  }, [])
 
   return {
     state,
@@ -340,6 +498,14 @@ export function useScoreBuilderState() {
     toggleScoreFilter,
     setMethodSettings,
     handleShareUrl,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    savedIndexes,
+    saveCurrentIndex,
+    applySavedIndex,
+    deleteSavedIndex,
   }
 }
 
