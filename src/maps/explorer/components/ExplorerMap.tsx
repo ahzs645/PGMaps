@@ -53,6 +53,17 @@ export function ExplorerMap({
   const overlayRef = useRef<HTMLDivElement>(null)
 
   const selectedItemId = selectedItem?.id || null
+
+  // With many datasets stacked the default full-opacity styling turns the map
+  // into solid blobs, so density scales the circles and fills down.
+  const visiblePointCount = pointCollections.filter((collection) => collection.visible).length
+  const visiblePolygonCount = polygonCollections.filter((collection) => collection.visible).length
+  const densePoints = visiblePointCount > 2
+  const densePolygons = visiblePolygonCount > 1
+  const clusterSizes = useMemo<[number, number, number]>(
+    () => (densePoints ? [13, 19, 26] : [20, 30, 40]),
+    [densePoints],
+  )
   const selectedPointCoordinates = useMemo<[number, number] | null>(() => {
     if (!selectedItem || selectedItem.geometry.type !== 'Point') return null
     return selectedItem.geometry.coordinates as [number, number]
@@ -157,10 +168,10 @@ export function ExplorerMap({
             key={collection.datasetId}
             data={collection.data}
             fillColor={collection.color}
-            fillOpacity={0.28}
+            fillOpacity={densePolygons ? 0.14 : 0.28}
             lineColor={collection.color}
-            lineWidth={1.1}
-            lineOpacity={0.8}
+            lineWidth={densePolygons ? 0.8 : 1.1}
+            lineOpacity={densePolygons ? 0.55 : 0.8}
             idProperty="itemId"
             selectedId={selectedItemId}
             visible={collection.visible}
@@ -191,6 +202,9 @@ export function ExplorerMap({
               clusterRadius={42}
               clusterThresholds={[50, 180]}
               clusterColors={[collection.color, collection.color, collection.color]}
+              clusterSizes={clusterSizes}
+              circleOpacity={densePoints ? 0.78 : 1}
+              circleStrokeWidth={1.5}
               pointColor={collection.color}
               onPointClick={(feature) => {
                 const itemId = feature.properties?.itemId
