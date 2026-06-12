@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -60,8 +60,10 @@ export default function BcAssessmentSection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { properties, loading, error } = useBcAssessmentData()
 
-  const [selectedCategories, setSelectedCategories] = useState<PropertyCategory[]>([])
-  const [categoriesInitialized, setCategoriesInitialized] = useState(false)
+  // null means "no explicit selection yet" and resolves to every category, so
+  // no initialization effect is needed once properties load.
+  const [selectedCategoriesOverride, setSelectedCategoriesOverride] = useState<PropertyCategory[] | null>(null)
+  const selectedCategories = selectedCategoriesOverride ?? ALL_CATEGORIES
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [colorMetric, setColorMetric] = useState<ColorMetric>(() => (searchParams.get('metric') as ColorMetric) || 'totalAssessed')
   const [boundaryLevel, setBoundaryLevel] = useState<BoundaryLevel>(() => {
@@ -75,64 +77,31 @@ export default function BcAssessmentSection() {
     return isAssessmentBoundaryLevel(boundary) ? SOURCE_BY_LEVEL[boundary] : 'census'
   })
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
+  const [ignoredUrlPropertyId, setIgnoredUrlPropertyId] = useState<string | null>(null)
   const [selectedBoundaryId, setSelectedBoundaryId] = useState<string | null>(() => searchParams.get('region'))
   const [showSidebar, setShowSidebar] = useState(true)
   const [showTimeline, setShowTimeline] = useState(false)
-  const ignoreUrlPropertySelectionRef = useRef(false)
 
   const { boundaryData } = useBoundaryData(boundaryLevel)
 
-  // Initialize filters with all categories
-  useEffect(() => {
-    if (!categoriesInitialized && properties.length > 0) {
-      setSelectedCategories(ALL_CATEGORIES)
-      setCategoriesInitialized(true)
-    }
-  }, [properties, categoriesInitialized])
-
-  useEffect(() => {
-    const propertyId = searchParams.get('property')
-    if (!propertyId) {
-      ignoreUrlPropertySelectionRef.current = false
-      return
-    }
-    if (ignoreUrlPropertySelectionRef.current) return
-    if (propertyId && !selectedProperty) {
-      const property = properties.find((item) => item.id === propertyId)
-      if (property) setSelectedProperty(property)
-    }
-  }, [properties, searchParams, selectedProperty])
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams)
-    if (searchQuery.trim()) params.set('q', searchQuery.trim())
-    else params.delete('q')
-    if (colorMetric !== 'totalAssessed') params.set('metric', colorMetric)
-    else params.delete('metric')
-    if (boundaryLevel !== 'none') params.set('boundary', boundaryLevel)
-    else params.delete('boundary')
-    if (boundarySource !== 'census') params.set('source', boundarySource)
-    else params.delete('source')
-    if (selectedProperty) params.set('property', selectedProperty.id)
-    else params.delete('property')
-    if (selectedBoundaryId) params.set('region', selectedBoundaryId)
-    else params.delete('region')
-    if (params.toString() !== searchParams.toString()) {
-      setSearchParams(params, { replace: true })
-    }
-  }, [boundaryLevel, boundarySource, colorMetric, searchParams, searchQuery, selectedBoundaryId, selectedProperty, setSearchParams])
+  // Deep-linked selection derives from the URL until the user explicitly
+  // clears it; remembering the cleared id keeps a fresh ?property= link live.
+  const urlPropertyId = searchParams.get('property')
+  const effectiveSelectedProperty = useMemo(() => {
+    if (selectedProperty) return selectedProperty
+    if (!urlPropertyId || urlPropertyId === ignoredUrlPropertyId) return null
+    return properties.find((item) => item.id === urlPropertyId) ?? null
+  }, [selectedProperty, urlPropertyId, ignoredUrlPropertyId, properties])
 
   const timelineYearOptions = useMemo(() => {
     const maxHistoryLength = properties.reduce((max, property) => Math.max(max, property.histValues?.length ?? 0), 0)
     if (maxHistoryLength === 0) return [new Date().getFullYear()]
     return Array.from({ length: maxHistoryLength }, (_, index) => ASSESSMENT_HISTORY_START_YEAR + index)
   }, [properties])
-  const [timelineYear, setTimelineYear] = useState(new Date().getFullYear())
-
-  useEffect(() => {
-    const latestYear = timelineYearOptions[timelineYearOptions.length - 1]
-    if (latestYear && !timelineYearOptions.includes(timelineYear)) setTimelineYear(latestYear)
-  }, [timelineYear, timelineYearOptions])
+  const [timelineYearState, setTimelineYear] = useState(new Date().getFullYear())
+  const timelineYear = timelineYearOptions.includes(timelineYearState)
+    ? timelineYearState
+    : timelineYearOptions[timelineYearOptions.length - 1] ?? timelineYearState
 
   const filteredBaseProperties = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -158,10 +127,37 @@ export default function BcAssessmentSection() {
     })
   }, [filteredBaseProperties, showTimeline, timelineYear])
 
+  const visibleSelectedProperty = useMemo(() => {
+    if (!effectiveSelectedProperty) return null
+    return filteredBaseProperties.some((property) => property.id === effectiveSelectedProperty.id)
+      ? effectiveSelectedProperty
+      : null
+  }, [filteredBaseProperties, effectiveSelectedProperty])
+
   const selectedDisplayProperty = useMemo(() => {
-    if (!selectedProperty) return null
-    return filteredProperties.find((property) => property.id === selectedProperty.id) ?? selectedProperty
-  }, [filteredProperties, selectedProperty])
+    if (!visibleSelectedProperty) return null
+    return filteredProperties.find((property) => property.id === visibleSelectedProperty.id) ?? visibleSelectedProperty
+  }, [filteredProperties, visibleSelectedProperty])
+
+  // Sync filters to URL for shareable links
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams)
+    if (searchQuery.trim()) params.set('q', searchQuery.trim())
+    else params.delete('q')
+    if (colorMetric !== 'totalAssessed') params.set('metric', colorMetric)
+    else params.delete('metric')
+    if (boundaryLevel !== 'none') params.set('boundary', boundaryLevel)
+    else params.delete('boundary')
+    if (boundarySource !== 'census') params.set('source', boundarySource)
+    else params.delete('source')
+    if (visibleSelectedProperty) params.set('property', visibleSelectedProperty.id)
+    else params.delete('property')
+    if (selectedBoundaryId) params.set('region', selectedBoundaryId)
+    else params.delete('region')
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true })
+    }
+  }, [boundaryLevel, boundarySource, colorMetric, searchParams, searchQuery, selectedBoundaryId, visibleSelectedProperty, setSearchParams])
 
   const timelineBucketValues = useMemo(() => {
     const totals = new Map<string, { total: number; count: number }>()
@@ -190,20 +186,12 @@ export default function BcAssessmentSection() {
   }), [timelineYear, timelineYearOptions])
 
   const boundaryAggregates = useBoundaryAggregates(filteredProperties, boundaryLevel)
-  // Clear selection if it's no longer visible
-  useEffect(() => {
-    if (!categoriesInitialized) return
-    if (selectedProperty && !filteredBaseProperties.some((p) => p.id === selectedProperty.id)) {
-      setSelectedProperty(null)
-    }
-  }, [categoriesInitialized, filteredBaseProperties, selectedProperty])
-
   const toggleCategory = useCallback((category: PropertyCategory) => {
-    setSelectedCategories((current) => toggleArrayItem(current, category))
+    setSelectedCategoriesOverride((current) => toggleArrayItem(current ?? ALL_CATEGORIES, category))
   }, [])
 
   const handleClearSelection = useCallback(() => {
-    ignoreUrlPropertySelectionRef.current = true
+    setIgnoredUrlPropertyId(searchParams.get('property'))
     setSelectedProperty(null)
     setSelectedBoundaryId(null)
     const params = new URLSearchParams(searchParams)
@@ -213,14 +201,13 @@ export default function BcAssessmentSection() {
   }, [searchParams, setSearchParams])
 
   const handlePropertyClick = useCallback((property: Property) => {
-    if (selectedProperty?.id === property.id) {
+    if (effectiveSelectedProperty?.id === property.id) {
       handleClearSelection()
       return
     }
-    ignoreUrlPropertySelectionRef.current = false
     setSelectedProperty(property)
     setSelectedBoundaryId(null)
-  }, [handleClearSelection, selectedProperty])
+  }, [handleClearSelection, effectiveSelectedProperty])
 
   const handleBoundaryClick = useCallback((boundaryId: string) => {
     if (selectedBoundaryId === boundaryId) {
@@ -269,7 +256,7 @@ export default function BcAssessmentSection() {
             BC Assessment | {filteredProperties.length.toLocaleString()} parcels
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {selectedProperty?.address || selectedBoundaryId || colorMetric}
+            {visibleSelectedProperty?.address || selectedBoundaryId || colorMetric}
           </div>
         </div>
       )}
@@ -337,9 +324,9 @@ export default function BcAssessmentSection() {
           </MapLegendPanel>
         )}
 
-        {selectedProperty && (
+        {visibleSelectedProperty && (
           <MobileBcAssessmentFeatureCard
-            property={selectedDisplayProperty ?? selectedProperty}
+            property={selectedDisplayProperty ?? visibleSelectedProperty}
             onClose={handleClearSelection}
           />
         )}

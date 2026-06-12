@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { RouletteRestaurant, HazardRating } from '../../types'
 
 interface RouletteSlotProps {
@@ -47,7 +47,7 @@ export function RouletteSlot({
   const [visibleCards, setVisibleCards] = useState<SlotCard[]>([])
   const [showWinner, setShowWinner] = useState(false)
 
-  const initializeCards = () => {
+  const initializeCards = useCallback(() => {
     if (eligibleRestaurants.length === 0) {
       setVisibleCards([])
       return
@@ -63,7 +63,7 @@ export function RouletteSlot({
     }
     setVisibleCards(cards)
     setShowWinner(false)
-  }
+  }, [eligibleRestaurants])
 
   useEffect(() => {
     if (!isSpinning || eligibleRestaurants.length === 0 || winnerIndex === null) return
@@ -109,7 +109,7 @@ export function RouletteSlot({
 
   useEffect(() => {
     initializeCards()
-  }, [eligibleRestaurants])
+  }, [initializeCards])
 
   if (eligibleRestaurants.length === 0) {
     return (

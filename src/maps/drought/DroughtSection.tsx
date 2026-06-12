@@ -98,10 +98,9 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
     return { start, end }
   }, [selectedYear, yearInfo])
 
-  useEffect(() => {
-    setTimelineDate(dateRange.end)
-    setSelectedId(null)
-  }, [dateRange.end, selectedYear])
+  // The scrub follows the end of the selected year's range until the user
+  // picks a date; switching years clears the override in handleYearChange.
+  const effectiveTimelineDate = timelineDate ?? dateRange.end
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -125,10 +124,10 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
   const activeCollection = useMemo<DroughtFeatureCollection>(() => {
     if (!collection) return EMPTY_COLLECTION
     const recordsByBasin = new Map<string, DroughtTimeSeriesRecord[]>()
-    const window = timelineEnabled && timelineDate
-      ? getTimelineWindow(dateRange, timelineDate, timelineWindowSize)
+    const window = timelineEnabled && effectiveTimelineDate
+      ? getTimelineWindow(dateRange, effectiveTimelineDate, timelineWindowSize)
       : null
-    const candidateRecords = !timelineEnabled || !timelineDate
+    const candidateRecords = !timelineEnabled || !effectiveTimelineDate
       ? records
       : records.filter((record) => window && recordOverlapsWindow(record, window.startMs, window.endMs))
 
@@ -160,7 +159,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
         }
       }),
     }
-  }, [collection, dateRange, records, timelineDate, timelineEnabled, timelineWindowSize])
+  }, [collection, dateRange, records, effectiveTimelineDate, timelineEnabled, timelineWindowSize])
 
   const filledBasinCount = useMemo(() => (
     activeCollection.features.filter((feature) => feature.properties.activeRecordId).length
@@ -171,15 +170,10 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
     return activeCollection.features.find((feature) => String(feature.id) === selectedId) ?? null
   }, [activeCollection.features, selectedId])
 
-  useEffect(() => {
-    if (!selectedId) return
-    if (!activeCollection.features.some((feature) => String(feature.id) === selectedId)) {
-      setSelectedId(null)
-    }
-  }, [activeCollection.features, selectedId])
-
   const handleYearChange = useCallback((year: number) => {
     setSelectedYear(year)
+    setTimelineDate(null)
+    setSelectedId(null)
   }, [])
 
   const mobilePeek = (
@@ -228,7 +222,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
         <div className="absolute right-14 top-16 z-10 rounded-md border border-border bg-background/95 px-2 py-1.5 text-[11px] shadow-lg backdrop-blur sm:right-16 sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs md:right-16 md:top-4">
           <div className="font-semibold leading-tight text-foreground">{selectedYear}</div>
           <div className="leading-tight text-muted-foreground">
-            {formatDate(timelineDate, { fallback: '' })}
+            {formatDate(effectiveTimelineDate, { fallback: '' })}
           </div>
         </div>
 
@@ -239,11 +233,11 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
           />
         )}
 
-        {timelineEnabled && timelineDate && (
+        {timelineEnabled && effectiveTimelineDate && (
           <Timeline
             startDate={dateRange.start}
             endDate={dateRange.end}
-            currentDate={timelineDate}
+            currentDate={effectiveTimelineDate}
             onDateChange={setTimelineDate}
             onClose={() => setTimelineEnabled(false)}
             bucketCounts={bucketCounts}

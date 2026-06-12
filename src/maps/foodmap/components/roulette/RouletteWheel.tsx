@@ -34,9 +34,10 @@ export function RouletteWheel({
   // useSpinnerWheelState only reads initialEntries on mount. Push prop-driven
   // changes (e.g. filter updates, async restaurant load) into the hook so the
   // wheel doesn't fall back to the library's DEFAULT_ENTRIES placeholder.
+  const { setEntries } = wheel
   useEffect(() => {
-    wheel.setEntries(initialEntries)
-  }, [initialEntries, wheel.setEntries])
+    setEntries(initialEntries)
+  }, [initialEntries, setEntries])
 
   const handleSpin = useCallback(() => {
     if (wheel.isSpinning || restaurants.length === 0) return

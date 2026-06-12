@@ -44,7 +44,7 @@ export function Navbar() {
   const { resolvedTheme, setTheme } = useTheme()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobilePgDataOpen, setMobilePgDataOpen] = useState(() => location.pathname === '/pgdata')
-  const [mobileMiscOpen, setMobileMiscOpen] = useState(false)
+  const [mobileMiscOpen, setMobileMiscOpen] = useState(() => location.pathname === '/misc')
   const [mobileToolbarHidden, setMobileToolbarHidden] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -98,9 +98,13 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [mobileMenuOpen])
 
-  useEffect(() => {
+  // Guarded render-phase adjustment: navigating to /misc expands the
+  // submenu without an effect-driven second render.
+  const [lastPathname, setLastPathname] = useState(location.pathname)
+  if (lastPathname !== location.pathname) {
+    setLastPathname(location.pathname)
     if (location.pathname === '/misc') setMobileMiscOpen(true)
-  }, [location.pathname])
+  }
 
   useEffect(() => {
     const handleToolbarVisibility = (event: Event) => {

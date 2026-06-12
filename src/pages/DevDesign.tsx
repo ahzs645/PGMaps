@@ -430,11 +430,12 @@ function StaticMapPreview({ design }: { design: DesignState }) {
 export default function DevDesign() {
   const [design, setDesign] = useState<DesignState>(TASMAP_CAPTURE)
   const [status, setStatus] = useState('loading local PMTiles')
-  const [canUseWebGl, setCanUseWebGl] = useState(false)
+  // Probing WebGL support once in the lazy initializer avoids flipping state
+  // from the mount effect.
+  const [canUseWebGl] = useState(() => hasWebGlContext())
 
   useEffect(() => {
     ensurePmtilesProtocol()
-    setCanUseWebGl(hasWebGlContext())
   }, [])
 
   const style = useMemo(() => buildTasmapStyle(design), [design])

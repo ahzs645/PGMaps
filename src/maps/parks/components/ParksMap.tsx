@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import MapLibreGL from 'maplibre-gl'
 import {
   MapClusterLayer,
@@ -65,8 +65,8 @@ export function ParksMap({
   onTrailClick,
 }: ParksMapProps) {
   const { map } = useMap()
-  const parksByIdRef = useRef(new globalThis.Map<number, Park>())
-  const trailsByIdRef = useRef(new globalThis.Map<number, Trail>())
+  const parksById = useMemo(() => new globalThis.Map(parks.map((park) => [park.id, park])), [parks])
+  const trailsById = useMemo(() => new globalThis.Map(trails.map((trail) => [trail.id, trail])), [trails])
 
   const showParks = activeLayers.includes('parks')
   const showTrails = activeLayers.includes('trails')
@@ -79,9 +79,7 @@ export function ParksMap({
   const showPlanning = activeLayers.includes('planning')
 
   const parkGeojson = useMemo<GeoJSON.FeatureCollection>(() => {
-    const parksById = new globalThis.Map<number, Park>()
     const features = parks.map((park) => {
-      parksById.set(park.id, park)
       return {
         type: 'Feature' as const,
         id: park.id,
@@ -94,14 +92,11 @@ export function ParksMap({
         geometry: park.geometry,
       }
     })
-    parksByIdRef.current = parksById
     return { type: 'FeatureCollection', features }
   }, [parks])
 
   const trailGeojson = useMemo<GeoJSON.FeatureCollection>(() => {
-    const trailsById = new globalThis.Map<number, Trail>()
     const features = trails.map((trail) => {
-      trailsById.set(trail.id, trail)
       return {
         type: 'Feature' as const,
         id: trail.id,
@@ -117,7 +112,6 @@ export function ParksMap({
         },
       }
     })
-    trailsByIdRef.current = trailsById
     return { type: 'FeatureCollection', features }
   }, [trails])
 
@@ -175,7 +169,7 @@ export function ParksMap({
               onParkClick(null)
               return
             }
-            const park = parksByIdRef.current.get(Number(id))
+            const park = parksById.get(Number(id))
             if (park) onParkClick(park)
           }}
         />
@@ -196,7 +190,7 @@ export function ParksMap({
               onTrailClick(null)
               return
             }
-            const trail = trailsByIdRef.current.get(Number(id))
+            const trail = trailsById.get(Number(id))
             if (trail) onTrailClick(trail)
           }}
         />

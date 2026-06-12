@@ -218,11 +218,20 @@ type PersistentMapHostProps = {
 export function PersistentMapHost({ className, loading = false, loadingLabel }: PersistentMapHostProps) {
   const { container, map, isLoaded, routeLoadingKey } = usePersistentMap();
   const hostRef = useRef<HTMLDivElement>(null);
-  const previousRouteLoadingKeyRef = useRef(routeLoadingKey);
-  const routeLoadingStartedAtRef = useRef(0);
+
   const pointerStartRef = useRef<{ x: number; y: number; dispatched: boolean } | null>(null);
   const lastGestureAtRef = useRef(0);
-  const [routeLoading, setRouteLoading] = useState(false);
+  // Guarded render-phase adjustment: a new route key flips the overlay on
+  // immediately instead of one effect-render later.
+  const [routeLoadingState, setRouteLoadingState] = useState({
+    key: routeLoadingKey,
+    loading: false,
+  });
+  if (routeLoadingState.key !== routeLoadingKey) {
+    setRouteLoadingState({ key: routeLoadingKey, loading: true });
+  }
+  const routeLoading = routeLoadingState.loading;
+  const routeLoadingStartedAtRef = useRef(0);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -245,10 +254,7 @@ export function PersistentMapHost({ className, loading = false, loadingLabel }: 
   }, [container, map]);
 
   useEffect(() => {
-    if (previousRouteLoadingKeyRef.current === routeLoadingKey) return;
-    previousRouteLoadingKeyRef.current = routeLoadingKey;
     routeLoadingStartedAtRef.current = Date.now();
-    setRouteLoading(true);
   }, [routeLoadingKey]);
 
   useEffect(() => {
@@ -256,7 +262,10 @@ export function PersistentMapHost({ className, loading = false, loadingLabel }: 
 
     const elapsed = Date.now() - routeLoadingStartedAtRef.current;
     const remaining = Math.max(0, 250 - elapsed);
-    const timeout = window.setTimeout(() => setRouteLoading(false), remaining);
+    const timeout = window.setTimeout(
+      () => setRouteLoadingState((current) => ({ ...current, loading: false })),
+      remaining,
+    );
     return () => window.clearTimeout(timeout);
   }, [isLoaded, loading, routeLoading]);
 

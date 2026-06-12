@@ -21,8 +21,9 @@ export default function CrimeDataSection() {
 
   // Crime filters
   const [selectedCategories, setSelectedCategories] = useState<CrimeCategory[]>(ALL_CATEGORIES)
-  const [selectedYears, setSelectedYears] = useState<number[]>([])
-  const [yearsInitialized, setYearsInitialized] = useState(false)
+  // null means "no explicit selection yet" and resolves to every year, so no
+  // initialization effect is needed once incidents load.
+  const [selectedYearsOverride, setSelectedYearsOverride] = useState<number[] | null>(null)
   const [selectedCommunity, setSelectedCommunity] = useState(() => searchParams.get('community') || '')
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
@@ -37,12 +38,7 @@ export default function CrimeDataSection() {
     return Array.from(years).sort((a, b) => b - a)
   }, [incidents])
 
-  useEffect(() => {
-    if (!yearsInitialized && allYears.length > 0) {
-      setSelectedYears(allYears)
-      setYearsInitialized(true)
-    }
-  }, [allYears, yearsInitialized])
+  const selectedYears = selectedYearsOverride ?? allYears
 
   const allCommunities = useMemo(() => {
     const communities = new Set(incidents.map((inc) => inc.community).filter(Boolean))
@@ -80,14 +76,18 @@ export default function CrimeDataSection() {
     return { start: min, end: max }
   }, [incidents])
 
-  useEffect(() => {
-    if (timelineEnabled && !timelineDate && incidents.length > 0) {
-      setTimelineDate(new Date(incidentDateRange.end.getFullYear(), incidentDateRange.end.getMonth(), 1))
-    }
-  }, [timelineEnabled, timelineDate, incidents.length, incidentDateRange.end])
+  // The scrub defaults to the most recent incident month until the user picks
+  // one explicitly; deriving it avoids a state write when the timeline opens.
+  const effectiveTimelineDate = useMemo(() => {
+    if (timelineDate) return timelineDate
+    return incidents.length > 0
+      ? new Date(incidentDateRange.end.getFullYear(), incidentDateRange.end.getMonth(), 1)
+      : null
+  }, [timelineDate, incidents.length, incidentDateRange.end])
 
   const filteredIncidents = useMemo(() => {
-    if (!timelineEnabled || !timelineDate) return baseFilteredIncidents
+    if (!timelineEnabled || !effectiveTimelineDate) return baseFilteredIncidents
+    const timelineDate = effectiveTimelineDate
     const isCumulative = timelineWindowSize === -1
     const startMs = isCumulative
       ? new Date(incidentDateRange.start.getFullYear(), incidentDateRange.start.getMonth(), 1).getTime()
@@ -106,7 +106,7 @@ export default function CrimeDataSection() {
       const t = inc.date.getTime()
       return t >= startMs && t <= endMs
     })
-  }, [baseFilteredIncidents, timelineEnabled, timelineDate, timelineWindowSize, incidentDateRange.start])
+  }, [baseFilteredIncidents, timelineEnabled, effectiveTimelineDate, timelineWindowSize, incidentDateRange.start])
 
   // Sync filters to URL for shareable links
   useEffect(() => {
@@ -127,22 +127,22 @@ export default function CrimeDataSection() {
   }, [])
 
   const toggleYear = useCallback((year: number) => {
-    setSelectedYears((current) =>
-      current.includes(year)
-        ? current.filter((y) => y !== year)
-        : [...current, year]
-    )
-  }, [])
+    setSelectedYearsOverride((current) => {
+      const base = current ?? allYears
+      return base.includes(year) ? base.filter((y) => y !== year) : [...base, year]
+    })
+  }, [allYears])
 
   const handleTimelineDisable = useCallback(() => {
     setTimelineEnabled(false)
     setTimelineDate(null)
   }, [])
 
-  useEffect(() => {
-    if (!selectedIncident) return
-    const stillVisible = filteredIncidents.some((inc) => inc.id === selectedIncident.id)
-    if (!stillVisible) setSelectedIncident(null)
+  // A selection that filters drop out of view simply stops rendering; the
+  // stored state is harmless and avoids an effect-driven clear.
+  const visibleSelectedIncident = useMemo(() => {
+    if (!selectedIncident) return null
+    return filteredIncidents.some((inc) => inc.id === selectedIncident.id) ? selectedIncident : null
   }, [filteredIncidents, selectedIncident])
 
   // Build legend items for active layers
@@ -170,7 +170,7 @@ export default function CrimeDataSection() {
             PG Data | {filteredIncidents.length.toLocaleString()} incidents
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {selectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}
+            {visibleSelectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}
           </div>
         </div>
       )}
@@ -179,7 +179,7 @@ export default function CrimeDataSection() {
           className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
           incidents={incidents}
           filteredIncidents={filteredIncidents}
-          selectedIncident={selectedIncident}
+          selectedIncident={visibleSelectedIncident}
           selectedCategories={selectedCategories}
           selectedYears={selectedYears}
           selectedCommunity={selectedCommunity}
@@ -194,7 +194,7 @@ export default function CrimeDataSection() {
           onSelectAllCategories={() => setSelectedCategories(ALL_CATEGORIES)}
           onClearCategories={() => setSelectedCategories([])}
           onToggleYear={toggleYear}
-          onSelectAllYears={() => setSelectedYears(allYears)}
+          onSelectAllYears={() => setSelectedYearsOverride(null)}
           onCommunityChange={setSelectedCommunity}
           onSearchChange={setSearchQuery}
           onToggleHeatmap={() => setShowHeatmap((h) => !h)}
@@ -210,7 +210,7 @@ export default function CrimeDataSection() {
       <div className="relative h-full">
         <CrimeMap
           incidents={filteredIncidents}
-          selectedIncident={selectedIncident}
+          selectedIncident={visibleSelectedIncident}
           showHeatmap={showHeatmap}
           onIncidentClick={setSelectedIncident}
           onIncidentClear={() => setSelectedIncident(null)}
@@ -219,11 +219,11 @@ export default function CrimeDataSection() {
         />
 
         {/* Timeline */}
-        {timelineEnabled && !loading && timelineDate && (
+        {timelineEnabled && !loading && effectiveTimelineDate && (
           <Timeline
             startDate={incidentDateRange.start}
             endDate={incidentDateRange.end}
-            currentDate={timelineDate}
+            currentDate={effectiveTimelineDate}
             onDateChange={setTimelineDate}
             onClose={handleTimelineDisable}
             windowMode={{

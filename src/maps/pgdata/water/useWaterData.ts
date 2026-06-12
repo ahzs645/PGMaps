@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 import { useJsonManifest } from '../shared'
@@ -62,8 +62,12 @@ export function useWaterData(active: boolean) {
   const [showPoints, setShowPoints] = useState(true)
   const [visiblePointCategories, setVisiblePointCategories] = useState<WaterPointCategory[]>(WATER_POINT_CATEGORIES)
   const [showHeatmap, setShowHeatmap] = useState(false)
-  const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>(null)
+  const [selectedFacilityId, setSelectedFacilityIdState] = useState<string | null>(null)
   const [showSelectedFacilityReport, setShowSelectedFacilityReport] = useState(false)
+  const setSelectedFacilityId = useCallback((facilityId: string | null) => {
+    setSelectedFacilityIdState(facilityId)
+    if (!facilityId) setShowSelectedFacilityReport(false)
+  }, [])
   const [timelineEnabled, setTimelineEnabled] = useState(false)
   const [timelineDate, setTimelineDate] = useState<Date | null>(null)
   const [timelineWindowSize, setTimelineWindowSize] = useState(12)
@@ -304,6 +308,13 @@ export function useWaterData(active: boolean) {
       }))
   ), [sampleParameterCounts])
 
+  // A parameter that drops out of the current options falls back to 'all'
+  // without rewriting the user's stored choice.
+  const effectiveSampleParameterFilter =
+    sampleParameterFilter !== 'all' && sampleParameterOptions.some((option) => option.value === sampleParameterFilter)
+      ? sampleParameterFilter
+      : 'all'
+
   const sampleDateRange = useMemo(() => {
     let min: Date | null = null
     let max: Date | null = null
@@ -319,14 +330,18 @@ export function useWaterData(active: boolean) {
     }
   }, [samples])
 
-  useEffect(() => {
-    if (timelineEnabled && !timelineDate && samples.length > 0) {
-      setTimelineDate(new Date(sampleDateRange.end.getFullYear(), sampleDateRange.end.getMonth(), 1))
-    }
-  }, [sampleDateRange.end, samples.length, timelineDate, timelineEnabled])
+  // The scrub defaults to the most recent sample month until the user picks
+  // one explicitly; deriving it avoids a state write when the timeline opens.
+  const effectiveTimelineDate = useMemo(() => {
+    if (timelineDate) return timelineDate
+    return samples.length > 0
+      ? new Date(sampleDateRange.end.getFullYear(), sampleDateRange.end.getMonth(), 1)
+      : null
+  }, [timelineDate, samples.length, sampleDateRange.end])
 
   const timelineFilterRange = useMemo(() => {
-    if (!timelineEnabled || !timelineDate) return null
+    if (!timelineEnabled || !effectiveTimelineDate) return null
+    const timelineDate = effectiveTimelineDate
     const isCumulative = timelineWindowSize === -1
     const start = isCumulative
       ? new Date(sampleDateRange.start.getFullYear(), sampleDateRange.start.getMonth(), 1)
@@ -341,21 +356,21 @@ export function useWaterData(active: boolean) {
       999,
     )
     return { start: start.getTime(), end: end.getTime() }
-  }, [sampleDateRange.start, timelineDate, timelineEnabled, timelineWindowSize])
+  }, [sampleDateRange.start, effectiveTimelineDate, timelineEnabled, timelineWindowSize])
 
   const filteredSamples = useMemo(() => {
     return samples.filter((sample) => {
       if (sampleKindFilter !== 'all' && sample.kind !== sampleKindFilter) return false
-      if (sampleParameterFilter !== 'all') {
+      if (effectiveSampleParameterFilter !== 'all') {
         const parameter = sample.parameter || (sample.kind === 'bacteriological' ? 'Bacteriological' : 'Unknown')
-        if (parameter !== sampleParameterFilter) return false
+        if (parameter !== effectiveSampleParameterFilter) return false
       }
       if (!timelineFilterRange) return true
       if (!sample.date) return false
       const time = sample.date.getTime()
       return time >= timelineFilterRange.start && time <= timelineFilterRange.end
     })
-  }, [sampleKindFilter, sampleParameterFilter, samples, timelineFilterRange])
+  }, [sampleKindFilter, effectiveSampleParameterFilter, samples, timelineFilterRange])
 
   const facilityLookup = useMemo(() => ({
     byId: new Map(facilities.map((facility) => [facility.id, facility])),
@@ -363,7 +378,7 @@ export function useWaterData(active: boolean) {
   }), [facilities])
 
   const activeFacilityIds = useMemo(() => {
-    const sampleFilterActive = timelineFilterRange != null || sampleKindFilter !== 'all' || sampleParameterFilter !== 'all'
+    const sampleFilterActive = timelineFilterRange != null || sampleKindFilter !== 'all' || effectiveSampleParameterFilter !== 'all'
     if (!sampleFilterActive) return null
     const ids = new Set<string>()
     for (const sample of filteredSamples) {
@@ -371,7 +386,7 @@ export function useWaterData(active: boolean) {
       if (facility) ids.add(facility.id)
     }
     return ids
-  }, [facilityLookup, filteredSamples, sampleKindFilter, sampleParameterFilter, timelineFilterRange])
+  }, [facilityLookup, filteredSamples, sampleKindFilter, effectiveSampleParameterFilter, timelineFilterRange])
 
   const facilityFilteredSampleCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -429,16 +444,6 @@ export function useWaterData(active: boolean) {
   const selectedFacilityInspections = useMemo(() => (
     selectedFacility ? getInspectionRows(selectedFacility) : []
   ), [selectedFacility])
-
-  useEffect(() => {
-    if (sampleParameterFilter !== 'all' && !sampleParameterOptions.some((option) => option.value === sampleParameterFilter)) {
-      setSampleParameterFilter('all')
-    }
-  }, [sampleParameterFilter, sampleParameterOptions])
-
-  useEffect(() => {
-    if (!selectedFacilityId) setShowSelectedFacilityReport(false)
-  }, [selectedFacilityId])
 
   const bucketCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -610,7 +615,7 @@ export function useWaterData(active: boolean) {
     sampleKindFilter,
     setSampleKindFilter,
     sampleKindCounts,
-    sampleParameterFilter,
+    sampleParameterFilter: effectiveSampleParameterFilter,
     setSampleParameterFilter,
     sampleParameterOptions,
     sampleParameterCounts,
@@ -640,7 +645,7 @@ export function useWaterData(active: boolean) {
     bucketCounts,
     timelineEnabled,
     setTimelineEnabled,
-    timelineDate,
+    timelineDate: effectiveTimelineDate,
     setTimelineDate,
     timelineWindowSize,
     setTimelineWindowSize,

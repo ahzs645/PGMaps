@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { Calculator, Footprints, RotateCcw } from 'lucide-react'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
@@ -335,18 +335,17 @@ export function useWalkabilityData(
   initialDisplayMode: string | null,
   initialHeatmapVariantId: string | null,
 ) {
-  const [selectedVariantId, setSelectedVariantId] = useState<string>(initialVariantId || WALKABILITY_DEFAULT_VARIANT)
-  const [displayMode, setDisplayMode] = useState<WalkabilityDisplayMode>(
+  const [selectedVariantId, setSelectedVariantIdState] = useState<string>(initialVariantId || WALKABILITY_DEFAULT_VARIANT)
+  const [displayMode, setDisplayModeState] = useState<WalkabilityDisplayMode>(
     initialDisplayMode === 'community' ? 'community' : WALKABILITY_DEFAULT_DISPLAY_MODE,
   )
   const [selectedHeatmapVariantId, setSelectedHeatmapVariantId] = useState<string>(initialHeatmapVariantId || WALKABILITY_DEFAULT_HEATMAP_VARIANT)
-  const [heatmapOptionState, setHeatmapOptionState] = useState<HeatmapOptionState>(() => (
-    normalizeHeatmapOptions(HEATMAP_REPORT_FIDELITY_OPTIONS)
-  ))
+  // null means "no user override yet"; the effective options derive from the
+  // initial heat map variant once the grid manifest arrives.
+  const [heatmapOptionOverride, setHeatmapOptionOverride] = useState<HeatmapOptionState | null>(null)
   const [heatmapFactorWeights, setHeatmapFactorWeights] = useState<HeatmapFactorWeightState>(() => ({
     ...HEATMAP_DEFAULT_FACTOR_WEIGHTS,
   }))
-  const initializedHeatmapOptionsRef = useRef(false)
   const [liveHeatmap, setLiveHeatmap] = useState<WalkabilityLiveHeatmapState>({
     status: 'idle',
     requestKey: '',
@@ -364,24 +363,46 @@ export function useWalkabilityData(
     active ? (manifest.data?.output ?? '/data/walkability/community_walkability.geojson') : null,
   )
 
-  const variants = manifest.data?.variants ?? []
+  const variants = useMemo(() => manifest.data?.variants ?? [], [manifest.data])
   const selectedVariant = useMemo(() => {
     if (!variants.length) return null
     return variants.find((variant) => variant.id === selectedVariantId) ?? variants[0]
   }, [selectedVariantId, variants])
+  // The selection state holds the requested id; the effective id comes from
+  // the resolved variant, so no state sync is needed when the manifest loads.
+  const effectiveVariantId = selectedVariant?.id ?? selectedVariantId
+  const setSelectedVariantId = useCallback((variantId: string) => {
+    setSelectedVariantIdState(variantId)
+    setSelectedCommunityId(null)
+  }, [])
+  const setDisplayMode = useCallback((mode: WalkabilityDisplayMode) => {
+    setDisplayModeState(mode)
+    if (mode === 'heatmap') setSelectedCommunityId(null)
+  }, [])
   const selectedScoreField = WALKABILITY_SCORE_FIELD_BY_VARIANT[selectedVariant?.id ?? WALKABILITY_DEFAULT_VARIANT] ?? 'balancedScore'
-  const features = data.data?.features ?? []
-  const heatmapVariants = gridHeatmap.data?.variants ?? []
+  const features = useMemo(() => data.data?.features ?? [], [data.data])
+  const heatmapVariants = useMemo(() => gridHeatmap.data?.variants ?? [], [gridHeatmap.data])
   const selectedHeatmapVariant = useMemo(() => {
     if (!heatmapVariants.length) return null
     return heatmapVariants.find((variant) => variant.key === selectedHeatmapVariantId)
       ?? heatmapVariants.find((variant) => variant.key === gridHeatmap.data?.defaultVariant)
       ?? heatmapVariants[0]
   }, [gridHeatmap.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
+  const effectiveHeatmapVariantId = selectedHeatmapVariant?.key ?? selectedHeatmapVariantId
+  const defaultHeatmapOptions = useMemo(() => {
+    if (!heatmapVariants.length) return normalizeHeatmapOptions(HEATMAP_REPORT_FIDELITY_OPTIONS)
+    const initialKey = initialHeatmapVariantId || gridHeatmap.data?.defaultVariant || WALKABILITY_DEFAULT_HEATMAP_VARIANT
+    const initialVariant = heatmapVariants.find((variant) => variant.key === initialKey)
+      ?? heatmapVariants.find((variant) => variant.key === WALKABILITY_DEFAULT_HEATMAP_VARIANT)
+      ?? heatmapVariants.find((variant) => variant.key === gridHeatmap.data?.defaultVariant)
+      ?? heatmapVariants[0]
+    return normalizeHeatmapOptions(optionsForHeatmapVariant(initialVariant))
+  }, [gridHeatmap.data?.defaultVariant, heatmapVariants, initialHeatmapVariantId])
+  const heatmapOptionState = heatmapOptionOverride ?? defaultHeatmapOptions
   const setHeatmapOption = (key: HeatmapOptionKey, checked: boolean) => {
     const requested = normalizeHeatmapOptions({ ...heatmapOptionState, [key]: checked })
     const nextVariantKey = variantKeyForHeatmapOptions(requested)
-    setHeatmapOptionState(requested)
+    setHeatmapOptionOverride(requested)
     if (heatmapVariants.some((variant) => variant.key === nextVariantKey)) {
       setSelectedHeatmapVariantId(nextVariantKey)
     }
@@ -437,50 +458,10 @@ export function useWalkabilityData(
   }, [selectedScoreField, maxScore, minScore])
 
   useEffect(() => {
-    if (!variants.length) return
-    if (!variants.some((variant) => variant.id === selectedVariantId)) {
-      setSelectedVariantId(variants[0].id)
-    }
-  }, [selectedVariantId, variants])
-
-  useEffect(() => {
-    setSelectedCommunityId(null)
-  }, [selectedVariantId])
-
-  useEffect(() => {
-    if (displayMode === 'heatmap') setSelectedCommunityId(null)
-  }, [displayMode])
-
-  useEffect(() => {
-    if (!heatmapVariants.length) return
-    if (!heatmapVariants.some((variant) => variant.key === selectedHeatmapVariantId)) {
-      setSelectedHeatmapVariantId(gridHeatmap.data?.defaultVariant ?? heatmapVariants[0].key)
-    }
-  }, [gridHeatmap.data?.defaultVariant, heatmapVariants, selectedHeatmapVariantId])
-
-  useEffect(() => {
-    if (!heatmapVariants.length || initializedHeatmapOptionsRef.current) return
-    const initialKey = initialHeatmapVariantId || gridHeatmap.data?.defaultVariant || WALKABILITY_DEFAULT_HEATMAP_VARIANT
-    const initialVariant = heatmapVariants.find((variant) => variant.key === initialKey)
-      ?? heatmapVariants.find((variant) => variant.key === WALKABILITY_DEFAULT_HEATMAP_VARIANT)
-      ?? heatmapVariants.find((variant) => variant.key === gridHeatmap.data?.defaultVariant)
-      ?? heatmapVariants[0]
-    setHeatmapOptionState(normalizeHeatmapOptions(optionsForHeatmapVariant(initialVariant)))
-    initializedHeatmapOptionsRef.current = true
-  }, [gridHeatmap.data?.defaultVariant, heatmapVariants, initialHeatmapVariantId])
-
-  useEffect(() => {
     if (!active || displayMode !== 'heatmap' || !gridHeatmap.data) return
     let cancelled = false
     const requestKey = heatmapOptionKey
     const worker = new Worker(new URL('./walkabilityLiveHeatmap.worker.js', import.meta.url), { type: 'module' })
-    setLiveHeatmap({
-      status: 'loading',
-      requestKey,
-      progress: 'Loading source layers',
-      grid: null,
-      error: null,
-    })
     worker.onmessage = (event: MessageEvent) => {
       if (cancelled) return
       const message = event.data as {
@@ -492,9 +473,13 @@ export function useWalkabilityData(
       }
       if (message.requestKey !== requestKey) return
       if (message.type === 'progress') {
-        setLiveHeatmap((current) => current.requestKey === requestKey
-          ? { ...current, progress: message.progress ?? current.progress }
-          : current)
+        setLiveHeatmap({
+          status: 'loading',
+          requestKey,
+          progress: message.progress ?? 'Loading source layers',
+          grid: null,
+          error: null,
+        })
       }
       if (message.type === 'result' && message.grid) {
         setLiveHeatmap({
@@ -530,7 +515,16 @@ export function useWalkabilityData(
       cancelled = true
       worker.terminate()
     }
-  }, [active, displayMode, gridHeatmap.data, heatmapOptionKey, heatmapOptionState])
+  }, [active, displayMode, gridHeatmap.data, heatmapFactorWeights, heatmapOptionKey, heatmapOptionState])
+
+  // Until the worker reports in for the current request, the visible state is
+  // a synthetic loading entry; this replaces a synchronous setState on launch.
+  const liveHeatmapView = useMemo<WalkabilityLiveHeatmapState>(() => {
+    if (active && displayMode === 'heatmap' && gridHeatmap.data && liveHeatmap.requestKey !== heatmapOptionKey) {
+      return { status: 'loading', requestKey: heatmapOptionKey, progress: 'Loading source layers', grid: null, error: null }
+    }
+    return liveHeatmap
+  }, [active, displayMode, gridHeatmap.data, heatmapOptionKey, liveHeatmap])
 
   return {
     manifest,
@@ -541,7 +535,7 @@ export function useWalkabilityData(
     setDisplayMode,
     variants,
     selectedVariant,
-    selectedVariantId,
+    selectedVariantId: effectiveVariantId,
     setSelectedVariantId,
     heatmapVariants,
     heatmapOptionState,
@@ -550,10 +544,10 @@ export function useWalkabilityData(
     setHeatmapFactorWeight,
     resetHeatmapFactorWeights,
     heatmapOptionKey,
-    liveHeatmap,
+    liveHeatmap: liveHeatmapView,
     selectedHeatmapBandCounts,
     selectedHeatmapVariant,
-    selectedHeatmapVariantId,
+    selectedHeatmapVariantId: effectiveHeatmapVariantId,
     setSelectedHeatmapVariantId,
     selectedScoreField,
     features,
