@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/ensure-vendor-json-url.mjs",
     "dev": "vite",
     "prebuild": "npm --prefix vendor/json-url run build",
     "build": "tsc -b && vite build",

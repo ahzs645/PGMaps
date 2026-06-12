@@ -668,9 +668,18 @@ function MapPmtilesFillLayer({
   const fillLayerId = `pmtiles-fill-${uid}`
   const lineLayerId = `pmtiles-line-${uid}`
 
+  // Creation reads the latest style through a ref so recreating the source
+  // (url change) keeps current paint without depending on per-render
+  // expression identities; live updates flow through the effects below.
+  const styleRef = useRef({ fillColor, fillOpacity, lineColor, lineWidth, lineOpacity, visible })
+  useEffect(() => {
+    styleRef.current = { fillColor, fillOpacity, lineColor, lineWidth, lineOpacity, visible }
+  })
+
   useEffect(() => {
     if (!isLoaded || !map || !url) return
     ensurePmtilesProtocol()
+    const style = styleRef.current
 
     map.addSource(sourceId, {
       type: 'vector',
@@ -683,11 +692,11 @@ function MapPmtilesFillLayer({
       source: sourceId,
       'source-layer': sourceLayer,
       paint: {
-        'fill-color': fillColor as never,
-        'fill-opacity': fillOpacity,
+        'fill-color': style.fillColor as never,
+        'fill-opacity': style.fillOpacity,
       },
       layout: {
-        visibility: visible ? 'visible' : 'none',
+        visibility: style.visible ? 'visible' : 'none',
       },
     })
 
@@ -697,12 +706,12 @@ function MapPmtilesFillLayer({
       source: sourceId,
       'source-layer': sourceLayer,
       paint: {
-        'line-color': lineColor as never,
-        'line-width': lineWidth,
-        'line-opacity': lineOpacity,
+        'line-color': style.lineColor as never,
+        'line-width': style.lineWidth,
+        'line-opacity': style.lineOpacity,
       },
       layout: {
-        visibility: visible ? 'visible' : 'none',
+        visibility: style.visible ? 'visible' : 'none',
       },
     })
 

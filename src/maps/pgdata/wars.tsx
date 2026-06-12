@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { PawPrint } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
@@ -136,18 +136,28 @@ export function useWarsData(
   initialShowPoints: string | null = null,
   initialShowHeatmap: string | null = null,
 ) {
-  const [selectedSpecies, setSelectedSpecies] = useState<string>(initialSpecies || ALL_SPECIES)
+  const [selectedSpecies, setSelectedSpeciesState] = useState<string>(initialSpecies || ALL_SPECIES)
   const [hiddenSpecies, setHiddenSpecies] = useState<string[]>([])
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
-  const [yearMode, setYearMode] = useState<string>(ALL_YEARS)
+  const [yearMode, setYearModeState] = useState<string>(ALL_YEARS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [timelineEnabled, setTimelineEnabled] = useState(false)
   const [timelineDate, setTimelineDate] = useState<Date | null>(null)
   const [timelineWindowSize, setTimelineWindowSize] = useState(1)
   const manifest = useJsonManifest<WarsManifest>(active ? '/data/wars/manifest.json' : null)
   const crashes = useJsonManifest<WarsFeatureCollection>(active && manifest.data ? manifest.data.geojson : null)
-  const features = crashes.data?.features ?? []
+  const features = useMemo(() => crashes.data?.features ?? [], [crashes.data])
+  // Changing the species or year filter invalidates the current selection, so
+  // the setters clear it together instead of an effect doing it a render late.
+  const setSelectedSpecies = useCallback((species: string) => {
+    setSelectedSpeciesState(species)
+    setSelectedId(null)
+  }, [])
+  const setYearMode = useCallback((mode: string) => {
+    setYearModeState(mode)
+    setSelectedId(null)
+  }, [])
   const yearEnd = manifest.data?.yearEnd ?? null
   const recentYearStart = yearEnd == null ? null : yearEnd - 9
 
@@ -181,14 +191,16 @@ export function useWarsData(
     return { start: min, end: max }
   }, [features])
 
-  useEffect(() => {
-    if (timelineEnabled && !timelineDate && features.length > 0) {
-      setTimelineDate(new Date(accidentDateRange.end.getFullYear(), 0, 1))
-    }
-  }, [timelineEnabled, timelineDate, features.length, accidentDateRange.end])
+  // The scrub defaults to the most recent accident year until the user picks
+  // one explicitly; deriving it avoids a state write when the timeline opens.
+  const effectiveTimelineDate = useMemo(() => {
+    if (timelineDate) return timelineDate
+    return features.length > 0 ? new Date(accidentDateRange.end.getFullYear(), 0, 1) : null
+  }, [timelineDate, features.length, accidentDateRange.end])
 
   const timelineFilterRange = useMemo(() => {
-    if (!timelineEnabled || !timelineDate) return null
+    if (!timelineEnabled || !effectiveTimelineDate) return null
+    const timelineDate = effectiveTimelineDate
     const isCumulative = timelineWindowSize === -1
     const startYear = isCumulative ? accidentDateRange.start.getFullYear() : timelineDate.getFullYear()
     const endYear = isCumulative ? timelineDate.getFullYear() : timelineDate.getFullYear() + timelineWindowSize - 1
@@ -196,7 +208,7 @@ export function useWarsData(
       start: new Date(startYear, 0, 1).getTime(),
       end: new Date(endYear, 11, 31, 23, 59, 59, 999).getTime(),
     }
-  }, [timelineEnabled, timelineDate, timelineWindowSize, accidentDateRange.start])
+  }, [timelineEnabled, effectiveTimelineDate, timelineWindowSize, accidentDateRange.start])
 
   const filteredFeatures = useMemo(() => {
     if (!timelineFilterRange) return baseFilteredFeatures
@@ -290,10 +302,6 @@ export function useWarsData(
     })),
   }), [filteredFeatures])
 
-  useEffect(() => {
-    setSelectedId(null)
-  }, [selectedSpecies, yearMode])
-
   return {
     manifest,
     crashes,
@@ -321,7 +329,7 @@ export function useWarsData(
     recentYearStart,
     timelineEnabled,
     setTimelineEnabled,
-    timelineDate,
+    timelineDate: effectiveTimelineDate,
     setTimelineDate,
     timelineWindowSize,
     setTimelineWindowSize,

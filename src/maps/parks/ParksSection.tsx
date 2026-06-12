@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
@@ -38,72 +38,23 @@ export default function ParksSection() {
     return layers.length ? layers : ['parks', 'trails']
   })
   const { parks, trails, amenities, cityOverlays, overlaySummary, loading, error } = useParksData(activeLayers)
-  const [selectedClassifications, setSelectedClassifications] = useState<ParkClassification[]>([])
-  const [classificationsInitialized, setClassificationsInitialized] = useState(false)
-  const [selectedTrailTypes, setSelectedTrailTypes] = useState<TrailUserClass[]>([])
-  const [trailTypesInitialized, setTrailTypesInitialized] = useState(false)
+  // null means "no explicit selection yet" and resolves to every option, so
+  // no initialization effect is needed once data loads.
+  const [classificationsOverride, setClassificationsOverride] = useState<ParkClassification[] | null>(null)
+  const selectedClassifications = classificationsOverride ?? ALL_CLASSIFICATIONS
+  const [trailTypesOverride, setTrailTypesOverride] = useState<TrailUserClass[] | null>(null)
+  const selectedTrailTypes = trailTypesOverride ?? ALL_TRAIL_TYPES
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [selectedPark, setSelectedPark] = useState<Park | null>(null)
   const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null)
   const [mobileFeatureSheetOpen, setMobileFeatureSheetOpen] = useState(false)
   const [selectionFocusKey, setSelectionFocusKey] = useState(0)
   const [showSidebar, setShowSidebar] = useState(true)
-  const ignoreUrlSelectionRef = useRef(false)
+  const [ignoredUrlSelection, setIgnoredUrlSelection] = useState<{ park: string | null; trail: string | null }>({
+    park: null,
+    trail: null,
+  })
 
-  useEffect(() => {
-    const parkParam = searchParams.get('park')
-    const trailParam = searchParams.get('trail')
-    const urlSelectionPending = !ignoreUrlSelectionRef.current && (
-      (parkParam && !selectedPark && (parks.length === 0 || parks.some((item) => String(item.id) === parkParam))) ||
-      (trailParam && !selectedTrail && (trails.length === 0 || trails.some((item) => String(item.id) === trailParam)))
-    )
-    if (urlSelectionPending) return
-
-    const params = new URLSearchParams(searchParams)
-    if (activeLayers.join(',') !== 'parks,trails') params.set('layers', activeLayers.join(','))
-    else params.delete('layers')
-    if (searchQuery.trim()) params.set('q', searchQuery.trim())
-    else params.delete('q')
-    if (selectedPark) params.set('park', String(selectedPark.id))
-    else params.delete('park')
-    if (selectedTrail) params.set('trail', String(selectedTrail.id))
-    else params.delete('trail')
-    if (params.toString() !== searchParams.toString()) {
-      setSearchParams(params, { replace: true })
-    }
-  }, [activeLayers, parks, searchParams, searchQuery, selectedPark, selectedTrail, setSearchParams, trails])
-
-  // Initialize filters with all available classifications/types
-  useEffect(() => {
-    if (!classificationsInitialized && parks.length > 0) {
-      setSelectedClassifications(ALL_CLASSIFICATIONS)
-      setClassificationsInitialized(true)
-    }
-  }, [parks, classificationsInitialized])
-
-  useEffect(() => {
-    if (!trailTypesInitialized && trails.length > 0) {
-      setSelectedTrailTypes(ALL_TRAIL_TYPES)
-      setTrailTypesInitialized(true)
-    }
-  }, [trails, trailTypesInitialized])
-
-  useEffect(() => {
-    const parkId = searchParams.get('park')
-    const trailId = searchParams.get('trail')
-    if (!parkId && !trailId) {
-      ignoreUrlSelectionRef.current = false
-      return
-    }
-    if (ignoreUrlSelectionRef.current) return
-    if (parkId && !selectedPark) {
-      const park = parks.find((item) => String(item.id) === parkId)
-      if (park) setSelectedPark(park)
-    } else if (trailId && !selectedTrail) {
-      const trail = trails.find((item) => String(item.id) === trailId)
-      if (trail) setSelectedTrail(trail)
-    }
-  }, [parks, searchParams, selectedPark, selectedTrail, trails])
 
   const filteredParks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -127,33 +78,66 @@ export default function ParksSection() {
     })
   }, [trails, selectedTrailTypes, searchQuery])
 
-  // Clear selection if it's no longer visible
-  useEffect(() => {
-    if (selectedPark && !filteredParks.some((p) => p.id === selectedPark.id)) {
-      setSelectedPark(null)
-    }
-  }, [filteredParks, selectedPark])
+  // Deep-linked selections derive from the URL until the user explicitly
+  // clears them; remembering cleared ids keeps fresh links live. A selection
+  // that filters drop out of view stops rendering without a state write.
+  const urlParkId = searchParams.get('park')
+  const urlTrailId = searchParams.get('trail')
+  const effectiveSelectedPark = useMemo(() => {
+    if (selectedPark) return selectedPark
+    if (!urlParkId || urlParkId === ignoredUrlSelection.park) return null
+    return parks.find((item) => String(item.id) === urlParkId) ?? null
+  }, [selectedPark, urlParkId, ignoredUrlSelection.park, parks])
+  const effectiveSelectedTrail = useMemo(() => {
+    if (selectedTrail) return selectedTrail
+    if (effectiveSelectedPark || !urlTrailId || urlTrailId === ignoredUrlSelection.trail) return null
+    return trails.find((item) => String(item.id) === urlTrailId) ?? null
+  }, [selectedTrail, effectiveSelectedPark, urlTrailId, ignoredUrlSelection.trail, trails])
+  const visibleSelectedPark = useMemo(() => {
+    if (!effectiveSelectedPark) return null
+    return filteredParks.some((park) => park.id === effectiveSelectedPark.id) ? effectiveSelectedPark : null
+  }, [filteredParks, effectiveSelectedPark])
+  const visibleSelectedTrail = useMemo(() => {
+    if (!effectiveSelectedTrail) return null
+    return filteredTrails.some((trail) => trail.id === effectiveSelectedTrail.id) ? effectiveSelectedTrail : null
+  }, [filteredTrails, effectiveSelectedTrail])
 
+  // Sync filters to URL for shareable links; deep-linked ids stay untouched
+  // until their dataset has loaded.
   useEffect(() => {
-    if (selectedTrail && !filteredTrails.some((t) => t.id === selectedTrail.id)) {
-      setSelectedTrail(null)
+    const urlSelectionPending =
+      (urlParkId && urlParkId !== ignoredUrlSelection.park && parks.length === 0) ||
+      (urlTrailId && urlTrailId !== ignoredUrlSelection.trail && trails.length === 0)
+    if (urlSelectionPending) return
+
+    const params = new URLSearchParams(searchParams)
+    if (activeLayers.join(',') !== 'parks,trails') params.set('layers', activeLayers.join(','))
+    else params.delete('layers')
+    if (searchQuery.trim()) params.set('q', searchQuery.trim())
+    else params.delete('q')
+    if (visibleSelectedPark) params.set('park', String(visibleSelectedPark.id))
+    else params.delete('park')
+    if (visibleSelectedTrail) params.set('trail', String(visibleSelectedTrail.id))
+    else params.delete('trail')
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true })
     }
-  }, [filteredTrails, selectedTrail])
+  }, [activeLayers, ignoredUrlSelection, parks.length, searchParams, searchQuery, setSearchParams, trails.length, urlParkId, urlTrailId, visibleSelectedPark, visibleSelectedTrail])
 
   const toggleLayer = useCallback((layer: ActiveLayer) => {
     setActiveLayers((current) => toggleArrayItem(current, layer))
   }, [])
 
   const toggleClassification = useCallback((classification: ParkClassification) => {
-    setSelectedClassifications((current) => toggleArrayItem(current, classification))
+    setClassificationsOverride((current) => toggleArrayItem(current ?? ALL_CLASSIFICATIONS, classification))
   }, [])
 
   const toggleTrailType = useCallback((type: TrailUserClass) => {
-    setSelectedTrailTypes((current) => toggleArrayItem(current, type))
+    setTrailTypesOverride((current) => toggleArrayItem(current ?? ALL_TRAIL_TYPES, type))
   }, [])
 
   const handleClearSelection = useCallback(() => {
-    ignoreUrlSelectionRef.current = true
+    setIgnoredUrlSelection({ park: searchParams.get('park'), trail: searchParams.get('trail') })
     setSelectedPark(null)
     setSelectedTrail(null)
     setMobileFeatureSheetOpen(false)
@@ -168,7 +152,6 @@ export default function ParksSection() {
       handleClearSelection()
       return
     }
-    ignoreUrlSelectionRef.current = false
     setSelectedPark(park)
     setSelectedTrail(null)
     setMobileFeatureSheetOpen(true)
@@ -180,7 +163,6 @@ export default function ParksSection() {
       handleClearSelection()
       return
     }
-    ignoreUrlSelectionRef.current = false
     setSelectedTrail(trail)
     setSelectedPark(null)
     setMobileFeatureSheetOpen(true)
@@ -245,7 +227,7 @@ export default function ParksSection() {
             Parks & Trails | {filteredParks.length + filteredTrails.length} visible
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {selectedPark?.name || selectedTrail?.name || `${activeLayers.length} layers active`}
+            {visibleSelectedPark?.name || visibleSelectedTrail?.name || `${activeLayers.length} layers active`}
           </div>
         </div>
       )}
@@ -261,8 +243,8 @@ export default function ParksSection() {
           activeLayers={activeLayers}
           selectedClassifications={selectedClassifications}
           selectedTrailTypes={selectedTrailTypes}
-          selectedPark={selectedPark}
-          selectedTrail={selectedTrail}
+          selectedPark={visibleSelectedPark}
+          selectedTrail={visibleSelectedTrail}
           searchQuery={searchQuery}
           loading={loading}
           error={error}
@@ -283,20 +265,20 @@ export default function ParksSection() {
           amenities={amenities}
           cityOverlays={cityOverlays}
           activeLayers={activeLayers}
-          selectedPark={selectedPark}
-          selectedTrail={selectedTrail}
+          selectedPark={visibleSelectedPark}
+          selectedTrail={visibleSelectedTrail}
           selectionFocusKey={selectionFocusKey}
           loading={loading}
           onParkClick={handleParkClick}
           onTrailClick={handleTrailClick}
         />
 
-        {isMobileViewport && mobileFeatureSheetOpen && selectedPark && (
-          <MobileParkFeatureCard park={selectedPark} onClose={handleClearSelection} />
+        {isMobileViewport && mobileFeatureSheetOpen && visibleSelectedPark && (
+          <MobileParkFeatureCard park={visibleSelectedPark} onClose={handleClearSelection} />
         )}
 
-        {isMobileViewport && mobileFeatureSheetOpen && selectedTrail && (
-          <MobileTrailFeatureCard trail={selectedTrail} onClose={handleClearSelection} />
+        {isMobileViewport && mobileFeatureSheetOpen && visibleSelectedTrail && (
+          <MobileTrailFeatureCard trail={visibleSelectedTrail} onClose={handleClearSelection} />
         )}
 
         {/* Legend */}

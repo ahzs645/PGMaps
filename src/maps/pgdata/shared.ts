@@ -35,7 +35,8 @@ export function useJsonManifest<T>(path: string | null) {
         const contentType = response.headers.get('content-type') ?? ''
         const text = await response.text()
         if (!contentType.includes('json') && text.trimStart().startsWith('<')) {
-          throw new Error(`Expected JSON from ${resolvedPath}, but received ${contentType || 'unknown content type'}`)
+          console.warn(`Expected JSON from ${resolvedPath}, but received ${contentType || 'unknown content type'}`)
+          throw new Error('Dataset is not included in this build')
         }
         setData(JSON.parse(text) as T)
         setError(null)

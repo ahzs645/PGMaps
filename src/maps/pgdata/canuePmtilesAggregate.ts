@@ -194,11 +194,10 @@ export function useCanuePmtilesBoundaryData({
 }: CanuePmtilesBoundaryOptions): CanuePmtilesBoundaryResult {
   const [result, setResult] = useState<CanuePmtilesBoundaryResult>(EMPTY_RESULT)
 
+  const inactive = !enabled || !selection || !boundaries?.features.length
+
   useEffect(() => {
-    if (!enabled || !selection || !boundaries?.features.length) {
-      setResult(EMPTY_RESULT)
-      return
-    }
+    if (!enabled || !selection || !boundaries?.features.length) return
 
     const controller = new AbortController()
     const activeSelection = selection
@@ -317,5 +316,5 @@ export function useCanuePmtilesBoundaryData({
     return () => controller.abort()
   }, [boundaries, enabled, idField, maxTiles, maxZoom, nameField, selection])
 
-  return result
+  return inactive ? EMPTY_RESULT : result
 }

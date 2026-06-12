@@ -24,7 +24,8 @@ async function fetchJson(url: string, signal: AbortSignal): Promise<unknown> {
   const text = await response.text()
   // SPA hosts return index.html with a 200 for missing files under public/
   if (!contentType.includes('json') && text.trimStart().startsWith('<')) {
-    throw new Error(`Expected JSON from ${url}, but received ${contentType || 'unknown content type'}`)
+    console.warn(`Expected JSON from ${url}, but received ${contentType || 'unknown content type'}`)
+    throw new Error('Dataset is not included in this build')
   }
   return JSON.parse(text) as unknown
 }

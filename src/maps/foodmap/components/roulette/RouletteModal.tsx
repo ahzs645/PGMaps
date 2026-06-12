@@ -62,15 +62,13 @@ export function RouletteModal({
     clearPosition: clearGeoPosition
   } = useGeolocation()
 
-  useEffect(() => {
-    shuffleWheel()
-  }, [])
-
+  // shuffleWheel's identity tracks the eligible list and wheel size, so this
+  // covers the initial shuffle and idle-time reshuffles in one effect.
   useEffect(() => {
     if (!isSpinning && !hasSpun) {
       shuffleWheel()
     }
-  }, [eligibleRestaurants, wheelSize])
+  }, [shuffleWheel, isSpinning, hasSpun])
 
   const handleGetLocation = useCallback(async () => {
     const pos = await getCurrentPosition()

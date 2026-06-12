@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { ShieldAlert, X } from 'lucide-react'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
@@ -143,7 +143,7 @@ export function useIcbcData(
   initialShowPoints: string | null = null,
   initialShowHeatmap: string | null = null,
 ) {
-  const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(initialDatasetId)
+  const [selectedDatasetId, setSelectedDatasetIdState] = useState<string | null>(initialDatasetId)
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints === '1')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap !== '0')
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
@@ -151,7 +151,7 @@ export function useIcbcData(
   const [timelineDate, setTimelineDate] = useState<Date | null>(null)
   const [timelineWindowSize, setTimelineWindowSize] = useState(1)
   const manifest = useJsonManifest<IcbcManifest>(active ? '/data/icbc/manifest.json' : null)
-  const datasets = manifest.data?.datasets ?? []
+  const datasets = useMemo(() => manifest.data?.datasets ?? [], [manifest.data])
   const selectedDataset = useMemo(() => {
     if (!datasets.length) return null
     if (selectedDatasetId) {
@@ -160,6 +160,13 @@ export function useIcbcData(
     }
     return datasets[0]
   }, [datasets, selectedDatasetId])
+  // The selection state holds the requested id; the effective id always comes
+  // from the resolved dataset, so no state sync is needed when data loads.
+  const effectiveDatasetId = selectedDataset?.id ?? null
+  const setSelectedDatasetId = useCallback((datasetId: string | null) => {
+    setSelectedDatasetIdState(datasetId)
+    setSelectedLocation(null)
+  }, [])
   const crashes = useJsonManifest<IcbcCrashFeatureCollection>(
     active && selectedDataset ? selectedDataset.geojson : null,
   )
@@ -175,7 +182,7 @@ export function useIcbcData(
   const motorcycleCrashes = useJsonManifest<IcbcCrashFeatureCollection>(
     active && selectedDataset?.id === 'all_crashes' ? '/data/icbc/prince_george_motorcycle_crashes.geojson' : null,
   )
-  const rawCrashFeatures = crashes.data?.features ?? []
+  const rawCrashFeatures = useMemo(() => crashes.data?.features ?? [], [crashes.data])
 
   const yearStart = manifest.data?.yearStart ?? selectedDataset?.yearStart ?? null
   const yearEnd = manifest.data?.yearEnd ?? selectedDataset?.yearEnd ?? null
@@ -191,24 +198,24 @@ export function useIcbcData(
     return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 0, 1) }
   }, [yearStart, yearEnd])
 
-  // Default the scrub to the most recent available year when the timeline opens.
-  useEffect(() => {
-    if (timelineEnabled && !timelineDate && yearEnd != null) {
-      setTimelineDate(new Date(yearEnd, 0, 1))
-    }
-  }, [timelineEnabled, timelineDate, yearEnd])
+  // The scrub defaults to the most recent available year until the user picks
+  // one explicitly; deriving it avoids a state write when the timeline opens.
+  const effectiveTimelineDate = useMemo(() => {
+    if (timelineDate) return timelineDate
+    return yearEnd != null ? new Date(yearEnd, 0, 1) : null
+  }, [timelineDate, yearEnd])
 
   const crashFeatures = useMemo(() => {
-    return aggregateIcbcCrashFeatures(rawCrashFeatures, timelineEnabled, timelineDate, timelineWindowSize, yearStart)
-  }, [rawCrashFeatures, timelineEnabled, timelineDate, timelineWindowSize, yearStart])
+    return aggregateIcbcCrashFeatures(rawCrashFeatures, timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart)
+  }, [rawCrashFeatures, timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart])
 
   const typedCrashFeatures = useMemo(() => {
     if (selectedDataset?.id !== 'all_crashes') return crashFeatures
     return [
-      ...aggregateIcbcCrashFeatures(carCrashes.data?.features ?? [], timelineEnabled, timelineDate, timelineWindowSize, yearStart),
-      ...aggregateIcbcCrashFeatures(pedestrianCrashes.data?.features ?? [], timelineEnabled, timelineDate, timelineWindowSize, yearStart),
-      ...aggregateIcbcCrashFeatures(cyclistCrashes.data?.features ?? [], timelineEnabled, timelineDate, timelineWindowSize, yearStart),
-      ...aggregateIcbcCrashFeatures(motorcycleCrashes.data?.features ?? [], timelineEnabled, timelineDate, timelineWindowSize, yearStart),
+      ...aggregateIcbcCrashFeatures(carCrashes.data?.features ?? [], timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart),
+      ...aggregateIcbcCrashFeatures(pedestrianCrashes.data?.features ?? [], timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart),
+      ...aggregateIcbcCrashFeatures(cyclistCrashes.data?.features ?? [], timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart),
+      ...aggregateIcbcCrashFeatures(motorcycleCrashes.data?.features ?? [], timelineEnabled, effectiveTimelineDate, timelineWindowSize, yearStart),
     ]
   }, [
     carCrashes.data?.features,
@@ -217,7 +224,7 @@ export function useIcbcData(
     motorcycleCrashes.data?.features,
     pedestrianCrashes.data?.features,
     selectedDataset?.id,
-    timelineDate,
+    effectiveTimelineDate,
     timelineEnabled,
     timelineWindowSize,
     yearStart,
@@ -254,20 +261,6 @@ export function useIcbcData(
     })),
   }), [crashFeatures])
 
-  useEffect(() => {
-    if (!selectedDataset && datasets[0]) {
-      setSelectedDatasetId(datasets[0].id)
-      return
-    }
-    if (selectedDataset && selectedDatasetId !== selectedDataset.id) {
-      setSelectedDatasetId(selectedDataset.id)
-    }
-  }, [datasets, selectedDataset, selectedDatasetId])
-
-  useEffect(() => {
-    setSelectedLocation(null)
-  }, [selectedDatasetId])
-
   const handleTimelineDisable = useCallback(() => {
     setTimelineEnabled(false)
     setTimelineDate(null)
@@ -278,7 +271,7 @@ export function useIcbcData(
     crashes,
     datasets,
     selectedDataset,
-    selectedDatasetId,
+    selectedDatasetId: effectiveDatasetId,
     setSelectedDatasetId,
     showPoints,
     setShowPoints,
@@ -294,7 +287,7 @@ export function useIcbcData(
     totalCrashes,
     timelineEnabled,
     setTimelineEnabled,
-    timelineDate,
+    timelineDate: effectiveTimelineDate,
     setTimelineDate,
     timelineWindowSize,
     setTimelineWindowSize,

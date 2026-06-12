@@ -160,6 +160,12 @@ type MapClusterLayerProps<
   clusterColors?: [string, string, string];
   /** Point count thresholds for color/size steps: [medium, large] (default: [100, 750]) */
   clusterThresholds?: [number, number];
+  /** Cluster circle radii in pixels for the three count steps (default: [20, 30, 40]) */
+  clusterSizes?: [number, number, number];
+  /** Opacity for cluster and point circles (default: 1) */
+  circleOpacity?: number;
+  /** Stroke width in pixels around cluster and point circles (default: 0) */
+  circleStrokeWidth?: number;
   /** Color for unclustered individual points (default: "#3b82f6") */
   pointColor?: string;
   /** Callback when an unclustered point is clicked */
@@ -183,6 +189,9 @@ function MapClusterLayer<
   clusterRadius = 50,
   clusterColors = ["#51bbd6", "#f1f075", "#f28cb1"],
   clusterThresholds = [100, 750],
+  clusterSizes = [20, 30, 40],
+  circleOpacity = 1,
+  circleStrokeWidth = 0,
   pointColor = "#3b82f6",
   onPointClick,
   onClusterClick,
@@ -197,6 +206,9 @@ function MapClusterLayer<
   const stylePropsRef = useRef({
     clusterColors,
     clusterThresholds,
+    clusterSizes,
+    circleOpacity,
+    circleStrokeWidth,
     pointColor,
   });
 
@@ -232,12 +244,15 @@ function MapClusterLayer<
         "circle-radius": [
           "step",
           ["get", "point_count"],
-          20,
+          clusterSizes[0],
           clusterThresholds[0],
-          30,
+          clusterSizes[1],
           clusterThresholds[1],
-          40,
+          clusterSizes[2],
         ],
+        "circle-opacity": circleOpacity,
+        "circle-stroke-width": circleStrokeWidth,
+        "circle-stroke-color": "#ffffff",
       },
     });
 
@@ -265,6 +280,9 @@ function MapClusterLayer<
       paint: {
         "circle-color": pointColor,
         "circle-radius": 6,
+        "circle-opacity": circleOpacity,
+        "circle-stroke-width": circleStrokeWidth,
+        "circle-stroke-color": "#ffffff",
       },
     });
 
@@ -300,7 +318,8 @@ function MapClusterLayer<
     const prev = stylePropsRef.current;
     const colorsChanged =
       prev.clusterColors !== clusterColors ||
-      prev.clusterThresholds !== clusterThresholds;
+      prev.clusterThresholds !== clusterThresholds ||
+      prev.clusterSizes !== clusterSizes;
 
     // Update cluster layer colors and sizes
     if (map.getLayer(clusterLayerId) && colorsChanged) {
@@ -316,12 +335,22 @@ function MapClusterLayer<
       map.setPaintProperty(clusterLayerId, "circle-radius", [
         "step",
         ["get", "point_count"],
-        20,
+        clusterSizes[0],
         clusterThresholds[0],
-        30,
+        clusterSizes[1],
         clusterThresholds[1],
-        40,
+        clusterSizes[2],
       ]);
+    }
+
+    const circleStyleChanged =
+      prev.circleOpacity !== circleOpacity || prev.circleStrokeWidth !== circleStrokeWidth;
+    if (circleStyleChanged) {
+      for (const layerId of [clusterLayerId, unclusteredLayerId]) {
+        if (!map.getLayer(layerId)) continue;
+        map.setPaintProperty(layerId, "circle-opacity", circleOpacity);
+        map.setPaintProperty(layerId, "circle-stroke-width", circleStrokeWidth);
+      }
     }
 
     // Update unclustered point layer color
@@ -329,7 +358,14 @@ function MapClusterLayer<
       map.setPaintProperty(unclusteredLayerId, "circle-color", pointColor);
     }
 
-    stylePropsRef.current = { clusterColors, clusterThresholds, pointColor };
+    stylePropsRef.current = {
+      clusterColors,
+      clusterThresholds,
+      clusterSizes,
+      circleOpacity,
+      circleStrokeWidth,
+      pointColor,
+    };
   }, [
     isLoaded,
     map,
@@ -337,6 +373,9 @@ function MapClusterLayer<
     unclusteredLayerId,
     clusterColors,
     clusterThresholds,
+    clusterSizes,
+    circleOpacity,
+    circleStrokeWidth,
     pointColor,
   ]);
 

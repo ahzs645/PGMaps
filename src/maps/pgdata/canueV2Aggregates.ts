@@ -170,11 +170,10 @@ export function useCanueV2AggregateData({
 }): CanueV2AggregateResult {
   const [result, setResult] = useState<CanueV2AggregateResult>(EMPTY_RESULT)
 
+  const inactive = !enabled || !selection || !boundaries?.features.length
+
   useEffect(() => {
-    if (!enabled || !selection || !boundaries?.features.length) {
-      setResult(EMPTY_RESULT)
-      return
-    }
+    if (!enabled || !selection || !boundaries?.features.length) return
 
     const controller = new AbortController()
     const activeSelection = selection
@@ -256,5 +255,5 @@ export function useCanueV2AggregateData({
     }
   }, [boundaries, enabled, idField, level, nameField, selection, source])
 
-  return result
+  return inactive ? EMPTY_RESULT : result
 }

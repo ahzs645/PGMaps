@@ -75,6 +75,9 @@ export function RestaurantCard({
   const hasLocation = Boolean(restaurant.latitude && restaurant.longitude)
 
   const latestInspection = restaurant.filteredInspections?.[0] || restaurant.inspections?.[0]
+  // The stats badges only count the selected period, so an all-time fallback
+  // inspection needs to say so or the card contradicts itself.
+  const latestInspectionOutsidePeriod = !restaurant.filteredInspections?.length && Boolean(restaurant.inspections?.length)
 
   return (
     <div
@@ -138,7 +141,9 @@ export function RestaurantCard({
 
               {latestInspection && (
                 <div className="text-xs">
-                  <div className="font-medium text-slate-700 dark:text-slate-200">Latest Inspection:</div>
+                  <div className="font-medium text-slate-700 dark:text-slate-200">
+                    {latestInspectionOutsidePeriod ? 'Latest Inspection (before selected period):' : 'Latest Inspection:'}
+                  </div>
                   <div className="text-slate-600 dark:text-slate-300">
                     {latestInspection.inspection_date || latestInspection.date} -{' '}
                     {latestInspection.inspection_type || latestInspection.type}
