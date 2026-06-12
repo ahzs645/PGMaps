@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Activity, Flame, Settings as SettingsIcon, Undo2 } from 'lucide-react'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import {
+  DESKTOP_SIDEBAR_MAX_WIDTH,
+  DESKTOP_SIDEBAR_MIN_WIDTH,
+  MapSectionLayout,
+} from '@/components/layout/MapSectionLayout'
 import { cn } from '@/lib/utils'
 import type { MapRef } from '@/components/ui/map'
 import { ScoreBuilderEquationBar } from './components/ScoreBuilderEquationBar'
@@ -26,6 +30,16 @@ const LAYOUT_STORAGE_KEY = 'pgmaps.indexLab.layout'
 interface StoredLayoutPrefs {
   showSidebar?: boolean
   showRightSidebar?: boolean
+  sidebarWidth?: number
+  rightSidebarWidth?: number
+}
+
+const DEFAULT_SIDEBAR_WIDTH = 300
+const DEFAULT_RIGHT_SIDEBAR_WIDTH = 380
+
+function clampStoredWidth(width: number | undefined, fallback: number): number {
+  if (typeof width !== 'number' || !Number.isFinite(width)) return fallback
+  return Math.min(DESKTOP_SIDEBAR_MAX_WIDTH, Math.max(DESKTOP_SIDEBAR_MIN_WIDTH, Math.round(width)))
 }
 
 function readLayoutPrefs(): StoredLayoutPrefs {
@@ -76,6 +90,22 @@ export default function ScoreBuilderSection() {
     return !sb.initializedFromUrlWeights
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sidebarWidth, setSidebarWidth] = useState(() =>
+    clampStoredWidth(readLayoutPrefs().sidebarWidth, DEFAULT_SIDEBAR_WIDTH),
+  )
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(() =>
+    clampStoredWidth(readLayoutPrefs().rightSidebarWidth, DEFAULT_RIGHT_SIDEBAR_WIDTH),
+  )
+
+  // Persist panel widths after drags settle rather than on every pointer move.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const prefs = readLayoutPrefs()
+      if (prefs.sidebarWidth === sidebarWidth && prefs.rightSidebarWidth === rightSidebarWidth) return
+      writeLayoutPrefs({ ...prefs, sidebarWidth, rightSidebarWidth })
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [rightSidebarWidth, sidebarWidth])
 
   const toggleSidebar = useCallback(() => {
     setShowSidebar((current) => {
@@ -327,7 +357,8 @@ export default function ScoreBuilderSection() {
       <MapSectionLayout
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={toggleSidebar}
-        desktopSidebarWidth={300}
+        desktopSidebarWidth={sidebarWidth}
+        onDesktopSidebarWidthChange={setSidebarWidth}
         mobileInitialSheetState="collapsed"
         mobilePeek={
           <div className="min-w-0 text-left">
@@ -343,7 +374,8 @@ export default function ScoreBuilderSection() {
         rightSidebar={isDesktop ? desktopRightPanel : undefined}
         showDesktopRightSidebar={showRightSidebar}
         onToggleDesktopRightSidebar={toggleRightSidebar}
-        desktopRightSidebarWidth={380}
+        desktopRightSidebarWidth={rightSidebarWidth}
+        onDesktopRightSidebarWidthChange={setRightSidebarWidth}
       >
         <div className="relative flex h-full min-h-0 flex-col">
           {isDesktop && (
