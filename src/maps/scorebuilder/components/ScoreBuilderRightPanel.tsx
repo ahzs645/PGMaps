@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
 import { SCORE_BUILDER_EXAMPLES, SCORE_METRICS, SCORE_PRESETS } from '../constants'
 import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricRangeMap, ScoreMetricWeightMap } from '../types'
+import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
+import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { getScoreDrivers } from '../lib/scoreDrivers'
 import type { CorrelationResult, MetricCorrelation } from '../lib/correlation'
@@ -12,7 +14,6 @@ import { CorrelateTab } from './CorrelateTab'
 import { EquationTab } from './EquationTab'
 import { DensityTab } from './DensityTab'
 import { RegionsTab } from './RegionsTab'
-import { MAX_VISIBLE_REGION_ROWS } from './scoreBuilderPanelUtils'
 
 type RightPanelTab = 'equation' | 'density' | 'correlate' | 'regions'
 
@@ -48,7 +49,7 @@ interface ScoreBuilderRightPanelProps {
   comparisonRegions: ScoredBoundaryRegion[]
   onToggleComparison: (regionId: string) => void
   onClearComparison: () => void
-  onExport: (format: 'csv' | 'geojson') => void
+  onExport: (format: ScoreBuilderExportFormat) => void
   onShareUrl: () => Promise<string>
   activeExampleKey: string | null
   isDesktop: boolean
@@ -64,6 +65,10 @@ interface ScoreBuilderRightPanelProps {
   correlationResult: CorrelationResult
   correlationTopPairs: MetricCorrelation[]
   onApplyTopPair: (metricX: ScoreMetricKey, metricY: ScoreMetricKey) => void
+  baseline: BaselineSnapshot | null
+  baselineComparison: BaselineComparisonResult | null
+  onPinBaseline: () => void
+  onClearBaseline: () => void
 }
 
 const TAB_LABELS: Record<RightPanelTab, string> = {
@@ -121,6 +126,10 @@ export function ScoreBuilderRightPanel({
   correlationResult,
   correlationTopPairs,
   onApplyTopPair,
+  baseline,
+  baselineComparison,
+  onPinBaseline,
+  onClearBaseline,
 }: ScoreBuilderRightPanelProps) {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('regions')
   const [shareStatus, setShareStatus] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
@@ -159,7 +168,6 @@ export function ScoreBuilderRightPanel({
   }, [activeTab, hasActiveBoundarySurface])
 
   const comparisonSet = useMemo(() => new Set(comparisonIds), [comparisonIds])
-  const visibleRows = useMemo(() => filteredRegions.slice(0, MAX_VISIBLE_REGION_ROWS), [filteredRegions])
   const topRegions = useMemo(() => regions.slice(0, 3), [regions])
 
   const activeExample = useMemo(
@@ -331,7 +339,6 @@ export function ScoreBuilderRightPanel({
             className="p-4"
             loading={loading}
             regions={regions}
-            visibleRows={visibleRows}
             filteredRegions={filteredRegions}
             selectedRegion={selectedRegion}
             selectedRegionDrivers={selectedRegionDrivers}
@@ -348,6 +355,10 @@ export function ScoreBuilderRightPanel({
             onToggleComparison={onToggleComparison}
             onClearComparison={onClearComparison}
             onExport={onExport}
+            baseline={baseline}
+            baselineComparison={baselineComparison}
+            onPinBaseline={onPinBaseline}
+            onClearBaseline={onClearBaseline}
           />
         )}
       </div>

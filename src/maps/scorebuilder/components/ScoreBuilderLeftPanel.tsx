@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Layers, Plus, Trash2 } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Layers, Plus, Trash2, Upload } from 'lucide-react'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
@@ -11,6 +11,8 @@ import type { ScoreDataSource } from '../types'
 import { SCORE_DATA_SOURCES } from '../types'
 import { SCORE_BUILDER_DATASETS, type DatasetProfile } from '../lib/datasetCatalog'
 import type { MetricRecipe, MetricRecipeFilter, MetricRecipeOperation, MetricRecipeSource } from '../lib/metricRecipes'
+import { isUserDatasetSource, userDatasetSourceId, type UserDatasetSummary } from '../lib/userDatasets'
+import type { UserDatasetUploadResult } from '../hooks/useUserDatasets'
 import { CENSUS_COMPOSER_PRESETS, censusPresetToMetricRecipe } from '../lib/censusComposer'
 
 interface ScoreBuilderLeftPanelProps {
@@ -37,6 +39,9 @@ interface ScoreBuilderLeftPanelProps {
   datasetProfiles: Partial<Record<MetricRecipeSource, DatasetProfile>>
   onCreateCustomMetric: (recipe: MetricRecipe) => void
   onRemoveCustomMetric: (id: string) => void
+  userDatasets: UserDatasetSummary[]
+  onUploadUserDataset: (file: File, label: string) => Promise<UserDatasetUploadResult>
+  onRemoveUserDataset: (id: string) => Promise<void> | void
 }
 
 export function ScoreBuilderLeftPanel({
@@ -63,6 +68,9 @@ export function ScoreBuilderLeftPanel({
   datasetProfiles,
   onCreateCustomMetric,
   onRemoveCustomMetric,
+  userDatasets,
+  onUploadUserDataset,
+  onRemoveUserDataset,
 }: ScoreBuilderLeftPanelProps) {
   const enabledSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
@@ -121,20 +129,16 @@ export function ScoreBuilderLeftPanel({
                   <button
                     type="button"
                     aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
+                    title={ds.description}
                     onClick={() => onToggleDataSource(ds.id)}
                     className={cn(
-                      'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors',
+                      'flex w-full items-center justify-between rounded-md border px-3 py-1.5 text-left text-xs transition-colors',
                       active
                         ? 'border-cyan-500/60 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-100'
                         : 'border-input bg-background text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    <div className="min-w-0">
-                      <div className="font-medium">{ds.label}</div>
-                      <div className="line-clamp-1 text-[10px] text-muted-foreground">
-                        {ds.description}
-                      </div>
-                    </div>
+                    <span className="min-w-0 truncate font-medium">{ds.label}</span>
                     <span
                       className={cn(
                         'ml-2 shrink-0 text-xs font-semibold',
@@ -197,6 +201,9 @@ export function ScoreBuilderLeftPanel({
           datasetProfiles={datasetProfiles}
           onCreate={onCreateCustomMetric}
           onRemove={onRemoveCustomMetric}
+          userDatasets={userDatasets}
+          onUploadUserDataset={onUploadUserDataset}
+          onRemoveUserDataset={onRemoveUserDataset}
         />
       </div>
     </div>
@@ -242,11 +249,17 @@ export function CustomMetricBuilder({
   datasetProfiles,
   onCreate,
   onRemove,
+  userDatasets,
+  onUploadUserDataset,
+  onRemoveUserDataset,
 }: {
   recipes: MetricRecipe[]
   datasetProfiles: Partial<Record<MetricRecipeSource, DatasetProfile>>
   onCreate: (recipe: MetricRecipe) => void
   onRemove: (id: string) => void
+  userDatasets: UserDatasetSummary[]
+  onUploadUserDataset: (file: File, label: string) => Promise<UserDatasetUploadResult>
+  onRemoveUserDataset: (id: string) => Promise<void> | void
 }) {
   const [label, setLabel] = useState('School access 800m')
   const [source, setSource] = useState<MetricRecipeSource>('healthyplanPg.educationFacilities')
@@ -260,18 +273,158 @@ export function CustomMetricBuilder({
   const [censusPresetId, setCensusPresetId] = useState(CENSUS_COMPOSER_PRESETS[0]?.id ?? '')
   const [direction, setDirection] = useState<'higherIsBetter' | 'higherIsWorse'>('higherIsBetter')
   const [format, setFormat] = useState<'count' | 'density' | 'ratio' | 'percent' | 'index'>('count')
+  // Both heavy forms stay collapsed until needed so the panel reads as a short list.
+  const [uploadsOpen, setUploadsOpen] = useState(false)
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadLabel, setUploadLabel] = useState('')
+  const [uploadStatus, setUploadStatus] = useState<{ tone: 'info' | 'error'; message: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
+
   const dataset = SCORE_BUILDER_DATASETS.find((entry) => entry.id === source)
+  const selectedUserDataset = isUserDatasetSource(source)
+    ? userDatasets.find((entry) => userDatasetSourceId(entry.id) === source)
+    : undefined
   const profile = datasetProfiles[source]
   const metricId = slugifyMetricId(label || 'custom_metric')
   const selectedIsFormula = source === 'custom' || operation === 'derivedExpression'
   const selectedIsCensus = source === 'census'
   const selectedCensusPreset = CENSUS_COMPOSER_PRESETS.find((preset) => preset.id === censusPresetId) ?? CENSUS_COMPOSER_PRESETS[0]
+  const sourceOptions = [
+    ...SCORE_BUILDER_DATASETS.map((entry) => ({ value: entry.id, label: entry.label })),
+    ...userDatasets.map((entry) => ({ value: userDatasetSourceId(entry.id), label: `${entry.label} (uploaded)` })),
+  ]
+
+  const handleUploadFile = async (file: File | null | undefined) => {
+    if (!file) return
+    setUploading(true)
+    setUploadStatus(null)
+    try {
+      const result = await onUploadUserDataset(file, uploadLabel)
+      setUploadLabel('')
+      setSource(userDatasetSourceId(result.summary.id))
+      if (operation === 'derivedExpression' || operation === 'censusVariable') setOperation('pointCountInPolygon')
+      // Clear the prefilled education filter so it doesn't silently zero out the upload.
+      setFilterField('')
+      setFilterValue('')
+      setBuilderOpen(true)
+      setUploadStatus({
+        tone: 'info',
+        message:
+          `${result.summary.featureCount.toLocaleString()} points loaded from ${file.name}.` +
+          (result.warnings.length ? ` ${result.warnings.join(' ')}` : ''),
+      })
+    } catch (cause) {
+      setUploadStatus({ tone: 'error', message: cause instanceof Error ? cause.message : 'Upload failed.' })
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   return (
     <section className="border-t border-border p-4">
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Custom metric recipe
-      </h3>
+      <button
+        type="button"
+        onClick={() => setUploadsOpen((current) => !current)}
+        aria-expanded={uploadsOpen}
+        className="mb-2 flex w-full items-center justify-between gap-2 text-left"
+        data-score-builder-uploads-toggle="true"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Your data (this device){userDatasets.length > 0 ? ` · ${userDatasets.length}` : ''}
+        </span>
+        {uploadsOpen ? (
+          <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+      </button>
+      {uploadsOpen && (
+      <div className="space-y-2 rounded-md border border-border bg-card p-3" data-score-builder-user-uploads="true">
+        <p className="text-[11px] text-muted-foreground">
+          Upload GeoJSON or CSV (with lat/lon columns) point data to use in custom metrics. Files are stored in this
+          browser only and are not included in shared URLs.
+        </p>
+        <input
+          value={uploadLabel}
+          onChange={(event) => setUploadLabel(event.target.value)}
+          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground"
+          placeholder="Dataset name (optional, defaults to file name)"
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".geojson,.json,.csv,.tsv,application/geo+json,application/json,text/csv"
+          className="hidden"
+          onChange={(event) => void handleUploadFile(event.target.files?.[0])}
+        />
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-input px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground disabled:opacity-50"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          {uploading ? 'Parsing…' : 'Choose file (.geojson, .json, .csv)'}
+        </button>
+        {uploadStatus && (
+          <div
+            className={cn(
+              'rounded border p-2 text-[11px]',
+              uploadStatus.tone === 'error'
+                ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200',
+            )}
+          >
+            {uploadStatus.message}
+          </div>
+        )}
+        {userDatasets.length > 0 && (
+          <div className="space-y-1">
+            {userDatasets.map((entry) => (
+              <div
+                key={entry.id}
+                className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs"
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-foreground">{entry.label}</div>
+                  <div className="truncate text-[11px] text-muted-foreground">
+                    {entry.featureCount.toLocaleString()} points · {entry.fileName}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void onRemoveUserDataset(entry.id)}
+                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label={`Delete uploaded dataset ${entry.label}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setBuilderOpen((current) => !current)}
+        aria-expanded={builderOpen}
+        className="mb-2 mt-4 flex w-full items-center justify-between gap-2 text-left"
+        data-score-builder-recipe-toggle="true"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Custom metric recipe
+        </span>
+        {builderOpen ? (
+          <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+      </button>
+      {builderOpen && (
       <div className="space-y-2 rounded-md border border-border bg-card p-3">
         <input
           value={label}
@@ -285,18 +438,29 @@ export function CustomMetricBuilder({
             const next = nextValue as MetricRecipeSource
             setSource(next)
             if (next === 'custom') setOperation('derivedExpression')
-            if (next === 'census') {
+            else if (next === 'census') {
               setOperation('censusVariable')
               setFormat('percent')
               setDirection(selectedCensusPreset?.direction ?? 'higherIsWorse')
               setLabel(selectedCensusPreset?.label ?? 'Census demographic metric')
+            } else if (operation === 'derivedExpression' || operation === 'censusVariable') {
+              setOperation('pointCountInPolygon')
+            }
+            if (isUserDatasetSource(next)) {
+              // The prefilled education filter would silently zero out uploaded data.
+              setFilterField('')
+              setFilterValue('')
             }
           }}
-          options={SCORE_BUILDER_DATASETS.map((entry) => ({ value: entry.id, label: entry.label }))}
+          options={sourceOptions}
           triggerClassName={metricSelectTriggerClass}
           triggerAriaLabel="Metric data source"
         />
-        <div className="text-[10px] text-muted-foreground">{dataset?.description}</div>
+        <div className="text-[10px] text-muted-foreground">
+          {selectedUserDataset
+            ? `Uploaded ${selectedUserDataset.fileName} — stored on this device; recipes built from it compute locally and are not reproducible from a shared URL.`
+            : dataset?.description}
+        </div>
 
         {profile && source !== 'custom' && (
           <div className="rounded border border-border bg-muted/30 p-2 text-[10px] text-muted-foreground">
@@ -513,6 +677,7 @@ export function CustomMetricBuilder({
           Add recipe metric
         </button>
       </div>
+      )}
 
       {recipes.length > 0 && (
         <div className="mt-3 space-y-1">

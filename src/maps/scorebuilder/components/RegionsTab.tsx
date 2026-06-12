@@ -1,11 +1,15 @@
-import { Download, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ChevronDown, ChevronUp, Download, Image as ImageIcon, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from '../constants'
 import type { ScoredBoundaryRegion, ScoreMetricWeightMap } from '../types'
+import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import { formatMetricValue, formatScore } from '../lib/metrics'
 import { formatDriverDelta, getScoreDrivers, type ScoreDriver } from '../lib/scoreDrivers'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
+import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import { MAX_VISIBLE_REGION_ROWS } from './scoreBuilderPanelUtils'
+import { BaselineComparisonCard } from './BaselineComparisonCard'
 import { RadarChart } from './RadarChart'
 
 interface RegionsTabProps {
@@ -13,7 +17,6 @@ interface RegionsTabProps {
   loading: boolean
   dataErrors?: string[]
   regions: ScoredBoundaryRegion[]
-  visibleRows: ScoredBoundaryRegion[]
   filteredRegions: ScoredBoundaryRegion[]
   selectedRegion: ScoredBoundaryRegion | null
   selectedRegionDrivers: ScoreDriver[]
@@ -29,7 +32,11 @@ interface RegionsTabProps {
   onOpenRegionInsight: (regionId: string) => void
   onToggleComparison: (regionId: string) => void
   onClearComparison: () => void
-  onExport: (format: 'csv' | 'geojson') => void
+  onExport: (format: ScoreBuilderExportFormat) => void
+  baseline: BaselineSnapshot | null
+  baselineComparison: BaselineComparisonResult | null
+  onPinBaseline: () => void
+  onClearBaseline: () => void
 }
 
 export function RegionsTab({
@@ -37,7 +44,6 @@ export function RegionsTab({
   loading,
   dataErrors = [],
   regions,
-  visibleRows,
   filteredRegions,
   selectedRegion,
   selectedRegionDrivers,
@@ -54,7 +60,18 @@ export function RegionsTab({
   onToggleComparison,
   onClearComparison,
   onExport,
+  baseline,
+  baselineComparison,
+  onPinBaseline,
+  onClearBaseline,
 }: RegionsTabProps) {
+  // The expanded row count is tied to the query it was expanded for, so a new search resets it.
+  const [pagination, setPagination] = useState({ query: searchQuery, count: MAX_VISIBLE_REGION_ROWS })
+  const visibleCount = pagination.query === searchQuery ? pagination.count : MAX_VISIBLE_REGION_ROWS
+  const visibleRows = useMemo(() => filteredRegions.slice(0, visibleCount), [filteredRegions, visibleCount])
+  const remainingRows = Math.max(0, filteredRegions.length - visibleRows.length)
+  const [equityOpen, setEquityOpen] = useState(false)
+
   return (
     <div className={cn('space-y-3', className)} data-score-builder-section="regions">
       <div className="space-y-2 rounded-lg border border-border bg-muted/10 p-2 text-xs text-muted-foreground">
@@ -74,16 +91,34 @@ export function RegionsTab({
             <button
               onClick={() => onExport('csv')}
               title="Export CSV"
-              className="rounded border border-input p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Export CSV"
+              className="rounded-md border border-input p-2 text-muted-foreground transition-colors hover:text-foreground"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-4 w-4" />
             </button>
             <button
               onClick={() => onExport('geojson')}
               title="Export GeoJSON"
-              className="rounded border border-input px-1.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Export GeoJSON"
+              className="rounded-md border border-input px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               .geo
+            </button>
+            <button
+              onClick={() => onExport('png')}
+              title="Export map image (PNG)"
+              aria-label="Export map image"
+              className="rounded-md border border-input p-2 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ImageIcon className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onExport('pdf')}
+              title="Export PDF report"
+              aria-label="Export PDF report"
+              className="rounded-md border border-input px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              PDF
             </button>
           </div>
         </div>
@@ -91,7 +126,7 @@ export function RegionsTab({
           <span>
             {filteredRegions.length} of {regions.length} regions
           </span>
-          {filteredRegions.length > MAX_VISIBLE_REGION_ROWS && <span>Showing {MAX_VISIBLE_REGION_ROWS}</span>}
+          {filteredRegions.length > visibleRows.length && <span>Showing {visibleRows.length}</span>}
         </div>
         <div className="flex items-center justify-between text-[11px]">
           <span>
@@ -101,17 +136,42 @@ export function RegionsTab({
         </div>
       </div>
 
+      <BaselineComparisonCard
+        baseline={baseline}
+        comparison={baselineComparison}
+        onPinBaseline={onPinBaseline}
+        onClearBaseline={onClearBaseline}
+      />
+
       {populationEquitySummary && (
-        <div className="rounded-lg border border-cyan-200 bg-cyan-50/70 p-3 text-xs text-cyan-950 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-100">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">
-            Equity by the numbers
-          </div>
-          <div className="mt-1 text-sm font-semibold">{populationEquitySummary.narrative}</div>
-          <div className="mt-1 text-[11px] text-cyan-800/80 dark:text-cyan-200/80">
-            {populationEquitySummary.priorityPopulation.toLocaleString()} of{' '}
-            {populationEquitySummary.totalPopulation.toLocaleString()} people ·{' '}
-            {populationEquitySummary.priorityRegionCount} regions
-          </div>
+        <div className="rounded-lg border border-cyan-200 bg-cyan-50/70 text-xs text-cyan-950 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-100">
+          <button
+            type="button"
+            onClick={() => setEquityOpen((current) => !current)}
+            aria-expanded={equityOpen}
+            className="flex w-full items-center justify-between gap-2 p-3 text-left"
+          >
+            <span
+              className={cn(
+                'min-w-0 text-xs font-semibold',
+                !equityOpen && 'line-clamp-1',
+              )}
+            >
+              {populationEquitySummary.narrative}
+            </span>
+            {equityOpen ? (
+              <ChevronUp className="h-3.5 w-3.5 shrink-0 text-cyan-700 dark:text-cyan-300" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-cyan-700 dark:text-cyan-300" />
+            )}
+          </button>
+          {equityOpen && (
+            <div className="px-3 pb-3 text-[11px] text-cyan-800/80 dark:text-cyan-200/80">
+              {populationEquitySummary.priorityPopulation.toLocaleString()} of{' '}
+              {populationEquitySummary.totalPopulation.toLocaleString()} people ·{' '}
+              {populationEquitySummary.priorityRegionCount} regions
+            </div>
+          )}
         </div>
       )}
 
@@ -250,7 +310,8 @@ export function RegionsTab({
           {visibleRows.map((entry) => {
             const selected = selectedRegion?.region.id === entry.region.id
             const pinned = comparisonSet.has(entry.region.id)
-            const topDrivers = getScoreDrivers(entry, weights, 2)
+            // Drivers and confidence intervals render only for the selected row to keep the list scannable.
+            const topDrivers = selected ? getScoreDrivers(entry, weights, 2) : []
             return (
               <div
                 key={entry.region.id}
@@ -265,28 +326,34 @@ export function RegionsTab({
                     <div className="line-clamp-1 text-sm font-medium text-foreground">
                       #{entry.rank} {entry.region.name}
                     </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      Code {entry.region.code} | Density{' '}
-                      {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
+                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>
+                        Code {entry.region.code} | Density{' '}
+                        {formatMetricValue('overallDensity', entry.metrics.overallDensity)}
+                      </span>
+                      {entry.dataCoverageScore < 0.6 && (
+                        <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                          Thin data
+                        </span>
+                      )}
                     </div>
-                    {topDrivers.length > 0 && (
-                      <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
-                        Top:{' '}
-                        {topDrivers
-                          .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
-                          .join(', ')}{' '}
-                        pts
-                      </div>
+                    {selected && (
+                      <>
+                        {topDrivers.length > 0 && (
+                          <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
+                            Top:{' '}
+                            {topDrivers
+                              .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
+                              .join(', ')}{' '}
+                            pts
+                          </div>
+                        )}
+                        <div className="mt-1 text-[11px] text-muted-foreground">
+                          {entry.rankConfidence} · rank #{entry.rankInterval[0]}-#{entry.rankInterval[1]} · score{' '}
+                          {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
+                        </div>
+                      </>
                     )}
-                    {entry.dataCoverageScore < 0.6 && (
-                      <div className="mt-1 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
-                        Thin data coverage
-                      </div>
-                    )}
-                    <div className="mt-1 text-[10px] text-muted-foreground">
-                      {entry.rankConfidence} · rank #{entry.rankInterval[0]}-#{entry.rankInterval[1]} · score{' '}
-                      {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
-                    </div>
                   </button>
                   <div className="flex shrink-0 items-center gap-1">
                     <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">
@@ -304,6 +371,15 @@ export function RegionsTab({
               </div>
             )
           })}
+          {remainingRows > 0 && (
+            <button
+              type="button"
+              onClick={() => setPagination({ query: searchQuery, count: visibleCount + MAX_VISIBLE_REGION_ROWS })}
+              className="w-full rounded-lg border border-dashed border-input px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-cyan-400 hover:text-foreground"
+            >
+              Show {Math.min(MAX_VISIBLE_REGION_ROWS, remainingRows)} more ({remainingRows.toLocaleString()} remaining)
+            </button>
+          )}
           {visibleRows.length === 0 && (
             <div className="rounded border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
               No regions match this filter.

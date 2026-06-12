@@ -127,6 +127,7 @@ export type ScoreBuilderAction =
   | { type: 'applyCorrelatePair'; metricX: ScoreMetricKey; metricY: ScoreMetricKey }
   | { type: 'toggleScoreFilter'; filter: ScoreFilterKey }
   | { type: 'setMethodSettings'; settings: ScoreMethodSettings }
+  | { type: 'restoreState'; state: ScoreBuilderControlState }
 
 export function getSelectedRegionLevel(state: ScoreBuilderControlState): RegionLevel {
   return state.boundarySource === 'bcHealth'
@@ -385,7 +386,11 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
         if (!next.enabledDataSources.includes('census')) {
           next.enabledDataSources = [...next.enabledDataSources, 'census']
         }
-      } else if (action.recipe.source !== 'custom' && !next.enabledDataSources.includes('healthyPlanPg')) {
+      } else if (
+        action.recipe.source.startsWith('healthyplanPg.') &&
+        !next.enabledDataSources.includes('healthyPlanPg')
+      ) {
+        // User-uploaded (`user.*`) and formula sources need no remote data source toggled on.
         next.enabledDataSources = [...next.enabledDataSources, 'healthyPlanPg']
       }
       return next
@@ -496,6 +501,8 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       }
     case 'setMethodSettings':
       return { ...state, methodSettings: action.settings }
+    case 'restoreState':
+      return action.state
   }
 }
 

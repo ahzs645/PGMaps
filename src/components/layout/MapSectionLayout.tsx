@@ -40,10 +40,14 @@ interface MapSectionLayoutProps {
   mobileSheetInteractive?: boolean
   mobileScrimEnabled?: boolean
   onMobileSheetStateChange?: (state: MobileSheetState) => void
+  /** When set, renders a drag handle on the sidebar's inner edge for resizing. */
+  onDesktopSidebarWidthChange?: (width: number) => void
   rightSidebar?: ReactNode
   showDesktopRightSidebar?: boolean
   onToggleDesktopRightSidebar?: () => void
   desktopRightSidebarWidth?: number
+  /** When set, renders a drag handle on the right sidebar's inner edge for resizing. */
+  onDesktopRightSidebarWidthChange?: (width: number) => void
   suppressMobileSheet?: boolean
   children: ReactNode
   className?: string
@@ -117,6 +121,51 @@ function isMobileViewport() {
   return typeof window !== 'undefined' && window.innerWidth < DESKTOP_MEDIA_MIN_WIDTH
 }
 
+export const DESKTOP_SIDEBAR_MIN_WIDTH = 240
+export const DESKTOP_SIDEBAR_MAX_WIDTH = 520
+
+/** Desktop-only vertical drag strip that reports a clamped sidebar width while dragging. */
+function SidebarResizeHandle({
+  side,
+  width,
+  onWidthChange,
+}: {
+  side: 'left' | 'right'
+  width: number
+  onWidthChange: (width: number) => void
+}) {
+  const dragState = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null)
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={side === 'left' ? 'Resize sidebar' : 'Resize right sidebar'}
+      className={cn(
+        'absolute inset-y-0 z-30 hidden w-1.5 cursor-col-resize touch-none transition-colors hover:bg-cyan-500/40 md:block',
+        side === 'left' ? 'right-0' : 'left-0',
+      )}
+      onPointerDown={(event) => {
+        dragState.current = { pointerId: event.pointerId, startX: event.clientX, startWidth: width }
+        event.currentTarget.setPointerCapture(event.pointerId)
+        event.preventDefault()
+      }}
+      onPointerMove={(event) => {
+        const drag = dragState.current
+        if (!drag || drag.pointerId !== event.pointerId) return
+        const delta = event.clientX - drag.startX
+        const raw = side === 'left' ? drag.startWidth + delta : drag.startWidth - delta
+        onWidthChange(Math.round(Math.min(DESKTOP_SIDEBAR_MAX_WIDTH, Math.max(DESKTOP_SIDEBAR_MIN_WIDTH, raw))))
+      }}
+      onPointerUp={() => {
+        dragState.current = null
+      }}
+      onPointerCancel={() => {
+        dragState.current = null
+      }}
+    />
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -138,10 +187,12 @@ export function MapSectionLayout({
   mobileSheetInteractive = true,
   mobileScrimEnabled = true,
   onMobileSheetStateChange,
+  onDesktopSidebarWidthChange,
   rightSidebar,
   showDesktopRightSidebar = true,
   onToggleDesktopRightSidebar,
   desktopRightSidebarWidth = 360,
+  onDesktopRightSidebarWidthChange,
   suppressMobileSheet = false,
   children,
   className,
@@ -756,6 +807,10 @@ export function MapSectionLayout({
             ) : sidebar}
           </div>
         </div>
+
+        {onDesktopSidebarWidthChange && showDesktopSidebar && (
+          <SidebarResizeHandle side="left" width={desktopSidebarWidth} onWidthChange={onDesktopSidebarWidthChange} />
+        )}
       </div>
 
       {/* Desktop left-sidebar toggle */}
@@ -802,6 +857,13 @@ export function MapSectionLayout({
               <div className="h-full" style={{ width: `${desktopRightSidebarWidth}px` }}>
                 {rightSidebar}
               </div>
+              {onDesktopRightSidebarWidthChange && showDesktopRightSidebar && (
+                <SidebarResizeHandle
+                  side="right"
+                  width={desktopRightSidebarWidth}
+                  onWidthChange={onDesktopRightSidebarWidthChange}
+                />
+              )}
             </div>
           </div>
 

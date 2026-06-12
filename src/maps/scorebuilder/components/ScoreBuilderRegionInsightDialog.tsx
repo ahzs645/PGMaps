@@ -2,10 +2,15 @@ import { useMemo } from 'react'
 import { Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { SCORE_METRICS } from '../constants'
 import { formatMetricValue, formatScore, getMetricLabel } from '../lib/metrics'
 import { formatDriverDelta } from '../lib/scoreDrivers'
-import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
+import type {
+  ScoredBoundaryRegion,
+  ScoreMetricDefinition,
+  ScoreMetricKey,
+  ScoreMetricWeightMap,
+  ScoreMethodSettings,
+} from '../types'
 import { METRIC_CATEGORY_LABELS } from '../types'
 
 interface ScoreBuilderRegionInsightDialogProps {
@@ -15,6 +20,8 @@ interface ScoreBuilderRegionInsightDialogProps {
   weights: ScoreMetricWeightMap
   methodSettings: ScoreMethodSettings
   isMobile: boolean
+  /** Active metric definitions including custom/uploaded recipes, not just the built-ins. */
+  metrics: ScoreMetricDefinition[]
 }
 
 const MOBILE_MAX_CONTRIBUTIONS = 4
@@ -32,8 +39,12 @@ function getCoverageLabel(score: number): { label: string; tone: string } {
   return { label: 'Thin coverage', tone: 'text-rose-700 dark:text-rose-300' }
 }
 
-function metricHasRegionData(metric: ScoreMetricKey, region: ScoredBoundaryRegion): boolean {
-  const definition = SCORE_METRICS.find((entry) => entry.key === metric)
+function metricHasRegionData(
+  metric: ScoreMetricKey,
+  region: ScoredBoundaryRegion,
+  metrics: ScoreMetricDefinition[],
+): boolean {
+  const definition = metrics.find((entry) => entry.key === metric)
   if (!definition) return true
   if (definition.category === 'airQuality') return region.counts.monitorCount > 0
   if (definition.category === 'parksRec')
@@ -169,11 +180,12 @@ export function ScoreBuilderRegionInsightDialog({
   weights,
   methodSettings,
   isMobile,
+  metrics,
 }: ScoreBuilderRegionInsightDialogProps) {
   const contributionRows = useMemo(() => {
     if (!region) return []
-    const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
-    return SCORE_METRICS.filter((metric) => Math.abs(weights[metric.key]) > 0)
+    const totalWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
+    return metrics.filter((metric) => Math.abs(weights[metric.key] ?? 0) > 0)
       .map((metric) => ({
         key: metric.key,
         label: metric.shortLabel,
@@ -185,10 +197,10 @@ export function ScoreBuilderRegionInsightDialog({
         intentLabel: weights[metric.key] < 0 ? `Low ${metric.shortLabel.toLowerCase()}` : metric.shortLabel,
         scoreDelta: region.contributions[metric.key] * 100,
         maxPoints: totalWeight > 0 ? (Math.abs(weights[metric.key]) / totalWeight) * 100 : 0,
-        hasData: metricHasRegionData(metric.key, region),
+        hasData: metricHasRegionData(metric.key, region, metrics),
       }))
       .sort((a, b) => Math.abs(b.scoreDelta) - Math.abs(a.scoreDelta))
-  }, [region, weights])
+  }, [metrics, region, weights])
 
   const topPositiveDrivers = useMemo(
     () => [...contributionRows].sort((a, b) => b.scoreDelta - a.scoreDelta).slice(0, 4),
@@ -208,13 +220,13 @@ export function ScoreBuilderRegionInsightDialog({
 
   const componentRows = useMemo(() => {
     if (!region) return []
-    const totalWeight = SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
+    const totalWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
     if (totalWeight <= 0) return []
     const groups = new Map<string, { contribution: number; weight: number }>()
-    SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).forEach((metric) => {
+    metrics.filter((metric) => (weights[metric.key] ?? 0) !== 0).forEach((metric) => {
       const current = groups.get(metric.category) || { contribution: 0, weight: 0 }
-      current.contribution += region.contributions[metric.key]
-      current.weight += Math.abs(weights[metric.key]) / totalWeight
+      current.contribution += region.contributions[metric.key] ?? 0
+      current.weight += Math.abs(weights[metric.key] ?? 0) / totalWeight
       groups.set(metric.category, current)
     })
     return Array.from(groups.entries()).map(([category, group]) => ({
@@ -223,7 +235,7 @@ export function ScoreBuilderRegionInsightDialog({
       score: group.weight > 0 ? (group.contribution / group.weight) * 100 : 0,
       points: group.contribution * 100,
     }))
-  }, [region, weights])
+  }, [metrics, region, weights])
 
   const coverage = region ? getCoverageLabel(region.dataCoverageScore) : null
 
@@ -304,37 +316,37 @@ export function ScoreBuilderRegionInsightDialog({
             {/* Stats grid */}
             <div className="grid grid-cols-2 gap-2 pt-2 text-xs sm:grid-cols-3">
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Rank</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Rank</div>
                 <div className="text-sm font-semibold text-foreground">#{region.rank}</div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Score</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Score</div>
                 <div className="text-sm font-semibold text-foreground">{formatScore(region.score)}</div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Area</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Area</div>
                 <div className="text-sm font-semibold text-foreground">{region.region.areaKm2.toFixed(1)} km²</div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Sensors</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Sensors</div>
                 <div className="text-sm font-semibold text-foreground">
                   {region.counts.monitorCount.toLocaleString()}
                 </div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Data coverage</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Data coverage</div>
                 <div className={cn('text-sm font-semibold', coverage?.tone)}>
                   {(region.dataCoverageScore * 100).toFixed(0)}%
                 </div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[10px] uppercase text-muted-foreground">Normalization</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Normalization</div>
                 <div className="text-sm font-semibold text-foreground">
                   {formatNormalizationMethod(methodSettings.normalization)}
                 </div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
-                <div className="text-[10px] uppercase text-muted-foreground">Rank confidence</div>
+                <div className="text-[11px] uppercase text-muted-foreground">Rank confidence</div>
                 <div className="text-sm font-semibold text-foreground">{region.rankConfidence}</div>
                 <div className="mt-0.5 text-[11px] text-muted-foreground">
                   Rank #{region.rankInterval[0]}-#{region.rankInterval[1]} · score{' '}
@@ -343,7 +355,7 @@ export function ScoreBuilderRegionInsightDialog({
               </div>
               {region.scoreMethodLabel && (
                 <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
-                  <div className="text-[10px] uppercase text-muted-foreground">Score method</div>
+                  <div className="text-[11px] uppercase text-muted-foreground">Score method</div>
                   <div className="text-sm font-semibold text-foreground">{region.scoreMethodLabel}</div>
                 </div>
               )}

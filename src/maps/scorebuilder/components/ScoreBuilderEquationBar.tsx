@@ -1,17 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
+  BookMarked,
   Check,
   ChevronDown,
   ChevronUp,
+  Copy,
   Download,
   FlipHorizontal,
   Flame,
-  GripVertical,
   Info,
   Plus,
+  Redo2,
   Search,
   Settings as SettingsIcon,
+  Undo2,
   X,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -20,6 +23,7 @@ import type { BoundarySource } from '@/maps/airquality'
 import { SCORE_PRESETS } from '../constants'
 import { METRIC_CATEGORY_LABELS } from '../types'
 import type { ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
+import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { ScorePresetDialog } from './ScorePresetDialog'
 
@@ -35,12 +39,16 @@ interface ScoreBuilderEquationBarProps {
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
-  onExport: (format: 'csv' | 'geojson') => void
+  onExport: (format: ScoreBuilderExportFormat) => void
   correlateMode: boolean
   onToggleCorrelateMode: () => void
   densityMode: boolean
   onToggleDensityMode: () => void
   onOpenSettings: () => void
+  onUndo: () => void
+  onRedo: () => void
+  canUndo: boolean
+  canRedo: boolean
 }
 
 function getDefaultMetricWeight(metric: ScoreMetricKey): number {
@@ -94,11 +102,37 @@ export function ScoreBuilderEquationBar({
   densityMode,
   onToggleDensityMode,
   onOpenSettings,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: ScoreBuilderEquationBarProps) {
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [metricDialogOpen, setMetricDialogOpen] = useState(false)
   const [formulaOpen, setFormulaOpen] = useState(false)
   const [equationOpen, setEquationOpen] = useState(true)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [equationCopied, setEquationCopied] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!exportMenuOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!exportMenuRef.current?.contains(event.target as Node)) setExportMenuOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    return () => window.removeEventListener('pointerdown', onPointerDown)
+  }, [exportMenuOpen])
+
+  const handleCopyEquation = async () => {
+    try {
+      await navigator.clipboard?.writeText(equationPreview)
+      setEquationCopied(true)
+      window.setTimeout(() => setEquationCopied(false), 1800)
+    } catch {
+      // Clipboard may be unavailable; the formula text stays visible for manual copy.
+    }
+  }
 
   const visiblePresets = useMemo(
     () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, boundarySource)),
@@ -157,68 +191,131 @@ export function ScoreBuilderEquationBar({
               </button>
               <button
                 type="button"
-                onClick={onToggleDensityMode}
-                aria-pressed={densityMode}
-                title={
-                  densityMode
-                    ? 'Density mode is on — map paints regions by a single metric'
-                    : 'Turn on density mode to paint the map by a single metric'
-                }
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                  densityMode
-                    ? 'border-amber-500 bg-amber-500 text-white hover:bg-amber-600'
-                    : 'border-input bg-background text-foreground hover:bg-muted',
-                )}
+                onClick={onUndo}
+                disabled={!canUndo}
+                title="Undo (Ctrl+Z)"
+                aria-label="Undo"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Flame className="h-3.5 w-3.5" />
-                {densityMode ? 'Density · On' : 'Density'}
+                <Undo2 className="h-4 w-4" />
               </button>
               <button
                 type="button"
-                onClick={onToggleCorrelateMode}
-                aria-pressed={correlateMode}
-                title={
-                  correlateMode
-                    ? 'Correlation mode is on — map shows relationship between two metrics'
-                    : 'Turn on correlation mode to compare any two metrics'
-                }
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                  correlateMode
-                    ? 'border-cyan-500 bg-cyan-500 text-white hover:bg-cyan-600'
-                    : 'border-input bg-background text-foreground hover:bg-muted',
-                )}
+                onClick={onRedo}
+                disabled={!canRedo}
+                title="Redo (Shift+Ctrl+Z)"
+                aria-label="Redo"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Activity className="h-3.5 w-3.5" />
-                {correlateMode ? 'Correlate · On' : 'Correlate'}
+                <Redo2 className="h-4 w-4" />
               </button>
+              <div
+                role="group"
+                aria-label="Map lens"
+                className="inline-flex h-8 items-stretch overflow-hidden rounded-md border border-input bg-background"
+              >
+                <button
+                  type="button"
+                  aria-pressed={!densityMode && !correlateMode}
+                  title="Score lens — map colored by the composite index"
+                  onClick={() => {
+                    if (densityMode) onToggleDensityMode()
+                    if (correlateMode) onToggleCorrelateMode()
+                  }}
+                  className={cn(
+                    'px-2.5 text-xs font-medium transition-colors',
+                    !densityMode && !correlateMode
+                      ? 'bg-cyan-500 text-white'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  Score
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={densityMode}
+                  title="Density lens — map painted by a single metric"
+                  onClick={() => {
+                    if (!densityMode) onToggleDensityMode()
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-1 border-l border-input px-2.5 text-xs font-medium transition-colors',
+                    densityMode ? 'bg-amber-500 text-white' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Flame className="h-3.5 w-3.5" />
+                  Density
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={correlateMode}
+                  title="Correlate lens — map shows the relationship between two metrics"
+                  onClick={() => {
+                    if (!correlateMode) onToggleCorrelateMode()
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-1 border-l border-input px-2.5 text-xs font-medium transition-colors',
+                    correlateMode ? 'bg-cyan-500 text-white' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Activity className="h-3.5 w-3.5" />
+                  Correlate
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => setPresetDialogOpen(true)}
                 title="Browse presets"
-                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                aria-label="Browse presets"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
               >
-                Presets
+                <BookMarked className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={onOpenSettings}
-                title="Open index settings (examples, methodology, model, robustness)"
-                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-              >
-                <SettingsIcon className="h-3.5 w-3.5" />
-                Settings
-              </button>
-              <button
-                type="button"
-                onClick={() => onExport('csv')}
-                title="Export CSV"
-                aria-label="Export CSV"
+                title="Index settings (examples, saved indexes, methodology, model, robustness)"
+                aria-label="Index settings"
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
               >
-                <Download className="h-4 w-4" />
+                <SettingsIcon className="h-4 w-4" />
               </button>
+              <div ref={exportMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setExportMenuOpen((current) => !current)}
+                  title="Export results"
+                  aria-label="Export results"
+                  aria-expanded={exportMenuOpen}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+                {exportMenuOpen && (
+                  <div className="absolute right-0 top-9 z-30 w-44 rounded-md border border-border bg-background p-1 shadow-lg">
+                    {(
+                      [
+                        ['csv', 'Regions CSV'],
+                        ['geojson', 'Regions GeoJSON'],
+                        ['png', 'Map image (PNG)'],
+                        ['pdf', 'PDF report'],
+                      ] as Array<[ScoreBuilderExportFormat, string]>
+                    ).map(([format, label]) => (
+                      <button
+                        key={format}
+                        type="button"
+                        onClick={() => {
+                          setExportMenuOpen(false)
+                          onExport(format)
+                        }}
+                        className="block w-full rounded px-2.5 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -255,6 +352,7 @@ export function ScoreBuilderEquationBar({
                     {index > 0 && <span className="text-muted-foreground">+</span>}
                     <div
                       data-score-builder-equation-term={metric.key}
+                      title={`${metric.label} — ${(share * 100).toFixed(0)}% of total weight · ${metric.directionLabel}`}
                       className={cn(
                         'inline-flex items-stretch overflow-hidden rounded-lg border bg-background text-xs shadow-sm',
                         isNegative
@@ -277,14 +375,9 @@ export function ScoreBuilderEquationBar({
                       >
                         {isNegative ? '-' : '+'}
                       </button>
-                      <div className="flex items-center gap-2 border-l border-r border-border px-2 py-1.5">
-                        <span className="font-mono font-semibold text-foreground">{share.toFixed(2)}</span>
-                        <GripVertical className="h-3 w-3 text-muted-foreground" />
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2 py-1.5">
+                      <div className="flex items-center gap-1.5 border-l border-border px-2 py-1.5">
                         <span className={cn('h-2 w-2 rounded-sm', getCategoryDot(metric.category))} />
                         <span className="max-w-[10rem] truncate font-medium text-foreground">{metric.shortLabel}</span>
-                        <span className="text-[10px] text-muted-foreground">· {metric.directionLabel}</span>
                       </div>
                       <button
                         type="button"
@@ -313,8 +406,19 @@ export function ScoreBuilderEquationBar({
         )}
 
         {(isHealthyPlanMode || activeTerms.length > 0) && formulaOpen && equationOpen && (
-          <div className="mt-3 overflow-x-auto rounded-md bg-muted px-3 py-2 font-mono text-[11px] text-muted-foreground">
-            {formulaText}
+          <div className="mt-3 flex items-start gap-2 rounded-md bg-muted px-3 py-2">
+            <div className="min-w-0 flex-1 overflow-x-auto font-mono text-[11px] text-muted-foreground">
+              {formulaText}
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyEquation}
+              title="Copy equation to clipboard"
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-input bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {equationCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {equationCopied ? 'Copied' : 'Copy'}
+            </button>
           </div>
         )}
       </div>
