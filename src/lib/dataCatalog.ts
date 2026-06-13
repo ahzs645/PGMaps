@@ -144,6 +144,18 @@ export const DATASETS = {
     downloadUrl: '/data/bc-assessment/parcels.geojson',
     fields: ['address', 'category', 'totalAssessed', 'yearBuilt', 'latitude', 'longitude'],
   },
+  bcer: {
+    title: 'BCER oil and gas wells',
+    description:
+      'British Columbia Energy Regulator well inventory with surface coordinates, operator, area, formation, orientation, and 3-year and 5-year gas production summaries.',
+    source: 'British Columbia Energy Regulator (assembled by George Macauley)',
+    coverage: 'British Columbia oil and gas wells, primarily north-east BC',
+    license: 'BCER public data; credit the BCER when citing',
+    formats: ['JSON.GZ', 'SQLite source'],
+    downloadUrl: 'https://projects.ahmadjalil.com/BCER/data/wells/search.json.gz',
+    apiUrl: 'https://www.bc-er.ca',
+    fields: ['waNum', 'wellName', 'operator', 'areaDesc', 'formDesc', 'orientation', 'surfLat', 'surfLon', 'gasProd3Yr', 'gasProd5Yr'],
+  },
   drought: {
     title: 'B.C. drought levels time lapse',
     description: 'Historical drought basin polygons from the BC Drought Information Portal for 2015 through 2025.',
