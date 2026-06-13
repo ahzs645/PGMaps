@@ -1,5 +1,5 @@
 import type { ElementType } from 'react'
-import { Database, Droplets, Footprints, PawPrint, RadioTower, ShieldAlert, Trees, Waves, Zap } from 'lucide-react'
+import { Database, Droplets, Flame, Footprints, PawPrint, RadioTower, ShieldAlert, Trees, Waves, Zap } from 'lucide-react'
 
 export type MiscDataTab =
   | 'heatShade'
@@ -12,6 +12,7 @@ export type MiscDataTab =
   | 'water'
   | 'flood'
   | 'drought'
+  | 'bcer'
 
 export const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = [
   { id: 'heatShade', label: 'Heat & Shade', icon: Trees },
@@ -24,6 +25,7 @@ export const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementTyp
   { id: 'water', label: 'Water', icon: Droplets },
   { id: 'flood', label: 'Flood', icon: Waves },
   { id: 'drought', label: 'Drought', icon: Droplets },
+  { id: 'bcer', label: 'BCER', icon: Flame },
 ]
 
 export const MISC_LEGEND_TITLES: Record<MiscDataTab, string> = {
@@ -37,6 +39,7 @@ export const MISC_LEGEND_TITLES: Record<MiscDataTab, string> = {
   water: 'Water Layer',
   flood: 'Flood Layer',
   drought: 'Drought Layer',
+  bcer: 'BCER Wells',
 }
 
 export function parseMiscDataTab(tab: string | null): MiscDataTab {

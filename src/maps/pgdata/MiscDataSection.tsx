@@ -88,6 +88,16 @@ import {
   useWaterData,
 } from './water'
 import { FloodLayer, FloodLayerControls, FloodLegend, FloodSidebar, FloodSourceNotes, useFloodData } from './flood'
+import {
+  BCER_CENTER,
+  BCER_ZOOM,
+  BcerLayer,
+  BcerLayerControls,
+  BcerLegend,
+  BcerSidebar,
+  BcerSourceNotes,
+  useBcerData,
+} from './bcer'
 import { Timeline } from '@/components/ui/timeline'
 import { DroughtSection } from '@/maps/drought'
 import { CANUE_V2_ENABLED } from './canueV2'
@@ -311,6 +321,7 @@ export default function MiscDataSection() {
   )
   const water = useWaterData(activeTab === 'water')
   const flood = useFloodData(activeTab === 'flood')
+  const bcer = useBcerData(activeTab === 'bcer')
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -552,6 +563,7 @@ export default function MiscDataSection() {
       {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
       {activeTab === 'water' && <WaterSourceNotes water={water} />}
       {activeTab === 'flood' && <FloodSourceNotes flood={flood} />}
+      {activeTab === 'bcer' && <BcerSourceNotes bcer={bcer} />}
       {activeTab === 'heatShade' &&
         (heatShadeManifest.data?.caveats ?? []).slice(0, 2).map((caveat) => <p key={caveat}>{caveat}</p>)}
     </>
@@ -576,7 +588,9 @@ export default function MiscDataSection() {
                     ? 'Flood'
                     : activeTab === 'drought'
                       ? 'Drought'
-                      : 'Heat & Shade'
+                      : activeTab === 'bcer'
+                        ? 'BCER'
+                        : 'Heat & Shade'
   const heatShadeSources = heatShadeManifest.data?.sources ?? []
   const landsatSource = heatShadeSources.find((source) => source.id.includes('landsat'))
   const evMapCenter = useMemo<[number, number]>(
@@ -587,15 +601,23 @@ export default function MiscDataSection() {
     [evStudyAreaBounds],
   )
   const mapCenter =
-    activeTab === 'canue' ? canueMapCenter : activeTab === 'ev' && evShowBoundaries ? evMapCenter : PG_CENTER
+    activeTab === 'canue'
+      ? canueMapCenter
+      : activeTab === 'bcer'
+        ? BCER_CENTER
+        : activeTab === 'ev' && evShowBoundaries
+          ? evMapCenter
+          : PG_CENTER
   const mapZoom =
     activeTab === 'canue'
       ? canueMapZoom
-      : activeTab === 'ev' && evShowBoundaries
-        ? evBoundarySource === 'census' || evBoundarySource === 'cityPG'
-          ? 9.2
-          : 4.6
-        : 9.4
+      : activeTab === 'bcer'
+        ? BCER_ZOOM
+        : activeTab === 'ev' && evShowBoundaries
+          ? evBoundarySource === 'census' || evBoundarySource === 'cityPG'
+            ? 9.2
+            : 4.6
+          : 9.4
   const mapKey = [
     activeTab,
     activeTab === 'canue' ? canueBoundaryLevel : '',
@@ -612,7 +634,9 @@ export default function MiscDataSection() {
             ? (!evChargingStations.data && !evChargingStations.error) || (evShowBoundaries && evBoundaryLoading)
             : activeTab === 'flood'
               ? flood.loading
-              : false
+              : activeTab === 'bcer'
+                ? bcer.loading
+                : false
 
   const sidebar = (
     <div className="z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
@@ -632,6 +656,7 @@ export default function MiscDataSection() {
         {activeTab === 'wars' && <WarsLayerControls wars={wars} />}
         {activeTab === 'water' && <WaterLayerControls water={water} />}
         {activeTab === 'flood' && <FloodLayerControls flood={flood} />}
+        {activeTab === 'bcer' && <BcerLayerControls bcer={bcer} />}
       </div>
 
       <DatasetInfo
@@ -652,7 +677,9 @@ export default function MiscDataSection() {
                         ? DATASETS.water
                         : activeTab === 'flood'
                           ? DATASETS.flood
-                          : DATASETS.canue),
+                          : activeTab === 'bcer'
+                            ? DATASETS.bcer
+                            : DATASETS.canue),
           updated:
             activeTab === 'heatShade'
               ? heatShadeManifest.data?.generatedAt
@@ -670,7 +697,9 @@ export default function MiscDataSection() {
                           ? water.manifest.data?.generatedAt
                           : activeTab === 'flood'
                             ? undefined
-                            : canueManifest.data?.generatedAt,
+                            : activeTab === 'bcer'
+                              ? bcer.meta?.importTimestamp
+                              : canueManifest.data?.generatedAt,
         }}
         sourceNotes={sourceNotes}
       />
@@ -843,6 +872,7 @@ export default function MiscDataSection() {
 
         {activeTab === 'water' && <WaterSidebar water={water} />}
         {activeTab === 'flood' && <FloodSidebar flood={flood} />}
+        {activeTab === 'bcer' && <BcerSidebar bcer={bcer} />}
       </div>
     </div>
   )
@@ -909,7 +939,9 @@ export default function MiscDataSection() {
                               ? 'Water'
                               : activeTab === 'flood'
                                 ? 'Flood'
-                                : 'Heat/shade'}
+                                : activeTab === 'bcer'
+                                  ? 'BCER'
+                                  : 'Heat/shade'}
               </div>
               <div className="truncate text-[11px] text-muted-foreground">
                 {activeTab === 'canue'
@@ -930,7 +962,9 @@ export default function MiscDataSection() {
                               ? `${water.facilities.length.toLocaleString()} facilities | ${water.filteredSamples.length.toLocaleString()} sample rows`
                               : activeTab === 'flood'
                                 ? `${flood.filteredStations.length.toLocaleString()} stations | ${flood.highRiskCount.toLocaleString()} above 2 year`
-                                : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
+                                : activeTab === 'bcer'
+                                  ? `${bcer.filteredWells.length.toLocaleString()} wells | ${bcer.horizontalCount.toLocaleString()} horizontal`
+                                  : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
               </div>
             </div>
           }
@@ -1126,6 +1160,7 @@ export default function MiscDataSection() {
 
               {activeTab === 'water' && <WaterLayer water={water} />}
               {activeTab === 'flood' && <FloodLayer flood={flood} />}
+              {activeTab === 'bcer' && <BcerLayer bcer={bcer} />}
 
               {activeTab === 'icbc' && <IcbcLayer icbc={icbc} />}
 
@@ -1316,6 +1351,7 @@ export default function MiscDataSection() {
               {activeTab === 'walkability' && <WalkabilityLegend walkability={walkability} />}
               {activeTab === 'water' && <WaterLegend water={water} />}
               {activeTab === 'flood' && <FloodLegend flood={flood} />}
+              {activeTab === 'bcer' && <BcerLegend bcer={bcer} />}
             </MapLegendPanel>
           </div>
         </MapSectionLayout>
