@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Flame, Gauge } from 'lucide-react'
+import { Flame } from 'lucide-react'
 import { MapClusterLayer, MapPopup } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { InlineAlert, LegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
@@ -483,11 +483,7 @@ export function MobileBcerFeatureCard({ bcer }: { bcer: BcerState }) {
 
 export function BcerLegend({ bcer }: { bcer: BcerState }) {
   return (
-    <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
-      <div className="flex items-center gap-2 font-medium text-foreground">
-        <Gauge className="h-3.5 w-3.5 text-orange-500" />
-        BCER wells
-      </div>
+    <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
       {BCER_ORIENTATION_BUCKETS.map((bucket) => (
         <LegendItem
           key={bucket.id}
@@ -500,13 +496,6 @@ export function BcerLegend({ bcer }: { bcer: BcerState }) {
           }}
         />
       ))}
-      <LegendItem
-        color="#f97316"
-        label="Production heatmap"
-        active={bcer.showHeatmap}
-        swatchShape="square"
-        onClick={() => bcer.setShowHeatmap((current) => !current)}
-      />
     </div>
   )
 }
