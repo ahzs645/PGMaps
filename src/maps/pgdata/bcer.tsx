@@ -26,6 +26,7 @@ interface BcerWellRecord {
   wellName: string | null
   operator: string | null
   operatorAbbr: string | null
+  uwiList: string[] | null
   areaCode: number | null
   areaDesc: string | null
   formCode: number | null
@@ -60,12 +61,17 @@ interface BcerWellProperties {
   waNum: number
   name: string
   operator: string
+  // Joined Unique Well Identifier(s); empty string when the source has none.
+  uwi: string
   orientation: BcerOrientation
   area: string
   formation: string
   gas3Yr: number
   gas5Yr: number
+  // Three distinct activity dates the source tracks separately ('Unknown' when absent).
   spud: string
+  rigRelease: string
+  firstProd: string
   weight: number
 }
 
@@ -115,12 +121,15 @@ function toFeature(well: BcerWellRecord): BcerWellFeature {
       waNum: well.waNum,
       name: well.wellName?.replace(/\s+/g, ' ').trim() || `WA #${well.waNum}`,
       operator: well.operator?.trim() || 'Unknown operator',
+      uwi: (well.uwiList ?? []).map((uwi) => uwi.trim()).filter(Boolean).join(', '),
       orientation,
       area: well.areaDesc?.trim() || 'Unassigned area',
       formation: well.formDesc?.trim() || 'Unassigned formation',
       gas3Yr: Number.isFinite(well.gasProd3Yr) ? well.gasProd3Yr : 0,
       gas5Yr,
-      spud: formatYearMonth(well.spudMon ?? well.firstProdMon ?? well.rigRelMon),
+      spud: formatYearMonth(well.spudMon),
+      rigRelease: formatYearMonth(well.rigRelMon),
+      firstProd: formatYearMonth(well.firstProdMon),
       // Log scale keeps a handful of very high producers from washing out the heatmap.
       weight: gas5Yr > 0 ? Math.log10(gas5Yr + 1) : 0,
     },
@@ -333,13 +342,7 @@ export function BcerSidebar({ bcer }: { bcer: BcerState }) {
           <div className="font-semibold text-foreground">{bcer.selectedWell.properties.name}</div>
           <div className="mt-1 text-muted-foreground">{bcer.selectedWell.properties.operator}</div>
           <div className="mt-3 space-y-1">
-            <BcerDetailRow label="WA number" value={String(bcer.selectedWell.properties.waNum)} />
-            <BcerDetailRow label="Orientation" value={bcer.selectedWell.properties.orientation} />
-            <BcerDetailRow label="Area" value={bcer.selectedWell.properties.area} />
-            <BcerDetailRow label="Formation" value={bcer.selectedWell.properties.formation} />
-            <BcerDetailRow label="Spud / first activity" value={bcer.selectedWell.properties.spud} />
-            <BcerDetailRow label="3-yr gas" value={formatGas(bcer.selectedWell.properties.gas3Yr)} />
-            <BcerDetailRow label="5-yr gas" value={formatGas(bcer.selectedWell.properties.gas5Yr)} />
+            <BcerWellDetailRows well={bcer.selectedWell} />
           </div>
         </div>
       )}
@@ -355,9 +358,30 @@ export function BcerSidebar({ bcer }: { bcer: BcerState }) {
 function BcerDetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium capitalize text-foreground">{value}</span>
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-words text-right font-medium capitalize text-foreground">{value}</span>
     </div>
+  )
+}
+
+// Shared well attributes rendered in the sidebar, desktop popup, and mobile sheet
+// so every surface stays in sync. Optional dates/UWI are hidden when the source
+// has no value rather than showing "Unknown" noise.
+function BcerWellDetailRows({ well }: { well: BcerWellFeature }) {
+  const props = well.properties
+  return (
+    <>
+      <BcerDetailRow label="WA number" value={String(props.waNum)} />
+      {props.uwi && <BcerDetailRow label="UWI" value={props.uwi} />}
+      <BcerDetailRow label="Orientation" value={props.orientation} />
+      <BcerDetailRow label="Area" value={props.area} />
+      <BcerDetailRow label="Formation" value={props.formation} />
+      {props.spud !== 'Unknown' && <BcerDetailRow label="Spud" value={props.spud} />}
+      {props.rigRelease !== 'Unknown' && <BcerDetailRow label="Rig release" value={props.rigRelease} />}
+      {props.firstProd !== 'Unknown' && <BcerDetailRow label="First production" value={props.firstProd} />}
+      <BcerDetailRow label="3-yr gas" value={formatGas(props.gas3Yr)} />
+      <BcerDetailRow label="5-yr gas" value={formatGas(props.gas5Yr)} />
+    </>
   )
 }
 
@@ -429,11 +453,7 @@ export function BcerLayer({ bcer, isMobile = false }: { bcer: BcerState; isMobil
               <div className="font-semibold text-foreground">{bcer.selectedWell.properties.name}</div>
               <div className="text-muted-foreground">{bcer.selectedWell.properties.operator}</div>
             </div>
-            <BcerDetailRow label="WA number" value={String(bcer.selectedWell.properties.waNum)} />
-            <BcerDetailRow label="Orientation" value={bcer.selectedWell.properties.orientation} />
-            <BcerDetailRow label="Area" value={bcer.selectedWell.properties.area} />
-            <BcerDetailRow label="Formation" value={bcer.selectedWell.properties.formation} />
-            <BcerDetailRow label="5-yr gas" value={formatGas(bcer.selectedWell.properties.gas5Yr)} />
+            <BcerWellDetailRows well={bcer.selectedWell} />
           </div>
         </MapPopup>
       )}
@@ -454,13 +474,7 @@ export function MobileBcerFeatureCard({ bcer }: { bcer: BcerState }) {
     >
       <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
         <div className="space-y-1">
-          <BcerDetailRow label="WA number" value={String(well.properties.waNum)} />
-          <BcerDetailRow label="Orientation" value={well.properties.orientation} />
-          <BcerDetailRow label="Area" value={well.properties.area} />
-          <BcerDetailRow label="Formation" value={well.properties.formation} />
-          <BcerDetailRow label="Spud / first activity" value={well.properties.spud} />
-          <BcerDetailRow label="3-yr gas" value={formatGas(well.properties.gas3Yr)} />
-          <BcerDetailRow label="5-yr gas" value={formatGas(well.properties.gas5Yr)} />
+          <BcerWellDetailRows well={well} />
         </div>
       </div>
     </MobileFeatureCard>
