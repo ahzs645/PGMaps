@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { Restaurant, RestaurantStats, HazardRating, EstablishmentType } from '../types'
+import { normalizeViolation } from '../violation-codes'
 
 interface GeocodedLocation {
   dataset: string
@@ -60,8 +61,15 @@ export function useRestaurantData(enabled = true) {
       const merged = data.map((r: Restaurant, index: number) => {
         const locationOverride = locationOverrides[r.name]
         const geocodedLocation = restaurantGeocodes.get(index)
+        // Backfill junk "Critical"/"Repeat" violation titles with real rule text
+        // once at load, so the panel, cards, and roulette all get clean data.
+        const inspections = r.inspections?.map((inspection) => ({
+          ...inspection,
+          violations: inspection.violations?.map(normalizeViolation)
+        }))
         return {
           ...r,
+          inspections,
           latitude: locationOverride?.latitude ?? geocodedLocation?.latitude ?? r.latitude,
           longitude: locationOverride?.longitude ?? geocodedLocation?.longitude ?? r.longitude,
           google_geocoded_address: geocodedLocation?.google_geocoded_address,

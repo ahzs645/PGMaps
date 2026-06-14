@@ -72,6 +72,11 @@ const HYGIENE_KEYWORDS = /\b(hand\s?wash|paper towel|soap|saniti[sz]er|chlorine|
 const CHEMICAL_KEYWORDS = /\b(chemical|bleach|cleanser|labelled?|labeling)\b/i
 const REPEAT_KEYWORDS = /\brepeat\b/i
 
+// Specific, actively-observed hazards (as opposed to the generic "may lead to
+// foodborne illness" boilerplate that appears in nearly every NHA write-up).
+// Only these escalate a known code's band — boilerplate must not.
+const ACTIVE_PEST_SIGNAL = /\b(droppings?|infestation|gnaw\w*|nesting|live\s+(mice|mouse|rodent|cockroach|insect|pest))\b/i
+
 const EMPTY_SUMMARY: ViolationRiskSummary = {
   severe: 0,
   elevated: 0,
@@ -82,7 +87,17 @@ const EMPTY_SUMMARY: ViolationRiskSummary = {
   worstBand: 'Unknown'
 }
 
-function normalizeText(violation: Violation): string {
+// Corrective-action text is regulatory boilerplate ("an operator must ensure…
+// to prevent foodborne illness") that mentions contamination on almost every
+// row. Risk signals are read from the description + observation only; the full
+// text is used solely for repeat detection.
+function riskSignalText(violation: Violation): string {
+  return [violation.description || '', violation.observation || '']
+    .join(' ')
+    .toLowerCase()
+}
+
+function fullText(violation: Violation): string {
   return [
     violation.description || '',
     violation.observation || '',
@@ -109,45 +124,33 @@ function inferFallbackRisk(text: string): RiskRule {
 }
 
 export function assessViolationRisk(violation: Violation): ViolationRiskAssessment {
-  const text = normalizeText(violation)
   const code = String(violation.code || '').trim()
-  const baseRule = CODE_RULES[code] || inferFallbackRisk(text)
-  let band = baseRule.band
-  let category = baseRule.category
+  const codeRule = CODE_RULES[code]
+  const signal = riskSignalText(violation)
 
-  // Escalate ambiguous records ("Repeat", "Critical") using observation text.
-  if (PEST_KEYWORDS.test(text)) {
-    band = maxBand(band, text.includes('dropping') || text.includes('infestation') ? 'Severe' : 'Elevated')
-    category = 'Pest Control'
+  let band: ViolationRiskBand
+  let category: ViolationRiskCategory
+
+  if (codeRule) {
+    // The code is the authoritative classifier. Keep its category, and only let a
+    // specific, actively-observed pest hazard raise the band — generic "may lead
+    // to foodborne illness" boilerplate (which appears on almost every row) does
+    // not escalate, so a chemical-storage or facility issue no longer collapses
+    // into "Severe / Contamination".
+    band = codeRule.band
+    category = codeRule.category
+    if (ACTIVE_PEST_SIGNAL.test(signal)) {
+      band = maxBand(band, 'Severe')
+    }
+  } else {
+    // Unknown code — keyword inference on description + observation is the best
+    // signal available.
+    const inferred = inferFallbackRisk(signal)
+    band = inferred.band
+    category = inferred.category
   }
 
-  if (CONTAMINATION_KEYWORDS.test(text)) {
-    band = maxBand(band, 'Severe')
-    category = 'Contamination'
-  }
-
-  if (TEMPERATURE_KEYWORDS.test(text)) {
-    band = maxBand(band, 'Severe')
-    category = 'Temperature Control'
-  }
-
-  if (HYGIENE_KEYWORDS.test(text) && band !== 'Administrative') {
-    band = maxBand(band, 'Elevated')
-    if (category === 'Other') category = 'Sanitization & Hygiene'
-  }
-
-  if (CHEMICAL_KEYWORDS.test(text) && band !== 'Administrative') {
-    band = maxBand(band, 'Elevated')
-    if (category === 'Other') category = 'Chemical Safety'
-  }
-
-  // Administrative language should only dominate if there are no stronger risk signals.
-  if (ADMIN_KEYWORDS.test(text) && band === 'Unknown') {
-    band = 'Administrative'
-    category = 'Administrative'
-  }
-
-  const isRepeat = REPEAT_KEYWORDS.test(text)
+  const isRepeat = Boolean(violation.is_repeat) || REPEAT_KEYWORDS.test(fullText(violation))
   const isCorrected = Boolean(violation.corrected_during_inspection)
   const score = Math.max(
     1,

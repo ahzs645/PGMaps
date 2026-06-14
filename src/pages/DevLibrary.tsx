@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDot, Droplets, Handshake, MousePointerClick, Palette, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDot, Droplets, Handshake, MousePointerClick, Palette, ShieldAlert, Wind } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -56,6 +56,14 @@ const devEntries: DevEntry[] = [
     icon: CircleDot,
     color: 'bg-pink-600',
     label: '/dev/interact/sewage',
+  },
+  {
+    title: 'Fallout Sites',
+    description: 'Canadian fallout reporting posts, nuclear shelter references, and communication lines imported from KML.',
+    href: '/dev/fallout',
+    icon: ShieldAlert,
+    color: 'bg-red-700',
+    label: '/dev/fallout',
   },
   {
     title: 'Acknowledgement Builder',

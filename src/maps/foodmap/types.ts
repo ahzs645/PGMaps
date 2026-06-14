@@ -4,6 +4,10 @@ export interface Violation {
   observation: string
   corrective_action?: string
   corrected_during_inspection?: boolean
+  /** Set during normalization when the original row was flagged as a repeat. */
+  is_repeat?: boolean
+  /** Set during normalization when no real rule text could be recovered for the code. */
+  details_unavailable?: boolean
 }
 
 export type ViolationRiskBand = 'Severe' | 'Elevated' | 'Moderate' | 'Administrative' | 'Unknown'

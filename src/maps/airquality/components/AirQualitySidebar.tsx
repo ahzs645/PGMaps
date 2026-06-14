@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
-import { AddToIndexLabLink } from '@/components/AddToIndexLabLink'
 import { AppSelect } from '@/components/ui/select'
 import {
   FilterChipGroup,
@@ -140,9 +139,6 @@ export function AirQualitySidebar({
         </>
       }
     >
-      <div className="border-b border-border bg-background/95 px-4 py-3">
-        <AddToIndexLabLink quick="airQuality" label="Add monitor gap to Index Lab" className="w-full" />
-      </div>
       <StudyAreaSelector<BoundarySource, RegionLevel>
         source={boundariesVisible ? boundarySource : undefined}
         sourceOptions={BOUNDARY_SOURCE_OPTIONS}

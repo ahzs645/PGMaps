@@ -1,0 +1,29 @@
+{
+  "title": "Copy of Fallout Reporting Posts and Nuclear Fallout Shelters in Canada",
+  "description": "A Map of Fallout Reporting Posts, Nuclear Detonation Reporting Centres, and Blast Bunkers, ca 1963. Map begun by Andrew Burtch, Canadian War Museum (2014), contributions and edits welcome. Shelter locations are approximate based on archival references.\nFor a more detailed and precise view of Manitoba shelters, complete with photos - see Gilles Messier's map here: https://www.google.com/maps/d/viewer?mid=18lGq-y4FyDExhcjtyQjLOqR6vyc2YAUr&ll=60.81791529492617%2C-92.5083869&z=4",
+  "source": "Google My Maps KML export copied to public/data/fallout/fallout-reporting-posts-canada.kml",
+  "generatedAt": "2026-06-14T20:20:27.798Z",
+  "totalFeatures": 1747,
+  "byGeometry": {
+    "Point": 1439,
+    "LineString": 308
+  },
+  "byProvince": {
+    "Quebec": 400,
+    "Ontario": 223,
+    "Saskatchewan": 129,
+    "Alberta": 141,
+    "British Columbia": 306,
+    "Nova Scotia": 163,
+    "Prince Edward Island": 29,
+    "New Brunswick": 65,
+    "Newfoundland and Labrador (planned FRPs included)": 71,
+    "Manitoba": 220
+  },
+  "byType": {
+    "Fallout reporting post": 1365,
+    "Other": 66,
+    "Bridge": 8,
+    "Communication line": 308
+  }
+}

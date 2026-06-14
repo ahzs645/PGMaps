@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { assessViolationRisk, summarizeViolationRisk } from '../risk'
-import type { RestaurantWithStats, HazardRating, Inspection } from '../types'
+import type { RestaurantWithStats, HazardRating, Inspection, Violation, ViolationRiskBand } from '../types'
 
 interface InspectionPanelProps {
   restaurant: RestaurantWithStats
@@ -31,6 +31,15 @@ function getRiskBandClass(band: string): string {
   if (band === 'Moderate') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
   if (band === 'Administrative') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+}
+
+function getRiskDotClass(band: ViolationRiskBand, hasViolations: boolean): string {
+  if (!hasViolations) return 'bg-emerald-500'
+  if (band === 'Severe') return 'bg-red-500'
+  if (band === 'Elevated') return 'bg-orange-500'
+  if (band === 'Moderate') return 'bg-yellow-500'
+  if (band === 'Administrative') return 'bg-blue-500'
+  return 'bg-gray-400'
 }
 
 function getRiskCategoryClass(category: string): string {
@@ -113,6 +122,16 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
 
   const currentRating = (restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown') as HazardRating
 
+  // Master-detail navigation: the panel shows a list of inspection cards, and
+  // opening one drills into a dedicated detail view of its violations. With a
+  // single inspection there is nothing to choose, so open it directly.
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(inspections.length === 1 ? 0 : null)
+  useEffect(() => {
+    setSelectedIndex(inspections.length === 1 ? 0 : null)
+  }, [inspections])
+
+  const selectedInspection = selectedIndex !== null ? inspections[selectedIndex] ?? null : null
+
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -189,14 +208,19 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
             </div>
           </div>
 
-          <div
-            className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
-            title={detailMismatchNote || undefined}
-          >
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>
               <span className="font-semibold text-foreground">{formatRate(criticalPerInspection)}</span> HealthSpace critical per inspection
             </span>
           </div>
+          {detailMismatchNote && (
+            <div className="mt-2 flex items-start gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-xs leading-snug text-muted-foreground">
+              <svg className="mt-0.5 h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{detailMismatchNote} The <span className="font-medium">Total Violations</span> count above reflects the detailed rows shown below.</span>
+            </div>
+          )}
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
             <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', getRiskBandClass('Severe'))}>
               Severe: {riskSummary.severe}
@@ -213,17 +237,30 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
           </div>
         </div>
 
-        {/* Inspection list */}
+        {/* Inspection list / detail */}
         <div className="flex-1 overflow-y-auto overscroll-contain bg-muted/20 p-2 sm:p-6">
           {inspections.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               No inspection records available
               {useFilteredInspections && periodLabel ? ` for ${periodLabel}` : ''}
             </div>
+          ) : selectedInspection ? (
+            <InspectionDetailView
+              inspection={selectedInspection}
+              showBack={inspections.length > 1}
+              onBack={() => setSelectedIndex(null)}
+            />
           ) : (
-            <div className="space-y-3 sm:space-y-6">
+            <div className="space-y-3 sm:space-y-4">
+              <p className="px-1 text-xs text-muted-foreground">
+                Select an inspection to view its violations.
+              </p>
               {inspections.map((inspection, index) => (
-                <InspectionItem key={index} inspection={inspection} />
+                <InspectionSummaryCard
+                  key={index}
+                  inspection={inspection}
+                  onOpen={() => setSelectedIndex(index)}
+                />
               ))}
             </div>
           )}
@@ -259,101 +296,206 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
   )
 }
 
-function InspectionItem({ inspection }: { inspection: Inspection }) {
+interface InspectionCounts {
+  violationCount: number
+  criticalCount: number
+  nonCriticalCount: number
+  otherCount: number
+  notItemizedCount: number
+}
+
+function getInspectionCounts(inspection: Inspection): InspectionCounts {
+  const violationCount = inspection.violations?.length || 0
+  const criticalCount = inspection.critical_violations_count || 0
+  const nonCriticalCount = inspection.non_critical_violations_count || 0
+  // HealthSpace's critical/non-critical tally and the detailed rows can disagree;
+  // surface the difference so the numbers visibly reconcile (crit + non-crit +
+  // other = total) instead of looking like a math error.
+  const otherCount = Math.max(0, violationCount - (criticalCount + nonCriticalCount))
+  const notItemizedCount = Math.max(0, (criticalCount + nonCriticalCount) - violationCount)
+  return { violationCount, criticalCount, nonCriticalCount, otherCount, notItemizedCount }
+}
+
+function ViolationCountSummary({ counts }: { counts: InspectionCounts }) {
+  const { criticalCount, nonCriticalCount, otherCount, violationCount, notItemizedCount } = counts
+  return (
+    <>
+      <span className="text-muted-foreground">
+        <span className="font-medium text-red-600 dark:text-red-400">{criticalCount}</span>
+        {' '}critical
+      </span>
+      <span className="text-muted-foreground/50">•</span>
+      <span className="text-muted-foreground">
+        <span className="font-medium text-amber-600 dark:text-amber-400">{nonCriticalCount}</span>
+        {' '}non-critical
+      </span>
+      {otherCount > 0 && (
+        <>
+          <span className="text-muted-foreground/50">•</span>
+          <span className="text-muted-foreground" title="Detailed rows beyond HealthSpace's critical/non-critical tally">
+            <span className="font-medium text-foreground">{otherCount}</span>
+            {' '}other
+          </span>
+        </>
+      )}
+      <span className="text-muted-foreground/50">•</span>
+      <span className="text-muted-foreground">
+        <span className="font-medium text-foreground">{violationCount}</span>
+        {' '}total
+      </span>
+      {notItemizedCount > 0 && (
+        <span className="italic text-muted-foreground/70">
+          ({notItemizedCount} not itemized)
+        </span>
+      )}
+    </>
+  )
+}
+
+// List item — click to open the inspection's detail view.
+function InspectionSummaryCard({ inspection, onOpen }: { inspection: Inspection; onOpen: () => void }) {
   const inspectionType = inspection.inspection_type || inspection.type || 'Inspection'
   const inspectionDate = inspection.inspection_date || inspection.date || 'Date unavailable'
-  const violationCount = inspection.violations?.length || 0
+  const counts = getInspectionCounts(inspection)
+  const hasViolations = counts.violationCount > 0
+  const worstBand = hasViolations ? summarizeViolationRisk([inspection]).worstBand : 'Unknown'
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:rounded-xl">
-      {/* Inspection header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/35 px-3 py-3 sm:px-4">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <span className={cn('text-sm font-medium px-3 py-1 rounded-full', getInspectionTypeColor(inspectionType))}>
-            {inspectionType}
-          </span>
-          <span className="text-sm text-muted-foreground">{inspectionDate}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+    <button
+      type="button"
+      onClick={onOpen}
+      className="block w-full overflow-hidden rounded-lg border border-border bg-background text-left shadow-sm transition-colors hover:border-sky-300 hover:bg-muted/40 dark:hover:border-sky-700 sm:rounded-xl"
+    >
+      <div className="flex items-center gap-2 px-3 py-3 sm:px-4">
+        <span
+          className={cn('h-2.5 w-2.5 shrink-0 rounded-full', getRiskDotClass(worstBand, hasViolations))}
+          aria-hidden="true"
+        />
+        <span className={cn('text-sm font-medium px-3 py-1 rounded-full', getInspectionTypeColor(inspectionType))}>
+          {inspectionType}
+        </span>
+        <span className="text-sm text-muted-foreground">{inspectionDate}</span>
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <span className={cn('rounded px-2 py-1 text-sm', getHazardColor(inspection.hazard_rating))}>
             {inspection.hazard_rating}
           </span>
           {inspection.follow_up_required === 'Yes' && (
-            <span className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 dark:bg-red-900/50 dark:text-red-300">
+            <span className="hidden rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 dark:bg-red-900/50 dark:text-red-300 sm:inline">
               Follow-up Required
             </span>
           )}
+          <svg className="h-4 w-4 shrink-0 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-3 pl-9 text-sm sm:px-4 sm:pl-9">
+        <ViolationCountSummary counts={counts} />
+      </div>
+    </button>
+  )
+}
+
+// Detail view for a single inspection — its header, counts, and full violation list.
+function InspectionDetailView({ inspection, showBack, onBack }: { inspection: Inspection; showBack: boolean; onBack: () => void }) {
+  const inspectionType = inspection.inspection_type || inspection.type || 'Inspection'
+  const inspectionDate = inspection.inspection_date || inspection.date || 'Date unavailable'
+  const counts = getInspectionCounts(inspection)
+
+  return (
+    <div className="space-y-3 sm:space-y-4">
+      {showBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 transition-colors hover:text-sky-700 hover:underline dark:text-sky-400 dark:hover:text-sky-300"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          All inspections
+        </button>
+      )}
+
+      <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:rounded-xl">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/35 px-3 py-3 sm:px-4">
+          <span className={cn('text-sm font-medium px-3 py-1 rounded-full', getInspectionTypeColor(inspectionType))}>
+            {inspectionType}
+          </span>
+          <span className="text-sm text-muted-foreground">{inspectionDate}</span>
+          <div className="ml-auto flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className={cn('rounded px-2 py-1 text-sm', getHazardColor(inspection.hazard_rating))}>
+              {inspection.hazard_rating}
+            </span>
+            {inspection.follow_up_required === 'Yes' && (
+              <span className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                Follow-up Required
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-sm sm:px-4">
+          <ViolationCountSummary counts={counts} />
         </div>
       </div>
 
-      {/* Violation summary */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-2.5 text-sm sm:px-4">
-        <span className="text-muted-foreground">
-          <span className="font-medium text-red-600 dark:text-red-400">{inspection.critical_violations_count || 0}</span>
-          {' '}critical
-        </span>
-        <span className="text-muted-foreground/50">•</span>
-        <span className="text-muted-foreground">
-          <span className="font-medium text-amber-600 dark:text-amber-400">{inspection.non_critical_violations_count || 0}</span>
-          {' '}non-critical
-        </span>
-        <span className="text-muted-foreground/50">•</span>
-        <span className="text-muted-foreground">
-          <span className="font-medium text-foreground">{violationCount}</span>
-          {' '}total violations
-        </span>
-      </div>
-
-      {/* Violations list */}
-      {violationCount > 0 ? (
-        <div className="space-y-3 p-2 sm:p-4">
-          {inspection.violations?.map((violation, vIndex) => {
-            const risk = assessViolationRisk(violation)
-            return (
-              <div
-                key={vIndex}
-                className="rounded-lg border border-border bg-background p-3 sm:p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
-                        {violation.code}
-                      </span>
-                      <span className={cn('rounded px-2 py-0.5 text-xs font-medium', getRiskBandClass(risk.band))}>
-                        {risk.band}
-                      </span>
-                      <span className={cn('rounded px-2 py-0.5 text-xs font-medium', getRiskCategoryClass(risk.category))}>
-                        {risk.category}
-                      </span>
-                      {violation.corrected_during_inspection && (
-                        <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/50 dark:text-green-300">
-                          Corrected
-                        </span>
-                      )}
-                    </div>
-                    <div className="mb-2 text-base font-semibold leading-snug text-foreground sm:text-sm sm:font-medium">
-                      {violation.description}
-                    </div>
-                    <div className="mb-3 text-base leading-7 text-muted-foreground sm:mb-2 sm:text-sm sm:leading-relaxed">
-                      <span className="font-medium">Observation:</span> {violation.observation}
-                    </div>
-                    {violation.corrective_action && (
-                      <div className="text-base leading-7 text-muted-foreground sm:text-sm sm:leading-relaxed">
-                        <span className="font-medium">Corrective Action:</span> {violation.corrective_action}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+      {counts.violationCount > 0 ? (
+        <div className="space-y-3">
+          {inspection.violations?.map((violation, vIndex) => (
+            <ViolationCard key={vIndex} violation={violation} />
+          ))}
         </div>
       ) : (
-        <div className="p-4 text-sm italic text-muted-foreground">
+        <div className="rounded-lg border border-border bg-background p-4 text-sm italic text-muted-foreground">
           No violations recorded for this inspection
         </div>
       )}
+    </div>
+  )
+}
+
+function ViolationCard({ violation }: { violation: Violation }) {
+  const risk = assessViolationRisk(violation)
+  return (
+    <div className="rounded-lg border border-border bg-background p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
+              {violation.code}
+            </span>
+            <span className={cn('rounded px-2 py-0.5 text-xs font-medium', getRiskBandClass(risk.band))}>
+              {risk.band}
+            </span>
+            <span className={cn('rounded px-2 py-0.5 text-xs font-medium', getRiskCategoryClass(risk.category))}>
+              {risk.category}
+            </span>
+            {violation.corrected_during_inspection && (
+              <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/50 dark:text-green-300">
+                Corrected
+              </span>
+            )}
+          </div>
+          <div
+            className={cn(
+              'mb-2 leading-snug',
+              violation.details_unavailable
+                ? 'text-sm italic text-muted-foreground'
+                : 'text-base font-semibold text-foreground sm:text-sm sm:font-medium'
+            )}
+          >
+            {violation.description}
+          </div>
+          <div className="mb-3 text-base leading-7 text-muted-foreground sm:mb-2 sm:text-sm sm:leading-relaxed">
+            <span className="font-medium">Observation:</span> {violation.observation}
+          </div>
+          {violation.corrective_action && (
+            <div className="text-base leading-7 text-muted-foreground sm:text-sm sm:leading-relaxed">
+              <span className="font-medium">Corrective Action:</span> {violation.corrective_action}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
