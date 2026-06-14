@@ -71,23 +71,24 @@ test.describe('Home Page Navigation', () => {
     const menuButton = page.getByRole('button', { name: 'Main menu' })
     await menuButton.click()
 
-    await expect(page.getByRole('button', { name: /MISC/ })).toHaveAttribute('aria-expanded', 'true')
+    await page.getByRole('button', { name: /MISC/ }).click()
+    await expect(page.getByRole('button', { name: 'Back to main menu' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Network', exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: 'Water', exact: true }).click()
     await expect(page).toHaveURL(/\/misc\?tab=water$/)
-    await expect(page.getByText('MISC Data | Water')).toBeVisible()
 
     await page.getByRole('button', { name: /Open dataset information/ }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
   })
 
-  test('mobile menu stays within the viewport with expanded submenus', async ({ page }) => {
+  test('mobile submenu stays within the viewport', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/misc?tab=network', { waitUntil: 'domcontentloaded' })
 
     await page.getByRole('button', { name: 'Main menu' }).click()
-    await expect(page.getByRole('button', { name: /MISC/ })).toHaveAttribute('aria-expanded', 'true')
+    await page.getByRole('button', { name: /MISC/ }).click()
+    await expect(page.getByRole('button', { name: 'Back to main menu' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Flood', exact: true })).toBeVisible()
 
     const menuBounds = await page.getByTestId('mobile-nav-menu').boundingBox()

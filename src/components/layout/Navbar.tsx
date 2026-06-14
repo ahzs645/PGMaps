@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
-import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, RadioTower, PawPrint, Footprints, Droplets, Waves, Bus } from 'lucide-react'
+import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight, RadioTower, PawPrint, Footprints, Droplets, Waves, Bus } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -43,8 +43,7 @@ export function Navbar() {
   const isHomePage = location.pathname === '/'
   const { resolvedTheme, setTheme } = useTheme()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [mobilePgDataOpen, setMobilePgDataOpen] = useState(() => location.pathname === '/pgdata')
-  const [mobileMiscOpen, setMobileMiscOpen] = useState(() => location.pathname === '/misc')
+  const [mobileSubmenu, setMobileSubmenu] = useState<'pgdata' | 'misc' | null>(null)
   const [mobileToolbarHidden, setMobileToolbarHidden] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -81,6 +80,11 @@ export function Navbar() {
     return (params.get('tab') ?? 'crime') === (locationParams.get('tab') ?? 'crime')
   }
 
+  const closeMobileMenu = useCallback(() => {
+    setMobileMenuOpen(false)
+    setMobileSubmenu(null)
+  }, [])
+
   // Close mobile menu on outside click
   useEffect(() => {
     if (!mobileMenuOpen) return
@@ -91,31 +95,29 @@ export function Navbar() {
         !menuRef.current.contains(target) &&
         !menuButtonRef.current?.contains(target)
       ) {
-        setMobileMenuOpen(false)
+        closeMobileMenu()
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [mobileMenuOpen])
-
-  // Guarded render-phase adjustment: navigating to /misc expands the
-  // submenu without an effect-driven second render.
-  const [lastPathname, setLastPathname] = useState(location.pathname)
-  if (lastPathname !== location.pathname) {
-    setLastPathname(location.pathname)
-    if (location.pathname === '/misc') setMobileMiscOpen(true)
-  }
+  }, [closeMobileMenu, mobileMenuOpen])
 
   useEffect(() => {
     const handleToolbarVisibility = (event: Event) => {
       const hidden = event instanceof CustomEvent && event.detail?.hidden === true
       setMobileToolbarHidden(hidden)
-      if (hidden) setMobileMenuOpen(false)
+      if (hidden) closeMobileMenu()
     }
 
     window.addEventListener('pgmaps:mobile-toolbar-visibility', handleToolbarVisibility)
     return () => window.removeEventListener('pgmaps:mobile-toolbar-visibility', handleToolbarVisibility)
-  }, [])
+  }, [closeMobileMenu])
+
+  const activeMobileSubmenu = mobileSubmenu === 'pgdata'
+    ? { label: 'PG Data', links: pgDataTabLinks, isActive: isPgDataTabActive }
+    : mobileSubmenu === 'misc'
+      ? { label: 'MISC', links: miscTabLinks, isActive: isMiscTabActive }
+      : null
 
   const mobileMenu = mobileMenuOpen && typeof document !== 'undefined'
     ? createPortal(
@@ -127,102 +129,73 @@ export function Navbar() {
             isHomePage && 'left-8 top-[calc(env(safe-area-inset-top)+4.5rem)] max-h-[calc(100dvh-env(safe-area-inset-top)-5.5rem)]',
           )}
         >
-          <nav className="flex flex-col p-1.5">
-            {navLinks.map(({ path, label, icon: Icon }) => (
-              path === '/pgdata' ? (
-                <div key={path}>
-                  <button
-                    type="button"
-                    onClick={() => setMobilePgDataOpen((open) => !open)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium transition-colors",
-                      isNavActive(path)
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    )}
-                    aria-expanded={mobilePgDataOpen}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="min-w-0 flex-1">{label}</span>
-                    <ChevronDown className={cn('h-4 w-4 transition-transform', mobilePgDataOpen && 'rotate-180')} />
-                  </button>
-                  {mobilePgDataOpen && (
-                    <div className="mt-1 grid grid-cols-2 gap-1 border-l border-border/70 pl-4">
-                      {pgDataTabLinks.map(({ path: tabPath, label: tabLabel, icon: TabIcon }) => (
-                        <Link
-                          key={tabPath}
-                          to={tabPath}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={cn(
-                            "flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors",
-                            isPgDataTabActive(tabPath)
-                              ? "bg-accent text-accent-foreground"
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                          )}
-                        >
-                          <TabIcon className="h-4 w-4 shrink-0" />
-                          <span className="min-w-0 truncate">{tabLabel}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : path === '/misc' ? (
-                <div key={path}>
-                  <button
-                    type="button"
-                    onClick={() => setMobileMiscOpen((open) => !open)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium transition-colors",
-                      isNavActive(path)
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    )}
-                    aria-expanded={mobileMiscOpen}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="min-w-0 flex-1">{label}</span>
-                    <ChevronDown className={cn('h-4 w-4 transition-transform', mobileMiscOpen && 'rotate-180')} />
-                  </button>
-                  {mobileMiscOpen && (
-                    <div className="mt-1 grid grid-cols-2 gap-1 border-l border-border/70 pl-4">
-                      {miscTabLinks.map(({ path: tabPath, label: tabLabel, icon: TabIcon }) => (
-                        <Link
-                          key={tabPath}
-                          to={tabPath}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={cn(
-                            "flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors",
-                            isMiscTabActive(tabPath)
-                              ? "bg-accent text-accent-foreground"
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                          )}
-                        >
-                          <TabIcon className="h-4 w-4 shrink-0" />
-                          <span className="min-w-0 truncate">{tabLabel}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
+          {activeMobileSubmenu ? (
+            <nav className="flex flex-col p-1.5" aria-label={`${activeMobileSubmenu.label} submenu`}>
+              <button
+                type="button"
+                onClick={() => setMobileSubmenu(null)}
+                className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-accent hover:text-accent-foreground"
+                aria-label="Back to main menu"
+              >
+                <ChevronLeft className="h-5 w-5" />
+                <span className="min-w-0 flex-1">{activeMobileSubmenu.label}</span>
+              </button>
+              {activeMobileSubmenu.links.map(({ path: tabPath, label: tabLabel, icon: TabIcon }) => (
                 <Link
-                  key={path}
-                  to={path}
-                  onClick={() => setMobileMenuOpen(false)}
+                  key={tabPath}
+                  to={tabPath}
+                  onClick={closeMobileMenu}
                   className={cn(
                     "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
-                    isNavActive(path)
+                    activeMobileSubmenu.isActive(tabPath)
                       ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
-                  <Icon className="h-5 w-5" />
-                  {label}
+                  <TabIcon className="h-5 w-5 shrink-0" />
+                  <span className="min-w-0 truncate">{tabLabel}</span>
                 </Link>
-              )
-            ))}
-          </nav>
+              ))}
+            </nav>
+          ) : (
+            <nav className="flex flex-col p-1.5">
+              {navLinks.map(({ path, label, icon: Icon }) => (
+                path === '/pgdata' || path === '/misc' ? (
+                  <button
+                    key={path}
+                    type="button"
+                    onClick={() => setMobileSubmenu(path === '/pgdata' ? 'pgdata' : 'misc')}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium transition-colors",
+                      isNavActive(path)
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                    aria-haspopup="menu"
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="min-w-0 flex-1">{label}</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <Link
+                    key={path}
+                    to={path}
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
+                      isNavActive(path)
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {label}
+                  </Link>
+                )
+              ))}
+            </nav>
+          )}
         </div>,
         document.body,
       )
@@ -252,7 +225,11 @@ export function Navbar() {
             onPointerDown={(event) => {
               event.preventDefault()
               event.stopPropagation()
-              setMobileMenuOpen(!mobileMenuOpen)
+              if (mobileMenuOpen) {
+                closeMobileMenu()
+              } else {
+                setMobileMenuOpen(true)
+              }
             }}
             aria-label="Main menu"
             aria-haspopup="menu"
