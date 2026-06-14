@@ -96,6 +96,7 @@ import {
   BcerLegend,
   BcerSidebar,
   BcerSourceNotes,
+  MobileBcerFeatureCard,
   useBcerData,
 } from './bcer'
 import { Timeline } from '@/components/ui/timeline'
@@ -1160,7 +1161,11 @@ export default function MiscDataSection() {
 
               {activeTab === 'water' && <WaterLayer water={water} />}
               {activeTab === 'flood' && <FloodLayer flood={flood} />}
-              {activeTab === 'bcer' && <BcerLayer bcer={bcer} />}
+              {activeTab === 'bcer' && <BcerLayer bcer={bcer} isMobile={isMobileViewport} />}
+
+              {activeTab === 'bcer' && isMobileViewport && bcer.selectedWell && (
+                <MobileBcerFeatureCard bcer={bcer} />
+              )}
 
               {activeTab === 'icbc' && <IcbcLayer icbc={icbc} />}
 

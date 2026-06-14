@@ -4,6 +4,7 @@ import { MapClusterLayer, MapPopup } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { InlineAlert, LegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 
 // BCER (British Columbia Energy Regulator) oil and gas well data, served as
 // statically exported gzipped JSON from the BCER Data Viewer deploy. The files
@@ -360,7 +361,7 @@ function BcerDetailRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function BcerLayer({ bcer }: { bcer: BcerState }) {
+export function BcerLayer({ bcer, isMobile = false }: { bcer: BcerState; isMobile?: boolean }) {
   const pointCollections = useMemo(
     () =>
       BCER_ORIENTATION_BUCKETS.map((bucket) => [
@@ -415,7 +416,7 @@ export function BcerLayer({ bcer }: { bcer: BcerState }) {
             }
           />
         ))}
-      {bcer.selectedWell && (
+      {bcer.selectedWell && !isMobile && (
         <MapPopup
           longitude={bcer.selectedWell.geometry.coordinates[0]}
           latitude={bcer.selectedWell.geometry.coordinates[1]}
@@ -437,6 +438,32 @@ export function BcerLayer({ bcer }: { bcer: BcerState }) {
         </MapPopup>
       )}
     </>
+  )
+}
+
+export function MobileBcerFeatureCard({ bcer }: { bcer: BcerState }) {
+  const well = bcer.selectedWell
+  if (!well) return null
+
+  return (
+    <MobileFeatureCard
+      cardKey={well.properties.waNum}
+      title={well.properties.name}
+      subtitle={well.properties.operator}
+      onClose={() => bcer.setSelectedWaNum(null)}
+    >
+      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
+        <div className="space-y-1">
+          <BcerDetailRow label="WA number" value={String(well.properties.waNum)} />
+          <BcerDetailRow label="Orientation" value={well.properties.orientation} />
+          <BcerDetailRow label="Area" value={well.properties.area} />
+          <BcerDetailRow label="Formation" value={well.properties.formation} />
+          <BcerDetailRow label="Spud / first activity" value={well.properties.spud} />
+          <BcerDetailRow label="3-yr gas" value={formatGas(well.properties.gas3Yr)} />
+          <BcerDetailRow label="5-yr gas" value={formatGas(well.properties.gas5Yr)} />
+        </div>
+      </div>
+    </MobileFeatureCard>
   )
 }
 
