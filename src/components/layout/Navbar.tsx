@@ -121,9 +121,10 @@ export function Navbar() {
     ? createPortal(
         <div
           ref={menuRef}
+          data-testid="mobile-nav-menu"
           className={cn(
-            "fixed left-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[1000] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur lg:hidden",
-            isHomePage && 'left-8 top-[calc(env(safe-area-inset-top)+4.5rem)]',
+            "fixed left-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[1000] max-h-[calc(100dvh-env(safe-area-inset-top)-4.75rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur lg:hidden",
+            isHomePage && 'left-8 top-[calc(env(safe-area-inset-top)+4.5rem)] max-h-[calc(100dvh-env(safe-area-inset-top)-5.5rem)]',
           )}
         >
           <nav className="flex flex-col p-1.5">

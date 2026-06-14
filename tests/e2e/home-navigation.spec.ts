@@ -82,6 +82,19 @@ test.describe('Home Page Navigation', () => {
     await expect(page.getByRole('dialog')).toBeVisible()
   })
 
+  test('mobile menu stays within the viewport with expanded submenus', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/misc?tab=network', { waitUntil: 'domcontentloaded' })
+
+    await page.getByRole('button', { name: 'Main menu' }).click()
+    await expect(page.getByRole('button', { name: /MISC/ })).toHaveAttribute('aria-expanded', 'true')
+    await expect(page.getByRole('link', { name: 'Flood', exact: true })).toBeVisible()
+
+    const menuBounds = await page.getByTestId('mobile-nav-menu').boundingBox()
+    expect(menuBounds).not.toBeNull()
+    expect(menuBounds!.y + menuBounds!.height).toBeLessThanOrEqual(844)
+  })
+
   test('theme toggle switches between light and dark', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
