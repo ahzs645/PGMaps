@@ -38,7 +38,7 @@ import {
   clampRevealClusterMaxZoom,
   clampRevealClusterRadius,
 } from './lib/aqMapConstants'
-import type { AqMarkerColorScheme, AqMonitorIconMode, FireDangerRenderMode, MobileFeatureDisplay } from './lib/aqMapTypes'
+import type { AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, MobileFeatureDisplay } from './lib/aqMapTypes'
 import { FloatingLayerControl, MapTimestamp, MapUtilityControls, ScaleBar } from './components/AqMapControls'
 import { FloatingLegends } from './components/AqMapLegends'
 import { AqMapSidebar } from './components/AqMapSidebar'
@@ -74,9 +74,9 @@ export default function AqMapSection() {
     const raw = params.get('clusterMaxZoom')
     return raw === null ? REVEAL_CLUSTER_DEFAULTS.maxZoom : clampRevealClusterMaxZoom(Number(raw))
   })
-  const [colorScheme, setColorScheme] = useState<AqMarkerColorScheme>(() => {
+  const [clusterColorScheme, setClusterColorScheme] = useState<AqClusterColorScheme>(() => {
     const params = new URLSearchParams(window.location.search)
-    return params.get('colors') === 'slate' ? 'slate' : 'aqhi'
+    return params.get('clusterColors') === 'slate' ? 'slate' : 'classic'
   })
   const [mobileFeatureDisplay, setMobileFeatureDisplay] = useState<MobileFeatureDisplay>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -137,8 +137,8 @@ export default function AqMapSection() {
       if (iconMode === 'revealed' && clusterMaxZoom !== REVEAL_CLUSTER_DEFAULTS.maxZoom) next.set('clusterMaxZoom', String(clusterMaxZoom))
       else next.delete('clusterMaxZoom')
 
-      if (colorScheme === 'slate') next.set('colors', 'slate')
-      else next.delete('colors')
+      if (clusterColorScheme === 'slate') next.set('clusterColors', 'slate')
+      else next.delete('clusterColors')
 
       if (mobileFeatureDisplay === 'popup') next.set('feature', 'popup')
       else next.delete('feature')
@@ -167,7 +167,7 @@ export default function AqMapSection() {
     }, URL_UPDATE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [basemap, clusterMaxZoom, clusterRadius, colorScheme, fireDangerMode, iconMode, locale, mapView, mobileFeatureDisplay, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
+  }, [basemap, clusterColorScheme, clusterMaxZoom, clusterRadius, fireDangerMode, iconMode, locale, mapView, mobileFeatureDisplay, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
 
   const toggleGroup = useCallback((group: AqMonitorGroup) => {
     setVisibleGroups((current) => {
@@ -230,8 +230,8 @@ export default function AqMapSection() {
       onToggleGroup={toggleGroup}
       iconMode={iconMode}
       onIconModeChange={setIconMode}
-      colorScheme={colorScheme}
-      onColorSchemeChange={setColorScheme}
+      clusterColorScheme={clusterColorScheme}
+      onClusterColorSchemeChange={setClusterColorScheme}
       clusterRadius={clusterRadius}
       onClusterRadiusChange={setClusterRadius}
       clusterMaxZoom={clusterMaxZoom}
@@ -303,7 +303,7 @@ export default function AqMapSection() {
             monitors={monitors}
             visibleGroups={visibleGroups}
             iconMode={iconMode}
-            colorScheme={colorScheme}
+            clusterColorScheme={clusterColorScheme}
             clusterRadius={clusterRadius}
             clusterMaxZoom={clusterMaxZoom}
             onMonitorClick={handleMonitorClick}
@@ -328,8 +328,8 @@ export default function AqMapSection() {
               onToggleGroup={toggleGroup}
               iconMode={iconMode}
               onIconModeChange={setIconMode}
-              colorScheme={colorScheme}
-              onColorSchemeChange={setColorScheme}
+              clusterColorScheme={clusterColorScheme}
+              onClusterColorSchemeChange={setClusterColorScheme}
               clusterRadius={clusterRadius}
               onClusterRadiusChange={setClusterRadius}
               clusterMaxZoom={clusterMaxZoom}

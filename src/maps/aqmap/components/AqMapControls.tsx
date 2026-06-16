@@ -14,7 +14,7 @@ import {
   translate,
   type AqmapLocale,
 } from '../lib/i18n'
-import type { AqMarkerColorScheme, AqMonitorIconMode, FireDangerRenderMode } from '../lib/aqMapTypes'
+import type { AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode } from '../lib/aqMapTypes'
 import { REVEAL_CLUSTER_BOUNDS, REVEAL_CLUSTER_DEFAULTS } from '../lib/aqMapConstants'
 
 export function basemapLabel(value: AqBasemap, locale: AqmapLocale): string {
@@ -115,12 +115,16 @@ export function RangeField({
 }
 
 export function RevealClusterControls({
+  clusterColorScheme,
+  onClusterColorSchemeChange,
   clusterRadius,
   onClusterRadiusChange,
   clusterMaxZoom,
   onClusterMaxZoomChange,
   locale,
 }: {
+  clusterColorScheme: AqClusterColorScheme
+  onClusterColorSchemeChange: (scheme: AqClusterColorScheme) => void
   clusterRadius: number
   onClusterRadiusChange: (value: number) => void
   clusterMaxZoom: number
@@ -144,6 +148,17 @@ export function RevealClusterControls({
         >
           {translate('reveal.reset', locale)}
         </button>
+      </div>
+      <div className="space-y-1">
+        <span className="text-[11px] text-muted-foreground">{translate('reveal.clusterColors', locale)}</span>
+        <SegmentedControl
+          value={clusterColorScheme}
+          onChange={onClusterColorSchemeChange}
+          options={[
+            { value: 'classic', label: translate('clusterColors.classic', locale) },
+            { value: 'slate', label: translate('clusterColors.slate', locale) },
+          ]}
+        />
       </div>
       <RangeField
         label={translate('reveal.clusterRadius', locale)}
@@ -173,8 +188,8 @@ export function FloatingLayerControl({
   onToggleGroup,
   iconMode,
   onIconModeChange,
-  colorScheme,
-  onColorSchemeChange,
+  clusterColorScheme,
+  onClusterColorSchemeChange,
   clusterRadius,
   onClusterRadiusChange,
   clusterMaxZoom,
@@ -196,8 +211,8 @@ export function FloatingLayerControl({
   onToggleGroup: (group: AqMonitorGroup) => void
   iconMode: AqMonitorIconMode
   onIconModeChange: (mode: AqMonitorIconMode) => void
-  colorScheme: AqMarkerColorScheme
-  onColorSchemeChange: (scheme: AqMarkerColorScheme) => void
+  clusterColorScheme: AqClusterColorScheme
+  onClusterColorSchemeChange: (scheme: AqClusterColorScheme) => void
   clusterRadius: number
   onClusterRadiusChange: (value: number) => void
   clusterMaxZoom: number
@@ -248,6 +263,8 @@ export function FloatingLayerControl({
           />
           {iconMode === 'revealed' && (
             <RevealClusterControls
+              clusterColorScheme={clusterColorScheme}
+              onClusterColorSchemeChange={onClusterColorSchemeChange}
               clusterRadius={clusterRadius}
               onClusterRadiusChange={onClusterRadiusChange}
               clusterMaxZoom={clusterMaxZoom}
@@ -255,17 +272,6 @@ export function FloatingLayerControl({
               locale={locale}
             />
           )}
-        </div>
-        <div className="space-y-1">
-          <div className="font-medium text-foreground">{translate('sidebar.colorScheme', locale)}</div>
-          <SegmentedControl
-            value={colorScheme}
-            onChange={onColorSchemeChange}
-            options={[
-              { value: 'aqhi', label: translate('colorScheme.aqhi', locale) },
-              { value: 'slate', label: translate('colorScheme.slate', locale) },
-            ]}
-          />
         </div>
         {smokeLayers.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">

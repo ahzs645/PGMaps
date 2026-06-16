@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMap } from '@/components/ui/map'
 import type { AirMonitor } from '@/maps/airquality'
-import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
+import { getAqhiColor, getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import type maplibregl from 'maplibre-gl'
 import type { SmokeLayerDefinition } from '../lib/smokeLayers'
 import type { WmsLayerDefinition } from '../lib/wmsLayers'
@@ -9,13 +9,13 @@ import type { AqMonitorGroup } from '../lib/monitorPresentation'
 import { getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
-import { getMonitorMarkerColors } from '../lib/markerColorSchemes'
+import { getClusterCircleColor, getClusterCountTextColor, getClusterStrokeColor } from '../lib/clusterColors'
 import {
   FIRE_DANGER_FILL_COLORS,
   FIRE_DANGER_VECTOR_URL,
 } from '../lib/aqMapConstants'
 import type {
-  AqMarkerColorScheme,
+  AqClusterColorScheme,
   AqMonitorIconMode,
   FireDangerFeatureProperties,
 } from '../lib/aqMapTypes'
@@ -258,7 +258,7 @@ export function AqMonitorLayer({
   monitors,
   visibleGroups,
   iconMode,
-  colorScheme,
+  clusterColorScheme,
   clusterRadius,
   clusterMaxZoom,
   onMonitorClick,
@@ -267,7 +267,7 @@ export function AqMonitorLayer({
   monitors: AirMonitor[]
   visibleGroups: Set<AqMonitorGroup>
   iconMode: AqMonitorIconMode
-  colorScheme: AqMarkerColorScheme
+  clusterColorScheme: AqClusterColorScheme
   clusterRadius: number
   clusterMaxZoom: number
   onMonitorClick: (monitor: AirMonitor) => void
@@ -289,7 +289,7 @@ export function AqMonitorLayer({
         .map((monitor) => {
           const group = getMonitorGroup(monitor.network)
           const pm25 = getMonitorAqhiPm25(monitor)
-          const icon = getAqmapMarkerIcon(monitor, colorScheme)
+          const icon = getAqmapMarkerIcon(monitor)
           return {
             type: 'Feature',
             properties: {
@@ -304,7 +304,7 @@ export function AqMonitorLayer({
               status: monitor.status ?? '',
               pm25,
               aqhi: pm25,
-              color: getMonitorMarkerColors(pm25, colorScheme).fill,
+              color: getAqhiColor(pm25),
               markerText: '',
               iconId: icon.id,
               iconSize: icon.size,
@@ -318,7 +318,7 @@ export function AqMonitorLayer({
           }
         }),
     }
-  }, [monitors, visibleGroups, colorScheme])
+  }, [monitors, visibleGroups])
 
   useEffect(() => {
     if (!isLoaded || !map) return
@@ -369,7 +369,7 @@ export function AqMonitorLayer({
 
     async function addLayer() {
       const iconMap = new Map(monitors.map((monitor) => {
-        const icon = getAqmapMarkerIcon(monitor, colorScheme)
+        const icon = getAqmapMarkerIcon(monitor)
         return [icon.id, icon]
       }))
 
@@ -411,7 +411,7 @@ export function AqMonitorLayer({
             source: sourceId,
             filter: ['has', 'point_count'],
             paint: {
-              'circle-color': '#f8fafc',
+              'circle-color': getClusterCircleColor(clusterColorScheme),
               'circle-radius': [
                 'step',
                 ['get', 'point_count'],
@@ -422,7 +422,7 @@ export function AqMonitorLayer({
                 38,
               ],
               'circle-opacity': 0.92,
-              'circle-stroke-color': '#334155',
+              'circle-stroke-color': getClusterStrokeColor(clusterColorScheme),
               'circle-stroke-width': 2.5,
             },
           })
@@ -441,7 +441,7 @@ export function AqMonitorLayer({
               'text-allow-overlap': true,
             },
             paint: {
-              'text-color': '#0f172a',
+              'text-color': getClusterCountTextColor(clusterColorScheme),
             },
           })
         }
@@ -500,7 +500,7 @@ export function AqMonitorLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [clusterCountLayerId, clusterLayerId, clusterMaxZoom, clusterRadius, colorScheme, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
+  }, [clusterCountLayerId, clusterLayerId, clusterColorScheme, clusterMaxZoom, clusterRadius, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
 
   useEffect(() => {
     if (!isLoaded || !map) return

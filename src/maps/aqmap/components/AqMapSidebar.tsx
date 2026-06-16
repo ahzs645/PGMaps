@@ -20,8 +20,7 @@ import {
 } from '../lib/i18n'
 import type { ExportFormat } from '../lib/exportMap'
 import { AQHI_STOPS, EXPORT_OPTIONS } from '../lib/aqMapConstants'
-import type { AqMarkerColorScheme, AqMonitorIconMode, FireDangerRenderMode, MobileFeatureDisplay } from '../lib/aqMapTypes'
-import { getSchemeLegendColors } from '../lib/markerColorSchemes'
+import type { AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, MobileFeatureDisplay } from '../lib/aqMapTypes'
 import { basemapLabel, RevealClusterControls, SegmentedControl, ToggleButton } from './AqMapControls'
 import { WmsLegend } from './AqMapLegends'
 
@@ -32,8 +31,8 @@ export function AqMapSidebar({
   onToggleGroup,
   iconMode,
   onIconModeChange,
-  colorScheme,
-  onColorSchemeChange,
+  clusterColorScheme,
+  onClusterColorSchemeChange,
   clusterRadius,
   onClusterRadiusChange,
   clusterMaxZoom,
@@ -62,8 +61,8 @@ export function AqMapSidebar({
   onToggleGroup: (group: AqMonitorGroup) => void
   iconMode: AqMonitorIconMode
   onIconModeChange: (mode: AqMonitorIconMode) => void
-  colorScheme: AqMarkerColorScheme
-  onColorSchemeChange: (scheme: AqMarkerColorScheme) => void
+  clusterColorScheme: AqClusterColorScheme
+  onClusterColorSchemeChange: (scheme: AqClusterColorScheme) => void
   clusterRadius: number
   onClusterRadiusChange: (value: number) => void
   clusterMaxZoom: number
@@ -107,7 +106,6 @@ export function AqMapSidebar({
     .at(-1)
 
   const numberLocale = locale === 'fr' ? 'fr-CA' : 'en-CA'
-  const legendColors = getSchemeLegendColors(colorScheme)
 
   return (
     <aside className="flex h-full flex-col bg-background">
@@ -193,6 +191,8 @@ export function AqMapSidebar({
           {iconMode === 'revealed' && (
             <div className="mt-2">
               <RevealClusterControls
+                clusterColorScheme={clusterColorScheme}
+                onClusterColorSchemeChange={onClusterColorSchemeChange}
                 clusterRadius={clusterRadius}
                 onClusterRadiusChange={onClusterRadiusChange}
                 clusterMaxZoom={clusterMaxZoom}
@@ -201,20 +201,6 @@ export function AqMapSidebar({
               />
             </div>
           )}
-        </section>
-
-        <section>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {translate('sidebar.colorScheme', locale)}
-          </div>
-          <SegmentedControl
-            value={colorScheme}
-            onChange={onColorSchemeChange}
-            options={[
-              { value: 'aqhi', label: translate('colorScheme.aqhi', locale) },
-              { value: 'slate', label: translate('colorScheme.slate', locale) },
-            ]}
-          />
         </section>
 
         <section className="md:hidden">
@@ -372,9 +358,9 @@ export function AqMapSidebar({
         <section>
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.pm25Legend', locale)}</div>
           <div className="space-y-1.5">
-            {AQHI_STOPS.map((stop, index) => (
+            {AQHI_STOPS.map((stop) => (
               <div key={stop.labelKey} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: legendColors[index] ?? stop.color }} />
+                <span className="size-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: stop.color }} />
                 <span>
                   {translate(stop.labelKey, locale)}
                   {' '}
