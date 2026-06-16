@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import MapLibreGL, { type StyleSpecification } from 'maplibre-gl'
-import { Protocol } from 'pmtiles'
+import { type StyleSpecification } from 'maplibre-gl'
 import {
   Check,
+  Copy,
   Eye,
   Layers,
   MapPin,
@@ -14,8 +14,18 @@ import {
 
 import { Button } from '@/components/ui/button'
 import { Map as AppMap, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
+import { MapControls } from '@/components/ui/map-controls'
+import {
+  MapLegend,
+  MapLegendItem,
+  MapSidebarShell,
+  SidebarSection,
+  StatGrid,
+} from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { type UrlCodec, useUrlState } from '@/hooks/useUrlState'
 import { cn } from '@/lib/utils'
 
 type MarkerShape = 'circle_fill' | 'pin' | 'badge'
@@ -28,6 +38,8 @@ type DesignState = {
   waterColor: string
   landcoverColor: string
   boundaryColor: string
+  roadColor: string
+  buildingColor: string
   markerFill: string
   markerInset: string
   markerSize: number
@@ -38,16 +50,18 @@ type DesignState = {
   showFocusArea: boolean
 }
 
-const TASMAP_CAPTURE: DesignState = {
-  title: 'My Tasmap',
-  subtitle: 'Recovered local design preview',
-  primaryColor: '#09558c',
-  backgroundColor: '#f9f7f0',
-  waterColor: '#afd4e9',
-  landcoverColor: '#d8e7c5',
-  boundaryColor: '#7f8f9a',
-  markerFill: '#09558c',
-  markerInset: '#f9f7f0',
+const SHARED_BASEMAP_CAPTURE: DesignState = {
+  title: 'PGMaps Designer',
+  subtitle: 'Shared basemap color preview',
+  primaryColor: '#2563eb',
+  backgroundColor: '#f8fafc',
+  waterColor: '#bae6fd',
+  landcoverColor: '#dcfce7',
+  boundaryColor: '#94a3b8',
+  roadColor: '#ffffff',
+  buildingColor: '#e2e8f0',
+  markerFill: '#2563eb',
+  markerInset: '#f8fafc',
   markerSize: 48,
   markerShape: 'circle_fill',
   showLabels: true,
@@ -57,36 +71,85 @@ const TASMAP_CAPTURE: DesignState = {
 }
 
 const ALT_THEME: DesignState = {
-  ...TASMAP_CAPTURE,
-  primaryColor: '#654ea3',
-  backgroundColor: '#f6f2ff',
-  waterColor: '#b8d9f5',
-  landcoverColor: '#cfe6d8',
-  boundaryColor: '#8274a5',
-  markerFill: '#654ea3',
-  markerInset: '#fff7db',
+  ...SHARED_BASEMAP_CAPTURE,
+  primaryColor: '#0f766e',
+  backgroundColor: '#f7fee7',
+  waterColor: '#67e8f9',
+  landcoverColor: '#bef264',
+  boundaryColor: '#64748b',
+  roadColor: '#fefce8',
+  buildingColor: '#d9f99d',
+  markerFill: '#0f766e',
+  markerInset: '#f7fee7',
 }
 
-const TILE_URL = '/tasmap-tile-1.b-cdn.net/20250528.pmtiles'
-const GLYPH_URL = '/api.maptiler.com/fonts/{fontstack}/{range}.pbf'
-const DESIGN_CENTER: [number, number] = [121.565, 25.045]
-const MARKER_COORDINATE = { longitude: 121.565, latitude: 25.045 }
+const DESIGN_CENTER = PG_CENTER
+const MARKER_COORDINATE = { longitude: PG_CENTER[0], latitude: PG_CENTER[1] }
+const DESIGN_STATE_KEYS = Object.keys(SHARED_BASEMAP_CAPTURE) as Array<keyof DesignState>
 
-let pmtilesRegistered = false
+function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
+}
 
-function ensurePmtilesProtocol() {
-  if (pmtilesRegistered) return
-  const protocol = new Protocol()
+function coerceDesignState(value: unknown): DesignState {
+  if (!value || typeof value !== 'object') return SHARED_BASEMAP_CAPTURE
+  const candidate = value as Partial<DesignState>
 
-  try {
-    MapLibreGL.addProtocol('pmtiles', protocol.tile)
-  } catch (error) {
-    if (!(error instanceof Error) || !error.message.includes('already registered')) {
-      throw error
-    }
+  return {
+    title: typeof candidate.title === 'string' ? candidate.title.slice(0, 80) : SHARED_BASEMAP_CAPTURE.title,
+    subtitle: typeof candidate.subtitle === 'string' ? candidate.subtitle.slice(0, 120) : SHARED_BASEMAP_CAPTURE.subtitle,
+    primaryColor: isHexColor(candidate.primaryColor) ? candidate.primaryColor : SHARED_BASEMAP_CAPTURE.primaryColor,
+    backgroundColor: isHexColor(candidate.backgroundColor)
+      ? candidate.backgroundColor
+      : SHARED_BASEMAP_CAPTURE.backgroundColor,
+    waterColor: isHexColor(candidate.waterColor) ? candidate.waterColor : SHARED_BASEMAP_CAPTURE.waterColor,
+    landcoverColor: isHexColor(candidate.landcoverColor)
+      ? candidate.landcoverColor
+      : SHARED_BASEMAP_CAPTURE.landcoverColor,
+    boundaryColor: isHexColor(candidate.boundaryColor) ? candidate.boundaryColor : SHARED_BASEMAP_CAPTURE.boundaryColor,
+    roadColor: isHexColor(candidate.roadColor) ? candidate.roadColor : SHARED_BASEMAP_CAPTURE.roadColor,
+    buildingColor: isHexColor(candidate.buildingColor) ? candidate.buildingColor : SHARED_BASEMAP_CAPTURE.buildingColor,
+    markerFill: isHexColor(candidate.markerFill) ? candidate.markerFill : SHARED_BASEMAP_CAPTURE.markerFill,
+    markerInset: isHexColor(candidate.markerInset) ? candidate.markerInset : SHARED_BASEMAP_CAPTURE.markerInset,
+    markerSize:
+      typeof candidate.markerSize === 'number' && Number.isFinite(candidate.markerSize)
+        ? Math.min(72, Math.max(28, Math.round(candidate.markerSize)))
+        : SHARED_BASEMAP_CAPTURE.markerSize,
+    markerShape:
+      candidate.markerShape === 'circle_fill' || candidate.markerShape === 'pin' || candidate.markerShape === 'badge'
+        ? candidate.markerShape
+        : SHARED_BASEMAP_CAPTURE.markerShape,
+    showLabels: typeof candidate.showLabels === 'boolean' ? candidate.showLabels : SHARED_BASEMAP_CAPTURE.showLabels,
+    showWater: typeof candidate.showWater === 'boolean' ? candidate.showWater : SHARED_BASEMAP_CAPTURE.showWater,
+    showLandcover:
+      typeof candidate.showLandcover === 'boolean' ? candidate.showLandcover : SHARED_BASEMAP_CAPTURE.showLandcover,
+    showFocusArea:
+      typeof candidate.showFocusArea === 'boolean' ? candidate.showFocusArea : SHARED_BASEMAP_CAPTURE.showFocusArea,
   }
+}
 
-  pmtilesRegistered = true
+function designEqualsDefault(design: DesignState) {
+  return DESIGN_STATE_KEYS.every((key) => design[key] === SHARED_BASEMAP_CAPTURE[key])
+}
+
+const designCodec: UrlCodec<DesignState> = {
+  encode: (value) => {
+    if (designEqualsDefault(value)) return null
+    return btoa(encodeURIComponent(JSON.stringify(value)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '')
+  },
+  decode: (raw) => {
+    if (!raw) return SHARED_BASEMAP_CAPTURE
+    try {
+      const normalized = raw.replace(/-/g, '+').replace(/_/g, '/')
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+      return coerceDesignState(JSON.parse(decodeURIComponent(atob(padded))))
+    } catch {
+      return SHARED_BASEMAP_CAPTURE
+    }
+  },
 }
 
 function hasWebGlContext() {
@@ -104,124 +167,73 @@ function hasWebGlContext() {
   }
 }
 
-function buildTasmapStyle(design: DesignState): StyleSpecification {
-  const source = 'tasmap-local'
+function buildSharedBasemapStyle(baseStyle: StyleSpecification, design: DesignState): StyleSpecification {
+  const next = JSON.parse(JSON.stringify(baseStyle)) as StyleSpecification
 
-  return {
-    version: 8,
-    glyphs: GLYPH_URL,
-    sources: {
-      [source]: {
-        type: 'vector',
-        url: `pmtiles://${TILE_URL}`,
-        minzoom: 0,
-        maxzoom: 14,
-      },
-    },
-    layers: [
-      {
-        id: 'tasmap-background',
-        type: 'background',
-        paint: { 'background-color': design.backgroundColor },
-      },
-      {
-        id: 'tasmap-landcover',
-        type: 'fill',
-        source,
-        'source-layer': 'landcover',
-        layout: { visibility: design.showLandcover ? 'visible' : 'none' },
-        paint: {
-          'fill-color': design.landcoverColor,
-          'fill-opacity': 0.62,
-        },
-      },
-      {
-        id: 'tasmap-water',
-        type: 'fill',
-        source,
-        'source-layer': 'water',
-        layout: { visibility: design.showWater ? 'visible' : 'none' },
-        paint: {
-          'fill-color': design.waterColor,
-          'fill-opacity': 0.9,
-        },
-      },
-      {
-        id: 'tasmap-roads',
-        type: 'line',
-        source,
-        'source-layer': 'transportation',
-        paint: {
-          'line-color': '#ffffff',
-          'line-opacity': 0.72,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.3, 12, 1.25],
-        },
-      },
-      {
-        id: 'tasmap-boundary',
-        type: 'line',
-        source,
-        'source-layer': 'boundary',
-        paint: {
-          'line-color': design.boundaryColor,
-          'line-opacity': 0.45,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.6, 10, 1.6],
-        },
-      },
-      {
-        id: 'tasmap-focus-area',
-        type: 'circle',
-        source,
-        'source-layer': 'place',
-        layout: { visibility: design.showFocusArea ? 'visible' : 'none' },
-        filter: ['==', ['get', 'class'], 'city'],
-        paint: {
-          'circle-color': design.primaryColor,
-          'circle-opacity': 0.12,
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 14, 10, 42],
-          'circle-stroke-color': design.primaryColor,
-          'circle-stroke-opacity': 0.32,
-          'circle-stroke-width': 1.25,
-        },
-      },
-      {
-        id: 'tasmap-water-label',
-        type: 'symbol',
-        source,
-        'source-layer': 'water_name',
-        layout: {
-          visibility: design.showLabels ? 'visible' : 'none',
-          'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
-          'text-size': 12,
-        },
-        paint: {
-          'text-color': '#5288a3',
-          'text-halo-color': design.backgroundColor,
-          'text-halo-width': 1.2,
-        },
-      },
-      {
-        id: 'tasmap-place-label',
-        type: 'symbol',
-        source,
-        'source-layer': 'place',
-        layout: {
-          visibility: design.showLabels ? 'visible' : 'none',
-          'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
-          'text-size': ['interpolate', ['linear'], ['zoom'], 5, 11, 10, 15],
-          'text-anchor': 'top',
-          'text-offset': [0, 0.6],
-        },
-        paint: {
-          'text-color': design.primaryColor,
-          'text-halo-color': design.backgroundColor,
-          'text-halo-width': 1.4,
-        },
-      },
-    ],
-  }
+  next.layers = next.layers.map((layer) => {
+    const layerId = layer.id.toLowerCase()
+    const sourceLayer = 'source-layer' in layer && typeof layer['source-layer'] === 'string'
+      ? layer['source-layer'].toLowerCase()
+      : ''
+    const paint = { ...(layer.paint ?? {}) } as Record<string, unknown>
+    const layout = { ...(layer.layout ?? {}) } as Record<string, unknown>
+
+    if (layer.type === 'background') {
+      paint['background-color'] = design.backgroundColor
+    }
+
+    if (layer.type === 'fill' && (sourceLayer === 'water' || layerId.includes('water'))) {
+      layout.visibility = design.showWater ? 'visible' : 'none'
+      paint['fill-color'] = design.waterColor
+      paint['fill-opacity'] = layerId.includes('shadow') ? 0.22 : 0.9
+    }
+
+    if (
+      layer.type === 'fill' &&
+      (sourceLayer === 'landcover' || sourceLayer === 'park' || sourceLayer === 'landuse')
+    ) {
+      layout.visibility = design.showLandcover ? 'visible' : 'none'
+      paint['fill-color'] = design.landcoverColor
+      paint['fill-opacity'] = sourceLayer === 'landuse' ? 0.42 : 0.68
+    }
+
+    if (layer.type === 'fill' && sourceLayer === 'building') {
+      paint['fill-color'] = design.buildingColor
+      paint['fill-opacity'] = layerId.includes('top') ? 0.72 : 0.5
+    }
+
+    if (layer.type === 'line' && sourceLayer === 'boundary') {
+      paint['line-color'] = design.boundaryColor
+      paint['line-opacity'] = layerId.includes('country') ? 0.72 : 0.48
+    }
+
+    if (layer.type === 'line' && sourceLayer === 'transportation' && !layerId.includes('case')) {
+      paint['line-color'] = design.roadColor
+      paint['line-opacity'] = layerId.includes('rail') ? 0.5 : 0.82
+    }
+
+    if (layer.type === 'line' && sourceLayer === 'waterway') {
+      layout.visibility = design.showWater ? 'visible' : 'none'
+      paint['line-color'] = design.waterColor
+      paint['line-opacity'] = 0.76
+    }
+
+    if (layer.type === 'symbol') {
+      layout.visibility = design.showLabels ? 'visible' : 'none'
+      if ('text-color' in paint) {
+        paint['text-color'] = sourceLayer.includes('water') ? design.waterColor : design.primaryColor
+      }
+      if ('text-halo-color' in paint) paint['text-halo-color'] = design.backgroundColor
+    }
+
+    return {
+      ...layer,
+      paint,
+      layout,
+    }
+  })
+
+  return next
 }
 
 function MapStatus({ onStatus }: { onStatus: (status: string) => void }) {
@@ -230,8 +242,8 @@ function MapStatus({ onStatus }: { onStatus: (status: string) => void }) {
   useEffect(() => {
     if (!map || !isLoaded) return
 
-    onStatus('rendering local PMTiles')
-    const handleIdle = () => onStatus('local vector tile rendered')
+    onStatus('rendering shared basemap')
+    const handleIdle = () => onStatus('shared basemap rendered')
     const handleError = (event: { error?: Error }) => {
       onStatus(event.error?.message ?? 'map render error')
     }
@@ -315,7 +327,7 @@ function ToggleRow({
   )
 }
 
-function TasmapMarker({ design }: { design: DesignState }) {
+function DesignerMarker({ design }: { design: DesignState }) {
   const markerPath =
     design.markerShape === 'badge'
       ? 'M12 2 21 7V17L12 22 3 17V7L12 2Z'
@@ -328,7 +340,7 @@ function TasmapMarker({ design }: { design: DesignState }) {
       width={size}
       height={size}
       className={cn('drop-shadow-lg', design.markerShape === 'pin' && '-translate-y-5')}
-      aria-label="Tasmap marker preview"
+      aria-label="Designer marker preview"
     >
       <path d={markerPath} fill={design.markerFill} />
       {design.markerShape === 'badge' ? (
@@ -409,70 +421,306 @@ function StaticMapPreview({ design }: { design: DesignState }) {
             strokeLinejoin="round"
           >
             <text x="620" y="375" fontSize="34" textAnchor="middle">
-              Taipei
+              Prince George
             </text>
             <text x="340" y="235" fontSize="22">
-              District
+              Neighbourhood
             </text>
             <text x="830" y="535" fontSize="22">
-              Riverside
+              Fraser River
             </text>
           </g>
         ) : null}
       </svg>
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full">
-        <TasmapMarker design={design} />
+        <DesignerMarker design={design} />
       </div>
     </div>
   )
 }
 
 export default function DevDesign() {
-  const [design, setDesign] = useState<DesignState>(TASMAP_CAPTURE)
-  const [status, setStatus] = useState('loading local PMTiles')
+  const [design, setDesign] = useUrlState('design', designCodec)
+  const [status, setStatus] = useState('loading shared basemap')
+  const [baseStyles, setBaseStyles] = useState<{ light: StyleSpecification; dark: StyleSpecification } | null>(null)
   // Probing WebGL support once in the lazy initializer avoids flipping state
   // from the mount effect.
   const [canUseWebGl] = useState(() => hasWebGlContext())
 
   useEffect(() => {
-    ensurePmtilesProtocol()
+    let cancelled = false
+
+    async function loadBaseStyles() {
+      try {
+        const [lightResponse, darkResponse] = await Promise.all([
+          fetch(MAP_STYLES.light),
+          fetch(MAP_STYLES.dark),
+        ])
+        if (!lightResponse.ok || !darkResponse.ok) {
+          throw new Error('Unable to load shared basemap styles')
+        }
+
+        const [light, dark] = await Promise.all([
+          lightResponse.json() as Promise<StyleSpecification>,
+          darkResponse.json() as Promise<StyleSpecification>,
+        ])
+
+        if (!cancelled) {
+          setBaseStyles({ light, dark })
+          setStatus('shared basemap loaded')
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setStatus(error instanceof Error ? error.message : 'shared basemap load error')
+        }
+      }
+    }
+
+    loadBaseStyles()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const style = useMemo(() => buildTasmapStyle(design), [design])
+  const styles = useMemo(() => {
+    if (!baseStyles) return null
+    return {
+      light: buildSharedBasemapStyle(baseStyles.light, design),
+      dark: buildSharedBasemapStyle(baseStyles.dark, design),
+    }
+  }, [baseStyles, design])
+
+  const setNextDesign = (next: DesignState | ((current: DesignState) => DesignState)) => {
+    setDesign(typeof next === 'function' ? next(design) : next)
+  }
 
   const updateDesign = <Key extends keyof DesignState>(key: Key, value: DesignState[Key]) => {
-    setDesign((current) => ({ ...current, [key]: value }))
+    setDesign({ ...design, [key]: value })
+  }
+
+  const copyShareUrl = async () => {
+    await navigator.clipboard?.writeText(window.location.href)
   }
 
   return (
     <div className="flex h-full min-h-[calc(100vh-3rem)] flex-col bg-background lg:min-h-[calc(100vh-3.5rem)] lg:flex-row">
-      <section className="relative min-h-[54vh] flex-1 overflow-hidden border-b border-border lg:min-h-0 lg:border-b-0 lg:border-r">
-        {canUseWebGl ? (
+      <aside className="order-2 w-full overflow-y-auto bg-background lg:order-1 lg:w-[25rem]">
+        <MapSidebarShell
+          title="Map Designer"
+          subtitle="Recolor the same Carto basemap stack used by PGMaps"
+          actions={
+            <>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                title="Copy share URL"
+                aria-label="Copy share URL"
+                onClick={copyShareUrl}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                title="Reset capture theme"
+                aria-label="Reset capture theme"
+                onClick={() => setDesign(SHARED_BASEMAP_CAPTURE)}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </>
+          }
+          className="border-r-0 lg:border-r"
+        >
+          <SidebarSection title="Coloring" icon={Palette}>
+            <div className="grid grid-cols-2 gap-3">
+              <ColorField
+                label="Primary"
+                value={design.primaryColor}
+                onChange={(value) => setNextDesign((current) => ({ ...current, primaryColor: value, markerFill: value }))}
+              />
+              <ColorField
+                label="Background"
+                value={design.backgroundColor}
+                onChange={(value) =>
+                  setNextDesign((current) => ({ ...current, backgroundColor: value, markerInset: value }))
+                }
+              />
+              <ColorField label="Water" value={design.waterColor} onChange={(value) => updateDesign('waterColor', value)} />
+              <ColorField
+                label="Landcover"
+                value={design.landcoverColor}
+                onChange={(value) => updateDesign('landcoverColor', value)}
+              />
+              <ColorField
+                label="Boundary"
+                value={design.boundaryColor}
+                onChange={(value) => updateDesign('boundaryColor', value)}
+              />
+              <ColorField
+                label="Roads"
+                value={design.roadColor}
+                onChange={(value) => updateDesign('roadColor', value)}
+              />
+              <ColorField
+                label="Buildings"
+                value={design.buildingColor}
+                onChange={(value) => updateDesign('buildingColor', value)}
+              />
+              <ColorField
+                label="Marker inset"
+                value={design.markerInset}
+                onChange={(value) => updateDesign('markerInset', value)}
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button type="button" size="sm" onClick={() => setDesign(SHARED_BASEMAP_CAPTURE)}>
+                <Sparkles className="h-4 w-4" />
+                Captured
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setDesign(ALT_THEME)}>
+                <Palette className="h-4 w-4" />
+                Alternate
+              </Button>
+            </div>
+          </SidebarSection>
+
+          <SidebarSection title="Map Options" icon={SlidersHorizontal}>
+            <div className="grid gap-2">
+              <ToggleRow label="Labels" checked={design.showLabels} onChange={(checked) => updateDesign('showLabels', checked)} />
+              <ToggleRow label="Water layer" checked={design.showWater} onChange={(checked) => updateDesign('showWater', checked)} />
+              <ToggleRow
+                label="Landcover layer"
+                checked={design.showLandcover}
+                onChange={(checked) => updateDesign('showLandcover', checked)}
+              />
+              <ToggleRow
+                label="Focus area"
+                checked={design.showFocusArea}
+                onChange={(checked) => updateDesign('showFocusArea', checked)}
+              />
+            </div>
+          </SidebarSection>
+
+          <SidebarSection title="Marker" icon={MapPin}>
+            <div className="grid gap-3">
+              <Field label="Shape">
+                <AppSelect
+                  value={design.markerShape}
+                  onValueChange={(value) => updateDesign('markerShape', value as MarkerShape)}
+                  options={[
+                    { value: 'circle_fill', label: 'Filled pin' },
+                    { value: 'pin', label: 'Lifted pin' },
+                    { value: 'badge', label: 'Badge' },
+                  ]}
+                />
+              </Field>
+              <Field label={`Size ${design.markerSize}px`}>
+                <Slider
+                  value={[design.markerSize]}
+                  min={28}
+                  max={72}
+                  step={1}
+                  onValueChange={([value]) => updateDesign('markerSize', value ?? design.markerSize)}
+                />
+              </Field>
+            </div>
+          </SidebarSection>
+
+          <SidebarSection title="Page Text" icon={Eye}>
+            <div className="grid gap-3">
+              <Field label="Title">
+                <input
+                  value={design.title}
+                  onChange={(event) => updateDesign('title', event.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                />
+              </Field>
+              <Field label="Subtitle">
+                <input
+                  value={design.subtitle}
+                  onChange={(event) => updateDesign('subtitle', event.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                />
+              </Field>
+            </div>
+          </SidebarSection>
+
+          <SidebarSection title="Style Summary" icon={Layers}>
+            <StatGrid
+              columns={3}
+              stats={[
+                { label: 'Palette', value: designEqualsDefault(design) ? 'base' : 'custom' },
+                { label: 'Layers on', value: [design.showWater, design.showLandcover, design.showLabels].filter(Boolean).length },
+                { label: 'Marker', value: `${design.markerSize}px` },
+              ]}
+            />
+            <div className="mt-3 grid gap-2 rounded-md border border-border p-3 text-xs text-muted-foreground">
+              <div className="font-mono">{MAP_STYLES.light}</div>
+              <div className="font-mono">{MAP_STYLES.dark}</div>
+            </div>
+          </SidebarSection>
+        </MapSidebarShell>
+      </aside>
+
+      <section className="relative order-1 min-h-[54vh] flex-1 overflow-hidden border-b border-border lg:order-2 lg:min-h-0 lg:border-b-0">
+        {canUseWebGl && styles ? (
           <AppMap
             className="h-full min-h-[54vh] lg:min-h-0"
-            theme="light"
-            styles={{ light: style, dark: style }}
+            styles={styles}
             center={DESIGN_CENTER}
-            zoom={9}
+            zoom={12}
             minZoom={2}
             maxZoom={14}
             pitch={0}
             bearing={0}
           >
             <MapStatus onStatus={setStatus} />
+            <MapControls showCompass showFullscreen position="bottom-right" />
             <MapMarker
               longitude={MARKER_COORDINATE.longitude}
               latitude={MARKER_COORDINATE.latitude}
               offset={[0, design.markerShape === 'pin' ? -20 : -8]}
             >
               <MarkerContent>
-                <TasmapMarker design={design} />
+                <DesignerMarker design={design} />
               </MarkerContent>
             </MapMarker>
           </AppMap>
         ) : (
           <StaticMapPreview design={design} />
         )}
+
+        <MapLegend title="Style Layers" position="top-right" collapsible className="hidden sm:block">
+          <MapLegendItem
+            color={design.waterColor}
+            label="Water"
+            active={design.showWater}
+            onClick={() => updateDesign('showWater', !design.showWater)}
+          />
+          <MapLegendItem
+            color={design.landcoverColor}
+            label="Landcover"
+            active={design.showLandcover}
+            onClick={() => updateDesign('showLandcover', !design.showLandcover)}
+          />
+          <MapLegendItem
+            color={design.primaryColor}
+            label="Labels"
+            active={design.showLabels}
+            onClick={() => updateDesign('showLabels', !design.showLabels)}
+          />
+          <MapLegendItem
+            color={design.primaryColor}
+            label="Focus area"
+            active={design.showFocusArea}
+            onClick={() => updateDesign('showFocusArea', !design.showFocusArea)}
+            swatchShape="dot"
+          />
+        </MapLegend>
 
         <div className="pointer-events-none absolute left-4 top-4 max-w-[min(24rem,calc(100%-2rem))]">
           <div
@@ -481,7 +729,7 @@ export default function DevDesign() {
           >
             <div className="flex items-center gap-2 text-xs font-medium" style={{ color: design.primaryColor }}>
               <MapPin className="h-3.5 w-3.5" />
-              Tasmap design preview
+              PGMaps basemap designer
             </div>
             <h1 className="mt-1 text-xl font-semibold leading-tight" style={{ color: design.primaryColor }}>
               {design.title}
@@ -497,156 +745,6 @@ export default function DevDesign() {
           {canUseWebGl ? status : 'static preview: WebGL unavailable in this browser'}
         </div>
       </section>
-
-      <aside className="w-full overflow-y-auto bg-background lg:w-[25rem]">
-        <div className="border-b border-border px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">/dev/design</h2>
-              <p className="text-xs text-muted-foreground">Tasmap options transposed into PGMaps</p>
-            </div>
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              title="Reset capture theme"
-              aria-label="Reset capture theme"
-              onClick={() => setDesign(TASMAP_CAPTURE)}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-5 p-4">
-          <section className="grid gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Palette className="h-4 w-4" />
-              Coloring
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <ColorField
-                label="Primary"
-                value={design.primaryColor}
-                onChange={(value) => {
-                  updateDesign('primaryColor', value)
-                  updateDesign('markerFill', value)
-                }}
-              />
-              <ColorField
-                label="Background"
-                value={design.backgroundColor}
-                onChange={(value) => {
-                  updateDesign('backgroundColor', value)
-                  updateDesign('markerInset', value)
-                }}
-              />
-              <ColorField label="Water" value={design.waterColor} onChange={(value) => updateDesign('waterColor', value)} />
-              <ColorField
-                label="Landcover"
-                value={design.landcoverColor}
-                onChange={(value) => updateDesign('landcoverColor', value)}
-              />
-              <ColorField
-                label="Boundary"
-                value={design.boundaryColor}
-                onChange={(value) => updateDesign('boundaryColor', value)}
-              />
-              <ColorField
-                label="Marker inset"
-                value={design.markerInset}
-                onChange={(value) => updateDesign('markerInset', value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" size="sm" onClick={() => setDesign(TASMAP_CAPTURE)}>
-                <Sparkles className="h-4 w-4" />
-                Captured
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => setDesign(ALT_THEME)}>
-                <Palette className="h-4 w-4" />
-                Alternate
-              </Button>
-            </div>
-          </section>
-
-          <section className="grid gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <SlidersHorizontal className="h-4 w-4" />
-              Map Options
-            </div>
-            <ToggleRow label="Labels" checked={design.showLabels} onChange={(checked) => updateDesign('showLabels', checked)} />
-            <ToggleRow label="Water layer" checked={design.showWater} onChange={(checked) => updateDesign('showWater', checked)} />
-            <ToggleRow
-              label="Landcover layer"
-              checked={design.showLandcover}
-              onChange={(checked) => updateDesign('showLandcover', checked)}
-            />
-            <ToggleRow
-              label="Focus area"
-              checked={design.showFocusArea}
-              onChange={(checked) => updateDesign('showFocusArea', checked)}
-            />
-          </section>
-
-          <section className="grid gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <MapPin className="h-4 w-4" />
-              Marker
-            </div>
-            <Field label="Shape">
-              <AppSelect
-                value={design.markerShape}
-                onValueChange={(value) => updateDesign('markerShape', value as MarkerShape)}
-                options={[
-                  { value: 'circle_fill', label: 'Tasmap pin' },
-                  { value: 'pin', label: 'Lifted pin' },
-                  { value: 'badge', label: 'Badge' },
-                ]}
-              />
-            </Field>
-            <Field label={`Size ${design.markerSize}px`}>
-              <Slider
-                value={[design.markerSize]}
-                min={28}
-                max={72}
-                step={1}
-                onValueChange={([value]) => updateDesign('markerSize', value ?? design.markerSize)}
-              />
-            </Field>
-          </section>
-
-          <section className="grid gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Eye className="h-4 w-4" />
-              Page Text
-            </div>
-            <Field label="Title">
-              <input
-                value={design.title}
-                onChange={(event) => updateDesign('title', event.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
-              />
-            </Field>
-            <Field label="Subtitle">
-              <input
-                value={design.subtitle}
-                onChange={(event) => updateDesign('subtitle', event.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
-              />
-            </Field>
-          </section>
-
-          <section className="grid gap-2 rounded-md border border-border p-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2 font-medium text-foreground">
-              <Layers className="h-4 w-4" />
-              Local source
-            </div>
-            <div className="font-mono">{TILE_URL}</div>
-            <div className="font-mono">{GLYPH_URL}</div>
-          </section>
-        </div>
-      </aside>
     </div>
   )
 }

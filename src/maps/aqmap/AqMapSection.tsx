@@ -78,6 +78,10 @@ export default function AqMapSection() {
     const params = new URLSearchParams(window.location.search)
     return params.get('clusterColors') === 'slate' ? 'slate' : 'classic'
   })
+  const [tightClusters, setTightClusters] = useState<boolean>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('tightClusters') === '1'
+  })
   const [mobileFeatureDisplay, setMobileFeatureDisplay] = useState<MobileFeatureDisplay>(() => {
     const params = new URLSearchParams(window.location.search)
     return params.get('feature') === 'popup' ? 'popup' : 'card'
@@ -140,6 +144,9 @@ export default function AqMapSection() {
       if (clusterColorScheme === 'slate') next.set('clusterColors', 'slate')
       else next.delete('clusterColors')
 
+      if (iconMode === 'revealed' && tightClusters) next.set('tightClusters', '1')
+      else next.delete('tightClusters')
+
       if (mobileFeatureDisplay === 'popup') next.set('feature', 'popup')
       else next.delete('feature')
 
@@ -167,7 +174,7 @@ export default function AqMapSection() {
     }, URL_UPDATE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [basemap, clusterColorScheme, clusterMaxZoom, clusterRadius, fireDangerMode, iconMode, locale, mapView, mobileFeatureDisplay, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
+  }, [basemap, clusterColorScheme, clusterMaxZoom, clusterRadius, fireDangerMode, iconMode, locale, mapView, mobileFeatureDisplay, tightClusters, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
 
   const toggleGroup = useCallback((group: AqMonitorGroup) => {
     setVisibleGroups((current) => {
@@ -236,6 +243,8 @@ export default function AqMapSection() {
       onClusterRadiusChange={setClusterRadius}
       clusterMaxZoom={clusterMaxZoom}
       onClusterMaxZoomChange={setClusterMaxZoom}
+      tightClusters={tightClusters}
+      onTightClustersChange={setTightClusters}
       mobileFeatureDisplay={mobileFeatureDisplay}
       onMobileFeatureDisplayChange={setMobileFeatureDisplay}
       visibleWmsLayers={visibleWmsLayers}
@@ -277,6 +286,10 @@ export default function AqMapSection() {
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
           styles={BASEMAP_STYLES[basemap]}
+          // Symbol labels fade out over fadeDuration (default 300ms) while
+          // circle layers cut instantly. Setting it to 0 keeps the cluster
+          // count from lingering after its bubble vanishes on zoom.
+          fadeDuration={0}
           loading={loading}
           onViewportChange={(viewport) => {
             if (!isValidMapView(viewport)) return
@@ -306,6 +319,7 @@ export default function AqMapSection() {
             clusterColorScheme={clusterColorScheme}
             clusterRadius={clusterRadius}
             clusterMaxZoom={clusterMaxZoom}
+            tightClusters={tightClusters}
             onMonitorClick={handleMonitorClick}
             onMonitorHover={setHoveredMonitor}
           />
@@ -334,6 +348,8 @@ export default function AqMapSection() {
               onClusterRadiusChange={setClusterRadius}
               clusterMaxZoom={clusterMaxZoom}
               onClusterMaxZoomChange={setClusterMaxZoom}
+              tightClusters={tightClusters}
+              onTightClustersChange={setTightClusters}
               visibleWmsLayers={visibleWmsLayers}
               onToggleWmsLayer={toggleWmsLayer}
               visibleSmokeLayers={visibleSmokeLayers}

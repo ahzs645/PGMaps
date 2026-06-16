@@ -44,3 +44,23 @@ export function getClusterStrokeColor(scheme: AqClusterColorScheme): string | Ex
 export function getClusterCountTextColor(scheme: AqClusterColorScheme): string | ExpressionSpecification {
   return scheme === 'slate' ? SLATE_TEXT : CLASSIC_TEXT
 }
+
+// Keep the bubble size proportional to the cluster spacing so big clusters
+// can't grow wider than the gap between clusters (the cause of overlap). The
+// floors keep 2–3 digit counts legible even at a small clusterRadius.
+//
+// tightPacking caps the largest bubble at exactly clusterRadius/2 so two
+// adjacent clusters only touch (near-zero overlap), with lower text floors —
+// the trade-off is cramped 3-digit counts.
+export function getClusterCircleRadius(clusterRadius: number, tightPacking = false): ExpressionSpecification {
+  if (tightPacking) {
+    const base = Math.max(9, Math.round(clusterRadius * 0.32))
+    const mid = Math.max(10, Math.round(clusterRadius * 0.4))
+    const large = Math.max(12, Math.round(clusterRadius * 0.5))
+    return ['step', ['get', 'point_count'], base, 40, mid, 150, large]
+  }
+  const base = Math.max(10, Math.round(clusterRadius * 0.4))
+  const mid = Math.max(13, Math.round(clusterRadius * 0.48))
+  const large = Math.max(15, Math.round(clusterRadius * 0.56))
+  return ['step', ['get', 'point_count'], base, 40, mid, 150, large]
+}

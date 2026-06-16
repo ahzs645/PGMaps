@@ -51,6 +51,7 @@ const EN: StringMap = {
   'clusterColors.slate': 'Blue-gray',
   'reveal.clusterRadius': 'Cluster radius',
   'reveal.clusterMaxZoom': 'Cluster until zoom',
+  'reveal.tightPacking': 'Tight packing (cap bubbles at half the radius for near-zero overlap)',
 
   'aqhi.low': 'Low',
   'aqhi.moderate': 'Moderate',
@@ -180,6 +181,7 @@ const FR: StringMap = {
   'clusterColors.slate': 'Gris-bleu',
   'reveal.clusterRadius': 'Rayon de regroupement',
   'reveal.clusterMaxZoom': 'Regrouper jusqu’au zoom',
+  'reveal.tightPacking': 'Compactage serré (limite les bulles à la moitié du rayon, chevauchement quasi nul)',
 
   'aqhi.low': 'Faible',
   'aqhi.moderate': 'Modéré',

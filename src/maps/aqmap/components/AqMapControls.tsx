@@ -121,6 +121,8 @@ export function RevealClusterControls({
   onClusterRadiusChange,
   clusterMaxZoom,
   onClusterMaxZoomChange,
+  tightClusters,
+  onTightClustersChange,
   locale,
 }: {
   clusterColorScheme: AqClusterColorScheme
@@ -129,6 +131,8 @@ export function RevealClusterControls({
   onClusterRadiusChange: (value: number) => void
   clusterMaxZoom: number
   onClusterMaxZoomChange: (value: number) => void
+  tightClusters: boolean
+  onTightClustersChange: (value: boolean) => void
   locale: AqmapLocale
 }) {
   const isDefault =
@@ -177,6 +181,15 @@ export function RevealClusterControls({
         step={REVEAL_CLUSTER_BOUNDS.maxZoom.step}
         onChange={onClusterMaxZoomChange}
       />
+      <label className="flex cursor-pointer items-start gap-2 text-[11px] text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={tightClusters}
+          onChange={(event) => onTightClustersChange(event.target.checked)}
+          className="mt-0.5 accent-primary"
+        />
+        <span>{translate('reveal.tightPacking', locale)}</span>
+      </label>
     </div>
   )
 }
@@ -194,6 +207,8 @@ export function FloatingLayerControl({
   onClusterRadiusChange,
   clusterMaxZoom,
   onClusterMaxZoomChange,
+  tightClusters,
+  onTightClustersChange,
   visibleWmsLayers,
   onToggleWmsLayer,
   visibleSmokeLayers,
@@ -217,6 +232,8 @@ export function FloatingLayerControl({
   onClusterRadiusChange: (value: number) => void
   clusterMaxZoom: number
   onClusterMaxZoomChange: (value: number) => void
+  tightClusters: boolean
+  onTightClustersChange: (value: boolean) => void
   visibleWmsLayers: Set<WmsLayerKey>
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
@@ -269,6 +286,8 @@ export function FloatingLayerControl({
               onClusterRadiusChange={onClusterRadiusChange}
               clusterMaxZoom={clusterMaxZoom}
               onClusterMaxZoomChange={onClusterMaxZoomChange}
+              tightClusters={tightClusters}
+              onTightClustersChange={onTightClustersChange}
               locale={locale}
             />
           )}

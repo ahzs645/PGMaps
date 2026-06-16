@@ -37,6 +37,8 @@ export function AqMapSidebar({
   onClusterRadiusChange,
   clusterMaxZoom,
   onClusterMaxZoomChange,
+  tightClusters,
+  onTightClustersChange,
   mobileFeatureDisplay,
   onMobileFeatureDisplayChange,
   visibleWmsLayers,
@@ -67,6 +69,8 @@ export function AqMapSidebar({
   onClusterRadiusChange: (value: number) => void
   clusterMaxZoom: number
   onClusterMaxZoomChange: (value: number) => void
+  tightClusters: boolean
+  onTightClustersChange: (value: boolean) => void
   mobileFeatureDisplay: MobileFeatureDisplay
   onMobileFeatureDisplayChange: (mode: MobileFeatureDisplay) => void
   visibleWmsLayers: Set<WmsLayerKey>
@@ -197,6 +201,8 @@ export function AqMapSidebar({
                 onClusterRadiusChange={onClusterRadiusChange}
                 clusterMaxZoom={clusterMaxZoom}
                 onClusterMaxZoomChange={onClusterMaxZoomChange}
+                tightClusters={tightClusters}
+                onTightClustersChange={onTightClustersChange}
                 locale={locale}
               />
             </div>

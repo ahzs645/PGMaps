@@ -9,7 +9,7 @@ import type { AqMonitorGroup } from '../lib/monitorPresentation'
 import { getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
-import { getClusterCircleColor, getClusterCountTextColor, getClusterStrokeColor } from '../lib/clusterColors'
+import { getClusterCircleColor, getClusterCircleRadius, getClusterCountTextColor, getClusterStrokeColor } from '../lib/clusterColors'
 import {
   FIRE_DANGER_FILL_COLORS,
   FIRE_DANGER_VECTOR_URL,
@@ -261,6 +261,7 @@ export function AqMonitorLayer({
   clusterColorScheme,
   clusterRadius,
   clusterMaxZoom,
+  tightClusters,
   onMonitorClick,
   onMonitorHover,
 }: {
@@ -270,6 +271,7 @@ export function AqMonitorLayer({
   clusterColorScheme: AqClusterColorScheme
   clusterRadius: number
   clusterMaxZoom: number
+  tightClusters: boolean
   onMonitorClick: (monitor: AirMonitor) => void
   onMonitorHover: (monitor: AirMonitor | null) => void
 }) {
@@ -412,18 +414,10 @@ export function AqMonitorLayer({
             filter: ['has', 'point_count'],
             paint: {
               'circle-color': getClusterCircleColor(clusterColorScheme),
-              'circle-radius': [
-                'step',
-                ['get', 'point_count'],
-                18,
-                40,
-                27,
-                150,
-                38,
-              ],
-              'circle-opacity': 0.92,
+              'circle-radius': getClusterCircleRadius(clusterRadius, tightClusters),
+              'circle-opacity': 0.86,
               'circle-stroke-color': getClusterStrokeColor(clusterColorScheme),
-              'circle-stroke-width': 2.5,
+              'circle-stroke-width': 2,
             },
           })
         }
@@ -500,7 +494,7 @@ export function AqMonitorLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [clusterCountLayerId, clusterLayerId, clusterColorScheme, clusterMaxZoom, clusterRadius, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
+  }, [clusterCountLayerId, clusterLayerId, clusterColorScheme, clusterMaxZoom, clusterRadius, tightClusters, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
 
   useEffect(() => {
     if (!isLoaded || !map) return
