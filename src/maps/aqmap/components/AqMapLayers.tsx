@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMap } from '@/components/ui/map'
 import type { AirMonitor } from '@/maps/airquality'
 import { getAqhiColor, getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
-import type maplibregl from 'maplibre-gl'
+import maplibregl from 'maplibre-gl'
 import type { SmokeLayerDefinition } from '../lib/smokeLayers'
 import type { WmsLayerDefinition } from '../lib/wmsLayers'
 import type { AqMonitorGroup } from '../lib/monitorPresentation'
@@ -11,13 +11,19 @@ import { formatGroupLabel } from '../lib/i18n'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
 import { getClusterCircleColor, getClusterCircleRadius, getClusterCountTextColor, getClusterStrokeColor } from '../lib/clusterColors'
 import {
+  ACTIVE_FIRES_VECTOR_URL,
   FIRE_DANGER_FILL_COLORS,
   FIRE_DANGER_VECTOR_URL,
+  FIRE_PERIMETERS_VECTOR_URL,
+  FORECAST_ZONES_VECTOR_URL,
 } from '../lib/aqMapConstants'
 import type {
+  ActiveFireFeatureProperties,
   AqClusterColorScheme,
   AqMonitorIconMode,
   FireDangerFeatureProperties,
+  FirePerimeterFeatureProperties,
+  ForecastZoneFeatureProperties,
 } from '../lib/aqMapTypes'
 
 interface AqMapFeatureProperties {
@@ -38,6 +44,46 @@ interface AqMapFeatureProperties {
   iconSize: number
   zIndex: number
   online: boolean
+}
+
+const FORECAST_ZONE_COLORS = [
+  '#bae6fd',
+  '#bbf7d0',
+  '#fde68a',
+  '#fecaca',
+  '#ddd6fe',
+  '#fed7aa',
+  '#c7d2fe',
+  '#a7f3d0',
+  '#fbcfe8',
+  '#bfdbfe',
+]
+
+function sampleForecastZoneColor(value: string): string {
+  let hash = 0
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0
+  }
+  return FORECAST_ZONE_COLORS[hash % FORECAST_ZONE_COLORS.length]
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): string {
+  const name = escapeHtml(String(properties.NAME ?? properties.NOM ?? 'Forecast zone'))
+
+  return `
+    <div class="text-xs">
+      <div class="tooltip_title font-semibold text-foreground">${name}</div>
+    </div>
+  `
 }
 
 export function WmsRasterLayer({
@@ -83,6 +129,121 @@ export function WmsRasterLayer({
       }
     }
   }, [definition, isLoaded, layerId, map, sourceId, visible])
+
+  return null
+}
+
+export function ActiveFiresVectorLayer({ visible }: { visible: boolean }) {
+  const { map, isLoaded } = useMap()
+  const sourceId = 'aqmap-active-fires-vector-source'
+  const haloLayerId = 'aqmap-active-fires-vector-halo'
+  const pointLayerId = 'aqmap-active-fires-vector-point'
+  const [data, setData] = useState<GeoJSON.FeatureCollection<GeoJSON.Point, ActiveFireFeatureProperties> | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!visible || data || error) return
+    const controller = new AbortController()
+
+    fetch(ACTIVE_FIRES_VECTOR_URL, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to load active fire hotspots: ${response.status}`)
+        return response.json()
+      })
+      .then((payload) => setData(payload as GeoJSON.FeatureCollection<GeoJSON.Point, ActiveFireFeatureProperties>))
+      .catch((err) => {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Active fires vector layer failed', err)
+          setError((err as Error).message)
+        }
+      })
+
+    return () => controller.abort()
+  }, [data, error, visible])
+
+  useEffect(() => {
+    if (!isLoaded || !map || !visible || !data) return
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data,
+      })
+    }
+
+    if (!map.getLayer(haloLayerId)) {
+      map.addLayer({
+        id: haloLayerId,
+        type: 'circle',
+        source: sourceId,
+        paint: {
+          'circle-color': '#ef4444',
+          'circle-opacity': 0.18,
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            2,
+            5,
+            7,
+            10,
+            11,
+            16,
+          ],
+        },
+      })
+    }
+
+    if (!map.getLayer(pointLayerId)) {
+      map.addLayer({
+        id: pointLayerId,
+        type: 'circle',
+        source: sourceId,
+        paint: {
+          'circle-color': [
+            'step',
+            ['coalesce', ['to-number', ['get', 'age']], 24],
+            '#ef4444',
+            6,
+            '#f97316',
+            12,
+            '#facc15',
+          ],
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            2,
+            2.5,
+            7,
+            4.5,
+            11,
+            7,
+          ],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            2,
+            0.8,
+            8,
+            1.4,
+          ],
+        },
+      })
+    }
+
+    return () => {
+      try {
+        if (map.getLayer(pointLayerId)) map.removeLayer(pointLayerId)
+        if (map.getLayer(haloLayerId)) map.removeLayer(haloLayerId)
+        if (map.getSource(sourceId)) map.removeSource(sourceId)
+      } catch {
+        // MapLibre can throw during style teardown.
+      }
+    }
+  }, [data, haloLayerId, isLoaded, map, pointLayerId, sourceId, visible])
 
   return null
 }
@@ -173,6 +334,265 @@ export function FireDangerVectorLayer({ visible }: { visible: boolean }) {
 
     return () => {
       try {
+        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
+        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+        if (map.getSource(sourceId)) map.removeSource(sourceId)
+      } catch {
+        // MapLibre can throw during style teardown.
+      }
+    }
+  }, [data, fillLayerId, isLoaded, lineLayerId, map, sourceId, visible])
+
+  return null
+}
+
+export function FirePerimetersVectorLayer({ visible }: { visible: boolean }) {
+  const { map, isLoaded } = useMap()
+  const sourceId = 'aqmap-fire-perimeters-vector-source'
+  const fillLayerId = 'aqmap-fire-perimeters-vector-fill'
+  const lineLayerId = 'aqmap-fire-perimeters-vector-line'
+  const [data, setData] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, FirePerimeterFeatureProperties> | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!visible || data || error) return
+    const controller = new AbortController()
+
+    fetch(FIRE_PERIMETERS_VECTOR_URL, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to load fire perimeter polygons: ${response.status}`)
+        return response.json()
+      })
+      .then((payload) => setData(payload as GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, FirePerimeterFeatureProperties>))
+      .catch((err) => {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Fire perimeter vector layer failed', err)
+          setError((err as Error).message)
+        }
+      })
+
+    return () => controller.abort()
+  }, [data, error, visible])
+
+  useEffect(() => {
+    if (!isLoaded || !map || !visible || !data) return
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data,
+      })
+    }
+
+    if (!map.getLayer(fillLayerId)) {
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#f7b4b4',
+          'fill-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            2,
+            0.55,
+            8,
+            0.65,
+          ],
+        },
+      })
+    }
+
+    if (!map.getLayer(lineLayerId)) {
+      map.addLayer({
+        id: lineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#111111',
+          'line-opacity': 1,
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            2,
+            0.6,
+            7,
+            1.4,
+            11,
+            2.4,
+          ],
+        },
+      })
+    }
+
+    return () => {
+      try {
+        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
+        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+        if (map.getSource(sourceId)) map.removeSource(sourceId)
+      } catch {
+        // MapLibre can throw during style teardown.
+      }
+    }
+  }, [data, fillLayerId, isLoaded, lineLayerId, map, sourceId, visible])
+
+  return null
+}
+
+export function ForecastZonesVectorLayer({ visible }: { visible: boolean }) {
+  const { map, isLoaded } = useMap()
+  const sourceId = 'aqmap-forecast-zones-vector-source'
+  const fillLayerId = 'aqmap-forecast-zones-vector-fill'
+  const lineLayerId = 'aqmap-forecast-zones-vector-line'
+  const [data, setData] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties & { fillColor?: string }> | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!visible || data || error) return
+    const controller = new AbortController()
+
+    fetch(FORECAST_ZONES_VECTOR_URL, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to load forecast zones: ${response.status}`)
+        return response.json()
+      })
+      .then((payload) => {
+        const collection = payload as GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>
+        setData({
+          ...collection,
+          features: collection.features.map((feature, index) => {
+            const sampleKey = String(feature.properties?.CLC ?? feature.properties?.FEATURE_ID ?? index)
+            return {
+              ...feature,
+              properties: {
+                ...feature.properties,
+                fillColor: sampleForecastZoneColor(sampleKey),
+              },
+            }
+          }),
+        })
+      })
+      .catch((err) => {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Forecast zones vector layer failed', err)
+          setError((err as Error).message)
+        }
+      })
+
+    return () => controller.abort()
+  }, [data, error, visible])
+
+  useEffect(() => {
+    if (!isLoaded || !map || !visible || !data) return
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data,
+      })
+    }
+
+    if (!map.getLayer(fillLayerId)) {
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': ['coalesce', ['get', 'fillColor'], '#bfdbfe'],
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            0.58,
+            0.34,
+          ],
+        },
+      })
+    }
+
+    if (!map.getLayer(lineLayerId)) {
+      map.addLayer({
+        id: lineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#2563eb',
+          'line-opacity': 0.82,
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            2,
+            0.7,
+            7,
+            1.3,
+            11,
+            2.2,
+          ],
+        },
+      })
+    }
+
+    const popup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      className: 'aqmap-tooltip pointer-events-none',
+      maxWidth: '280px',
+      offset: 12,
+    })
+    let hoveredId: string | number | null = null
+
+    const handleMouseMove = (event: maplibregl.MapLayerMouseEvent) => {
+      const markerFeature = map
+        .queryRenderedFeatures(event.point)
+        .find((feature) => feature.layer.id.startsWith('aqmap-monitor-'))
+      if (markerFeature) {
+        map.getCanvas().style.cursor = 'pointer'
+        if (hoveredId !== null) {
+          map.setFeatureState({ source: sourceId, id: hoveredId }, { hover: false })
+        }
+        hoveredId = null
+        popup.remove()
+        return
+      }
+
+      const feature = event.features?.[0]
+      if (!feature) return
+      map.getCanvas().style.cursor = 'pointer'
+
+      if (hoveredId !== null) {
+        map.setFeatureState({ source: sourceId, id: hoveredId }, { hover: false })
+      }
+
+      hoveredId = feature.id ?? null
+      if (hoveredId !== null) {
+        map.setFeatureState({ source: sourceId, id: hoveredId }, { hover: true })
+      }
+
+      popup
+        .setLngLat(event.lngLat)
+        .setHTML(formatForecastZoneTooltip(feature.properties as ForecastZoneFeatureProperties))
+        .addTo(map)
+    }
+
+    const handleMouseLeave = () => {
+      map.getCanvas().style.cursor = ''
+      if (hoveredId !== null) {
+        map.setFeatureState({ source: sourceId, id: hoveredId }, { hover: false })
+      }
+      hoveredId = null
+      popup.remove()
+    }
+
+    map.on('mousemove', fillLayerId, handleMouseMove)
+    map.on('mouseleave', fillLayerId, handleMouseLeave)
+
+    return () => {
+      try {
+        map.off('mousemove', fillLayerId, handleMouseMove)
+        map.off('mouseleave', fillLayerId, handleMouseLeave)
+        popup.remove()
         if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
         if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
         if (map.getSource(sourceId)) map.removeSource(sourceId)
@@ -448,7 +868,7 @@ export function AqMonitorLayer({
             filter: ['!', ['has', 'point_count']],
             layout: {
               'icon-image': ['get', 'iconId'],
-              'icon-size': 0.9,
+              'icon-size': 1,
               'icon-allow-overlap': false,
               'icon-ignore-placement': false,
               'symbol-sort-key': ['get', 'zIndex'],

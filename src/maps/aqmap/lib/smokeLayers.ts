@@ -4,6 +4,7 @@ export type SmokeFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Geometry,
   fill?: string
   density?: string
   minPm25?: number
+  [key: string]: unknown
 }>
 
 export interface SmokeLayerDefinition {

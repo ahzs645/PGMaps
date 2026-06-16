@@ -162,6 +162,20 @@ button, a, [role="button"] {
   background: #fff;
 }
 
+/* Keep the close button clear of the AQHI accent bar at the very top. */
+.aqmap-popup > button[aria-label="Close popup"] {
+  top: 0.75rem;
+  right: 0.5rem;
+}
+
+/* The timeseries chart surface is non-interactive — suppress its focus ring
+   so clicking the plot doesn't draw a blue outline. */
+.aqmap-plot :focus,
+.aqmap-plot :focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .aqmap-popup .popup_title,
 .aqmap-tooltip .tooltip_title {
   color: #000;

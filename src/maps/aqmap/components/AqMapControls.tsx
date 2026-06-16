@@ -5,7 +5,7 @@ import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { cn } from '@/lib/utils'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
-import type { AqBasemap, AqMonitorGroup } from '../lib/monitorPresentation'
+import type { AqMonitorGroup } from '../lib/monitorPresentation'
 import {
   formatGroupLabel,
   formatLocalizedDate,
@@ -14,14 +14,8 @@ import {
   translate,
   type AqmapLocale,
 } from '../lib/i18n'
-import type { AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode } from '../lib/aqMapTypes'
+import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode } from '../lib/aqMapTypes'
 import { REVEAL_CLUSTER_BOUNDS, REVEAL_CLUSTER_DEFAULTS } from '../lib/aqMapConstants'
-
-export function basemapLabel(value: AqBasemap, locale: AqmapLocale): string {
-  return value === 'light'
-    ? translate('sidebar.basemap.light', locale)
-    : translate('sidebar.basemap.dark', locale)
-}
 
 export function ToggleButton({
   active,
@@ -195,8 +189,6 @@ export function RevealClusterControls({
 }
 
 export function FloatingLayerControl({
-  basemap,
-  onBasemapChange,
   visibleGroups,
   onToggleGroup,
   iconMode,
@@ -213,15 +205,19 @@ export function FloatingLayerControl({
   onToggleWmsLayer,
   visibleSmokeLayers,
   onToggleSmokeLayer,
+  activeFiresMode,
+  onActiveFiresModeChange,
   fireDangerMode,
   onFireDangerModeChange,
+  firePerimetersMode,
+  onFirePerimetersModeChange,
+  forecastZonesMode,
+  onForecastZonesModeChange,
   windVisible,
   onToggleWind,
   smokeLayers,
   locale,
 }: {
-  basemap: AqBasemap
-  onBasemapChange: (basemap: AqBasemap) => void
   visibleGroups: Set<AqMonitorGroup>
   onToggleGroup: (group: AqMonitorGroup) => void
   iconMode: AqMonitorIconMode
@@ -238,8 +234,14 @@ export function FloatingLayerControl({
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
+  activeFiresMode: ActiveFiresRenderMode
+  onActiveFiresModeChange: (mode: ActiveFiresRenderMode) => void
   fireDangerMode: FireDangerRenderMode
   onFireDangerModeChange: (mode: FireDangerRenderMode) => void
+  firePerimetersMode: FirePerimetersRenderMode
+  onFirePerimetersModeChange: (mode: FirePerimetersRenderMode) => void
+  forecastZonesMode: ForecastZonesRenderMode
+  onForecastZonesModeChange: (mode: ForecastZonesRenderMode) => void
   windVisible: boolean
   onToggleWind: () => void
   smokeLayers: SmokeLayerDefinition[]
@@ -247,16 +249,7 @@ export function FloatingLayerControl({
 }) {
   return (
     <MapFloatingPanel position="top-right" className="w-56 rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur">
-      <div className="font-semibold text-foreground">{translate('controls.basemaps', locale)}</div>
-      <div className="mt-1 space-y-1">
-        {(['light', 'dark'] as AqBasemap[]).map((option) => (
-          <label key={option} className="flex items-center gap-2 text-muted-foreground">
-            <input type="radio" checked={basemap === option} onChange={() => onBasemapChange(option)} />
-            <span>{basemapLabel(option, locale)}</span>
-          </label>
-        ))}
-      </div>
-      <div className="mt-3 font-semibold text-foreground">{translate('controls.layers', locale)}</div>
+      <div className="font-semibold text-foreground">{translate('controls.layers', locale)}</div>
       <div className="mt-1 max-h-72 space-y-1 overflow-y-auto">
         {(['agency', 'lcm', 'other'] as AqMonitorGroup[]).map((group) => (
           <label key={group} className="flex items-center gap-2 text-muted-foreground">
@@ -308,6 +301,36 @@ export function FloatingLayerControl({
               <SegmentedControl
                 value={fireDangerMode}
                 onChange={onFireDangerModeChange}
+                options={[
+                  { value: 'raster', label: translate('overlay.raster', locale) },
+                  { value: 'vector', label: translate('overlay.vector', locale) },
+                ]}
+              />
+            )}
+            {layer.key === 'activeFires' && visibleWmsLayers.has('activeFires') && (
+              <SegmentedControl
+                value={activeFiresMode}
+                onChange={onActiveFiresModeChange}
+                options={[
+                  { value: 'raster', label: translate('overlay.raster', locale) },
+                  { value: 'vector', label: translate('overlay.vector', locale) },
+                ]}
+              />
+            )}
+            {layer.key === 'firePerimeters' && visibleWmsLayers.has('firePerimeters') && (
+              <SegmentedControl
+                value={firePerimetersMode}
+                onChange={onFirePerimetersModeChange}
+                options={[
+                  { value: 'raster', label: translate('overlay.raster', locale) },
+                  { value: 'vector', label: translate('overlay.vector', locale) },
+                ]}
+              />
+            )}
+            {layer.key === 'forecastZones' && visibleWmsLayers.has('forecastZones') && (
+              <SegmentedControl
+                value={forecastZonesMode}
+                onChange={onForecastZonesModeChange}
                 options={[
                   { value: 'raster', label: translate('overlay.raster', locale) },
                   { value: 'vector', label: translate('overlay.vector', locale) },

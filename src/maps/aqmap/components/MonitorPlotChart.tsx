@@ -138,10 +138,11 @@ export function MonitorPlotChart({
 
   const yMax = useMemo(() => {
     const maxValue = Math.max(...data.map((point) => point.pm25))
-    if (maxValue <= 30) return 35
-    if (maxValue <= 60) return 65
-    if (maxValue <= 100) return 105
-    return Math.ceil((maxValue + 10) / 25) * 25
+    // Scale the axis to the actual data (with ~15% headroom) instead of always
+    // showing the full 0–100 AQHI range, rounding up to a tidy step.
+    const padded = Math.max(maxValue * 1.15, 10)
+    const step = padded <= 30 ? 5 : padded <= 60 ? 10 : padded <= 150 ? 25 : 50
+    return Math.ceil(padded / step) * step
   }, [data])
 
   const generatedId = useId()
@@ -168,7 +169,7 @@ export function MonitorPlotChart({
   return (
     <div
       ref={containerRef}
-      className="relative overflow-hidden rounded border border-border bg-background"
+      className="aqmap-plot relative overflow-hidden rounded border border-border bg-background"
       style={{ height }}
       title={`${latestPoint.label}: ${latestPoint.pm25.toFixed(1)} µg m⁻³`}
       role="img"
@@ -182,17 +183,17 @@ export function MonitorPlotChart({
               <stop offset="95%" stopColor={strokeColor} stopOpacity={0.04} />
             </linearGradient>
           </defs>
-          {AQHI_BANDS.map((band) => (
+          {AQHI_BANDS.filter((band) => band.from < yMax).map((band) => (
             <ReferenceArea
               key={`${band.from}-${band.to}`}
               y1={band.from}
               y2={Math.min(band.to, yMax)}
               fill={band.color}
-              ifOverflow="extendDomain"
+              ifOverflow="hidden"
             />
           ))}
           <CartesianGrid stroke="rgb(15 23 42 / 0.08)" vertical={false} />
-          {AQHI_THRESHOLDS.filter((threshold) => threshold <= yMax).map((threshold) => (
+          {AQHI_THRESHOLDS.filter((threshold) => threshold < yMax).map((threshold) => (
             <ReferenceLine
               key={threshold}
               y={threshold}

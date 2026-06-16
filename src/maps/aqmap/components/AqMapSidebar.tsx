@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Download, Globe, Layers, MapPin, Moon, RadioTower, RefreshCw, Sun, Waves } from 'lucide-react'
+import { Download, Globe, Layers, MapPin, RadioTower, RefreshCw, Waves } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import type { AirMonitor } from '@/maps/airquality'
@@ -7,7 +7,6 @@ import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
 import {
   getMonitorGroup,
-  type AqBasemap,
   type AqMonitorGroup,
 } from '../lib/monitorPresentation'
 import {
@@ -19,9 +18,9 @@ import {
   type AqmapLocale,
 } from '../lib/i18n'
 import type { ExportFormat } from '../lib/exportMap'
-import { AQHI_STOPS, EXPORT_OPTIONS } from '../lib/aqMapConstants'
-import type { AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, MobileFeatureDisplay } from '../lib/aqMapTypes'
-import { basemapLabel, RevealClusterControls, SegmentedControl, ToggleButton } from './AqMapControls'
+import { EXPORT_OPTIONS } from '../lib/aqMapConstants'
+import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay } from '../lib/aqMapTypes'
+import { RevealClusterControls, SegmentedControl, ToggleButton } from './AqMapControls'
 import { WmsLegend } from './AqMapLegends'
 
 export function AqMapSidebar({
@@ -45,12 +44,16 @@ export function AqMapSidebar({
   onToggleWmsLayer,
   visibleSmokeLayers,
   onToggleSmokeLayer,
+  activeFiresMode,
+  onActiveFiresModeChange,
   fireDangerMode,
   onFireDangerModeChange,
+  firePerimetersMode,
+  onFirePerimetersModeChange,
+  forecastZonesMode,
+  onForecastZonesModeChange,
   windVisible,
   onToggleWind,
-  basemap,
-  onBasemapChange,
   locale,
   onLocaleChange,
   onExport,
@@ -77,12 +80,16 @@ export function AqMapSidebar({
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
+  activeFiresMode: ActiveFiresRenderMode
+  onActiveFiresModeChange: (mode: ActiveFiresRenderMode) => void
   fireDangerMode: FireDangerRenderMode
   onFireDangerModeChange: (mode: FireDangerRenderMode) => void
+  firePerimetersMode: FirePerimetersRenderMode
+  onFirePerimetersModeChange: (mode: FirePerimetersRenderMode) => void
+  forecastZonesMode: ForecastZonesRenderMode
+  onForecastZonesModeChange: (mode: ForecastZonesRenderMode) => void
   windVisible: boolean
   onToggleWind: () => void
-  basemap: AqBasemap
-  onBasemapChange: (basemap: AqBasemap) => void
   locale: AqmapLocale
   onLocaleChange: (locale: AqmapLocale) => void
   onExport: (format: ExportFormat) => void
@@ -275,7 +282,10 @@ export function AqMapSidebar({
                       {localizeWmsLabel(layer.key, locale)}
                     </span>
                     <span className="text-xs font-medium">
-                      {layer.key === 'fireDanger' && fireDangerMode === 'vector'
+                      {(layer.key === 'activeFires' && activeFiresMode === 'vector')
+                        || (layer.key === 'fireDanger' && fireDangerMode === 'vector')
+                        || (layer.key === 'firePerimeters' && firePerimetersMode === 'vector')
+                        || (layer.key === 'forecastZones' && forecastZonesMode === 'vector')
                         ? translate('overlay.vector', locale)
                         : translate('wms.tag', locale)}
                     </span>
@@ -290,36 +300,39 @@ export function AqMapSidebar({
                       ]}
                     />
                   )}
+                  {layer.key === 'activeFires' && visibleWmsLayers.has('activeFires') && (
+                    <SegmentedControl
+                      value={activeFiresMode}
+                      onChange={onActiveFiresModeChange}
+                      options={[
+                        { value: 'raster', label: translate('overlay.raster', locale) },
+                        { value: 'vector', label: translate('overlay.vector', locale) },
+                      ]}
+                    />
+                  )}
+                  {layer.key === 'firePerimeters' && visibleWmsLayers.has('firePerimeters') && (
+                    <SegmentedControl
+                      value={firePerimetersMode}
+                      onChange={onFirePerimetersModeChange}
+                      options={[
+                        { value: 'raster', label: translate('overlay.raster', locale) },
+                        { value: 'vector', label: translate('overlay.vector', locale) },
+                      ]}
+                    />
+                  )}
+                  {layer.key === 'forecastZones' && visibleWmsLayers.has('forecastZones') && (
+                    <SegmentedControl
+                      value={forecastZonesMode}
+                      onChange={onForecastZonesModeChange}
+                      options={[
+                        { value: 'raster', label: translate('overlay.raster', locale) },
+                        { value: 'vector', label: translate('overlay.vector', locale) },
+                      ]}
+                    />
+                  )}
                 </div>
               )
             })}
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.basemap', locale)}</div>
-          <div className="inline-flex overflow-hidden rounded-md border border-border bg-background">
-            {([
-              { value: 'light', icon: Sun },
-              { value: 'dark', icon: Moon },
-            ] as Array<{ value: AqBasemap; icon: typeof Sun }>).map(({ value, icon: Icon }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => onBasemapChange(value)}
-                aria-pressed={basemap === value}
-                title={basemapLabel(value, locale)}
-                className={cn(
-                  'flex h-10 min-w-10 items-center justify-center gap-2 px-3 text-sm transition-colors',
-                  basemap === value
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                )}
-              >
-                <Icon className="size-4" />
-                <span>{basemapLabel(value, locale)}</span>
-              </button>
-            ))}
           </div>
         </section>
 
@@ -361,33 +374,6 @@ export function AqMapSidebar({
           <div>{translate('app.monitorData', locale)} <span className="font-medium text-foreground">{translate('app.endpoints', locale)}</span></div>
         </section>
 
-        <section>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.pm25Legend', locale)}</div>
-          <div className="space-y-1.5">
-            {AQHI_STOPS.map((stop) => (
-              <div key={stop.labelKey} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: stop.color }} />
-                <span>
-                  {translate(stop.labelKey, locale)}
-                  {' '}
-                  {translate(stop.rangeKey, locale)}
-                  {' '}
-                  {translate('aqhi.unit', locale)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.iconLegend', locale)}</div>
-          <div className="space-y-1.5 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2"><span className="size-3 rotate-45 border border-foreground bg-emerald-400" /> {translate('monitorType.fem', locale)}</div>
-            <div className="flex items-center gap-2"><span className="size-3 rounded-full border border-foreground bg-emerald-400" /> {translate('monitorType.pa', locale)} / {translate('groups.lcm', locale)}</div>
-            <div className="flex items-center gap-2"><span className="size-3 border border-foreground bg-emerald-400" /> {translate('monitorType.egg', locale)}</div>
-            <div className="flex items-center gap-2"><span className="size-2 rounded-full border border-foreground bg-slate-400" /> {translate('monitorType.missing', locale)}</div>
-          </div>
-        </section>
       </div>
     </aside>
   )

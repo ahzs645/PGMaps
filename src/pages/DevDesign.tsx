@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { type StyleSpecification } from 'maplibre-gl'
 import {
+  Camera,
   Copy,
   Eye,
+  Flag,
   Layers,
   MapPin,
   Palette,
+  PanelRight,
   RotateCcw,
+  Share2,
   SlidersHorizontal,
   Sparkles,
+  Spline,
+  Utensils,
+  Waves,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -24,6 +31,16 @@ import {
 import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import {
+  MapBadgeMarker,
+  MapCurvePath,
+  MapIconPin,
+  MapStoryPanel,
+  MapStorySection,
+  MapTitleChip,
+  MapToolRail,
+  MapToolRailButton,
+} from '@/components/ui/map-story'
 import { type UrlCodec, useUrlState } from '@/hooks/useUrlState'
 import { cn } from '@/lib/utils'
 
@@ -47,6 +64,11 @@ type DesignState = {
   showWater: boolean
   showLandcover: boolean
   showFocusArea: boolean
+  showStory: boolean
+  showMarkers: boolean
+  showPath: boolean
+  showTitleChip: boolean
+  showToolRail: boolean
 }
 
 const SHARED_BASEMAP_CAPTURE: DesignState = {
@@ -67,6 +89,11 @@ const SHARED_BASEMAP_CAPTURE: DesignState = {
   showWater: true,
   showLandcover: true,
   showFocusArea: true,
+  showStory: true,
+  showMarkers: true,
+  showPath: true,
+  showTitleChip: true,
+  showToolRail: true,
 }
 
 const ALT_THEME: DesignState = {
@@ -85,6 +112,27 @@ const ALT_THEME: DesignState = {
 const DESIGN_CENTER = PG_CENTER
 const MARKER_COORDINATE = { longitude: PG_CENTER[0], latitude: PG_CENTER[1] }
 const DESIGN_STATE_KEYS = Object.keys(SHARED_BASEMAP_CAPTURE) as Array<keyof DesignState>
+
+type SampleMarker = {
+  id: string
+  longitude: number
+  latitude: number
+  variant: 'badge' | 'pin'
+  label: string
+  icon: React.ReactNode
+}
+
+// tasmap-style on-map markers spread across Prince George for the overlay demo.
+const SAMPLE_MARKERS: SampleMarker[] = [
+  { id: 'start', longitude: -122.815, latitude: 53.9225, variant: 'badge', label: 'Start', icon: <Flag /> },
+  { id: 'river', longitude: -122.731, latitude: 53.9205, variant: 'pin', label: 'Fraser River', icon: <Waves /> },
+  { id: 'market', longitude: -122.7245, latitude: 53.8975, variant: 'pin', label: 'Market', icon: <Utensils /> },
+  { id: 'lookout', longitude: -122.804, latitude: 53.8865, variant: 'badge', label: 'Lookout', icon: <Camera /> },
+]
+
+// The curved route threads through the markers in tour order.
+const PATH_POINTS: Array<[number, number]> = SAMPLE_MARKERS.map((marker) => [marker.longitude, marker.latitude])
+const PATH_COLOR = '#ff9800'
 
 function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
@@ -124,6 +172,14 @@ function coerceDesignState(value: unknown): DesignState {
       typeof candidate.showLandcover === 'boolean' ? candidate.showLandcover : SHARED_BASEMAP_CAPTURE.showLandcover,
     showFocusArea:
       typeof candidate.showFocusArea === 'boolean' ? candidate.showFocusArea : SHARED_BASEMAP_CAPTURE.showFocusArea,
+    showStory: typeof candidate.showStory === 'boolean' ? candidate.showStory : SHARED_BASEMAP_CAPTURE.showStory,
+    showMarkers:
+      typeof candidate.showMarkers === 'boolean' ? candidate.showMarkers : SHARED_BASEMAP_CAPTURE.showMarkers,
+    showPath: typeof candidate.showPath === 'boolean' ? candidate.showPath : SHARED_BASEMAP_CAPTURE.showPath,
+    showTitleChip:
+      typeof candidate.showTitleChip === 'boolean' ? candidate.showTitleChip : SHARED_BASEMAP_CAPTURE.showTitleChip,
+    showToolRail:
+      typeof candidate.showToolRail === 'boolean' ? candidate.showToolRail : SHARED_BASEMAP_CAPTURE.showToolRail,
   }
 }
 
@@ -421,6 +477,8 @@ export default function DevDesign() {
   // Probing WebGL support once in the lazy initializer avoids flipping state
   // from the mount effect.
   const [canUseWebGl] = useState(() => hasWebGlContext())
+  // Which tool-rail flyout is open (null = none).
+  const [openTool, setOpenTool] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -577,6 +635,36 @@ export default function DevDesign() {
             </div>
           </SidebarSection>
 
+          <SidebarSection title="Story Overlays" icon={PanelRight}>
+            <div className="grid gap-2">
+              <ToggleRow
+                label="Story panel"
+                checked={design.showStory}
+                onChange={(checked) => updateDesign('showStory', checked)}
+              />
+              <ToggleRow
+                label="Map markers"
+                checked={design.showMarkers}
+                onChange={(checked) => updateDesign('showMarkers', checked)}
+              />
+              <ToggleRow
+                label="Route path"
+                checked={design.showPath}
+                onChange={(checked) => updateDesign('showPath', checked)}
+              />
+              <ToggleRow
+                label="Title chip"
+                checked={design.showTitleChip}
+                onChange={(checked) => updateDesign('showTitleChip', checked)}
+              />
+              <ToggleRow
+                label="Tool rail"
+                checked={design.showToolRail}
+                onChange={(checked) => updateDesign('showToolRail', checked)}
+              />
+            </div>
+          </SidebarSection>
+
           <SidebarSection title="Marker" icon={MapPin}>
             <div className="grid gap-3">
               <Field label="Shape">
@@ -638,79 +726,228 @@ export default function DevDesign() {
         </MapSidebarShell>
       </aside>
 
-      <section className="relative order-1 min-h-[54vh] flex-1 overflow-hidden border-b border-border lg:order-2 lg:min-h-0 lg:border-b-0">
-        {canUseWebGl && styles ? (
-          <AppMap
-            className="h-full min-h-[54vh] lg:min-h-0"
-            styles={styles}
-            showStyleLoadingOverlay={false}
-            center={DESIGN_CENTER}
-            zoom={12}
-            minZoom={2}
-            maxZoom={14}
-            pitch={0}
-            bearing={0}
-          >
-            <MapControls showCompass showFullscreen position="bottom-right" />
-            <MapMarker
-              longitude={MARKER_COORDINATE.longitude}
-              latitude={MARKER_COORDINATE.latitude}
-              offset={[0, design.markerShape === 'pin' ? -20 : -8]}
+      <section className="order-1 flex min-h-[54vh] flex-1 overflow-hidden border-b border-border lg:order-2 lg:min-h-0 lg:border-b-0">
+        <div className="relative min-h-[54vh] flex-1 overflow-hidden lg:min-h-0">
+          {canUseWebGl && styles ? (
+            <AppMap
+              className="h-full min-h-[54vh] lg:min-h-0"
+              styles={styles}
+              showStyleLoadingOverlay={false}
+              center={DESIGN_CENTER}
+              zoom={12}
+              minZoom={2}
+              maxZoom={14}
+              pitch={0}
+              bearing={0}
             >
-              <MarkerContent>
-                <DesignerMarker design={design} />
-              </MarkerContent>
-            </MapMarker>
-          </AppMap>
-        ) : (
-          <StaticMapPreview design={design} />
-        )}
+              <MapControls showCompass showFullscreen position="bottom-right" />
+              <MapMarker
+                longitude={MARKER_COORDINATE.longitude}
+                latitude={MARKER_COORDINATE.latitude}
+                offset={[0, design.markerShape === 'pin' ? -20 : -8]}
+              >
+                <MarkerContent>
+                  <DesignerMarker design={design} />
+                </MarkerContent>
+              </MapMarker>
 
-        <MapLegend title="Style Layers" position="top-right" collapsible className="hidden sm:block">
-          <MapLegendItem
-            color={design.waterColor}
-            label="Water"
-            active={design.showWater}
-            onClick={() => updateDesign('showWater', !design.showWater)}
-          />
-          <MapLegendItem
-            color={design.landcoverColor}
-            label="Landcover"
-            active={design.showLandcover}
-            onClick={() => updateDesign('showLandcover', !design.showLandcover)}
-          />
-          <MapLegendItem
-            color={design.primaryColor}
-            label="Labels"
-            active={design.showLabels}
-            onClick={() => updateDesign('showLabels', !design.showLabels)}
-          />
-          <MapLegendItem
-            color={design.primaryColor}
-            label="Focus area"
-            active={design.showFocusArea}
-            onClick={() => updateDesign('showFocusArea', !design.showFocusArea)}
-            swatchShape="dot"
-          />
-        </MapLegend>
+              {design.showMarkers
+                ? SAMPLE_MARKERS.map((marker) => (
+                    <MapMarker
+                      key={marker.id}
+                      longitude={marker.longitude}
+                      latitude={marker.latitude}
+                      anchor="bottom"
+                    >
+                      <MarkerContent>
+                        {marker.variant === 'badge' ? (
+                          <MapBadgeMarker label={marker.label} icon={marker.icon} color={design.primaryColor} />
+                        ) : (
+                          <MapIconPin icon={marker.icon} color={design.markerFill} />
+                        )}
+                      </MarkerContent>
+                    </MapMarker>
+                  ))
+                : null}
 
-        <div className="pointer-events-none absolute left-4 top-4 max-w-[min(24rem,calc(100%-2rem))]">
-          <div
-            className="rounded-md border px-4 py-3 shadow-sm"
-            style={{ backgroundColor: design.backgroundColor, borderColor: design.primaryColor }}
-          >
-            <div className="flex items-center gap-2 text-xs font-medium" style={{ color: design.primaryColor }}>
-              <MapPin className="h-3.5 w-3.5" />
-              PGMaps basemap designer
+              {design.showPath ? <MapCurvePath points={PATH_POINTS} color={PATH_COLOR} /> : null}
+            </AppMap>
+          ) : (
+            <StaticMapPreview design={design} />
+          )}
+
+          <MapLegend title="Style Layers" position="top-right" collapsible className="hidden sm:block">
+            <MapLegendItem
+              color={design.waterColor}
+              label="Water"
+              active={design.showWater}
+              onClick={() => updateDesign('showWater', !design.showWater)}
+            />
+            <MapLegendItem
+              color={design.landcoverColor}
+              label="Landcover"
+              active={design.showLandcover}
+              onClick={() => updateDesign('showLandcover', !design.showLandcover)}
+            />
+            <MapLegendItem
+              color={design.primaryColor}
+              label="Labels"
+              active={design.showLabels}
+              onClick={() => updateDesign('showLabels', !design.showLabels)}
+            />
+            <MapLegendItem
+              color={design.primaryColor}
+              label="Focus area"
+              active={design.showFocusArea}
+              onClick={() => updateDesign('showFocusArea', !design.showFocusArea)}
+              swatchShape="dot"
+            />
+          </MapLegend>
+
+          {!design.showStory ? (
+            <div
+              className={cn(
+                'pointer-events-none absolute top-4 max-w-[min(24rem,calc(100%-2rem))]',
+                design.showToolRail ? 'left-20' : 'left-4',
+              )}
+            >
+              <div
+                className="rounded-md border px-4 py-3 shadow-sm"
+                style={{ backgroundColor: design.backgroundColor, borderColor: design.primaryColor }}
+              >
+                <div className="flex items-center gap-2 text-xs font-medium" style={{ color: design.primaryColor }}>
+                  <MapPin className="h-3.5 w-3.5" />
+                  PGMaps basemap designer
+                </div>
+                <h1 className="mt-1 text-xl font-semibold leading-tight" style={{ color: design.primaryColor }}>
+                  {design.title}
+                </h1>
+                <p className="mt-1 text-sm" style={{ color: design.primaryColor }}>
+                  {design.subtitle}
+                </p>
+              </div>
             </div>
-            <h1 className="mt-1 text-xl font-semibold leading-tight" style={{ color: design.primaryColor }}>
-              {design.title}
-            </h1>
-            <p className="mt-1 text-sm" style={{ color: design.primaryColor }}>
-              {design.subtitle}
-            </p>
-          </div>
+          ) : null}
+
+          {design.showTitleChip ? (
+            <div className="absolute bottom-4 left-4 z-10">
+              <MapTitleChip title={design.title} icon={<MapPin />} badgeColor={design.primaryColor} />
+            </div>
+          ) : null}
+
+          {design.showToolRail ? (
+            <MapToolRail>
+              <MapToolRailButton
+                icon={<Palette />}
+                label="Theme & colors"
+                active={openTool === 'palette'}
+                onClick={() => setOpenTool((current) => (current === 'palette' ? null : 'palette'))}
+                flyoutOpen={openTool === 'palette'}
+                flyout={
+                  <div className="w-64 rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur">
+                    <div className="grid grid-cols-2 gap-2">
+                      <ColorField
+                        label="Primary"
+                        value={design.primaryColor}
+                        onChange={(value) =>
+                          setNextDesign((current) => ({ ...current, primaryColor: value, markerFill: value }))
+                        }
+                      />
+                      <ColorField
+                        label="Background"
+                        value={design.backgroundColor}
+                        onChange={(value) =>
+                          setNextDesign((current) => ({ ...current, backgroundColor: value, markerInset: value }))
+                        }
+                      />
+                      <ColorField
+                        label="Water"
+                        value={design.waterColor}
+                        onChange={(value) => updateDesign('waterColor', value)}
+                      />
+                      <ColorField
+                        label="Landcover"
+                        value={design.landcoverColor}
+                        onChange={(value) => updateDesign('landcoverColor', value)}
+                      />
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <Button type="button" size="sm" onClick={() => setDesign(SHARED_BASEMAP_CAPTURE)}>
+                        <Sparkles className="h-4 w-4" />
+                        Captured
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setDesign(ALT_THEME)}>
+                        <Palette className="h-4 w-4" />
+                        Alternate
+                      </Button>
+                    </div>
+                  </div>
+                }
+              />
+              <MapToolRailButton
+                icon={<MapPin />}
+                label="Toggle markers"
+                active={design.showMarkers}
+                onClick={() => {
+                  setOpenTool(null)
+                  updateDesign('showMarkers', !design.showMarkers)
+                }}
+              />
+              <MapToolRailButton
+                icon={<Spline />}
+                label="Toggle route path"
+                active={design.showPath}
+                onClick={() => {
+                  setOpenTool(null)
+                  updateDesign('showPath', !design.showPath)
+                }}
+              />
+              <MapToolRailButton
+                icon={<Share2 />}
+                label="Copy share URL"
+                onClick={() => {
+                  setOpenTool(null)
+                  copyShareUrl()
+                }}
+              />
+              <MapToolRailButton
+                icon={<RotateCcw />}
+                label="Reset design"
+                badge={!designEqualsDefault(design)}
+                onClick={() => {
+                  setOpenTool(null)
+                  setDesign(SHARED_BASEMAP_CAPTURE)
+                }}
+              />
+            </MapToolRail>
+          ) : null}
         </div>
+
+        {design.showStory ? (
+          <MapStoryPanel
+            title={design.title}
+            eyebrow="Field guide"
+            accentColor={design.primaryColor}
+            backgroundColor={design.backgroundColor}
+            onClose={() => updateDesign('showStory', false)}
+          >
+            <p>{design.subtitle}</p>
+            <MapStorySection heading="The route" accentColor={design.primaryColor}>
+              <p>
+                Follow the dashed trail from the <strong>Start</strong> flag along the Fraser River, past the market,
+                and up to the lookout. Each stop is a tasmap-style marker rendered with the shared MapLibre marker
+                layer.
+              </p>
+            </MapStorySection>
+            <MapStorySection heading="About this panel" accentColor={design.primaryColor}>
+              <p>
+                This is tasmap&rsquo;s &ldquo;classic&rdquo; story panel rebuilt on PGMaps&rsquo; own stack &mdash;
+                drag the handle on its left edge to resize. Recolor the basemap and markers from the sidebar; the share
+                URL captures every change.
+              </p>
+            </MapStorySection>
+          </MapStoryPanel>
+        ) : null}
       </section>
     </div>
   )

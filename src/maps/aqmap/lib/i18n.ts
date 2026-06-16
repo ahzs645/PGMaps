@@ -11,6 +11,7 @@ const EN: StringMap = {
   'app.lastUpdated': 'Last updated:',
   'app.latestObservation': 'Latest monitor timestamp:',
   'app.noTimestamp': 'No timestamp',
+  'map.legend': 'Legend',
 
   'sidebar.visible': 'Visible',
   'sidebar.pm25Count': 'PM2.5',
@@ -66,6 +67,7 @@ const EN: StringMap = {
 
   'popup.monitor': 'monitor',
   'popup.observedAsOf': 'Observed PM₂.₅ as of:',
+  'popup.readings': 'PM₂.₅ averages',
   'popup.tenMinAvg': '10-min average',
   'popup.oneHourAvg': '1-hour average',
   'popup.threeHourAvg': '3-hour average',
@@ -114,6 +116,7 @@ const EN: StringMap = {
   'wms.activeFires': 'Active Fires',
   'wms.firePerimeters': 'Fire Perimeters',
   'wms.fireDanger': 'Fire Danger',
+  'wms.forecastZones': 'Forecast Zones',
   'wms.tag': 'WMS',
   'overlay.raster': 'Raster',
   'overlay.vector': 'Vector',
@@ -141,6 +144,7 @@ const FR: StringMap = {
   'app.lastUpdated': 'Dernière mise à jour :',
   'app.latestObservation': 'Dernière observation :',
   'app.noTimestamp': 'Aucun horodatage',
+  'map.legend': 'Légende',
 
   'sidebar.visible': 'Visibles',
   'sidebar.pm25Count': 'PM2,5',
@@ -196,6 +200,7 @@ const FR: StringMap = {
 
   'popup.monitor': 'moniteur',
   'popup.observedAsOf': 'PM₂,₅ observée à :',
+  'popup.readings': 'Moyennes PM₂,₅',
   'popup.tenMinAvg': 'Moyenne 10 min',
   'popup.oneHourAvg': 'Moyenne 1 h',
   'popup.threeHourAvg': 'Moyenne 3 h',
@@ -244,6 +249,7 @@ const FR: StringMap = {
   'wms.activeFires': 'Feux actifs',
   'wms.firePerimeters': 'Périmètres des feux',
   'wms.fireDanger': 'Danger d’incendie',
+  'wms.forecastZones': 'Zones de prévision',
   'wms.tag': 'WMS',
   'overlay.raster': 'Raster',
   'overlay.vector': 'Vecteur',

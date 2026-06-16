@@ -29,19 +29,27 @@ const floatingPanelPositionClasses: Record<FloatingPanelPosition, string> = {
 type MapFloatingPanelProps = ComponentPropsWithoutRef<'div'> & {
   position?: FloatingPanelPosition
   z?: keyof typeof MAP_OVERLAY_Z
+  reserveLegendSpace?: boolean
   children: ReactNode
 }
 
 export function MapFloatingPanel({
   position = 'bottom-left',
   z = 'controls',
+  reserveLegendSpace = true,
   className,
   children,
   ...props
 }: MapFloatingPanelProps) {
+  const positionClass = !reserveLegendSpace && position === 'bottom-left'
+    ? 'left-3 bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] md:bottom-3'
+    : !reserveLegendSpace && position === 'bottom-right'
+      ? 'right-3 bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-timeline-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] md:bottom-3'
+      : floatingPanelPositionClasses[position]
+
   return (
     <div
-      className={cn('absolute', MAP_OVERLAY_Z[z], floatingPanelPositionClasses[position], className)}
+      className={cn('absolute', MAP_OVERLAY_Z[z], positionClass, className)}
       {...props}
     >
       {children}

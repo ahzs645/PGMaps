@@ -1,6 +1,6 @@
-import { CloudFog, Flame, Wind } from 'lucide-react'
+import { CloudFog, Flame, Map, Wind } from 'lucide-react'
 
-export type WmsLayerKey = 'surfaceWinds' | 'modelledPm25' | 'activeFires' | 'firePerimeters' | 'fireDanger'
+export type WmsLayerKey = 'surfaceWinds' | 'modelledPm25' | 'activeFires' | 'firePerimeters' | 'fireDanger' | 'forecastZones'
 
 export interface WmsLayerDefinition {
   key: WmsLayerKey
@@ -10,6 +10,7 @@ export interface WmsLayerDefinition {
   opacity: number
   attribution: string
   legendUrl?: string
+  legendRenderer?: 'image' | 'structured'
   legendPosition?: 'bottomleft' | 'bottomright' | 'topleft' | 'topright'
 }
 
@@ -72,6 +73,19 @@ export const WMS_LAYERS: WmsLayerDefinition[] = [
     opacity: 0.6,
     attribution: 'Natural Resources Canada CWFIS',
     legendUrl: 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=public:fdr_current&STYLE=public:cffdrs_fdr&FORMAT=image/png',
+    legendRenderer: 'structured',
     legendPosition: 'bottomright',
+  },
+  {
+    key: 'forecastZones',
+    label: 'Forecast Zones',
+    icon: Map,
+    tiles: [
+      'https://geo.weather.gc.ca/geomet?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=Public-Standard-Forecast-Zones&STYLES=Public-Standard-Forecast-Zones&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}',
+    ],
+    opacity: 0.78,
+    attribution: 'ECCC GeoMet',
+    legendUrl: 'https://geo.weather.gc.ca/geomet?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=Public-Standard-Forecast-Zones&STYLE=Public-Standard-Forecast-Zones&FORMAT=image/png',
+    legendPosition: 'bottomleft',
   },
 ]
