@@ -621,7 +621,9 @@ type MapClickHandlerProps = {
 export function MapClickHandler({ onClick, enabled = true, cursor = "" }: MapClickHandlerProps) {
   const { map, isLoaded } = useMap();
   const cbRef = useRef(onClick);
-  cbRef.current = onClick;
+  useEffect(() => {
+    cbRef.current = onClick;
+  });
 
   useEffect(() => {
     if (!isLoaded || !map || !enabled) return;
