@@ -5,6 +5,17 @@ import { getAqmapNetworkSlug, getAqmapSiteId } from './monitorPresentation'
 export interface AqPlotPoint {
   date: string
   pm25: number
+  /** PurpleAir/AQegg internal sensor channels and reference columns, when available. */
+  a?: number
+  b?: number
+  raw?: number
+  corrected?: number
+  fem?: number
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 function parseCsv(text: string): AqPlotPoint[] {
@@ -13,12 +24,26 @@ function parseCsv(text: string): AqPlotPoint[] {
   const dateIndex = headers.indexOf('date')
   const pm25Index = headers.indexOf('pm25')
   if (dateIndex < 0 || pm25Index < 0) return []
+  const aIndex = headers.indexOf('pm25_a')
+  const bIndex = headers.indexOf('pm25_b')
+  const rawIndex = headers.indexOf('pm25_raw')
+  const correctedIndex = headers.indexOf('pm25_corrected')
+  const femIndex = headers.indexOf('pm25_fem')
 
   return lines
     .map((line) => {
       const cells = line.split(',')
       const pm25 = Number(cells[pm25Index])
-      return Number.isFinite(pm25) ? { date: cells[dateIndex], pm25 } : null
+      if (!Number.isFinite(pm25)) return null
+      return {
+        date: cells[dateIndex],
+        pm25,
+        a: aIndex >= 0 ? optionalNumber(cells[aIndex]) : undefined,
+        b: bIndex >= 0 ? optionalNumber(cells[bIndex]) : undefined,
+        raw: rawIndex >= 0 ? optionalNumber(cells[rawIndex]) : undefined,
+        corrected: correctedIndex >= 0 ? optionalNumber(cells[correctedIndex]) : undefined,
+        fem: femIndex >= 0 ? optionalNumber(cells[femIndex]) : undefined,
+      }
     })
     .filter((point): point is AqPlotPoint => point !== null)
 }
@@ -59,7 +84,17 @@ export async function fetchAqmapPlotSeries(monitor: AirMonitor, signal?: AbortSi
           .map((row) => {
             const date = String(row.date ?? '')
             const pm25 = Number(row.pm25)
-            return date && Number.isFinite(pm25) ? { date, pm25 } : null
+            return date && Number.isFinite(pm25)
+              ? {
+                  date,
+                  pm25,
+                  a: optionalNumber(row.a ?? row.pm25_a),
+                  b: optionalNumber(row.b ?? row.pm25_b),
+                  raw: optionalNumber(row.raw ?? row.pm25_raw),
+                  corrected: optionalNumber(row.corrected ?? row.pm25_corrected),
+                  fem: optionalNumber(row.fem ?? row.pm25_fem),
+                }
+              : null
           })
           .filter((point): point is AqPlotPoint => point !== null)
         if (points.length > 0) return { points, source: 'endpoint' }

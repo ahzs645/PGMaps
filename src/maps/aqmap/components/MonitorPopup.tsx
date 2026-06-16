@@ -128,6 +128,11 @@ export function MonitorPopup({ monitor, locale, onClose }: { monitor: AirMonitor
           <div className="mt-0.5 text-[11px] italic text-gray-500">
             {monitorTypeLabel} {translate('popup.monitor', locale)}
           </div>
+          {monitor.forecastZoneName && (
+            <div className="mt-1 text-[11px] text-gray-500">
+              {translate('popup.forecastZone', locale)}: <span className="font-medium text-gray-700">{monitor.forecastZoneName}</span>
+            </div>
+          )}
         </div>
 
         {/* Status chip + observation timestamp */}
@@ -262,6 +267,11 @@ export function MonitorTooltip({ monitor, locale }: { monitor: AirMonitor; local
       <div className="text-xs">
         <div className="tooltip_title truncate font-semibold text-foreground">{monitor.name}</div>
         <div className="mt-0.5 text-[11px] italic text-muted-foreground">{monitorTypeLabel} {translate('popup.monitor', locale)}</div>
+        {monitor.forecastZoneName && (
+          <div className="mt-0.5 text-[11px] text-muted-foreground">
+            {translate('popup.forecastZone', locale)}: <span className="font-medium text-foreground">{monitor.forecastZoneName}</span>
+          </div>
+        )}
         <div className="mt-1 text-[11px] text-muted-foreground">
           <span dangerouslySetInnerHTML={{ __html: translate('popup.observedAsOf', locale) }} />{' '}
           {formatLocalizedDate(monitor.dateObserved, locale)}

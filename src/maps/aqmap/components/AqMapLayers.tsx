@@ -241,6 +241,10 @@ function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): s
   `
 }
 
+function getFirstMonitorLayerId(map: maplibregl.Map): string | undefined {
+  return map.getStyle().layers?.find((layer) => layer.id.startsWith('aqmap-monitor-'))?.id
+}
+
 export function WmsRasterLayer({
   definition,
   visible,
@@ -734,6 +738,7 @@ export function ForecastZonesVectorLayer({ visible }: { visible: boolean }) {
 
   useEffect(() => {
     if (!isLoaded || !map || !visible || !data) return
+    const beforeMonitorLayerId = getFirstMonitorLayerId(map)
 
     if (!map.getSource(sourceId)) {
       map.addSource(sourceId, {
@@ -756,7 +761,7 @@ export function ForecastZonesVectorLayer({ visible }: { visible: boolean }) {
             0.34,
           ],
         },
-      })
+      }, beforeMonitorLayerId)
     }
 
     if (!map.getLayer(lineLayerId)) {
@@ -779,7 +784,7 @@ export function ForecastZonesVectorLayer({ visible }: { visible: boolean }) {
             2.2,
           ],
         },
-      })
+      }, beforeMonitorLayerId)
     }
 
     const popup = new maplibregl.Popup({

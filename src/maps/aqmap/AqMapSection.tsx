@@ -34,12 +34,13 @@ import {
 import { exportAqmap, type ExportFormat } from './lib/exportMap'
 import {
   BASEMAP_STYLES,
+  FORECAST_ZONES_VECTOR_URL,
   REVEAL_CLUSTER_DEFAULTS,
   URL_UPDATE_DELAY_MS,
   clampRevealClusterMaxZoom,
   clampRevealClusterRadius,
 } from './lib/aqMapConstants'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from './lib/aqMapTypes'
+import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZoneFeatureProperties, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from './lib/aqMapTypes'
 import { FloatingLayerControl, MapTimestamp, MapUtilityControls, ScaleBar } from './components/AqMapControls'
 import { AqMonitorLegend } from './components/AqMapLegends'
 import { AqMapSidebar } from './components/AqMapSidebar'
@@ -48,6 +49,41 @@ import { MonitorPopup, MonitorTooltip } from './components/MonitorPopup'
 import { WindCanvasLayer } from './components/WindCanvasLayer'
 import { VectorWindBarbLayer } from './components/VectorWindBarbLayer'
 import type maplibregl from 'maplibre-gl'
+
+type ForecastZoneFeature = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>
+type ForecastZoneCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>
+
+function pointInRing(lng: number, lat: number, ring: GeoJSON.Position[]): boolean {
+  let inside = false
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
+    const xi = Number(ring[index][0])
+    const yi = Number(ring[index][1])
+    const xj = Number(ring[previous][0])
+    const yj = Number(ring[previous][1])
+    const intersects = ((yi > lat) !== (yj > lat)) && (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi)
+    if (intersects) inside = !inside
+  }
+  return inside
+}
+
+function pointInPolygonCoordinates(lng: number, lat: number, rings: GeoJSON.Position[][]): boolean {
+  if (!rings.length || !pointInRing(lng, lat, rings[0])) return false
+  return !rings.slice(1).some((hole) => pointInRing(lng, lat, hole))
+}
+
+function pointInForecastZone(monitor: AirMonitor, zone: ForecastZoneFeature): boolean {
+  const { longitude, latitude } = monitor
+  const { geometry } = zone
+  if (geometry.type === 'Polygon') {
+    return pointInPolygonCoordinates(longitude, latitude, geometry.coordinates)
+  }
+  return geometry.coordinates.some((polygon) => pointInPolygonCoordinates(longitude, latitude, polygon))
+}
+
+function getForecastZoneName(properties: ForecastZoneFeatureProperties): string | null {
+  const name = String(properties.NAME ?? properties.NOM ?? '').trim()
+  return name || null
+}
 
 export default function AqMapSection() {
   const { resolvedTheme } = useTheme()
@@ -119,9 +155,23 @@ export default function AqMapSection() {
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [hoveredMonitor, setHoveredMonitor] = useState<AirMonitor | null>(null)
   const [exportStatus, setExportStatus] = useState<{ format: ExportFormat | null; error: string | null }>({ format: null, error: null })
+  const [forecastZoneData, setForecastZoneData] = useState<ForecastZoneCollection | null>(null)
+  const [forecastZoneError, setForecastZoneError] = useState<string | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
-  const latestDate = monitors
+  const enrichedMonitors = useMemo<AirMonitor[]>(() => {
+    if (!forecastZoneData) return monitors
+    return monitors.map((monitor) => {
+      const zone = forecastZoneData.features.find((feature) => pointInForecastZone(monitor, feature))
+      if (!zone) return monitor
+      return {
+        ...monitor,
+        forecastZoneCode: String(zone.properties?.CLC ?? '').trim() || null,
+        forecastZoneName: getForecastZoneName(zone.properties),
+      }
+    })
+  }, [forecastZoneData, monitors])
+  const latestDate = enrichedMonitors
     .map((monitor) => monitor.dateObserved)
     .filter((date): date is string => Boolean(date))
     .sort()
@@ -136,6 +186,26 @@ export default function AqMapSection() {
     }
     return next
   }, [modelledSmokeMode, visibleWmsLayers])
+
+  useEffect(() => {
+    if (!visibleWmsLayers.has('forecastZones') || forecastZoneData || forecastZoneError) return
+    const controller = new AbortController()
+
+    fetch(FORECAST_ZONES_VECTOR_URL, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to load forecast zones: ${response.status}`)
+        return response.json()
+      })
+      .then((payload) => setForecastZoneData(payload as ForecastZoneCollection))
+      .catch((err) => {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Forecast zone monitor join failed', err)
+          setForecastZoneError((err as Error).message)
+        }
+      })
+
+    return () => controller.abort()
+  }, [forecastZoneData, forecastZoneError, visibleWmsLayers])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -276,10 +346,19 @@ export default function AqMapSection() {
 
   const toggleWind = useCallback(() => setWindVisible((value) => !value), [])
   const toggleVectorWindBarbs = useCallback(() => setVectorWindBarbsVisible((value) => !value), [])
+  const selectedMonitorWithZone = useMemo(() => {
+    if (!selectedMonitor) return null
+    return enrichedMonitors.find((monitor) => (
+      monitor.id === selectedMonitor.id
+      && monitor.network === selectedMonitor.network
+      && monitor.latitude === selectedMonitor.latitude
+      && monitor.longitude === selectedMonitor.longitude
+    )) ?? selectedMonitor
+  }, [enrichedMonitors, selectedMonitor])
 
   const sidebar = (
     <AqMapSidebar
-      monitors={monitors}
+      monitors={enrichedMonitors}
       smokeLayers={smokeLayers}
       visibleGroups={visibleGroups}
       onToggleGroup={toggleGroup}
@@ -385,7 +464,7 @@ export default function AqMapSection() {
           <VectorWindBarbLayer visible={vectorWindBarbsVisible} basemap={basemap} />
           <AqMonitorLayer
             key={iconMode}
-            monitors={monitors}
+            monitors={enrichedMonitors}
             visibleGroups={visibleGroups}
             iconMode={iconMode}
             clusterColorScheme={clusterColorScheme}
@@ -395,13 +474,13 @@ export default function AqMapSection() {
             onMonitorClick={handleMonitorClick}
             onMonitorHover={setHoveredMonitor}
           />
-          {hoveredMonitor && selectedMonitor !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} locale={locale} />}
-          {selectedMonitor && (!isMobileViewport || mobileFeatureDisplay === 'popup') && (
-            <MonitorPopup monitor={selectedMonitor} locale={locale} onClose={() => setSelectedMonitor(null)} />
+          {hoveredMonitor && selectedMonitorWithZone !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} locale={locale} />}
+          {selectedMonitorWithZone && (!isMobileViewport || mobileFeatureDisplay === 'popup') && (
+            <MonitorPopup monitor={selectedMonitorWithZone} locale={locale} onClose={() => setSelectedMonitor(null)} />
           )}
-          {selectedMonitor && isMobileViewport && mobileFeatureDisplay === 'card' && (
+          {selectedMonitorWithZone && isMobileViewport && mobileFeatureDisplay === 'card' && (
             <MobileAqMonitorFeatureCard
-              monitor={selectedMonitor}
+              monitor={selectedMonitorWithZone}
               locale={locale}
               onClose={() => setSelectedMonitor(null)}
             />
@@ -486,9 +565,10 @@ function MobileAqMonitorFeatureCard({
           {[
             { label: 'Observed', value: formatLocalizedDate(monitor.dateObserved, locale) },
             { label: 'PM2.5', value: `${formatAqmapPm25Localized(pm25, locale)} ${translate('aqhi.unit', locale)}` },
+            monitor.forecastZoneName ? { label: translate('popup.forecastZone', locale), value: monitor.forecastZoneName } : null,
             { label: translate('popup.healthMessage', locale), value: health.heading },
             { label: 'Network', value: monitor.network },
-          ].map((row) => (
+          ].filter((row): row is { label: string; value: string } => row !== null).map((row) => (
             <div key={row.label} className="flex items-start justify-between gap-3">
               <span className="text-muted-foreground">{row.label}</span>
               <span className="max-w-[12rem] text-right font-medium text-foreground">{row.value}</span>

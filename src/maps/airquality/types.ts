@@ -21,6 +21,8 @@ export interface AirMonitor {
   aqhiValue?: number | null
   aqhiOneHourValue?: number | null
   aqhiTwentyFourHourValue?: number | null
+  forecastZoneCode?: string | null
+  forecastZoneName?: string | null
   metadata?: {
     temperature?: number | null
     humidity?: number | null

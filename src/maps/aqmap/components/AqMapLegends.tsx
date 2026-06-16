@@ -49,7 +49,7 @@ export function AqMonitorLegend({
   vectorWindBarbsVisible: boolean
   locale: AqmapLocale
 }) {
-  const visibleWms = WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key) && (layer.legendUrl || layer.key === 'activeFires'))
+  const visibleWms = WMS_LAYERS.filter((layer) => layer.key !== 'forecastZones' && visibleWmsLayers.has(layer.key) && (layer.legendUrl || layer.key === 'activeFires'))
   const visibleSmoke = smokeLayers.filter((layer) => visibleSmokeLayers.has(layer.key))
   return (
     <MapLegendPanel

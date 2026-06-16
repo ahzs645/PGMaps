@@ -86,7 +86,6 @@ export const WMS_LAYERS: WmsLayerDefinition[] = [
     ],
     opacity: 0.78,
     attribution: 'ECCC GeoMet',
-    legendUrl: 'https://geo.weather.gc.ca/geomet?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=Public-Standard-Forecast-Zones&STYLE=Public-Standard-Forecast-Zones&FORMAT=image/png',
     legendPosition: 'bottomleft',
   },
 ]

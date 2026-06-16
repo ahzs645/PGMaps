@@ -242,7 +242,7 @@ export function AqMapSidebar({
           <section>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.wmsLegends', locale)}</div>
             <div className="space-y-3">
-              {WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key) && (layer.key !== 'modelledPm25' || modelledSmokeMode === 'raster')).map((layer) => {
+              {WMS_LAYERS.filter((layer) => layer.key !== 'forecastZones' && visibleWmsLayers.has(layer.key) && (layer.key !== 'modelledPm25' || modelledSmokeMode === 'raster')).map((layer) => {
                 const label = localizeWmsLabel(layer.key, locale)
                 return (
                   <div key={layer.key}>

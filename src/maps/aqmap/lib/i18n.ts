@@ -67,6 +67,7 @@ const EN: StringMap = {
 
   'popup.monitor': 'monitor',
   'popup.observedAsOf': 'Observed PM₂.₅ as of:',
+  'popup.forecastZone': 'Forecast zone',
   'popup.readings': 'PM₂.₅ averages',
   'popup.tenMinAvg': '10-min average',
   'popup.oneHourAvg': '1-hour average',
@@ -139,6 +140,22 @@ const EN: StringMap = {
   'plot.noData': 'No plot data available',
   'plot.yAxis': 'PM2.5 (µg m⁻³)',
   'plot.tooltipLabel': 'PM2.5',
+
+  'popup.compare': 'Compare…',
+  'popup.compare.internal': 'Internal Sensors',
+  'popup.compare.fem': 'With Nearby FEM',
+  'plot.ab.title': 'Internal sensor A/B comparison',
+  'plot.ab.x': 'Channel B (µg m⁻³)',
+  'plot.ab.y': 'Channel A (µg m⁻³)',
+  'plot.ab.valid': 'Valid',
+  'plot.ab.invalid': 'Invalid',
+  'plot.fem.title': 'PurpleAir vs nearby FEM',
+  'plot.fem.x': 'PurpleAir PM2.5 (µg m⁻³)',
+  'plot.fem.y': 'FEM PM2.5 (µg m⁻³)',
+  'plot.fem.raw': 'Raw PA',
+  'plot.fem.corrected': 'Corrected PA',
+  'plot.fem.comparedWith': 'Compared with {name} (FEM ~{dist} km away)',
+  'plot.fem.none': 'No nearby FEM monitor available.',
 }
 
 const FR: StringMap = {
@@ -206,6 +223,7 @@ const FR: StringMap = {
 
   'popup.monitor': 'moniteur',
   'popup.observedAsOf': 'PM₂,₅ observée à :',
+  'popup.forecastZone': 'Zone de prévision',
   'popup.readings': 'Moyennes PM₂,₅',
   'popup.tenMinAvg': 'Moyenne 10 min',
   'popup.oneHourAvg': 'Moyenne 1 h',
@@ -278,6 +296,22 @@ const FR: StringMap = {
   'plot.noData': 'Aucune donnée à tracer',
   'plot.yAxis': 'PM2,5 (µg m⁻³)',
   'plot.tooltipLabel': 'PM2,5',
+
+  'popup.compare': 'Comparer…',
+  'popup.compare.internal': 'Capteurs internes',
+  'popup.compare.fem': 'Avec FEM à proximité',
+  'plot.ab.title': 'Comparaison des capteurs internes A/B',
+  'plot.ab.x': 'Canal B (µg m⁻³)',
+  'plot.ab.y': 'Canal A (µg m⁻³)',
+  'plot.ab.valid': 'Valides',
+  'plot.ab.invalid': 'Non valides',
+  'plot.fem.title': 'PurpleAir vs FEM à proximité',
+  'plot.fem.x': 'PM2,5 PurpleAir (µg m⁻³)',
+  'plot.fem.y': 'PM2,5 FEM (µg m⁻³)',
+  'plot.fem.raw': 'PA brute',
+  'plot.fem.corrected': 'PA corrigée',
+  'plot.fem.comparedWith': 'Comparé avec {name} (FEM à ~{dist} km)',
+  'plot.fem.none': 'Aucun moniteur FEM à proximité.',
 }
 
 const STRINGS: Record<AqmapLocale, StringMap> = { en: EN, fr: FR }
