@@ -1,21 +1,30 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { type StyleSpecification } from 'maplibre-gl'
 import {
   Camera,
+  Check,
+  Coffee,
   Copy,
   Eye,
   Flag,
   Layers,
   MapPin,
+  MousePointer2,
+  Mountain,
   Palette,
   PanelRight,
   RotateCcw,
+  Save,
+  Settings,
   Share2,
   SlidersHorizontal,
   Sparkles,
   Spline,
+  Star,
+  Trash2,
   Utensils,
   Waves,
+  X,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -32,14 +41,18 @@ import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import {
-  MapBadgeMarker,
+  EditorMarkerView,
+  MapClickHandler,
   MapCurvePath,
-  MapIconPin,
   MapStoryPanel,
   MapStorySection,
   MapTitleChip,
   MapToolRail,
   MapToolRailButton,
+  serializeEditorMap,
+  type EditorMarker,
+  type EditorMarkerVariant,
+  type EditorPath,
 } from '@/components/ui/map-story'
 import { type UrlCodec, useUrlState } from '@/hooks/useUrlState'
 import { cn } from '@/lib/utils'
@@ -113,26 +126,48 @@ const DESIGN_CENTER = PG_CENTER
 const MARKER_COORDINATE = { longitude: PG_CENTER[0], latitude: PG_CENTER[1] }
 const DESIGN_STATE_KEYS = Object.keys(SHARED_BASEMAP_CAPTURE) as Array<keyof DesignState>
 
-type SampleMarker = {
-  id: string
-  longitude: number
-  latitude: number
-  variant: 'badge' | 'pin'
-  label: string
-  icon: React.ReactNode
+// Serializable icon registry — editor markers store a key, not a React node.
+const MARKER_ICONS = {
+  flag: Flag,
+  waves: Waves,
+  utensils: Utensils,
+  camera: Camera,
+  pin: MapPin,
+  mountain: Mountain,
+  coffee: Coffee,
+  star: Star,
+} as const
+type MarkerIconKey = keyof typeof MARKER_ICONS
+const MARKER_ICON_KEYS = Object.keys(MARKER_ICONS) as MarkerIconKey[]
+
+function markerIcon(key: string): React.ReactNode {
+  const Icon = MARKER_ICONS[key as MarkerIconKey] ?? MapPin
+  return <Icon />
 }
 
-// tasmap-style on-map markers spread across Prince George for the overlay demo.
-const SAMPLE_MARKERS: SampleMarker[] = [
-  { id: 'start', longitude: -122.815, latitude: 53.9225, variant: 'badge', label: 'Start', icon: <Flag /> },
-  { id: 'river', longitude: -122.731, latitude: 53.9205, variant: 'pin', label: 'Fraser River', icon: <Waves /> },
-  { id: 'market', longitude: -122.7245, latitude: 53.8975, variant: 'pin', label: 'Market', icon: <Utensils /> },
-  { id: 'lookout', longitude: -122.804, latitude: 53.8865, variant: 'badge', label: 'Lookout', icon: <Camera /> },
+const PATH_COLOR = '#ff9800'
+const DEFAULT_MARKER_FILL = '#2563eb'
+const DEFAULT_MARKER_INSET = '#f8fafc'
+
+// Seed markers + route — now editable studio state, not constants.
+const INITIAL_MARKERS: EditorMarker[] = [
+  { id: 'start', longitude: -122.815, latitude: 53.9225, variant: 'badge', label: 'Start', icon: 'flag', color1: DEFAULT_MARKER_FILL, color2: DEFAULT_MARKER_INSET, size: 44 },
+  { id: 'river', longitude: -122.731, latitude: 53.9205, variant: 'pin', label: '', icon: 'waves', color1: DEFAULT_MARKER_FILL, color2: DEFAULT_MARKER_INSET, size: 44 },
+  { id: 'market', longitude: -122.7245, latitude: 53.8975, variant: 'pin', label: '', icon: 'utensils', color1: DEFAULT_MARKER_FILL, color2: DEFAULT_MARKER_INSET, size: 44 },
+  { id: 'lookout', longitude: -122.804, latitude: 53.8865, variant: 'badge', label: 'Lookout', icon: 'camera', color1: DEFAULT_MARKER_FILL, color2: DEFAULT_MARKER_INSET, size: 44 },
 ]
 
-// The curved route threads through the markers in tour order.
-const PATH_POINTS: Array<[number, number]> = SAMPLE_MARKERS.map((marker) => [marker.longitude, marker.latitude])
-const PATH_COLOR = '#ff9800'
+const INITIAL_PATHS: EditorPath[] = [
+  {
+    id: 'route',
+    points: INITIAL_MARKERS.map((marker) => [marker.longitude, marker.latitude] as [number, number]),
+    curved: true,
+    dashed: true,
+    arrow: true,
+    color: PATH_COLOR,
+    width: 3,
+  },
+]
 
 function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
@@ -480,6 +515,135 @@ export default function DevDesign() {
   // Which tool-rail flyout is open (null = none).
   const [openTool, setOpenTool] = useState<string | null>(null)
 
+  // --- Editor state -------------------------------------------------------
+  const [tool, setTool] = useState<'select' | 'marker' | 'path'>('select')
+  const [markers, setMarkers] = useState<EditorMarker[]>(INITIAL_MARKERS)
+  const [paths, setPaths] = useState<EditorPath[]>(INITIAL_PATHS)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [activePathId, setActivePathId] = useState<string | null>(null)
+  const [markerDraft, setMarkerDraft] = useState<{ variant: EditorMarkerVariant; icon: MarkerIconKey; size: number }>({
+    variant: 'pin',
+    icon: 'pin',
+    size: 44,
+  })
+  const [pathDraft, setPathDraft] = useState<{ curved: boolean; dashed: boolean; arrow: boolean; color: string }>({
+    curved: true,
+    dashed: true,
+    arrow: true,
+    color: PATH_COLOR,
+  })
+  // Unsaved-changes indicator for the Save tool (tasmap's dirty dot).
+  const [dirty, setDirty] = useState(false)
+  const editsMountedRef = useRef(false)
+  useEffect(() => {
+    if (!editsMountedRef.current) {
+      editsMountedRef.current = true
+      return
+    }
+    setDirty(true)
+  }, [markers, paths])
+
+  const newId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `id-${markers.length + paths.length}-${Date.now()}`)
+  const updateMarker = (id: string, patch: Partial<EditorMarker>) =>
+    setMarkers((current) => current.map((marker) => (marker.id === id ? { ...marker, ...patch } : marker)))
+  const selectedMarker = markers.find((marker) => marker.id === selectedId) ?? null
+
+  // Toggling a path-draft option also updates the path currently being drawn.
+  const updatePathDraft = (patch: Partial<typeof pathDraft>) => {
+    setPathDraft((current) => ({ ...current, ...patch }))
+    if (activePathId) {
+      setPaths((current) => current.map((path) => (path.id === activePathId ? { ...path, ...patch } : path)))
+    }
+  }
+
+  const enterTool = (next: 'select' | 'marker' | 'path', flyout: string | null) => {
+    setTool(next)
+    setOpenTool(flyout)
+    setSelectedId(null)
+    if (next !== 'path') setActivePathId(null)
+  }
+
+  const handleMapClick = (lngLat: [number, number]) => {
+    if (tool === 'marker') {
+      const marker: EditorMarker = {
+        id: newId(),
+        longitude: lngLat[0],
+        latitude: lngLat[1],
+        variant: markerDraft.variant,
+        label: markerDraft.variant === 'badge' ? 'Label' : '',
+        icon: markerDraft.icon,
+        color1: design.primaryColor,
+        color2: design.backgroundColor,
+        size: markerDraft.size,
+      }
+      setMarkers((current) => [...current, marker])
+      return
+    }
+    if (tool === 'path') {
+      if (!activePathId) {
+        const id = newId()
+        setPaths((current) => [...current, { id, points: [lngLat], ...pathDraft, width: 3 }])
+        setActivePathId(id)
+      } else {
+        setPaths((current) =>
+          current.map((path) => (path.id === activePathId ? { ...path, points: [...path.points, lngLat] } : path)),
+        )
+      }
+      return
+    }
+    setSelectedId(null)
+  }
+
+  const exportMap = () => {
+    const data = serializeEditorMap({
+      markers,
+      paths,
+      theme: {
+        primaryColor: design.primaryColor,
+        backgroundColor: design.backgroundColor,
+        waterColor: design.waterColor,
+        landcoverColor: design.landcoverColor,
+      },
+    })
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'pgmap.json'
+    anchor.click()
+    URL.revokeObjectURL(url)
+    setDirty(false)
+  }
+
+  // Keyboard: Esc cancels, Delete removes selection, Cmd/Ctrl+S exports.
+  const exportRef = useRef(exportMap)
+  exportRef.current = exportMap
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const typing = target ? /^(INPUT|TEXTAREA)$/.test(target.tagName) : false
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        exportRef.current()
+        return
+      }
+      if (event.key === 'Escape') {
+        setSelectedId(null)
+        setActivePathId(null)
+        setTool('select')
+        setOpenTool(null)
+        return
+      }
+      if (!typing && (event.key === 'Delete' || event.key === 'Backspace') && selectedId) {
+        event.preventDefault()
+        setMarkers((current) => current.filter((marker) => marker.id !== selectedId))
+        setSelectedId(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedId])
+
   useEffect(() => {
     let cancelled = false
 
@@ -752,25 +916,51 @@ export default function DevDesign() {
               </MapMarker>
 
               {design.showMarkers
-                ? SAMPLE_MARKERS.map((marker) => (
+                ? markers.map((marker) => (
                     <MapMarker
                       key={marker.id}
                       longitude={marker.longitude}
                       latitude={marker.latitude}
-                      anchor="bottom"
+                      anchor={marker.variant === 'dot' ? 'center' : 'bottom'}
+                      draggable={tool === 'select'}
+                      onClick={() => {
+                        setTool('select')
+                        setSelectedId(marker.id)
+                      }}
+                      onDragEnd={({ lng, lat }) => updateMarker(marker.id, { longitude: lng, latitude: lat })}
                     >
                       <MarkerContent>
-                        {marker.variant === 'badge' ? (
-                          <MapBadgeMarker label={marker.label} icon={marker.icon} color={design.primaryColor} />
-                        ) : (
-                          <MapIconPin icon={marker.icon} color={design.markerFill} />
-                        )}
+                        <EditorMarkerView
+                          variant={marker.variant}
+                          label={marker.label}
+                          icon={markerIcon(marker.icon)}
+                          color1={marker.color1}
+                          color2={marker.color2}
+                          size={marker.size}
+                          selected={selectedId === marker.id}
+                        />
                       </MarkerContent>
                     </MapMarker>
                   ))
                 : null}
 
-              {design.showPath ? <MapCurvePath points={PATH_POINTS} color={PATH_COLOR} /> : null}
+              {design.showPath
+                ? paths.map((path) =>
+                    path.points.length >= 2 ? (
+                      <MapCurvePath
+                        key={path.id}
+                        points={path.points}
+                        curved={path.curved}
+                        dashed={path.dashed}
+                        arrow={path.arrow}
+                        color={path.color}
+                        width={path.width}
+                      />
+                    ) : null,
+                  )
+                : null}
+
+              <MapClickHandler onClick={handleMapClick} cursor={tool === 'select' ? '' : 'crosshair'} />
             </AppMap>
           ) : (
             <StaticMapPreview design={design} />
@@ -838,6 +1028,12 @@ export default function DevDesign() {
           {design.showToolRail ? (
             <MapToolRail>
               <MapToolRailButton
+                icon={<MousePointer2 />}
+                label="Select / move"
+                active={tool === 'select' && openTool === null}
+                onClick={() => enterTool('select', null)}
+              />
+              <MapToolRailButton
                 icon={<Palette />}
                 label="Theme & colors"
                 active={openTool === 'palette'}
@@ -886,21 +1082,133 @@ export default function DevDesign() {
               />
               <MapToolRailButton
                 icon={<MapPin />}
-                label="Toggle markers"
-                active={design.showMarkers}
-                onClick={() => {
-                  setOpenTool(null)
-                  updateDesign('showMarkers', !design.showMarkers)
-                }}
+                label="Marker tool — click map to place"
+                active={tool === 'marker'}
+                onClick={() => enterTool('marker', 'marker')}
+                flyoutOpen={openTool === 'marker'}
+                flyout={
+                  <div className="w-64 space-y-3 rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur">
+                    <div>
+                      <div className="mb-1.5 text-xs font-medium text-muted-foreground">Marker type</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['pin', 'dot', 'badge'] as const).map((variant) => (
+                          <button
+                            key={variant}
+                            type="button"
+                            onClick={() => setMarkerDraft((current) => ({ ...current, variant }))}
+                            className={cn(
+                              'rounded-md border px-2 py-1.5 text-xs capitalize transition-colors',
+                              markerDraft.variant === variant
+                                ? 'border-primary text-primary'
+                                : 'border-input text-muted-foreground hover:bg-accent',
+                            )}
+                          >
+                            {variant}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1.5 text-xs font-medium text-muted-foreground">Icon</div>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {MARKER_ICON_KEYS.map((key) => {
+                          const Icon = MARKER_ICONS[key]
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setMarkerDraft((current) => ({ ...current, icon: key }))}
+                              aria-label={key}
+                              className={cn(
+                                'flex items-center justify-center rounded-md border p-2 transition-colors',
+                                markerDraft.icon === key
+                                  ? 'border-primary text-primary'
+                                  : 'border-input text-muted-foreground hover:bg-accent',
+                              )}
+                            >
+                              <Icon className="h-4 w-4" />
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <Field label={`Size ${markerDraft.size}px`}>
+                      <Slider
+                        value={[markerDraft.size]}
+                        min={28}
+                        max={64}
+                        step={1}
+                        onValueChange={([value]) =>
+                          setMarkerDraft((current) => ({ ...current, size: value ?? current.size }))
+                        }
+                      />
+                    </Field>
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      Click the map to drop a marker. New markers use the current Primary / Background colors.
+                    </p>
+                  </div>
+                }
               />
               <MapToolRailButton
                 icon={<Spline />}
-                label="Toggle route path"
-                active={design.showPath}
-                onClick={() => {
-                  setOpenTool(null)
-                  updateDesign('showPath', !design.showPath)
-                }}
+                label="Path tool — click map to add points"
+                active={tool === 'path'}
+                onClick={() => enterTool('path', 'path')}
+                flyoutOpen={openTool === 'path'}
+                flyout={
+                  <div className="w-60 space-y-3 rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur">
+                    <div className="grid gap-2">
+                      <ToggleRow label="Curved" checked={pathDraft.curved} onChange={(checked) => updatePathDraft({ curved: checked })} />
+                      <ToggleRow label="Dashed" checked={pathDraft.dashed} onChange={(checked) => updatePathDraft({ dashed: checked })} />
+                      <ToggleRow label="Arrow end" checked={pathDraft.arrow} onChange={(checked) => updatePathDraft({ arrow: checked })} />
+                    </div>
+                    <ColorField label="Color" value={pathDraft.color} onChange={(value) => updatePathDraft({ color: value })} />
+                    <p className="text-[11px] leading-snug text-muted-foreground">Click the map to add points to the path.</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      disabled={!activePathId}
+                      onClick={() => {
+                        setActivePathId(null)
+                        enterTool('select', null)
+                      }}
+                    >
+                      <Check className="h-4 w-4" />
+                      Finish path
+                    </Button>
+                  </div>
+                }
+              />
+              <MapToolRailButton
+                icon={<Settings />}
+                label="Settings"
+                active={openTool === 'settings'}
+                onClick={() => setOpenTool((current) => (current === 'settings' ? null : 'settings'))}
+                flyoutOpen={openTool === 'settings'}
+                flyout={
+                  <div className="w-56 space-y-2 rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur">
+                    <ToggleRow label="Story panel" checked={design.showStory} onChange={(checked) => updateDesign('showStory', checked)} />
+                    <ToggleRow label="Focus area" checked={design.showFocusArea} onChange={(checked) => updateDesign('showFocusArea', checked)} />
+                    <ToggleRow label="Markers" checked={design.showMarkers} onChange={(checked) => updateDesign('showMarkers', checked)} />
+                    <ToggleRow label="Paths" checked={design.showPath} onChange={(checked) => updateDesign('showPath', checked)} />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setMarkers([])
+                        setPaths([])
+                        setActivePathId(null)
+                        setSelectedId(null)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Clear all
+                    </Button>
+                  </div>
+                }
               />
               <MapToolRailButton
                 icon={<Share2 />}
@@ -911,15 +1219,79 @@ export default function DevDesign() {
                 }}
               />
               <MapToolRailButton
-                icon={<RotateCcw />}
-                label="Reset design"
-                badge={!designEqualsDefault(design)}
+                icon={<Save />}
+                label="Download map JSON (⌘S)"
+                badge={dirty}
                 onClick={() => {
                   setOpenTool(null)
-                  setDesign(SHARED_BASEMAP_CAPTURE)
+                  exportMap()
                 }}
               />
             </MapToolRail>
+          ) : null}
+
+          {selectedMarker ? (
+            <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-border bg-background/95 px-3 py-2 shadow-xl backdrop-blur">
+              <span className="text-xs font-medium text-muted-foreground">Marker</span>
+              <div className="flex items-center gap-1.5">
+                {(['pin', 'dot', 'badge'] as const).map((variant) => (
+                  <button
+                    key={variant}
+                    type="button"
+                    onClick={() => updateMarker(selectedMarker.id, { variant })}
+                    className={cn(
+                      'rounded-md border px-2 py-1 text-[11px] capitalize transition-colors',
+                      selectedMarker.variant === variant
+                        ? 'border-primary text-primary'
+                        : 'border-input text-muted-foreground hover:bg-accent',
+                    )}
+                  >
+                    {variant}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="color"
+                value={selectedMarker.color1}
+                onChange={(event) => updateMarker(selectedMarker.id, { color1: event.target.value })}
+                className="h-7 w-8 cursor-pointer rounded border border-border bg-transparent p-0.5"
+                aria-label="Fill color"
+              />
+              <input
+                type="color"
+                value={selectedMarker.color2}
+                onChange={(event) => updateMarker(selectedMarker.id, { color2: event.target.value })}
+                className="h-7 w-8 cursor-pointer rounded border border-border bg-transparent p-0.5"
+                aria-label="Icon color"
+              />
+              {selectedMarker.variant === 'badge' ? (
+                <input
+                  value={selectedMarker.label}
+                  onChange={(event) => updateMarker(selectedMarker.id, { label: event.target.value })}
+                  placeholder="Label"
+                  className="h-7 w-24 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setMarkers((current) => current.filter((marker) => marker.id !== selectedMarker.id))
+                  setSelectedId(null)
+                }}
+                className="text-destructive transition-colors hover:text-destructive/80"
+                aria-label="Delete marker"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           ) : null}
         </div>
 

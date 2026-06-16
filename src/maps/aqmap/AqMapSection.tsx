@@ -353,6 +353,10 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     setSelectedMonitor((current) => current?.id === monitor.id ? null : monitor)
   }, [])
 
+  const handleForecastZoneClick = useCallback(() => {
+    setSelectedMonitor(null)
+  }, [])
+
   const handleExport = useCallback(async (format: ExportFormat) => {
     if (!mapRef.current) return
     setExportStatus({ format, error: null })
@@ -499,7 +503,11 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
           <ModelledPm25VectorLayer visible={visibleWmsLayers.has('modelledPm25') && effModelledSmokeMode === 'vector'} />
           <FireDangerVectorLayer visible={visibleWmsLayers.has('fireDanger') && effFireDangerMode === 'vector'} />
           <FirePerimetersVectorLayer visible={visibleWmsLayers.has('firePerimeters') && effFirePerimetersMode === 'vector'} />
-          <ForecastZonesVectorLayer visible={visibleWmsLayers.has('forecastZones') && effForecastZonesMode === 'vector'} monitors={enrichedMonitors} />
+          <ForecastZonesVectorLayer
+            visible={visibleWmsLayers.has('forecastZones') && effForecastZonesMode === 'vector'}
+            monitors={enrichedMonitors}
+            onZoneClick={handleForecastZoneClick}
+          />
           <WindCanvasLayer visible={windVisible} basemap={basemap} />
           <VectorWindBarbLayer visible={vectorWindBarbsVisible} basemap={basemap} />
           <AqMonitorLayer

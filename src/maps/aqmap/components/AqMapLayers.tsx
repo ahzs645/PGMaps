@@ -46,19 +46,6 @@ interface AqMapFeatureProperties {
   online: boolean
 }
 
-const FORECAST_ZONE_COLORS = [
-  '#bae6fd',
-  '#bbf7d0',
-  '#fde68a',
-  '#fecaca',
-  '#ddd6fe',
-  '#fed7aa',
-  '#c7d2fe',
-  '#a7f3d0',
-  '#fbcfe8',
-  '#bfdbfe',
-]
-
 type AsciiGrid = {
   ncols: number
   nrows: number
@@ -90,14 +77,6 @@ const PM25_VECTOR_COLORS = [
   { value: 90, color: '#ca0713' },
   { value: 100, color: '#650205' },
 ] as const
-
-function sampleForecastZoneColor(value: string): string {
-  let hash = 0
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0
-  }
-  return FORECAST_ZONE_COLORS[hash % FORECAST_ZONE_COLORS.length]
-}
 
 function escapeHtml(value: string): string {
   return value
@@ -289,6 +268,37 @@ function mean(values: Array<number | null | undefined>): number | null {
 
 function formatMean(value: number | null): string {
   return value === null ? '-' : value.toFixed(1)
+}
+
+function getForecastZonePm25(
+  zone: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
+  monitors: AirMonitor[],
+): number | null {
+  return mean(
+    monitors
+      .filter((monitor) => monitorInForecastZone(monitor, zone))
+      .map((monitor) => getMonitorAqhiPm25(monitor)),
+  )
+}
+
+function styleForecastZoneData(
+  collection: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
+  monitors: AirMonitor[],
+): GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties & { fillColor: string; pm25: number | null }> {
+  return {
+    ...collection,
+    features: collection.features.map((feature) => {
+      const pm25 = getForecastZonePm25(feature, monitors)
+      return {
+        ...feature,
+        properties: {
+          ...feature.properties,
+          pm25,
+          fillColor: getAqhiColor(pm25),
+        },
+      }
+    }),
+  }
 }
 
 function formatForecastZoneSummaryPopup(
@@ -789,13 +799,22 @@ export function FirePerimetersVectorLayer({ visible }: { visible: boolean }) {
   return null
 }
 
-export function ForecastZonesVectorLayer({ visible, monitors }: { visible: boolean; monitors: AirMonitor[] }) {
+export function ForecastZonesVectorLayer({
+  visible,
+  monitors,
+  onZoneClick,
+}: {
+  visible: boolean
+  monitors: AirMonitor[]
+  onZoneClick?: () => void
+}) {
   const { map, isLoaded } = useMap()
   const sourceId = 'aqmap-forecast-zones-vector-source'
   const fillLayerId = 'aqmap-forecast-zones-vector-fill'
   const lineLayerId = 'aqmap-forecast-zones-vector-line'
-  const [data, setData] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties & { fillColor?: string }> | null>(null)
+  const [data, setData] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties> | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const styledData = useMemo(() => data ? styleForecastZoneData(data, monitors) : null, [data, monitors])
 
   useEffect(() => {
     if (!visible || data || error) return
@@ -808,19 +827,7 @@ export function ForecastZonesVectorLayer({ visible, monitors }: { visible: boole
       })
       .then((payload) => {
         const collection = payload as GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>
-        setData({
-          ...collection,
-          features: collection.features.map((feature, index) => {
-            const sampleKey = String(feature.properties?.CLC ?? feature.properties?.FEATURE_ID ?? index)
-            return {
-              ...feature,
-              properties: {
-                ...feature.properties,
-                fillColor: sampleForecastZoneColor(sampleKey),
-              },
-            }
-          }),
-        })
+        setData(collection)
       })
       .catch((err) => {
         if ((err as Error).name !== 'AbortError') {
@@ -833,14 +840,17 @@ export function ForecastZonesVectorLayer({ visible, monitors }: { visible: boole
   }, [data, error, visible])
 
   useEffect(() => {
-    if (!isLoaded || !map || !visible || !data) return
+    if (!isLoaded || !map || !visible || !styledData) return
     const beforeMonitorLayerId = getFirstMonitorLayerId(map)
 
     if (!map.getSource(sourceId)) {
       map.addSource(sourceId, {
         type: 'geojson',
-        data,
+        data: styledData,
       })
+    } else {
+      const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+      source?.setData(styledData)
     }
 
     if (!map.getLayer(fillLayerId)) {
@@ -904,7 +914,7 @@ export function ForecastZonesVectorLayer({ visible, monitors }: { visible: boole
       if (!feature) return null
       const featureId = String(feature.properties?.FEATURE_ID ?? '')
       const clc = String(feature.properties?.CLC ?? '')
-      return data.features.find((candidate) => (
+      return styledData.features.find((candidate) => (
         (featureId && candidate.properties?.FEATURE_ID === featureId)
         || (clc && candidate.properties?.CLC === clc)
       )) ?? null
@@ -961,6 +971,7 @@ export function ForecastZonesVectorLayer({ visible, monitors }: { visible: boole
       const zone = getZoneFromEvent(event)
       if (!zone) return
       popup.remove()
+      onZoneClick?.()
       clickPopup
         .setLngLat(event.lngLat)
         .setHTML(formatForecastZoneSummaryPopup(zone, monitors))
@@ -985,7 +996,7 @@ export function ForecastZonesVectorLayer({ visible, monitors }: { visible: boole
         // MapLibre can throw during style teardown.
       }
     }
-  }, [data, fillLayerId, isLoaded, lineLayerId, map, monitors, sourceId, visible])
+  }, [fillLayerId, isLoaded, lineLayerId, map, monitors, onZoneClick, sourceId, styledData, visible])
 
   return null
 }
