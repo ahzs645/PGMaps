@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMap } from '@/components/ui/map'
 import type { AirMonitor } from '@/maps/airquality'
-import { getAqhiColor, getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
+import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import type maplibregl from 'maplibre-gl'
 import type { SmokeLayerDefinition } from '../lib/smokeLayers'
 import type { WmsLayerDefinition } from '../lib/wmsLayers'
@@ -9,11 +9,13 @@ import type { AqMonitorGroup } from '../lib/monitorPresentation'
 import { getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
+import { getMonitorMarkerColors } from '../lib/markerColorSchemes'
 import {
   FIRE_DANGER_FILL_COLORS,
   FIRE_DANGER_VECTOR_URL,
 } from '../lib/aqMapConstants'
 import type {
+  AqMarkerColorScheme,
   AqMonitorIconMode,
   FireDangerFeatureProperties,
 } from '../lib/aqMapTypes'
@@ -256,12 +258,18 @@ export function AqMonitorLayer({
   monitors,
   visibleGroups,
   iconMode,
+  colorScheme,
+  clusterRadius,
+  clusterMaxZoom,
   onMonitorClick,
   onMonitorHover,
 }: {
   monitors: AirMonitor[]
   visibleGroups: Set<AqMonitorGroup>
   iconMode: AqMonitorIconMode
+  colorScheme: AqMarkerColorScheme
+  clusterRadius: number
+  clusterMaxZoom: number
   onMonitorClick: (monitor: AirMonitor) => void
   onMonitorHover: (monitor: AirMonitor | null) => void
 }) {
@@ -281,7 +289,7 @@ export function AqMonitorLayer({
         .map((monitor) => {
           const group = getMonitorGroup(monitor.network)
           const pm25 = getMonitorAqhiPm25(monitor)
-          const icon = getAqmapMarkerIcon(monitor)
+          const icon = getAqmapMarkerIcon(monitor, colorScheme)
           return {
             type: 'Feature',
             properties: {
@@ -296,7 +304,7 @@ export function AqMonitorLayer({
               status: monitor.status ?? '',
               pm25,
               aqhi: pm25,
-              color: getAqhiColor(pm25),
+              color: getMonitorMarkerColors(pm25, colorScheme).fill,
               markerText: '',
               iconId: icon.id,
               iconSize: icon.size,
@@ -310,7 +318,7 @@ export function AqMonitorLayer({
           }
         }),
     }
-  }, [monitors, visibleGroups])
+  }, [monitors, visibleGroups, colorScheme])
 
   useEffect(() => {
     if (!isLoaded || !map) return
@@ -361,7 +369,7 @@ export function AqMonitorLayer({
 
     async function addLayer() {
       const iconMap = new Map(monitors.map((monitor) => {
-        const icon = getAqmapMarkerIcon(monitor)
+        const icon = getAqmapMarkerIcon(monitor, colorScheme)
         return [icon.id, icon]
       }))
 
@@ -373,8 +381,8 @@ export function AqMonitorLayer({
           type: 'geojson',
           data: features,
           cluster: iconMode === 'revealed',
-          clusterMaxZoom: 10,
-          clusterRadius: 46,
+          clusterMaxZoom,
+          clusterRadius,
         })
       }
 
@@ -492,7 +500,7 @@ export function AqMonitorLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [clusterCountLayerId, clusterLayerId, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
+  }, [clusterCountLayerId, clusterLayerId, clusterMaxZoom, clusterRadius, colorScheme, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
 
   useEffect(() => {
     if (!isLoaded || !map) return

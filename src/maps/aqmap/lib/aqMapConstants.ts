@@ -5,6 +5,30 @@ import type { ExportFormat } from './exportMap'
 
 export const URL_UPDATE_DELAY_MS = 350
 
+// Reveal-mode clustering. Lower radius = clusters grab fewer monitors (more shown
+// individually); lower maxZoom = clusters break apart sooner as you zoom in.
+export const REVEAL_CLUSTER_DEFAULTS = {
+  radius: 28,
+  maxZoom: 8,
+}
+
+export const REVEAL_CLUSTER_BOUNDS = {
+  radius: { min: 8, max: 60, step: 2 },
+  maxZoom: { min: 4, max: 14, step: 1 },
+}
+
+export function clampRevealClusterRadius(value: number): number {
+  const { min, max } = REVEAL_CLUSTER_BOUNDS.radius
+  if (!Number.isFinite(value)) return REVEAL_CLUSTER_DEFAULTS.radius
+  return Math.min(max, Math.max(min, Math.round(value)))
+}
+
+export function clampRevealClusterMaxZoom(value: number): number {
+  const { min, max } = REVEAL_CLUSTER_BOUNDS.maxZoom
+  if (!Number.isFinite(value)) return REVEAL_CLUSTER_DEFAULTS.maxZoom
+  return Math.min(max, Math.max(min, Math.round(value)))
+}
+
 export const FIRE_DANGER_VECTOR_URL = 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=public:fdr_current_shp&outputFormat=application/json&srsName=EPSG:4326'
 
 export const FIRE_DANGER_FILL_COLORS: Record<number, string> = {
