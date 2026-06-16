@@ -213,6 +213,7 @@ async function handleGeometPm25Tile(res: ServerResponse, requestUrl: string) {
 }
 
 async function handleActiveFiresRoute(res: ServerResponse) {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const params = new URLSearchParams({
     service: 'WFS',
     version: '1.0.0',
@@ -220,6 +221,7 @@ async function handleActiveFiresRoute(res: ServerResponse) {
     typeName: 'public:cwfif_national_activefires',
     outputFormat: 'application/json',
     srsName: 'EPSG:4326',
+    CQL_FILTER: `record_start >= ${cutoff}`,
   })
 
   try {

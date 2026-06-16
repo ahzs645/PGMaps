@@ -355,23 +355,46 @@ function ActiveFiresLegend({
   )
 }
 
-function ActiveFiresLegendContent({ locale }: { locale: AqmapLocale }) {
+function ActiveFiresLegendContent({ locale: _locale }: { locale: AqmapLocale }) {
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <span className="relative flex size-4 shrink-0 items-center justify-center">
-          <span className="absolute size-4 rounded-full bg-red-500/20" />
-          <span className="size-2.5 rounded-full border border-white bg-red-600 shadow-sm" />
-        </span>
-        <span className="text-muted-foreground">{translate('legend.activeFires.current', locale)}</span>
+    <div className="space-y-2">
+      <div className="space-y-1">
+        <div className="text-[11px] font-medium text-foreground">Stage of Control</div>
+        <ActiveFireStageLegendItem color="#ef4444" label="Out of Control" />
+        <ActiveFireStageLegendItem color="#facc15" label="Being Held" />
+        <ActiveFireStageLegendItem color="#0ea5e9" label="Under Control" />
+        <ActiveFireStageLegendItem color="#d946ef" label="Out of Control (Monitored)" />
       </div>
-      <div className="flex items-center gap-2">
-        <span className="relative flex size-4 shrink-0 items-center justify-center">
-          <span className="absolute size-3.5 rotate-45 rounded-[2px] bg-orange-400/30" />
-          <span className="size-2 rotate-45 rounded-[1px] border border-white bg-orange-500 shadow-sm" />
-        </span>
-        <span className="text-muted-foreground">{translate('legend.activeFires.hotspot', locale)}</span>
+      <div className="space-y-1">
+        <div className="text-[11px] font-medium text-foreground">Fire Size</div>
+        <ActiveFireSizeLegendItem size="size-2" label="0 - 100ha" />
+        <ActiveFireSizeLegendItem size="size-3" label="100 - 1000ha" />
+        <ActiveFireSizeLegendItem size="size-4" label="> 1000ha" />
       </div>
+    </div>
+  )
+}
+
+function ActiveFireStageLegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <span
+        className="size-2.5 shrink-0 rounded-full border border-black/70"
+        style={{ backgroundColor: color }}
+        aria-hidden="true"
+      />
+      <span>{label}</span>
+    </div>
+  )
+}
+
+function ActiveFireSizeLegendItem({ size, label }: { size: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+        <span className={cn('rounded-full border border-black bg-white', size)} />
+      </span>
+      <span>{label}</span>
     </div>
   )
 }

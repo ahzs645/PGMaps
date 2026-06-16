@@ -130,7 +130,7 @@ export function RouletteModal({
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
-      <div className="flex h-[min(92dvh,760px)] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[90dvh] sm:max-w-lg sm:rounded-2xl">
+      <div className="flex h-[min(92dvh,760px)] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-lg sm:rounded-2xl">
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border p-4">
           <div className="min-w-0">
@@ -233,15 +233,28 @@ export function RouletteModal({
             <div className="rounded-xl border border-border bg-muted/50 p-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm text-muted-foreground">Options:</span>
-                <span
-                  className={`text-right text-sm leading-tight ${
-                    eligibleRestaurants.length > 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {eligibleRestaurants.length.toLocaleString()} available
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-right text-sm leading-tight ${
+                      eligibleRestaurants.length > 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    }`}
+                  >
+                    {eligibleRestaurants.length.toLocaleString()} available
+                  </span>
+                  {!hasSpun && !isSpinning && wheelSize !== 0 && eligibleRestaurants.length > wheelSize && (
+                    <button
+                      onClick={shuffleWheel}
+                      className="flex h-8 items-center gap-1.5 rounded-lg border border-input bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                    >
+                      <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Shuffle
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="mt-2 grid grid-cols-6 gap-1">
                   {wheelSizeOptions.map((size) => (
@@ -329,19 +342,6 @@ export function RouletteModal({
                   Spin Again
                 </button>
               </div>
-            )}
-
-            {/* Reshuffle button */}
-            {spinnerMode === 'wheel' && !hasSpun && !isSpinning && wheelSize !== 0 && eligibleRestaurants.length > wheelSize && (
-              <button
-                onClick={shuffleWheel}
-                className="mt-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 hover:bg-accent rounded-lg transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Shuffle ({eligibleRestaurants.length - wheelSize} more available)
-              </button>
             )}
 
             {/* Spin button for slot mode */}
