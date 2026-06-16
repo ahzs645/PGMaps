@@ -106,10 +106,16 @@ const EN: StringMap = {
   'smoke.tag': 'Smoke',
 
   'sidebar.wind': 'Global Wind Field',
+  'sidebar.vectorWindBarbs': 'Vector Wind Barbs',
   'wind.tag': 'Wind',
   'wind.legend.title': 'Wind speed',
   'wind.legend.min': '0',
   'wind.legend.max': '24+ m/s',
+  'windBarbs.legend.title': 'Wind barbs',
+  'windBarbs.legend.5kt': '5 kt',
+  'windBarbs.legend.10kt': '10 kt',
+  'windBarbs.legend.50kt': '50 kt',
+  'windBarbs.legend.note': 'Barbs show wind speed in knots and rotate with wind direction.',
 
   'wms.surfaceWinds': 'Surface Winds',
   'wms.modelledPm25': 'Modelled PM2.5',
@@ -239,10 +245,16 @@ const FR: StringMap = {
   'smoke.tag': 'Fumée',
 
   'sidebar.wind': 'Champ de vent mondial',
+  'sidebar.vectorWindBarbs': 'Barbules de vent vectorielles',
   'wind.tag': 'Vent',
   'wind.legend.title': 'Vitesse du vent',
   'wind.legend.min': '0',
   'wind.legend.max': '24+ m/s',
+  'windBarbs.legend.title': 'Barbules de vent',
+  'windBarbs.legend.5kt': '5 kt',
+  'windBarbs.legend.10kt': '10 kt',
+  'windBarbs.legend.50kt': '50 kt',
+  'windBarbs.legend.note': 'Les barbules indiquent la vitesse en noeuds et pivotent selon la direction du vent.',
 
   'wms.surfaceWinds': 'Vents de surface',
   'wms.modelledPm25': 'PM2,5 modélisé',

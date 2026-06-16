@@ -39,13 +39,14 @@ import {
   clampRevealClusterMaxZoom,
   clampRevealClusterRadius,
 } from './lib/aqMapConstants'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay } from './lib/aqMapTypes'
+import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from './lib/aqMapTypes'
 import { FloatingLayerControl, MapTimestamp, MapUtilityControls, ScaleBar } from './components/AqMapControls'
 import { AqMonitorLegend } from './components/AqMapLegends'
 import { AqMapSidebar } from './components/AqMapSidebar'
-import { ActiveFiresVectorLayer, AqMonitorLayer, FireDangerVectorLayer, FirePerimetersVectorLayer, ForecastZonesVectorLayer, SmokePolygonLayer, WmsRasterLayer } from './components/AqMapLayers'
+import { ActiveFiresVectorLayer, AqMonitorLayer, FireDangerVectorLayer, FirePerimetersVectorLayer, ForecastZonesVectorLayer, ModelledPm25VectorLayer, SmokePolygonLayer, WmsRasterLayer } from './components/AqMapLayers'
 import { MonitorPopup, MonitorTooltip } from './components/MonitorPopup'
 import { WindCanvasLayer } from './components/WindCanvasLayer'
+import { VectorWindBarbLayer } from './components/VectorWindBarbLayer'
 import type maplibregl from 'maplibre-gl'
 
 export default function AqMapSection() {
@@ -73,6 +74,10 @@ export default function AqMapSection() {
   const [forecastZonesMode, setForecastZonesMode] = useState<ForecastZonesRenderMode>(() => {
     const params = new URLSearchParams(window.location.search)
     return params.get('forecastZones') === 'raster' ? 'raster' : 'vector'
+  })
+  const [modelledSmokeMode, setModelledSmokeMode] = useState<ModelledSmokeRenderMode>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('modelledSmoke') === 'raster' ? 'raster' : 'vector'
   })
   const [iconMode, setIconMode] = useState<AqMonitorIconMode>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -107,6 +112,10 @@ export default function AqMapSection() {
     const params = new URLSearchParams(window.location.search)
     return params.get('wind') === '1'
   })
+  const [vectorWindBarbsVisible, setVectorWindBarbsVisible] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('windBarbs') === 'vector'
+  })
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [hoveredMonitor, setHoveredMonitor] = useState<AirMonitor | null>(null)
   const [exportStatus, setExportStatus] = useState<{ format: ExportFormat | null; error: string | null }>({ format: null, error: null })
@@ -117,6 +126,16 @@ export default function AqMapSection() {
     .filter((date): date is string => Boolean(date))
     .sort()
     .at(-1)
+  const legendVisibleSmokeLayers = useMemo(() => {
+    return new Set(visibleSmokeLayers)
+  }, [visibleSmokeLayers])
+  const legendVisibleWmsLayers = useMemo(() => {
+    const next = new Set(visibleWmsLayers)
+    if (modelledSmokeMode === 'vector') {
+      next.delete('modelledPm25')
+    }
+    return next
+  }, [modelledSmokeMode, visibleWmsLayers])
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -142,6 +161,9 @@ export default function AqMapSection() {
       if (windVisible) next.set('wind', '1')
       else next.delete('wind')
 
+      if (vectorWindBarbsVisible) next.set('windBarbs', 'vector')
+      else next.delete('windBarbs')
+
       if (fireDangerMode === 'vector') next.set('fireDanger', 'vector')
       else next.delete('fireDanger')
 
@@ -153,6 +175,9 @@ export default function AqMapSection() {
 
       if (forecastZonesMode === 'raster') next.set('forecastZones', 'raster')
       else next.delete('forecastZones')
+
+      if (modelledSmokeMode === 'raster') next.set('modelledSmoke', 'raster')
+      else next.delete('modelledSmoke')
 
       if (iconMode === 'revealed') next.set('icons', 'revealed')
       else next.delete('icons')
@@ -196,7 +221,7 @@ export default function AqMapSection() {
     }, URL_UPDATE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [activeFiresMode, basemap, clusterColorScheme, clusterMaxZoom, clusterRadius, fireDangerMode, firePerimetersMode, forecastZonesMode, iconMode, locale, mapView, mobileFeatureDisplay, tightClusters, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
+  }, [activeFiresMode, basemap, clusterColorScheme, clusterMaxZoom, clusterRadius, fireDangerMode, firePerimetersMode, forecastZonesMode, iconMode, locale, mapView, mobileFeatureDisplay, modelledSmokeMode, tightClusters, vectorWindBarbsVisible, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
 
   const toggleGroup = useCallback((group: AqMonitorGroup) => {
     setVisibleGroups((current) => {
@@ -250,6 +275,7 @@ export default function AqMapSection() {
   }, [locale])
 
   const toggleWind = useCallback(() => setWindVisible((value) => !value), [])
+  const toggleVectorWindBarbs = useCallback(() => setVectorWindBarbsVisible((value) => !value), [])
 
   const sidebar = (
     <AqMapSidebar
@@ -281,8 +307,12 @@ export default function AqMapSection() {
       onFirePerimetersModeChange={setFirePerimetersMode}
       forecastZonesMode={forecastZonesMode}
       onForecastZonesModeChange={setForecastZonesMode}
+      modelledSmokeMode={modelledSmokeMode}
+      onModelledSmokeModeChange={setModelledSmokeMode}
       windVisible={windVisible}
       onToggleWind={toggleWind}
+      vectorWindBarbsVisible={vectorWindBarbsVisible}
+      onToggleVectorWindBarbs={toggleVectorWindBarbs}
       locale={locale}
       onLocaleChange={setLocale}
       onExport={handleExport}
@@ -326,7 +356,13 @@ export default function AqMapSection() {
           }}
         >
           {smokeLayers.map((layer) => (
-            <SmokePolygonLayer key={layer.key} definition={layer} visible={visibleSmokeLayers.has(layer.key)} />
+            <SmokePolygonLayer
+              key={layer.key}
+              definition={layer}
+              visible={layer.key === 'modelledSmoke'
+                ? visibleSmokeLayers.has('modelledSmoke')
+                : visibleSmokeLayers.has(layer.key)}
+            />
           ))}
           {WMS_LAYERS.map((layer) => (
             <WmsRasterLayer
@@ -336,14 +372,17 @@ export default function AqMapSection() {
                 && (layer.key !== 'activeFires' || activeFiresMode === 'raster')
                 && (layer.key !== 'fireDanger' || fireDangerMode === 'raster')
                 && (layer.key !== 'firePerimeters' || firePerimetersMode === 'raster')
-                && (layer.key !== 'forecastZones' || forecastZonesMode === 'raster')}
+                && (layer.key !== 'forecastZones' || forecastZonesMode === 'raster')
+                && (layer.key !== 'modelledPm25' || modelledSmokeMode === 'raster')}
             />
           ))}
           <ActiveFiresVectorLayer visible={visibleWmsLayers.has('activeFires') && activeFiresMode === 'vector'} />
+          <ModelledPm25VectorLayer visible={visibleWmsLayers.has('modelledPm25') && modelledSmokeMode === 'vector'} />
           <FireDangerVectorLayer visible={visibleWmsLayers.has('fireDanger') && fireDangerMode === 'vector'} />
           <FirePerimetersVectorLayer visible={visibleWmsLayers.has('firePerimeters') && firePerimetersMode === 'vector'} />
           <ForecastZonesVectorLayer visible={visibleWmsLayers.has('forecastZones') && forecastZonesMode === 'vector'} />
           <WindCanvasLayer visible={windVisible} basemap={basemap} />
+          <VectorWindBarbLayer visible={vectorWindBarbsVisible} basemap={basemap} />
           <AqMonitorLayer
             key={iconMode}
             monitors={monitors}
@@ -393,17 +432,22 @@ export default function AqMapSection() {
               onFirePerimetersModeChange={setFirePerimetersMode}
               forecastZonesMode={forecastZonesMode}
               onForecastZonesModeChange={setForecastZonesMode}
+              modelledSmokeMode={modelledSmokeMode}
+              onModelledSmokeModeChange={setModelledSmokeMode}
               windVisible={windVisible}
               onToggleWind={toggleWind}
+              vectorWindBarbsVisible={vectorWindBarbsVisible}
+              onToggleVectorWindBarbs={toggleVectorWindBarbs}
               smokeLayers={smokeLayers}
               locale={locale}
             />
           )}
           <AqMonitorLegend
-            visibleWmsLayers={visibleWmsLayers}
-            visibleSmokeLayers={visibleSmokeLayers}
+            visibleWmsLayers={legendVisibleWmsLayers}
+            visibleSmokeLayers={legendVisibleSmokeLayers}
             smokeLayers={smokeLayers}
             windVisible={windVisible}
+            vectorWindBarbsVisible={vectorWindBarbsVisible}
             locale={locale}
           />
           <MapUtilityControls onReset={resetView} locale={locale} />

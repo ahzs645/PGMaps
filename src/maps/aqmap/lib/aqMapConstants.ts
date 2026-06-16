@@ -32,7 +32,7 @@ export function clampRevealClusterMaxZoom(value: number): number {
 export const FIRE_DANGER_VECTOR_URL = 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=public:fdr_current_shp&outputFormat=application/json&srsName=EPSG:4326'
 export const FIRE_PERIMETERS_VECTOR_URL = 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=public:m3_polygons_current&outputFormat=application/json&srsName=EPSG:4326'
 export const FORECAST_ZONES_VECTOR_URL = 'https://api.weather.gc.ca/collections/public-standard-forecast-zones/items?f=json&limit=10000'
-export const ACTIVE_FIRES_VECTOR_URL = 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=public:hotspots_last24hrs&outputFormat=application/json&srsName=EPSG:4326'
+export const ACTIVE_FIRES_VECTOR_URL = '/data/fire/active/geojson'
 
 export const FIRE_DANGER_FILL_COLORS: Record<number, string> = {
   0: '#0000ff',

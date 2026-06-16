@@ -61,9 +61,9 @@ export function RouletteWheel({
   }
 
   return (
-    <div className="flex w-full min-w-0 justify-center overflow-hidden py-1">
-      <div className="relative h-[322px] w-[322px] overflow-visible max-[360px]:h-[304px] max-[360px]:w-[304px] min-[390px]:h-[354px] min-[390px]:w-[354px] sm:h-[358px] sm:w-[358px]">
-        <div className="absolute left-1/2 top-1/2 h-[465px] w-[465px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.692] max-[360px]:scale-[0.654] min-[390px]:scale-[0.761] sm:scale-[0.77]">
+    <div className="flex w-full min-w-0 justify-center overflow-visible py-1">
+      <div className="relative h-[345px] w-[307px] overflow-visible max-[360px]:h-[327px] max-[360px]:w-[292px] min-[390px]:h-[373px] min-[390px]:w-[333px] sm:h-[356px] sm:w-[318px]">
+        <div className="absolute left-1/2 top-1/2 h-[465px] w-[465px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.6] max-[360px]:scale-[0.57] min-[390px]:scale-[0.65] sm:scale-[0.62]">
         <SpinnerWheel
           entries={wheel.entries}
           isSpinning={wheel.isSpinning}

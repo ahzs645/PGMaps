@@ -32,11 +32,12 @@ export const WMS_LAYERS: WmsLayerDefinition[] = [
     label: 'Modelled PM2.5',
     icon: CloudFog,
     tiles: [
-      'https://geo.weather.gc.ca/geomet?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=RAQDPS.SFC_PM2.5&STYLES=RAQDPS-SFC-PM_UGM3_BCAQHI&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}',
+      '/data/geomet/pm25?bbox={bbox-epsg-3857}',
     ],
     opacity: 0.6,
     attribution: 'ECCC GeoMet',
-    legendUrl: 'https://geo.weather.gc.ca/geomet?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=RAQDPS.SFC_PM2.5&STYLE=RAQDPS-SFC-PM_UGM3_BCAQHI&FORMAT=image/png',
+    legendUrl: 'https://geo.weather.gc.ca/geomet?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=RAQDPS.SFC_PM2.5&STYLE=PM2.5_0to100ugm3_Dis&FORMAT=image/png',
+    legendRenderer: 'structured',
     legendPosition: 'bottomleft',
   },
   {
@@ -44,11 +45,11 @@ export const WMS_LAYERS: WmsLayerDefinition[] = [
     label: 'Active Fires',
     icon: Flame,
     tiles: [
-      'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=public:activefires_current&STYLES=public:cwfis_activefires&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}',
+      'https://geoserver.cwfif.nrcan.gc.ca/geoserver/wms?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=public:cwfif_national_activefires&STYLES=&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}',
     ],
     opacity: 0.6,
     attribution: 'Natural Resources Canada CWFIS',
-    legendUrl: 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=public:activefires_current&STYLE=public:cwfis_activefires&FORMAT=image/png',
+    legendUrl: 'https://geoserver.cwfif.nrcan.gc.ca/geoserver/wms?REQUEST=GetLegendGraphic&FORMAT=image%2Fpng&WIDTH=20&HEIGHT=20&LAYER=public%3Acwfif_national_activefires&TRANSPARENT=true',
     legendPosition: 'bottomright',
   },
   {

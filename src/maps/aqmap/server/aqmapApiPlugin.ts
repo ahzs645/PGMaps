@@ -17,6 +17,9 @@ import { loadSmokeLayerData } from './aqmapSmokeAdapter'
 import type { SmokeLayerKey } from '../lib/smokeLayers'
 
 const AQMAP_ORIGIN = 'https://aqmap.ca/aqmap'
+const GEOMET_ORIGIN = 'https://geo.weather.gc.ca/geomet'
+const GEOMET_PM25_STYLE = 'PM2.5_0to100ugm3_Dis'
+const CWFIF_WFS_ORIGIN = 'https://geoserver.cwfif.nrcan.gc.ca/geoserver/wfs'
 
 const DATA_TYPES = new Set<AqmapDataFormat>(['json', 'csv', 'tsv', 'geojson'])
 
@@ -171,6 +174,70 @@ async function handleSmokeRoute(res: ServerResponse, requestPath: string) {
   sendResponse(res, 200, body, contentType)
 }
 
+async function handleGeometPm25Tile(res: ServerResponse, requestUrl: string) {
+  const url = new URL(requestUrl, 'http://localhost')
+  const bbox = url.searchParams.get('bbox')
+  if (!bbox) {
+    sendJsonError(res, 400, 'bbox is required')
+    return
+  }
+
+  const params = new URLSearchParams({
+    SERVICE: 'WMS',
+    REQUEST: 'GetMap',
+    VERSION: '1.1.1',
+    LAYERS: 'RAQDPS.SFC_PM2.5',
+    STYLES: GEOMET_PM25_STYLE,
+    FORMAT: 'image/png',
+    TRANSPARENT: 'true',
+    SRS: 'EPSG:3857',
+    WIDTH: '256',
+    HEIGHT: '256',
+    BBOX: bbox,
+  })
+
+  try {
+    const response = await fetch(`${GEOMET_ORIGIN}?${params.toString()}`)
+    const buffer = Buffer.from(await response.arrayBuffer())
+    const contentType = response.headers.get('content-type') ?? ''
+
+    if (contentType.includes('image/png') || buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+      sendResponse(res, 200, buffer, 'image/png')
+      return
+    }
+
+    sendResponse(res, response.ok ? 502 : response.status, buffer, contentType || 'text/plain; charset=utf-8')
+  } catch {
+    sendJsonError(res, 502, 'Unable to load GeoMet PM2.5 tile')
+  }
+}
+
+async function handleActiveFiresRoute(res: ServerResponse) {
+  const params = new URLSearchParams({
+    service: 'WFS',
+    version: '1.0.0',
+    request: 'GetFeature',
+    typeName: 'public:cwfif_national_activefires',
+    outputFormat: 'application/json',
+    srsName: 'EPSG:4326',
+  })
+
+  try {
+    const response = await fetch(`${CWFIF_WFS_ORIGIN}?${params.toString()}`)
+    const buffer = Buffer.from(await response.arrayBuffer())
+    const contentType = response.headers.get('content-type') ?? 'application/geo+json; charset=utf-8'
+
+    if (!response.ok) {
+      sendResponse(res, response.status, buffer, contentType)
+      return
+    }
+
+    sendResponse(res, 200, buffer, contentType.includes('json') ? 'application/geo+json; charset=utf-8' : contentType)
+  } catch {
+    sendJsonError(res, 502, 'Unable to load active fires')
+  }
+}
+
 function parseDataRouteParts(parts: string[]) {
   if (!parts.length) return { type: 'json' as AqmapDataFormat }
 
@@ -296,6 +363,16 @@ export function aqmapApiPlugin(): Plugin {
 
         if (pathname === '/data/smoke' || pathname === '/data/smoke/' || pathname.startsWith('/data/smoke/')) {
           await handleSmokeRoute(res, pathname)
+          return
+        }
+
+        if (pathname === '/data/geomet/pm25') {
+          await handleGeometPm25Tile(res, req.url ?? pathname)
+          return
+        }
+
+        if (pathname === '/data/fire/active/geojson') {
+          await handleActiveFiresRoute(res)
           return
         }
 

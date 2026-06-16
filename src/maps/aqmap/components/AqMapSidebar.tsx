@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Download, Globe, Layers, MapPin, RadioTower, RefreshCw, Waves } from 'lucide-react'
+import { Download, Globe, Layers, MapPin, RadioTower, RefreshCw, Waves, Wind } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import type { AirMonitor } from '@/maps/airquality'
@@ -19,7 +19,7 @@ import {
 } from '../lib/i18n'
 import type { ExportFormat } from '../lib/exportMap'
 import { EXPORT_OPTIONS } from '../lib/aqMapConstants'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay } from '../lib/aqMapTypes'
+import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
 import { RevealClusterControls, SegmentedControl, ToggleButton } from './AqMapControls'
 import { WmsLegend } from './AqMapLegends'
 
@@ -52,8 +52,12 @@ export function AqMapSidebar({
   onFirePerimetersModeChange,
   forecastZonesMode,
   onForecastZonesModeChange,
+  modelledSmokeMode,
+  onModelledSmokeModeChange,
   windVisible,
   onToggleWind,
+  vectorWindBarbsVisible,
+  onToggleVectorWindBarbs,
   locale,
   onLocaleChange,
   onExport,
@@ -88,8 +92,12 @@ export function AqMapSidebar({
   onFirePerimetersModeChange: (mode: FirePerimetersRenderMode) => void
   forecastZonesMode: ForecastZonesRenderMode
   onForecastZonesModeChange: (mode: ForecastZonesRenderMode) => void
+  modelledSmokeMode: ModelledSmokeRenderMode
+  onModelledSmokeModeChange: (mode: ModelledSmokeRenderMode) => void
   windVisible: boolean
   onToggleWind: () => void
+  vectorWindBarbsVisible: boolean
+  onToggleVectorWindBarbs: () => void
   locale: AqmapLocale
   onLocaleChange: (locale: AqmapLocale) => void
   onExport: (format: ExportFormat) => void
@@ -234,7 +242,7 @@ export function AqMapSidebar({
           <section>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{translate('sidebar.wmsLegends', locale)}</div>
             <div className="space-y-3">
-              {WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key)).map((layer) => {
+              {WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key) && (layer.key !== 'modelledPm25' || modelledSmokeMode === 'raster')).map((layer) => {
                 const label = localizeWmsLabel(layer.key, locale)
                 return (
                   <div key={layer.key}>
@@ -259,6 +267,13 @@ export function AqMapSidebar({
               </span>
               <span className="text-xs font-medium">{translate('wind.tag', locale)}</span>
             </ToggleButton>
+            <ToggleButton active={vectorWindBarbsVisible} onClick={onToggleVectorWindBarbs}>
+              <span className="flex items-center gap-2">
+                <Wind className="size-3.5" />
+                {translate('sidebar.vectorWindBarbs', locale)}
+              </span>
+              <span className="text-xs font-medium">{translate('overlay.vector', locale)}</span>
+            </ToggleButton>
             {smokeLayers.map((layer) => (
               <ToggleButton
                 key={layer.key}
@@ -266,7 +281,11 @@ export function AqMapSidebar({
                 onClick={() => onToggleSmokeLayer(layer.key)}
               >
                 <span>{localizeSmokeLabel(layer.key, locale)}</span>
-                <span className="text-xs font-medium">{translate('smoke.tag', locale)}</span>
+                <span className="text-xs font-medium">
+                  {layer.key === 'modelledSmoke'
+                    ? translate('overlay.vector', locale)
+                    : translate('smoke.tag', locale)}
+                </span>
               </ToggleButton>
             ))}
             {WMS_LAYERS.map((layer) => {
@@ -286,6 +305,7 @@ export function AqMapSidebar({
                         || (layer.key === 'fireDanger' && fireDangerMode === 'vector')
                         || (layer.key === 'firePerimeters' && firePerimetersMode === 'vector')
                         || (layer.key === 'forecastZones' && forecastZonesMode === 'vector')
+                        || (layer.key === 'modelledPm25' && modelledSmokeMode === 'vector')
                         ? translate('overlay.vector', locale)
                         : translate('wms.tag', locale)}
                     </span>
@@ -324,6 +344,16 @@ export function AqMapSidebar({
                     <SegmentedControl
                       value={forecastZonesMode}
                       onChange={onForecastZonesModeChange}
+                      options={[
+                        { value: 'raster', label: translate('overlay.raster', locale) },
+                        { value: 'vector', label: translate('overlay.vector', locale) },
+                      ]}
+                    />
+                  )}
+                  {layer.key === 'modelledPm25' && visibleWmsLayers.has('modelledPm25') && (
+                    <SegmentedControl
+                      value={modelledSmokeMode}
+                      onChange={onModelledSmokeModeChange}
                       options={[
                         { value: 'raster', label: translate('overlay.raster', locale) },
                         { value: 'vector', label: translate('overlay.vector', locale) },

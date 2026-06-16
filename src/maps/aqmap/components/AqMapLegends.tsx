@@ -20,17 +20,33 @@ const FIRE_DANGER_LEGEND_BANDS = [
   { label: 'Extreme', color: '#ff0000' },
 ] as const
 
+const MODELLED_PM25_LEGEND_STOPS = [
+  { value: 0, color: '#21c5f4' },
+  { value: 10, color: '#1899c9' },
+  { value: 20, color: '#0d6796' },
+  { value: 30, color: '#fefc37' },
+  { value: 40, color: '#fecb2e' },
+  { value: 50, color: '#fd993f' },
+  { value: 60, color: '#fc6769' },
+  { value: 70, color: '#fe3b3b' },
+  { value: 80, color: '#fe0101' },
+  { value: 90, color: '#ca0713' },
+  { value: 100, color: '#650205' },
+] as const
+
 export function AqMonitorLegend({
   visibleWmsLayers,
   visibleSmokeLayers,
   smokeLayers,
   windVisible,
+  vectorWindBarbsVisible,
   locale,
 }: {
   visibleWmsLayers: Set<WmsLayerKey>
   visibleSmokeLayers: Set<SmokeLayerKey>
   smokeLayers: SmokeLayerDefinition[]
   windVisible: boolean
+  vectorWindBarbsVisible: boolean
   locale: AqmapLocale
 }) {
   const visibleWms = WMS_LAYERS.filter((layer) => visibleWmsLayers.has(layer.key) && (layer.legendUrl || layer.key === 'activeFires'))
@@ -70,6 +86,12 @@ export function AqMonitorLegend({
       {windVisible && (
         <MapLegendSection title={translate('wind.legend.title', locale)} className="border-t border-border pt-3">
           <WindLegendContent locale={locale} />
+        </MapLegendSection>
+      )}
+
+      {vectorWindBarbsVisible && (
+        <MapLegendSection title={translate('windBarbs.legend.title', locale)} className="border-t border-border pt-3">
+          <VectorWindBarbLegendContent locale={locale} />
         </MapLegendSection>
       )}
 
@@ -187,6 +209,10 @@ function WmsLegendContent({
 }
 
 function StructuredWmsLegendContent({ layer }: { layer: WmsLayerDefinition }) {
+  if (layer.key === 'modelledPm25') {
+    return <ModelledPm25GradientLegend />
+  }
+
   if (layer.key === 'fireDanger') {
     return (
       <div className="space-y-1.5">
@@ -211,6 +237,25 @@ function StructuredWmsLegendContent({ layer }: { layer: WmsLayerDefinition }) {
   return <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
 }
 
+function ModelledPm25GradientLegend() {
+  const gradient = `linear-gradient(to right, ${MODELLED_PM25_LEGEND_STOPS.map((stop) => stop.color).join(', ')})`
+  return (
+    <div className="space-y-1.5">
+      <div className="h-3 rounded border border-black/10" style={{ backgroundImage: gradient }} />
+      <div className="flex justify-between text-[10px] text-muted-foreground">
+        <span>0</span>
+        <span>25</span>
+        <span>50</span>
+        <span>75</span>
+        <span>100+</span>
+      </div>
+      <div className="text-[10px] text-muted-foreground">
+        PM2.5 µg m<sup>-3</sup>
+      </div>
+    </div>
+  )
+}
+
 function WindLegendContent({ locale }: { locale: AqmapLocale }) {
   return (
     <>
@@ -226,6 +271,41 @@ function WindLegendContent({ locale }: { locale: AqmapLocale }) {
   )
 }
 
+function VectorWindBarbLegendContent({ locale }: { locale: AqmapLocale }) {
+  const items = [
+    { speed: 5, label: translate('windBarbs.legend.5kt', locale) },
+    { speed: 10, label: translate('windBarbs.legend.10kt', locale) },
+    { speed: 50, label: translate('windBarbs.legend.50kt', locale) },
+  ] as const
+
+  return (
+    <div className="space-y-1.5">
+      {items.map((item) => (
+        <div key={item.speed} className="flex items-center gap-2 text-xs text-muted-foreground">
+          <WindBarbLegendIcon speed={item.speed} />
+          <span>{item.label}</span>
+        </div>
+      ))}
+      <div className="text-[10px] leading-3 text-muted-foreground">
+        {translate('windBarbs.legend.note', locale)}
+      </div>
+    </div>
+  )
+}
+
+function WindBarbLegendIcon({ speed }: { speed: 5 | 10 | 50 }) {
+  return (
+    <svg className="h-6 w-12 shrink-0" viewBox="0 0 48 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+        <path d="M8 18 36 6" />
+        {speed === 5 && <path d="M34 7 38 14" />}
+        {speed === 10 && <path d="M34 7 40 17" />}
+        {speed === 50 && <path d="M34 7 42 11 38 16" fill="currentColor" stroke="none" />}
+      </g>
+    </svg>
+  )
+}
+
 function SmokeLegendContent({ layer, locale }: { layer: SmokeLayerDefinition; locale: AqmapLocale }) {
   return (
     <div className="space-y-1.5">
@@ -236,10 +316,25 @@ function SmokeLegendContent({ layer, locale }: { layer: SmokeLayerDefinition; lo
             style={{ backgroundColor: band.color }}
             aria-hidden="true"
           />
-          <span className="text-muted-foreground">{localizeSmokeDensity(band.label, locale)}</span>
+          <span className="text-muted-foreground">
+            {layer.key === 'modelledSmoke'
+              ? <ModelledSmokeLegendLabel label={band.label} />
+              : localizeSmokeDensity(band.label, locale)}
+          </span>
         </div>
       ))}
     </div>
+  )
+}
+
+function ModelledSmokeLegendLabel({ label }: { label: string }) {
+  const range = label.replace(/\s+ug m-3$/i, '')
+  return (
+    <>
+      {range}
+      {' '}
+      µg m<sup>-3</sup>
+    </>
   )
 }
 

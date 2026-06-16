@@ -59,6 +59,38 @@ const FORECAST_ZONE_COLORS = [
   '#bfdbfe',
 ]
 
+type AsciiGrid = {
+  ncols: number
+  nrows: number
+  xllcorner: number
+  yllcorner: number
+  dx: number
+  dy: number
+  nodata: number | null
+  values: number[][]
+}
+
+const PM25_WCS_BOUNDS = {
+  west: -176.842409132,
+  south: 16.149189226,
+  east: -18.825681315,
+  north: 80.210751469,
+}
+
+const PM25_VECTOR_COLORS = [
+  { value: 0, color: '#21c5f4' },
+  { value: 10, color: '#1899c9' },
+  { value: 20, color: '#0d6796' },
+  { value: 30, color: '#fefc37' },
+  { value: 40, color: '#fecb2e' },
+  { value: 50, color: '#fd993f' },
+  { value: 60, color: '#fc6769' },
+  { value: 70, color: '#fe3b3b' },
+  { value: 80, color: '#fe0101' },
+  { value: 90, color: '#ca0713' },
+  { value: 100, color: '#650205' },
+] as const
+
 function sampleForecastZoneColor(value: string): string {
   let hash = 0
   for (let index = 0; index < value.length; index += 1) {
@@ -74,6 +106,129 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+function buildPm25WcsGridUrl(bounds: maplibregl.LngLatBounds) {
+  const west = Math.max(PM25_WCS_BOUNDS.west, bounds.getWest())
+  const east = Math.min(PM25_WCS_BOUNDS.east, bounds.getEast())
+  const south = Math.max(PM25_WCS_BOUNDS.south, bounds.getSouth())
+  const north = Math.min(PM25_WCS_BOUNDS.north, bounds.getNorth())
+  if (west >= east || south >= north) return null
+
+  const params = new URLSearchParams({
+    SERVICE: 'WCS',
+    REQUEST: 'GetCoverage',
+    VERSION: '2.0.1',
+    COVERAGEID: 'RAQDPS.SFC_PM2.5',
+    FORMAT: 'image/x-aaigrid',
+  })
+  params.append('SUBSET', `long(${west.toFixed(6)},${east.toFixed(6)})`)
+  params.append('SUBSET', `lat(${south.toFixed(6)},${north.toFixed(6)})`)
+
+  return `https://geo.weather.gc.ca/geomet?${params.toString()}`
+}
+
+function extractAsciiGridPart(payload: string) {
+  const start = payload.search(/\bncols\s+/i)
+  if (start === -1) throw new Error('WCS response did not include an ASCII grid part.')
+
+  const rest = payload.slice(start)
+  const nextBoundary = rest.search(/\r?\n--wcs\b/i)
+  return (nextBoundary === -1 ? rest : rest.slice(0, nextBoundary)).trim()
+}
+
+function parseAsciiGrid(payload: string): AsciiGrid {
+  const lines = extractAsciiGridPart(payload)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const header = new Map<string, number>()
+  let dataStartIndex = 0
+
+  for (const [index, line] of lines.entries()) {
+    const [rawKey, rawValue] = line.split(/\s+/, 2)
+    const key = rawKey.toLowerCase()
+    const value = Number(rawValue)
+    if (!Number.isFinite(value) || !['ncols', 'nrows', 'xllcorner', 'yllcorner', 'dx', 'dy', 'cellsize', 'nodata_value'].includes(key)) {
+      dataStartIndex = index
+      break
+    }
+    header.set(key, value)
+  }
+
+  const ncols = header.get('ncols')
+  const nrows = header.get('nrows')
+  const xllcorner = header.get('xllcorner')
+  const yllcorner = header.get('yllcorner')
+  const dx = header.get('dx') ?? header.get('cellsize')
+  const dy = header.get('dy') ?? header.get('cellsize')
+  if (ncols === undefined || nrows === undefined || xllcorner === undefined || yllcorner === undefined || dx === undefined || dy === undefined) {
+    throw new Error('WCS ASCII grid header is missing required fields.')
+  }
+
+  return {
+    ncols,
+    nrows,
+    xllcorner,
+    yllcorner,
+    dx,
+    dy,
+    nodata: header.get('nodata_value') ?? null,
+    values: lines.slice(dataStartIndex, dataStartIndex + nrows).map((line) => line.split(/\s+/).slice(0, ncols).map(Number)),
+  }
+}
+
+function pm25Color(value: number) {
+  return [...PM25_VECTOR_COLORS].reverse().find((stop) => value >= stop.value)?.color ?? PM25_VECTOR_COLORS[0].color
+}
+
+function pm25VectorStride(grid: AsciiGrid, zoom: number) {
+  if (zoom < 4) return Math.max(4, Math.ceil(Math.sqrt((grid.ncols * grid.nrows) / 12000)))
+  if (zoom < 5.5) return Math.max(3, Math.ceil(Math.sqrt((grid.ncols * grid.nrows) / 16000)))
+  if (zoom < 7) return Math.max(2, Math.ceil(Math.sqrt((grid.ncols * grid.nrows) / 22000)))
+  if (zoom < 8.5) return 2
+  return 1
+}
+
+function pm25GridToFeatures(grid: AsciiGrid, zoom: number): GeoJSON.FeatureCollection {
+  const stride = pm25VectorStride(grid, zoom)
+  const features: GeoJSON.Feature[] = []
+
+  for (let row = 0; row < grid.nrows; row += stride) {
+    for (let col = 0; col < grid.ncols; col += stride) {
+      const rawValue = grid.values[row]?.[col]
+      if (!Number.isFinite(rawValue)) continue
+      if (grid.nodata !== null && rawValue === grid.nodata) continue
+
+      const pm25 = rawValue * 1_000_000_000
+      if (!Number.isFinite(pm25) || pm25 < 0.25) continue
+
+      const west = grid.xllcorner + col * grid.dx
+      const east = grid.xllcorner + Math.min(col + stride, grid.ncols) * grid.dx
+      const north = grid.yllcorner + (grid.nrows - row) * grid.dy
+      const south = grid.yllcorner + Math.max(grid.nrows - row - stride, 0) * grid.dy
+
+      features.push({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [west, south],
+            [east, south],
+            [east, north],
+            [west, north],
+            [west, south],
+          ]],
+        },
+        properties: {
+          pm25: Number(pm25.toFixed(2)),
+          fill: pm25Color(pm25),
+        },
+      })
+    }
+  }
+
+  return { type: 'FeatureCollection', features }
 }
 
 function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): string {
@@ -133,6 +288,79 @@ export function WmsRasterLayer({
   return null
 }
 
+export function ModelledPm25VectorLayer({ visible }: { visible: boolean }) {
+  const { map, isLoaded } = useMap()
+  const sourceId = 'aqmap-modelled-pm25-vector-source'
+  const fillLayerId = 'aqmap-modelled-pm25-vector-fill'
+
+  useEffect(() => {
+    if (!isLoaded || !map || !visible) return
+
+    let aborted = false
+    let controller: AbortController | null = null
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+    }
+
+    if (!map.getLayer(fillLayerId)) {
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': ['coalesce', ['get', 'fill'], '#21c5f4'],
+          'fill-opacity': 0.5,
+        },
+      })
+    }
+
+    async function updateGrid() {
+      if (!map) return
+      controller?.abort()
+      controller = new AbortController()
+      const url = buildPm25WcsGridUrl(map.getBounds())
+      if (!url) return
+
+      try {
+        const response = await fetch(url, { signal: controller.signal })
+        if (!response.ok) return
+        const grid = parseAsciiGrid(await response.text())
+        const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+        if (!aborted && source) {
+          source.setData(pm25GridToFeatures(grid, map.getZoom()))
+        }
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Modelled PM2.5 vector WCS failed', error)
+        }
+      }
+    }
+
+    updateGrid()
+    map.on('moveend', updateGrid)
+    map.on('zoomend', updateGrid)
+
+    return () => {
+      aborted = true
+      controller?.abort()
+      map.off('moveend', updateGrid)
+      map.off('zoomend', updateGrid)
+      try {
+        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+        if (map.getSource(sourceId)) map.removeSource(sourceId)
+      } catch {
+        // MapLibre can throw during style teardown.
+      }
+    }
+  }, [fillLayerId, isLoaded, map, sourceId, visible])
+
+  return null
+}
+
 export function ActiveFiresVectorLayer({ visible }: { visible: boolean }) {
   const { map, isLoaded } = useMap()
   const sourceId = 'aqmap-active-fires-vector-source'
@@ -177,18 +405,32 @@ export function ActiveFiresVectorLayer({ visible }: { visible: boolean }) {
         type: 'circle',
         source: sourceId,
         paint: {
-          'circle-color': '#ef4444',
-          'circle-opacity': 0.18,
+          'circle-color': [
+            'match',
+            ['get', 'stage_of_control_status'],
+            'OC',
+            '#ef4444',
+            'BH',
+            '#facc15',
+            'UC',
+            '#0ea5e9',
+            'MON',
+            '#d946ef',
+            'M',
+            '#d946ef',
+            'UM',
+            '#d946ef',
+            '#ef4444',
+          ],
+          'circle-opacity': 0.16,
           'circle-radius': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            2,
-            5,
+            'step',
+            ['coalesce', ['to-number', ['get', 'fire_size']], 0],
             7,
-            10,
+            100,
             11,
-            16,
+            1000,
+            17,
           ],
         },
       })
@@ -201,26 +443,32 @@ export function ActiveFiresVectorLayer({ visible }: { visible: boolean }) {
         source: sourceId,
         paint: {
           'circle-color': [
-            'step',
-            ['coalesce', ['to-number', ['get', 'age']], 24],
+            'match',
+            ['get', 'stage_of_control_status'],
+            'OC',
             '#ef4444',
-            6,
-            '#f97316',
-            12,
+            'BH',
             '#facc15',
+            'UC',
+            '#0ea5e9',
+            'MON',
+            '#d946ef',
+            'M',
+            '#d946ef',
+            'UM',
+            '#d946ef',
+            '#ef4444',
           ],
           'circle-radius': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            2,
-            2.5,
-            7,
-            4.5,
-            11,
-            7,
+            'step',
+            ['coalesce', ['to-number', ['get', 'fire_size']], 0],
+            3.5,
+            100,
+            5.5,
+            1000,
+            8,
           ],
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-color': '#111827',
           'circle-stroke-width': [
             'interpolate',
             ['linear'],

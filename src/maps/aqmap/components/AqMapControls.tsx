@@ -14,7 +14,7 @@ import {
   translate,
   type AqmapLocale,
 } from '../lib/i18n'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode } from '../lib/aqMapTypes'
+import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
 import { REVEAL_CLUSTER_BOUNDS, REVEAL_CLUSTER_DEFAULTS } from '../lib/aqMapConstants'
 
 export function ToggleButton({
@@ -213,8 +213,12 @@ export function FloatingLayerControl({
   onFirePerimetersModeChange,
   forecastZonesMode,
   onForecastZonesModeChange,
+  modelledSmokeMode,
+  onModelledSmokeModeChange,
   windVisible,
   onToggleWind,
+  vectorWindBarbsVisible,
+  onToggleVectorWindBarbs,
   smokeLayers,
   locale,
 }: {
@@ -242,8 +246,12 @@ export function FloatingLayerControl({
   onFirePerimetersModeChange: (mode: FirePerimetersRenderMode) => void
   forecastZonesMode: ForecastZonesRenderMode
   onForecastZonesModeChange: (mode: ForecastZonesRenderMode) => void
+  modelledSmokeMode: ModelledSmokeRenderMode
+  onModelledSmokeModeChange: (mode: ModelledSmokeRenderMode) => void
   windVisible: boolean
   onToggleWind: () => void
+  vectorWindBarbsVisible: boolean
+  onToggleVectorWindBarbs: () => void
   smokeLayers: SmokeLayerDefinition[]
   locale: AqmapLocale
 }) {
@@ -260,6 +268,10 @@ export function FloatingLayerControl({
         <label className="flex items-center gap-2 text-muted-foreground">
           <input type="checkbox" checked={windVisible} onChange={onToggleWind} />
           <span>{translate('sidebar.wind', locale)}</span>
+        </label>
+        <label className="flex items-center gap-2 text-muted-foreground">
+          <input type="checkbox" checked={vectorWindBarbsVisible} onChange={onToggleVectorWindBarbs} />
+          <span>{translate('sidebar.vectorWindBarbs', locale)}</span>
         </label>
         <div className="space-y-1">
           <div className="font-medium text-foreground">{translate('sidebar.iconMode', locale)}</div>
@@ -288,7 +300,14 @@ export function FloatingLayerControl({
         {smokeLayers.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
             <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
-            <span>{localizeSmokeLabel(layer.key, locale)}</span>
+            <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+              <span className="truncate">{localizeSmokeLabel(layer.key, locale)}</span>
+              {layer.key === 'modelledSmoke' && (
+                <span className="shrink-0 text-[10px] font-medium uppercase text-muted-foreground">
+                  {translate('overlay.vector', locale)}
+                </span>
+              )}
+            </span>
           </label>
         ))}
         {WMS_LAYERS.map((layer) => (
@@ -331,6 +350,16 @@ export function FloatingLayerControl({
               <SegmentedControl
                 value={forecastZonesMode}
                 onChange={onForecastZonesModeChange}
+                options={[
+                  { value: 'raster', label: translate('overlay.raster', locale) },
+                  { value: 'vector', label: translate('overlay.vector', locale) },
+                ]}
+              />
+            )}
+            {layer.key === 'modelledPm25' && visibleWmsLayers.has('modelledPm25') && (
+              <SegmentedControl
+                value={modelledSmokeMode}
+                onChange={onModelledSmokeModeChange}
                 options={[
                   { value: 'raster', label: translate('overlay.raster', locale) },
                   { value: 'vector', label: translate('overlay.vector', locale) },
