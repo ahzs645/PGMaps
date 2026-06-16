@@ -71,6 +71,8 @@ type MapProps = {
   onViewportChange?: (viewport: MapViewport) => void;
   /** Show a loading indicator on the map */
   loading?: boolean;
+  /** Show the loading indicator during style swaps after the initial map load. */
+  showStyleLoadingOverlay?: boolean;
 } & Omit<MapLibreGL.MapOptions, "container" | "style">;
 
 type MapRef = MapLibreGL.Map;
@@ -116,6 +118,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     viewport,
     onViewportChange,
     loading = false,
+    showStyleLoadingOverlay = true,
     ...props
   },
   ref
@@ -279,7 +282,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     mapInstance.setStyle(newStyle, { diff: true });
   }, [mapInstance, resolvedTheme, mapStyles, clearStyleTimeout]);
 
-  const isLoading = !isLoaded || !isStyleLoaded || loading;
+  const isLoading = !isLoaded || (showStyleLoadingOverlay && !isStyleLoaded) || loading;
 
   const contextValue = useMemo(
     () => ({

@@ -76,7 +76,7 @@ export default function AqMapSection() {
   })
   const [clusterColorScheme, setClusterColorScheme] = useState<AqClusterColorScheme>(() => {
     const params = new URLSearchParams(window.location.search)
-    return params.get('clusterColors') === 'slate' ? 'slate' : 'classic'
+    return params.get('clusterColors') === 'classic' ? 'classic' : 'slate'
   })
   const [tightClusters, setTightClusters] = useState<boolean>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -141,7 +141,7 @@ export default function AqMapSection() {
       if (iconMode === 'revealed' && clusterMaxZoom !== REVEAL_CLUSTER_DEFAULTS.maxZoom) next.set('clusterMaxZoom', String(clusterMaxZoom))
       else next.delete('clusterMaxZoom')
 
-      if (clusterColorScheme === 'slate') next.set('clusterColors', 'slate')
+      if (clusterColorScheme === 'classic') next.set('clusterColors', 'classic')
       else next.delete('clusterColors')
 
       if (iconMode === 'revealed' && tightClusters) next.set('tightClusters', '1')

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { type StyleSpecification } from 'maplibre-gl'
 import {
-  Check,
   Copy,
   Eye,
   Layers,
@@ -13,7 +12,7 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Map as AppMap, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
+import { Map as AppMap, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapControls } from '@/components/ui/map-controls'
 import {
   MapLegend,
@@ -236,29 +235,6 @@ function buildSharedBasemapStyle(baseStyle: StyleSpecification, design: DesignSt
   return next
 }
 
-function MapStatus({ onStatus }: { onStatus: (status: string) => void }) {
-  const { map, isLoaded } = useMap()
-
-  useEffect(() => {
-    if (!map || !isLoaded) return
-
-    onStatus('rendering shared basemap')
-    const handleIdle = () => onStatus('shared basemap rendered')
-    const handleError = (event: { error?: Error }) => {
-      onStatus(event.error?.message ?? 'map render error')
-    }
-
-    map.on('idle', handleIdle)
-    map.on('error', handleError)
-    return () => {
-      map.off('idle', handleIdle)
-      map.off('error', handleError)
-    }
-  }, [isLoaded, map, onStatus])
-
-  return null
-}
-
 function Field({
   label,
   children,
@@ -441,7 +417,6 @@ function StaticMapPreview({ design }: { design: DesignState }) {
 
 export default function DevDesign() {
   const [design, setDesign] = useUrlState('design', designCodec)
-  const [status, setStatus] = useState('loading shared basemap')
   const [baseStyles, setBaseStyles] = useState<{ light: StyleSpecification; dark: StyleSpecification } | null>(null)
   // Probing WebGL support once in the lazy initializer avoids flipping state
   // from the mount effect.
@@ -467,12 +442,9 @@ export default function DevDesign() {
 
         if (!cancelled) {
           setBaseStyles({ light, dark })
-          setStatus('shared basemap loaded')
         }
       } catch (error) {
-        if (!cancelled) {
-          setStatus(error instanceof Error ? error.message : 'shared basemap load error')
-        }
+        if (!cancelled) console.error(error)
       }
     }
 
@@ -671,6 +643,7 @@ export default function DevDesign() {
           <AppMap
             className="h-full min-h-[54vh] lg:min-h-0"
             styles={styles}
+            showStyleLoadingOverlay={false}
             center={DESIGN_CENTER}
             zoom={12}
             minZoom={2}
@@ -678,7 +651,6 @@ export default function DevDesign() {
             pitch={0}
             bearing={0}
           >
-            <MapStatus onStatus={setStatus} />
             <MapControls showCompass showFullscreen position="bottom-right" />
             <MapMarker
               longitude={MARKER_COORDINATE.longitude}
@@ -738,11 +710,6 @@ export default function DevDesign() {
               {design.subtitle}
             </p>
           </div>
-        </div>
-
-        <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-md border border-border bg-background/95 px-3 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
-          <Check className="h-3.5 w-3.5 text-emerald-600" />
-          {canUseWebGl ? status : 'static preview: WebGL unavailable in this browser'}
         </div>
       </section>
     </div>
