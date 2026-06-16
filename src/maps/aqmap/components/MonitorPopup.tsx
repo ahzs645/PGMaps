@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, HeartPulse, LineChart, Users } from 'lucide-react'
+import { AlertCircle, ChevronRight, HeartPulse, LineChart, Users } from 'lucide-react'
 import { MapPopup, useMap } from '@/components/ui/map'
 import type { AirMonitor } from '@/maps/airquality'
 import {
@@ -18,7 +18,16 @@ import {
   type AqmapLocale,
 } from '../lib/i18n'
 import { fetchAqmapPlotSeries, type AqPlotPoint } from '../lib/plotData'
+import { buildAbPoints, buildPaFemPoints } from '../lib/comparisonData'
 import { MonitorPlotChart } from './MonitorPlotChart'
+import { MonitorScatterChart } from './MonitorScatterChart'
+
+export interface NearbyFem {
+  monitor: AirMonitor
+  distanceKm: number
+}
+
+type PlotMode = 'ts' | 'xy' | 'xy_cor'
 
 /** Convert a 6-digit hex color to an rgba() string for subtle tinted backgrounds. */
 function hexToRgba(hex: string, alpha: number): string {
@@ -36,10 +45,11 @@ function splitHealthLine(line: string): { label: string; detail: string } {
   return { label: '', detail: line }
 }
 
-export function MonitorPopup({ monitor, locale, onClose }: { monitor: AirMonitor; locale: AqmapLocale; onClose: () => void }) {
+export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor: AirMonitor; locale: AqmapLocale; onClose: () => void; nearbyFem?: NearbyFem | null }) {
   const { map } = useMap()
   const contentRef = useRef<HTMLDivElement>(null)
   const [showPlot, setShowPlot] = useState(false)
+  const [plotMode, setPlotMode] = useState<PlotMode>('ts')
   const [plotPoints, setPlotPoints] = useState<AqPlotPoint[]>([])
   const [plotSource, setPlotSource] = useState<'endpoint' | 'fallback'>('fallback')
   const pm25 = getMonitorAqhiPm25(monitor)
@@ -57,6 +67,9 @@ export function MonitorPopup({ monitor, locale, onClose }: { monitor: AirMonitor
     }
     return map
   }, [locale])
+  const supportsComparison = monitor.network === 'PA' || monitor.network === 'EGG'
+  const abPoints = useMemo(() => buildAbPoints(monitor, plotPoints), [monitor, plotPoints])
+  const paFemPoints = useMemo(() => buildPaFemPoints(monitor, plotPoints), [monitor, plotPoints])
   const isFem = monitor.network === 'FEM' || monitor.network === 'BC ENV'
   const observationValues: Array<{ key: string; value: number | null }> = [
     { key: 'pm25_10min', value: monitor.pm25Recent ?? null },
@@ -204,35 +217,96 @@ export function MonitorPopup({ monitor, locale, onClose }: { monitor: AirMonitor
           </div>
         </div>
 
-        {/* Timeseries */}
+        {/* Timeseries + comparison plots */}
         <div className="px-3 pb-2.5">
           <button
             type="button"
-            onClick={() => setShowPlot((value) => !value)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
+            onClick={() => {
+              if (showPlot && plotMode === 'ts') setShowPlot(false)
+              else { setPlotMode('ts'); setShowPlot(true) }
+            }}
+            className={plotButtonClass(showPlot && plotMode === 'ts')}
           >
             <LineChart className="size-3.5" />
             {translate('popup.plotButton', locale)}
           </button>
+
+          {supportsComparison && (
+            <details className="group mt-2">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[11px] font-medium text-gray-600 hover:text-gray-900 [&::-webkit-details-marker]:hidden">
+                <ChevronRight className="size-3 transition-transform group-open:rotate-90" aria-hidden="true" />
+                {translate('popup.compare', locale)}
+              </summary>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setPlotMode('xy'); setShowPlot(true) }}
+                  className={plotButtonClass(showPlot && plotMode === 'xy')}
+                >
+                  {translate('popup.compare.internal', locale)}
+                </button>
+                <button
+                  type="button"
+                  disabled={!nearbyFem}
+                  title={nearbyFem ? undefined : translate('plot.fem.none', locale)}
+                  onClick={() => { if (nearbyFem) { setPlotMode('xy_cor'); setShowPlot(true) } }}
+                  className={plotButtonClass(showPlot && plotMode === 'xy_cor', !nearbyFem)}
+                >
+                  {translate('popup.compare.fem', locale)}
+                </button>
+              </div>
+            </details>
+          )}
+
           {showPlot && (
             <div className="mt-2.5 rounded-md border border-gray-200 bg-gray-50 p-2">
-              <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500">
-                <span>{translate('popup.hourlyPm25', locale)}</span>
+              <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-gray-500">
+                <span>
+                  {plotMode === 'ts'
+                    ? translate('popup.hourlyPm25', locale)
+                    : plotMode === 'xy'
+                      ? translate('plot.ab.title', locale)
+                      : translate('plot.fem.title', locale)}
+                </span>
                 <span>{plotSource === 'endpoint' ? translate('popup.plotSource.endpoint', locale) : translate('popup.plotSource.fallback', locale)}</span>
               </div>
-              <MonitorPlotChart
-                points={plotPoints}
-                locale={locale}
-                highlightColor={aqColor}
-                currentValue={pm25 ?? undefined}
-                height={170}
-              />
+              {plotMode === 'ts' && (
+                <MonitorPlotChart
+                  points={plotPoints}
+                  locale={locale}
+                  highlightColor={aqColor}
+                  currentValue={pm25 ?? undefined}
+                  height={170}
+                />
+              )}
+              {plotMode === 'xy' && (
+                <MonitorScatterChart mode="xy" abPoints={abPoints} locale={locale} height={200} />
+              )}
+              {plotMode === 'xy_cor' && (
+                <>
+                  <MonitorScatterChart mode="xy_cor" paFemPoints={paFemPoints} locale={locale} height={200} />
+                  {nearbyFem && (
+                    <div className="mt-1 text-[10px] text-gray-500">
+                      {translate('plot.fem.comparedWith', locale)
+                        .replace('{name}', nearbyFem.monitor.name)
+                        .replace('{dist}', nearbyFem.distanceKm.toFixed(1))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>
       </div>
     </MapPopup>
   )
+}
+
+function plotButtonClass(active: boolean, disabled = false): string {
+  const base = 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-colors'
+  if (disabled) return `${base} cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400`
+  if (active) return `${base} border-gray-400 bg-gray-100 text-gray-900`
+  return `${base} border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900`
 }
 
 export function MonitorTooltip({ monitor, locale }: { monitor: AirMonitor; locale: AqmapLocale }) {

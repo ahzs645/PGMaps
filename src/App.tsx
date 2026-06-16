@@ -68,6 +68,7 @@ function App() {
           <Route path="/dev/fallout" element={<DevFallout />} />
           <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
           <Route path="/dev/aqmap" element={<AqMapSection />} />
+          <Route path="/dev/aqmap/main" element={<AqMapSection variant="main" />} />
         </Routes>
       </Suspense>
       </ErrorBoundary>

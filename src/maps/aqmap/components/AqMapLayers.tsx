@@ -5,8 +5,8 @@ import { getAqhiColor, getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorP
 import maplibregl from 'maplibre-gl'
 import type { SmokeLayerDefinition } from '../lib/smokeLayers'
 import type { WmsLayerDefinition } from '../lib/wmsLayers'
-import type { AqMonitorGroup } from '../lib/monitorPresentation'
-import { getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
+import type { AqMonitorGroup, AqNetworkSlug } from '../lib/monitorPresentation'
+import { getAqmapNetworkSlug, getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
 import { getClusterCircleColor, getClusterCircleRadius, getClusterCountTextColor, getClusterStrokeColor } from '../lib/clusterColors'
@@ -237,6 +237,102 @@ function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): s
   return `
     <div class="text-xs">
       <div class="tooltip_title font-semibold text-foreground">${name}</div>
+    </div>
+  `
+}
+
+function pointInRing(lng: number, lat: number, ring: GeoJSON.Position[]): boolean {
+  let inside = false
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
+    const xi = Number(ring[index][0])
+    const yi = Number(ring[index][1])
+    const xj = Number(ring[previous][0])
+    const yj = Number(ring[previous][1])
+    const intersects = ((yi > lat) !== (yj > lat)) && (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi)
+    if (intersects) inside = !inside
+  }
+  return inside
+}
+
+function pointInPolygonCoordinates(lng: number, lat: number, rings: GeoJSON.Position[][]): boolean {
+  if (!rings.length || !pointInRing(lng, lat, rings[0])) return false
+  return !rings.slice(1).some((hole) => pointInRing(lng, lat, hole))
+}
+
+function monitorInForecastZone(
+  monitor: AirMonitor,
+  zone: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
+): boolean {
+  const { longitude, latitude } = monitor
+  if (zone.geometry.type === 'Polygon') {
+    return pointInPolygonCoordinates(longitude, latitude, zone.geometry.coordinates)
+  }
+  return zone.geometry.coordinates.some((polygon) => pointInPolygonCoordinates(longitude, latitude, polygon))
+}
+
+function getForecastZoneName(properties: ForecastZoneFeatureProperties): string {
+  return String(properties.NAME ?? properties.NOM ?? 'Forecast zone').trim() || 'Forecast zone'
+}
+
+function getForecastZoneMonitorGroup(monitor: AirMonitor): 'FEM' | 'PA' | 'EGG' | null {
+  if (monitor.network === 'FEM' || monitor.network === 'BC ENV') return 'FEM'
+  if (monitor.network === 'PA') return 'PA'
+  if (monitor.network === 'EGG') return 'EGG'
+  return null
+}
+
+function mean(values: Array<number | null | undefined>): number | null {
+  const valid = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+  if (!valid.length) return null
+  return valid.reduce((sum, value) => sum + value, 0) / valid.length
+}
+
+function formatMean(value: number | null): string {
+  return value === null ? '-' : value.toFixed(1)
+}
+
+function formatForecastZoneSummaryPopup(
+  zone: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
+  monitors: AirMonitor[],
+): string {
+  const zoneMonitors = monitors.filter((monitor) => monitorInForecastZone(monitor, zone))
+  const columns = ['FEM', 'PA', 'EGG', 'ALL'] as const
+  const grouped = {
+    FEM: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'FEM'),
+    PA: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'PA'),
+    EGG: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'EGG'),
+    ALL: zoneMonitors,
+  }
+  const rowClass = 'border-t border-gray-200'
+  const headerCellClass = 'px-2 py-1 text-right font-semibold text-gray-900'
+  const labelCellClass = 'whitespace-nowrap py-1 pr-3 text-gray-600'
+  const valueCellClass = 'px-2 py-1 text-right font-medium tabular-nums text-gray-900'
+
+  return `
+    <div class="text-xs text-gray-700">
+      <div class="font-semibold text-gray-900">Forecast Zone: ${escapeHtml(getForecastZoneName(zone.properties))}</div>
+      <table class="mt-2 w-full border-collapse text-[11px]">
+        <thead>
+          <tr>
+            <th class="${labelCellClass}"></th>
+            ${columns.map((column) => `<th class="${headerCellClass}">${column}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="${rowClass}">
+            <td class="${labelCellClass}"># of Monitors</td>
+            ${columns.map((column) => `<td class="${valueCellClass}">${grouped[column].length}</td>`).join('')}
+          </tr>
+          <tr class="${rowClass}">
+            <td class="${labelCellClass}">1hr PM2.5 (&mu;g m<sup>-3</sup>)</td>
+            ${columns.map((column) => `<td class="${valueCellClass}">${formatMean(mean(grouped[column].map((monitor) => monitor.pm25OneHour)))}</td>`).join('')}
+          </tr>
+          <tr class="${rowClass}">
+            <td class="${labelCellClass}">24hr PM2.5 (&mu;g m<sup>-3</sup>)</td>
+            ${columns.map((column) => `<td class="${valueCellClass}">${formatMean(mean(grouped[column].map((monitor) => monitor.pm25TwentyFourHour)))}</td>`).join('')}
+          </tr>
+        </tbody>
+      </table>
     </div>
   `
 }
@@ -693,7 +789,7 @@ export function FirePerimetersVectorLayer({ visible }: { visible: boolean }) {
   return null
 }
 
-export function ForecastZonesVectorLayer({ visible }: { visible: boolean }) {
+export function ForecastZonesVectorLayer({ visible, monitors }: { visible: boolean; monitors: AirMonitor[] }) {
   const { map, isLoaded } = useMap()
   const sourceId = 'aqmap-forecast-zones-vector-source'
   const fillLayerId = 'aqmap-forecast-zones-vector-fill'
@@ -794,7 +890,25 @@ export function ForecastZonesVectorLayer({ visible }: { visible: boolean }) {
       maxWidth: '280px',
       offset: 12,
     })
+    const clickPopup = new maplibregl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      className: 'aqmap-popup',
+      maxWidth: '360px',
+      offset: 12,
+    })
     let hoveredId: string | number | null = null
+
+    const getZoneFromEvent = (event: maplibregl.MapLayerMouseEvent) => {
+      const feature = event.features?.[0]
+      if (!feature) return null
+      const featureId = String(feature.properties?.FEATURE_ID ?? '')
+      const clc = String(feature.properties?.CLC ?? '')
+      return data.features.find((candidate) => (
+        (featureId && candidate.properties?.FEATURE_ID === featureId)
+        || (clc && candidate.properties?.CLC === clc)
+      )) ?? null
+    }
 
     const handleMouseMove = (event: maplibregl.MapLayerMouseEvent) => {
       const markerFeature = map
@@ -838,14 +952,32 @@ export function ForecastZonesVectorLayer({ visible }: { visible: boolean }) {
       popup.remove()
     }
 
+    const handleClick = (event: maplibregl.MapLayerMouseEvent) => {
+      const markerFeature = map
+        .queryRenderedFeatures(event.point)
+        .find((feature) => feature.layer.id.startsWith('aqmap-monitor-'))
+      if (markerFeature) return
+
+      const zone = getZoneFromEvent(event)
+      if (!zone) return
+      popup.remove()
+      clickPopup
+        .setLngLat(event.lngLat)
+        .setHTML(formatForecastZoneSummaryPopup(zone, monitors))
+        .addTo(map)
+    }
+
+    map.on('click', fillLayerId, handleClick)
     map.on('mousemove', fillLayerId, handleMouseMove)
     map.on('mouseleave', fillLayerId, handleMouseLeave)
 
     return () => {
       try {
+        map.off('click', fillLayerId, handleClick)
         map.off('mousemove', fillLayerId, handleMouseMove)
         map.off('mouseleave', fillLayerId, handleMouseLeave)
         popup.remove()
+        clickPopup.remove()
         if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
         if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
         if (map.getSource(sourceId)) map.removeSource(sourceId)
@@ -853,7 +985,7 @@ export function ForecastZonesVectorLayer({ visible }: { visible: boolean }) {
         // MapLibre can throw during style teardown.
       }
     }
-  }, [data, fillLayerId, isLoaded, lineLayerId, map, sourceId, visible])
+  }, [data, fillLayerId, isLoaded, lineLayerId, map, monitors, sourceId, visible])
 
   return null
 }
@@ -930,6 +1062,7 @@ function loadMapImage(map: maplibregl.Map, id: string, src: string): Promise<voi
 export function AqMonitorLayer({
   monitors,
   visibleGroups,
+  visibleNetworks,
   iconMode,
   clusterColorScheme,
   clusterRadius,
@@ -940,6 +1073,12 @@ export function AqMonitorLayer({
 }: {
   monitors: AirMonitor[]
   visibleGroups: Set<AqMonitorGroup>
+  /**
+   * When provided, monitors are filtered by individual network slug
+   * (agency/purpleair/aqegg/other) instead of by `visibleGroups`. Used by the
+   * simplified /dev/aqmap/main page to toggle FEM/PA/EGG independently.
+   */
+  visibleNetworks?: Set<AqNetworkSlug>
   iconMode: AqMonitorIconMode
   clusterColorScheme: AqClusterColorScheme
   clusterRadius: number
@@ -960,7 +1099,9 @@ export function AqMonitorLayer({
     return {
       type: 'FeatureCollection',
       features: monitors
-        .filter((monitor) => visibleGroups.has(getMonitorGroup(monitor.network)))
+        .filter((monitor) => visibleNetworks
+          ? visibleNetworks.has(getAqmapNetworkSlug(monitor))
+          : visibleGroups.has(getMonitorGroup(monitor.network)))
         .map((monitor) => {
           const group = getMonitorGroup(monitor.network)
           const pm25 = getMonitorAqhiPm25(monitor)
@@ -993,7 +1134,7 @@ export function AqMonitorLayer({
           }
         }),
     }
-  }, [monitors, visibleGroups])
+  }, [monitors, visibleGroups, visibleNetworks])
 
   useEffect(() => {
     if (!isLoaded || !map) return

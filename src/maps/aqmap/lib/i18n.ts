@@ -39,6 +39,11 @@ const EN: StringMap = {
   'groups.lcm': 'Low-cost',
   'groups.other': 'Other networks',
 
+  'sidebar.observationData': 'Observation Data',
+  'network.agency': 'Agency (FEM)',
+  'network.purpleair': 'PurpleAir (PA)',
+  'network.aqegg': 'AQ Egg (EGG)',
+
   'monitorType.fem': 'Regulatory (FEM)',
   'monitorType.pa': 'PurpleAir (PA)',
   'monitorType.egg': 'AQegg (EGG)',
@@ -195,6 +200,11 @@ const FR: StringMap = {
   'groups.lcm': 'Faible coût',
   'groups.other': 'Autres réseaux',
 
+  'sidebar.observationData': 'Données d’observation',
+  'network.agency': 'Agence (FEM)',
+  'network.purpleair': 'PurpleAir (PA)',
+  'network.aqegg': 'AQ Egg (EGG)',
+
   'monitorType.fem': 'Réglementaires (FEM)',
   'monitorType.pa': 'PurpleAir (PA)',
   'monitorType.egg': 'AQegg (EGG)',
@@ -343,6 +353,13 @@ export function formatLocalizedDate(value: string | null | undefined, locale: Aq
 export function formatGroupLabel(group: 'agency' | 'lcm' | 'other', locale: AqmapLocale): string {
   if (group === 'agency') return translate('groups.agency', locale)
   if (group === 'lcm') return translate('groups.lcm', locale)
+  return translate('groups.other', locale)
+}
+
+export function formatNetworkLabel(network: 'agency' | 'purpleair' | 'aqegg' | 'other', locale: AqmapLocale): string {
+  if (network === 'agency') return translate('network.agency', locale)
+  if (network === 'purpleair') return translate('network.purpleair', locale)
+  if (network === 'aqegg') return translate('network.aqegg', locale)
   return translate('groups.other', locale)
 }
 

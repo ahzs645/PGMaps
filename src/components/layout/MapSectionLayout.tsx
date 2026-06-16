@@ -49,6 +49,8 @@ interface MapSectionLayoutProps {
   /** When set, renders a drag handle on the right sidebar's inner edge for resizing. */
   onDesktopRightSidebarWidthChange?: (width: number) => void
   suppressMobileSheet?: boolean
+  /** Hides the left sidebar entirely (and its toggle / mobile bottom sheet). */
+  disableSidebar?: boolean
   children: ReactNode
   className?: string
 }
@@ -194,6 +196,7 @@ export function MapSectionLayout({
   desktopRightSidebarWidth = 360,
   onDesktopRightSidebarWidthChange,
   suppressMobileSheet = false,
+  disableSidebar = false,
   children,
   className,
 }: MapSectionLayoutProps) {
@@ -710,6 +713,7 @@ export function MapSectionLayout({
       } as CSSProperties}
     >
       {/* Sidebar wrapper */}
+      {!disableSidebar && (
       <div
         className={cn(
           'pointer-events-none absolute inset-0 md:pointer-events-auto md:relative md:inset-auto md:z-10 md:h-full md:shrink-0',
@@ -812,8 +816,10 @@ export function MapSectionLayout({
           <SidebarResizeHandle side="left" width={desktopSidebarWidth} onWidthChange={onDesktopSidebarWidthChange} />
         )}
       </div>
+      )}
 
       {/* Desktop left-sidebar toggle */}
+      {!disableSidebar && (
       <button
         type="button"
         onClick={onToggleDesktopSidebar}
@@ -823,6 +829,7 @@ export function MapSectionLayout({
       >
         {showDesktopSidebar ? <ChevronsLeft className="h-4 w-4" /> : <ChevronsRight className="h-4 w-4" />}
       </button>
+      )}
 
       {/* Map content */}
       <div className="relative min-w-0 flex-1 overflow-hidden">{children}</div>

@@ -31,7 +31,7 @@ function parseCsv(text: string): AqPlotPoint[] {
   const femIndex = headers.indexOf('pm25_fem')
 
   return lines
-    .map((line) => {
+    .map((line): AqPlotPoint | null => {
       const cells = line.split(',')
       const pm25 = Number(cells[pm25Index])
       if (!Number.isFinite(pm25)) return null
@@ -81,7 +81,7 @@ export async function fetchAqmapPlotSeries(monitor: AirMonitor, signal?: AbortSi
       const json = await jsonResponse.json()
       if (Array.isArray(json)) {
         const points = json
-          .map((row) => {
+          .map((row): AqPlotPoint | null => {
             const date = String(row.date ?? '')
             const pm25 = Number(row.pm25)
             return date && Number.isFinite(pm25)

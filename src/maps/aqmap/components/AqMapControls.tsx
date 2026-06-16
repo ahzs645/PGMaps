@@ -5,10 +5,11 @@ import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { cn } from '@/lib/utils'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
-import type { AqMonitorGroup } from '../lib/monitorPresentation'
+import { AQ_OBSERVATION_NETWORKS, type AqMonitorGroup, type AqNetworkSlug } from '../lib/monitorPresentation'
 import {
   formatGroupLabel,
   formatLocalizedDate,
+  formatNetworkLabel,
   localizeSmokeLabel,
   localizeWmsLabel,
   translate,
@@ -367,6 +368,74 @@ export function FloatingLayerControl({
               />
             )}
           </div>
+        ))}
+      </div>
+    </MapFloatingPanel>
+  )
+}
+
+/**
+ * Simplified floating layer control for the locked-down /dev/aqmap/main page.
+ *
+ * Shows only what should be configurable there: the Observation Data networks
+ * (Agency/FEM, PurpleAir/PA, AQ Egg/EGG), the Global Wind Field toggle, and the
+ * vector overlays. It deliberately omits the icon-mode switch, reveal tuning,
+ * the raster-only Surface Winds layer, the Vector Wind Barbs toggle, and every
+ * raster/vector segmented control (all overlays render as vector here).
+ */
+export function MainLayerControl({
+  visibleNetworks,
+  onToggleNetwork,
+  visibleWmsLayers,
+  onToggleWmsLayer,
+  visibleSmokeLayers,
+  onToggleSmokeLayer,
+  windVisible,
+  onToggleWind,
+  smokeLayers,
+  locale,
+}: {
+  visibleNetworks: Set<AqNetworkSlug>
+  onToggleNetwork: (network: AqNetworkSlug) => void
+  visibleWmsLayers: Set<WmsLayerKey>
+  onToggleWmsLayer: (layer: WmsLayerKey) => void
+  visibleSmokeLayers: Set<SmokeLayerKey>
+  onToggleSmokeLayer: (layer: SmokeLayerKey) => void
+  windVisible: boolean
+  onToggleWind: () => void
+  smokeLayers: SmokeLayerDefinition[]
+  locale: AqmapLocale
+}) {
+  // Surface Winds is raster-only — excluded from the vector-only main page.
+  const vectorWmsLayers = WMS_LAYERS.filter((layer) => layer.key !== 'surfaceWinds')
+  return (
+    <MapFloatingPanel position="top-right" className="w-56 rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur">
+      <div className="font-semibold text-foreground">{translate('controls.layers', locale)}</div>
+      <div className="mt-1 max-h-72 space-y-1 overflow-y-auto">
+        <div className="pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          {translate('sidebar.observationData', locale)}
+        </div>
+        {AQ_OBSERVATION_NETWORKS.map((network) => (
+          <label key={network} className="flex items-center gap-2 text-muted-foreground">
+            <input type="checkbox" checked={visibleNetworks.has(network)} onChange={() => onToggleNetwork(network)} />
+            <span>{formatNetworkLabel(network, locale)}</span>
+          </label>
+        ))}
+        <label className="flex items-center gap-2 text-muted-foreground">
+          <input type="checkbox" checked={windVisible} onChange={onToggleWind} />
+          <span>{translate('sidebar.wind', locale)}</span>
+        </label>
+        {smokeLayers.map((layer) => (
+          <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
+            <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
+            <span>{localizeSmokeLabel(layer.key, locale)}</span>
+          </label>
+        ))}
+        {vectorWmsLayers.map((layer) => (
+          <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
+            <input type="checkbox" checked={visibleWmsLayers.has(layer.key)} onChange={() => onToggleWmsLayer(layer.key)} />
+            <span>{localizeWmsLabel(layer.key, locale)}</span>
+          </label>
         ))}
       </div>
     </MapFloatingPanel>
