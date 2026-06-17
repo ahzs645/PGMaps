@@ -70,3 +70,9 @@ data-sources/drivebc/historical/schema-inventory.json
 
 # Generated Indigenous support layers can be large; rebuild with npm run indigenous:sync.
 public/data/indigenous/
+
+# Native Land Digital API extracts are local/private unless explicit redistribution permission is granted.
+data-sources/native-land/api/
+
+# Generated from the bcdatamapper Native Land snapshot for local app use.
+public/data/native-land/

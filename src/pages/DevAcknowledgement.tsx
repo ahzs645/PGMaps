@@ -128,21 +128,11 @@ type BcGeocoderResponse = {
   features?: BcGeocoderFeature[]
 }
 
-type NativeLandResponse = {
-  features?: Array<{
-    properties?: {
-      Name?: string
-      Slug?: string
-      description?: string
-    }
-  }>
-}
-
 const sourceMeta: Record<SourceKey, { label: string; type: string; description: string }> = {
   nativeLand: {
     label: 'Native Land Digital',
     type: 'Educational territory layer',
-    description: 'Territories, languages, and treaties for review-oriented public education.',
+    description: 'Bundled territory, language, and treaty polygons for review-oriented public education.',
   },
   cad: {
     label: 'BC CAD',
@@ -167,7 +157,7 @@ const sourceMeta: Record<SourceKey, { label: string; type: string; description: 
 }
 
 const sourceUrls: Record<SourceKey, string> = {
-  nativeLand: 'https://api-docs.native-land.ca/by-names-and-or-position',
+  nativeLand: 'https://api-docs.native-land.ca/full-geojsons',
   cad: 'https://www2.gov.bc.ca/assets/gov/environment/natural-resource-stewardship/consulting-with-first-nations/first_nations_consultative_areas_database_cad_-_faqs.pdf',
   treaty: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_legal_admin_boundaries/MapServer',
   reserve: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/34',
@@ -175,8 +165,6 @@ const sourceUrls: Record<SourceKey, string> = {
 }
 
 const BC_GEOCODER_URL = 'https://geocoder.api.gov.bc.ca/addresses.json'
-const NATIVE_LAND_URL = 'https://native-land.ca/api/index.php'
-const NATIVE_LAND_API_KEY = import.meta.env.VITE_NATIVE_LAND_API_KEY as string | undefined
 
 // Treaty, reserve, and community geography are synced to static GeoJSON at build time
 // (npm run indigenous:sync) and queried in-browser with point-in-polygon / nearest-point.
@@ -187,6 +175,12 @@ const TREATY_LANDS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_lands.geo
 const TREATY_AREAS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_areas.geojson`
 const RESERVES_DATA = `${INDIGENOUS_DATA_BASE}indian_reserves_band_names.geojson`
 const COMMUNITIES_DATA = `${INDIGENOUS_DATA_BASE}first_nation_community_locations.geojson`
+const NATIVE_LAND_DATA_BASE = `${import.meta.env.BASE_URL}data/native-land/`
+const NATIVE_LAND_LAYERS = [
+  { category: 'territories', url: `${NATIVE_LAND_DATA_BASE}territories.geojson`, label: 'Native Land territory overlap' },
+  { category: 'languages', url: `${NATIVE_LAND_DATA_BASE}languages.geojson`, label: 'Native Land language overlap' },
+  { category: 'treaties', url: `${NATIVE_LAND_DATA_BASE}treaties.geojson`, label: 'Native Land treaty overlap' },
+] as const
 const LOCAL_COMMUNITY_MAX_KM = 120
 
 const initialLookupState: Record<SourceKey, SourceLookupState> = {
@@ -530,7 +524,7 @@ async function geocodeAddress(address: string, signal?: AbortSignal): Promise<Ge
 
 function sourceLookupMessage(status: SourceStatus) {
   if (status === 'loading') return 'Checking'
-  if (status === 'success') return 'Live'
+  if (status === 'success') return 'Local'
   if (status === 'error') return 'Issue'
   if (status === 'skipped') return 'Manual'
   return 'Ready'
@@ -566,7 +560,7 @@ type FeatureProperties = Record<string, unknown>
 
 const geojsonCache = new Map<string, Promise<GeoJSON.FeatureCollection>>()
 
-async function loadIndigenousLayer(url: string): Promise<GeoJSON.FeatureCollection> {
+async function loadGeoJsonLayer(url: string): Promise<GeoJSON.FeatureCollection> {
   const cached = geojsonCache.get(url)
   if (cached) return cached
   const request = fetch(url)
@@ -597,7 +591,7 @@ async function queryPolygonLayer(
   lng: number,
   toMatch: (properties: FeatureProperties) => SourceMatch | null,
 ): Promise<SourceMatch[]> {
-  const collection = await loadIndigenousLayer(url)
+  const collection = await loadGeoJsonLayer(url)
   const pt = point([lng, lat])
   const matches: SourceMatch[] = []
   for (const feature of collection.features) {
@@ -650,32 +644,22 @@ async function queryReserveSource(lat: number, lng: number) {
 }
 
 async function queryNativeLandSource(lat: number, lng: number, signal?: AbortSignal) {
-  if (!NATIVE_LAND_API_KEY) {
-    throw new Error('Set VITE_NATIVE_LAND_API_KEY to enable Native Land Digital lookups.')
-  }
-
-  const params = new URLSearchParams({
-    maps: 'territories,languages,treaties',
-    position: `${lat},${lng}`,
-    key: NATIVE_LAND_API_KEY,
-  })
-
-  const response = await fetch(`${NATIVE_LAND_URL}?${params.toString()}`, { signal })
-  if (!response.ok) throw new Error(`Native Land Digital returned ${response.status}`)
-  const data = await response.json() as NativeLandResponse
-  const matches: SourceMatch[] = (data.features ?? [])
-    .map((feature): SourceMatch | null => {
-      const name = feature.properties?.Name?.trim()
-      if (!name) return null
-      return {
-        source: 'nativeLand',
-        name,
-        label: 'Native Land overlap',
-        detail: feature.properties?.Slug,
-      }
-    })
-    .filter((match): match is SourceMatch => Boolean(match))
-  return uniqueMatches(matches)
+  const results = await Promise.all(
+    NATIVE_LAND_LAYERS.map((layer) =>
+      queryPolygonLayer(layer.url, lat, lng, (properties) => {
+        if (signal?.aborted) return null
+        const name = String(properties.Name ?? '').trim()
+        if (!name) return null
+        return {
+          source: 'nativeLand',
+          name,
+          label: layer.label,
+          detail: joinDetail([properties.Slug, properties.description]),
+        }
+      }),
+    ),
+  )
+  return uniqueMatches(results.flat())
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -688,7 +672,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 }
 
 async function localVerifiedMatches(result: GeocodeResult): Promise<SourceMatch[]> {
-  const collection = await loadIndigenousLayer(COMMUNITIES_DATA)
+  const collection = await loadGeoJsonLayer(COMMUNITIES_DATA)
   let nearest: { name: string; distanceKm: number; office: string } | null = null
   for (const feature of collection.features) {
     const coordinates = feature.geometry?.type === 'Point' ? feature.geometry.coordinates : null
@@ -829,7 +813,7 @@ export default function DevAcknowledgement() {
   const runSourceLookups = async (result: GeocodeResult) => {
     const controller = new AbortController()
     setSourceLookups({
-      nativeLand: { status: NATIVE_LAND_API_KEY ? 'loading' : 'skipped', matches: [], message: NATIVE_LAND_API_KEY ? undefined : 'Set VITE_NATIVE_LAND_API_KEY to enable Native Land Digital.' },
+      nativeLand: { status: 'loading', matches: [] },
       treaty: { status: 'loading', matches: [] },
       reserve: { status: 'loading', matches: [] },
       local: { status: 'loading', matches: [] },
@@ -840,15 +824,13 @@ export default function DevAcknowledgement() {
       setSourceLookups((current) => ({ ...current, [source]: state }))
     }
 
-    if (NATIVE_LAND_API_KEY) {
-      queryNativeLandSource(result.latitude, result.longitude, controller.signal)
-        .then((matches) => settle('nativeLand', { status: 'success', matches, message: matches.length ? undefined : 'No Native Land Digital overlaps returned.' }))
-        .catch((error: unknown) => settle('nativeLand', {
-          status: 'error',
-          matches: [],
-          message: error instanceof Error ? error.message : 'Native Land Digital lookup failed.',
-        }))
-    }
+    queryNativeLandSource(result.latitude, result.longitude, controller.signal)
+      .then((matches) => settle('nativeLand', { status: 'success', matches, message: matches.length ? undefined : 'No Native Land Digital overlaps returned.' }))
+      .catch((error: unknown) => settle('nativeLand', {
+        status: 'error',
+        matches: [],
+        message: error instanceof Error ? error.message : 'Native Land Digital lookup failed.',
+      }))
 
     queryTreatySources(result.latitude, result.longitude)
       .then((matches) => settle('treaty', { status: 'success', matches, message: matches.length ? undefined : 'No treaty land or treaty area intersection at this point.' }))
