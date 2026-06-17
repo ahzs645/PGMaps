@@ -14,6 +14,8 @@ import {
   Search,
   ShieldCheck,
 } from 'lucide-react'
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import { point } from '@turf/helpers'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -126,16 +128,6 @@ type BcGeocoderResponse = {
   features?: BcGeocoderFeature[]
 }
 
-type ArcGisQueryResponse = {
-  features?: Array<{
-    attributes?: Record<string, string | number | null>
-  }>
-  error?: {
-    message?: string
-    details?: string[]
-  }
-}
-
 type NativeLandResponse = {
   features?: Array<{
     properties?: {
@@ -168,9 +160,9 @@ const sourceMeta: Record<SourceKey, { label: string; type: string; description: 
     description: 'Reserve and band-name reference geography, not traditional territory.',
   },
   local: {
-    label: 'Local verified',
-    type: 'Institution/user verified',
-    description: 'Saved wording and local guidance maintained by the organization.',
+    label: 'Nearest community',
+    type: 'Community reference',
+    description: 'Nearest First Nation community office from the B.C. community-locations layer. Proximity context for review, not a territory boundary.',
   },
 }
 
@@ -179,15 +171,23 @@ const sourceUrls: Record<SourceKey, string> = {
   cad: 'https://www2.gov.bc.ca/assets/gov/environment/natural-resource-stewardship/consulting-with-first-nations/first_nations_consultative_areas_database_cad_-_faqs.pdf',
   treaty: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_legal_admin_boundaries/MapServer',
   reserve: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/34',
-  local: 'https://github.com/ahmadjalil/PGMaps',
+  local: 'https://catalogue.data.gov.bc.ca/dataset/first-nation-community-locations',
 }
 
 const BC_GEOCODER_URL = 'https://geocoder.api.gov.bc.ca/addresses.json'
 const NATIVE_LAND_URL = 'https://native-land.ca/api/index.php'
-const TREATY_AREAS_URL = 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_legal_admin_boundaries/MapServer/17/query'
-const TREATY_LANDS_URL = 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_legal_admin_boundaries/MapServer/19/query'
-const RESERVES_URL = 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/34/query'
 const NATIVE_LAND_API_KEY = import.meta.env.VITE_NATIVE_LAND_API_KEY as string | undefined
+
+// Treaty, reserve, and community geography are synced to static GeoJSON at build time
+// (npm run indigenous:sync) and queried in-browser with point-in-polygon / nearest-point.
+// The live BC ArcGIS endpoints return `Access-Control-Allow-Origin: null`, so the browser
+// blocks direct cross-origin requests from the deployed site — hence the local copies.
+const INDIGENOUS_DATA_BASE = `${import.meta.env.BASE_URL}data/indigenous/`
+const TREATY_LANDS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_lands.geojson`
+const TREATY_AREAS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_areas.geojson`
+const RESERVES_DATA = `${INDIGENOUS_DATA_BASE}indian_reserves_band_names.geojson`
+const COMMUNITIES_DATA = `${INDIGENOUS_DATA_BASE}first_nation_community_locations.geojson`
+const LOCAL_COMMUNITY_MAX_KM = 120
 
 const initialLookupState: Record<SourceKey, SourceLookupState> = {
   nativeLand: { status: 'idle', matches: [] },
@@ -562,95 +562,91 @@ function uniqueMatches(matches: SourceMatch[]) {
   })
 }
 
-function arcGisPointParams(lat: number, lng: number, outFields: string) {
-  const params = new URLSearchParams({
-    f: 'json',
-    where: '1=1',
-    geometry: JSON.stringify({ x: lng, y: lat, spatialReference: { wkid: 4326 } }),
-    geometryType: 'esriGeometryPoint',
-    inSR: '4326',
-    spatialRel: 'esriSpatialRelIntersects',
-    outFields,
-    returnGeometry: 'false',
-  })
-  return params
+type FeatureProperties = Record<string, unknown>
+
+const geojsonCache = new Map<string, Promise<GeoJSON.FeatureCollection>>()
+
+async function loadIndigenousLayer(url: string): Promise<GeoJSON.FeatureCollection> {
+  const cached = geojsonCache.get(url)
+  if (cached) return cached
+  const request = fetch(url)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Could not load ${url.split('/').pop()} (${response.status})`)
+      return response.json() as Promise<GeoJSON.FeatureCollection>
+    })
+    .catch((error: unknown) => {
+      // Drop the failed promise so a later lookup can retry the fetch.
+      geojsonCache.delete(url)
+      throw error instanceof Error ? error : new Error('Failed to load layer data')
+    })
+  geojsonCache.set(url, request)
+  return request
 }
 
-async function queryArcGisSource(
+function joinDetail(parts: unknown[]) {
+  const detail = parts
+    .map((part) => (part == null ? '' : String(part).trim()))
+    .filter((part) => part && part.toLowerCase() !== 'blank')
+    .join(' / ')
+  return detail || undefined
+}
+
+async function queryPolygonLayer(
   url: string,
   lat: number,
   lng: number,
-  outFields: string,
-  toMatch: (attributes: Record<string, string | number | null>) => SourceMatch | null,
-  signal?: AbortSignal,
-) {
-  const response = await fetch(`${url}?${arcGisPointParams(lat, lng, outFields).toString()}`, { signal })
-  if (!response.ok) throw new Error(`ArcGIS service returned ${response.status}`)
-  const data = await response.json() as ArcGisQueryResponse
-  if (data.error) throw new Error(data.error.message ?? 'ArcGIS query failed')
-  return uniqueMatches((data.features ?? [])
-    .map((feature) => feature.attributes ? toMatch(feature.attributes) : null)
-    .filter((match): match is SourceMatch => Boolean(match)))
+  toMatch: (properties: FeatureProperties) => SourceMatch | null,
+): Promise<SourceMatch[]> {
+  const collection = await loadIndigenousLayer(url)
+  const pt = point([lng, lat])
+  const matches: SourceMatch[] = []
+  for (const feature of collection.features) {
+    const geometry = feature.geometry
+    if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) continue
+    if (!booleanPointInPolygon(pt, geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon)) continue
+    const match = toMatch((feature.properties ?? {}) as FeatureProperties)
+    if (match) matches.push(match)
+  }
+  return uniqueMatches(matches)
 }
 
-async function queryTreatySources(lat: number, lng: number, signal?: AbortSignal) {
+async function queryTreatySources(lat: number, lng: number) {
   const [lands, areas] = await Promise.all([
-    queryArcGisSource(
-      TREATY_LANDS_URL,
-      lat,
-      lng,
-      'TREATY,FIRST_NATION_NAME,LAND_TYPE',
-      (attributes) => {
-        const name = String(attributes.FIRST_NATION_NAME || attributes.TREATY || '').trim()
-        if (!name) return null
-        return {
-          source: 'treaty',
-          name,
-          label: 'Treaty land intersection',
-          detail: [attributes.TREATY, attributes.LAND_TYPE].filter(Boolean).join(' / '),
-        }
-      },
-      signal,
-    ),
-    queryArcGisSource(
-      TREATY_AREAS_URL,
-      lat,
-      lng,
-      'TREATY,FIRST_NATION_NAME,AREA_TYPE,LAND_TYPE,GEOGRAPHIC_LOCATION',
-      (attributes) => {
-        const name = String(attributes.FIRST_NATION_NAME || attributes.TREATY || '').trim()
-        if (!name) return null
-        return {
-          source: 'treaty',
-          name,
-          label: 'Treaty area intersection',
-          detail: [attributes.TREATY, attributes.AREA_TYPE, attributes.GEOGRAPHIC_LOCATION].filter(Boolean).join(' / '),
-        }
-      },
-      signal,
-    ),
+    queryPolygonLayer(TREATY_LANDS_DATA, lat, lng, (properties) => {
+      const name = String(properties.FIRST_NATION_NAME ?? properties.TREATY ?? '').trim()
+      if (!name) return null
+      return {
+        source: 'treaty',
+        name,
+        label: 'Treaty land intersection',
+        detail: joinDetail([properties.TREATY, properties.LAND_TYPE]),
+      }
+    }),
+    queryPolygonLayer(TREATY_AREAS_DATA, lat, lng, (properties) => {
+      const name = String(properties.FIRST_NATION_NAME ?? properties.TREATY ?? '').trim()
+      if (!name) return null
+      return {
+        source: 'treaty',
+        name,
+        label: 'Treaty area intersection',
+        detail: joinDetail([properties.TREATY, properties.AREA_TYPE, properties.GEOGRAPHIC_LOCATION]),
+      }
+    }),
   ])
   return uniqueMatches([...lands, ...areas])
 }
 
-async function queryReserveSource(lat: number, lng: number, signal?: AbortSignal) {
-  return queryArcGisSource(
-    RESERVES_URL,
-    lat,
-    lng,
-    'ENGLISH_NAME,BAND_NAME,BAND_NUMBER',
-    (attributes) => {
-      const name = String(attributes.BAND_NAME || attributes.ENGLISH_NAME || '').trim()
-      if (!name) return null
-      return {
-        source: 'reserve',
-        name,
-        label: 'Reserve boundary intersection',
-        detail: [attributes.ENGLISH_NAME, attributes.BAND_NUMBER ? `Band ${attributes.BAND_NUMBER}` : null].filter(Boolean).join(' / '),
-      }
-    },
-    signal,
-  )
+async function queryReserveSource(lat: number, lng: number) {
+  return queryPolygonLayer(RESERVES_DATA, lat, lng, (properties) => {
+    const name = String(properties.BAND_NAME ?? properties.ENGLISH_NAME ?? '').trim()
+    if (!name) return null
+    return {
+      source: 'reserve',
+      name,
+      label: 'Reserve boundary intersection',
+      detail: joinDetail([properties.ENGLISH_NAME, properties.BAND_NUMBER ? `Band ${properties.BAND_NUMBER}` : null]),
+    }
+  })
 }
 
 async function queryNativeLandSource(lat: number, lng: number, signal?: AbortSignal) {
@@ -682,17 +678,38 @@ async function queryNativeLandSource(lat: number, lng: number, signal?: AbortSig
   return uniqueMatches(matches)
 }
 
-function localVerifiedMatches(result: GeocodeResult): SourceMatch[] {
-  const haystack = `${result.fullAddress} ${result.latitude} ${result.longitude}`.toLowerCase()
-  if (haystack.includes('prince george') || haystack.includes('university way')) {
-    return [{
-      source: 'local',
-      name: "Lheidli T'enneh First Nation",
-      label: 'Institution-verified wording',
-      detail: 'Sample local acknowledgement for Prince George / UNBC-style locations',
-    }]
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const toRad = (value: number) => (value * Math.PI) / 180
+  const earthRadiusKm = 6371
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(a)))
+}
+
+async function localVerifiedMatches(result: GeocodeResult): Promise<SourceMatch[]> {
+  const collection = await loadIndigenousLayer(COMMUNITIES_DATA)
+  let nearest: { name: string; distanceKm: number; office: string } | null = null
+  for (const feature of collection.features) {
+    const coordinates = feature.geometry?.type === 'Point' ? feature.geometry.coordinates : null
+    if (!coordinates || coordinates.length < 2) continue
+    const properties = (feature.properties ?? {}) as FeatureProperties
+    const name = String(properties.FIRST_NATION_BC_NAME ?? properties.FIRST_NATION_FEDERAL_NAME ?? '').trim()
+    if (!name) continue
+    const distanceKm = haversineKm(result.latitude, result.longitude, coordinates[1], coordinates[0])
+    if (!nearest || distanceKm < nearest.distanceKm) {
+      nearest = { name, distanceKm, office: String(properties.BC_REGIONAL_OFFICE ?? '').trim() }
+    }
   }
-  return []
+
+  if (!nearest || nearest.distanceKm > LOCAL_COMMUNITY_MAX_KM) return []
+
+  return [{
+    source: 'local',
+    name: nearest.name,
+    label: 'Nearest First Nation community',
+    detail: `~${Math.round(nearest.distanceKm)} km away${nearest.office ? ` · ${nearest.office} office` : ''}`,
+  }]
 }
 
 function buildCandidatesFromLookups(lookups: Record<SourceKey, SourceLookupState>): CandidateNation[] {
@@ -707,7 +724,13 @@ function buildCandidatesFromLookups(lookups: Record<SourceKey, SourceLookupState
       [match.source]: match.detail ? `${match.label}: ${match.detail}` : match.label,
     }
     const sourceCount = sourceOrder.filter((source) => nextSources[source]).length
-    const confidence: Confidence = sourceCount >= 2 || Boolean(nextSources.local) ? 'strong' : match.source === 'treaty' ? 'moderate' : 'review_required'
+    const confidence: Confidence = sourceCount >= 2
+      ? 'strong'
+      : nextSources.reserve
+        ? 'strong'
+        : nextSources.treaty
+          ? 'moderate'
+          : 'review_required'
     const sourceLabels = sourceOrder
       .filter((source) => nextSources[source])
       .map((source) => sourceMeta[source].label)
@@ -827,27 +850,29 @@ export default function DevAcknowledgement() {
         }))
     }
 
-    queryTreatySources(result.latitude, result.longitude, controller.signal)
-      .then((matches) => settle('treaty', { status: 'success', matches, message: matches.length ? undefined : 'No treaty land or treaty area intersections.' }))
+    queryTreatySources(result.latitude, result.longitude)
+      .then((matches) => settle('treaty', { status: 'success', matches, message: matches.length ? undefined : 'No treaty land or treaty area intersection at this point.' }))
       .catch((error: unknown) => settle('treaty', {
         status: 'error',
         matches: [],
-        message: `${error instanceof Error ? error.message : 'Treaty layer lookup failed.'} A server proxy may be required if CORS blocks this browser request.`,
+        message: error instanceof Error ? error.message : 'Treaty layer lookup failed.',
       }))
 
-    queryReserveSource(result.latitude, result.longitude, controller.signal)
-      .then((matches) => settle('reserve', { status: 'success', matches, message: matches.length ? undefined : 'No reserve boundary intersection.' }))
+    queryReserveSource(result.latitude, result.longitude)
+      .then((matches) => settle('reserve', { status: 'success', matches, message: matches.length ? undefined : 'No reserve boundary intersection at this point.' }))
       .catch((error: unknown) => settle('reserve', {
         status: 'error',
         matches: [],
-        message: `${error instanceof Error ? error.message : 'Reserve layer lookup failed.'} A server proxy may be required if CORS blocks this browser request.`,
+        message: error instanceof Error ? error.message : 'Reserve layer lookup failed.',
       }))
 
-    settle('local', {
-      status: 'success',
-      matches: localVerifiedMatches(result),
-      message: localVerifiedMatches(result).length ? undefined : 'No local verified acknowledgement saved for this location.',
-    })
+    localVerifiedMatches(result)
+      .then((matches) => settle('local', { status: 'success', matches, message: matches.length ? undefined : 'No First Nation community within range of this point.' }))
+      .catch((error: unknown) => settle('local', {
+        status: 'error',
+        matches: [],
+        message: error instanceof Error ? error.message : 'Community reference lookup failed.',
+      }))
   }
 
   const handleGeocode = async (event?: FormEvent<HTMLFormElement>) => {
