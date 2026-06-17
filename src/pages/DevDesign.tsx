@@ -1,37 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type StyleSpecification } from 'maplibre-gl'
 import {
-  Camera,
-  Check,
-  Coffee,
   Copy,
   Eye,
-  Flag,
   Layers,
   MapPin,
   MousePointer2,
-  Mountain,
   Palette,
   PanelRight,
-  Plus,
   RotateCcw,
   Save,
-  Search,
   Settings,
   Share2,
   SlidersHorizontal,
   Sparkles,
   Spline,
-  Star,
   Trash2,
-  Utensils,
-  Wand2,
-  Waves,
   X,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Map as AppMap, MapMarker, MarkerContent } from '@/components/ui/map'
+import { Map as AppMap, MapMarker, MarkerContent, type MapRef } from '@/components/ui/map'
 import { MapControls } from '@/components/ui/map-controls'
 import {
   MapLegend,
@@ -43,24 +32,20 @@ import {
 import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { MapCurvePath, MapStoryPanel, MapStorySection, MapTitleChip } from '@/components/ui/map-story'
 import {
   EditorMarkerView,
+  IconifyIcon,
   MapClickHandler,
-  MapColorSwatch,
-  MapCurvePath,
-  MapDarkPanel,
-  MapStoryPanel,
-  MapStorySection,
-  MapSubToolButton,
-  MapTitleChip,
+  MapColorPicker,
+  MapEditorPanel,
   MapToolRail,
   MapToolRailButton,
-  PathPreviewSwatch,
-  serializeEditorMap,
-  type EditorMarker,
-  type EditorMarkerVariant,
-  type EditorPath,
-} from '@/components/ui/map-story'
+  MarkerFlyout,
+  PathFlyout,
+  PATH_COLOR,
+  useMapEditor,
+} from '@/components/map-editor'
 import { type UrlCodec, useUrlState } from '@/hooks/useUrlState'
 import { cn } from '@/lib/utils'
 
@@ -132,61 +117,6 @@ const ALT_THEME: DesignState = {
 const DESIGN_CENTER = PG_CENTER
 const MARKER_COORDINATE = { longitude: PG_CENTER[0], latitude: PG_CENTER[1] }
 const DESIGN_STATE_KEYS = Object.keys(SHARED_BASEMAP_CAPTURE) as Array<keyof DesignState>
-
-// Serializable icon registry — editor markers store a key, not a React node.
-const MARKER_ICONS = {
-  flag: Flag,
-  waves: Waves,
-  utensils: Utensils,
-  camera: Camera,
-  pin: MapPin,
-  mountain: Mountain,
-  coffee: Coffee,
-  star: Star,
-} as const
-type MarkerIconKey = keyof typeof MARKER_ICONS
-const MARKER_ICON_KEYS = Object.keys(MARKER_ICONS) as MarkerIconKey[]
-
-function markerIcon(key: string): React.ReactNode {
-  const Icon = MARKER_ICONS[key as MarkerIconKey] ?? MapPin
-  return <Icon />
-}
-
-const PATH_COLOR = '#ff9800'
-const DEFAULT_MARKER_FILL = '#2563eb'
-const DEFAULT_MARKER_INSET = '#f8fafc'
-
-// Seed markers + route — now editable studio state, not constants.
-const INITIAL_MARKERS: EditorMarker[] = [
-  { id: 'start', longitude: -122.815, latitude: 53.9225, variant: 'badge', label: 'Start', icon: 'flag', color1: DEFAULT_MARKER_FILL, color2: DEFAULT_MARKER_INSET, size: 44 },
-  { id: 'river', longitude: -122.731, latitude: 53.9205, variant: 'pin', label: '', icon: 'waves', color1: DEFAULT_MARKER_FILL, color2: DEFAULT_MARKER_INSET, size: 44 },
-  { id: 'market', longitude: -122.7245, latitude: 53.8975, variant: 'pin', label: '', icon: 'utensils', color1: DEFAULT_MARKER_FILL, color2: DEFAULT_MARKER_INSET, size: 44 },
-  { id: 'lookout', longitude: -122.804, latitude: 53.8865, variant: 'badge', label: 'Lookout', icon: 'camera', color1: DEFAULT_MARKER_FILL, color2: DEFAULT_MARKER_INSET, size: 44 },
-]
-
-const INITIAL_PATHS: EditorPath[] = [
-  {
-    id: 'route',
-    points: INITIAL_MARKERS.map((marker) => [marker.longitude, marker.latitude] as [number, number]),
-    curved: true,
-    dashed: true,
-    arrow: true,
-    color: PATH_COLOR,
-    width: 3,
-  },
-]
-
-// tasmap's 8 path types, as the curve/dash/arrow toggle combinations.
-const PATH_TYPE_OPTIONS = [
-  { key: 'line', label: 'Line', curved: false, dashed: false, arrow: false },
-  { key: 'curve', label: 'Curve', curved: true, dashed: false, arrow: false },
-  { key: 'dashedLine', label: 'Dashed line', curved: false, dashed: true, arrow: false },
-  { key: 'dashedCurve', label: 'Dashed curve', curved: true, dashed: true, arrow: false },
-  { key: 'arrow', label: 'Arrow', curved: false, dashed: false, arrow: true },
-  { key: 'curveArrow', label: 'Curve arrow', curved: true, dashed: false, arrow: true },
-  { key: 'dashedArrow', label: 'Dashed arrow', curved: false, dashed: true, arrow: true },
-  { key: 'dashedCurveArrow', label: 'Dashed curve arrow', curved: true, dashed: true, arrow: true },
-] as const
 
 function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
@@ -413,8 +343,8 @@ function ToggleRow({
   )
 }
 
-// Dark toggle row for tasmap-style (dark) submenu popovers.
-function DarkToggle({
+// Toggle row for the tasmap-style submenu popovers (theme-aware).
+function EditorToggle({
   label,
   checked,
   onChange,
@@ -424,7 +354,7 @@ function DarkToggle({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <label className="flex h-8 cursor-pointer items-center justify-between gap-3 rounded-md px-2 text-sm text-white/90 transition-colors hover:bg-white/5">
+    <label className="flex h-8 cursor-pointer items-center justify-between gap-3 rounded-md px-2 text-sm text-foreground transition-colors hover:bg-accent">
       <span>{label}</span>
       <input
         type="checkbox"
@@ -557,151 +487,76 @@ export default function DevDesign() {
   // Which tool-rail flyout is open (null = none).
   const [openTool, setOpenTool] = useState<string | null>(null)
 
-  // --- Editor state -------------------------------------------------------
-  const [tool, setTool] = useState<'select' | 'marker' | 'path'>('select')
-  const [markers, setMarkers] = useState<EditorMarker[]>(INITIAL_MARKERS)
-  const [paths, setPaths] = useState<EditorPath[]>(INITIAL_PATHS)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [activePathId, setActivePathId] = useState<string | null>(null)
-  const [markerDraft, setMarkerDraft] = useState<{
-    variant: EditorMarkerVariant
-    icon: MarkerIconKey
-    size: number
-    color1: string
-    color2: string
-  }>({
-    variant: 'pin',
-    icon: 'pin',
-    size: 44,
-    color1: DEFAULT_MARKER_FILL,
-    color2: DEFAULT_MARKER_INSET,
+  // --- Editor state (modular hook) ---------------------------------------
+  const mapRef = useRef<MapRef | null>(null)
+  const editor = useMapEditor({
+    theme: {
+      primaryColor: design.primaryColor,
+      backgroundColor: design.backgroundColor,
+      waterColor: design.waterColor,
+      landcoverColor: design.landcoverColor,
+    },
+    mapRef,
   })
-  // Marker editor popover (opens from the marker sub-rail).
-  const [markerEditorOpen, setMarkerEditorOpen] = useState(false)
-  const [iconQuery, setIconQuery] = useState('')
-  const [pathDraft, setPathDraft] = useState<{ curved: boolean; dashed: boolean; arrow: boolean; color: string }>({
-    curved: true,
-    dashed: true,
-    arrow: true,
-    color: PATH_COLOR,
-  })
-  // Unsaved-changes indicator for the Save tool (tasmap's dirty dot).
-  const [dirty, setDirty] = useState(false)
-  const editsMountedRef = useRef(false)
-  useEffect(() => {
-    if (!editsMountedRef.current) {
-      editsMountedRef.current = true
-      return
-    }
-    setDirty(true)
-  }, [markers, paths])
+  const {
+    tool,
+    markers,
+    paths,
+    selectedId,
+    selectedMarker,
+    dirty,
+    enterTool,
+    selectMarker,
+    updateMarker,
+    deleteMarker,
+    handleMapClick,
+    exportMap,
+    clearAll,
+    setSelectedId,
+  } = editor
 
-  const newId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `id-${markers.length + paths.length}-${Date.now()}`)
-  const updateMarker = (id: string, patch: Partial<EditorMarker>) =>
-    setMarkers((current) => current.map((marker) => (marker.id === id ? { ...marker, ...patch } : marker)))
-  const selectedMarker = markers.find((marker) => marker.id === selectedId) ?? null
-
-  // tasmap's "update marker style" — recolor every marker to the current theme.
-  const recolorMarkersToTheme = () =>
-    setMarkers((current) =>
-      current.map((marker) => ({ ...marker, color1: design.primaryColor, color2: design.backgroundColor })),
-    )
-
-  // Toggling a path-draft option also updates the path currently being drawn.
-  const updatePathDraft = (patch: Partial<typeof pathDraft>) => {
-    setPathDraft((current) => ({ ...current, ...patch }))
-    if (activePathId) {
-      setPaths((current) => current.map((path) => (path.id === activePathId ? { ...path, ...patch } : path)))
-    }
-  }
-
-  const enterTool = (next: 'select' | 'marker' | 'path', flyout: string | null) => {
-    setTool(next)
-    setOpenTool(flyout)
-    setSelectedId(null)
-    if (next !== 'path') setActivePathId(null)
-  }
-
-  const handleMapClick = (lngLat: [number, number]) => {
-    if (tool === 'marker') {
-      const marker: EditorMarker = {
-        id: newId(),
-        longitude: lngLat[0],
-        latitude: lngLat[1],
-        variant: markerDraft.variant,
-        label: markerDraft.variant === 'badge' ? 'Label' : '',
-        icon: markerDraft.icon,
-        color1: markerDraft.color1,
-        color2: markerDraft.color2,
-        size: markerDraft.size,
-      }
-      setMarkers((current) => [...current, marker])
-      return
-    }
-    if (tool === 'path') {
-      if (!activePathId) {
-        const id = newId()
-        setPaths((current) => [...current, { id, points: [lngLat], ...pathDraft, width: 3 }])
-        setActivePathId(id)
-      } else {
-        setPaths((current) =>
-          current.map((path) => (path.id === activePathId ? { ...path, points: [...path.points, lngLat] } : path)),
-        )
-      }
-      return
-    }
-    setSelectedId(null)
-  }
-
-  const exportMap = () => {
-    const data = serializeEditorMap({
-      markers,
-      paths,
-      theme: {
-        primaryColor: design.primaryColor,
-        backgroundColor: design.backgroundColor,
-        waterColor: design.waterColor,
-        landcoverColor: design.landcoverColor,
-      },
-    })
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = 'pgmap.json'
-    anchor.click()
-    URL.revokeObjectURL(url)
-    setDirty(false)
-  }
+  // Quick-pick swatches for color pickers (current theme + neutrals).
+  const themeSwatches = useMemo(
+    () => [
+      design.primaryColor,
+      design.backgroundColor,
+      design.waterColor,
+      design.landcoverColor,
+      PATH_COLOR,
+      '#ffffff',
+      '#000000',
+    ],
+    [design.primaryColor, design.backgroundColor, design.waterColor, design.landcoverColor],
+  )
 
   // Keyboard: Esc cancels, Delete removes selection, Cmd/Ctrl+S exports.
-  const exportRef = useRef(exportMap)
-  exportRef.current = exportMap
+  const editorRef = useRef(editor)
+  useEffect(() => {
+    editorRef.current = editor
+  })
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      const ed = editorRef.current
       const target = event.target as HTMLElement | null
       const typing = target ? /^(INPUT|TEXTAREA)$/.test(target.tagName) : false
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         event.preventDefault()
-        exportRef.current()
+        ed.exportMap()
         return
       }
       if (event.key === 'Escape') {
-        setSelectedId(null)
-        setActivePathId(null)
-        setTool('select')
         setOpenTool(null)
+        ed.enterTool('select')
         return
       }
-      if (!typing && (event.key === 'Delete' || event.key === 'Backspace') && selectedId) {
+      if (!typing && (event.key === 'Delete' || event.key === 'Backspace') && ed.selectedId) {
         event.preventDefault()
-        setMarkers((current) => current.filter((marker) => marker.id !== selectedId))
-        setSelectedId(null)
+        ed.deleteMarker(ed.selectedId)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selectedId])
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -953,6 +808,7 @@ export default function DevDesign() {
         <div className="relative min-h-[54vh] flex-1 overflow-hidden lg:min-h-0">
           {canUseWebGl && styles ? (
             <AppMap
+              ref={mapRef}
               className="h-full min-h-[54vh] lg:min-h-0"
               styles={styles}
               showStyleLoadingOverlay={false}
@@ -982,17 +838,14 @@ export default function DevDesign() {
                       latitude={marker.latitude}
                       anchor={marker.variant === 'dot' ? 'center' : 'bottom'}
                       draggable={tool === 'select'}
-                      onClick={() => {
-                        setTool('select')
-                        setSelectedId(marker.id)
-                      }}
+                      onClick={() => selectMarker(marker.id)}
                       onDragEnd={({ lng, lat }) => updateMarker(marker.id, { longitude: lng, latitude: lat })}
                     >
                       <MarkerContent>
                         <EditorMarkerView
                           variant={marker.variant}
                           label={marker.label}
-                          icon={markerIcon(marker.icon)}
+                          icon={<IconifyIcon name={marker.icon} />}
                           color1={marker.color1}
                           color2={marker.color2}
                           size={marker.size}
@@ -1090,7 +943,10 @@ export default function DevDesign() {
                 icon={<MousePointer2 />}
                 label="Select / move"
                 active={tool === 'select' && openTool === null}
-                onClick={() => enterTool('select', null)}
+                onClick={() => {
+                  setOpenTool(null)
+                  enterTool('select')
+                }}
               />
               <MapToolRailButton
                 icon={<Palette />}
@@ -1099,38 +955,40 @@ export default function DevDesign() {
                 onClick={() => setOpenTool((current) => (current === 'palette' ? null : 'palette'))}
                 flyoutOpen={openTool === 'palette'}
                 flyout={
-                  <MapDarkPanel className="w-60 space-y-3">
+                  <MapEditorPanel className="w-60 space-y-3">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-white/70">Primary</span>
-                        <MapColorSwatch
+                        <span className="text-xs text-muted-foreground">Primary</span>
+                        <MapColorPicker
                           value={design.primaryColor}
                           onChange={(value) => setNextDesign((current) => ({ ...current, primaryColor: value, markerFill: value }))}
                           title="Primary"
+                          swatches={themeSwatches}
                         />
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-white/70">Background</span>
-                        <MapColorSwatch
+                        <span className="text-xs text-muted-foreground">Background</span>
+                        <MapColorPicker
                           value={design.backgroundColor}
                           onChange={(value) => setNextDesign((current) => ({ ...current, backgroundColor: value, markerInset: value }))}
                           title="Background"
+                          swatches={themeSwatches}
                         />
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-white/70">Water</span>
-                        <MapColorSwatch value={design.waterColor} onChange={(value) => updateDesign('waterColor', value)} title="Water" />
+                        <span className="text-xs text-muted-foreground">Water</span>
+                        <MapColorPicker value={design.waterColor} onChange={(value) => updateDesign('waterColor', value)} title="Water" swatches={themeSwatches} />
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-white/70">Landcover</span>
-                        <MapColorSwatch value={design.landcoverColor} onChange={(value) => updateDesign('landcoverColor', value)} title="Landcover" />
+                        <span className="text-xs text-muted-foreground">Landcover</span>
+                        <MapColorPicker value={design.landcoverColor} onChange={(value) => updateDesign('landcoverColor', value)} title="Landcover" swatches={themeSwatches} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => setDesign(SHARED_BASEMAP_CAPTURE)}
-                        className="flex items-center justify-center gap-1 rounded-md bg-white/10 px-2 py-1.5 text-xs font-medium transition-colors hover:bg-white/15"
+                        className="flex items-center justify-center gap-1 rounded-md bg-accent px-2 py-1.5 text-xs font-medium transition-colors hover:bg-accent/80"
                       >
                         <Sparkles className="h-3.5 w-3.5" />
                         Captured
@@ -1138,202 +996,36 @@ export default function DevDesign() {
                       <button
                         type="button"
                         onClick={() => setDesign(ALT_THEME)}
-                        className="flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium ring-1 ring-white/20 transition-colors hover:bg-white/10"
+                        className="flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium ring-1 ring-border transition-colors hover:bg-accent"
                       >
                         <Palette className="h-3.5 w-3.5" />
                         Alternate
                       </button>
                     </div>
-                  </MapDarkPanel>
+                  </MapEditorPanel>
                 }
               />
               <MapToolRailButton
                 icon={<MapPin />}
-                label="Marker tool — click map to place"
+                label="Marker tool"
                 active={tool === 'marker'}
-                onClick={() => enterTool('marker', 'marker')}
+                onClick={() => {
+                  enterTool('marker')
+                  setOpenTool('marker')
+                }}
                 flyoutOpen={openTool === 'marker'}
-                flyout={
-                  <div className="relative flex flex-col gap-3">
-                    <MapSubToolButton
-                      icon={<Plus />}
-                      label="New marker"
-                      active={markerEditorOpen}
-                      onClick={() => setMarkerEditorOpen((value) => !value)}
-                    />
-                    <MapSubToolButton icon={<Wand2 />} label="Recolor markers to theme" onClick={recolorMarkersToTheme} />
-                    {markers.map((marker) => (
-                      <MapSubToolButton
-                        key={marker.id}
-                        label={marker.label || 'Marker'}
-                        active={selectedId === marker.id}
-                        onClick={() => {
-                          setTool('select')
-                          setSelectedId(marker.id)
-                          setMarkerEditorOpen(false)
-                        }}
-                      >
-                        <span className="pointer-events-none scale-[0.5]">
-                          <EditorMarkerView
-                            variant={marker.variant}
-                            label=""
-                            icon={markerIcon(marker.icon)}
-                            color1={marker.color1}
-                            color2={marker.color2}
-                            size={marker.size}
-                          />
-                        </span>
-                      </MapSubToolButton>
-                    ))}
-
-                    {markerEditorOpen ? (
-                      <div className="absolute left-full top-0 ml-3">
-                        <MapDarkPanel className="w-[300px]">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="grid grid-cols-3 gap-2">
-                              {(['dot', 'pin', 'badge'] as const).map((variant) => (
-                                <button
-                                  key={variant}
-                                  type="button"
-                                  onClick={() => setMarkerDraft((current) => ({ ...current, variant }))}
-                                  aria-label={variant}
-                                  className={cn(
-                                    'flex h-[60px] w-[60px] items-center justify-center rounded-lg ring-1 transition-colors',
-                                    markerDraft.variant === variant ? 'bg-white/10 ring-white' : 'ring-white/15 hover:bg-white/5',
-                                  )}
-                                >
-                                  <span className="pointer-events-none scale-[0.7]">
-                                    <EditorMarkerView
-                                      variant={variant}
-                                      label=""
-                                      icon={markerIcon(markerDraft.icon)}
-                                      color1={markerDraft.color1}
-                                      color2={markerDraft.color2}
-                                      size={44}
-                                    />
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                            <div className="flex flex-col gap-2 pt-1">
-                              <MapColorSwatch
-                                value={markerDraft.color1}
-                                onChange={(value) => setMarkerDraft((current) => ({ ...current, color1: value }))}
-                                title="Fill (color1)"
-                              />
-                              <MapColorSwatch
-                                value={markerDraft.color2}
-                                onChange={(value) => setMarkerDraft((current) => ({ ...current, color2: value }))}
-                                title="Icon (color2)"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex items-center gap-2 rounded-md bg-white/10 px-2">
-                            <Search className="h-4 w-4 text-white/50" />
-                            <input
-                              value={iconQuery}
-                              onChange={(event) => setIconQuery(event.target.value)}
-                              placeholder="Search icons"
-                              className="h-8 w-full bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none"
-                            />
-                          </div>
-                          <div className="mt-2 grid max-h-[160px] grid-cols-8 gap-1 overflow-y-auto">
-                            {MARKER_ICON_KEYS.filter((key) => key.includes(iconQuery.trim().toLowerCase())).map((key) => {
-                              const Icon = MARKER_ICONS[key]
-                              return (
-                                <button
-                                  key={key}
-                                  type="button"
-                                  onClick={() => setMarkerDraft((current) => ({ ...current, icon: key }))}
-                                  aria-label={key}
-                                  className={cn(
-                                    'flex aspect-square items-center justify-center rounded-md transition-colors',
-                                    markerDraft.icon === key ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10',
-                                  )}
-                                >
-                                  <Icon className="h-5 w-5" />
-                                </button>
-                              )
-                            })}
-                          </div>
-
-                          <div className="mt-3">
-                            <div className="mb-1 flex items-center justify-between text-[11px] text-white/60">
-                              <span>Size</span>
-                              <span>{markerDraft.size}px</span>
-                            </div>
-                            <input
-                              type="range"
-                              min={28}
-                              max={64}
-                              value={markerDraft.size}
-                              onChange={(event) => setMarkerDraft((current) => ({ ...current, size: Number(event.target.value) }))}
-                              className="w-full accent-white"
-                            />
-                          </div>
-                          <p className="mt-2 text-[11px] leading-snug text-white/50">
-                            Click the map to drop a marker with this style.
-                          </p>
-                        </MapDarkPanel>
-                      </div>
-                    ) : null}
-                  </div>
-                }
+                flyout={<MarkerFlyout editor={editor} swatches={themeSwatches} />}
               />
               <MapToolRailButton
                 icon={<Spline />}
-                label="Path tool — click map to add points"
+                label="Path tool"
                 active={tool === 'path'}
-                onClick={() => enterTool('path', 'path')}
+                onClick={() => {
+                  enterTool('path')
+                  setOpenTool('path')
+                }}
                 flyoutOpen={openTool === 'path'}
-                flyout={
-                  <div className="relative flex flex-col gap-3">
-                    <MapSubToolButton icon={<Plus />} label="Add path" active onClick={() => enterTool('path', 'path')} />
-                    <div className="absolute left-full top-0 ml-3">
-                      <MapDarkPanel className="w-[252px]">
-                        <div className="grid grid-cols-4 gap-2">
-                          {PATH_TYPE_OPTIONS.map((option) => (
-                            <PathPreviewSwatch
-                              key={option.key}
-                              curved={option.curved}
-                              dashed={option.dashed}
-                              arrow={option.arrow}
-                              color={pathDraft.color}
-                              label={option.label}
-                              selected={
-                                pathDraft.curved === option.curved &&
-                                pathDraft.dashed === option.dashed &&
-                                pathDraft.arrow === option.arrow
-                              }
-                              onClick={() =>
-                                updatePathDraft({ curved: option.curved, dashed: option.dashed, arrow: option.arrow })
-                              }
-                            />
-                          ))}
-                        </div>
-                        <div className="mt-3 flex items-center gap-2">
-                          <span className="text-xs text-white/60">Color</span>
-                          <MapColorSwatch value={pathDraft.color} onChange={(value) => updatePathDraft({ color: value })} title="Path color" />
-                          <span className="ml-auto text-[11px] text-white/40">{activePathId ? 'drawing…' : 'idle'}</span>
-                        </div>
-                        <p className="mt-2 text-[11px] leading-snug text-white/50">Pick a style, then click the map to add points.</p>
-                        <button
-                          type="button"
-                          disabled={!activePathId}
-                          onClick={() => {
-                            setActivePathId(null)
-                            enterTool('select', null)
-                          }}
-                          className="mt-3 flex w-full items-center justify-center gap-1 rounded-md bg-white/10 px-2 py-1.5 text-xs font-medium transition-colors hover:bg-white/15 disabled:opacity-40"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Finish path
-                        </button>
-                      </MapDarkPanel>
-                    </div>
-                  </div>
-                }
+                flyout={<PathFlyout editor={editor} swatches={themeSwatches} />}
               />
               <MapToolRailButton
                 icon={<Settings />}
@@ -1342,25 +1034,20 @@ export default function DevDesign() {
                 onClick={() => setOpenTool((current) => (current === 'settings' ? null : 'settings'))}
                 flyoutOpen={openTool === 'settings'}
                 flyout={
-                  <MapDarkPanel className="w-56 space-y-1">
-                    <DarkToggle label="Story panel" checked={design.showStory} onChange={(checked) => updateDesign('showStory', checked)} />
-                    <DarkToggle label="Focus area" checked={design.showFocusArea} onChange={(checked) => updateDesign('showFocusArea', checked)} />
-                    <DarkToggle label="Markers" checked={design.showMarkers} onChange={(checked) => updateDesign('showMarkers', checked)} />
-                    <DarkToggle label="Paths" checked={design.showPath} onChange={(checked) => updateDesign('showPath', checked)} />
+                  <MapEditorPanel className="w-56 space-y-1">
+                    <EditorToggle label="Story panel" checked={design.showStory} onChange={(checked) => updateDesign('showStory', checked)} />
+                    <EditorToggle label="Focus area" checked={design.showFocusArea} onChange={(checked) => updateDesign('showFocusArea', checked)} />
+                    <EditorToggle label="Markers" checked={design.showMarkers} onChange={(checked) => updateDesign('showMarkers', checked)} />
+                    <EditorToggle label="Paths" checked={design.showPath} onChange={(checked) => updateDesign('showPath', checked)} />
                     <button
                       type="button"
-                      onClick={() => {
-                        setMarkers([])
-                        setPaths([])
-                        setActivePathId(null)
-                        setSelectedId(null)
-                      }}
-                      className="mt-2 flex w-full items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium ring-1 ring-white/20 transition-colors hover:bg-white/10"
+                      onClick={clearAll}
+                      className="mt-2 flex w-full items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium ring-1 ring-border transition-colors hover:bg-accent"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Clear all
                     </button>
-                  </MapDarkPanel>
+                  </MapEditorPanel>
                 }
               />
               <MapToolRailButton
@@ -1403,19 +1090,19 @@ export default function DevDesign() {
                   </button>
                 ))}
               </div>
-              <input
-                type="color"
+              <MapColorPicker
                 value={selectedMarker.color1}
-                onChange={(event) => updateMarker(selectedMarker.id, { color1: event.target.value })}
-                className="h-7 w-8 cursor-pointer rounded border border-border bg-transparent p-0.5"
-                aria-label="Fill color"
+                onChange={(value) => updateMarker(selectedMarker.id, { color1: value })}
+                title="Fill color"
+                swatches={themeSwatches}
+                placement="top"
               />
-              <input
-                type="color"
+              <MapColorPicker
                 value={selectedMarker.color2}
-                onChange={(event) => updateMarker(selectedMarker.id, { color2: event.target.value })}
-                className="h-7 w-8 cursor-pointer rounded border border-border bg-transparent p-0.5"
-                aria-label="Icon color"
+                onChange={(value) => updateMarker(selectedMarker.id, { color2: value })}
+                title="Icon color"
+                swatches={themeSwatches}
+                placement="top"
               />
               {selectedMarker.variant === 'badge' ? (
                 <input
@@ -1427,10 +1114,7 @@ export default function DevDesign() {
               ) : null}
               <button
                 type="button"
-                onClick={() => {
-                  setMarkers((current) => current.filter((marker) => marker.id !== selectedMarker.id))
-                  setSelectedId(null)
-                }}
+                onClick={() => deleteMarker(selectedMarker.id)}
                 className="text-destructive transition-colors hover:text-destructive/80"
                 aria-label="Delete marker"
               >
