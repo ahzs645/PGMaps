@@ -605,6 +605,150 @@ export function MapToolRailButton({
 }
 
 /* -------------------------------------------------------------------------- */
+/* Dark submenu primitives (faithful to tasmap's editor chrome)                */
+/* -------------------------------------------------------------------------- */
+
+/** tasmap dark surface used by sub-buttons and popovers (its `grey-800`). */
+const DARK_SURFACE = "#262626";
+
+type MapSubToolButtonProps = {
+  /** Icon node, or omit and pass `children` for a custom preview */
+  icon?: ReactNode;
+  /** Tooltip + accessible label */
+  label: string;
+  active?: boolean;
+  badge?: boolean;
+  onClick?: () => void;
+  /** Custom content (e.g. a marker preview) instead of an icon */
+  children?: ReactNode;
+};
+
+/** A round 48px dark sub-button — tasmap's secondary tool-rail buttons. */
+export function MapSubToolButton({
+  icon,
+  label,
+  active = false,
+  badge = false,
+  onClick,
+  children,
+}: MapSubToolButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      aria-pressed={active}
+      style={{ backgroundColor: DARK_SURFACE, opacity: active ? 1 : 0.6 }}
+      className="relative flex size-12 items-center justify-center rounded-full text-white shadow-xl ring-1 ring-white/10 transition-all hover:scale-110 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 [&_svg]:size-5"
+    >
+      {children ?? icon}
+      {badge ? (
+        <span className="absolute -right-0.5 -top-0.5 size-3 rounded-full bg-primary shadow ring-2 ring-[#262626]" />
+      ) : null}
+    </button>
+  );
+}
+
+/** Dark popover card — tasmap's editor popovers (`data-theme="dark"`). */
+export function MapDarkPanel({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      style={{ backgroundColor: DARK_SURFACE }}
+      className={cn(
+        "rounded-xl p-4 text-white shadow-2xl ring-1 ring-white/10",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+type MapColorSwatchProps = {
+  value: string;
+  onChange: (value: string) => void;
+  title?: string;
+  className?: string;
+};
+
+/** Round 28px color swatch that opens the native picker — tasmap's swatch. */
+export function MapColorSwatch({ value, onChange, title, className }: MapColorSwatchProps) {
+  return (
+    <label
+      title={title}
+      style={{ backgroundColor: value }}
+      className={cn(
+        "relative block size-7 shrink-0 cursor-pointer rounded-full ring-1 ring-white/30",
+        className,
+      )}
+    >
+      <input
+        type="color"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="absolute inset-0 cursor-pointer opacity-0"
+        aria-label={title ?? "Color"}
+      />
+    </label>
+  );
+}
+
+type PathPreviewSwatchProps = {
+  curved: boolean;
+  dashed: boolean;
+  arrow: boolean;
+  color: string;
+  selected?: boolean;
+  onClick?: () => void;
+  label?: string;
+};
+
+/** A mini SVG preview of a path type — tasmap's 2×4 path picker tiles. */
+export function PathPreviewSwatch({
+  curved,
+  dashed,
+  arrow,
+  color,
+  selected = false,
+  onClick,
+  label,
+}: PathPreviewSwatchProps) {
+  const d = curved ? "M7 36 C 19 12, 30 38, 41 14" : "M7 35 L41 14";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      aria-pressed={selected}
+      className={cn(
+        "flex size-12 items-center justify-center rounded-lg ring-1 transition-colors",
+        selected ? "bg-white/10 ring-white" : "ring-white/15 hover:bg-white/5",
+      )}
+    >
+      <svg viewBox="0 0 48 48" width="40" height="40" aria-hidden="true">
+        <path
+          d={d}
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={dashed ? "5 4" : undefined}
+        />
+        {arrow ? <path d="M41 14 l-7 0.5 l3.5 4.2 z" fill={color} /> : null}
+      </svg>
+    </button>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Editor: map click capture, marker views, serialization                     */
 /* -------------------------------------------------------------------------- */
 
