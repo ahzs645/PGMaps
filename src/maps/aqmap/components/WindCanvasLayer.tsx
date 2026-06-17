@@ -21,6 +21,7 @@ type WindSample = {
 const PARTICLE_COUNT = 1400
 const MAX_PARTICLE_AGE = 110
 const VELOCITY_SCALE = 0.018
+const TRAIL_FADE = 'rgba(0, 0, 0, 0.91)'
 
 const SPEED_COLORS = [
   'rgba(80, 160, 255, 0.58)',
@@ -155,6 +156,7 @@ export function WindCanvasLayer({
     let frame = 0
     let width = 0
     let height = 0
+    let cameraChanged = true
     const particles = Array.from({ length: PARTICLE_COUNT }, randomParticle)
 
     function resize() {
@@ -176,9 +178,15 @@ export function WindCanvasLayer({
     }
 
     function draw() {
+      const mapIsMoving = mapInstance.isMoving()
       context.globalCompositeOperation = 'destination-in'
-      context.fillStyle = 'rgba(0, 0, 0, 0.91)'
-      context.fillRect(0, 0, width, height)
+      if (mapIsMoving || cameraChanged) {
+        context.clearRect(0, 0, width, height)
+      } else {
+        context.fillStyle = TRAIL_FADE
+        context.fillRect(0, 0, width, height)
+      }
+      cameraChanged = false
       context.globalCompositeOperation = isLightBasemap ? 'source-over' : 'lighter'
       context.lineWidth = isLightBasemap ? 1.35 : 1.15
 
@@ -232,11 +240,16 @@ export function WindCanvasLayer({
 
     resize()
     frame = requestAnimationFrame(draw)
+    const handleMove = () => {
+      cameraChanged = true
+    }
     mapInstance.on('resize', resize)
+    mapInstance.on('move', handleMove)
 
     return () => {
       cancelAnimationFrame(frame)
       mapInstance.off('resize', resize)
+      mapInstance.off('move', handleMove)
     }
   }, [visible, map, isLoaded, sampler, basemap])
 
