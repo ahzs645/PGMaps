@@ -16,6 +16,7 @@ import {
   WATERSHED_BOUNDARY_LEVEL_OPTIONS,
   SCORE_METRICS,
 } from '../constants'
+import type { ScorePaletteKey } from '../constants/paletteTypes'
 import type {
   ScoreDataSource,
   ScoreMetricKey,
@@ -130,6 +131,22 @@ export function parseMissingDataMethod(value: string | null): ScoreMethodSetting
 
 export function parseVisualOutputMode(value: string | null): ScoreMethodSettings['visualOutput'] {
   return value === 'binned' ? 'binned' : 'interpolated'
+}
+
+export function parseMapColorScale(value: string | null): ScoreMethodSettings['mapColorScale'] {
+  return value === 'absolute' ? 'absolute' : 'relative'
+}
+
+const PALETTE_OVERRIDE_KEYS: ScorePaletteKey[] = [
+  'airCoverage',
+  'benefit',
+  'affordability',
+  'riskPressure',
+  'default',
+]
+
+export function parsePaletteOverride(value: string | null): ScorePaletteKey | null {
+  return value && PALETTE_OVERRIDE_KEYS.includes(value as ScorePaletteKey) ? (value as ScorePaletteKey) : null
 }
 
 export function parseMapSurface(value: string | null): 'source' | 'boundary' {

@@ -280,7 +280,7 @@ function SignedWeightSlider({
           aria-valuetext={`${getWeightIntent(clamped)} ${Math.abs(clamped)}`}
           onValueChange={([value]) => {
             const next = clampWeight(value)
-            onChange(Math.abs(next) <= 4 ? 0 : next)
+            onChange(next === 0 ? (clamped < 0 ? -1 : 1) : next)
           }}
           className="absolute inset-0 h-6 w-full opacity-0"
         />
@@ -300,7 +300,7 @@ function SignedWeightSlider({
           value={clamped}
           onChange={(event) => {
             const parsed = Number.parseFloat(event.target.value)
-            onChange(Number.isFinite(parsed) ? clampWeight(parsed) : 0)
+            if (Number.isFinite(parsed)) onChange(clampWeight(parsed))
           }}
           className="w-14 rounded border border-input bg-background px-1 py-0.5 text-right text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
         />

@@ -189,6 +189,7 @@ export default function ScoreBuilderSection() {
     scoredRegions: results.scoredRegions,
     scorePaletteProfile: results.scorePaletteProfile,
     visualOutput: state.methodSettings.visualOutput,
+    mapColorScale: state.methodSettings.mapColorScale,
     scoreSpread: results.scoreSpread,
     canUseWalkabilitySourceSurface: sb.canUseWalkabilitySourceSurface,
     showWalkabilitySourceSurface: sb.showWalkabilitySourceSurface,
@@ -565,6 +566,7 @@ export default function ScoreBuilderSection() {
               showWalkabilitySourceSurface={sb.showWalkabilitySourceSurface}
               canUseWalkabilitySourceSurface={sb.canUseWalkabilitySourceSurface}
               methodSettings={state.methodSettings}
+              onMethodSettingsChange={sb.setMethodSettings}
               scorePaletteProfile={results.scorePaletteProfile}
               scoreSpread={results.scoreSpread}
               enabledDataSourceCount={state.enabledDataSources.length}

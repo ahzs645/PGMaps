@@ -34,10 +34,12 @@ import {
   parseCustomMetricWeights,
   parseDataSources,
   parseHealthBoundaryLevel,
+  parseMapColorScale,
   parseMapSurface,
   parseMissingDataMethod,
   parseNormalizationMethod,
   parseNrAdminBoundaryLevel,
+  parsePaletteOverride,
   parseRegionalDistrictBoundaryLevel,
   parseScoreMetricKey,
   parseVisualOutputMode,
@@ -232,10 +234,12 @@ function applyPresetToState(
     }
   }
   const neededSources = getScoreDataSourcesForWeights(preset.weights)
+  const needsAirNetworks = neededSources.includes('airQuality')
   next.enabledDataSources = neededSources
-  next.selectedNetworks = neededSources.includes('airQuality') ? allNetworks : []
-  next.pendingNetworkSelectAll = false
-  next.showPoints = neededSources.includes('airQuality')
+  next.selectedNetworks = needsAirNetworks ? allNetworks : []
+  // If monitors haven't loaded yet, defer the select-all so networksLoaded picks every network.
+  next.pendingNetworkSelectAll = needsAirNetworks && allNetworks.length === 0
+  next.showPoints = needsAirNetworks
   return next
 }
 
@@ -593,6 +597,8 @@ export function createInitialScoreBuilderState(searchParams: URLSearchParams): S
     sensitivity: searchParams.get('sens') === 'off' ? false : true,
     normalizationScope: 'activeBoundaryLevel',
     visualOutput: parseVisualOutputMode(searchParams.get('vis')),
+    mapColorScale: parseMapColorScale(searchParams.get('cscale')),
+    paletteOverride: parsePaletteOverride(searchParams.get('pal')),
     healthyPlanPriority: {
       demographicMetric: parseScoreMetricKey(searchParams.get('hpDemo'), 'cimdComposite'),
       environmentMetric: parseScoreMetricKey(searchParams.get('hpEnv'), 'canopyProxyRatio'),

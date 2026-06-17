@@ -70,6 +70,21 @@ async function selectLevel(page: Page, label: string) {
   await page.getByRole('option', { name: label }).click()
 }
 
+/** Loading a URL with weights collapses both side panels; reopen them so controls are reachable. */
+async function openPanels(page: Page) {
+  for (const name of ['Show sidebar', 'Show right sidebar']) {
+    const button = page.getByRole('button', { name }).first()
+    if (await button.isVisible().catch(() => false)) {
+      await button.click().catch(() => {})
+    }
+  }
+}
+
+/** Density and Correlate are map-lens toggles in the equation bar, not standalone right-panel tabs. */
+async function setMapLens(page: Page, lens: 'Score' | 'Density' | 'Correlate') {
+  await page.getByRole('group', { name: 'Map lens' }).getByRole('button', { name: lens }).click()
+}
+
 test.describe('Score Builder preset model', () => {
   test('presets have coherent metadata, source derivation, and active matching', () => {
     const metricKeys = new Set(SCORE_METRICS.map((metric) => metric.key))
@@ -104,12 +119,16 @@ test.describe('Score Builder preset model', () => {
   })
 
   test('examples enable every source required by active weights', () => {
+    const violations: string[] = []
     for (const example of SCORE_BUILDER_EXAMPLES) {
       const requiredSources = requiredSourcesForWeights(example.weights)
       for (const source of requiredSources) {
-        expect(example.dataSources, `${example.key} includes ${source}`).toContain(source)
+        if (!example.dataSources.includes(source)) {
+          violations.push(`${example.key} is missing required source "${source}"`)
+        }
       }
     }
+    expect(violations, `Examples with weights whose data source is not enabled:\n${violations.join('\n')}`).toEqual([])
   })
 })
 
@@ -142,16 +161,21 @@ test.describe('Score Builder desktop interface', () => {
   })
 
   test('clicking an example card immediately applies it to the builder', async ({ page }) => {
-    await page.locator('[data-score-builder-tab="examples"]').click()
-    await page.getByRole('button', { name: /Air Monitoring Gaps \(Tract\)/ }).click()
+    // On desktop, examples live in the Index settings dialog.
+    await page.getByRole('button', { name: 'Index settings' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Index settings' })
+    await dialog.getByRole('tab', { name: 'Examples' }).click()
+    await dialog.getByRole('button', { name: /Air Monitoring Gaps \(Tract\)/ }).click()
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Air Monitoring Gaps (Tract)' })).toBeVisible()
+    await expect(page.locator('[data-score-builder-results-preview="true"]').first()).toContainText(
+      'Air Monitoring Gaps (Tract)',
+    )
     await expect(dataSourceButton(page, 'Air Quality')).toContainText('ON')
     await expect(dataSourceButton(page, 'Parks & Trails')).toContainText('OFF')
     await expect(dataSourceButton(page, 'Demographics')).toContainText('ON')
     await expect(levelSelectTrigger(page)).toContainText('Census Tract')
 
-    await page.locator('[data-score-builder-tab="equation"]').click()
+    // Equation-term chips live in the always-visible top equation bar.
     await expect(page.locator('[data-score-builder-equation-term="overallDensity"]')).toBeVisible()
     await expect(page.locator('[data-score-builder-equation-term="populationDensity"]')).toBeVisible()
   })
@@ -181,6 +205,7 @@ test.describe('Score Builder desktop interface', () => {
   })
 
   test('all boundary levels update options, URL state, and region counts', async ({ page }) => {
+    test.slow() // Iterates every boundary level with a data load + region-count wait apiece.
     const levelTrigger = levelSelectTrigger(page)
     const regionStats = page.locator('[data-score-builder-region-stats="true"]')
     const loadingMessage = page.getByText('Building region scores...')
@@ -211,13 +236,13 @@ test.describe('Score Builder desktop interface', () => {
       },
     )
     await expect(page.locator('[data-score-builder-results-preview="true"]')).toBeVisible({ timeout: 20_000 })
+    await openPanels(page)
 
-    const levelSelect = page.locator('[data-score-builder-level-select="true"]')
     const regionStats = page.locator('[data-score-builder-region-stats="true"]')
     const errorMessage = page.getByText('Unable to build scores')
 
     await page.locator('[data-score-builder-tab="regions"]').click()
-    await expect(levelSelect).toHaveValue('chsa')
+    await expect(levelSelectTrigger(page)).toContainText('CHSA')
     await expect(errorMessage).toHaveCount(0)
     await expect(regionStats).toContainText('229 of 229 regions', { timeout: 30_000 })
     await expect(page).toHaveURL(/src=bcHealth.*level=chsa/)
@@ -226,27 +251,34 @@ test.describe('Score Builder desktop interface', () => {
   test('right-panel tabs expose equation, density, and region workflows', async ({ page }) => {
     await page.locator('[data-score-builder-tab="equation"]').click()
     await expect(page.locator('[data-score-builder-section="equation"]')).toBeVisible()
-    await expect(page.getByText('Normalization')).toBeVisible()
 
-    await page.locator('[data-score-builder-tab="density"]').click()
+    // Density is a map lens; enabling it surfaces the density tab.
+    await setMapLens(page, 'Density')
     await expect(page.locator('[data-score-builder-section="density"]')).toBeVisible()
     await expect(page.getByLabel('Density metric')).toBeVisible()
     await expect(page.locator('[data-score-builder-build-density-score="true"]')).toBeVisible()
 
+    await setMapLens(page, 'Score')
     await page.locator('[data-score-builder-tab="regions"]').click()
     await expect(page.locator('[data-score-builder-section="regions"]')).toBeVisible()
     await expect(page.locator('[data-score-builder-region-stats="true"]')).toBeVisible()
   })
 
   test('density heat-map lens can become a one-metric score', async ({ page }) => {
-    await page.locator('[data-score-builder-tab="density"]').click()
-    await page.getByLabel('Density metric').selectOption('shadeGap')
+    await setMapLens(page, 'Density')
+    // Density metric is an AppSelect (Radix), not a native <select>.
+    await page.getByLabel('Density metric').click()
+    await page.getByRole('option', { name: 'Shade Gap' }).click()
     await page.locator('[data-score-builder-build-density-score="true"]').click()
 
     await expect(page.getByRole('button', { name: /Heat & Shade/i })).toContainText('ON')
-    await page.locator('[data-score-builder-tab="equation"]').click()
+    // Leave the density lens so the right panel settles on a stable (non-density) tab.
+    await setMapLens(page, 'Score')
+    // Equation-term chips live in the always-visible top equation bar.
     await expect(page.locator('[data-score-builder-equation-term="shadeGap"]')).toBeVisible()
     await expect(page.locator('[data-score-builder-equation-term]')).toHaveCount(1)
+    // The numeric weight input lives in the equation tab's composer.
+    await page.locator('[data-score-builder-tab="equation"]').click()
     await expect(page.locator('[data-score-builder-equation-number="shadeGap"]')).toHaveValue('100')
   })
 
@@ -263,14 +295,15 @@ test.describe('Score Builder desktop interface', () => {
     await expect(page).toHaveURL(/s=/)
   })
 
-  test('equation edits keep the active example context', async ({ page }) => {
+  test('flipping a metric turns the active example into a custom index', async ({ page }) => {
     const preview = page.locator('[data-score-builder-results-preview="true"]').first()
     await expect(preview).toContainText('Greenest Neighbourhoods')
 
+    // The first chip button flips the metric's direction — a real edit that no longer matches the example.
     await preview.locator('[data-score-builder-equation-term="parkDensity"] button').first().click()
 
-    await expect(preview).toContainText('Greenest Neighbourhoods')
-    await expect(preview).not.toContainText('Custom index')
+    await expect(preview).toContainText('Custom index')
+    await expect(preview).not.toContainText('Greenest Neighbourhoods')
   })
 
   test('priority mode can rank active metrics and apply weights', async ({ page }) => {
@@ -290,12 +323,14 @@ test.describe('Score Builder desktop interface', () => {
       },
     )
     await expect(page.locator('[data-score-builder-results-preview="true"]')).toBeVisible({ timeout: 20_000 })
+    await openPanels(page)
 
     await applyPresetFromDialog(page, 'Balanced Coverage')
 
     await expect(page.getByRole('button', { name: /Air Quality/i })).toContainText('ON')
     await expect(page.getByRole('button', { name: /BC Assessment/i })).toContainText('OFF')
-    await expect(page.getByText('0 networks')).toHaveCount(0)
+    // Monitors load asynchronously; the preset selects every network once they arrive.
+    await expect(page.getByText('0 networks')).toHaveCount(0, { timeout: 30_000 })
     await expect(page).toHaveURL(/ds=airQuality/)
     await expect(page).toHaveURL(/norm=winsorizedMinMax/)
   })
@@ -308,6 +343,7 @@ test.describe('Score Builder desktop interface', () => {
       },
     )
     await expect(page.locator('[data-score-builder-results-preview="true"]')).toBeVisible({ timeout: 20_000 })
+    await openPanels(page)
     await expect(page.getByRole('button', { name: 'Hide points' })).toBeVisible()
 
     await applyPresetFromDialog(page, 'Housing Affordability')
@@ -335,7 +371,7 @@ test.describe('Score Builder desktop interface', () => {
     await applyPresetFromDialog(page, 'School Access + Safety')
 
     await expect(page.locator('[data-score-builder-boundary-source="cityPG"]')).toContainText('School catchments')
-    await expect(page.locator('[data-score-builder-level-select="true"]')).toHaveValue('elementarySchoolCatchment')
+    await expect(levelSelectTrigger(page)).toContainText('Elementary School Catchment')
     await expect(dataSourceButton(page, 'Air Quality')).toContainText('ON')
     await expect(dataSourceButton(page, 'Crime')).toContainText('ON')
     await expect(dataSourceButton(page, 'BC Assessment')).toContainText('OFF')
@@ -344,7 +380,7 @@ test.describe('Score Builder desktop interface', () => {
 
   test('chsa mode only offers air-monitoring presets', async ({ page }) => {
     await page.locator('[data-score-builder-boundary-source="bcHealth"]').click()
-    await expect(page.locator('[data-score-builder-level-select="true"]')).toHaveValue('chsa')
+    await expect(levelSelectTrigger(page)).toContainText('CHSA')
     await expect(page).toHaveURL(/src=bcHealth/)
 
     await page.getByRole('button', { name: /Browse presets|Browse/ }).click()

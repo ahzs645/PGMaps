@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import type { RegionLevel } from '@/maps/airquality'
-import { SCORE_BUILDER_EXAMPLES, SCORE_PRESETS, getScorePaletteProfile } from '../constants'
+import { SCORE_BUILDER_EXAMPLES, SCORE_PALETTE_PROFILES, SCORE_PRESETS, getScorePaletteProfile } from '../constants'
 import { scoreRegionRowsWithHealthyPlanPriority } from '../lib/healthyPlanPriorityScoring'
 import { scoreRegionRowsWithModulePercentiles } from '../lib/modulePercentileScoring'
 import {
@@ -84,16 +84,24 @@ export function useScoreBuilderResults({
 
   const paletteExampleKey = useMemo(() => {
     if (resolvedExampleKey) return resolvedExampleKey
-    const match = SCORE_BUILDER_EXAMPLES.find(
+    const exactMatch = SCORE_BUILDER_EXAMPLES.find(
       (example) =>
         scoreDataSourcesEqual(example.dataSources, enabledDataSources) && scoreWeightsEqual(example.weights, weights),
     )
-    return match?.key || null
-  }, [enabledDataSources, resolvedExampleKey, weights])
+    if (exactMatch) return exactMatch.key
+    const sourceMatch = SCORE_BUILDER_EXAMPLES.find(
+      (example) =>
+        example.boundarySource === boundarySource &&
+        example.boundaryLevel === selectedRegionLevel &&
+        scoreDataSourcesEqual(example.dataSources, enabledDataSources),
+    )
+    return sourceMatch?.key || null
+  }, [boundarySource, enabledDataSources, resolvedExampleKey, selectedRegionLevel, weights])
 
   const scorePaletteProfile = useMemo(() => {
+    if (methodSettings.paletteOverride) return SCORE_PALETTE_PROFILES[methodSettings.paletteOverride]
     return getScorePaletteProfile(activePresetKey, paletteExampleKey)
-  }, [activePresetKey, paletteExampleKey])
+  }, [activePresetKey, methodSettings.paletteOverride, paletteExampleKey])
 
   const activePreset = useMemo(
     () => SCORE_PRESETS.find((preset) => preset.key === activePresetKey) || null,

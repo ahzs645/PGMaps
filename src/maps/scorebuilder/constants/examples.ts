@@ -210,7 +210,7 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       'CDC EJI-inspired local screen using module percentile-ranked sums. This is a local proxy, not the official ATSDR Environmental Justice Index.',
     boundarySource: 'census',
     boundaryLevel: 'da',
-    dataSources: ['heatShade', 'restaurants', 'census', 'bcAssessment', 'crime', 'transit', 'deprivation'],
+    dataSources: ['parks', 'heatShade', 'restaurants', 'census', 'bcAssessment', 'crime', 'transit', 'deprivation'],
     networkFilter: 'none',
     weights: {
       ...ZERO_WEIGHTS,
@@ -240,7 +240,7 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       'EJI SER-style example that ranks social vulnerability and environmental burden modules, then combines those module ranks without health vulnerability.',
     boundarySource: 'census',
     boundaryLevel: 'da',
-    dataSources: ['heatShade', 'restaurants', 'census', 'bcAssessment', 'crime', 'transit', 'deprivation'],
+    dataSources: ['parks', 'heatShade', 'restaurants', 'census', 'bcAssessment', 'crime', 'transit', 'deprivation'],
     networkFilter: 'none',
     weights: {
       ...ZERO_WEIGHTS,

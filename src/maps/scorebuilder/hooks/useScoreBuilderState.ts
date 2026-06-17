@@ -209,6 +209,8 @@ export function useScoreBuilderState() {
     params.set('sens', state.methodSettings.sensitivity ? 'on' : 'off')
     params.set('scope', state.methodSettings.normalizationScope)
     params.set('vis', state.methodSettings.visualOutput)
+    params.set('cscale', state.methodSettings.mapColorScale)
+    if (state.methodSettings.paletteOverride) params.set('pal', state.methodSettings.paletteOverride)
     params.set('surface', state.mapSurface)
     if (state.customMetricRecipes.length) params.set('recipes', encodeCustomMetricRecipes(state.customMetricRecipes))
     if (state.methodSettings.healthyPlanPriority.demographicMetric) {

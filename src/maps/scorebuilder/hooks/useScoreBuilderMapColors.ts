@@ -33,6 +33,7 @@ export interface ScoreBuilderMapColorsOptions {
   scoredRegions: ScoredBoundaryRegion[]
   scorePaletteProfile: ScorePaletteProfile
   visualOutput: ScoreMethodSettings['visualOutput']
+  mapColorScale: ScoreMethodSettings['mapColorScale']
   scoreSpread: ScoreSpread
   canUseWalkabilitySourceSurface: boolean
   showWalkabilitySourceSurface: boolean
@@ -55,6 +56,7 @@ export function useScoreBuilderMapColors({
   scoredRegions,
   scorePaletteProfile,
   visualOutput,
+  mapColorScale,
   scoreSpread,
   canUseWalkabilitySourceSurface,
   showWalkabilitySourceSurface,
@@ -111,15 +113,25 @@ export function useScoreBuilderMapColors({
   }, [canUseWalkabilitySourceSurface, scoredRegions, showWalkabilitySourceSurface])
 
   const scoreRegionFillColors = useMemo<Record<string, string> | null>(() => {
-    if (visualOutput === 'binned' || scoreSpread.max <= scoreSpread.min) return null
+    // Binned output is always absolute (fixed 0-20/20-40/... bands via each region's scoreColor fallback).
+    if (visualOutput === 'binned') return null
     const colors: Record<string, string> = {}
+    if (mapColorScale === 'absolute') {
+      // Map each region's raw 0-100 score straight onto the palette so colors stay put as the model changes.
+      for (const region of scoredRegions) {
+        colors[region.region.id] = getScorePaletteOutputColor(region.score, scorePaletteProfile, visualOutput)
+      }
+      return colors
+    }
+    // Relative: stretch colors between the current lowest/highest scores for maximum contrast.
+    if (scoreSpread.max <= scoreSpread.min) return null
     const span = scoreSpread.max - scoreSpread.min
     for (const region of scoredRegions) {
       const stretchedScore = ((region.score - scoreSpread.min) / span) * 100
       colors[region.region.id] = getScorePaletteOutputColor(stretchedScore, scorePaletteProfile, visualOutput)
     }
     return colors
-  }, [visualOutput, scoredRegions, scorePaletteProfile, scoreSpread.max, scoreSpread.min])
+  }, [visualOutput, mapColorScale, scoredRegions, scorePaletteProfile, scoreSpread.max, scoreSpread.min])
 
   const mapRegionFillColors = correlateMode
     ? correlateRegionFillColors

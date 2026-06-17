@@ -19,6 +19,8 @@ const DevWatersheds = lazy(() => import('@/pages/DevWatersheds'))
 const DevDesign = lazy(() => import('@/pages/DevDesign'))
 const DevInteract = lazy(() => import('@/pages/DevInteract'))
 const DevInteractSewage = lazy(() => import('@/pages/DevInteractSewage'))
+const DevWait = lazy(() => import('@/pages/DevWait'))
+const DevWaitSpecialist = lazy(() => import('@/pages/DevWaitSpecialist'))
 const DevFallout = lazy(() => import('@/pages/DevFallout'))
 const DevAcknowledgement = lazy(() => import('@/pages/DevAcknowledgement'))
 const AqMapSection = lazy(() => import('@/maps/aqmap').then(m => ({ default: m.AqMapSection })))
@@ -65,6 +67,8 @@ function App() {
           <Route path="/dev/design" element={<DevDesign />} />
           <Route path="/dev/interact" element={<DevInteract />} />
           <Route path="/dev/interact/sewage" element={<DevInteractSewage />} />
+          <Route path="/dev/wait" element={<DevWait />} />
+          <Route path="/dev/wait/specialist" element={<DevWaitSpecialist />} />
           <Route path="/dev/fallout" element={<DevFallout />} />
           <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
           <Route path="/dev/aqmap" element={<AqMapSection />} />

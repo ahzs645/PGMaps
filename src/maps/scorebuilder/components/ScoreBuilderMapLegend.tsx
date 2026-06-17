@@ -1,9 +1,12 @@
 import { MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
+import { AppSelect } from '@/components/ui/select'
 import { HEALTHYPLAN_EQUITY_PRIORITY_RAMP } from '@/lib/healthyplan'
 import {
   SCORE_METRICS,
+  SCORE_PALETTE_PROFILES,
   WALKABILITY_REPORT_MI_BANDS,
+  type ScorePaletteKey,
   type ScorePaletteProfile,
 } from '../constants'
 import type { CorrelationResult } from '../lib/correlation'
@@ -24,6 +27,7 @@ interface ScoreBuilderMapLegendProps {
   showWalkabilitySourceSurface: boolean
   canUseWalkabilitySourceSurface: boolean
   methodSettings: ScoreMethodSettings
+  onMethodSettingsChange: (settings: ScoreMethodSettings) => void
   scorePaletteProfile: ScorePaletteProfile
   scoreSpread: ScoreSpread
   enabledDataSourceCount: number
@@ -45,6 +49,7 @@ export function ScoreBuilderMapLegend({
   showWalkabilitySourceSurface,
   canUseWalkabilitySourceSurface,
   methodSettings,
+  onMethodSettingsChange,
   scorePaletteProfile,
   scoreSpread,
   enabledDataSourceCount,
@@ -119,15 +124,104 @@ export function ScoreBuilderMapLegend({
               ) : (
                 <MapGradientLegendItem
                   colors={scorePaletteProfile.colors}
-                  minLabel={scorePaletteProfile.legend.low}
-                  maxLabel={scorePaletteProfile.legend.high}
+                  minLabel={
+                    <>
+                      {scorePaletteProfile.legend.low}
+                      {' · '}
+                      <span className="font-medium text-foreground">
+                        {methodSettings.mapColorScale === 'absolute' ? '0' : scoreSpread.min.toFixed(0)}
+                      </span>
+                    </>
+                  }
+                  maxLabel={
+                    <>
+                      {scorePaletteProfile.legend.high}
+                      {' · '}
+                      <span className="font-medium text-foreground">
+                        {methodSettings.mapColorScale === 'absolute' ? '100' : scoreSpread.max.toFixed(0)}
+                      </span>
+                    </>
+                  }
                 />
               )}
-              {methodSettings.visualOutput === 'binned' && (
+              {methodSettings.visualOutput === 'binned' ? (
                 <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
                   Map output uses five fixed score classes: 0-20, 20-40, 40-60, 60-80, 80-100.
                 </div>
+              ) : (
+                <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                  {methodSettings.mapColorScale === 'absolute'
+                    ? 'Colors map to a fixed 0–100 score, so they stay put as you adjust the model.'
+                    : 'Colors stretch between the current lowest and highest scores, so they shift on every edit.'}
+                </div>
               )}
+              <div className="mt-3 space-y-2 border-t border-border pt-2">
+                <label className="block space-y-1">
+                  <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Map output
+                  </span>
+                  <AppSelect
+                    value={methodSettings.visualOutput}
+                    onValueChange={(value) =>
+                      onMethodSettingsChange({
+                        ...methodSettings,
+                        visualOutput: value as ScoreMethodSettings['visualOutput'],
+                      })
+                    }
+                    triggerAriaLabel="Map output"
+                    options={[
+                      { value: 'interpolated', label: 'Interpolated ramp' },
+                      { value: 'binned', label: '5 score bins' },
+                    ]}
+                    triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+                  />
+                </label>
+                {methodSettings.visualOutput !== 'binned' && (
+                  <label className="block space-y-1">
+                    <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Color scale
+                    </span>
+                    <AppSelect
+                      value={methodSettings.mapColorScale}
+                      onValueChange={(value) =>
+                        onMethodSettingsChange({
+                          ...methodSettings,
+                          mapColorScale: value as ScoreMethodSettings['mapColorScale'],
+                        })
+                      }
+                      triggerAriaLabel="Color scale"
+                      options={[
+                        { value: 'relative', label: 'Stretch to results' },
+                        { value: 'absolute', label: 'Fixed 0–100' },
+                      ]}
+                      triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+                    />
+                  </label>
+                )}
+                <label className="block space-y-1">
+                  <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Palette
+                  </span>
+                  <AppSelect
+                    value={methodSettings.paletteOverride ?? 'auto'}
+                    onValueChange={(value) =>
+                      onMethodSettingsChange({
+                        ...methodSettings,
+                        paletteOverride: value === 'auto' ? null : (value as ScorePaletteKey),
+                      })
+                    }
+                    triggerAriaLabel="Palette"
+                    options={[
+                      { value: 'auto', label: 'Auto (from preset)' },
+                      ...Object.values(SCORE_PALETTE_PROFILES).map((profile) => ({
+                        value: profile.key,
+                        label: profile.label,
+                      })),
+                    ]}
+                    triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
+                  />
+                </label>
+              </div>
             </>
           )}
           <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDot, Droplets, Handshake, MousePointerClick, Palette, ShieldAlert, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDot, Clock3, Droplets, Handshake, MousePointerClick, Palette, ShieldAlert, Wind } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -56,6 +56,14 @@ const devEntries: DevEntry[] = [
     icon: CircleDot,
     color: 'bg-pink-600',
     label: '/dev/interact/sewage',
+  },
+  {
+    title: 'ER Wait Times',
+    description: 'ERStat-style emergency wait-time labels with live, predicted, no-data, and closed marker states.',
+    href: '/dev/wait',
+    icon: Clock3,
+    color: 'bg-red-600',
+    label: '/dev/wait',
   },
   {
     title: 'Fallout Sites',

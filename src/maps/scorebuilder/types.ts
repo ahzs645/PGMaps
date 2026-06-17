@@ -1,4 +1,5 @@
 import type { BoundarySource, RegionLevel, StudyAreaRegion } from '@/lib/studyArea'
+import type { ScorePaletteKey } from './constants/paletteTypes'
 
 export type ScoreMetricCategory =
   | 'airQuality'
@@ -123,6 +124,12 @@ export type ScoreMetricKey = BuiltInScoreMetricKey | (string & {})
 export type ScoreMetricFormat = 'density' | 'count' | 'ratio' | 'percent' | 'currency' | 'years'
 export type ScoreNormalizationMethod = 'minMax' | 'winsorizedMinMax' | 'percentile' | 'zScore'
 export type ScoreVisualOutputMode = 'interpolated' | 'binned'
+/**
+ * How the interpolated ramp maps scores to colors.
+ * - `relative` stretches colors between the current lowest/highest scores (max contrast, recolors on every edit).
+ * - `absolute` maps colors to a fixed 0-100 score so they stay put as the model changes.
+ */
+export type ScoreMapColorScale = 'relative' | 'absolute'
 export type ScoreAggregationMethod =
   | 'additive'
   | 'geometric'
@@ -156,6 +163,10 @@ export interface ScoreMethodSettings {
   sensitivity: boolean
   normalizationScope: ScoreNormalizationScope
   visualOutput: ScoreVisualOutputMode
+  /** Color scaling for the interpolated ramp (binned output is always absolute). */
+  mapColorScale: ScoreMapColorScale
+  /** User-chosen gradient palette, or null to auto-pick from the active preset/example. */
+  paletteOverride: ScorePaletteKey | null
   healthyPlanPriority: {
     demographicMetric: ScoreMetricKey | null
     environmentMetric: ScoreMetricKey | null

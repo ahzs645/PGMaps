@@ -202,18 +202,10 @@ export function MethodControls({ className, weights, methodSettings, onMethodSet
         />
       </label>
 
-      <label className="space-y-1">
-        <span className="block font-medium text-muted-foreground">Map output</span>
-        <AppSelect
-          value={methodSettings.visualOutput}
-          onValueChange={(value) => updateMethodSettings('visualOutput', value as ScoreMethodSettings['visualOutput'])}
-          options={[
-            { value: 'interpolated', label: 'Interpolated ramp' },
-            { value: 'binned', label: '5 score bins' },
-          ]}
-          triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
-        />
-      </label>
+      <p className="rounded-md border border-dashed border-border px-2 py-1.5 text-[10px] leading-snug text-muted-foreground">
+        Map appearance (output style, color scale, and palette) now lives in the{' '}
+        <span className="font-medium text-foreground">Legend</span> on the map.
+      </p>
 
       <button
         type="button"
