@@ -63,8 +63,6 @@ export function isValidMapView(view: AqMapView): boolean {
   const [lng, lat] = view.center
   return Number.isFinite(lng)
     && Number.isFinite(lat)
-    && lng >= -180
-    && lng <= 180
     && lat >= -85
     && lat <= 85
     && view.zoom >= MIN_ZOOM

@@ -464,6 +464,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
           }}
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
+          renderWorldCopies
           styles={BASEMAP_STYLES[basemap]}
           // Symbol labels fade out over fadeDuration (default 300ms) while
           // circle layers cut instantly. Setting it to 0 keeps the cluster
@@ -542,8 +543,6 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
               onToggleWmsLayer={toggleWmsLayer}
               visibleSmokeLayers={visibleSmokeLayers}
               onToggleSmokeLayer={toggleSmokeLayer}
-              windVisible={windVisible}
-              onToggleWind={toggleWind}
               smokeLayers={smokeLayers}
               locale={locale}
             />
