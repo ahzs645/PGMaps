@@ -566,7 +566,6 @@ export default function ScoreBuilderSection() {
               showWalkabilitySourceSurface={sb.showWalkabilitySourceSurface}
               canUseWalkabilitySourceSurface={sb.canUseWalkabilitySourceSurface}
               methodSettings={state.methodSettings}
-              onMethodSettingsChange={sb.setMethodSettings}
               scorePaletteProfile={results.scorePaletteProfile}
               scoreSpread={results.scoreSpread}
               enabledDataSourceCount={state.enabledDataSources.length}

@@ -20,7 +20,7 @@ import { point } from '@turf/helpers'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type SourceKey = 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
+type SourceKey = 'verified' | 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
 type Confidence = 'strong' | 'moderate' | 'review_required'
 type WordingMode = 'general' | 'event' | 'research' | 'reflective'
 type GeocodeStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -56,6 +56,24 @@ type DataGap = {
   use: string
   limitation: string
   url: string
+}
+
+type IndigenousManifestSource = {
+  id: string
+  title: string
+  output?: string
+  featureCount?: number
+  access?: string
+  source?: string
+  sourceLayer?: string
+  sourceUrl?: string
+  url?: string
+  caveat?: string
+}
+
+type IndigenousManifest = {
+  automated?: IndigenousManifestSource[]
+  manual?: IndigenousManifestSource[]
 }
 
 type TemplatePrompt = {
@@ -97,6 +115,77 @@ type LocalLanguageResource = {
   qrUrl?: string
 }
 
+type RelationshipSource = {
+  id: string
+  title: string
+  url: string
+  sourceType: string
+}
+
+type PeopleGroupRecord = {
+  id: string
+  preferredName: string
+  alternateNames?: string[]
+  displayName: string
+}
+
+type NationRecord = {
+  id: string
+  preferredName: string
+  alternateNames?: string[]
+  peopleGroupIds?: string[]
+}
+
+type ReferenceAreaRecord = {
+  id: string
+  name: string
+  nationId?: string
+  areaType: string
+  geometryStatus: 'reference_map_only' | 'available_geojson' | 'manual_review'
+  sourceRefs: string[]
+  caveat: string
+}
+
+type PlaceRecord = {
+  id: string
+  name: string
+  type: string
+  locationNames?: string[]
+  addressAliases?: string[]
+}
+
+type PlaceRelationshipRecord = {
+  id: string
+  placeId: string
+  relationshipType: 'traditional_territory' | 'traditional_territories' | 'traditional_lands' | 'on_or_near_traditional_territories' | 'village_lands_within_treaty'
+  territoryStatus?: 'unceded'
+  treatyId?: string
+  treatyName?: string
+  landName?: string
+  nationIds: string[]
+  peopleGroupIds?: string[]
+  nationPeopleGroups?: Record<string, string[]>
+  referenceAreaIds?: string[]
+  verificationStatus: string
+  sourceRefs: string[]
+}
+
+type RelationshipGraph = {
+  generatedAt: string
+  notes?: string[]
+  sources: RelationshipSource[]
+  peopleGroups: PeopleGroupRecord[]
+  nations: NationRecord[]
+  referenceAreas?: ReferenceAreaRecord[]
+  places: PlaceRecord[]
+  placeRelationships: PlaceRelationshipRecord[]
+}
+
+type MatchedRelationshipPlace = {
+  place: PlaceRecord
+  relationships: PlaceRelationshipRecord[]
+}
+
 type GeocodeResult = {
   fullAddress: string
   latitude: number
@@ -129,6 +218,11 @@ type BcGeocoderResponse = {
 }
 
 const sourceMeta: Record<SourceKey, { label: string; type: string; description: string }> = {
+  verified: {
+    label: 'Verified relationships',
+    type: 'Curated wording graph',
+    description: 'Reviewed place-to-Nation and people-group relationships used to generate controlled acknowledgement variants.',
+  },
   nativeLand: {
     label: 'Native Land Digital',
     type: 'Educational territory layer',
@@ -157,6 +251,7 @@ const sourceMeta: Record<SourceKey, { label: string; type: string; description: 
 }
 
 const sourceUrls: Record<SourceKey, string> = {
+  verified: 'https://www.unbc.ca/about-unbc/traditional-territory-acknowledgement',
   nativeLand: 'https://api-docs.native-land.ca/full-geojsons',
   cad: 'https://www2.gov.bc.ca/assets/gov/environment/natural-resource-stewardship/consulting-with-first-nations/first_nations_consultative_areas_database_cad_-_faqs.pdf',
   treaty: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_legal_admin_boundaries/MapServer',
@@ -171,6 +266,8 @@ const BC_GEOCODER_URL = 'https://geocoder.api.gov.bc.ca/addresses.json'
 // The live BC ArcGIS endpoints return `Access-Control-Allow-Origin: null`, so the browser
 // blocks direct cross-origin requests from the deployed site — hence the local copies.
 const INDIGENOUS_DATA_BASE = `${import.meta.env.BASE_URL}data/indigenous/`
+const INDIGENOUS_MANIFEST_DATA = `${INDIGENOUS_DATA_BASE}manifest.json`
+const RELATIONSHIP_GRAPH_DATA = `${import.meta.env.BASE_URL}data/acknowledgement/relationship-graph.json`
 const TREATY_LANDS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_lands.geojson`
 const TREATY_AREAS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_areas.geojson`
 const RESERVES_DATA = `${INDIGENOUS_DATA_BASE}indian_reserves_band_names.geojson`
@@ -184,6 +281,7 @@ const NATIVE_LAND_LAYERS = [
 const LOCAL_COMMUNITY_MAX_KM = 120
 
 const initialLookupState: Record<SourceKey, SourceLookupState> = {
+  verified: { status: 'idle', matches: [] },
   nativeLand: { status: 'idle', matches: [] },
   cad: { status: 'skipped', matches: [], message: 'Use the B.C. CAD map/report manually. Public CAD docs say boundaries are not viewable and outputs are preliminary contact lists.' },
   treaty: { status: 'idle', matches: [] },
@@ -191,35 +289,7 @@ const initialLookupState: Record<SourceKey, SourceLookupState> = {
   local: { status: 'idle', matches: [] },
 }
 
-const unincorporatedDataGaps: DataGap[] = [
-  {
-    name: 'BC CAD / PIP consultation areas',
-    status: 'Manual candidate',
-    use: 'Generate a preliminary First Nations contact list for a point, line, or polygon in iMapBC.',
-    limitation: 'Not a public boundary layer; it should inform outreach and review, not automatic acknowledgement wording.',
-    url: 'https://www2.gov.bc.ca/assets/gov/environment/natural-resource-stewardship/consulting-with-first-nations/first_nations_consultative_areas_database_cad_-_faqs.pdf',
-  },
-  {
-    name: 'Contacts for First Nations Consultation Areas map',
-    status: 'Manual candidate',
-    use: 'Current public entry point for the CAD-style spatial contact query.',
-    limitation: 'Interactive map/report workflow, so a proxy or documented API discovery pass is needed before live integration.',
-    url: 'https://maps.gov.bc.ca/ess/hm/cadb/',
-  },
-  {
-    name: 'First Nation Community Locations',
-    status: 'Service candidate',
-    use: 'Approximate community locations and administrative context for Nations in B.C.',
-    limitation: 'Point locations are not territory and may be incomplete or approximate.',
-    url: 'https://catalogue.data.gov.bc.ca/dataset/first-nation-community-locations',
-  },
-  {
-    name: 'First Peoples Map of B.C.',
-    status: 'Research candidate',
-    use: 'Community-facing context for Nations, languages, art, heritage, and place-based learning.',
-    limitation: 'Best treated as educational context and cross-checking, not an authoritative point-in-polygon source.',
-    url: 'https://maps.fpcc.ca/',
-  },
+const unresolvedDataGaps: DataGap[] = [
   {
     name: 'First Nation Profiles in Canada',
     status: 'Reference candidate',
@@ -458,6 +528,127 @@ const confidenceLabels: Record<Confidence, string> = {
   review_required: 'Review',
 }
 
+function formatList(items: string[]) {
+  if (items.length <= 1) return items[0] ?? ''
+  if (items.length === 2) return `${items[0]} and ${items[1]}`
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
+}
+
+function sourceTitle(graph: RelationshipGraph | null, sourceId: string) {
+  return graph?.sources.find((source) => source.id === sourceId)?.title ?? sourceId
+}
+
+function nationName(graph: RelationshipGraph, nationId: string) {
+  return graph.nations.find((nation) => nation.id === nationId)?.preferredName ?? nationId
+}
+
+function peopleGroupName(graph: RelationshipGraph, peopleGroupId: string) {
+  return graph.peopleGroups.find((group) => group.id === peopleGroupId)?.displayName ?? peopleGroupId
+}
+
+function referenceAreaLabel(graph: RelationshipGraph, areaId: string) {
+  return graph.referenceAreas?.find((area) => area.id === areaId)?.name ?? areaId
+}
+
+function selectedNationIdsForRelationship(
+  graph: RelationshipGraph,
+  relationship: PlaceRelationshipRecord,
+  selectedIds: string[],
+) {
+  if (selectedIds.length === 0) return relationship.nationIds
+  const selected = new Set(selectedIds)
+  const filtered = relationship.nationIds.filter((nationId) => selected.has(candidateId(nationName(graph, nationId))))
+  return filtered.length > 0 ? filtered : relationship.nationIds
+}
+
+function peopleGroupIdsForNations(relationship: PlaceRelationshipRecord, nationIds: string[]) {
+  if (!relationship.nationPeopleGroups) return relationship.peopleGroupIds ?? []
+  const ids = new Set<string>()
+  nationIds.forEach((nationId) => {
+    relationship.nationPeopleGroups?.[nationId]?.forEach((peopleGroupId) => ids.add(peopleGroupId))
+  })
+  return Array.from(ids)
+}
+
+function buildAffiliationSentence(graph: RelationshipGraph, relationship: PlaceRelationshipRecord, nationIds: string[]) {
+  if (!relationship.nationPeopleGroups) return ''
+
+  const grouped = new Map<string, string[]>()
+  nationIds.forEach((nationId) => {
+    const peopleGroupIds = relationship.nationPeopleGroups?.[nationId] ?? []
+    peopleGroupIds.forEach((peopleGroupId) => {
+      const names = grouped.get(peopleGroupId) ?? []
+      names.push(nationName(graph, nationId))
+      grouped.set(peopleGroupId, names)
+    })
+  })
+
+  const clauses = Array.from(grouped.entries()).map(([peopleGroupId, names]) => (
+    `${formatList(names)} ${names.length === 1 ? 'is' : 'are'} part of the ${peopleGroupName(graph, peopleGroupId)}`
+  ))
+  return clauses.length > 0 ? `${formatList(clauses)}.` : ''
+}
+
+function relationshipCorePhrase(
+  graph: RelationshipGraph,
+  relationship: PlaceRelationshipRecord,
+  selectedIds: string[],
+) {
+  const nationIds = selectedNationIdsForRelationship(graph, relationship, selectedIds)
+  const nations = formatList(nationIds.map((nationId) => nationName(graph, nationId)))
+  const peopleGroups = peopleGroupIdsForNations(relationship, nationIds).map((peopleGroupId) => peopleGroupName(graph, peopleGroupId))
+
+  if (relationship.relationshipType === 'traditional_lands') {
+    const peoplePhrase = peopleGroups.length > 0 ? `the ${formatList(peopleGroups)} of ` : ''
+    const treatyPrefix = relationship.treatyName ? `${relationship.treatyName} territory on ` : ''
+    return `${treatyPrefix}the traditional lands of ${peoplePhrase}${nations}`
+  }
+
+  if (relationship.relationshipType === 'on_or_near_traditional_territories') {
+    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+    const peoplePhrase = peopleGroups.length > 0 ? `${formatList(peopleGroups)} ` : ''
+    return `on or near ${status}traditional ${peoplePhrase}territories including ${nations}`
+  }
+
+  if (relationship.relationshipType === 'village_lands_within_treaty') {
+    const treaty = relationship.treatyName ? ` within ${relationship.treatyName} territory` : ''
+    return `on ${relationship.landName ?? 'Village Lands'}${treaty}`
+  }
+
+  const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+  const territory = relationship.relationshipType === 'traditional_territories' ? 'traditional territories' : 'traditional territory'
+  const peoplePhrase = peopleGroups.length === 1 ? `, part of the ${peopleGroups[0]} territory` : ''
+  return `${status}${territory} of ${nations}${peoplePhrase}`
+}
+
+function buildRelationshipAcknowledgement(
+  mode: WordingMode,
+  graph: RelationshipGraph,
+  match: MatchedRelationshipPlace,
+  selectedIds: string[],
+) {
+  const phrases = match.relationships.map((relationship) => relationshipCorePhrase(graph, relationship, selectedIds))
+  const core = phrases.length === 1 ? phrases[0] : formatList(phrases)
+  const affiliation = match.relationships
+    .map((relationship) => buildAffiliationSentence(graph, relationship, selectedNationIdsForRelationship(graph, relationship, selectedIds)))
+    .filter(Boolean)
+    .join(' ')
+
+  if (mode === 'event') {
+    return `We are grateful to gather today at ${match.place.name}, situated ${core}. ${affiliation}`.trim()
+  }
+
+  if (mode === 'research') {
+    return `This work is connected to ${match.place.name}, situated ${core}. We treat this generated wording as a reviewed starting point and keep source-specific guidance visible. ${affiliation}`.trim()
+  }
+
+  if (mode === 'reflective') {
+    return `I am speaking from ${match.place.name}, situated ${core}. I am still learning my responsibilities in this place and understand this acknowledgement should remain connected to respectful relationships and action. ${affiliation}`.trim()
+  }
+
+  return `${match.place.name} is situated ${core}. ${affiliation}`.trim()
+}
+
 function buildAcknowledgement(mode: WordingMode, nationNames: string[]) {
   const names = nationNames.length > 0 ? nationNames.join(', ') : '[selected Nation(s)]'
 
@@ -559,6 +750,7 @@ function uniqueMatches(matches: SourceMatch[]) {
 type FeatureProperties = Record<string, unknown>
 
 const geojsonCache = new Map<string, Promise<GeoJSON.FeatureCollection>>()
+const relationshipGraphCache = new Map<string, Promise<RelationshipGraph>>()
 
 async function loadGeoJsonLayer(url: string): Promise<GeoJSON.FeatureCollection> {
   const cached = geojsonCache.get(url)
@@ -575,6 +767,66 @@ async function loadGeoJsonLayer(url: string): Promise<GeoJSON.FeatureCollection>
     })
   geojsonCache.set(url, request)
   return request
+}
+
+async function loadRelationshipGraph(url = RELATIONSHIP_GRAPH_DATA): Promise<RelationshipGraph> {
+  const cached = relationshipGraphCache.get(url)
+  if (cached) return cached
+  const request = fetch(url)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Could not load relationship graph (${response.status})`)
+      return response.json() as Promise<RelationshipGraph>
+    })
+    .catch((error: unknown) => {
+      relationshipGraphCache.delete(url)
+      throw error instanceof Error ? error : new Error('Failed to load relationship graph')
+    })
+  relationshipGraphCache.set(url, request)
+  return request
+}
+
+function normalizeMatchText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function relationshipPlaceScore(place: PlaceRecord, result: GeocodeResult, addressInput: string) {
+  const haystack = normalizeMatchText(`${result.fullAddress} ${addressInput}`)
+  const aliases = [...(place.addressAliases ?? []), ...(place.locationNames ?? []), place.name]
+  return aliases.reduce((score, alias) => {
+    const normalizedAlias = normalizeMatchText(alias)
+    if (!normalizedAlias) return score
+    if (haystack.includes(normalizedAlias)) return Math.max(score, normalizedAlias.length)
+    const words = normalizedAlias.split(' ').filter((word) => word.length > 2)
+    const matchedWords = words.filter((word) => haystack.includes(word)).length
+    return matchedWords >= Math.min(2, words.length) ? Math.max(score, matchedWords) : score
+  }, 0)
+}
+
+function matchRelationshipPlace(graph: RelationshipGraph, result: GeocodeResult, addressInput: string): MatchedRelationshipPlace | null {
+  const ranked = graph.places
+    .map((place) => ({ place, score: relationshipPlaceScore(place, result, addressInput) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score)
+
+  const place = ranked[0]?.place
+  if (!place) return null
+
+  const relationships = graph.placeRelationships.filter((relationship) => relationship.placeId === place.id)
+  return relationships.length > 0 ? { place, relationships } : null
+}
+
+function relationshipMatches(graph: RelationshipGraph, match: MatchedRelationshipPlace): SourceMatch[] {
+  return uniqueMatches(match.relationships.flatMap((relationship) => (
+    relationship.nationIds.map((nationId) => ({
+      source: 'verified' as SourceKey,
+      name: nationName(graph, nationId),
+      label: `${match.place.name}: ${relationship.relationshipType.replace(/_/g, ' ')}`,
+      detail: [
+        ...relationship.sourceRefs.map((sourceRef) => sourceTitle(graph, sourceRef)),
+        ...(relationship.referenceAreaIds ?? []).map((areaId) => referenceAreaLabel(graph, areaId)),
+      ].join(' / '),
+    }))
+  )))
 }
 
 function joinDetail(parts: unknown[]) {
@@ -698,7 +950,7 @@ async function localVerifiedMatches(result: GeocodeResult): Promise<SourceMatch[
 
 function buildCandidatesFromLookups(lookups: Record<SourceKey, SourceLookupState>): CandidateNation[] {
   const byName = new Map<string, CandidateNation>()
-  const sourceOrder: SourceKey[] = ['local', 'nativeLand', 'treaty', 'reserve', 'cad']
+  const sourceOrder: SourceKey[] = ['verified', 'local', 'nativeLand', 'treaty', 'reserve', 'cad']
 
   Object.values(lookups).flatMap((lookup) => lookup.matches).forEach((match) => {
     const key = normalizeName(match.name) || match.name
@@ -708,7 +960,7 @@ function buildCandidatesFromLookups(lookups: Record<SourceKey, SourceLookupState
       [match.source]: match.detail ? `${match.label}: ${match.detail}` : match.label,
     }
     const sourceCount = sourceOrder.filter((source) => nextSources[source]).length
-    const confidence: Confidence = sourceCount >= 2
+    const confidence: Confidence = nextSources.verified || sourceCount >= 2
       ? 'strong'
       : nextSources.reserve
         ? 'strong'
@@ -727,8 +979,10 @@ function buildCandidatesFromLookups(lookups: Record<SourceKey, SourceLookupState
       pronunciation: existing?.pronunciation ?? findPronunciation(match.name),
       reason: `${match.name} appears in ${sourceLabels.join(', ')} for this location.`,
       sources: nextSources,
-      notes: confidence === 'strong'
-        ? 'Multiple source signals or local verified wording are present. Final wording should still be reviewed.'
+      notes: nextSources.verified
+        ? 'Curated relationship facts matched this place. Generated variants still need review before publication.'
+        : confidence === 'strong'
+        ? 'Multiple source signals are present. Final wording should still be reviewed.'
         : 'Single-source match. Keep as context and confirm before using in final wording.',
     })
   })
@@ -744,7 +998,11 @@ export default function DevAcknowledgement() {
   const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null)
   const [geocodeStatus, setGeocodeStatus] = useState<GeocodeStatus>('idle')
   const [geocodeError, setGeocodeError] = useState<string | null>(null)
+  const [indigenousManifest, setIndigenousManifest] = useState<IndigenousManifest | null>(null)
+  const [relationshipGraph, setRelationshipGraph] = useState<RelationshipGraph | null>(null)
+  const [matchedRelationshipPlace, setMatchedRelationshipPlace] = useState<MatchedRelationshipPlace | null>(null)
   const [enabledSources, setEnabledSources] = useState<Record<SourceKey, boolean>>(() => ({
+    verified: true,
     nativeLand: true,
     cad: true,
     treaty: true,
@@ -757,6 +1015,8 @@ export default function DevAcknowledgement() {
   const [sourceLookups, setSourceLookups] = useState<Record<SourceKey, SourceLookupState>>(initialLookupState)
 
   const candidates = useMemo(() => buildCandidatesFromLookups(sourceLookups), [sourceLookups])
+  const automatedManifestSources = indigenousManifest?.automated ?? []
+  const manualManifestSources = indigenousManifest?.manual ?? []
 
   const visibleCandidates = useMemo(
     () => candidates.filter((candidate) => (
@@ -772,11 +1032,47 @@ export default function DevAcknowledgement() {
     [candidates, selectedIds],
   )
 
-  const wording = useMemo(() => buildAcknowledgement(wordingMode, selectedNames), [selectedNames, wordingMode])
+  const wording = useMemo(() => (
+    relationshipGraph && matchedRelationshipPlace && enabledSources.verified
+      ? buildRelationshipAcknowledgement(wordingMode, relationshipGraph, matchedRelationshipPlace, selectedIds)
+      : buildAcknowledgement(wordingMode, selectedNames)
+  ), [enabledSources.verified, matchedRelationshipPlace, relationshipGraph, selectedIds, selectedNames, wordingMode])
 
   useEffect(() => {
     setCustomWording(wording)
   }, [wording])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(INDIGENOUS_MANIFEST_DATA)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Could not load Indigenous manifest (${response.status})`)
+        return response.json() as Promise<IndigenousManifest>
+      })
+      .then((manifest) => {
+        if (!cancelled) setIndigenousManifest(manifest)
+      })
+      .catch(() => {
+        if (!cancelled) setIndigenousManifest(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    loadRelationshipGraph()
+      .then((graph) => {
+        if (!cancelled) setRelationshipGraph(graph)
+      })
+      .catch(() => {
+        if (!cancelled) setRelationshipGraph(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (candidates.length === 0) return
@@ -813,16 +1109,35 @@ export default function DevAcknowledgement() {
   const runSourceLookups = async (result: GeocodeResult) => {
     const controller = new AbortController()
     setSourceLookups({
+      verified: { status: 'loading', matches: [] },
       nativeLand: { status: 'loading', matches: [] },
       treaty: { status: 'loading', matches: [] },
       reserve: { status: 'loading', matches: [] },
       local: { status: 'loading', matches: [] },
       cad: initialLookupState.cad,
     })
+    setMatchedRelationshipPlace(null)
 
     const settle = (source: SourceKey, state: SourceLookupState) => {
       setSourceLookups((current) => ({ ...current, [source]: state }))
     }
+
+    loadRelationshipGraph()
+      .then((graph) => {
+        setRelationshipGraph(graph)
+        const match = matchRelationshipPlace(graph, result, address)
+        setMatchedRelationshipPlace(match)
+        settle('verified', {
+          status: 'success',
+          matches: match ? relationshipMatches(graph, match) : [],
+          message: match ? `Matched ${match.place.name}` : 'No curated relationship record matched this address.',
+        })
+      })
+      .catch((error: unknown) => settle('verified', {
+        status: 'error',
+        matches: [],
+        message: error instanceof Error ? error.message : 'Relationship graph lookup failed.',
+      }))
 
     queryNativeLandSource(result.latitude, result.longitude, controller.signal)
       .then((matches) => settle('nativeLand', { status: 'success', matches, message: matches.length ? undefined : 'No Native Land Digital overlaps returned.' }))
@@ -1004,10 +1319,86 @@ export default function DevAcknowledgement() {
           <section className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <Database className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-semibold">Automated Sources</h2>
+            </div>
+            <div className="space-y-3 text-xs leading-5 text-slate-600">
+              {automatedManifestSources.map((source) => {
+                const href = source.sourceUrl ?? source.url ?? source.output ?? INDIGENOUS_MANIFEST_DATA
+                return (
+                  <a
+                    key={source.id}
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-md border border-emerald-100 bg-emerald-50/40 p-3 transition hover:border-emerald-300 hover:bg-emerald-50"
+                  >
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="font-semibold text-slate-900">{source.title}</span>
+                      <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-none text-slate-400" />
+                    </span>
+                    <span className="mt-1 inline-flex rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-800">
+                      {source.access ?? 'automated'}{source.featureCount ? ` · ${source.featureCount} features` : ''}
+                    </span>
+                    <span className="mt-2 block">
+                      {source.output ? `Synced by bcdatamapper to ${source.output}.` : 'Tracked by the bcdatamapper Indigenous source manifest.'}
+                    </span>
+                    <span className="mt-1 block text-slate-500">{source.caveat}</span>
+                  </a>
+                )
+              })}
+              {automatedManifestSources.length === 0 && (
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-slate-500">
+                  bcdatamapper manifest not loaded yet.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <FileText className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-semibold">Manual Sources</h2>
+            </div>
+            <div className="space-y-3 text-xs leading-5 text-slate-600">
+              {manualManifestSources.map((source) => {
+                const href = source.url ?? source.sourceUrl ?? INDIGENOUS_MANIFEST_DATA
+                return (
+                  <a
+                    key={source.id}
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-md border p-3 transition hover:border-teal-300 hover:bg-teal-50/40"
+                  >
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="font-semibold text-slate-900">{source.title}</span>
+                      <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-none text-slate-400" />
+                    </span>
+                    <span className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                      {source.access ?? 'manual'}
+                    </span>
+                    <span className="mt-2 block">
+                      Tracked in the bcdatamapper manifest as a non-automated source.
+                    </span>
+                    <span className="mt-1 block text-slate-500">{source.caveat}</span>
+                  </a>
+                )
+              })}
+              {manualManifestSources.length === 0 && (
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-slate-500">
+                  Manual bcdatamapper source metadata not loaded yet.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-700" />
               <h2 className="text-sm font-semibold">Data Gaps</h2>
             </div>
             <div className="space-y-3 text-xs leading-5 text-slate-600">
-              {unincorporatedDataGaps.map((gap) => (
+              {unresolvedDataGaps.map((gap) => (
                 <a
                   key={gap.name}
                   href={gap.url}
@@ -1073,6 +1464,77 @@ export default function DevAcknowledgement() {
               </dl>
             </div>
           </div>
+
+          {relationshipGraph && matchedRelationshipPlace && enabledSources.verified && (
+            <section className="rounded-lg border border-teal-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-teal-700" />
+                <h2 className="text-sm font-semibold">Verified Relationship Match</h2>
+              </div>
+              <div className="text-sm">
+                <div className="font-semibold text-slate-950">{matchedRelationshipPlace.place.name}</div>
+                <div className="mt-1 text-xs leading-5 text-slate-600">
+                  Generated from structured place, Nation, people-group, territory-status, and treaty relationship facts.
+                </div>
+              </div>
+              <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
+                {matchedRelationshipPlace.relationships.map((relationship) => {
+                  const nationIds = selectedNationIdsForRelationship(relationshipGraph, relationship, selectedIds)
+                  return (
+                    <div key={relationship.id} className="rounded-md border bg-teal-50/50 p-3">
+                      <div className="font-semibold text-slate-900">
+                        {relationship.relationshipType.replace(/_/g, ' ')}
+                        {relationship.treatyName ? ` · ${relationship.treatyName}` : ''}
+                      </div>
+                      <div className="mt-1">
+                        {formatList(nationIds.map((nationId) => nationName(relationshipGraph, nationId)))}
+                      </div>
+                      {(relationship.referenceAreaIds ?? []).length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          {relationship.referenceAreaIds?.map((areaId) => {
+                            const area = relationshipGraph.referenceAreas?.find((item) => item.id === areaId)
+                            if (!area) return null
+                            return (
+                              <div key={area.id} className="rounded border border-teal-100 bg-white p-2">
+                                <div className="font-medium text-slate-900">{area.name}</div>
+                                <div className="mt-1 text-slate-500">{area.caveat}</div>
+                                <div className="mt-1 text-[10px] font-semibold uppercase text-slate-500">
+                                  {area.geometryStatus.replace(/_/g, ' ')}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {[
+                          ...relationship.sourceRefs,
+                          ...(relationship.referenceAreaIds ?? []).flatMap((areaId) => (
+                            relationshipGraph.referenceAreas?.find((area) => area.id === areaId)?.sourceRefs ?? []
+                          )),
+                        ].filter((sourceRef, index, sourceRefs) => sourceRefs.indexOf(sourceRef) === index).map((sourceRef) => {
+                          const source = relationshipGraph.sources.find((item) => item.id === sourceRef)
+                          if (!source) return null
+                          return (
+                            <a
+                              key={sourceRef}
+                              href={source.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded border bg-white px-2 py-1 font-medium text-teal-800"
+                            >
+                              {source.title}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
 
           <section className="rounded-lg border bg-white shadow-sm">
             <div className="border-b p-4">
@@ -1192,7 +1654,7 @@ export default function DevAcknowledgement() {
                 <AlertTriangle className="h-4 w-4" />
                 Review needed
               </div>
-              Confirm wording with local or Nation-specific guidance where possible. CAD outputs are preliminary contact lists, and reserve or treaty layers should not be treated as automatic acknowledgement text.
+              Confirm wording with local or Nation-specific guidance where possible. Verified relationship records generate controlled variants, while CAD, reserve, treaty, and proximity layers remain supporting context.
             </div>
           </section>
 

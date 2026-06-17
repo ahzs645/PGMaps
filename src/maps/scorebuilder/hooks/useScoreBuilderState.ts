@@ -363,7 +363,7 @@ export function useScoreBuilderState() {
     dispatch({ type: 'setSearchQuery', query })
   }, [])
   const setDensityMetric = useCallback((metric: ScoreMetricKey) => {
-    dispatch({ type: 'setDensityMetric', metric })
+    dispatch({ type: 'setDensityMetric', metric, allNetworks: allNetworksRef.current })
   }, [])
   const handleToggleDensityMode = useCallback(() => {
     dispatch({ type: 'toggleDensityMode' })
@@ -372,16 +372,16 @@ export function useScoreBuilderState() {
     dispatch({ type: 'toggleCorrelateMode' })
   }, [])
   const setCorrelateMetricX = useCallback((metric: ScoreMetricKey) => {
-    dispatch({ type: 'setCorrelateMetricX', metric })
+    dispatch({ type: 'setCorrelateMetricX', metric, allNetworks: allNetworksRef.current })
   }, [])
   const setCorrelateMetricY = useCallback((metric: ScoreMetricKey) => {
-    dispatch({ type: 'setCorrelateMetricY', metric })
+    dispatch({ type: 'setCorrelateMetricY', metric, allNetworks: allNetworksRef.current })
   }, [])
   const setCorrelateVisStyle = useCallback((style: 'bivariate' | 'residual') => {
     dispatch({ type: 'setCorrelateVisStyle', style })
   }, [])
   const applyCorrelatePair = useCallback((metricX: ScoreMetricKey, metricY: ScoreMetricKey) => {
-    dispatch({ type: 'applyCorrelatePair', metricX, metricY })
+    dispatch({ type: 'applyCorrelatePair', metricX, metricY, allNetworks: allNetworksRef.current })
   }, [])
   const toggleScoreFilter = useCallback((filter: ScoreFilterKey) => {
     dispatchTracked({ type: 'toggleScoreFilter', filter })

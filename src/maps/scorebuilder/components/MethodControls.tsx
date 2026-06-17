@@ -202,11 +202,6 @@ export function MethodControls({ className, weights, methodSettings, onMethodSet
         />
       </label>
 
-      <p className="rounded-md border border-dashed border-border px-2 py-1.5 text-[10px] leading-snug text-muted-foreground">
-        Map appearance (output style, color scale, and palette) now lives in the{' '}
-        <span className="font-medium text-foreground">Legend</span> on the map.
-      </p>
-
       <button
         type="button"
         onClick={() => updateMethodSettings('sensitivity', !methodSettings.sensitivity)}

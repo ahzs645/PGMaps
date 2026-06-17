@@ -1,0 +1,249 @@
+{
+  "generatedAt": "2026-06-17",
+  "notes": [
+    "Curated relationship facts for acknowledgement wording experiments. These records support generated variants; they are not boundary datasets.",
+    "Use spatial layers as context only. Prefer these verified relationship records when a known place or campus matches.",
+    "Generated wording should be reviewed before publication, especially outside the named institution or place context."
+  ],
+  "sources": [
+    {
+      "id": "unbc-traditional-territory-acknowledgement",
+      "title": "UNBC Traditional Territory Acknowledgement",
+      "url": "https://www.unbc.ca/about-unbc/traditional-territory-acknowledgement",
+      "sourceType": "institutional"
+    },
+    {
+      "id": "unbc-contact-campus-details",
+      "title": "UNBC Contact and Campus Location Details",
+      "url": "https://www.unbc.ca/about-unbc/contact",
+      "sourceType": "institutional"
+    },
+    {
+      "id": "city-quesnel-first-nations",
+      "title": "City of Quesnel First Nations",
+      "url": "https://www.quesnel.ca/our-community/about-quesnel/first-nations",
+      "sourceType": "local_government"
+    },
+    {
+      "id": "lheidli-language",
+      "title": "Lheidli T’enneh Our Language",
+      "url": "https://www.lheidli.ca/about/our-language/",
+      "sourceType": "nation"
+    },
+    {
+      "id": "bc-treaty-lheidli-soi-map",
+      "title": "BC Treaty Commission Lheidli T'enneh Statement of Intent Map",
+      "url": "https://bctreaty.ca/wp-content/uploads/2016/09/Lheidli_Tenneh_Band_SOI_Map.pdf",
+      "sourceType": "reference_map"
+    },
+    {
+      "id": "bc-lheidli-g2g-interim-agreement-2022",
+      "title": "Lheidli T'enneh Interim Government-to-Government Agreement 2022",
+      "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-stewardship/consulting-with-first-nations/agreements/final_lheidli_tenneh_interim_agreement_g2g_signed.pdf",
+      "sourceType": "agreement"
+    },
+    {
+      "id": "doig-river-treaty",
+      "title": "Doig River First Nation Treaty 8 History",
+      "url": "https://doigriverfn.com/about/history/treaty/",
+      "sourceType": "nation"
+    },
+    {
+      "id": "bc-treaty-tsimshian",
+      "title": "BC Treaty Commission Tsimshian First Nations",
+      "url": "https://www.bctreaty.ca/tsimshian-first-nations",
+      "sourceType": "treaty_process"
+    },
+    {
+      "id": "nisgaa-treaty",
+      "title": "Nisg̱a’a Treaty",
+      "url": "https://www.nisgaanation.ca/government/nisgaa-treaty/",
+      "sourceType": "treaty"
+    }
+  ],
+  "peopleGroups": [
+    {
+      "id": "dakelh-carrier",
+      "preferredName": "Dakelh",
+      "alternateNames": ["Carrier"],
+      "displayName": "Dakelh (Carrier) Peoples"
+    },
+    {
+      "id": "tsilhqotin",
+      "preferredName": "Tsilhqot’in",
+      "alternateNames": ["Tŝilhqot’in"],
+      "displayName": "Tsilhqot’in Nation"
+    },
+    {
+      "id": "dane-zaa",
+      "preferredName": "Dane-zaa",
+      "alternateNames": ["Dunne-za", "Beaver"],
+      "displayName": "Dane-zaa Peoples"
+    },
+    {
+      "id": "tsmsyen",
+      "preferredName": "Ts’msyen",
+      "alternateNames": ["Tsimshian"],
+      "displayName": "Ts'msyen (Tsimshian)"
+    },
+    {
+      "id": "nisgaa",
+      "preferredName": "Nisg̱a’a",
+      "alternateNames": ["Nisg̱a'a"],
+      "displayName": "Nisg̱a'a"
+    }
+  ],
+  "nations": [
+    { "id": "lheidli-tenneh", "preferredName": "Lheidli T’enneh First Nation", "peopleGroupIds": ["dakelh-carrier"] },
+    { "id": "lhtako-dene", "preferredName": "Lhtako Dene Nation", "peopleGroupIds": ["dakelh-carrier"] },
+    { "id": "nazko", "preferredName": "Nazko First Nation", "peopleGroupIds": ["dakelh-carrier"] },
+    { "id": "lhooskuz-dene", "preferredName": "Lhoosk’uz Dené Nation", "peopleGroupIds": ["dakelh-carrier"] },
+    { "id": "esdilagh", "preferredName": "?Esdilagh First Nation", "alternateNames": ["Alexandria Band"], "peopleGroupIds": ["tsilhqotin"] },
+    { "id": "doig-river", "preferredName": "Doig River First Nation", "peopleGroupIds": ["dane-zaa"] },
+    { "id": "blueberry-river", "preferredName": "Blueberry River First Nations", "peopleGroupIds": ["dane-zaa"] },
+    { "id": "halfway-river", "preferredName": "Halfway River First Nation", "peopleGroupIds": ["dane-zaa"] },
+    { "id": "kitsumkalum", "preferredName": "Kitsumkalum First Nation", "peopleGroupIds": ["tsmsyen"] },
+    { "id": "kitselas", "preferredName": "Kitselas First Nation", "peopleGroupIds": ["tsmsyen"] },
+    { "id": "lax-kwalaams", "preferredName": "Lax Kw’alaams Band", "peopleGroupIds": ["tsmsyen"] },
+    { "id": "metlakatla", "preferredName": "Metlakatla First Nation", "peopleGroupIds": ["tsmsyen"] },
+    { "id": "gitxaala", "preferredName": "Gitxaała Nation", "alternateNames": ["Kitkatla"], "peopleGroupIds": ["tsmsyen"] },
+    { "id": "gitgaat", "preferredName": "Gitga’at First Nation", "alternateNames": ["Hartley Bay"], "peopleGroupIds": ["tsmsyen"] },
+    { "id": "kitasoo", "preferredName": "Kitasoo Band", "alternateNames": ["Klemtu"], "peopleGroupIds": ["tsmsyen"] },
+    { "id": "nisgaa-lisims", "preferredName": "Nisg̱a’a Lisims Government", "peopleGroupIds": ["nisgaa"] }
+  ],
+  "referenceAreas": [
+    {
+      "id": "lheidli-tenneh-soi-traditional-territory",
+      "name": "Lheidli T’enneh Statement of Intent traditional territory boundary",
+      "nationId": "lheidli-tenneh",
+      "areaType": "statement_of_intent_traditional_territory",
+      "geometryStatus": "reference_map_only",
+      "sourceRefs": ["bc-treaty-lheidli-soi-map"],
+      "caveat": "Approximate boundary from the First Nation Statement of Intent map. It is for illustrative/reference use and should not be treated as a legal, consultation, or acknowledgement boundary."
+    },
+    {
+      "id": "lheidli-tenneh-omineca-parks-area",
+      "name": "Lheidli T’enneh Omineca parks reference area",
+      "nationId": "lheidli-tenneh",
+      "areaType": "agreement_reference_area",
+      "geometryStatus": "reference_map_only",
+      "sourceRefs": ["bc-lheidli-g2g-interim-agreement-2022"],
+      "caveat": "Agreement map context for Omineca parks and Lheidli T’enneh territory. Use as a cited reference map, not as a reusable public boundary dataset."
+    }
+  ],
+  "places": [
+    {
+      "id": "unbc-prince-george-campuses",
+      "name": "UNBC Prince George campuses",
+      "type": "campus_group",
+      "locationNames": ["Prince George", "University Hill", "Wood Innovation and Design Centre", "Wood Innovation Research Laboratory"],
+      "addressAliases": ["3333 University Way", "499 George Street", "1153 4th Avenue", "Prince George, BC"]
+    },
+    {
+      "id": "unbc-south-central-quesnel",
+      "name": "UNBC South-Central campus",
+      "type": "campus",
+      "locationNames": ["Quesnel", "North Cariboo Community Campus"],
+      "addressAliases": ["100 Campus Way", "Quesnel, BC"]
+    },
+    {
+      "id": "unbc-peace-river-liard-fort-st-john",
+      "name": "UNBC Peace River-Liard campus",
+      "type": "campus",
+      "locationNames": ["Fort St. John", "Peace River-Liard"],
+      "addressAliases": ["9820 120 Avenue", "Fort St. John, BC"]
+    },
+    {
+      "id": "unbc-northwest-terrace",
+      "name": "UNBC Northwest campus",
+      "type": "campus",
+      "locationNames": ["Terrace", "Northwest campus"],
+      "addressAliases": ["Terrace, BC"]
+    },
+    {
+      "id": "unbc-northwest-prince-rupert",
+      "name": "UNBC Prince Rupert satellite campus",
+      "type": "satellite_campus",
+      "locationNames": ["Prince Rupert"],
+      "addressAliases": ["Prince Rupert, BC"]
+    },
+    {
+      "id": "wwni-gitwinksihlkw",
+      "name": "Wilp Wilxo’oskwhl Nisg̱a’a Institute",
+      "type": "federated_institute",
+      "locationNames": ["Gitwinksihlkw", "WWNI"],
+      "addressAliases": ["Gitwinksihlkw, BC"]
+    }
+  ],
+  "placeRelationships": [
+    {
+      "id": "unbc-pg-lheidli-dakelh",
+      "placeId": "unbc-prince-george-campuses",
+      "relationshipType": "traditional_territory",
+      "territoryStatus": "unceded",
+      "nationIds": ["lheidli-tenneh"],
+      "peopleGroupIds": ["dakelh-carrier"],
+      "referenceAreaIds": ["lheidli-tenneh-soi-traditional-territory", "lheidli-tenneh-omineca-parks-area"],
+      "verificationStatus": "verified_institutional",
+      "sourceRefs": ["unbc-traditional-territory-acknowledgement", "unbc-contact-campus-details", "lheidli-language"]
+    },
+    {
+      "id": "unbc-quesnel-dakelh-tsilhqotin",
+      "placeId": "unbc-south-central-quesnel",
+      "relationshipType": "traditional_territories",
+      "territoryStatus": "unceded",
+      "nationIds": ["lhtako-dene", "nazko", "lhooskuz-dene", "esdilagh"],
+      "peopleGroupIds": ["dakelh-carrier", "tsilhqotin"],
+      "nationPeopleGroups": {
+        "lhtako-dene": ["dakelh-carrier"],
+        "nazko": ["dakelh-carrier"],
+        "lhooskuz-dene": ["dakelh-carrier"],
+        "esdilagh": ["tsilhqotin"]
+      },
+      "verificationStatus": "verified_institutional",
+      "sourceRefs": ["unbc-traditional-territory-acknowledgement", "unbc-contact-campus-details", "city-quesnel-first-nations"]
+    },
+    {
+      "id": "unbc-fsj-treaty8-dane-zaa",
+      "placeId": "unbc-peace-river-liard-fort-st-john",
+      "relationshipType": "traditional_lands",
+      "treatyId": "treaty-8",
+      "treatyName": "Treaty 8",
+      "nationIds": ["doig-river", "blueberry-river", "halfway-river"],
+      "peopleGroupIds": ["dane-zaa"],
+      "verificationStatus": "verified_institutional",
+      "sourceRefs": ["unbc-traditional-territory-acknowledgement", "unbc-contact-campus-details", "doig-river-treaty"]
+    },
+    {
+      "id": "unbc-terrace-tsmsyen",
+      "placeId": "unbc-northwest-terrace",
+      "relationshipType": "traditional_territory",
+      "territoryStatus": "unceded",
+      "nationIds": ["kitsumkalum", "kitselas"],
+      "peopleGroupIds": ["tsmsyen"],
+      "verificationStatus": "verified_institutional",
+      "sourceRefs": ["unbc-traditional-territory-acknowledgement", "unbc-contact-campus-details", "bc-treaty-tsimshian"]
+    },
+    {
+      "id": "unbc-prince-rupert-tsmsyen",
+      "placeId": "unbc-northwest-prince-rupert",
+      "relationshipType": "on_or_near_traditional_territories",
+      "territoryStatus": "unceded",
+      "nationIds": ["lax-kwalaams", "metlakatla", "gitxaala", "gitgaat", "kitasoo"],
+      "peopleGroupIds": ["tsmsyen"],
+      "verificationStatus": "verified_institutional",
+      "sourceRefs": ["unbc-traditional-territory-acknowledgement", "unbc-contact-campus-details", "bc-treaty-tsimshian"]
+    },
+    {
+      "id": "wwni-nisgaa-treaty",
+      "placeId": "wwni-gitwinksihlkw",
+      "relationshipType": "village_lands_within_treaty",
+      "treatyName": "Nisg̱a’a Treaty",
+      "landName": "Gitwinksihlkw Village Lands",
+      "nationIds": ["nisgaa-lisims"],
+      "peopleGroupIds": ["nisgaa"],
+      "verificationStatus": "verified_institutional",
+      "sourceRefs": ["unbc-traditional-territory-acknowledgement", "nisgaa-treaty"]
+    }
+  ]
+}

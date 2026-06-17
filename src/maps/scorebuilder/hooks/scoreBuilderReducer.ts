@@ -120,13 +120,13 @@ export type ScoreBuilderAction =
   | { type: 'toggleComparison'; regionId: string }
   | { type: 'clearComparison' }
   | { type: 'setSearchQuery'; query: string }
-  | { type: 'setDensityMetric'; metric: ScoreMetricKey }
+  | { type: 'setDensityMetric'; metric: ScoreMetricKey; allNetworks: string[] }
   | { type: 'toggleDensityMode' }
   | { type: 'toggleCorrelateMode' }
-  | { type: 'setCorrelateMetricX'; metric: ScoreMetricKey }
-  | { type: 'setCorrelateMetricY'; metric: ScoreMetricKey }
+  | { type: 'setCorrelateMetricX'; metric: ScoreMetricKey; allNetworks: string[] }
+  | { type: 'setCorrelateMetricY'; metric: ScoreMetricKey; allNetworks: string[] }
   | { type: 'setCorrelateVisStyle'; style: 'bivariate' | 'residual' }
-  | { type: 'applyCorrelatePair'; metricX: ScoreMetricKey; metricY: ScoreMetricKey }
+  | { type: 'applyCorrelatePair'; metricX: ScoreMetricKey; metricY: ScoreMetricKey; allNetworks: string[] }
   | { type: 'toggleScoreFilter'; filter: ScoreFilterKey }
   | { type: 'setMethodSettings'; settings: ScoreMethodSettings }
   | { type: 'restoreState'; state: ScoreBuilderControlState }
@@ -240,6 +240,30 @@ function applyPresetToState(
   // If monitors haven't loaded yet, defer the select-all so networksLoaded picks every network.
   next.pendingNetworkSelectAll = needsAirNetworks && allNetworks.length === 0
   next.showPoints = needsAirNetworks
+  return next
+}
+
+function enableDataForMetric(
+  state: ScoreBuilderControlState,
+  metric: ScoreMetricKey,
+  allNetworks: string[],
+): ScoreBuilderControlState {
+  const definition = activeMetricDefinitionsFor(state).find((entry) => entry.key === metric)
+  const source = definition ? metricToDataSource(definition.category) : null
+  if (!source) return state
+
+  let next = state
+  if (!next.enabledDataSources.includes(source)) {
+    next = { ...next, enabledDataSources: [...next.enabledDataSources, source] }
+  }
+  if (source === 'airQuality') {
+    if (!next.selectedNetworks.length) next = { ...next, selectedNetworks: allNetworks }
+    if (allNetworks.length === 0) next = { ...next, pendingNetworkSelectAll: true }
+    next = { ...next, showPoints: true }
+  }
+  if (metric === 'crimePerCapita' && !next.enabledDataSources.includes('census')) {
+    next = { ...next, enabledDataSources: [...next.enabledDataSources, 'census'] }
+  }
   return next
 }
 
@@ -479,7 +503,7 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
     case 'setSearchQuery':
       return { ...state, searchQuery: action.query }
     case 'setDensityMetric':
-      return { ...state, densityMetric: action.metric }
+      return enableDataForMetric({ ...state, densityMetric: action.metric }, action.metric, action.allNetworks)
     case 'toggleDensityMode': {
       const densityMode = !state.densityMode
       if (!densityMode) return { ...state, densityMode }
@@ -491,13 +515,15 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       return { ...state, correlateMode, densityMode: false, mapSurface: 'boundary' }
     }
     case 'setCorrelateMetricX':
-      return { ...state, correlateMetricX: action.metric }
+      return enableDataForMetric({ ...state, correlateMetricX: action.metric }, action.metric, action.allNetworks)
     case 'setCorrelateMetricY':
-      return { ...state, correlateMetricY: action.metric }
+      return enableDataForMetric({ ...state, correlateMetricY: action.metric }, action.metric, action.allNetworks)
     case 'setCorrelateVisStyle':
       return { ...state, correlateVisStyle: action.style }
-    case 'applyCorrelatePair':
-      return { ...state, correlateMetricX: action.metricX, correlateMetricY: action.metricY }
+    case 'applyCorrelatePair': {
+      const next = { ...state, correlateMetricX: action.metricX, correlateMetricY: action.metricY }
+      return enableDataForMetric(enableDataForMetric(next, action.metricX, action.allNetworks), action.metricY, action.allNetworks)
+    }
     case 'toggleScoreFilter':
       return {
         ...state,
