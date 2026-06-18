@@ -1,9 +1,13 @@
-import { useEffect } from 'react'
-import { ExternalLink, MapPin } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Check, Copy, ExternalLink, MapPin } from 'lucide-react'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
+import { buildFallbackAcknowledgement, buildRegionalAcknowledgement } from '@/lib/acknowledgement/engine'
+import type { SpeakerPerspective, WordingMode } from '@/lib/acknowledgement/engine'
+import { defaultWordingOptions } from '../data'
 import { organizations } from '../organizations'
 import { LocalMapBoundary } from './AcknowledgementMap'
+import { WordingOptionsControls, type AcknowledgementScope, type WordingToggle } from './WordingOptionsControls'
 
 const humanize = (value: string) => value.replace(/[_-]+/g, ' ')
 
@@ -41,9 +45,22 @@ type OrganizationPreviewProps = {
   onPreviewOnMap: (id: string) => void
 }
 
-/** Detail view for the org selected in the Organizations preset library. */
+/**
+ * Detail view for the org selected in the preset library: a map of its campuses,
+ * the Nations it documents, and a generated acknowledgement statement the user can
+ * shape with the shared wording options. Mount with a key per org so the wording
+ * state initializes from that org (voice = organization, name = org name).
+ */
 export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPreviewProps) {
   const org = orgId ? organizations.find((item) => item.id === orgId) ?? null : null
+
+  const [wordingMode, setWordingMode] = useState<WordingMode>('institutional')
+  const [perspective, setPerspective] = useState<SpeakerPerspective>('organization')
+  const [organizationName, setOrganizationName] = useState(org?.name ?? '')
+  const [scope, setScope] = useState<AcknowledgementScope>(org?.framing === 'regional' ? 'regional' : 'specific')
+  const [regionName, setRegionName] = useState('British Columbia')
+  const [wordingOptions, setWordingOptions] = useState(defaultWordingOptions)
+  const [copied, setCopied] = useState(false)
 
   if (!org) {
     return (
@@ -52,6 +69,20 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
       </div>
     )
   }
+
+  const statement = scope === 'regional'
+    ? buildRegionalAcknowledgement(wordingMode, { perspective, organizationName, regionName })
+    : buildFallbackAcknowledgement(wordingMode, org.acknowledges, { perspective, organizationName })
+
+  const copyStatement = () => {
+    if (!statement) return
+    navigator.clipboard.writeText(statement).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    }).catch(() => undefined)
+  }
+
+  const toggleOption = (option: WordingToggle) => setWordingOptions((current) => ({ ...current, [option]: !current[option] }))
 
   return (
     <section className="overflow-hidden rounded-lg border bg-white shadow-sm">
@@ -108,8 +139,41 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
           </div>
         </div>
 
-        {org.campuses.length > 0 && (
+        <div className="mt-4 rounded-lg border border-teal-200 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-slate-900">Generated acknowledgement</h3>
+            <button
+              type="button"
+              onClick={copyStatement}
+              disabled={!statement}
+              className="inline-flex items-center gap-1 text-xs font-medium text-teal-800 disabled:opacity-40"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <p className="rounded-md bg-slate-50 p-3 text-sm leading-6 text-slate-900">{statement}</p>
           <div className="mt-3">
+            <WordingOptionsControls
+              wordingMode={wordingMode}
+              onWordingModeChange={setWordingMode}
+              perspective={perspective}
+              onPerspectiveChange={setPerspective}
+              organizationName={organizationName}
+              onOrganizationNameChange={setOrganizationName}
+              scope={scope}
+              onScopeChange={setScope}
+              regionName={regionName}
+              onRegionNameChange={setRegionName}
+              wordingOptions={wordingOptions}
+              onToggleOption={toggleOption}
+              showContextToggles={false}
+            />
+          </div>
+        </div>
+
+        {org.campuses.length > 0 && (
+          <div className="mt-4">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Campus points ({org.campuses.length})</div>
             <div className="mt-1 space-y-1.5">
               {org.campuses.map((campus, index) => (

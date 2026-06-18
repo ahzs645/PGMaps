@@ -33,9 +33,6 @@ export function WordingPreview({ wording, copied, onCopy }: WordingPreviewProps)
       <p className="rounded-md bg-slate-50 p-3 text-sm leading-6 text-slate-900">
         {text || <span className="text-slate-400">Select a location and Nation(s) to generate wording.</span>}
       </p>
-      <p className="mt-2 text-xs text-slate-500">
-        Refine the voice, mode, and scope in the <span className="font-medium text-slate-700">Wording</span> tab.
-      </p>
     </section>
   )
 }

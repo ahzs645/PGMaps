@@ -29,7 +29,6 @@ export function CandidateNations({ candidates, selectedIds, enabledSources, onTo
     <section className="rounded-lg border bg-white shadow-sm">
       <div className="border-b p-4">
         <h2 className="text-base font-semibold">Candidate Nations</h2>
-        <p className="mt-1 text-sm text-slate-600">Select what should be included in the generated acknowledgement.</p>
       </div>
       <div className="divide-y">
         {candidates.length === 0 && (

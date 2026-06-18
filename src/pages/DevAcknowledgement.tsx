@@ -37,8 +37,8 @@ export default function DevAcknowledgement() {
   const [selectedIds, setSelectedIds] = useState<string[]>(['lheidli-tenneh'])
   const [wordingMode, setWordingMode] = useState<WordingMode>('event')
   const [wordingOptions, setWordingOptions] = useState<WordingOptions>(defaultWordingOptions)
-  const [perspective, setPerspective] = useState<SpeakerPerspective>('collective')
-  const [organizationName, setOrganizationName] = useState('')
+  const [perspective, setPerspective] = useState<SpeakerPerspective>('organization')
+  const [organizationName, setOrganizationName] = useState('UNBC')
   const [scope, setScope] = useState<AcknowledgementScope>('specific')
   const [regionName, setRegionName] = useState('British Columbia')
   const [customWording, setCustomWording] = useState('')
@@ -86,14 +86,22 @@ export default function DevAcknowledgement() {
     [candidates, selectedIds],
   )
 
+  // The structured relationship wording only names Nations from the verified graph
+  // match. If the selection adds non-verified candidates (Native Land overlaps, etc.),
+  // fall back to wording built from the full selected list so the extra Nations show.
+  const allSelectedVerified = useMemo(() => {
+    const selected = candidates.filter((candidate) => selectedIds.includes(candidate.id))
+    return selected.length > 0 && selected.every((candidate) => Boolean(candidate.sources.verified))
+  }, [candidates, selectedIds])
+
   const wording = useMemo(() => {
     if (scope === 'regional') {
       return buildRegionalAcknowledgement(wordingMode, { perspective, organizationName, regionName })
     }
-    return relationshipGraph && matchedRelationshipPlace && enabledSources.verified
+    return relationshipGraph && matchedRelationshipPlace && enabledSources.verified && allSelectedVerified
       ? buildRelationshipAcknowledgement(wordingMode, relationshipGraph, matchedRelationshipPlace, selectedIds, { ...wordingOptions, perspective, organizationName })
       : buildAcknowledgement(wordingMode, selectedNames, { perspective, organizationName })
-  }, [enabledSources.verified, matchedRelationshipPlace, organizationName, perspective, regionName, relationshipGraph, scope, selectedIds, selectedNames, wordingMode, wordingOptions])
+  }, [allSelectedVerified, enabledSources.verified, matchedRelationshipPlace, organizationName, perspective, regionName, relationshipGraph, scope, selectedIds, selectedNames, wordingMode, wordingOptions])
 
   useEffect(() => {
     setCustomWording(wording)
@@ -202,6 +210,15 @@ export default function DevAcknowledgement() {
                 </button>
               ))}
             </div>
+            {perspective === 'organization' && (
+              <input
+                value={organizationName}
+                onChange={(event) => setOrganizationName(event.target.value)}
+                placeholder="Organization name (e.g. UNBC)"
+                aria-label="Organization name"
+                className="mt-2 w-full rounded-md border bg-white px-3 py-1.5 text-sm outline-none"
+              />
+            )}
           </section>
 
           <WordingPreview wording={customWording} copied={copied} onCopy={handleCopyWording} />
@@ -247,7 +264,7 @@ export default function DevAcknowledgement() {
       {activeTab === 'organizations' && (
         <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-5 lg:px-8">
           <OrganizationsSidebar selectedId={orgPreset} onSelect={setOrgPreset} />
-          <OrganizationPreview orgId={orgPreset} onPreviewOnMap={previewOnMap} />
+          <OrganizationPreview key={orgPreset ?? 'none'} orgId={orgPreset} onPreviewOnMap={previewOnMap} />
         </main>
       )}
     </div>
