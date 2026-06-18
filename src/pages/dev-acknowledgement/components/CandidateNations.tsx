@@ -59,8 +59,9 @@ type CandidateRowProps = {
 }
 
 function CandidateRow({ candidate, selected, enabledSources, onToggle }: CandidateRowProps) {
-  // Selected candidates start expanded; everything else folds to its summary row.
-  const [expanded, setExpanded] = useState(selected)
+  // Collapsed by default — the row shows the name, confidence, and matched-source
+  // chips; click to expand the full breakdown.
+  const [expanded, setExpanded] = useState(false)
   const matchedSources = SOURCE_KEYS.filter((source) => candidate.sources[source] && enabledSources[source])
 
   return (

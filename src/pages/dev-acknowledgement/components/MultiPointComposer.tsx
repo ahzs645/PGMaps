@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, Copy, ExternalLink, MapPin, Plus, Trash2, X } from 'lucide-react'
+import { ExternalLink, Plus, Trash2, X } from 'lucide-react'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { cn } from '@/lib/utils'
-import {
-  buildFallbackAcknowledgement,
-  buildRegionalAcknowledgement,
-  compareNationSets,
-  summarizeMultiPoint,
-} from '@/lib/acknowledgement/engine'
-import type { RelationshipGraph, SpeakerPerspective, WordingMode } from '@/lib/acknowledgement/engine'
-import { COMMUNITIES_DATA, wordingModeLabels } from '../data'
+import { compareNationSets, summarizeMultiPoint } from '@/lib/acknowledgement/engine'
+import type { RelationshipGraph } from '@/lib/acknowledgement/engine'
+import { COMMUNITIES_DATA } from '../data'
 import { organizations, type OrgRecord } from '../organizations'
 import { fpccLanguageNations } from '../organizations/fpcc'
 import { createNationResolver } from '../organizations/nations'
@@ -30,13 +25,6 @@ type MappedPoint = {
   /** FPCC Indigenous language-territory polygon(s) the point falls in. */
   languages?: string[]
 }
-
-const MODES: WordingMode[] = ['short', 'formal', 'event', 'institutional', 'educational']
-const VOICES: { value: SpeakerPerspective; label: string }[] = [
-  { value: 'collective', label: 'Community' },
-  { value: 'individual', label: 'Individual' },
-  { value: 'organization', label: 'Organization' },
-]
 
 function MapClickLayer({ onAdd }: { onAdd: (lat: number, lng: number) => void }) {
   const { map, isLoaded } = useMap()
@@ -59,17 +47,6 @@ function FlyToActive({ point }: { point: { latitude: number; longitude: number }
     map.flyTo({ center: [point.longitude, point.latitude], zoom: Math.max(map.getZoom(), 9), duration: 700 })
   }, [map, isLoaded, point])
   return null
-}
-
-function CopyButton({ text, copiedKey, onCopy, id }: { text: string; copiedKey: string | null; onCopy: (text: string, id: string) => void; id: string }) {
-  const done = copiedKey === id
-  return (
-    <button type="button" onClick={() => onCopy(text, id)} disabled={!text}
-      className="inline-flex flex-none items-center gap-1 text-[11px] font-medium text-teal-800 disabled:opacity-40">
-      {done ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-      {done ? 'Copied' : 'Copy'}
-    </button>
-  )
 }
 
 function Chips({ label, names, tone }: { label: string; names: string[]; tone: 'ok' | 'miss' | 'extra' }) {
@@ -110,11 +87,6 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
   // the next click to drop an additional point instead.
   const [addMode, setAddMode] = useState(false)
   const [selectedOrgId, setSelectedOrgId] = useState('')
-  const [mode, setMode] = useState<WordingMode>('institutional')
-  const [perspective, setPerspective] = useState<SpeakerPerspective>('organization')
-  const [organizationName, setOrganizationName] = useState('')
-  const [regionName, setRegionName] = useState('British Columbia')
-  const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [gisFeatures, setGisFeatures] = useState<GeoJSON.Feature[] | undefined>(undefined)
   const counter = useRef(0)
   const syncedAddressKey = useRef<string | null>(null)
@@ -173,9 +145,6 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
   const loadOrg = useCallback((org: OrgRecord | null) => {
     setSelectedOrgId(org?.id ?? '')
     if (!org) { setPoints([]); setActiveId(null); return }
-    setPerspective('organization')
-    setOrganizationName(org.name)
-    if (org.framing === 'regional') setRegionName('British Columbia')
     const next: MappedPoint[] = org.campuses.map((campus) => ({
       id: `p${counter.current++}`, name: campus.name, expected: campus.acknowledges,
       latitude: campus.latitude, longitude: campus.longitude, status: 'loading', nationNames: [],
@@ -233,26 +202,11 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgToLoad])
 
-  const copy = useCallback((text: string, id: string) => {
-    if (!text) return
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedKey(id)
-      window.setTimeout(() => setCopiedKey((current) => (current === id ? null : current)), 2000)
-    }).catch(() => undefined)
-  }, [])
-
   const resolved = points.filter((point) => point.status === 'done')
   const summary = useMemo(
     () => summarizeMultiPoint(resolved.map((point) => ({ latitude: point.latitude, longitude: point.longitude, nationNames: point.nationNames }))),
     [resolved],
   )
-
-  const wordingOpts = { perspective, organizationName }
-  const combinedSpecific = summary.nationNames.length ? buildFallbackAcknowledgement(mode, summary.nationNames, wordingOpts) : ''
-  const regionalStatement = points.length ? buildRegionalAcknowledgement(mode, { ...wordingOpts, regionName }) : ''
-  const perCampus = resolved
-    .map((point) => ({ point, statement: point.nationNames.length ? buildFallbackAcknowledgement(mode, point.nationNames, wordingOpts) : '' }))
-    .filter((entry) => entry.statement)
 
   const orgComparison = selectedOrg && selectedOrg.acknowledges.length ? compareNationSets(selectedOrg.acknowledges, summary.nationNames) : null
 
@@ -389,31 +343,6 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
                 ))}
               </div>
             </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {MODES.slice(0, 3).map((value) => (
-                <button key={value} type="button" onClick={() => setMode(value)}
-                  className={cn('rounded-md border px-2 py-1.5 text-xs font-medium', mode === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300')}>
-                  {wordingModeLabels[value]}
-                </button>
-              ))}
-            </div>
-            <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
-              <div className="grid grid-cols-3 gap-2">
-                {VOICES.map(({ value, label }) => (
-                  <button key={value} type="button" onClick={() => setPerspective(value)}
-                    className={cn('rounded-md border px-2 py-1.5 text-xs font-medium', perspective === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300')}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {perspective === 'organization' && (
-                <input value={organizationName} onChange={(event) => setOrganizationName(event.target.value)}
-                  placeholder="Organization name (e.g. UNBC)" aria-label="Organization name"
-                  className="mt-2 w-full rounded-md border bg-white px-3 py-1.5 text-sm outline-none" />
-              )}
-            </div>
           </div>
 
           <div className="space-y-4 text-sm">
@@ -468,70 +397,6 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
           </div>
         )}
 
-        {/* both presentations */}
-        {points.length > 0 && (
-          <div className="grid gap-4 border-t p-4 lg:grid-cols-2">
-            <div className="rounded-md border p-3">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-900">Specific (ours)</span>
-                {!summary.suggestRegional && <span className="rounded border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-teal-800">Suggested</span>}
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">All points combined</span>
-                    <CopyButton id="combined" text={combinedSpecific} copiedKey={copiedKey} onCopy={copy} />
-                  </div>
-                  <div className="rounded bg-slate-50 p-2.5 text-sm leading-6 text-slate-900">{combinedSpecific || <span className="text-slate-400">Resolving…</span>}</div>
-                </div>
-                {perCampus.length > 1 && (
-                  <div>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Per campus</div>
-                    <div className="space-y-2">
-                      {perCampus.map(({ point, statement }) => {
-                        const cmp = point.expected?.length ? compareNationSets(point.expected, point.nationNames) : null
-                        return (
-                          <div key={point.id} className="rounded border p-2">
-                            <div className="mb-1 flex items-center justify-between">
-                              <span className="text-[10px] font-semibold text-slate-600">{point.name ?? 'Point'}</span>
-                              <CopyButton id={point.id} text={statement} copiedKey={copiedKey} onCopy={copy} />
-                            </div>
-                            <div className="text-xs leading-5 text-slate-800">{statement}</div>
-                            {cmp && (cmp.missed.length > 0 || cmp.matched.length > 0) && (
-                              <div className="mt-1 space-y-1">
-                                <Chips label="matches org" names={cmp.matched} tone="ok" />
-                                <Chips label="org names, we missed" names={cmp.missed} tone="miss" />
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-md border p-3">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-900">Generalized — region-wide (ours)</span>
-                {summary.suggestRegional && <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-800">Suggested</span>}
-              </div>
-              <input value={regionName} onChange={(event) => setRegionName(event.target.value)}
-                placeholder="Region (e.g. British Columbia)" aria-label="Region name"
-                className="mb-2 w-full rounded-md border bg-white px-3 py-1.5 text-sm outline-none" />
-              <div className="mb-1 flex items-center justify-end"><CopyButton id="regional" text={regionalStatement} copiedKey={copiedKey} onCopy={copy} /></div>
-              <div className="rounded bg-slate-50 p-2.5 text-sm leading-6 text-slate-900">{regionalStatement}</div>
-              <p className="mt-2 text-[11px] text-slate-500">Suggested when points are far apart or span many Nations ({summary.distinctNationCount} Nations · ~{Math.round(summary.maxSpreadKm)} km).</p>
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-start gap-2 border-t bg-amber-50/60 px-4 py-3 text-xs leading-5 text-amber-900">
-          <MapPin className="mt-0.5 h-3.5 w-3.5 flex-none" />
-          Geometry-derived drafts use Native Land territory polygons as context triggers, and the database stores facts +
-          a source link (not verbatim statements). Treat both as review-level until confirmed with the Nation or the official source.
-        </div>
       </div>
     </section>
   )

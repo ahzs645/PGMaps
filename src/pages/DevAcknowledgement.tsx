@@ -11,11 +11,11 @@ import { DataProvenancePanel } from './dev-acknowledgement/components/DataProven
 import { LanguageReferences } from './dev-acknowledgement/components/LanguageReferences'
 import { MatchTypesPanel } from './dev-acknowledgement/components/MatchTypesPanel'
 import { MultiPointComposer } from './dev-acknowledgement/components/MultiPointComposer'
-import { OrganizationsPanel } from './dev-acknowledgement/components/OrganizationsPanel'
+import { OrganizationPreview } from './dev-acknowledgement/components/OrganizationPreview'
+import { OrganizationsSidebar } from './dev-acknowledgement/components/OrganizationsSidebar'
 import { SourceLayersPanel } from './dev-acknowledgement/components/SourceLayersPanel'
 import { TemplatePrompts } from './dev-acknowledgement/components/TemplatePrompts'
 import { VariantControls, type AcknowledgementScope, type WordingToggle } from './dev-acknowledgement/components/VariantControls'
-import { VerifiedRelationshipMatch } from './dev-acknowledgement/components/VerifiedRelationshipMatch'
 import { WordingPreview } from './dev-acknowledgement/components/WordingPreview'
 
 export default function DevAcknowledgement() {
@@ -45,8 +45,10 @@ export default function DevAcknowledgement() {
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'mapNations' | 'wording' | 'organizations'>('mapNations')
   const [orgToLoad, setOrgToLoad] = useState<string | null>(null)
+  const [orgPreset, setOrgPreset] = useState<string | null>(null)
 
-  const loadOrgOnMap = useCallback((id: string) => {
+  // From the Organizations tab: load the selected org onto the map and jump there.
+  const previewOnMap = useCallback((id: string) => {
     setOrgToLoad(id)
     setActiveTab('mapNations')
   }, [])
@@ -183,11 +185,26 @@ export default function DevAcknowledgement() {
           orgToLoad={orgToLoad}
           onOrgLoaded={() => setOrgToLoad(null)}
         >
-          <WordingPreview wording={customWording} copied={copied} onCopy={handleCopyWording} />
+          <section className="rounded-lg border bg-white p-3 shadow-sm">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+            <div className="grid grid-cols-3 gap-2">
+              {([['collective', 'Community'], ['individual', 'Individual'], ['organization', 'Organization']] as const).map(([value, voiceLabel]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setPerspective(value)}
+                  className={cn(
+                    'rounded-md border px-2 py-1.5 text-xs font-medium',
+                    perspective === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
+                  )}
+                >
+                  {voiceLabel}
+                </button>
+              ))}
+            </div>
+          </section>
 
-          {relationshipGraph && matchedRelationshipPlace && enabledSources.verified && (
-            <VerifiedRelationshipMatch graph={relationshipGraph} match={matchedRelationshipPlace} selectedIds={selectedIds} />
-          )}
+          <WordingPreview wording={customWording} copied={copied} onCopy={handleCopyWording} />
 
           <CandidateNations
             candidates={visibleCandidates}
@@ -227,7 +244,12 @@ export default function DevAcknowledgement() {
         </main>
       )}
 
-      {activeTab === 'organizations' && <OrganizationsPanel onLoadOrg={loadOrgOnMap} />}
+      {activeTab === 'organizations' && (
+        <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-5 lg:px-8">
+          <OrganizationsSidebar selectedId={orgPreset} onSelect={setOrgPreset} />
+          <OrganizationPreview orgId={orgPreset} onPreviewOnMap={previewOnMap} />
+        </main>
+      )}
     </div>
   )
 }

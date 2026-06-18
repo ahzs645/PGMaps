@@ -21,7 +21,7 @@ type SourceLayersPanelProps = {
 
 export function SourceLayersPanel({ sourceLookups, enabledSources, onToggle }: SourceLayersPanelProps) {
   return (
-    <CollapsiblePanel title="Source Layers" icon={<Layers3 className="h-4 w-4 text-teal-700" />}>
+    <CollapsiblePanel title="Source Layers" icon={<Layers3 className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
         {(Object.keys(sourceMeta) as SourceKey[]).map((source) => (
           <button
