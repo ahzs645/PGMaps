@@ -267,7 +267,7 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
 
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Campuses / points ({points.length})</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Locations ({points.length})</span>
                 <div className="flex items-center gap-2">
                   {summary.pointCount > 1 && (
                     <span className="text-[10px] text-slate-500">{summary.distinctNationCount} Nations · ~{Math.round(summary.maxSpreadKm)} km</span>

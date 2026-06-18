@@ -5,7 +5,7 @@ import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/c
 import { buildFallbackAcknowledgement, buildRegionalAcknowledgement } from '@/lib/acknowledgement/engine'
 import type { SpeakerPerspective, WordingMode } from '@/lib/acknowledgement/engine'
 import { defaultWordingOptions } from '../data'
-import { organizations } from '../organizations'
+import { inferLocationType, organizations } from '../organizations'
 import { LocalMapBoundary } from './AcknowledgementMap'
 import { WordingOptionsControls, type AcknowledgementScope, type WordingToggle } from './WordingOptionsControls'
 
@@ -74,6 +74,12 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
     ? buildRegionalAcknowledgement(wordingMode, { perspective, organizationName, regionName })
     : buildFallbackAcknowledgement(wordingMode, org.acknowledges, { perspective, organizationName })
 
+  // The note earns its place when it adds territory status ("Unceded territories of…")
+  // or describes the org's approach. Hide it when it's just the same Nation list already
+  // shown under "Names" (some records duplicate the list verbatim in the note).
+  const normalizeList = (value: string) => value.toLowerCase().replace(/\band\b/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+  const noteIsJustNames = org.note != null && normalizeList(org.note) === normalizeList(org.acknowledges.join(' '))
+
   const copyStatement = () => {
     if (!statement) return
     navigator.clipboard.writeText(statement).then(() => {
@@ -130,7 +136,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
           </button>
         </div>
 
-        {org.note && <p className="mt-3 text-sm leading-6 text-slate-600">{org.note}</p>}
+        {org.note && !noteIsJustNames && <p className="mt-3 text-sm leading-6 text-slate-600">{org.note}</p>}
 
         <div className="mt-3">
           <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Names ({org.acknowledges.length})</div>
@@ -175,22 +181,30 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
 
         {org.campuses.length > 0 && (
           <div className="mt-4">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Campus points ({org.campuses.length})</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Locations ({org.campuses.length})</div>
             <div className="mt-1 space-y-1.5">
-              {org.campuses.map((campus, index) => (
-                <div key={`${campus.name}-${campus.latitude}`} className="flex items-start gap-2 rounded-md border p-2 text-xs">
-                  <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-slate-100 font-semibold text-slate-700">{index + 1}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-slate-900">{campus.name}</span>
-                      <span className="font-mono text-[10px] text-slate-500">{campus.latitude.toFixed(3)}, {campus.longitude.toFixed(3)}</span>
+              {org.campuses.map((campus, index) => {
+                const locationType = campus.type ?? inferLocationType(campus.name, org.sector)
+                return (
+                  <div key={`${campus.name}-${campus.latitude}`} className="flex items-start gap-2 rounded-md border p-2 text-xs">
+                    <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-slate-100 font-semibold text-slate-700">{index + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate font-medium text-slate-900">{campus.name}</span>
+                          {locationType && (
+                            <span className="flex-none rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-600">{locationType}</span>
+                          )}
+                        </span>
+                        <span className="flex-none font-mono text-[10px] text-slate-500">{campus.latitude.toFixed(3)}, {campus.longitude.toFixed(3)}</span>
+                      </div>
+                      {campus.acknowledges.length > 0 && (
+                        <div className="mt-0.5 text-slate-600">{campus.acknowledges.join(', ')}</div>
+                      )}
                     </div>
-                    {campus.acknowledges.length > 0 && (
-                      <div className="mt-0.5 text-slate-600">{campus.acknowledges.join(', ')}</div>
-                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

@@ -352,36 +352,37 @@ export function buildFallbackAcknowledgement(
   options: { perspective?: SpeakerPerspective; organizationName?: string } = {},
 ) {
   const names = nationNames.length > 0 ? formatList(nationNames) : '[selected Nation(s)]'
+  const territories = `the traditional territories of ${names}`
   const perspective = options.perspective ?? 'collective'
 
   if (perspective === 'individual') {
-    if (mode === 'short') return `I am on land connected to ${names}.`
-    if (mode === 'formal') return `I respectfully acknowledge that I am on land connected to ${names}. I recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
-    if (mode === 'institutional') return `I am working from land connected to ${names}.`
-    return `I am grateful to be on land connected to ${names}. I recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
+    if (mode === 'short') return `I am on ${territories}.`
+    if (mode === 'formal') return `I respectfully acknowledge that I am on ${territories}. I recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
+    if (mode === 'institutional') return `I work on ${territories}.`
+    return `I am grateful to be on ${territories}. I recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
   }
 
   if (perspective === 'organization') {
     const org = options.organizationName?.trim() || 'Our organization'
-    if (mode === 'short') return `${org} operates on land connected to ${names}.`
-    if (mode === 'formal') return `${org} respectfully acknowledges that it operates on land connected to ${names}. We recognize their histories, cultures, rights, and ongoing relationships with these lands.`
-    if (mode === 'institutional') return `${org} is working from lands connected to ${names}.`
-    return `On behalf of ${org}, we are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
+    if (mode === 'short') return `${org} operates on ${territories}.`
+    if (mode === 'formal') return `${org} respectfully acknowledges that it operates on ${territories}. We recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
+    if (mode === 'institutional') return `${org} operates on ${territories}.`
+    return `On behalf of ${org}, we are grateful to gather on ${territories}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
   }
 
   if (mode === 'short') {
-    return `This place is connected to ${names}.`
+    return `This place is on ${territories}.`
   }
 
   if (mode === 'formal') {
-    return `We respectfully acknowledge that this place is connected to ${names}. We recognize their histories, cultures, rights, and ongoing relationships with these lands.`
+    return `We respectfully acknowledge that we are on ${territories}. We recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
   }
 
   if (mode === 'institutional') {
-    return `This institution is working from lands connected to ${names}.`
+    return `We work on ${territories}.`
   }
 
-  return `We are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
+  return `We are grateful to gather on ${territories}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
 }
 
 /**
