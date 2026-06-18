@@ -13,6 +13,7 @@ import {
 import type { GeocodeLike, ReferenceAreaRecord, RelationshipGraph } from '@/lib/acknowledgement/engine'
 import {
   COMMUNITIES_DATA,
+  FPCC_LANGUAGES_DATA,
   LOCAL_COMMUNITY_MAX_KM,
   NATIVE_LAND_DATA_BASE,
   NATIVE_LAND_LAYERS,
@@ -224,4 +225,28 @@ export async function resolveNationsAtPoint(
     }
   }
   return resolved
+}
+
+/**
+ * Resolve the FPCC Indigenous language-territory polygon(s) covering a point
+ * (First Peoples' Map of B.C.). Returns the language name(s) — usually one, but
+ * a point can fall in several where territories overlap.
+ */
+export async function resolveFpccLanguagesAtPoint(lat: number, lng: number, signal?: AbortSignal): Promise<string[]> {
+  const collection = await loadGeoJsonLayer(FPCC_LANGUAGES_DATA)
+  const pt = point([lng, lat])
+  const seen = new Set<string>()
+  const names: string[] = []
+  for (const feature of collection.features) {
+    if (signal?.aborted) break
+    const geometry = feature.geometry
+    if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) continue
+    if (!booleanPointInPolygon(pt, geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon)) continue
+    const name = String((feature.properties as FeatureProperties)?.name ?? '').trim()
+    if (name && !seen.has(name)) {
+      seen.add(name)
+      names.push(name)
+    }
+  }
+  return names
 }

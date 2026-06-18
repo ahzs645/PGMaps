@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { cn } from '@/lib/utils'
 import { defaultWordingOptions } from './dev-acknowledgement/data'
 import { useAcknowledgementLookups } from './dev-acknowledgement/hooks/useAcknowledgementLookups'
 import { buildFallbackAcknowledgement as buildAcknowledgement, buildRegionalAcknowledgement, buildRelationshipAcknowledgement } from '@/lib/acknowledgement/engine'
@@ -41,6 +42,7 @@ export default function DevAcknowledgement() {
   const [regionName, setRegionName] = useState('British Columbia')
   const [customWording, setCustomWording] = useState('')
   const [copied, setCopied] = useState(false)
+  const [activeTab, setActiveTab] = useState<'single' | 'multi'>('single')
 
   const {
     address,
@@ -147,6 +149,26 @@ export default function DevAcknowledgement() {
         onCopy={handleCopyWording}
       />
 
+      <div className="border-b bg-white">
+        <div className="mx-auto flex max-w-7xl gap-1 px-3 sm:px-6 lg:px-8">
+          {([['single', 'Single location'], ['multi', 'Multi-point']] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setActiveTab(value)}
+              aria-current={activeTab === value}
+              className={cn(
+                '-mb-px border-b-2 px-4 py-3 text-sm font-medium transition',
+                activeTab === value ? 'border-teal-700 text-teal-800' : 'border-transparent text-slate-500 hover:text-slate-800',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === 'single' && (
       <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[280px_1fr_360px] lg:gap-5 lg:px-8">
         <aside className="order-3 space-y-4 lg:order-1">
           <SourceLayersPanel sourceLookups={sourceLookups} enabledSources={enabledSources} onToggle={toggleSource} />
@@ -196,8 +218,9 @@ export default function DevAcknowledgement() {
           <LanguageReferences />
         </aside>
       </main>
+      )}
 
-      <MultiPointComposer graph={relationshipGraph} />
+      {activeTab === 'multi' && <MultiPointComposer graph={relationshipGraph} />}
     </div>
   )
 }

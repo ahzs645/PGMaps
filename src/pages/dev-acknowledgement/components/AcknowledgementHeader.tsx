@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react'
-import { Check, ChevronRight, Copy, MapPin, Search, ShieldCheck } from 'lucide-react'
+import { Check, ChevronRight, Copy, MapPin, Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import type { GeocodeStatus } from '../types'
@@ -28,15 +28,7 @@ export function AcknowledgementHeader({
       <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-md border bg-white px-3 py-1 text-sm font-medium text-slate-600">
-              <ShieldCheck className="h-4 w-4 text-teal-700" />
-              Multi-source acknowledgement engine
-            </div>
             <h1 className="text-3xl font-semibold tracking-tight">Acknowledgement Builder</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Prototype flow for geocoding a B.C. address, comparing official and educational spatial sources,
-              selecting candidate Nations, and generating editable wording with review guidance.
-            </p>
           </div>
           <Button variant="outline" onClick={onCopy} className="w-full sm:w-auto">
             {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}

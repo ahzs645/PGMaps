@@ -62,6 +62,12 @@ export const NATIVE_LAND_LAYERS = [
   { category: 'languages', url: `${NATIVE_LAND_DATA_BASE}languages.geojson`, label: 'Native Land language overlap' },
   { category: 'treaties', url: `${NATIVE_LAND_DATA_BASE}treaties.geojson`, label: 'Native Land treaty overlap' },
 ] as const
+// First Peoples' Cultural Council — First Peoples' Map of B.C. (maps.fpcc.ca).
+// language-geo is authoritative Indigenous language-territory polygons (39);
+// community-geo is community points (205).
+export const FPCC_DATA_BASE = `${import.meta.env.BASE_URL}data/fpcc/`
+export const FPCC_LANGUAGES_DATA = `${FPCC_DATA_BASE}language-geo.geojson`
+export const FPCC_COMMUNITIES_DATA = `${FPCC_DATA_BASE}community-geo.geojson`
 export const LOCAL_COMMUNITY_MAX_KM = 120
 
 export const initialLookupState: Record<SourceKey, SourceLookupState> = {

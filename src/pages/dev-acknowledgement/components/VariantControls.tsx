@@ -1,4 +1,4 @@
-import { AlertTriangle, BookOpen, Check } from 'lucide-react'
+import { BookOpen, Check } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { wordingModeLabels } from '../data'
@@ -159,13 +159,6 @@ export function VariantControls({
         className="mt-3 min-h-44 w-full resize-none rounded-md border bg-slate-50 p-3 text-sm leading-6 outline-none"
         aria-label="Generated acknowledgement wording"
       />
-      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-        <div className="mb-1 flex items-center gap-2 font-semibold">
-          <AlertTriangle className="h-4 w-4" />
-          Review needed
-        </div>
-        Confirm wording with local or Nation-specific guidance where possible. Verified relationship records generate controlled variants, while CAD, reserve, treaty, and proximity layers remain supporting context.
-      </div>
     </section>
   )
 }

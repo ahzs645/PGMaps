@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Copy, ExternalLink, MapPin, Sparkles, Trash2, X } from 'lucide-react'
+import { Check, Copy, ExternalLink, MapPin, Trash2, X } from 'lucide-react'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { cn } from '@/lib/utils'
@@ -13,7 +13,7 @@ import type { RelationshipGraph, SpeakerPerspective, WordingMode } from '@/lib/a
 import { COMMUNITIES_DATA, wordingModeLabels } from '../data'
 import { organizations, type OrgRecord } from '../organizations'
 import { createNationResolver } from '../organizations/nations'
-import { loadGeoJsonLayer, resolveNationsAtPoint } from '../spatial'
+import { loadGeoJsonLayer, resolveFpccLanguagesAtPoint, resolveNationsAtPoint } from '../spatial'
 import { LocalMapBoundary } from './AcknowledgementMap'
 
 type MappedPoint = {
@@ -25,6 +25,8 @@ type MappedPoint = {
   longitude: number
   status: 'loading' | 'done' | 'error'
   nationNames: string[]
+  /** FPCC Indigenous language-territory polygon(s) the point falls in. */
+  languages?: string[]
 }
 
 const MODES: WordingMode[] = ['short', 'formal', 'event', 'institutional', 'educational']
@@ -84,9 +86,6 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
   const [regionName, setRegionName] = useState('British Columbia')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [gisFeatures, setGisFeatures] = useState<GeoJSON.Feature[] | undefined>(undefined)
-  // Collapsed by default so this experimental tool (and its embedded map) stays
-  // out of the way until opened.
-  const [open, setOpen] = useState(false)
   const counter = useRef(0)
 
   // Load the BC First Nation Community Locations GIS dataset to validate/enrich Nation names.
@@ -101,9 +100,12 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
   const selectedOrg = organizations.find((org) => org.id === selectedOrgId) ?? null
 
   const resolve = useCallback((pt: MappedPoint) => {
-    resolveNationsAtPoint(pt.latitude, pt.longitude, graph)
-      .then((nationNames) => setPoints((current) => current.map((p) => (p.id === pt.id ? { ...p, status: 'done', nationNames } : p))))
-      .catch(() => setPoints((current) => current.map((p) => (p.id === pt.id ? { ...p, status: 'error', nationNames: [] } : p))))
+    Promise.all([
+      resolveNationsAtPoint(pt.latitude, pt.longitude, graph),
+      resolveFpccLanguagesAtPoint(pt.latitude, pt.longitude),
+    ])
+      .then(([nationNames, languages]) => setPoints((current) => current.map((p) => (p.id === pt.id ? { ...p, status: 'done', nationNames, languages } : p))))
+      .catch(() => setPoints((current) => current.map((p) => (p.id === pt.id ? { ...p, status: 'error', nationNames: [], languages: [] } : p))))
   }, [graph])
 
   const addPoint = useCallback((latitude: number, longitude: number) => {
@@ -159,51 +161,31 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
   const gisVerifiedCount = coverage.filter((entry) => entry.gis).length
 
   return (
-    <section className="mx-auto max-w-7xl px-3 pb-10 sm:px-6 lg:px-8">
+    <section className="mx-auto max-w-7xl px-3 py-4 sm:px-6 lg:px-8">
       <div className="rounded-lg border bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-          <div>
-            <div className="mb-1 inline-flex items-center gap-2 rounded-md border bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
-              <Sparkles className="h-3.5 w-3.5 text-teal-700" />
-              Experimental
-            </div>
-            <h2 className="text-base font-semibold">Multi-point composer & org comparison</h2>
-            <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Pick a tracked organization (or click the map) to drop a point per campus. Each resolves to the Nation
-              whose territory it falls in, so you can compare <span className="font-medium">what our engine generates</span>{' '}
-              against <span className="font-medium">what the organization actually names</span>.
-            </p>
-          </div>
+          <p className="max-w-2xl text-sm text-slate-600">
+            Pick a tracked organization or click the map to drop a point per campus. Each resolves to the Nation whose
+            territory it falls in, so you can compare what the engine generates against what the organization names.
+          </p>
           <div className="flex items-center gap-2">
-            {open && (
-              <>
-                <select
-                  value={selectedOrgId}
-                  onChange={(event) => loadOrg(organizations.find((org) => org.id === event.target.value) ?? null)}
-                  aria-label="Organization"
-                  className="rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none"
-                >
-                  <option value="">Pick an organization…</option>
-                  {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
-                </select>
-                <button type="button" onClick={() => loadOrg(null)} disabled={points.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-teal-300 disabled:opacity-50">
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Clear
-                </button>
-              </>
-            )}
-            <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
-              aria-label={open ? 'Collapse composer' : 'Expand composer'}
-              className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-teal-300">
-              {open ? 'Hide' : 'Open'}
-              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
+            <select
+              value={selectedOrgId}
+              onChange={(event) => loadOrg(organizations.find((org) => org.id === event.target.value) ?? null)}
+              aria-label="Organization"
+              className="rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none"
+            >
+              <option value="">Pick an organization…</option>
+              {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
+            </select>
+            <button type="button" onClick={() => loadOrg(null)} disabled={points.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-teal-300 disabled:opacity-50">
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear
             </button>
           </div>
         </div>
 
-        {open && (
-        <>
         <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_400px]">
           <div className="relative min-h-[24rem] overflow-hidden rounded-md border">
             <LocalMapBoundary result={null}>
@@ -249,6 +231,11 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
                         {point.status === 'error' && 'Lookup failed'}
                         {point.status === 'done' && (point.nationNames.length ? point.nationNames.join(', ') : 'No territory match')}
                       </div>
+                      {point.status === 'done' && point.languages && point.languages.length > 0 && (
+                        <div className="mt-0.5 text-[10px] leading-4 text-teal-800">
+                          <span className="font-semibold uppercase tracking-wide text-slate-400">FPCC language</span> · {point.languages.join(', ')}
+                        </div>
+                      )}
                     </div>
                     <button type="button" onClick={() => removePoint(point.id)} aria-label="Remove point" className="flex-none text-slate-400 hover:text-slate-700">
                       <X className="h-3.5 w-3.5" />
@@ -396,8 +383,6 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
           Geometry-derived drafts use Native Land territory polygons as context triggers, and the database stores facts +
           a source link (not verbatim statements). Treat both as review-level until confirmed with the Nation or the official source.
         </div>
-        </>
-        )}
       </div>
     </section>
   )
