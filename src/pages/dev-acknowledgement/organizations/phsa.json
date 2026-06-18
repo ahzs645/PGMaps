@@ -1,0 +1,25 @@
+{
+  "id": "phsa",
+  "name": "Provincial Health Services Authority",
+  "sector": "health",
+  "framing": "regional",
+  "sourceUrl": "https://www.phsa.ca/about/who-we-are/eradicating-indigenous-specific-racism/our-commitment",
+  "note": "Operates on territories of Indigenous Peoples across BC; head office on Coast Salish territories.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver (head office)",
+      "latitude": 49.2636,
+      "longitude": -123.123,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

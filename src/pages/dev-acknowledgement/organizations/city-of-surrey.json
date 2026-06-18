@@ -1,0 +1,25 @@
+{
+  "id": "city-of-surrey",
+  "name": "City of Surrey",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.surrey.ca/",
+  "note": "Coast Salish Peoples, including Katzie, Kwantlen, and Semiahmoo.",
+  "acknowledges": [
+    "Katzie",
+    "Kwantlen",
+    "Semiahmoo"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.19,
+      "longitude": -122.849,
+      "acknowledges": [
+        "Katzie",
+        "Kwantlen",
+        "Semiahmoo"
+      ]
+    }
+  ]
+}

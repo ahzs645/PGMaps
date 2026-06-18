@@ -1,0 +1,25 @@
+{
+  "id": "vancouver-coastal-health",
+  "name": "Vancouver Coastal Health",
+  "sector": "health",
+  "framing": "regional",
+  "sourceUrl": "https://www.vch.ca/",
+  "note": "Coast Salish territories (Musqueam, Squamish, Tsleil-Waututh) and many First Nations across its region.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.2636,
+      "longitude": -123.123,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

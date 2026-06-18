@@ -1,0 +1,27 @@
+{
+  "id": "city-of-burnaby",
+  "name": "City of Burnaby",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.burnaby.ca/our-city/indigenous-peoples-and-reconciliation",
+  "note": "Unceded territories of Musqueam, Squamish, Tsleil-Waututh, and Kwikwetlem.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh",
+    "Kwikwetlem"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.253,
+      "longitude": -122.981,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh",
+        "Kwikwetlem"
+      ]
+    }
+  ]
+}

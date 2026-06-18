@@ -1,0 +1,23 @@
+{
+  "id": "college-of-the-rockies",
+  "name": "College of the Rockies",
+  "sector": "college",
+  "framing": "mixed",
+  "sourceUrl": "https://www.cotr.bc.ca/",
+  "note": "Ktunaxa traditional territory (with Secwépemc presence and Métis Nation BC partnership).",
+  "acknowledges": [
+    "Ktunaxa",
+    "Secwépemc",
+    "Métis"
+  ],
+  "campuses": [
+    {
+      "name": "Cranbrook",
+      "latitude": 49.498,
+      "longitude": -115.751,
+      "acknowledges": [
+        "Ktunaxa"
+      ]
+    }
+  ]
+}

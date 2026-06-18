@@ -1,0 +1,27 @@
+{
+  "id": "city-of-port-moody",
+  "name": "City of Port Moody",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.portmoody.ca/city-government/indigenous-relations/",
+  "note": "Kwikwetlem, Tsleil-Waututh, Musqueam, and Squamish.",
+  "acknowledges": [
+    "Kwikwetlem",
+    "Tsleil-Waututh",
+    "Musqueam",
+    "Squamish"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.283,
+      "longitude": -122.832,
+      "acknowledges": [
+        "Kwikwetlem",
+        "Tsleil-Waututh",
+        "Musqueam",
+        "Squamish"
+      ]
+    }
+  ]
+}

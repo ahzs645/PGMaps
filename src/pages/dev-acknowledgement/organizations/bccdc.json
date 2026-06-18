@@ -1,0 +1,25 @@
+{
+  "id": "bccdc",
+  "name": "BC Centre for Disease Control",
+  "sector": "health",
+  "framing": "regional",
+  "sourceUrl": "https://www.bccdc.ca/",
+  "note": "BC First Nations Title and Rights province-wide; main office on Coast Salish territories.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.2625,
+      "longitude": -123.124,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

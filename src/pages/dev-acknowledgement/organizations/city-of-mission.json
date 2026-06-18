@@ -1,0 +1,21 @@
+{
+  "id": "city-of-mission",
+  "name": "City of Mission",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.mission.ca/council-government/indigenous-relations",
+  "note": "Traditional territory of the Stó:lō.",
+  "acknowledges": [
+    "Stó:lō Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Municipal Hall",
+      "latitude": 49.133,
+      "longitude": -122.31,
+      "acknowledges": [
+        "Stó:lō Nation"
+      ]
+    }
+  ]
+}

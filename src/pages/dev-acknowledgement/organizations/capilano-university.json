@@ -1,0 +1,25 @@
+{
+  "id": "capilano-university",
+  "name": "Capilano University",
+  "sector": "university",
+  "framing": "mixed",
+  "sourceUrl": "https://www.capilanou.ca/",
+  "note": "Unceded territories of Tsleil-Waututh, Squamish, and Musqueam (and shíshálh for the Sunshine Coast campus).",
+  "acknowledges": [
+    "Tsleil-Waututh",
+    "Squamish",
+    "Musqueam"
+  ],
+  "campuses": [
+    {
+      "name": "North Vancouver",
+      "latitude": 49.347,
+      "longitude": -123.001,
+      "acknowledges": [
+        "Tsleil-Waututh",
+        "Squamish",
+        "Musqueam"
+      ]
+    }
+  ]
+}

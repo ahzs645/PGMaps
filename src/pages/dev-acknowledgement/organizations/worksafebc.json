@@ -1,0 +1,17 @@
+{
+  "id": "worksafebc",
+  "name": "WorkSafeBC",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://www.worksafebc.com/",
+  "note": "Acknowledges Indigenous communities on whose territories employees work, province-wide.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Richmond (head office)",
+      "latitude": 49.1869,
+      "longitude": -123.1003,
+      "acknowledges": []
+    }
+  ]
+}

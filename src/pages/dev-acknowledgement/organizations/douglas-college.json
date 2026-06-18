@@ -1,0 +1,43 @@
+{
+  "id": "douglas-college",
+  "name": "Douglas College",
+  "sector": "college",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.douglascollege.ca/about-douglas/college-initiatives/indigenous-initiatives",
+  "note": "Coast Salish: Katzie, Kwantlen, Kwikwetlem, Musqueam, Qayqayt, Squamish, Tsawwassen, Tsleil-Waututh.",
+  "acknowledges": [
+    "Katzie",
+    "Kwantlen",
+    "Kwikwetlem",
+    "Musqueam",
+    "Qayqayt",
+    "Squamish",
+    "Tsawwassen",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "New Westminster",
+      "latitude": 49.201,
+      "longitude": -122.913,
+      "acknowledges": [
+        "Katzie",
+        "Kwantlen",
+        "Kwikwetlem",
+        "Musqueam",
+        "Qayqayt",
+        "Squamish",
+        "Tsawwassen",
+        "Tsleil-Waututh"
+      ]
+    },
+    {
+      "name": "Coquitlam",
+      "latitude": 49.252,
+      "longitude": -122.892,
+      "acknowledges": [
+        "Kwikwetlem"
+      ]
+    }
+  ]
+}

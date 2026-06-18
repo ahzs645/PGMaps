@@ -1,0 +1,23 @@
+{
+  "id": "city-of-coquitlam",
+  "name": "City of Coquitlam",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.coquitlam.ca/",
+  "note": "Kwikwetlem traditional and ancestral lands, historically shared with Katzie and other Coast Salish Peoples.",
+  "acknowledges": [
+    "Kwikwetlem",
+    "Katzie"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.284,
+      "longitude": -122.793,
+      "acknowledges": [
+        "Kwikwetlem",
+        "Katzie"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "north-island-college",
+  "name": "North Island College",
+  "sector": "college",
+  "framing": "regional",
+  "sourceUrl": "https://www.nic.bc.ca/",
+  "note": "Traditional territories of 35 First Nations of the Nuu-chah-nulth, Kwakwaka’wakw, and Coast Salish traditions.",
+  "acknowledges": [
+    "Nuu-chah-nulth",
+    "Kwakwaka’wakw",
+    "Coast Salish"
+  ],
+  "campuses": [
+    {
+      "name": "Courtenay",
+      "latitude": 49.696,
+      "longitude": -124.987,
+      "acknowledges": [
+        "Nuu-chah-nulth",
+        "Kwakwaka’wakw",
+        "Coast Salish"
+      ]
+    }
+  ]
+}

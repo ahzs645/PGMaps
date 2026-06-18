@@ -1,0 +1,22 @@
+{
+  "id": "thompson-rivers",
+  "name": "Thompson Rivers University",
+  "sector": "university",
+  "framing": "mixed",
+  "sourceUrl": "https://www.tru.ca/",
+  "note": "Tk’emlúps te Secwépemc and T’exelc within Secwepemcúl’ecw.",
+  "acknowledges": [
+    "Tk’emlúps te Secwépemc",
+    "T’exelc"
+  ],
+  "campuses": [
+    {
+      "name": "Kamloops",
+      "latitude": 50.673,
+      "longitude": -120.361,
+      "acknowledges": [
+        "Tk’emlúps te Secwépemc"
+      ]
+    }
+  ]
+}

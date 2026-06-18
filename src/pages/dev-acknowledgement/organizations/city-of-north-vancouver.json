@@ -1,0 +1,23 @@
+{
+  "id": "city-of-north-vancouver",
+  "name": "City of North Vancouver",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.cnv.org/City-Hall/Truth-and-Reconciliation",
+  "note": "Traditional and unceded territories of the Squamish and Tsleil-Waututh Nations.",
+  "acknowledges": [
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.32,
+      "longitude": -123.073,
+      "acknowledges": [
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

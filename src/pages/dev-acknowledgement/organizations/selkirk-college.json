@@ -1,0 +1,27 @@
+{
+  "id": "selkirk-college",
+  "name": "Selkirk College",
+  "sector": "college",
+  "framing": "regional",
+  "sourceUrl": "https://selkirk.ca/about-selkirk/our-priorities/reconciliation/land-body",
+  "note": "Sinixt, Syilx Okanagan, Ktunaxa, and Secwépemc Peoples of the West Kootenay and Boundary.",
+  "acknowledges": [
+    "Sinixt",
+    "Syilx Okanagan Nation",
+    "Ktunaxa",
+    "Secwépemc"
+  ],
+  "campuses": [
+    {
+      "name": "Castlegar",
+      "latitude": 49.303,
+      "longitude": -117.651,
+      "acknowledges": [
+        "Sinixt",
+        "Syilx Okanagan Nation",
+        "Ktunaxa",
+        "Secwépemc"
+      ]
+    }
+  ]
+}

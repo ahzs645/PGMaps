@@ -1,0 +1,33 @@
+{
+  "id": "city-of-new-westminster",
+  "name": "City of New Westminster",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.newwestcity.ca/indigenous_reconciliation/land-acknowledgement",
+  "note": "Qayqayt and Coast Salish Peoples (Musqueam, Squamish, Tsleil-Waututh, Kwikwetlem, Kwantlen, Katzie).",
+  "acknowledges": [
+    "Qayqayt",
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh",
+    "Kwikwetlem",
+    "Kwantlen",
+    "Katzie"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.209,
+      "longitude": -122.911,
+      "acknowledges": [
+        "Qayqayt",
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh",
+        "Kwikwetlem",
+        "Kwantlen",
+        "Katzie"
+      ]
+    }
+  ]
+}

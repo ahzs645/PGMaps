@@ -1,0 +1,20 @@
+{
+  "id": "fnha",
+  "name": "First Nations Health Authority",
+  "sector": "health",
+  "framing": "regional",
+  "sourceUrl": "https://www.fnha.ca/",
+  "note": "Province-wide guidance acknowledging the traditional territories of BC First Nations.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "West Vancouver (head office)",
+      "latitude": 49.328,
+      "longitude": -123.14,
+      "acknowledges": [
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

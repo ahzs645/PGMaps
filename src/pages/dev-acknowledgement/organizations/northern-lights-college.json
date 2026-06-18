@@ -1,0 +1,41 @@
+{
+  "id": "northern-lights-college",
+  "name": "Northern Lights College",
+  "sector": "college",
+  "framing": "mixed",
+  "sourceUrl": "https://www.nlc.bc.ca/",
+  "note": "Dane-zaa, Cree, Tse’Khene, Saulteau, Kaska Dena, Tahltan, Tlingit, and Métis.",
+  "acknowledges": [
+    "Dane-zaa",
+    "Cree",
+    "Tse’Khene",
+    "Saulteau",
+    "Kaska Dena",
+    "Tahltan",
+    "Tlingit",
+    "Métis"
+  ],
+  "campuses": [
+    {
+      "name": "Dawson Creek",
+      "latitude": 55.759,
+      "longitude": -120.236,
+      "acknowledges": [
+        "Dane-zaa",
+        "Cree",
+        "Saulteau",
+        "Métis"
+      ]
+    },
+    {
+      "name": "Fort St. John",
+      "latitude": 56.252,
+      "longitude": -120.846,
+      "acknowledges": [
+        "Dane-zaa",
+        "Cree",
+        "Saulteau"
+      ]
+    }
+  ]
+}

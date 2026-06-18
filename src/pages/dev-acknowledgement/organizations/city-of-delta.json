@@ -1,0 +1,23 @@
+{
+  "id": "city-of-delta",
+  "name": "City of Delta",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.delta.ca/city-hall/diversity-inclusion/truth-and-reconciliation",
+  "note": "Coast Salish Peoples, including Tsawwassen and Musqueam.",
+  "acknowledges": [
+    "Tsawwassen",
+    "Musqueam"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall (Ladner)",
+      "latitude": 49.084,
+      "longitude": -123.058,
+      "acknowledges": [
+        "Tsawwassen",
+        "Musqueam"
+      ]
+    }
+  ]
+}

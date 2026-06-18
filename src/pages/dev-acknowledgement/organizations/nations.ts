@@ -59,6 +59,10 @@ export const nationRegistry: NationRegistryEntry[] = [
   { canonical: 'Haida Nation', kind: 'nation', aliases: ['Haida'] },
   { canonical: 'Haisla Nation', kind: 'nation', aliases: ['Haisla'] },
   { canonical: 'Tahltan Nation', kind: 'nation', aliases: ['Tahltan'] },
+  { canonical: 'Saulteau First Nations', kind: 'nation', aliases: ['Saulteau'] },
+  { canonical: 'Sinixt', kind: 'nation', aliases: ['Sinixt (Lakes)'] },
+  { canonical: 'Tse’Khene', kind: 'nation', aliases: ['Tsek’ehne', 'Tse’khene'] },
+  { canonical: 'T’exelc', kind: 'nation' },
 
   // People-groups not in the relationship graph yet (registry-backed).
   { canonical: 'Nuu-chah-nulth', kind: 'people-group' },
@@ -68,6 +72,10 @@ export const nationRegistry: NationRegistryEntry[] = [
   { canonical: 'Ktunaxa', kind: 'people-group' },
   { canonical: 'St’át’imc', kind: 'people-group' },
   { canonical: 'Dakelh (Carrier) Peoples', kind: 'people-group', aliases: ['Dãkelh Dené'] },
+  { canonical: 'Cree', kind: 'people-group' },
+  { canonical: 'Kaska Dena', kind: 'people-group', aliases: ['Kaska'] },
+  { canonical: 'Métis', kind: 'people-group' },
+  { canonical: 'Tlingit', kind: 'people-group' },
 ]
 
 /**

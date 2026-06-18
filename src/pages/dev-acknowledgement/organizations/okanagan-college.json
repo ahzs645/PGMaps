@@ -1,0 +1,22 @@
+{
+  "id": "okanagan-college",
+  "name": "Okanagan College",
+  "sector": "college",
+  "framing": "mixed",
+  "sourceUrl": "https://www.okanagan.bc.ca/indigenization",
+  "note": "Syilx Okanagan for Penticton/Kelowna/Vernon; Secwépemc for Salmon Arm.",
+  "acknowledges": [
+    "Syilx Okanagan Nation",
+    "Secwépemc"
+  ],
+  "campuses": [
+    {
+      "name": "Kelowna",
+      "latitude": 49.88,
+      "longitude": -119.488,
+      "acknowledges": [
+        "Syilx Okanagan Nation"
+      ]
+    }
+  ]
+}
