@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, Copy, ExternalLink, MapPin, Trash2, X } from 'lucide-react'
+import { Check, Copy, ExternalLink, MapPin, Plus, Trash2, X } from 'lucide-react'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { cn } from '@/lib/utils'
@@ -106,6 +106,9 @@ type MultiPointComposerProps = {
 export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLoad, onOrgLoaded, children }: MultiPointComposerProps) {
   const [points, setPoints] = useState<MappedPoint[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  // Single-point by default: a map click moves the active point. "Add point" arms
+  // the next click to drop an additional point instead.
+  const [addMode, setAddMode] = useState(false)
   const [selectedOrgId, setSelectedOrgId] = useState('')
   const [mode, setMode] = useState<WordingMode>('institutional')
   const [perspective, setPerspective] = useState<SpeakerPerspective>('organization')
@@ -149,6 +152,23 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
     setActiveId(pt.id)
     onActivePoint?.(pt.latitude, pt.longitude)
   }, [onActivePoint])
+
+  // Map click: in add mode (or with no points yet) drop a new point; otherwise
+  // relocate the active/selected point to the clicked spot.
+  const handleMapClick = useCallback((latitude: number, longitude: number) => {
+    if (addMode || !activeId) {
+      addPoint(latitude, longitude)
+      setAddMode(false)
+      return
+    }
+    setPoints((current) => current.map((point) => (
+      point.id === activeId
+        ? { ...point, name: undefined, expected: undefined, latitude, longitude, status: 'loading', nationNames: [], languages: undefined }
+        : point
+    )))
+    resolve({ id: activeId, latitude, longitude, status: 'loading', nationNames: [] })
+    onActivePoint?.(latitude, longitude)
+  }, [addMode, activeId, addPoint, resolve, onActivePoint])
 
   const loadOrg = useCallback((org: OrgRecord | null) => {
     setSelectedOrgId(org?.id ?? '')
@@ -248,10 +268,11 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
     <section className="mx-auto max-w-7xl px-3 py-4 sm:px-6 lg:px-8">
       <div className="rounded-lg border bg-white shadow-sm">
         <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_400px]">
-          <div className="relative min-h-[18rem] overflow-hidden rounded-md border lg:sticky lg:top-4 lg:self-start">
+          <div className="space-y-4 text-sm lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+            <div className="relative min-h-[18rem] overflow-hidden rounded-md border">
             <LocalMapBoundary result={null}>
               <PgMap className="h-full min-h-[18rem]" center={[-124.5, 54.5]} zoom={4} pitch={0} bearing={0} showStyleLoadingOverlay={false}>
-                <MapClickLayer onAdd={addPoint} />
+                <MapClickLayer onAdd={handleMapClick} />
                 <FlyToActive point={activePoint} />
                 <MapControls position="top-right" showFullscreen />
                 {points.map((point, index) => (
@@ -273,10 +294,13 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
                 ))}
               </PgMap>
             </LocalMapBoundary>
-          </div>
+              {addMode && (
+                <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 rounded-md border bg-teal-50/95 px-3 py-2 text-xs font-medium text-teal-900 shadow-sm">
+                  Click the map to place the new point.
+                </div>
+              )}
+            </div>
 
-          <div className="space-y-4 text-sm">
-            {children}
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Campuses / points ({points.length})</span>
@@ -284,6 +308,18 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
                   {summary.pointCount > 1 && (
                     <span className="text-[10px] text-slate-500">{summary.distinctNationCount} Nations · ~{Math.round(summary.maxSpreadKm)} km</span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setAddMode((value) => !value)}
+                    aria-pressed={addMode}
+                    className={cn(
+                      'inline-flex items-center gap-1 text-[10px] font-medium transition',
+                      addMode ? 'text-teal-700' : 'text-slate-500 hover:text-slate-800',
+                    )}
+                  >
+                    <Plus className="h-3 w-3" />
+                    {addMode ? 'Click map to place' : 'Add point'}
+                  </button>
                   {points.length > 0 && (
                     <button
                       type="button"
@@ -298,7 +334,7 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
               </div>
               <div className="space-y-2">
                 {points.length === 0 && (
-                  <div className="rounded-md border border-dashed p-3 text-xs text-slate-500">Pick an organization above, or click the map.</div>
+                  <div className="rounded-md border border-dashed p-3 text-xs text-slate-500">Click the map to drop a point, or load an organization from the Organizations tab.</div>
                 )}
                 {points.map((point, index) => (
                   <div
@@ -378,6 +414,10 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
                   className="mt-2 w-full rounded-md border bg-white px-3 py-1.5 text-sm outline-none" />
               )}
             </div>
+          </div>
+
+          <div className="space-y-4 text-sm">
+            {children}
           </div>
         </div>
 
