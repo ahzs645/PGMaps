@@ -1,0 +1,25 @@
+{
+  "id": "arts-club-theatre",
+  "name": "Arts Club Theatre Company",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://artsclub.com/",
+  "note": "Musqueam, Squamish, and Tsleil-Waututh Nations.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Granville Island (Vancouver)",
+      "latitude": 49.271,
+      "longitude": -123.138,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

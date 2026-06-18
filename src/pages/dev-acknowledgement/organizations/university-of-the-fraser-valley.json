@@ -1,0 +1,21 @@
+{
+  "id": "university-of-the-fraser-valley",
+  "name": "University of the Fraser Valley",
+  "sector": "university",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.ufv.ca/indigenous/",
+  "note": "Stó:lō peoples; S’ólh Téméxw.",
+  "acknowledges": [
+    "Stó:lō"
+  ],
+  "campuses": [
+    {
+      "name": "Abbotsford campus",
+      "latitude": 49.0286,
+      "longitude": -122.2855,
+      "acknowledges": [
+        "Stó:lō"
+      ]
+    }
+  ]
+}

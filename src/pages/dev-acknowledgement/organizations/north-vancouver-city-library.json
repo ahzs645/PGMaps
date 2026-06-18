@@ -1,0 +1,23 @@
+{
+  "id": "north-vancouver-city-library",
+  "name": "North Vancouver City Library",
+  "sector": "library",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.nvcl.ca/",
+  "note": "Squamish and Tsleil-Waututh Nations.",
+  "acknowledges": [
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "North Vancouver",
+      "latitude": 49.32,
+      "longitude": -123.0724,
+      "acknowledges": [
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

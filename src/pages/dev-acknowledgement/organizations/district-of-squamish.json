@@ -1,0 +1,21 @@
+{
+  "id": "district-of-squamish",
+  "name": "District of Squamish",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://squamish.ca/",
+  "note": "Skwxwú7mesh Úxwumixw (Squamish Nation).",
+  "acknowledges": [
+    "Squamish"
+  ],
+  "campuses": [
+    {
+      "name": "Municipal Hall",
+      "latitude": 49.7016,
+      "longitude": -123.1558,
+      "acknowledges": [
+        "Squamish"
+      ]
+    }
+  ]
+}

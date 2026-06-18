@@ -1,0 +1,23 @@
+{
+  "id": "elections-bc",
+  "name": "Elections BC",
+  "sector": "crown-agency",
+  "framing": "mixed",
+  "sourceUrl": "https://elections.bc.ca/",
+  "note": "Head office on Lekwungen territory (Songhees, Esquimalt); administers elections across First Nations territories province-wide.",
+  "acknowledges": [
+    "Songhees Nation",
+    "Esquimalt Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Head office (Victoria)",
+      "latitude": 48.4577,
+      "longitude": -123.3766,
+      "acknowledges": [
+        "Songhees Nation",
+        "Esquimalt Nation"
+      ]
+    }
+  ]
+}

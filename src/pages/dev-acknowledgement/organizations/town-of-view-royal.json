@@ -1,0 +1,23 @@
+{
+  "id": "town-of-view-royal",
+  "name": "Town of View Royal",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.viewroyal.ca/",
+  "note": "Lekwungen peoples — Esquimalt and Songhees Nations.",
+  "acknowledges": [
+    "Esquimalt Nation",
+    "Songhees Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Town Hall",
+      "latitude": 48.4533,
+      "longitude": -123.4399,
+      "acknowledges": [
+        "Esquimalt Nation",
+        "Songhees Nation"
+      ]
+    }
+  ]
+}

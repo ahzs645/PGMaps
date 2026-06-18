@@ -1,0 +1,21 @@
+{
+  "id": "theatre-northwest",
+  "name": "Theatre NorthWest",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.theatrenorthwest.com/about-us/",
+  "note": "Lheidli T’enneh First Nation.",
+  "acknowledges": [
+    "Lheidli T’enneh"
+  ],
+  "campuses": [
+    {
+      "name": "Prince George",
+      "latitude": 53.9171,
+      "longitude": -122.7497,
+      "acknowledges": [
+        "Lheidli T’enneh"
+      ]
+    }
+  ]
+}

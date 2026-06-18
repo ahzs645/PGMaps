@@ -1,0 +1,21 @@
+{
+  "id": "town-of-comox",
+  "name": "Town of Comox",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.comox.ca/",
+  "note": "K’ómoks First Nation.",
+  "acknowledges": [
+    "K’ómoks"
+  ],
+  "campuses": [
+    {
+      "name": "Town Hall",
+      "latitude": 49.6733,
+      "longitude": -124.9279,
+      "acknowledges": [
+        "K’ómoks"
+      ]
+    }
+  ]
+}

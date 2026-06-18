@@ -1,0 +1,21 @@
+{
+  "id": "mount-waddington-regional-district",
+  "name": "Regional District of Mount Waddington",
+  "sector": "regional-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.rdmw.bc.ca/",
+  "note": "Kwakwaka’wakw peoples.",
+  "acknowledges": [
+    "Kwakwaka’wakw"
+  ],
+  "campuses": [
+    {
+      "name": "RDMW office (Port McNeill)",
+      "latitude": 50.59,
+      "longitude": -127.09,
+      "acknowledges": [
+        "Kwakwaka’wakw"
+      ]
+    }
+  ]
+}

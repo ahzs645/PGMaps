@@ -1,0 +1,25 @@
+{
+  "id": "coquitlam-public-library",
+  "name": "Coquitlam Public Library",
+  "sector": "library",
+  "framing": "single_specific",
+  "sourceUrl": "https://coqlibrary.ca/truth-reconciliation/",
+  "note": "kʷikʷəƛ̓əm (Kwikwetlem), historically shared with Katzie and other Coast Salish peoples.",
+  "acknowledges": [
+    "Kwikwetlem",
+    "Katzie",
+    "Coast Salish"
+  ],
+  "campuses": [
+    {
+      "name": "City Centre branch",
+      "latitude": 49.278,
+      "longitude": -122.7997,
+      "acknowledges": [
+        "Kwikwetlem",
+        "Katzie",
+        "Coast Salish"
+      ]
+    }
+  ]
+}

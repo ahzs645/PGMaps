@@ -22,13 +22,33 @@ type CandidateNationsProps = {
   selectedIds: string[]
   enabledSources: Record<SourceKey, boolean>
   onToggle: (id: string) => void
+  /** Show the confidence badge + matched-source chips on each row. Hidden by default. */
+  showSignals?: boolean
+  /** People-group names per candidate id (e.g. Lheidli T'enneh → Dakelh (Carrier)). */
+  peopleGroups?: Record<string, string[]>
 }
 
-export function CandidateNations({ candidates, selectedIds, enabledSources, onToggle }: CandidateNationsProps) {
+export function CandidateNations({ candidates, selectedIds, enabledSources, onToggle, showSignals = false, peopleGroups = {} }: CandidateNationsProps) {
+  const [showRelations, setShowRelations] = useState(false)
+  const hasRelations = candidates.some((candidate) => (peopleGroups[candidate.id]?.length ?? 0) > 0)
+
   return (
     <section className="rounded-lg border bg-white shadow-sm">
-      <div className="border-b p-4">
+      <div className="flex items-center justify-between gap-2 border-b p-4">
         <h2 className="text-base font-semibold">Candidate Nations</h2>
+        {hasRelations && (
+          <button
+            type="button"
+            onClick={() => setShowRelations((value) => !value)}
+            aria-pressed={showRelations}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition',
+              showRelations ? 'border-teal-300 bg-teal-50 text-teal-800' : 'text-slate-500 hover:border-teal-300',
+            )}
+          >
+            {showRelations ? 'Hide relations' : 'Show relations'}
+          </button>
+        )}
       </div>
       <div className="divide-y">
         {candidates.length === 0 && (
@@ -43,6 +63,9 @@ export function CandidateNations({ candidates, selectedIds, enabledSources, onTo
             selected={selectedIds.includes(candidate.id)}
             enabledSources={enabledSources}
             onToggle={onToggle}
+            showSignals={showSignals}
+            showRelations={showRelations}
+            relations={peopleGroups[candidate.id] ?? []}
           />
         ))}
       </div>
@@ -55,9 +78,12 @@ type CandidateRowProps = {
   selected: boolean
   enabledSources: Record<SourceKey, boolean>
   onToggle: (id: string) => void
+  showSignals: boolean
+  showRelations: boolean
+  relations: string[]
 }
 
-function CandidateRow({ candidate, selected, enabledSources, onToggle }: CandidateRowProps) {
+function CandidateRow({ candidate, selected, enabledSources, onToggle, showSignals, showRelations, relations }: CandidateRowProps) {
   // Collapsed by default — the row shows the name, confidence, and matched-source
   // chips; click to expand the full breakdown.
   const [expanded, setExpanded] = useState(false)
@@ -85,12 +111,17 @@ function CandidateRow({ candidate, selected, enabledSources, onToggle }: Candida
         >
           <span className="flex flex-wrap items-center gap-2">
             <span className="min-w-0 flex-1 text-sm font-semibold sm:text-base">{candidate.name}</span>
-            <span className={cn('rounded-md border px-2 py-0.5 text-xs font-medium', confidenceStyles[candidate.confidence])}>
-              {confidenceLabels[candidate.confidence]}
-            </span>
+            {showSignals && (
+              <span className={cn('rounded-md border px-2 py-0.5 text-xs font-medium', confidenceStyles[candidate.confidence])}>
+                {confidenceLabels[candidate.confidence]}
+              </span>
+            )}
             <ChevronDown className={cn('h-4 w-4 flex-none text-slate-400 transition-transform', expanded && 'rotate-180')} />
           </span>
-          {matchedSources.length > 0 && (
+          {showRelations && relations.length > 0 && (
+            <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">part of {relations.join(', ')}</span>
+          )}
+          {showSignals && matchedSources.length > 0 && (
             <span className="mt-1.5 flex flex-wrap gap-1.5">
               {matchedSources.map((source) => (
                 <span

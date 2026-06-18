@@ -1,0 +1,23 @@
+{
+  "id": "regional-district-north-okanagan",
+  "name": "Regional District of North Okanagan",
+  "sector": "regional-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.rdno.ca/",
+  "note": "Syilx and Secwépemc First Nations.",
+  "acknowledges": [
+    "Syilx",
+    "Secwépemc"
+  ],
+  "campuses": [
+    {
+      "name": "RDNO office (Coldstream)",
+      "latitude": 50.2596,
+      "longitude": -119.2741,
+      "acknowledges": [
+        "Syilx",
+        "Secwépemc"
+      ]
+    }
+  ]
+}

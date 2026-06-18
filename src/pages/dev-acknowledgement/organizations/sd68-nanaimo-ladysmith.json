@@ -1,0 +1,25 @@
+{
+  "id": "sd68-nanaimo-ladysmith",
+  "name": "Nanaimo Ladysmith Public Schools (SD68)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.sd68.bc.ca/",
+  "note": "Snuneymuxw, Snaw-naw-as, and Stz’uminus First Nations.",
+  "acknowledges": [
+    "Snuneymuxw",
+    "Snaw-naw-as",
+    "Stz'uminus"
+  ],
+  "campuses": [
+    {
+      "name": "District office (Nanaimo)",
+      "latitude": 49.1659,
+      "longitude": -123.9401,
+      "acknowledges": [
+        "Snuneymuxw",
+        "Snaw-naw-as",
+        "Stz'uminus"
+      ]
+    }
+  ]
+}

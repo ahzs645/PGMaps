@@ -1,0 +1,17 @@
+{
+  "id": "ubc-faculty-of-medicine",
+  "name": "UBC Faculty of Medicine",
+  "sector": "university",
+  "framing": "regional",
+  "sourceUrl": "https://www.med.ubc.ca/about/land-acknowledgement/",
+  "note": "Distributed programs across many traditional, ancestral, and unceded territories around BC.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Vancouver (distributed program hub)",
+      "latitude": 49.2606,
+      "longitude": -123.246,
+      "acknowledges": []
+    }
+  ]
+}

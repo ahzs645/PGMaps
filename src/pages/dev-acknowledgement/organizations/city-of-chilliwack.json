@@ -1,0 +1,21 @@
+{
+  "id": "city-of-chilliwack",
+  "name": "City of Chilliwack",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.chilliwack.com/",
+  "note": "Stó:lō Coast Salish peoples.",
+  "acknowledges": [
+    "Stó:lō"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.1579,
+      "longitude": -121.9515,
+      "acknowledges": [
+        "Stó:lō"
+      ]
+    }
+  ]
+}

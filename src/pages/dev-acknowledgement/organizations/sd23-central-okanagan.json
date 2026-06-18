@@ -1,0 +1,21 @@
+{
+  "id": "sd23-central-okanagan",
+  "name": "Central Okanagan Public Schools (SD23)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.sd23.bc.ca/",
+  "note": "Syilx / Okanagan people.",
+  "acknowledges": [
+    "Syilx"
+  ],
+  "campuses": [
+    {
+      "name": "District office (Kelowna)",
+      "latitude": 49.888,
+      "longitude": -119.496,
+      "acknowledges": [
+        "Syilx"
+      ]
+    }
+  ]
+}

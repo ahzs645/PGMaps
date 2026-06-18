@@ -1,0 +1,21 @@
+{
+  "id": "city-of-richmond",
+  "name": "City of Richmond",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.richmond.ca/",
+  "note": "hən̓q̓əmin̓əm̓-speaking Musqueam peoples.",
+  "acknowledges": [
+    "Musqueam"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.1666,
+      "longitude": -123.1336,
+      "acknowledges": [
+        "Musqueam"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "reel-causes",
+  "name": "Reel Causes",
+  "sector": "non-profit",
+  "framing": "single_specific",
+  "sourceUrl": "https://reelcauses.org/",
+  "note": "Coast Salish peoples.",
+  "acknowledges": [
+    "Coast Salish"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.282,
+      "longitude": -123.1171,
+      "acknowledges": [
+        "Coast Salish"
+      ]
+    }
+  ]
+}

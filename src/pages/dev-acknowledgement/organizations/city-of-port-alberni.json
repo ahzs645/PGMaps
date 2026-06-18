@@ -1,0 +1,23 @@
+{
+  "id": "city-of-port-alberni",
+  "name": "City of Port Alberni",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://portalberni.ca/",
+  "note": "Hupacasath and Tseshaht First Nations.",
+  "acknowledges": [
+    "Hupacasath",
+    "Tseshaht"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.2339,
+      "longitude": -124.8055,
+      "acknowledges": [
+        "Hupacasath",
+        "Tseshaht"
+      ]
+    }
+  ]
+}

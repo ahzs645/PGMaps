@@ -1,0 +1,27 @@
+{
+  "id": "foundry-campbell-river",
+  "name": "Foundry Campbell River",
+  "sector": "non-profit",
+  "framing": "single_specific",
+  "sourceUrl": "https://foundrybc.ca/centre/campbellriver/",
+  "note": "Kwakwaka’wakw, Laich-Kwil-Tach, Nuu-chah-nulth, and Coast Salish peoples.",
+  "acknowledges": [
+    "Kwakwaka’wakw",
+    "Laich-Kwil-Tach",
+    "Nuu-chah-nulth",
+    "Coast Salish"
+  ],
+  "campuses": [
+    {
+      "name": "Campbell River",
+      "latitude": 50.0244,
+      "longitude": -125.253,
+      "acknowledges": [
+        "Kwakwaka’wakw",
+        "Laich-Kwil-Tach",
+        "Nuu-chah-nulth",
+        "Coast Salish"
+      ]
+    }
+  ]
+}

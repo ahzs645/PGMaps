@@ -1,0 +1,17 @@
+{
+  "id": "bc-assessment",
+  "name": "BC Assessment",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://info.bcassessment.ca/services-and-products/government/Pages/First-Nations.aspx",
+  "note": "Acknowledges the many Indigenous Nations on whose territories it operates across BC.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Head office (Victoria)",
+      "latitude": 48.4647,
+      "longitude": -123.3779,
+      "acknowledges": []
+    }
+  ]
+}

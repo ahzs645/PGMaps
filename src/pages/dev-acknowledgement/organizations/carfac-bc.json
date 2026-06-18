@@ -1,0 +1,25 @@
+{
+  "id": "carfac-bc",
+  "name": "CARFAC BC",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.carfacbc.ca/",
+  "note": "Musqueam, Squamish, and Tsleil-Waututh Nations.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.27,
+      "longitude": -123.098,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

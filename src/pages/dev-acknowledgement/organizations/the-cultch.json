@@ -1,0 +1,25 @@
+{
+  "id": "the-cultch",
+  "name": "The Cultch (Vancouver East Cultural Centre)",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://thecultch.com/",
+  "note": "Musqueam, Squamish, and Tsleil-Waututh Nations.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.2761,
+      "longitude": -123.069,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

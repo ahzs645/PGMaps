@@ -1,0 +1,21 @@
+{
+  "id": "richmond-public-library",
+  "name": "Richmond Public Library",
+  "sector": "library",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.yourlibrary.ca/",
+  "note": "hən̓q̓əmin̓əm̓-speaking Musqueam peoples.",
+  "acknowledges": [
+    "Musqueam"
+  ],
+  "campuses": [
+    {
+      "name": "Brighouse (main)",
+      "latitude": 49.1705,
+      "longitude": -123.1366,
+      "acknowledges": [
+        "Musqueam"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "city-of-colwood",
+  "name": "City of Colwood",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.colwood.ca/",
+  "note": "Lekwungen-speaking Songhees and Esquimalt Nations (Teechamista lands).",
+  "acknowledges": [
+    "Songhees Nation",
+    "Esquimalt Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 48.4236,
+      "longitude": -123.4856,
+      "acknowledges": [
+        "Songhees Nation",
+        "Esquimalt Nation"
+      ]
+    }
+  ]
+}

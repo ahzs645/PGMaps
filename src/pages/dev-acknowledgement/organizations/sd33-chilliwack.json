@@ -1,0 +1,27 @@
+{
+  "id": "sd33-chilliwack",
+  "name": "Chilliwack School District (SD33)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.sd33.bc.ca/",
+  "note": "Stó:lō — Pil’alt, Semá:th, and Ts’elxwéyeqw tribes.",
+  "acknowledges": [
+    "Stó:lō",
+    "Pil'alt",
+    "Semá:th",
+    "Ts'elxwéyeqw"
+  ],
+  "campuses": [
+    {
+      "name": "District office (Chilliwack)",
+      "latitude": 49.1622,
+      "longitude": -121.949,
+      "acknowledges": [
+        "Stó:lō",
+        "Pil'alt",
+        "Semá:th",
+        "Ts'elxwéyeqw"
+      ]
+    }
+  ]
+}

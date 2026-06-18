@@ -1,0 +1,21 @@
+{
+  "id": "city-of-courtenay",
+  "name": "City of Courtenay",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.courtenay.ca/",
+  "note": "K’ómoks First Nation.",
+  "acknowledges": [
+    "K’ómoks"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.6841,
+      "longitude": -124.9904,
+      "acknowledges": [
+        "K’ómoks"
+      ]
+    }
+  ]
+}

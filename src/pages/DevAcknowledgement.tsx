@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { defaultWordingOptions } from './dev-acknowledgement/data'
 import { useAcknowledgementLookups } from './dev-acknowledgement/hooks/useAcknowledgementLookups'
-import { buildFallbackAcknowledgement as buildAcknowledgement, buildRegionalAcknowledgement, buildRelationshipAcknowledgement } from '@/lib/acknowledgement/engine'
+import { buildFallbackAcknowledgement as buildAcknowledgement, buildRegionalAcknowledgement, buildRelationshipAcknowledgement, peopleGroupName } from '@/lib/acknowledgement/engine'
 import type { MatchType, SourceKey, SpeakerPerspective, WordingMode, WordingOptions } from './dev-acknowledgement/types'
 import { AcknowledgementHeader } from './dev-acknowledgement/components/AcknowledgementHeader'
 import { CandidateNations } from './dev-acknowledgement/components/CandidateNations'
@@ -85,6 +85,22 @@ export default function DevAcknowledgement() {
       .map((candidate) => candidate.preferredName),
     [candidates, selectedIds],
   )
+
+  // People-group(s) each candidate Nation belongs to, drawn from the matched
+  // relationship (e.g. Lheidli T'enneh → Dakelh (Carrier)). Keyed by candidate id.
+  const peopleGroupsByCandidate = useMemo(() => {
+    const map: Record<string, string[]> = {}
+    if (!relationshipGraph || !matchedRelationshipPlace) return map
+    for (const relationship of matchedRelationshipPlace.relationships) {
+      const nationPeopleGroups = relationship.nationPeopleGroups
+      if (!nationPeopleGroups) continue
+      for (const [nationId, groupIds] of Object.entries(nationPeopleGroups)) {
+        const names = groupIds.map((groupId) => peopleGroupName(relationshipGraph, groupId))
+        map[nationId] = Array.from(new Set([...(map[nationId] ?? []), ...names]))
+      }
+    }
+    return map
+  }, [relationshipGraph, matchedRelationshipPlace])
 
   // The structured relationship wording only names Nations from the verified graph
   // match. If the selection adds non-verified candidates (Native Land overlaps, etc.),
@@ -228,6 +244,7 @@ export default function DevAcknowledgement() {
             selectedIds={selectedIds}
             enabledSources={enabledSources}
             onToggle={toggleCandidate}
+            peopleGroups={peopleGroupsByCandidate}
           />
 
           <SourceLayersPanel sourceLookups={sourceLookups} enabledSources={enabledSources} onToggle={toggleSource} />

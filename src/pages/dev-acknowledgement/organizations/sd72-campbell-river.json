@@ -1,0 +1,31 @@
+{
+  "id": "sd72-campbell-river",
+  "name": "Campbell River School District (SD72)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.sd72.bc.ca/",
+  "note": "Laich-Kwil-Tach, Xwémalhkwu, Klahoose, Métis, Kwakiutl, and Nuu-chah-nulth.",
+  "acknowledges": [
+    "Laich-Kwil-Tach",
+    "Xwémalhkwu",
+    "Klahoose",
+    "Métis",
+    "Kwakiutl",
+    "Nuu-chah-nulth"
+  ],
+  "campuses": [
+    {
+      "name": "District office (Campbell River)",
+      "latitude": 50.0244,
+      "longitude": -125.2475,
+      "acknowledges": [
+        "Laich-Kwil-Tach",
+        "Xwémalhkwu",
+        "Klahoose",
+        "Métis",
+        "Kwakiutl",
+        "Nuu-chah-nulth"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "big-sisters-bc-lower-mainland",
+  "name": "Big Sisters of BC Lower Mainland",
+  "sector": "non-profit",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.bigsisters.bc.ca/the-land-we-live-and-work-on/",
+  "note": "Musqueam, Squamish, Tsleil-Waututh, Qayqayt, Kwantlen, Katzie, Semiahmoo, Tsawwassen, Kwikwetlem, and Stó:lō.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh",
+    "Qayqayt",
+    "Kwantlen",
+    "Katzie",
+    "Semiahmoo",
+    "Tsawwassen",
+    "Kwikwetlem",
+    "Stó:lō"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver office",
+      "latitude": 49.263,
+      "longitude": -123.118,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh",
+        "Qayqayt",
+        "Kwantlen",
+        "Katzie",
+        "Semiahmoo",
+        "Tsawwassen",
+        "Kwikwetlem",
+        "Stó:lō"
+      ]
+    }
+  ]
+}

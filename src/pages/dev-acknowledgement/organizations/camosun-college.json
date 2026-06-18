@@ -1,0 +1,25 @@
+{
+  "id": "camosun-college",
+  "name": "Camosun College",
+  "sector": "college",
+  "framing": "single_specific",
+  "sourceUrl": "https://camosun.ca/about/indigenous-education-community-connections",
+  "note": "Lekwungen (Songhees, Esquimalt) and W̱SÁNEĆ peoples.",
+  "acknowledges": [
+    "Songhees Nation",
+    "Esquimalt Nation",
+    "W̱SÁNEĆ"
+  ],
+  "campuses": [
+    {
+      "name": "Lansdowne campus (Victoria)",
+      "latitude": 48.4565,
+      "longitude": -123.37,
+      "acknowledges": [
+        "Songhees Nation",
+        "Esquimalt Nation",
+        "W̱SÁNEĆ"
+      ]
+    }
+  ]
+}

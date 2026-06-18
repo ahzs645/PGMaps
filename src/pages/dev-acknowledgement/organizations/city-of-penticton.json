@@ -1,0 +1,21 @@
+{
+  "id": "city-of-penticton",
+  "name": "City of Penticton",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.penticton.ca/",
+  "note": "Syilx Okanagan people.",
+  "acknowledges": [
+    "Syilx"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.4991,
+      "longitude": -119.5937,
+      "acknowledges": [
+        "Syilx"
+      ]
+    }
+  ]
+}

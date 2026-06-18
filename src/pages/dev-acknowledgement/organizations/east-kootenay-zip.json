@@ -1,0 +1,23 @@
+{
+  "id": "east-kootenay-zip",
+  "name": "East Kootenay Zonal Immigration Partnership (EKZIP)",
+  "sector": "non-profit",
+  "framing": "single_specific",
+  "sourceUrl": "https://ekzip.ca/",
+  "note": "Ktunaxa Nation and Secwépemc people.",
+  "acknowledges": [
+    "Ktunaxa",
+    "Secwépemc"
+  ],
+  "campuses": [
+    {
+      "name": "Cranbrook",
+      "latitude": 49.513,
+      "longitude": -115.769,
+      "acknowledges": [
+        "Ktunaxa",
+        "Secwépemc"
+      ]
+    }
+  ]
+}

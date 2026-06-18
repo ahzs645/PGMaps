@@ -1,0 +1,21 @@
+{
+  "id": "sd71-comox-valley",
+  "name": "Comox Valley Schools (SD71)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.comoxvalleyschools.ca/",
+  "note": "K’ómoks First Nation.",
+  "acknowledges": [
+    "K’ómoks"
+  ],
+  "campuses": [
+    {
+      "name": "District office (Courtenay)",
+      "latitude": 49.6839,
+      "longitude": -124.992,
+      "acknowledges": [
+        "K’ómoks"
+      ]
+    }
+  ]
+}

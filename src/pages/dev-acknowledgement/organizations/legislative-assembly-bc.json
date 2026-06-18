@@ -1,0 +1,17 @@
+{
+  "id": "legislative-assembly-bc",
+  "name": "Legislative Assembly of British Columbia",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://www.leg.bc.ca/about/reconciliation",
+  "note": "Recognizes the 200+ First Nations of BC and the Assembly’s historic role in colonial systems.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Parliament Buildings (Victoria)",
+      "latitude": 48.4197,
+      "longitude": -123.3701,
+      "acknowledges": []
+    }
+  ]
+}

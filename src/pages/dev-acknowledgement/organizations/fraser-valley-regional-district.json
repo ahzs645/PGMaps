@@ -1,0 +1,25 @@
+{
+  "id": "fraser-valley-regional-district",
+  "name": "Fraser Valley Regional District",
+  "sector": "regional-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.fvrd.ca/",
+  "note": "Stó:lō, Nlaka’pamux, and St’át’imc peoples.",
+  "acknowledges": [
+    "Stó:lō",
+    "Nlaka’pamux",
+    "St’át’imc"
+  ],
+  "campuses": [
+    {
+      "name": "FVRD office (Chilliwack)",
+      "latitude": 49.0504,
+      "longitude": -122.3045,
+      "acknowledges": [
+        "Stó:lō",
+        "Nlaka’pamux",
+        "St’át’imc"
+      ]
+    }
+  ]
+}

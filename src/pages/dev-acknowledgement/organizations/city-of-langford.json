@@ -1,0 +1,27 @@
+{
+  "id": "city-of-langford",
+  "name": "City of Langford",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.langford.ca/",
+  "note": "Xwsepsum (Esquimalt), Lekwungen (Songhees), Sc’ianew, and W̱SÁNEĆ peoples.",
+  "acknowledges": [
+    "Esquimalt Nation",
+    "Songhees Nation",
+    "Sc'ianew",
+    "W̱SÁNEĆ"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 48.4474,
+      "longitude": -123.5046,
+      "acknowledges": [
+        "Esquimalt Nation",
+        "Songhees Nation",
+        "Sc'ianew",
+        "W̱SÁNEĆ"
+      ]
+    }
+  ]
+}

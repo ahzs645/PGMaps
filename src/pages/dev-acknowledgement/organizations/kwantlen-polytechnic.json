@@ -1,0 +1,33 @@
+{
+  "id": "kwantlen-polytechnic",
+  "name": "Kwantlen Polytechnic University",
+  "sector": "university",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.kpu.ca/indigenous",
+  "note": "Musqueam, Katzie, Semiahmoo, Tsawwassen, Qayqayt, Kwikwetlem, and Kwantlen.",
+  "acknowledges": [
+    "Musqueam",
+    "Katzie",
+    "Semiahmoo",
+    "Tsawwassen",
+    "Qayqayt",
+    "Kwikwetlem",
+    "Kwantlen"
+  ],
+  "campuses": [
+    {
+      "name": "Surrey campus",
+      "latitude": 49.1327,
+      "longitude": -122.8716,
+      "acknowledges": [
+        "Musqueam",
+        "Katzie",
+        "Semiahmoo",
+        "Tsawwassen",
+        "Qayqayt",
+        "Kwikwetlem",
+        "Kwantlen"
+      ]
+    }
+  ]
+}

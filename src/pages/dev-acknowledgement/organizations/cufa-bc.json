@@ -1,0 +1,27 @@
+{
+  "id": "cufa-bc",
+  "name": "Confederation of University Faculty Associations of BC (CUFA BC)",
+  "sector": "non-profit",
+  "framing": "single_specific",
+  "sourceUrl": "https://cufa.bc.ca/",
+  "note": "Musqueam, Squamish, Tsleil-Waututh, and Stó:lō Nations.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh",
+    "Stó:lō"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver office",
+      "latitude": 49.282,
+      "longitude": -123.1171,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh",
+        "Stó:lō"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "arts-council-central-okanagan",
+  "name": "Arts Council of the Central Okanagan (ARTSCO)",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.artsco.ca/about-1",
+  "note": "Syilx / Okanagan people (tm̓xʷúlaʔxʷ).",
+  "acknowledges": [
+    "Syilx"
+  ],
+  "campuses": [
+    {
+      "name": "Kelowna",
+      "latitude": 49.888,
+      "longitude": -119.496,
+      "acknowledges": [
+        "Syilx"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "district-of-kitimat",
+  "name": "District of Kitimat",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://getinvolved.kitimat.ca/indigenous-relations",
+  "note": "Haisla Nation.",
+  "acknowledges": [
+    "Haisla"
+  ],
+  "campuses": [
+    {
+      "name": "Municipal Centre",
+      "latitude": 54.0524,
+      "longitude": -128.6534,
+      "acknowledges": [
+        "Haisla"
+      ]
+    }
+  ]
+}

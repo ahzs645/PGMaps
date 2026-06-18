@@ -1,0 +1,17 @@
+{
+  "id": "bc-parks",
+  "name": "BC Parks",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://bcparks.ca/about/indigenous-relations-reconciliation/",
+  "note": "Acknowledges all First Nations on whose territories BC parks were established.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Provincial office (Victoria)",
+      "latitude": 48.4197,
+      "longitude": -123.3701,
+      "acknowledges": []
+    }
+  ]
+}

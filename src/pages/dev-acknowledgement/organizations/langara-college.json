@@ -1,0 +1,21 @@
+{
+  "id": "langara-college",
+  "name": "Langara College",
+  "sector": "college",
+  "framing": "single_specific",
+  "sourceUrl": "https://langara.ca/",
+  "note": "Unceded Musqueam territory (snəw̓eyəɬ leləm̓).",
+  "acknowledges": [
+    "Musqueam"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver campus",
+      "latitude": 49.2247,
+      "longitude": -123.1086,
+      "acknowledges": [
+        "Musqueam"
+      ]
+    }
+  ]
+}

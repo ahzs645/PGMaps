@@ -1,0 +1,21 @@
+{
+  "id": "city-of-prince-rupert",
+  "name": "City of Prince Rupert",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.princerupert.ca/",
+  "note": "Ts’msyen people.",
+  "acknowledges": [
+    "Ts’msyen"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 54.3122,
+      "longitude": -130.3271,
+      "acknowledges": [
+        "Ts’msyen"
+      ]
+    }
+  ]
+}

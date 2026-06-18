@@ -1,0 +1,21 @@
+{
+  "id": "chly-radio",
+  "name": "CHLY 101.7FM",
+  "sector": "non-profit",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.chly.ca/",
+  "note": "Snuneymuxw First Nation.",
+  "acknowledges": [
+    "Snuneymuxw"
+  ],
+  "campuses": [
+    {
+      "name": "Nanaimo",
+      "latitude": 49.1659,
+      "longitude": -123.94,
+      "acknowledges": [
+        "Snuneymuxw"
+      ]
+    }
+  ]
+}

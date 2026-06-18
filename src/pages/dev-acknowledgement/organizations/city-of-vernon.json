@@ -1,0 +1,21 @@
+{
+  "id": "city-of-vernon",
+  "name": "City of Vernon",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.vernon.ca/",
+  "note": "Syilx people of the Okanagan Nation.",
+  "acknowledges": [
+    "Syilx"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 50.267,
+      "longitude": -119.272,
+      "acknowledges": [
+        "Syilx"
+      ]
+    }
+  ]
+}
