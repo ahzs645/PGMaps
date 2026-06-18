@@ -13,7 +13,26 @@ git submodule update --init --recursive
 npm --prefix vendor/bcdatamapper install
 ```
 
-The PGMaps npm data commands delegate into that submodule while keeping PGMaps as the working directory, so generated app data still lands under `public/data`.
+The PGMaps npm data commands delegate into that submodule while keeping PGMaps as the working directory.
+
+Deployable data snapshots live under the owning bcdatamapper source or scraper folders:
+
+```text
+vendor/bcdatamapper/datascrapers/*/output
+vendor/bcdatamapper/data-sources/*/*/output
+```
+
+PGMaps hydrates its Vite static directory from those scraper-owned outputs before local dev and production builds:
+
+```bash
+npm run data:sync-from-bcdatamapper
+```
+
+GitHub Pages uses the clean variant before rebuilding generated datasets, so the deployed app still serves browser requests from `/data/...` without requiring PGMaps itself to own the bulky data files:
+
+```bash
+npm run data:sync-from-bcdatamapper:clean
+```
 
 The scraper inventory is documented in [vendor/bcdatamapper/README.md](vendor/bcdatamapper/README.md).
 

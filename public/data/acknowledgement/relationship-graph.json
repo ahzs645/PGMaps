@@ -3,7 +3,8 @@
   "notes": [
     "Curated relationship facts for acknowledgement wording experiments. These records support generated variants; they are not boundary datasets.",
     "Use spatial layers as context only. Prefer these verified relationship records when a known place or campus matches.",
-    "Generated wording should be reviewed before publication, especially outside the named institution or place context."
+    "Generated wording should be reviewed before publication, especially outside the named institution or place context.",
+    "Treaty 8 boundary context uses the official B.C. First Nations Treaty Areas layer. Native Land Lheidli, Ts’msyen, Nisg̱a’a, and Dakelh-related layers are context triggers unless replaced by Nation-approved or government-published geometry."
   ],
   "sources": [
     {
@@ -43,6 +44,42 @@
       "sourceType": "agreement"
     },
     {
+      "id": "native-land-lheidli-tenneh-listing",
+      "title": "Native Land Digital Lheidli T’enneh territory listing",
+      "url": "https://native-land.ca/listings/territories/lheidli-tenneh",
+      "sourceType": "educational_map"
+    },
+    {
+      "id": "bc-treaty-areas",
+      "title": "BC Geographic Warehouse First Nations Treaty Areas",
+      "url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_LEGAL_ADMIN_BOUNDARIES.FNT_TREATY_AREA_SP/ows",
+      "sourceType": "official_spatial_layer"
+    },
+    {
+      "id": "native-land-tsimshian-listing",
+      "title": "Native Land Digital Ts’msyen territory listing",
+      "url": "https://native-land.ca/listings/territories/tsimshian",
+      "sourceType": "educational_map"
+    },
+    {
+      "id": "native-land-nisgaa-treaty-listing",
+      "title": "Native Land Digital Nisg̱a’a treaty listing",
+      "url": "https://native-land.ca/listings/treaties/nisgaa-nation",
+      "sourceType": "educational_map"
+    },
+    {
+      "id": "native-land-dakelh-language-listing",
+      "title": "Native Land Digital Dakelh language listing",
+      "url": "https://native-land.ca/listings/languages/dakelh-%e1%91%95%e1%97%b8%e1%92%a1/",
+      "sourceType": "educational_map"
+    },
+    {
+      "id": "bc-first-nation-community-locations",
+      "title": "B.C. First Nation Community Locations",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/first-nation-community-locations",
+      "sourceType": "official_community_points"
+    },
+    {
       "id": "doig-river-treaty",
       "title": "Doig River First Nation Treaty 8 History",
       "url": "https://doigriverfn.com/about/history/treaty/",
@@ -59,6 +96,48 @@
       "title": "Nisg̱a’a Treaty",
       "url": "https://www.nisgaanation.ca/government/nisgaa-treaty/",
       "sourceType": "treaty"
+    },
+    {
+      "id": "ubc-musqueam-and-ubc",
+      "title": "UBC Indigenous Portal: Musqueam and UBC",
+      "url": "https://indigenous.ubc.ca/indigenous-engagement/musqueam-and-ubc/",
+      "sourceType": "institutional"
+    },
+    {
+      "id": "ubc-okanagan-indigenous-engagement",
+      "title": "UBC Okanagan Indigenous Engagement",
+      "url": "https://ok.ubc.ca/about/indigenous-engagement/",
+      "sourceType": "institutional"
+    },
+    {
+      "id": "uvic-culture-and-protocol",
+      "title": "University of Victoria Culture and Protocol",
+      "url": "https://www.uvic.ca/ovpi/ways-of-knowing/culture-and-protocol/index.php",
+      "sourceType": "institutional"
+    },
+    {
+      "id": "uvic-indigenous-territories",
+      "title": "University of Victoria Indigenous Territories",
+      "url": "https://www.uvic.ca/buildingreconciliation/about/indigenous-territories/index.php",
+      "sourceType": "institutional"
+    },
+    {
+      "id": "city-vancouver-land-acknowledgement",
+      "title": "City of Vancouver Land Acknowledgement",
+      "url": "https://vancouver.ca/people-programs/land-acknowledgement.aspx",
+      "sourceType": "local_government"
+    },
+    {
+      "id": "syilx-land-acknowledgements",
+      "title": "Syilx Okanagan Nation Land Acknowledgements",
+      "url": "https://learn.syilx.org/land-acknowledgements/",
+      "sourceType": "nation"
+    },
+    {
+      "id": "native-land-coast-salish-listings",
+      "title": "Native Land Digital Coast Salish territory listings",
+      "url": "https://native-land.ca/",
+      "sourceType": "educational_map"
     }
   ],
   "peopleGroups": [
@@ -91,6 +170,28 @@
       "preferredName": "Nisg̱a’a",
       "alternateNames": ["Nisg̱a'a"],
       "displayName": "Nisg̱a'a"
+    },
+    {
+      "id": "coast-salish",
+      "preferredName": "Coast Salish",
+      "displayName": "Coast Salish Peoples"
+    },
+    {
+      "id": "syilx-okanagan",
+      "preferredName": "Syilx Okanagan",
+      "alternateNames": ["Okanagan"],
+      "displayName": "Syilx Okanagan Peoples"
+    },
+    {
+      "id": "lekwungen",
+      "preferredName": "Lək̓ʷəŋən",
+      "alternateNames": ["Lekwungen"],
+      "displayName": "Lək̓ʷəŋən Peoples"
+    },
+    {
+      "id": "wsanec",
+      "preferredName": "W̱SÁNEĆ",
+      "displayName": "W̱SÁNEĆ Peoples"
     }
   ],
   "nations": [
@@ -109,7 +210,15 @@
     { "id": "gitxaala", "preferredName": "Gitxaała Nation", "alternateNames": ["Kitkatla"], "peopleGroupIds": ["tsmsyen"] },
     { "id": "gitgaat", "preferredName": "Gitga’at First Nation", "alternateNames": ["Hartley Bay"], "peopleGroupIds": ["tsmsyen"] },
     { "id": "kitasoo", "preferredName": "Kitasoo Band", "alternateNames": ["Klemtu"], "peopleGroupIds": ["tsmsyen"] },
-    { "id": "nisgaa-lisims", "preferredName": "Nisg̱a’a Lisims Government", "peopleGroupIds": ["nisgaa"] }
+    { "id": "nisgaa-lisims", "preferredName": "Nisg̱a’a Lisims Government", "peopleGroupIds": ["nisgaa"] },
+    { "id": "musqueam", "preferredName": "xʷməθkʷəy̓əm (Musqueam)", "alternateNames": ["Musqueam Indian Band", "Musqueam people"], "peopleGroupIds": ["coast-salish"] },
+    { "id": "squamish", "preferredName": "Skwxwú7mesh (Squamish)", "alternateNames": ["Squamish Nation"], "peopleGroupIds": ["coast-salish"] },
+    { "id": "tsleil-waututh", "preferredName": "səl̓ilwətaɁɬ (Tsleil-Waututh)", "alternateNames": ["Tsleil-Waututh Nation", "Selilwitulh"], "peopleGroupIds": ["coast-salish"] },
+    { "id": "stolo", "preferredName": "Stó:lō", "alternateNames": ["Stó:lō Nation"], "peopleGroupIds": ["coast-salish"] },
+    { "id": "syilx-okanagan-nation", "preferredName": "Syilx Okanagan Nation", "alternateNames": ["Syilx (Okanagan) Peoples"], "peopleGroupIds": ["syilx-okanagan"] },
+    { "id": "songhees", "preferredName": "Songhees Nation", "alternateNames": ["Lək̓ʷəŋən", "Lekwungen/Songhees"], "peopleGroupIds": ["lekwungen"] },
+    { "id": "esquimalt", "preferredName": "Xʷsepsəm (Esquimalt) Nation", "alternateNames": ["Esquimalt Nation"], "peopleGroupIds": ["lekwungen"] },
+    { "id": "wsanec-peoples", "preferredName": "W̱SÁNEĆ Peoples", "peopleGroupIds": ["wsanec"] }
   ],
   "referenceAreas": [
     {
@@ -122,6 +231,21 @@
       "caveat": "Approximate boundary from the First Nation Statement of Intent map. It is for illustrative/reference use and should not be treated as a legal, consultation, or acknowledgement boundary."
     },
     {
+      "id": "native-land-lheidli-tenneh",
+      "name": "Native Land Digital Lheidli T’enneh territory polygon",
+      "nationId": "lheidli-tenneh",
+      "areaType": "educational_traditional_territory",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "territories",
+        "property": "Slug",
+        "value": "lheidli-tenneh"
+      },
+      "sourceRefs": ["native-land-lheidli-tenneh-listing"],
+      "caveat": "Educational territory polygon from Native Land Digital. Use as a boundary-based context trigger only; confirm wording with local or Nation-specific sources."
+    },
+    {
       "id": "lheidli-tenneh-omineca-parks-area",
       "name": "Lheidli T’enneh Omineca parks reference area",
       "nationId": "lheidli-tenneh",
@@ -129,6 +253,166 @@
       "geometryStatus": "reference_map_only",
       "sourceRefs": ["bc-lheidli-g2g-interim-agreement-2022"],
       "caveat": "Agreement map context for Omineca parks and Lheidli T’enneh territory. Use as a cited reference map, not as a reusable public boundary dataset."
+    },
+    {
+      "id": "bc-treaty-8-area",
+      "name": "B.C. First Nations Treaty Area: Treaty 8",
+      "areaType": "treaty_area",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "indigenous",
+        "category": "first_nations_treaty_areas",
+        "property": "TREATY",
+        "value": "Treaty 8"
+      },
+      "sourceRefs": ["bc-treaty-areas"],
+      "caveat": "Official B.C. treaty-area layer. It identifies treaty geography, not complete traditional territory or acknowledgement wording."
+    },
+    {
+      "id": "native-land-tsimshian",
+      "name": "Native Land Digital Ts’msyen territory polygon",
+      "areaType": "educational_traditional_territory",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "territories",
+        "property": "Slug",
+        "value": "tsimshian"
+      },
+      "sourceRefs": ["native-land-tsimshian-listing"],
+      "caveat": "Educational Ts’msyen/Tsimshian territory polygon. Use as a broad context trigger only; confirm Nation-specific wording."
+    },
+    {
+      "id": "native-land-nisgaa-treaty",
+      "name": "Native Land Digital Nisg̱a’a treaty polygon",
+      "areaType": "educational_treaty_area",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "treaties",
+        "property": "Name",
+        "value": "Nisga’a Nation"
+      },
+      "sourceRefs": ["native-land-nisgaa-treaty-listing"],
+      "caveat": "Educational treaty polygon from Native Land Digital. Use as a boundary context trigger only."
+    },
+    {
+      "id": "native-land-dakelh-language",
+      "name": "Native Land Digital Dakelh language polygon",
+      "areaType": "educational_language_area",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "languages",
+        "property": "Name",
+        "value": "Dakelh (ᑕᗸᒡ)"
+      },
+      "sourceRefs": ["native-land-dakelh-language-listing"],
+      "caveat": "Educational language-area polygon. It can support people-group context, but it is not a Nation boundary or traditional-territory source."
+    },
+    {
+      "id": "native-land-musqueam",
+      "name": "Native Land Digital Musqueam territory polygon",
+      "nationId": "musqueam",
+      "areaType": "educational_traditional_territory",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "territories",
+        "property": "Slug",
+        "value": "x%ca%b7m%c9%99%ce%b8k%ca%b7%c9%99y%cc%93%c9%99m"
+      },
+      "sourceRefs": ["native-land-coast-salish-listings"],
+      "caveat": "Educational territory polygon. Use as boundary context only; prefer UBC/Musqueam relationship sources for campus wording."
+    },
+    {
+      "id": "native-land-squamish",
+      "name": "Native Land Digital Squamish territory polygon",
+      "nationId": "squamish",
+      "areaType": "educational_traditional_territory",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "territories",
+        "property": "Slug",
+        "value": "skwxwu7mesh-uxwumixw"
+      },
+      "sourceRefs": ["native-land-coast-salish-listings"],
+      "caveat": "Educational territory polygon. Use as broad Vancouver context only unless confirmed by local or Nation-specific guidance."
+    },
+    {
+      "id": "native-land-tsleil-waututh",
+      "name": "Native Land Digital Tsleil-Waututh territory polygon",
+      "nationId": "tsleil-waututh",
+      "areaType": "educational_traditional_territory",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "territories",
+        "property": "Slug",
+        "value": "tsleil-waututh-s%c9%99l%cc%93ilw%c9%99ta%c9%82%c9%ac"
+      },
+      "sourceRefs": ["native-land-coast-salish-listings"],
+      "caveat": "Educational territory polygon. Use as broad Vancouver context only unless confirmed by local or Nation-specific guidance."
+    },
+    {
+      "id": "native-land-stolo",
+      "name": "Native Land Digital Stó:lō territory polygon",
+      "nationId": "stolo",
+      "areaType": "educational_traditional_territory",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "territories",
+        "property": "Slug",
+        "value": "stolo-treaty-association"
+      },
+      "sourceRefs": ["native-land-coast-salish-listings"],
+      "caveat": "Educational territory polygon. Use only when a reviewed source calls for Stó:lō in broader acknowledgement wording."
+    },
+    {
+      "id": "native-land-syilx-okanagan",
+      "name": "Native Land Digital Syilx Okanagan territory polygon",
+      "nationId": "syilx-okanagan-nation",
+      "areaType": "educational_traditional_territory",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "territories",
+        "property": "Slug",
+        "value": "okanagan"
+      },
+      "sourceRefs": ["native-land-coast-salish-listings"],
+      "caveat": "Educational territory polygon. Use as a boundary context trigger; prefer Syilx/UBC Okanagan sources for wording."
+    },
+    {
+      "id": "native-land-lekwungen-songhees",
+      "name": "Native Land Digital Lekwungen/Songhees territory polygon",
+      "nationId": "songhees",
+      "areaType": "educational_traditional_territory",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "territories",
+        "property": "Slug",
+        "value": "lekwungen-songhees"
+      },
+      "sourceRefs": ["native-land-coast-salish-listings"],
+      "caveat": "Educational territory polygon. Use as context only; prefer UVic and Nation-specific guidance for wording."
+    },
+    {
+      "id": "native-land-wsanec",
+      "name": "Native Land Digital W̱SÁNEĆ territory polygon",
+      "areaType": "educational_traditional_territory",
+      "geometryStatus": "available_geojson",
+      "geometrySource": {
+        "dataset": "native-land",
+        "category": "territories",
+        "property": "Slug",
+        "value": "w%cc%b1sanec"
+      },
+      "sourceRefs": ["native-land-coast-salish-listings"],
+      "caveat": "Educational territory polygon. Use as context only; prefer UVic and W̱SÁNEĆ guidance for wording."
     }
   ],
   "places": [
@@ -136,43 +420,113 @@
       "id": "unbc-prince-george-campuses",
       "name": "UNBC Prince George campuses",
       "type": "campus_group",
-      "locationNames": ["Prince George", "University Hill", "Wood Innovation and Design Centre", "Wood Innovation Research Laboratory"],
-      "addressAliases": ["3333 University Way", "499 George Street", "1153 4th Avenue", "Prince George, BC"]
+      "locationNames": ["University Hill", "Wood Innovation and Design Centre", "Wood Innovation Research Laboratory"],
+      "addressAliases": ["3333 University Way", "499 George Street", "1153 4th Avenue"]
+    },
+    {
+      "id": "prince-george",
+      "name": "Prince George",
+      "type": "municipality",
+      "locationNames": ["Prince George"],
+      "addressAliases": ["Prince George, BC"]
+    },
+    {
+      "id": "lheidli-tenneh-boundary-context",
+      "name": "This location",
+      "type": "boundary_reference_area",
+      "locationNames": [],
+      "addressAliases": []
+    },
+    {
+      "id": "treaty-8-boundary-context",
+      "name": "This Treaty 8 location",
+      "type": "boundary_reference_area",
+      "locationNames": [],
+      "addressAliases": []
+    },
+    {
+      "id": "tsmsyen-boundary-context",
+      "name": "This Ts’msyen territory location",
+      "type": "boundary_reference_area",
+      "locationNames": [],
+      "addressAliases": []
+    },
+    {
+      "id": "nisgaa-boundary-context",
+      "name": "This Nisg̱a’a treaty location",
+      "type": "boundary_reference_area",
+      "locationNames": [],
+      "addressAliases": []
     },
     {
       "id": "unbc-south-central-quesnel",
       "name": "UNBC South-Central campus",
       "type": "campus",
-      "locationNames": ["Quesnel", "North Cariboo Community Campus"],
-      "addressAliases": ["100 Campus Way", "Quesnel, BC"]
+      "locationNames": ["North Cariboo Community Campus"],
+      "addressAliases": ["100 Campus Way"]
     },
     {
       "id": "unbc-peace-river-liard-fort-st-john",
       "name": "UNBC Peace River-Liard campus",
       "type": "campus",
-      "locationNames": ["Fort St. John", "Peace River-Liard"],
-      "addressAliases": ["9820 120 Avenue", "Fort St. John, BC"]
+      "locationNames": ["Peace River-Liard"],
+      "addressAliases": ["9820 120 Avenue"]
     },
     {
       "id": "unbc-northwest-terrace",
       "name": "UNBC Northwest campus",
       "type": "campus",
-      "locationNames": ["Terrace", "Northwest campus"],
-      "addressAliases": ["Terrace, BC"]
+      "locationNames": ["Northwest campus"],
+      "addressAliases": []
     },
     {
       "id": "unbc-northwest-prince-rupert",
       "name": "UNBC Prince Rupert satellite campus",
       "type": "satellite_campus",
-      "locationNames": ["Prince Rupert"],
-      "addressAliases": ["Prince Rupert, BC"]
+      "locationNames": [],
+      "addressAliases": []
     },
     {
       "id": "wwni-gitwinksihlkw",
       "name": "Wilp Wilxo’oskwhl Nisg̱a’a Institute",
       "type": "federated_institute",
-      "locationNames": ["Gitwinksihlkw", "WWNI"],
-      "addressAliases": ["Gitwinksihlkw, BC"]
+      "locationNames": ["WWNI"],
+      "addressAliases": []
+    },
+    {
+      "id": "ubc-vancouver-point-grey-campus",
+      "name": "UBC Vancouver-Point Grey academic campus",
+      "type": "academic_campus",
+      "locationNames": ["Point Grey campus", "UBC Vancouver"],
+      "addressAliases": ["2329 West Mall", "UBC Point Grey", "Point Grey Campus", "UBC Vancouver-Point Grey", "UBC Vancouver"]
+    },
+    {
+      "id": "ubc-vancouver-operations",
+      "name": "UBC operations in Vancouver",
+      "type": "operations_area",
+      "locationNames": [],
+      "addressAliases": ["UBC operations in Vancouver", "UBC Vancouver operations"]
+    },
+    {
+      "id": "ubc-robson-square",
+      "name": "UBC Robson Square",
+      "type": "satellite_campus",
+      "locationNames": ["Robson Square"],
+      "addressAliases": ["800 Robson Street", "UBC Robson Square", "Robson Square"]
+    },
+    {
+      "id": "ubc-okanagan-campus",
+      "name": "UBC Okanagan academic campus",
+      "type": "academic_campus",
+      "locationNames": ["Okanagan campus", "UBCO"],
+      "addressAliases": ["3333 University Way, Kelowna", "UBC Okanagan", "UBCO", "Okanagan Campus"]
+    },
+    {
+      "id": "university-of-victoria-campus",
+      "name": "University of Victoria",
+      "type": "academic_campus",
+      "locationNames": ["UVic"],
+      "addressAliases": ["3800 Finnerty Road", "University of Victoria", "UVic"]
     }
   ],
   "placeRelationships": [
@@ -186,6 +540,62 @@
       "referenceAreaIds": ["lheidli-tenneh-soi-traditional-territory", "lheidli-tenneh-omineca-parks-area"],
       "verificationStatus": "verified_institutional",
       "sourceRefs": ["unbc-traditional-territory-acknowledgement", "unbc-contact-campus-details", "lheidli-language"]
+    },
+    {
+      "id": "prince-george-lheidli-dakelh",
+      "placeId": "prince-george",
+      "relationshipType": "traditional_territory",
+      "territoryStatus": "unceded",
+      "nationIds": ["lheidli-tenneh"],
+      "peopleGroupIds": ["dakelh-carrier"],
+      "referenceAreaIds": ["lheidli-tenneh-soi-traditional-territory", "lheidli-tenneh-omineca-parks-area"],
+      "verificationStatus": "verified_local_context",
+      "sourceRefs": ["unbc-traditional-territory-acknowledgement", "lheidli-language"]
+    },
+    {
+      "id": "boundary-lheidli-dakelh",
+      "placeId": "lheidli-tenneh-boundary-context",
+      "relationshipType": "traditional_territory",
+      "territoryStatus": "unceded",
+      "nationIds": ["lheidli-tenneh"],
+      "peopleGroupIds": ["dakelh-carrier"],
+      "referenceAreaIds": ["native-land-lheidli-tenneh"],
+      "verificationStatus": "boundary_context",
+      "sourceRefs": ["native-land-lheidli-tenneh-listing", "lheidli-language"]
+    },
+    {
+      "id": "boundary-treaty8-dane-zaa",
+      "placeId": "treaty-8-boundary-context",
+      "relationshipType": "traditional_lands",
+      "treatyId": "treaty-8",
+      "treatyName": "Treaty 8",
+      "nationIds": ["doig-river", "blueberry-river", "halfway-river"],
+      "peopleGroupIds": ["dane-zaa"],
+      "referenceAreaIds": ["bc-treaty-8-area"],
+      "verificationStatus": "boundary_context",
+      "sourceRefs": ["bc-treaty-areas", "doig-river-treaty"]
+    },
+    {
+      "id": "boundary-tsmsyen",
+      "placeId": "tsmsyen-boundary-context",
+      "relationshipType": "on_or_near_traditional_territories",
+      "territoryStatus": "unceded",
+      "nationIds": ["kitsumkalum", "kitselas", "lax-kwalaams", "metlakatla", "gitxaala", "gitgaat", "kitasoo"],
+      "peopleGroupIds": ["tsmsyen"],
+      "referenceAreaIds": ["native-land-tsimshian"],
+      "verificationStatus": "boundary_context",
+      "sourceRefs": ["native-land-tsimshian-listing", "bc-treaty-tsimshian"]
+    },
+    {
+      "id": "boundary-nisgaa-treaty",
+      "placeId": "nisgaa-boundary-context",
+      "relationshipType": "village_lands_within_treaty",
+      "treatyName": "Nisg̱a’a Treaty",
+      "nationIds": ["nisgaa-lisims"],
+      "peopleGroupIds": ["nisgaa"],
+      "referenceAreaIds": ["native-land-nisgaa-treaty"],
+      "verificationStatus": "boundary_context",
+      "sourceRefs": ["native-land-nisgaa-treaty-listing", "nisgaa-treaty"]
     },
     {
       "id": "unbc-quesnel-dakelh-tsilhqotin",
@@ -244,6 +654,77 @@
       "peopleGroupIds": ["nisgaa"],
       "verificationStatus": "verified_institutional",
       "sourceRefs": ["unbc-traditional-territory-acknowledgement", "nisgaa-treaty"]
+    },
+    {
+      "id": "ubc-point-grey-musqueam",
+      "placeId": "ubc-vancouver-point-grey-campus",
+      "relationshipType": "academic_campus_on_territory",
+      "territoryStatus": "unceded",
+      "territoryQualifiers": ["traditional", "ancestral"],
+      "languageContext": ["hən̓q̓əmin̓əm̓-speaking"],
+      "nationIds": ["musqueam"],
+      "peopleGroupIds": ["coast-salish"],
+      "referenceAreaIds": ["native-land-musqueam"],
+      "verificationStatus": "verified_institutional",
+      "sourceRefs": ["ubc-musqueam-and-ubc"]
+    },
+    {
+      "id": "ubc-vancouver-operations-coast-salish",
+      "placeId": "ubc-vancouver-operations",
+      "relationshipType": "operations_on_territories",
+      "territoryStatus": "unceded",
+      "nationIds": ["musqueam", "squamish", "tsleil-waututh"],
+      "peopleGroupIds": ["coast-salish"],
+      "referenceAreaIds": ["native-land-musqueam", "native-land-squamish", "native-land-tsleil-waututh"],
+      "verificationStatus": "verified_institutional_context",
+      "sourceRefs": ["ubc-musqueam-and-ubc", "city-vancouver-land-acknowledgement"]
+    },
+    {
+      "id": "ubc-robson-square-coast-salish",
+      "placeId": "ubc-robson-square",
+      "relationshipType": "operations_on_territories",
+      "territoryStatus": "unceded",
+      "nationIds": ["musqueam", "squamish", "stolo", "tsleil-waututh"],
+      "peopleGroupIds": ["coast-salish"],
+      "referenceAreaIds": ["native-land-musqueam", "native-land-squamish", "native-land-stolo", "native-land-tsleil-waututh"],
+      "verificationStatus": "template_context",
+      "sourceRefs": ["city-vancouver-land-acknowledgement", "native-land-coast-salish-listings"]
+    },
+    {
+      "id": "ubc-okanagan-syilx",
+      "placeId": "ubc-okanagan-campus",
+      "relationshipType": "academic_campus_on_territory",
+      "territoryStatus": "unceded",
+      "territoryQualifiers": ["traditional", "ancestral"],
+      "nationIds": ["syilx-okanagan-nation"],
+      "peopleGroupIds": ["syilx-okanagan"],
+      "referenceAreaIds": ["native-land-syilx-okanagan"],
+      "verificationStatus": "verified_institutional",
+      "sourceRefs": ["ubc-okanagan-indigenous-engagement", "syilx-land-acknowledgements"]
+    },
+    {
+      "id": "uvic-lekwungen-territory",
+      "placeId": "university-of-victoria-campus",
+      "relationshipType": "campus_on_peoples_territory",
+      "nationIds": ["songhees", "esquimalt"],
+      "peopleGroupIds": ["lekwungen"],
+      "nationPeopleGroups": {
+        "songhees": ["lekwungen"],
+        "esquimalt": ["lekwungen"]
+      },
+      "referenceAreaIds": ["native-land-lekwungen-songhees"],
+      "verificationStatus": "verified_institutional",
+      "sourceRefs": ["uvic-culture-and-protocol", "uvic-indigenous-territories"]
+    },
+    {
+      "id": "uvic-lekwungen-wsanec-continuing-relationships",
+      "placeId": "university-of-victoria-campus",
+      "relationshipType": "traditional_territories",
+      "nationIds": ["songhees", "esquimalt", "wsanec-peoples"],
+      "peopleGroupIds": ["lekwungen", "wsanec"],
+      "referenceAreaIds": ["native-land-lekwungen-songhees", "native-land-wsanec"],
+      "verificationStatus": "verified_institutional_context",
+      "sourceRefs": ["uvic-culture-and-protocol", "uvic-indigenous-territories"]
     }
   ]
 }

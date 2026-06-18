@@ -29,10 +29,13 @@ jobs:
 
       - run: npm ci
       - run: pip install -r vendor/bcdatamapper/datascrapers/bc/assessment/requirements.txt
+      - run: npm run data:sync-from-bcdatamapper:clean
       - run: npm run census:variables
       - run: npm run bc-assessment:build
       - run: npm run indigenous:copy
       - run: npm run build
+        env:
+          PGMAPS_SKIP_VENDOR_DATA_SYNC: '1'
 
       - name: Copy index.html to 404.html for SPA routing
         run: cp dist/index.html dist/404.html

@@ -13,8 +13,9 @@
       "kind": "shadeVector",
       "source": "City of Prince George Open Data, OpenData_ParkData/FeatureServer/0",
       "url": "https://services2.arcgis.com/CnkB6jCzAsyli34z/arcgis/rest/services/OpenData_ParkData/FeatureServer/0",
-      "output": "public/data/heat-shade/citypg_trees.geojson",
-      "featureCount": 5438
+      "output": "/data/heat-shade/citypg_trees.geojson",
+      "featureCount": 5438,
+      "snapshotPath": "datascrapers/citypg/source/heat-shade/citypg_trees.geojson"
     },
     {
       "id": "citypg-park-open-spaces",
@@ -22,8 +23,9 @@
       "kind": "shadeVector",
       "source": "City of Prince George Open Data, OpenData_ParkData/FeatureServer/12",
       "url": "https://services2.arcgis.com/CnkB6jCzAsyli34z/arcgis/rest/services/OpenData_ParkData/FeatureServer/12",
-      "output": "public/data/heat-shade/citypg_park_open_spaces.geojson",
-      "featureCount": 371
+      "output": "/data/heat-shade/citypg_park_open_spaces.geojson",
+      "featureCount": 371,
+      "snapshotPath": "datascrapers/citypg/source/heat-shade/citypg_park_open_spaces.geojson"
     },
     {
       "id": "citypg-intact-forest",
@@ -31,8 +33,9 @@
       "kind": "shadeVector",
       "source": "City of Prince George Open Data, OpenData_Ecology/FeatureServer/2",
       "url": "https://services2.arcgis.com/CnkB6jCzAsyli34z/arcgis/rest/services/OpenData_Ecology/FeatureServer/2",
-      "output": "public/data/heat-shade/citypg_intact_forest.geojson",
-      "featureCount": 168
+      "output": "/data/heat-shade/citypg_intact_forest.geojson",
+      "featureCount": 168,
+      "snapshotPath": "datascrapers/citypg/source/heat-shade/citypg_intact_forest.geojson"
     },
     {
       "id": "citypg-community-forests",
@@ -40,8 +43,9 @@
       "kind": "shadeVector",
       "source": "City of Prince George Open Data, OpenData_OCPLanduse/FeatureServer/37",
       "url": "https://services2.arcgis.com/CnkB6jCzAsyli34z/arcgis/rest/services/OpenData_OCPLanduse/FeatureServer/37",
-      "output": "public/data/heat-shade/citypg_community_forests.geojson",
-      "featureCount": 25
+      "output": "/data/heat-shade/citypg_community_forests.geojson",
+      "featureCount": 25,
+      "snapshotPath": "datascrapers/citypg/source/heat-shade/citypg_community_forests.geojson"
     },
     {
       "id": "citypg-community-facility",
@@ -49,8 +53,9 @@
       "kind": "coolingProxy",
       "source": "City of Prince George Open Data, OpenData_OCPLanduse/FeatureServer/4",
       "url": "https://services2.arcgis.com/CnkB6jCzAsyli34z/arcgis/rest/services/OpenData_OCPLanduse/FeatureServer/4",
-      "output": "public/data/heat-shade/citypg_community_facility.geojson",
-      "featureCount": 182
+      "output": "/data/heat-shade/citypg_community_facility.geojson",
+      "featureCount": 182,
+      "snapshotPath": "datascrapers/citypg/source/heat-shade/citypg_community_facility.geojson"
     },
     {
       "id": "citypg-response-facilities",
@@ -58,8 +63,9 @@
       "kind": "coolingProxy",
       "source": "City of Prince George ArcGIS, ResponseFacilities/FeatureServer/0",
       "url": "https://services2.arcgis.com/CnkB6jCzAsyli34z/arcgis/rest/services/ResponseFacilities/FeatureServer/0",
-      "output": "public/data/heat-shade/citypg_response_facilities.geojson",
-      "featureCount": 19
+      "output": "/data/heat-shade/citypg_response_facilities.geojson",
+      "featureCount": 19,
+      "snapshotPath": "datascrapers/citypg/source/heat-shade/citypg_response_facilities.geojson"
     },
     {
       "id": "landsat-c2-l2-warm-season",
@@ -67,7 +73,7 @@
       "kind": "historicalNdviLst",
       "source": "Microsoft Planetary Computer STAC API, landsat-c2-l2",
       "url": "https://planetarycomputer.microsoft.com/api/stac/v1",
-      "output": "public/data/heat-shade/landsat_warm_season_scenes.json",
+      "output": "/data/heat-shade/landsat_warm_season_scenes.json",
       "sceneCount": 71,
       "years": [
         2021,

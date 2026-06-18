@@ -1,0 +1,422 @@
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import { point } from '@turf/helpers'
+
+export type SourceKey = 'verified' | 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
+export type MatchType = 'place' | 'municipality' | 'boundary'
+export type WordingMode = 'short' | 'formal' | 'event' | 'institutional' | 'educational'
+
+export type WordingOptions = {
+  includeTreatyContext: boolean
+  includePeopleGroupContext: boolean
+}
+
+export type RelationshipSource = {
+  id: string
+  title: string
+  url: string
+  sourceType: string
+}
+
+export type PeopleGroupRecord = {
+  id: string
+  preferredName: string
+  alternateNames?: string[]
+  displayName: string
+}
+
+export type NationRecord = {
+  id: string
+  preferredName: string
+  alternateNames?: string[]
+  peopleGroupIds?: string[]
+}
+
+export type ReferenceAreaRecord = {
+  id: string
+  name: string
+  nationId?: string
+  areaType: string
+  geometryStatus: 'reference_map_only' | 'available_geojson' | 'manual_review'
+  geometrySource?: {
+    dataset: 'native-land' | 'indigenous'
+    category: 'territories' | 'languages' | 'treaties' | 'first_nations_treaty_areas' | 'first_nations_treaty_lands'
+    property: string
+    value: string
+  }
+  sourceRefs: string[]
+  caveat: string
+}
+
+export type PlaceRecord = {
+  id: string
+  name: string
+  type: string
+  locationNames?: string[]
+  addressAliases?: string[]
+}
+
+export type PlaceRelationshipRecord = {
+  id: string
+  placeId: string
+  relationshipType:
+    | 'traditional_territory'
+    | 'traditional_territories'
+    | 'traditional_lands'
+    | 'on_or_near_traditional_territories'
+    | 'village_lands_within_treaty'
+    | 'academic_campus_on_territory'
+    | 'operations_on_territories'
+    | 'campus_on_territory'
+    | 'campus_on_peoples_territory'
+  territoryStatus?: 'unceded'
+  territoryQualifiers?: string[]
+  treatyId?: string
+  treatyName?: string
+  landName?: string
+  languageContext?: string[]
+  nationIds: string[]
+  peopleGroupIds?: string[]
+  nationPeopleGroups?: Record<string, string[]>
+  referenceAreaIds?: string[]
+  verificationStatus: string
+  sourceRefs: string[]
+}
+
+export type RelationshipGraph = {
+  generatedAt: string
+  notes?: string[]
+  sources: RelationshipSource[]
+  peopleGroups: PeopleGroupRecord[]
+  nations: NationRecord[]
+  referenceAreas?: ReferenceAreaRecord[]
+  places: PlaceRecord[]
+  placeRelationships: PlaceRelationshipRecord[]
+}
+
+export type GeocodeLike = {
+  fullAddress: string
+  latitude: number
+  longitude: number
+}
+
+export type MatchedRelationshipPlace = {
+  place: PlaceRecord
+  relationships: PlaceRelationshipRecord[]
+}
+
+export type SourceMatch = {
+  source: SourceKey
+  name: string
+  label: string
+  detail?: string
+}
+
+export type GeometryUrlResolver = (source: ReferenceAreaRecord['geometrySource']) => string | null
+export type GeoJsonLoader = (url: string) => Promise<GeoJSON.FeatureCollection>
+
+type FeatureProperties = Record<string, unknown>
+
+export const defaultWordingOptions: WordingOptions = {
+  includeTreatyContext: true,
+  includePeopleGroupContext: true,
+}
+
+export function formatList(items: string[]) {
+  if (items.length <= 1) return items[0] ?? ''
+  if (items.length === 2) return `${items[0]} and ${items[1]}`
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
+}
+
+export function normalizeName(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/first nation|indian band|band|treaty area|treaty lands/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+export function candidateId(name: string) {
+  return normalizeName(name).replace(/\s+/g, '-') || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+}
+
+export function sourceTitle(graph: RelationshipGraph | null, sourceId: string) {
+  return graph?.sources.find((source) => source.id === sourceId)?.title ?? sourceId
+}
+
+export function nationName(graph: RelationshipGraph, nationId: string) {
+  return graph.nations.find((nation) => nation.id === nationId)?.preferredName ?? nationId
+}
+
+export function peopleGroupName(graph: RelationshipGraph, peopleGroupId: string) {
+  return graph.peopleGroups.find((group) => group.id === peopleGroupId)?.displayName ?? peopleGroupId
+}
+
+export function referenceAreaLabel(graph: RelationshipGraph, areaId: string) {
+  return graph.referenceAreas?.find((area) => area.id === areaId)?.name ?? areaId
+}
+
+export function selectedNationIdsForRelationship(
+  graph: RelationshipGraph,
+  relationship: PlaceRelationshipRecord,
+  selectedIds: string[],
+) {
+  if (selectedIds.length === 0) return relationship.nationIds
+  const selected = new Set(selectedIds)
+  const filtered = relationship.nationIds.filter((nationId) => selected.has(candidateId(nationName(graph, nationId))))
+  return filtered.length > 0 ? filtered : relationship.nationIds
+}
+
+export function peopleGroupIdsForNations(relationship: PlaceRelationshipRecord, nationIds: string[]) {
+  if (!relationship.nationPeopleGroups) return relationship.peopleGroupIds ?? []
+  const ids = new Set<string>()
+  nationIds.forEach((nationId) => {
+    relationship.nationPeopleGroups?.[nationId]?.forEach((peopleGroupId) => ids.add(peopleGroupId))
+  })
+  return Array.from(ids)
+}
+
+export function buildAffiliationSentence(graph: RelationshipGraph, relationship: PlaceRelationshipRecord, nationIds: string[]) {
+  if (!relationship.nationPeopleGroups) return ''
+
+  const grouped = new Map<string, string[]>()
+  nationIds.forEach((nationId) => {
+    const peopleGroupIds = relationship.nationPeopleGroups?.[nationId] ?? []
+    peopleGroupIds.forEach((peopleGroupId) => {
+      const names = grouped.get(peopleGroupId) ?? []
+      names.push(nationName(graph, nationId))
+      grouped.set(peopleGroupId, names)
+    })
+  })
+
+  const clauses = Array.from(grouped.entries()).map(([peopleGroupId, names]) => (
+    `${formatList(names)} ${names.length === 1 ? 'is' : 'are'} part of the ${peopleGroupName(graph, peopleGroupId)}`
+  ))
+  return clauses.length > 0 ? `${formatList(clauses)}.` : ''
+}
+
+export function relationshipCorePhrase(
+  graph: RelationshipGraph,
+  relationship: PlaceRelationshipRecord,
+  selectedIds: string[] = [],
+  options: WordingOptions = defaultWordingOptions,
+) {
+  const nationIds = selectedNationIdsForRelationship(graph, relationship, selectedIds)
+  const nations = formatList(nationIds.map((nationId) => nationName(graph, nationId)))
+  const peopleGroups = options.includePeopleGroupContext
+    ? peopleGroupIdsForNations(relationship, nationIds).map((peopleGroupId) => peopleGroupName(graph, peopleGroupId))
+    : []
+
+  if (relationship.relationshipType === 'traditional_lands') {
+    const peoplePhrase = peopleGroups.length > 0 ? `the ${formatList(peopleGroups)} of ` : ''
+    const treatyPrefix = options.includeTreatyContext && relationship.treatyName ? `${relationship.treatyName} territory on ` : ''
+    return `${treatyPrefix}the traditional lands of ${peoplePhrase}${nations}`
+  }
+
+  if (relationship.relationshipType === 'operations_on_territories') {
+    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+    const peoplePhrase = peopleGroups.length > 0 ? `the ${formatList(peopleGroups)}, including ` : ''
+    return `${status}territories of ${peoplePhrase}${nations}`
+  }
+
+  if (relationship.relationshipType === 'campus_on_peoples_territory') {
+    const qualifiers = relationship.territoryQualifiers?.length ? `${relationship.territoryQualifiers.join(', ')} ` : ''
+    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+    return `the ${qualifiers}${status}territory of the ${nations}`
+  }
+
+  if (relationship.relationshipType === 'academic_campus_on_territory' || relationship.relationshipType === 'campus_on_territory') {
+    const qualifiers = relationship.territoryQualifiers?.length ? `${relationship.territoryQualifiers.join(', ')} ` : ''
+    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+    const languagePrefix = options.includePeopleGroupContext && relationship.languageContext?.length
+      ? `${formatList(relationship.languageContext)} `
+      : ''
+    return `the ${qualifiers}${status}territory of the ${languagePrefix}${nations}`
+  }
+
+  if (relationship.relationshipType === 'on_or_near_traditional_territories') {
+    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+    const peoplePhrase = peopleGroups.length > 0 ? `${formatList(peopleGroups)} ` : ''
+    return `on or near ${status}traditional ${peoplePhrase}territories including ${nations}`
+  }
+
+  if (relationship.relationshipType === 'village_lands_within_treaty') {
+    const treaty = options.includeTreatyContext && relationship.treatyName ? ` within ${relationship.treatyName} territory` : ''
+    return `on ${relationship.landName ?? 'Village Lands'}${treaty}`
+  }
+
+  const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+  const territory = relationship.relationshipType === 'traditional_territories' ? 'traditional territories' : 'traditional territory'
+  const peoplePhrase = peopleGroups.length === 1 ? `, part of the ${peopleGroups[0]} territory` : ''
+  return `${status}${territory} of ${nations}${peoplePhrase}`
+}
+
+export function buildRelationshipAcknowledgement(
+  mode: WordingMode,
+  graph: RelationshipGraph,
+  match: MatchedRelationshipPlace,
+  selectedIds: string[] = [],
+  options: WordingOptions = defaultWordingOptions,
+) {
+  const phrases = match.relationships.map((relationship) => relationshipCorePhrase(graph, relationship, selectedIds, options))
+  const core = phrases.length === 1 ? phrases[0] : formatList(phrases)
+  const affiliation = options.includePeopleGroupContext
+    ? match.relationships
+      .map((relationship) => buildAffiliationSentence(graph, relationship, selectedNationIdsForRelationship(graph, relationship, selectedIds)))
+      .filter(Boolean)
+      .join(' ')
+    : ''
+
+  if (mode === 'short') {
+    return `${match.place.name} is situated ${core}.`
+  }
+
+  if (mode === 'formal') {
+    return `We respectfully acknowledge that ${match.place.name} is situated ${core}. ${affiliation}`.trim()
+  }
+
+  if (mode === 'institutional') {
+    return `${match.place.name} is situated ${core}. This wording is generated from reviewed relationship records and should remain aligned with local guidance. ${affiliation}`.trim()
+  }
+
+  if (mode === 'educational') {
+    return `${match.place.name} is situated ${core}. This relationship connects place, Nation, people-group, treaty, and source context so users can review why the wording was suggested. ${affiliation}`.trim()
+  }
+
+  return `We are grateful to gather today at ${match.place.name}, situated ${core}. ${affiliation}`.trim()
+}
+
+export function buildFallbackAcknowledgement(mode: WordingMode, nationNames: string[]) {
+  const names = nationNames.length > 0 ? nationNames.join(', ') : '[selected Nation(s)]'
+
+  if (mode === 'short') {
+    return `This place is connected to ${names}.`
+  }
+
+  if (mode === 'formal') {
+    return `We respectfully acknowledge that this place is connected to ${names}. We recognize their histories, cultures, rights, and ongoing relationships with these lands.`
+  }
+
+  if (mode === 'institutional') {
+    return `This institution is working from lands connected to ${names}. Confirm local wording, protocols, and review status before publication.`
+  }
+
+  if (mode === 'educational') {
+    return `This location has source signals connected to ${names}. Treat this as a learning and review prompt, not final wording.`
+  }
+
+  return `We are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
+}
+
+export function normalizeMatchText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+export function relationshipPlaceScore(place: PlaceRecord, result: GeocodeLike, addressInput: string) {
+  const haystack = normalizeMatchText(`${result.fullAddress} ${addressInput}`)
+  const addressScore = (place.addressAliases ?? []).reduce((score, alias) => {
+    const normalizedAlias = normalizeMatchText(alias)
+    if (!normalizedAlias) return score
+    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length + (place.type === 'municipality' ? 0 : 1000)) : score
+  }, 0)
+
+  if (addressScore > 0) return addressScore
+
+  return [place.name, ...(place.locationNames ?? [])].reduce((score, alias) => {
+    const normalizedAlias = normalizeMatchText(alias)
+    if (!normalizedAlias) return score
+    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length) : score
+  }, 0)
+}
+
+export function placeMatchType(place: PlaceRecord): MatchType {
+  return place.type === 'municipality' ? 'municipality' : 'place'
+}
+
+export function matchRelationshipPlace(
+  graph: RelationshipGraph,
+  result: GeocodeLike,
+  addressInput: string,
+  enabledMatchTypes: Record<MatchType, boolean>,
+): MatchedRelationshipPlace | null {
+  const ranked = graph.places
+    .filter((place) => enabledMatchTypes[placeMatchType(place)])
+    .map((place) => ({ place, score: relationshipPlaceScore(place, result, addressInput) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score)
+
+  const place = ranked[0]?.place
+  if (!place) return null
+
+  const relationships = graph.placeRelationships.filter((relationship) => relationship.placeId === place.id)
+  return relationships.length > 0 ? { place, relationships } : null
+}
+
+export async function relationshipReferencesPoint(
+  graph: RelationshipGraph,
+  relationship: PlaceRelationshipRecord,
+  lat: number,
+  lng: number,
+  resolveGeometryUrl: GeometryUrlResolver,
+  loadGeoJsonLayer: GeoJsonLoader,
+) {
+  const pt = point([lng, lat])
+  const referenceAreas = relationship.referenceAreaIds
+    ?.map((areaId) => graph.referenceAreas?.find((area) => area.id === areaId))
+    .filter((area): area is ReferenceAreaRecord => Boolean(area?.geometrySource)) ?? []
+
+  for (const area of referenceAreas) {
+    const source = area.geometrySource
+    if (!source) continue
+    const url = resolveGeometryUrl(source)
+    if (!url) continue
+    const collection = await loadGeoJsonLayer(url)
+    for (const feature of collection.features) {
+      const properties = (feature.properties ?? {}) as FeatureProperties
+      if (String(properties[source.property] ?? '') !== source.value) continue
+      const geometry = feature.geometry
+      if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) continue
+      if (booleanPointInPolygon(pt, geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon)) return true
+    }
+  }
+
+  return false
+}
+
+export async function matchBoundaryRelationshipPlace(
+  graph: RelationshipGraph,
+  result: GeocodeLike,
+  resolveGeometryUrl: GeometryUrlResolver,
+  loadGeoJsonLayer: GeoJsonLoader,
+): Promise<MatchedRelationshipPlace | null> {
+  for (const relationship of graph.placeRelationships) {
+    if (!relationship.referenceAreaIds?.length) continue
+    if (!(await relationshipReferencesPoint(graph, relationship, result.latitude, result.longitude, resolveGeometryUrl, loadGeoJsonLayer))) continue
+    const place = graph.places.find((place) => place.id === relationship.placeId)
+    if (place) return { place, relationships: [relationship] }
+  }
+  return null
+}
+
+export function uniqueMatches(matches: SourceMatch[]) {
+  const seen = new Set<string>()
+  return matches.filter((match) => {
+    const key = `${match.source}:${normalizeName(match.name)}:${match.label}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+export function relationshipMatches(graph: RelationshipGraph, match: MatchedRelationshipPlace): SourceMatch[] {
+  return uniqueMatches(match.relationships.flatMap((relationship) => (
+    relationship.nationIds.map((nationId) => ({
+      source: 'verified' as SourceKey,
+      name: nationName(graph, nationId),
+      label: `${match.place.name}: ${relationship.relationshipType.replace(/_/g, ' ')}`,
+      detail: [
+        ...relationship.sourceRefs.map((sourceRef) => sourceTitle(graph, sourceRef)),
+        ...(relationship.referenceAreaIds ?? []).map((areaId) => referenceAreaLabel(graph, areaId)),
+      ].join(' / '),
+    }))
+  )))
+}

@@ -167,7 +167,7 @@
       "id": "supplementalManifest",
       "label": "Local Walkability supplemental manifest",
       "url": "local:/data/walkability/supplemental/manifest.json",
-      "localPath": "public/data/walkability/supplemental/manifest.json"
+      "localPath": "datascrapers/walkability/output/supplemental/manifest.json"
     }
   ],
   "supplementalInputs": {
@@ -177,42 +177,42 @@
         "id": "osm_crossings",
         "label": "OSM pedestrian crossings",
         "path": "/data/walkability/supplemental/osm_crossings.geojson",
-        "sourcePath": "/Users/ahmadjalil/Downloads/Walkability/data/supplemental/osm_crossings.geojson",
+        "sourcePath": "datascrapers/walkability/source/data/supplemental/osm_crossings.geojson",
         "featureCount": 388
       },
       {
         "id": "osm_daycares",
         "label": "OSM daycare points",
         "path": "/data/walkability/supplemental/osm_daycares.geojson",
-        "sourcePath": "/Users/ahmadjalil/Downloads/Walkability/data/supplemental/osm_daycares.geojson",
+        "sourcePath": "datascrapers/walkability/source/data/supplemental/osm_daycares.geojson",
         "featureCount": 1
       },
       {
         "id": "bc_childcare_locations",
         "label": "BC childcare locations",
         "path": "/data/walkability/supplemental/bc_childcare_locations.geojson",
-        "sourcePath": "/Users/ahmadjalil/Downloads/Walkability/data/supplemental/bc_childcare_locations.geojson",
+        "sourcePath": "datascrapers/bc/childcare/output/bc_childcare_locations.geojson",
         "featureCount": 156
       },
       {
         "id": "intercity_bus_stops",
         "label": "Intercity bus stops",
         "path": "/data/walkability/supplemental/intercity_bus_stops.geojson",
-        "sourcePath": "/Users/ahmadjalil/Downloads/Walkability/data/supplemental/intercity_bus_stops.geojson",
+        "sourcePath": "datascrapers/transit/source/intercity_bus_stops.geojson",
         "featureCount": 3
       },
       {
         "id": "report_class3_crosswalks",
         "label": "Geocoded report class-3 crosswalks",
         "path": "/data/walkability/supplemental/report_class3_crosswalks_geocoded.geojson",
-        "sourcePath": "/Users/ahmadjalil/Downloads/Walkability/data/supplemental/report_class3_crosswalks_geocoded.geojson",
+        "sourcePath": "datascrapers/walkability/source/data/supplemental/report_class3_crosswalks_geocoded.geojson",
         "featureCount": 145
       },
       {
         "id": "missing_poi_supplement",
         "label": "Missing POI supplement",
         "path": "/data/walkability/supplemental/missing_poi_supplement.geojson",
-        "sourcePath": "/Users/ahmadjalil/Downloads/Walkability/mobility_reconstruction/missing_poi_supplement.geojson",
+        "sourcePath": "datascrapers/walkability/source/mobility_reconstruction/missing_poi_supplement.geojson",
         "featureCount": 115
       }
     ],

@@ -22,9 +22,15 @@ import { cn } from '@/lib/utils'
 
 type SourceKey = 'verified' | 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
 type Confidence = 'strong' | 'moderate' | 'review_required'
-type WordingMode = 'general' | 'event' | 'research' | 'reflective'
+type WordingMode = 'short' | 'formal' | 'event' | 'institutional' | 'educational'
+type MatchType = 'place' | 'municipality' | 'boundary'
 type GeocodeStatus = 'idle' | 'loading' | 'success' | 'error'
 type SourceStatus = 'idle' | 'loading' | 'success' | 'error' | 'skipped'
+
+type WordingOptions = {
+  includeTreatyContext: boolean
+  includePeopleGroupContext: boolean
+}
 
 type CandidateNation = {
   id: string
@@ -142,6 +148,12 @@ type ReferenceAreaRecord = {
   nationId?: string
   areaType: string
   geometryStatus: 'reference_map_only' | 'available_geojson' | 'manual_review'
+  geometrySource?: {
+    dataset: 'native-land' | 'indigenous'
+    category: 'territories' | 'languages' | 'treaties' | 'first_nations_treaty_areas' | 'first_nations_treaty_lands'
+    property: string
+    value: string
+  }
   sourceRefs: string[]
   caveat: string
 }
@@ -157,11 +169,22 @@ type PlaceRecord = {
 type PlaceRelationshipRecord = {
   id: string
   placeId: string
-  relationshipType: 'traditional_territory' | 'traditional_territories' | 'traditional_lands' | 'on_or_near_traditional_territories' | 'village_lands_within_treaty'
+  relationshipType:
+    | 'traditional_territory'
+    | 'traditional_territories'
+    | 'traditional_lands'
+    | 'on_or_near_traditional_territories'
+    | 'village_lands_within_treaty'
+    | 'academic_campus_on_territory'
+    | 'operations_on_territories'
+    | 'campus_on_territory'
+    | 'campus_on_peoples_territory'
   territoryStatus?: 'unceded'
+  territoryQualifiers?: string[]
   treatyId?: string
   treatyName?: string
   landName?: string
+  languageContext?: string[]
   nationIds: string[]
   peopleGroupIds?: string[]
   nationPeopleGroups?: Record<string, string[]>
@@ -528,6 +551,19 @@ const confidenceLabels: Record<Confidence, string> = {
   review_required: 'Review',
 }
 
+const wordingModeLabels: Record<WordingMode, string> = {
+  short: 'Short',
+  formal: 'Formal',
+  event: 'Event',
+  institutional: 'Institution',
+  educational: 'Education',
+}
+
+const defaultWordingOptions: WordingOptions = {
+  includeTreatyContext: true,
+  includePeopleGroupContext: true,
+}
+
 function formatList(items: string[]) {
   if (items.length <= 1) return items[0] ?? ''
   if (items.length === 2) return `${items[0]} and ${items[1]}`
@@ -593,15 +629,39 @@ function relationshipCorePhrase(
   graph: RelationshipGraph,
   relationship: PlaceRelationshipRecord,
   selectedIds: string[],
+  options: WordingOptions = defaultWordingOptions,
 ) {
   const nationIds = selectedNationIdsForRelationship(graph, relationship, selectedIds)
   const nations = formatList(nationIds.map((nationId) => nationName(graph, nationId)))
-  const peopleGroups = peopleGroupIdsForNations(relationship, nationIds).map((peopleGroupId) => peopleGroupName(graph, peopleGroupId))
+  const peopleGroups = options.includePeopleGroupContext
+    ? peopleGroupIdsForNations(relationship, nationIds).map((peopleGroupId) => peopleGroupName(graph, peopleGroupId))
+    : []
 
   if (relationship.relationshipType === 'traditional_lands') {
     const peoplePhrase = peopleGroups.length > 0 ? `the ${formatList(peopleGroups)} of ` : ''
-    const treatyPrefix = relationship.treatyName ? `${relationship.treatyName} territory on ` : ''
+    const treatyPrefix = options.includeTreatyContext && relationship.treatyName ? `${relationship.treatyName} territory on ` : ''
     return `${treatyPrefix}the traditional lands of ${peoplePhrase}${nations}`
+  }
+
+  if (relationship.relationshipType === 'operations_on_territories') {
+    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+    const peoplePhrase = peopleGroups.length > 0 ? `the ${formatList(peopleGroups)}, including ` : ''
+    return `${status}territories of ${peoplePhrase}${nations}`
+  }
+
+  if (relationship.relationshipType === 'campus_on_peoples_territory') {
+    const qualifiers = relationship.territoryQualifiers?.length ? `${relationship.territoryQualifiers.join(', ')} ` : ''
+    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+    return `the ${qualifiers}${status}territory of the ${nations}`
+  }
+
+  if (relationship.relationshipType === 'academic_campus_on_territory' || relationship.relationshipType === 'campus_on_territory') {
+    const qualifiers = relationship.territoryQualifiers?.length ? `${relationship.territoryQualifiers.join(', ')} ` : ''
+    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
+    const languagePrefix = options.includePeopleGroupContext && relationship.languageContext?.length
+      ? `${formatList(relationship.languageContext)} `
+      : ''
+    return `the ${qualifiers}${status}territory of the ${languagePrefix}${nations}`
   }
 
   if (relationship.relationshipType === 'on_or_near_traditional_territories') {
@@ -611,7 +671,7 @@ function relationshipCorePhrase(
   }
 
   if (relationship.relationshipType === 'village_lands_within_treaty') {
-    const treaty = relationship.treatyName ? ` within ${relationship.treatyName} territory` : ''
+    const treaty = options.includeTreatyContext && relationship.treatyName ? ` within ${relationship.treatyName} territory` : ''
     return `on ${relationship.landName ?? 'Village Lands'}${treaty}`
   }
 
@@ -626,45 +686,56 @@ function buildRelationshipAcknowledgement(
   graph: RelationshipGraph,
   match: MatchedRelationshipPlace,
   selectedIds: string[],
+  options: WordingOptions = defaultWordingOptions,
 ) {
-  const phrases = match.relationships.map((relationship) => relationshipCorePhrase(graph, relationship, selectedIds))
+  const phrases = match.relationships.map((relationship) => relationshipCorePhrase(graph, relationship, selectedIds, options))
   const core = phrases.length === 1 ? phrases[0] : formatList(phrases)
-  const affiliation = match.relationships
-    .map((relationship) => buildAffiliationSentence(graph, relationship, selectedNationIdsForRelationship(graph, relationship, selectedIds)))
-    .filter(Boolean)
-    .join(' ')
+  const affiliation = options.includePeopleGroupContext
+    ? match.relationships
+      .map((relationship) => buildAffiliationSentence(graph, relationship, selectedNationIdsForRelationship(graph, relationship, selectedIds)))
+      .filter(Boolean)
+      .join(' ')
+    : ''
 
-  if (mode === 'event') {
-    return `We are grateful to gather today at ${match.place.name}, situated ${core}. ${affiliation}`.trim()
+  if (mode === 'short') {
+    return `${match.place.name} is situated ${core}.`
   }
 
-  if (mode === 'research') {
-    return `This work is connected to ${match.place.name}, situated ${core}. We treat this generated wording as a reviewed starting point and keep source-specific guidance visible. ${affiliation}`.trim()
+  if (mode === 'formal') {
+    return `We respectfully acknowledge that ${match.place.name} is situated ${core}. ${affiliation}`.trim()
   }
 
-  if (mode === 'reflective') {
-    return `I am speaking from ${match.place.name}, situated ${core}. I am still learning my responsibilities in this place and understand this acknowledgement should remain connected to respectful relationships and action. ${affiliation}`.trim()
+  if (mode === 'institutional') {
+    return `${match.place.name} is situated ${core}. This wording is generated from reviewed relationship records and should remain aligned with local guidance. ${affiliation}`.trim()
   }
 
-  return `${match.place.name} is situated ${core}. ${affiliation}`.trim()
+  if (mode === 'educational') {
+    return `${match.place.name} is situated ${core}. This relationship connects place, Nation, people-group, treaty, and source context so users can review why the wording was suggested. ${affiliation}`.trim()
+  }
+
+  return `We are grateful to gather today at ${match.place.name}, situated ${core}. ${affiliation}`.trim()
 }
 
 function buildAcknowledgement(mode: WordingMode, nationNames: string[]) {
   const names = nationNames.length > 0 ? nationNames.join(', ') : '[selected Nation(s)]'
 
-  if (mode === 'event') {
-    return `We acknowledge that today's event is taking place on lands connected to ${names}. We are grateful to gather here and recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
+  if (mode === 'short') {
+    return `This place is connected to ${names}.`
   }
 
-  if (mode === 'research') {
-    return `This work takes place in areas connected to ${names}. We recognize the importance of respectful relationship-building, local protocols, and Indigenous rights and title.`
+  if (mode === 'formal') {
+    return `We respectfully acknowledge that this place is connected to ${names}. We recognize their histories, cultures, rights, and ongoing relationships with these lands.`
   }
 
-  if (mode === 'reflective') {
-    return `I acknowledge that I am speaking from lands connected to ${names}. I am still learning my responsibilities in this place, and I commit to pairing these words with respectful relationship-building, local guidance, and concrete action beyond this acknowledgement.`
+  if (mode === 'institutional') {
+    return `This institution is working from lands connected to ${names}. Confirm local wording, protocols, and review status before publication.`
   }
 
-  return `We acknowledge that we are on lands connected to ${names}. We recognize their histories, cultures, and ongoing relationships with these lands.`
+  if (mode === 'educational') {
+    return `This location has source signals connected to ${names}. Treat this as a learning and review prompt, not final wording.`
+  }
+
+  return `We are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
 }
 
 function parseFaults(faults: unknown[] | undefined) {
@@ -791,19 +862,33 @@ function normalizeMatchText(value: string) {
 
 function relationshipPlaceScore(place: PlaceRecord, result: GeocodeResult, addressInput: string) {
   const haystack = normalizeMatchText(`${result.fullAddress} ${addressInput}`)
-  const aliases = [...(place.addressAliases ?? []), ...(place.locationNames ?? []), place.name]
-  return aliases.reduce((score, alias) => {
+  const addressScore = (place.addressAliases ?? []).reduce((score, alias) => {
     const normalizedAlias = normalizeMatchText(alias)
     if (!normalizedAlias) return score
-    if (haystack.includes(normalizedAlias)) return Math.max(score, normalizedAlias.length)
-    const words = normalizedAlias.split(' ').filter((word) => word.length > 2)
-    const matchedWords = words.filter((word) => haystack.includes(word)).length
-    return matchedWords >= Math.min(2, words.length) ? Math.max(score, matchedWords) : score
+    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length + (place.type === 'municipality' ? 0 : 1000)) : score
+  }, 0)
+
+  if (addressScore > 0) return addressScore
+
+  return [place.name, ...(place.locationNames ?? [])].reduce((score, alias) => {
+    const normalizedAlias = normalizeMatchText(alias)
+    if (!normalizedAlias) return score
+    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length) : score
   }, 0)
 }
 
-function matchRelationshipPlace(graph: RelationshipGraph, result: GeocodeResult, addressInput: string): MatchedRelationshipPlace | null {
+function placeMatchType(place: PlaceRecord): MatchType {
+  return place.type === 'municipality' ? 'municipality' : 'place'
+}
+
+function matchRelationshipPlace(
+  graph: RelationshipGraph,
+  result: GeocodeResult,
+  addressInput: string,
+  enabledMatchTypes: Record<MatchType, boolean>,
+): MatchedRelationshipPlace | null {
   const ranked = graph.places
+    .filter((place) => enabledMatchTypes[placeMatchType(place)])
     .map((place) => ({ place, score: relationshipPlaceScore(place, result, addressInput) }))
     .filter((entry) => entry.score > 0)
     .sort((left, right) => right.score - left.score)
@@ -813,6 +898,53 @@ function matchRelationshipPlace(graph: RelationshipGraph, result: GeocodeResult,
 
   const relationships = graph.placeRelationships.filter((relationship) => relationship.placeId === place.id)
   return relationships.length > 0 ? { place, relationships } : null
+}
+
+function geometrySourceUrl(source: ReferenceAreaRecord['geometrySource']) {
+  if (!source) return null
+  if (source.dataset === 'native-land') return `${NATIVE_LAND_DATA_BASE}${source.category}.geojson`
+  if (source.category === 'first_nations_treaty_areas') return TREATY_AREAS_DATA
+  if (source.category === 'first_nations_treaty_lands') return TREATY_LANDS_DATA
+  return null
+}
+
+async function relationshipReferencesPoint(
+  graph: RelationshipGraph,
+  relationship: PlaceRelationshipRecord,
+  lat: number,
+  lng: number,
+) {
+  const pt = point([lng, lat])
+  const referenceAreas = relationship.referenceAreaIds
+    ?.map((areaId) => graph.referenceAreas?.find((area) => area.id === areaId))
+    .filter((area): area is ReferenceAreaRecord => Boolean(area?.geometrySource)) ?? []
+
+  for (const area of referenceAreas) {
+    const source = area.geometrySource
+    if (!source) continue
+    const url = geometrySourceUrl(source)
+    if (!url) continue
+    const collection = await loadGeoJsonLayer(url)
+    for (const feature of collection.features) {
+      const properties = (feature.properties ?? {}) as FeatureProperties
+      if (String(properties[source.property] ?? '') !== source.value) continue
+      const geometry = feature.geometry
+      if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) continue
+      if (booleanPointInPolygon(pt, geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon)) return true
+    }
+  }
+
+  return false
+}
+
+async function matchBoundaryRelationshipPlace(graph: RelationshipGraph, result: GeocodeResult): Promise<MatchedRelationshipPlace | null> {
+  for (const relationship of graph.placeRelationships) {
+    if (!relationship.referenceAreaIds?.length) continue
+    if (!(await relationshipReferencesPoint(graph, relationship, result.latitude, result.longitude))) continue
+    const place = graph.places.find((place) => place.id === relationship.placeId)
+    if (place) return { place, relationships: [relationship] }
+  }
+  return null
 }
 
 function relationshipMatches(graph: RelationshipGraph, match: MatchedRelationshipPlace): SourceMatch[] {
@@ -1001,6 +1133,11 @@ export default function DevAcknowledgement() {
   const [indigenousManifest, setIndigenousManifest] = useState<IndigenousManifest | null>(null)
   const [relationshipGraph, setRelationshipGraph] = useState<RelationshipGraph | null>(null)
   const [matchedRelationshipPlace, setMatchedRelationshipPlace] = useState<MatchedRelationshipPlace | null>(null)
+  const [enabledMatchTypes, setEnabledMatchTypes] = useState<Record<MatchType, boolean>>(() => ({
+    place: true,
+    municipality: true,
+    boundary: true,
+  }))
   const [enabledSources, setEnabledSources] = useState<Record<SourceKey, boolean>>(() => ({
     verified: true,
     nativeLand: true,
@@ -1011,6 +1148,7 @@ export default function DevAcknowledgement() {
   }))
   const [selectedIds, setSelectedIds] = useState<string[]>(['lheidli'])
   const [wordingMode, setWordingMode] = useState<WordingMode>('event')
+  const [wordingOptions, setWordingOptions] = useState<WordingOptions>(defaultWordingOptions)
   const [customWording, setCustomWording] = useState('')
   const [sourceLookups, setSourceLookups] = useState<Record<SourceKey, SourceLookupState>>(initialLookupState)
 
@@ -1034,9 +1172,9 @@ export default function DevAcknowledgement() {
 
   const wording = useMemo(() => (
     relationshipGraph && matchedRelationshipPlace && enabledSources.verified
-      ? buildRelationshipAcknowledgement(wordingMode, relationshipGraph, matchedRelationshipPlace, selectedIds)
+      ? buildRelationshipAcknowledgement(wordingMode, relationshipGraph, matchedRelationshipPlace, selectedIds, wordingOptions)
       : buildAcknowledgement(wordingMode, selectedNames)
-  ), [enabledSources.verified, matchedRelationshipPlace, relationshipGraph, selectedIds, selectedNames, wordingMode])
+  ), [enabledSources.verified, matchedRelationshipPlace, relationshipGraph, selectedIds, selectedNames, wordingMode, wordingOptions])
 
   useEffect(() => {
     setCustomWording(wording)
@@ -1106,7 +1244,7 @@ export default function DevAcknowledgement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const runSourceLookups = async (result: GeocodeResult) => {
+  const runSourceLookups = async (result: GeocodeResult, matchTypes = enabledMatchTypes) => {
     const controller = new AbortController()
     setSourceLookups({
       verified: { status: 'loading', matches: [] },
@@ -1123,14 +1261,15 @@ export default function DevAcknowledgement() {
     }
 
     loadRelationshipGraph()
-      .then((graph) => {
+      .then(async (graph) => {
         setRelationshipGraph(graph)
-        const match = matchRelationshipPlace(graph, result, address)
+        const match = matchRelationshipPlace(graph, result, address, matchTypes)
+          ?? (matchTypes.boundary ? await matchBoundaryRelationshipPlace(graph, result) : null)
         setMatchedRelationshipPlace(match)
         settle('verified', {
           status: 'success',
           matches: match ? relationshipMatches(graph, match) : [],
-          message: match ? `Matched ${match.place.name}` : 'No curated relationship record matched this address.',
+          message: match ? `Matched ${match.place.name}` : 'No curated place or boundary relationship matched this address.',
         })
       })
       .catch((error: unknown) => settle('verified', {
@@ -1198,6 +1337,18 @@ export default function DevAcknowledgement() {
 
   const toggleSource = (source: SourceKey) => {
     setEnabledSources((current) => ({ ...current, [source]: !current[source] }))
+  }
+
+  const toggleMatchType = (matchType: MatchType) => {
+    setEnabledMatchTypes((current) => {
+      const next = { ...current, [matchType]: !current[matchType] }
+      if (geocodeResult) void runSourceLookups(geocodeResult, next)
+      return next
+    })
+  }
+
+  const toggleWordingOption = (option: keyof WordingOptions) => {
+    setWordingOptions((current) => ({ ...current, [option]: !current[option] }))
   }
 
   const toggleCandidate = (candidateId: string) => {
@@ -1293,6 +1444,38 @@ export default function DevAcknowledgement() {
                     {sourceLookups[source].message && (
                       <span className="mt-1 block text-xs leading-4 text-slate-500">{sourceLookups[source].message}</span>
                     )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-lg border bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-semibold">Match Types</h2>
+            </div>
+            <div className="space-y-2 text-xs leading-5 text-slate-600">
+              {([
+                ['place', 'Exact places', 'Campuses, institutes, and named facilities with curated records.'],
+                ['municipality', 'Municipal context', 'City-level records such as Prince George.'],
+                ['boundary', 'Boundary context', 'Point-in-polygon matches from configured reference areas.'],
+              ] as const).map(([matchType, label, description]) => (
+                <button
+                  key={matchType}
+                  type="button"
+                  onClick={() => toggleMatchType(matchType)}
+                  className="flex w-full items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300"
+                >
+                  <span className={cn(
+                    'mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded border',
+                    enabledMatchTypes[matchType] ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white',
+                  )}>
+                    {enabledMatchTypes[matchType] && <Check className="h-3.5 w-3.5" />}
+                  </span>
+                  <span>
+                    <span className="block font-medium text-slate-900">{label}</span>
+                    <span className="mt-0.5 block text-slate-500">{description}</span>
                   </span>
                 </button>
               ))}
@@ -1626,20 +1809,44 @@ export default function DevAcknowledgement() {
           <section className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-teal-700" />
-              <h2 className="text-sm font-semibold">Wording Mode</h2>
+              <h2 className="text-sm font-semibold">Variant Controls</h2>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-              {(['general', 'event', 'research', 'reflective'] as WordingMode[]).map((mode) => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-2 xl:grid-cols-3">
+              {(['short', 'formal', 'event', 'institutional', 'educational'] as WordingMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => setWordingMode(mode)}
                   className={cn(
-                    'rounded-md border px-2 py-2 text-xs font-medium capitalize',
+                    'rounded-md border px-2 py-2 text-xs font-medium',
                     wordingMode === mode ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
                   )}
                 >
-                  {mode}
+                  {wordingModeLabels[mode]}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
+              {([
+                ['includeTreatyContext', 'Treaty context', 'Include phrases such as Treaty 8 territory or Nisg̱a’a Treaty territory when present.'],
+                ['includePeopleGroupContext', 'People-group context', 'Include connected peoples such as Dakelh, Dane-zaa, Ts’msyen, or Nisg̱a’a when present.'],
+              ] as const).map(([option, label, description]) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => toggleWordingOption(option)}
+                  className="flex w-full items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300"
+                >
+                  <span className={cn(
+                    'mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded border',
+                    wordingOptions[option] ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white',
+                  )}>
+                    {wordingOptions[option] && <Check className="h-3.5 w-3.5" />}
+                  </span>
+                  <span>
+                    <span className="block font-medium text-slate-900">{label}</span>
+                    <span className="mt-0.5 block text-slate-500">{description}</span>
+                  </span>
                 </button>
               ))}
             </div>

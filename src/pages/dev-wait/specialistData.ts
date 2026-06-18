@@ -61,6 +61,14 @@ export interface SpecialistMapData {
   facilities: SpecialistFacility[]
 }
 
+export interface FacilityWaitMetrics {
+  knownCases: number
+  suppressedCaseRows: number
+  p50MedianWeeks: number | null
+  p90MedianWeeks: number | null
+  procedureRows: number
+}
+
 export const SPECIALIST_WAIT_DATA_URL = '/data/bc-wait-specialists.json'
 export const SPECIALIST_WAIT_MAP_CENTER: [number, number] = [-124.4, 51.8]
 export const SPECIALIST_WAIT_MAP_ZOOM = 4.7
@@ -73,6 +81,47 @@ export function formatCases(value: number | null | undefined): string {
 export function formatWeeks(value: number | null | undefined): string {
   if (value == null) return '--'
   return `${value.toFixed(1)}w`
+}
+
+export function facilityWaitMetrics(facility: SpecialistFacility): FacilityWaitMetrics {
+  const p50Values: number[] = []
+  const p90Values: number[] = []
+  let suppressedCaseRows = 0
+  let procedureRows = 0
+
+  facility.specialists.forEach((specialist) => {
+    specialist.procedures.forEach((procedure) => {
+      procedureRows += 1
+      if (procedure.p50_weeks != null) p50Values.push(procedure.p50_weeks)
+      if (procedure.p90_weeks != null) p90Values.push(procedure.p90_weeks)
+      if (procedure.cases_waiting == null && procedure.cases_waiting_raw?.toLowerCase().includes('less than')) {
+        suppressedCaseRows += 1
+      }
+    })
+  })
+
+  return {
+    knownCases: facility.case_total_known,
+    suppressedCaseRows,
+    p50MedianWeeks: median(p50Values),
+    p90MedianWeeks: median(p90Values),
+    procedureRows,
+  }
+}
+
+export function waitBand(p90Weeks: number | null | undefined): 'short' | 'medium' | 'long' | 'unknown' {
+  if (p90Weeks == null) return 'unknown'
+  if (p90Weeks < 12) return 'short'
+  if (p90Weeks < 26) return 'medium'
+  return 'long'
+}
+
+function median(values: number[]): number | null {
+  if (!values.length) return null
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  if (sorted.length % 2) return sorted[mid]
+  return (sorted[mid - 1] + sorted[mid]) / 2
 }
 
 export function searchFacility(facility: SpecialistFacility, term: string): boolean {

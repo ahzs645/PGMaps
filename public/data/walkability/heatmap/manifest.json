@@ -1,6 +1,6 @@
 {
   "generatedAt": "2026-05-08T18:51:36.024Z",
-  "sourceRoot": "/Users/ahmadjalil/Downloads/Walkability",
+  "sourceRoot": "datascrapers/walkability/source",
   "defaultLayer": "citywideGrid",
   "assetBinned": {
     "path": "/data/walkability/heatmap/asset_mi_bins.geojson",
@@ -260,7 +260,7 @@
       "path": "/data/walkability/heatmap/mi_heatmap_overlay_most_conservative.png"
     }
   ],
-  "sourceSummaryPath": "/Users/ahmadjalil/Downloads/Walkability/mobility_reconstruction/maps/mi_heatmap_summary.json",
+  "sourceSummaryPath": "datascrapers/walkability/source/mobility_reconstruction/maps/mi_heatmap_summary.json",
   "caveats": [
     "Grid cells are scored citywide inside the Prince George community-boundary union and are not restricted to sidewalk, walkway, or trail assets.",
     "The scoring logic is ported to an all-JS Node/JSTS projected metre-grid rebuild from the local reconstruction factor definitions and repo-local source layers."

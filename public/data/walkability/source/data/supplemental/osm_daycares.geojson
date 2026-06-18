@@ -1,0 +1,36 @@
+{
+  "type": "FeatureCollection",
+  "name": "osm_daycares",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.7650923,
+          53.8590797
+        ]
+      },
+      "properties": {
+        "x_26910": 515450.03741655307,
+        "y_26910": 5967868.5645196475,
+        "name": "",
+        "osm_type": "node",
+        "osm_id": 4894625224,
+        "poi_class": "Daycare",
+        "amenity": "childcare",
+        "tags": {
+          "addr:housenumber": "7090",
+          "addr:street": "Domano Boulevard",
+          "amenity": "childcare"
+        }
+      }
+    }
+  ]
+}
