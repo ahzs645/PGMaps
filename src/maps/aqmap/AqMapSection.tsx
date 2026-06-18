@@ -539,6 +539,8 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             <MainLayerControl
               visibleNetworks={visibleNetworks}
               onToggleNetwork={toggleNetwork}
+              windVisible={windVisible}
+              onToggleWind={toggleWind}
               visibleWmsLayers={visibleWmsLayers}
               onToggleWmsLayer={toggleWmsLayer}
               visibleSmokeLayers={visibleSmokeLayers}

@@ -384,6 +384,8 @@ export function FloatingLayerControl({
 export function MainLayerControl({
   visibleNetworks,
   onToggleNetwork,
+  windVisible,
+  onToggleWind,
   visibleWmsLayers,
   onToggleWmsLayer,
   visibleSmokeLayers,
@@ -393,6 +395,8 @@ export function MainLayerControl({
 }: {
   visibleNetworks: Set<AqNetworkSlug>
   onToggleNetwork: (network: AqNetworkSlug) => void
+  windVisible: boolean
+  onToggleWind: () => void
   visibleWmsLayers: Set<WmsLayerKey>
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
@@ -413,6 +417,10 @@ export function MainLayerControl({
             <span>{formatNetworkLabel(network, locale)}</span>
           </label>
         ))}
+        <label className="flex items-center gap-2 text-muted-foreground">
+          <input type="checkbox" checked={windVisible} onChange={onToggleWind} />
+          <span>{translate('sidebar.wind', locale)}</span>
+        </label>
         {smokeLayers.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
             <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
@@ -422,7 +430,7 @@ export function MainLayerControl({
         {WMS_LAYERS.map((layer) => (
           <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
             <input type="checkbox" checked={visibleWmsLayers.has(layer.key)} onChange={() => onToggleWmsLayer(layer.key)} />
-            <span>{layer.key === 'surfaceWinds' ? translate('sidebar.wind', locale) : localizeWmsLabel(layer.key, locale)}</span>
+            <span>{localizeWmsLabel(layer.key, locale)}</span>
           </label>
         ))}
       </div>

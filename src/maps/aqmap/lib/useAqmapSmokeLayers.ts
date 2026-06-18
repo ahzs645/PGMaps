@@ -8,11 +8,11 @@ import {
 } from './smokeLayers'
 
 const SMOKE_ENDPOINTS: Record<SmokeLayerKey, string> = {
-  modelledSmoke: '/data/smoke/modelled/geojson',
-  visibleSmoke: '/data/smoke/visible/geojson',
+  modelledSmoke: import.meta.env.DEV ? '/data/smoke/modelled/geojson' : '/data/smoke/modelled.json',
+  visibleSmoke: import.meta.env.DEV ? '/data/smoke/visible/geojson' : '/data/smoke/visible.json',
 }
 
-const FAILED_SMOKE_MESSAGE = 'Unable to load live AQMap smoke data; using fallback polygons.'
+const FAILED_SMOKE_MESSAGE = 'Unable to load smoke sample data; using embedded fallback polygons.'
 
 interface UseAqmapSmokeLayersResult {
   layers: SmokeLayerDefinition[]
