@@ -15,10 +15,10 @@ describe('createNationResolver', () => {
     expect(canonicalize('Lheidli T’enneh First Nation')).toMatchObject({ status: 'nation', id: 'lheidli-tenneh' })
   })
 
-  it('closes the alias gaps via the manual map', () => {
-    expect(canonicalize('Squamish')).toMatchObject({ status: 'nation', id: 'squamish' })
-    expect(canonicalize('Tsleil-Waututh')).toMatchObject({ status: 'nation', id: 'tsleil-waututh' })
-    expect(canonicalize('Syilx')).toMatchObject({ status: 'nation', id: 'syilx-okanagan-nation' })
+  it('closes the alias gaps to graph Nations (registry-linked)', () => {
+    expect(canonicalize('Squamish')).toMatchObject({ status: 'nation', id: 'squamish', inGraph: true })
+    expect(canonicalize('Tsleil-Waututh')).toMatchObject({ status: 'nation', id: 'tsleil-waututh', inGraph: true })
+    expect(canonicalize('Syilx')).toMatchObject({ status: 'nation', id: 'syilx-okanagan-nation', inGraph: true })
   })
 
   it('resolves people-group names', () => {
@@ -26,8 +26,14 @@ describe('createNationResolver', () => {
     expect(canonicalize('Coast Salish').status).toBe('people-group')
   })
 
-  it('flags Nations not in our database as unlisted', () => {
-    expect(canonicalize('Snuneymuxw First Nation')).toMatchObject({ status: 'unlisted' })
-    expect(canonicalize('Wet’suwet’en').status).toBe('unlisted')
+  it('resolves registry-only Nations not in the graph (inGraph false)', () => {
+    expect(canonicalize('Snuneymuxw First Nation')).toMatchObject({ status: 'nation', inGraph: false })
+    expect(canonicalize('Snuneymuxw')).toMatchObject({ status: 'nation', inGraph: false })
+    expect(canonicalize('Wet’suwet’en')).toMatchObject({ status: 'nation', inGraph: false })
+    expect(canonicalize('Nuu-chah-nulth')).toMatchObject({ status: 'people-group', inGraph: false })
+  })
+
+  it('still flags genuinely unknown names as unlisted', () => {
+    expect(canonicalize('Definitely Not A Nation 123').status).toBe('unlisted')
   })
 })

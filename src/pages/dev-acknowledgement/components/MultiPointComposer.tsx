@@ -142,6 +142,7 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
   const resolveNation = useMemo(() => createNationResolver(graph), [graph])
   const coverage = selectedOrg ? selectedOrg.acknowledges.map(resolveNation) : []
   const unlistedNations = coverage.filter((entry) => entry.status === 'unlisted')
+  const graphBackedCount = coverage.filter((entry) => entry.inGraph).length
 
   return (
     <section className="mx-auto max-w-7xl px-3 pb-10 sm:px-6 lg:px-8">
@@ -274,6 +275,7 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
             {coverage.length > 0 && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                 <span className="font-medium text-slate-700">Mapped to our database: {coverage.length - unlistedNations.length}/{coverage.length}</span>
+                <span className="text-[10px] text-slate-500">({graphBackedCount} in verified graph, rest in registry)</span>
                 {unlistedNations.length > 0 && (
                   <span className="flex flex-wrap items-center gap-1">
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">not in our DB yet</span>

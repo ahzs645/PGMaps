@@ -75,15 +75,24 @@ canonical identity:
 - `people-group` — matches a people-group (e.g. "Ts'msyen", "Coast Salish");
 - `unlisted` — not in our database yet.
 
-The composer shows the coverage ("Mapped to our database: X/Y") and chips the
-`unlisted` ones. Two ways to improve coverage when an org names a Nation we don't map:
+The resolver references **two** sources, so coverage does **not** depend on the
+submodule relationship graph:
 
-1. If we **already have** the Nation but under a different name, add an entry to
-   `NATION_ALIASES` in `nations.ts` (`normalizeName(freeText) -> nation.id`), as
-   done for Squamish / Tsleil-Waututh / Syilx.
-2. If the Nation **isn't in the graph at all**, it stays `unlisted` until it's
-   added to the relationship graph — leave the free text as-is; the resolver will
-   pick it up automatically once the graph has it.
+1. the **relationship graph** (verified Nations + people-groups), and
+2. **`nationRegistry`** in `nations.ts` — an in-repo list we maintain ourselves.
+
+To map a Nation an org names, add a `nationRegistry` entry (no submodule edit):
+
+- **Nation already in the graph, different name** → add an entry with
+  `graphNationId` set + the free-text form in `aliases` (e.g. Squamish,
+  Tsleil-Waututh, Syilx). It resolves as `inGraph: true`.
+- **Nation not in the graph at all** → add an entry *without* `graphNationId`
+  (e.g. Snuneymuxw, Wet'suwet'en). It resolves as a `nation` we recognize, just
+  `inGraph: false` (registry-backed). If it later gets added to the relationship
+  graph, set `graphNationId` to link them.
+
+The composer shows `Mapped to our database: X/Y (Z in verified graph, rest in
+registry)` and only chips names in **neither** source.
 
 ## Notes on accuracy
 
