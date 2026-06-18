@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   AlertTriangle,
   BookOpen,
   Check,
   ChevronRight,
+  Copy,
   Database,
   ExternalLink,
   FileText,
@@ -14,775 +15,57 @@ import {
   Search,
   ShieldCheck,
 } from 'lucide-react'
-import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
-import { point } from '@turf/helpers'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type SourceKey = 'verified' | 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
-type Confidence = 'strong' | 'moderate' | 'review_required'
-type WordingMode = 'short' | 'formal' | 'event' | 'institutional' | 'educational'
-type MatchType = 'place' | 'municipality' | 'boundary'
-type GeocodeStatus = 'idle' | 'loading' | 'success' | 'error'
-type SourceStatus = 'idle' | 'loading' | 'success' | 'error' | 'skipped'
-
-type WordingOptions = {
-  includeTreatyContext: boolean
-  includePeopleGroupContext: boolean
-}
-
-type CandidateNation = {
-  id: string
-  name: string
-  preferredName: string
-  confidence: Confidence
-  pronunciation?: PronunciationInfo
-  reason: string
-  sources: Partial<Record<SourceKey, string>>
-  notes: string
-}
-
-type SourceMatch = {
-  source: SourceKey
-  name: string
-  label: string
-  detail?: string
-}
-
-type SourceLookupState = {
-  status: SourceStatus
-  matches: SourceMatch[]
-  message?: string
-}
-
-type DataGap = {
-  name: string
-  status: string
-  use: string
-  limitation: string
-  url: string
-}
-
-type IndigenousManifestSource = {
-  id: string
-  title: string
-  output?: string
-  featureCount?: number
-  access?: string
-  source?: string
-  sourceLayer?: string
-  sourceUrl?: string
-  url?: string
-  caveat?: string
-}
-
-type IndigenousManifest = {
-  automated?: IndigenousManifestSource[]
-  manual?: IndigenousManifestSource[]
-}
-
-type TemplatePrompt = {
-  label: string
-  prompt: string
-}
-
-type PracticeSource = {
-  name: string
-  status: string
-  use: string
-  limitation: string
-  path: string
-}
-
-type PronunciationInfo = {
-  phonetic?: string
-  audioUrl?: string
-  sourceLabel: string
-  sourceUrl: string
-  caveat: string
-}
-
-type PronunciationSource = {
-  name: string
-  status: string
-  use: string
-  caveat: string
-  url: string
-}
-
-type LocalLanguageResource = {
-  name: string
-  status: string
-  use: string
-  caveat: string
-  url: string
-  audioUrl?: string
-  qrUrl?: string
-}
-
-type RelationshipSource = {
-  id: string
-  title: string
-  url: string
-  sourceType: string
-}
-
-type PeopleGroupRecord = {
-  id: string
-  preferredName: string
-  alternateNames?: string[]
-  displayName: string
-}
-
-type NationRecord = {
-  id: string
-  preferredName: string
-  alternateNames?: string[]
-  peopleGroupIds?: string[]
-}
-
-type ReferenceAreaRecord = {
-  id: string
-  name: string
-  nationId?: string
-  areaType: string
-  geometryStatus: 'reference_map_only' | 'available_geojson' | 'manual_review'
-  geometrySource?: {
-    dataset: 'native-land' | 'indigenous'
-    category: 'territories' | 'languages' | 'treaties' | 'first_nations_treaty_areas' | 'first_nations_treaty_lands'
-    property: string
-    value: string
-  }
-  sourceRefs: string[]
-  caveat: string
-}
-
-type PlaceRecord = {
-  id: string
-  name: string
-  type: string
-  locationNames?: string[]
-  addressAliases?: string[]
-}
-
-type PlaceRelationshipRecord = {
-  id: string
-  placeId: string
-  relationshipType:
-    | 'traditional_territory'
-    | 'traditional_territories'
-    | 'traditional_lands'
-    | 'on_or_near_traditional_territories'
-    | 'village_lands_within_treaty'
-    | 'academic_campus_on_territory'
-    | 'operations_on_territories'
-    | 'campus_on_territory'
-    | 'campus_on_peoples_territory'
-  territoryStatus?: 'unceded'
-  territoryQualifiers?: string[]
-  treatyId?: string
-  treatyName?: string
-  landName?: string
-  languageContext?: string[]
-  nationIds: string[]
-  peopleGroupIds?: string[]
-  nationPeopleGroups?: Record<string, string[]>
-  referenceAreaIds?: string[]
-  verificationStatus: string
-  sourceRefs: string[]
-}
-
-type RelationshipGraph = {
-  generatedAt: string
-  notes?: string[]
-  sources: RelationshipSource[]
-  peopleGroups: PeopleGroupRecord[]
-  nations: NationRecord[]
-  referenceAreas?: ReferenceAreaRecord[]
-  places: PlaceRecord[]
-  placeRelationships: PlaceRelationshipRecord[]
-}
-
-type MatchedRelationshipPlace = {
-  place: PlaceRecord
-  relationships: PlaceRelationshipRecord[]
-}
-
-type GeocodeResult = {
-  fullAddress: string
-  latitude: number
-  longitude: number
-  score: number
-  matchPrecision: string
-  precisionPoints: number
-  faults: string[]
-  baseDataDate: string
-  searchTimestamp: string
-}
-
-type BcGeocoderFeature = {
-  geometry?: {
-    coordinates?: [number, number]
-  }
-  properties?: {
-    fullAddress?: string
-    score?: number
-    matchPrecision?: string
-    precisionPoints?: number
-    faults?: unknown[]
-  }
-}
-
-type BcGeocoderResponse = {
-  baseDataDate?: string
-  searchTimestamp?: string
-  features?: BcGeocoderFeature[]
-}
-
-const sourceMeta: Record<SourceKey, { label: string; type: string; description: string }> = {
-  verified: {
-    label: 'Verified relationships',
-    type: 'Curated wording graph',
-    description: 'Reviewed place-to-Nation and people-group relationships used to generate controlled acknowledgement variants.',
-  },
-  nativeLand: {
-    label: 'Native Land Digital',
-    type: 'Educational territory layer',
-    description: 'Bundled territory, language, and treaty polygons for review-oriented public education.',
-  },
-  cad: {
-    label: 'BC CAD',
-    type: 'Consultative area',
-    description: 'External report workflow for preliminary First Nations consultation contacts. Boundaries are not public.',
-  },
-  treaty: {
-    label: 'Treaty lands',
-    type: 'Legal/admin layer',
-    description: 'Treaty-related geography where official treaty data is available.',
-  },
-  reserve: {
-    label: 'Reserve boundaries',
-    type: 'Administrative layer',
-    description: 'Reserve and band-name reference geography, not traditional territory.',
-  },
-  local: {
-    label: 'Nearest community',
-    type: 'Community reference',
-    description: 'Nearest First Nation community office from the B.C. community-locations layer. Proximity context for review, not a territory boundary.',
-  },
-}
-
-const sourceUrls: Record<SourceKey, string> = {
-  verified: 'https://www.unbc.ca/about-unbc/traditional-territory-acknowledgement',
-  nativeLand: 'https://api-docs.native-land.ca/full-geojsons',
-  cad: 'https://www2.gov.bc.ca/assets/gov/environment/natural-resource-stewardship/consulting-with-first-nations/first_nations_consultative_areas_database_cad_-_faqs.pdf',
-  treaty: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_legal_admin_boundaries/MapServer',
-  reserve: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/34',
-  local: 'https://catalogue.data.gov.bc.ca/dataset/first-nation-community-locations',
-}
-
-const BC_GEOCODER_URL = 'https://geocoder.api.gov.bc.ca/addresses.json'
-
-// Treaty, reserve, and community geography are synced to static GeoJSON at build time
-// (npm run indigenous:sync) and queried in-browser with point-in-polygon / nearest-point.
-// The live BC ArcGIS endpoints return `Access-Control-Allow-Origin: null`, so the browser
-// blocks direct cross-origin requests from the deployed site — hence the local copies.
-const INDIGENOUS_DATA_BASE = `${import.meta.env.BASE_URL}data/indigenous/`
-const INDIGENOUS_MANIFEST_DATA = `${INDIGENOUS_DATA_BASE}manifest.json`
-const RELATIONSHIP_GRAPH_DATA = `${import.meta.env.BASE_URL}data/acknowledgement/relationship-graph.json`
-const TREATY_LANDS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_lands.geojson`
-const TREATY_AREAS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_areas.geojson`
-const RESERVES_DATA = `${INDIGENOUS_DATA_BASE}indian_reserves_band_names.geojson`
-const COMMUNITIES_DATA = `${INDIGENOUS_DATA_BASE}first_nation_community_locations.geojson`
-const NATIVE_LAND_DATA_BASE = `${import.meta.env.BASE_URL}data/native-land/`
-const NATIVE_LAND_LAYERS = [
-  { category: 'territories', url: `${NATIVE_LAND_DATA_BASE}territories.geojson`, label: 'Native Land territory overlap' },
-  { category: 'languages', url: `${NATIVE_LAND_DATA_BASE}languages.geojson`, label: 'Native Land language overlap' },
-  { category: 'treaties', url: `${NATIVE_LAND_DATA_BASE}treaties.geojson`, label: 'Native Land treaty overlap' },
-] as const
-const LOCAL_COMMUNITY_MAX_KM = 120
-
-const initialLookupState: Record<SourceKey, SourceLookupState> = {
-  verified: { status: 'idle', matches: [] },
-  nativeLand: { status: 'idle', matches: [] },
-  cad: { status: 'skipped', matches: [], message: 'Use the B.C. CAD map/report manually. Public CAD docs say boundaries are not viewable and outputs are preliminary contact lists.' },
-  treaty: { status: 'idle', matches: [] },
-  reserve: { status: 'idle', matches: [] },
-  local: { status: 'idle', matches: [] },
-}
-
-const unresolvedDataGaps: DataGap[] = [
-  {
-    name: 'First Nation Profiles in Canada',
-    status: 'Reference candidate',
-    use: 'Federal profile/contact reference for First Nations and governing organizations.',
-    limitation: 'Administrative profile data; it does not establish traditional territory or acknowledgement wording.',
-    url: 'https://fnp-ppn.aadnc-aandc.gc.ca/fnp/Main/index.aspx',
-  },
-  {
-    name: 'Sector CAD-derived reports',
-    status: 'Workflow candidate',
-    use: 'Mineral Title Overlap Reports and PNG tenure guidance can expose sector-specific CAD contact expectations.',
-    limitation: 'Project/tenure-specific and not reusable as a general public boundary dataset.',
-    url: 'https://www2.gov.bc.ca/gov/content/industry/mineral-exploration-mining/mineral-titles/first-nations-engagement',
-  },
-]
-
-const acknowledgementTemplatePrompts: TemplatePrompt[] = [
-  {
-    label: 'Locate the speaker',
-    prompt: 'Name your relationship to this place, including whether you are a host, visitor, resident, settler, immigrant, or guest.',
-  },
-  {
-    label: 'Name the gathering',
-    prompt: 'Connect the acknowledgement to why people are meeting, learning, building, or making decisions together today.',
-  },
-  {
-    label: 'Use local names with care',
-    prompt: 'Practice pronunciation and leave room for multiple Nations, overlapping relationships, and changed guidance.',
-  },
-  {
-    label: 'People before layers',
-    prompt: 'Do not let treaty, reserve, CAD, or other administrative layers substitute for Nation-specific relationships.',
-  },
-  {
-    label: 'Avoid one-size wording',
-    prompt: 'Replace rote scripts with context-specific wording that reflects the place, audience, and current relationships.',
-  },
-  {
-    label: 'Connect words to action',
-    prompt: 'State one concrete action, responsibility, or follow-up that sits beyond the acknowledgement itself.',
-  },
-  {
-    label: 'Invite correction',
-    prompt: 'Make space for feedback without shifting emotional labour or protocol work onto Indigenous attendees.',
-  },
-  {
-    label: 'Keep wording living',
-    prompt: 'Record when wording was reviewed and revisit it when local guidance, relationships, or event context changes.',
-  },
-]
-
-const PRONUNCIATION_GUIDE_URL = 'https://www2.gov.bc.ca/assets/gov/british-columbians-our-governments/indigenous-people/aboriginal-peoples-documents/a_guide_to_pronunciation_of_bc_first_nations_-_oct_29_2018.pdf'
-const LHEIDLI_LANGUAGE_URL = 'https://www.lheidli.ca/about/our-language/'
-const LHEIDLI_DICTIONARY_URL = 'https://www.billposer.org/LheidliCarrierDictionary/'
-const LHEIDLI_SOUND_SYSTEM_URL = 'https://www.billposer.org/LheidliDialect/SoundSystemIntro/LheidliPronunciation.html'
-const LHEIDLI_UNBC_ENTRY_URL = 'https://www.billposer.org/LheidliCarrierDictionary/Entries/006439.html'
-const LHEIDLI_UNBC_AUDIO_URL = 'https://www.billposer.org/LheidliCarrierDictionary/Audio/edifre_2021-11-29_009.wav'
-const LHEIDLI_UNBC_QR_URL = 'https://www.billposer.org/LheidliCarrierDictionary/EntryQRCodes/006439.png'
-
-const pronunciationSources: PronunciationSource[] = [
-  {
-    name: 'Lheidli T’enneh language page',
-    status: 'Local authority',
-    use: 'Local language portal for Carrier/Dakelh resources, including links to dictionary and learning materials.',
-    caveat: 'Use as a local verification and learning source; it is not a structured pronunciation API.',
-    url: LHEIDLI_LANGUAGE_URL,
-  },
-  {
-    name: 'Lheidli Dakelh Dictionary',
-    status: 'Audio link-out',
-    use: 'Lheidli-specific dictionary entries with syllabics, IPA hover notes, playable speaker recordings, and QR codes.',
-    caveat: 'Audio reuse rights are not clearly permissive. Link out rather than bundling or mirroring audio unless permission is obtained.',
-    url: LHEIDLI_DICTIONARY_URL,
-  },
-  {
-    name: 'Meaning and pronunciation of Lheidli T’enneh',
-    status: 'Local guide',
-    use: 'Explains pronunciation issues such as lh, dl, and ejective t’ and links to Lheidli pronunciation resources.',
-    caveat: 'Use for learning context and source linking; verify public wording with Lheidli T’enneh guidance.',
-    url: 'https://www.ydli.org/ParkName.pdf',
-  },
-  {
-    name: 'BC pronunciation guide',
-    status: 'Text phonetics',
-    use: 'Seed English-style pronunciation approximations for many B.C. Indigenous communities and organizations.',
-    caveat: 'Introductory only. The guide says final authority rests with each community and many sounds cannot be expressed in English.',
-    url: PRONUNCIATION_GUIDE_URL,
-  },
-  {
-    name: 'First Peoples Map of B.C.',
-    status: 'Audio candidate',
-    use: 'Indigenous-led map with pronounce buttons and audio where available, plus language and greeting context.',
-    caveat: 'Do not scrape. Request API/data permission from FPCC before automating audio or pronunciation pulls.',
-    url: 'https://maps.fpcc.ca/',
-  },
-  {
-    name: 'Nation websites',
-    status: 'Preferred audio',
-    use: 'Use Nation-published phonetics, audio, or video where the Nation provides clear public guidance.',
-    caveat: 'Reuse depends on each site. Link out unless the Nation provides permission or clear reusable media terms.',
-    url: 'https://www.sfu.ca/main/about/truth-reconciliation/ways-to-learn/terminology-language/host-nations-pronunciation-guide.html',
-  },
-  {
-    name: 'BC Geographical Names',
-    status: 'Place-name audio',
-    use: 'Some official place-name records include pronunciation keys and sometimes audio.',
-    caveat: 'Mostly place names, not Nation names. Use as supporting context only.',
-    url: 'https://www2.gov.bc.ca/gov/content/governments/celebrating-british-columbia/historic-places/geographical-names?keyword=2021',
-  },
-]
-
-const localLanguageResources: LocalLanguageResource[] = [
-  {
-    name: 'Lheidli T’enneh: Our Language',
-    status: 'Nation source',
-    use: 'Nation-maintained language page with Dakelh learning context, videos, and recommended language links.',
-    caveat: 'Use as the preferred public starting point for local language learning resources.',
-    url: LHEIDLI_LANGUAGE_URL,
-  },
-  {
-    name: 'Lheidli Dakelh Dictionary',
-    status: 'Dictionary',
-    use: 'Searchable Dakelh dictionary compiled by Bill Poser and linked from Lheidli T’enneh’s language page.',
-    caveat: 'Treat as a learning/reference source; avoid bulk copying entries or audio into PGMaps.',
-    url: LHEIDLI_DICTIONARY_URL,
-  },
-  {
-    name: 'Lheidli sound system',
-    status: 'Pronunciation guide',
-    use: 'Explains the Lheidli dialect sound system and writing system with audio examples.',
-    caveat: 'Better for learning pronunciation patterns than for auto-generating phonetics.',
-    url: LHEIDLI_SOUND_SYSTEM_URL,
-  },
-  {
-    name: 'UNBC in Dakelh',
-    status: 'Local term',
-    use: 'Dictionary entry for “University of Northern British Columbia,” with audio spoken by Edith Frederick and a QR code for sharing.',
-    caveat: 'Keep this as a linked pronunciation aid for local UNBC contexts; verify before embedding in formal acknowledgement wording.',
-    url: LHEIDLI_UNBC_ENTRY_URL,
-    audioUrl: LHEIDLI_UNBC_AUDIO_URL,
-    qrUrl: LHEIDLI_UNBC_QR_URL,
-  },
-]
-
-const pronunciationDatabase: Record<string, PronunciationInfo> = {
-  [normalizeName("Lheidli-T'enneh Band")]: {
-    phonetic: 'clayt-clay den-ay',
-    sourceLabel: 'BC pronunciation guide',
-    sourceUrl: PRONUNCIATION_GUIDE_URL,
-    caveat: 'Approximation only; verify with Lheidli T’enneh First Nation or local guidance before public use.',
-  },
-  [normalizeName("Lheidli T'enneh First Nation")]: {
-    phonetic: 'clayt-clay den-ay',
-    sourceLabel: 'Lheidli language resources',
-    sourceUrl: LHEIDLI_LANGUAGE_URL,
-    caveat: 'Approximation only. Use Lheidli language resources and Nation guidance for local pronunciation practice.',
-  },
-  [normalizeName('Lhoosk’uz Dené Nation')]: {
-    phonetic: "looze-k' U z den-ay",
-    sourceLabel: 'BC pronunciation guide',
-    sourceUrl: PRONUNCIATION_GUIDE_URL,
-    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
-  },
-  [normalizeName('Lhtako Dene Nation')]: {
-    phonetic: 'lah-ta-ko den-ay',
-    sourceLabel: 'BC pronunciation guide',
-    sourceUrl: PRONUNCIATION_GUIDE_URL,
-    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
-  },
-  [normalizeName("Nadleh Whut'en Band")]: {
-    phonetic: 'nad-lee woo-ten',
-    sourceLabel: 'BC pronunciation guide',
-    sourceUrl: PRONUNCIATION_GUIDE_URL,
-    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
-  },
-  [normalizeName("Nak'azdli Band")]: {
-    phonetic: 'na-caused-lee',
-    sourceLabel: 'BC pronunciation guide',
-    sourceUrl: PRONUNCIATION_GUIDE_URL,
-    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
-  },
-  [normalizeName('Tsay Keh Dene Band')]: {
-    phonetic: 'say-kay-denay',
-    sourceLabel: 'BC pronunciation guide',
-    sourceUrl: PRONUNCIATION_GUIDE_URL,
-    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
-  },
-  [normalizeName("TseK'hene First Nation")]: {
-    phonetic: 'tse-kan-ay',
-    sourceLabel: 'BC pronunciation guide',
-    sourceUrl: PRONUNCIATION_GUIDE_URL,
-    caveat: 'Approximation only; verify with the Nation or local guidance before public use.',
-  },
-}
-
-const acknowledgementPracticeSources: PracticeSource[] = [
-  {
-    name: 'LISSA Land Acknowledgement template',
-    status: 'Template source',
-    use: 'Structured components for personalization, speaker protocol, reflection prompts, and fixed web wording.',
-    limitation: 'Created for a library/information-studies context; reuse the pattern, not its institution-specific wording.',
-    path: '/Users/ahmadjalil/Downloads/New Folder With Items 4/2018_2019_LISSA_Land_Acknowledgement (1).docx',
-  },
-  {
-    name: 'Khelsilem acknowledgement tips',
-    status: 'Practice source',
-    use: 'Guidance to elevate Indigenous polity, avoid simplistic ceded/unceded framing, and keep acknowledgement tied to action.',
-    limitation: 'Blog guidance from a particular perspective; use as advice to consider, not a universal rulebook.',
-    path: '/Users/ahmadjalil/Downloads/New Folder With Items 4/Liberated_Yet_—_Khelsilem\'s_Tips_for_Acknowledging_Territory_1_0.pdf',
-  },
-  {
-    name: 'Rethinking land acknowledgement',
-    status: 'Critical source',
-    use: 'Scholarly discussion of site-specific, context-specific acknowledgements and the limits of standardized performance.',
-    limitation: 'Academic article; adapt ideas into prompts rather than copying performance text.',
-    path: '/Users/ahmadjalil/Downloads/New Folder With Items 4/2019_Rethinking_the_Practice_and_Performance_of_Indigenous_Land.pdf',
-  },
-  {
-    name: 'Land-based practice article',
-    status: 'Relational source',
-    use: 'Frames land as relational, pedagogical, and connected to wellness rather than only physical territory.',
-    limitation: 'Health and land-based healing context, not an acknowledgement manual.',
-    path: '/Users/ahmadjalil/Downloads/New Folder With Items 4/Redvers (2020) Land based practice.pdf',
-  },
-]
-
-const confidenceStyles: Record<Confidence, string> = {
-  strong: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  moderate: 'border-amber-200 bg-amber-50 text-amber-800',
-  review_required: 'border-slate-200 bg-slate-50 text-slate-700',
-}
-
-const confidenceLabels: Record<Confidence, string> = {
-  strong: 'Strong',
-  moderate: 'Moderate',
-  review_required: 'Review',
-}
-
-const wordingModeLabels: Record<WordingMode, string> = {
-  short: 'Short',
-  formal: 'Formal',
-  event: 'Event',
-  institutional: 'Institution',
-  educational: 'Education',
-}
-
-const defaultWordingOptions: WordingOptions = {
-  includeTreatyContext: true,
-  includePeopleGroupContext: true,
-}
-
-function formatList(items: string[]) {
-  if (items.length <= 1) return items[0] ?? ''
-  if (items.length === 2) return `${items[0]} and ${items[1]}`
-  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
-}
-
-function sourceTitle(graph: RelationshipGraph | null, sourceId: string) {
-  return graph?.sources.find((source) => source.id === sourceId)?.title ?? sourceId
-}
-
-function nationName(graph: RelationshipGraph, nationId: string) {
-  return graph.nations.find((nation) => nation.id === nationId)?.preferredName ?? nationId
-}
-
-function peopleGroupName(graph: RelationshipGraph, peopleGroupId: string) {
-  return graph.peopleGroups.find((group) => group.id === peopleGroupId)?.displayName ?? peopleGroupId
-}
-
-function referenceAreaLabel(graph: RelationshipGraph, areaId: string) {
-  return graph.referenceAreas?.find((area) => area.id === areaId)?.name ?? areaId
-}
-
-function selectedNationIdsForRelationship(
-  graph: RelationshipGraph,
-  relationship: PlaceRelationshipRecord,
-  selectedIds: string[],
-) {
-  if (selectedIds.length === 0) return relationship.nationIds
-  const selected = new Set(selectedIds)
-  const filtered = relationship.nationIds.filter((nationId) => selected.has(candidateId(nationName(graph, nationId))))
-  return filtered.length > 0 ? filtered : relationship.nationIds
-}
-
-function peopleGroupIdsForNations(relationship: PlaceRelationshipRecord, nationIds: string[]) {
-  if (!relationship.nationPeopleGroups) return relationship.peopleGroupIds ?? []
-  const ids = new Set<string>()
-  nationIds.forEach((nationId) => {
-    relationship.nationPeopleGroups?.[nationId]?.forEach((peopleGroupId) => ids.add(peopleGroupId))
-  })
-  return Array.from(ids)
-}
-
-function buildAffiliationSentence(graph: RelationshipGraph, relationship: PlaceRelationshipRecord, nationIds: string[]) {
-  if (!relationship.nationPeopleGroups) return ''
-
-  const grouped = new Map<string, string[]>()
-  nationIds.forEach((nationId) => {
-    const peopleGroupIds = relationship.nationPeopleGroups?.[nationId] ?? []
-    peopleGroupIds.forEach((peopleGroupId) => {
-      const names = grouped.get(peopleGroupId) ?? []
-      names.push(nationName(graph, nationId))
-      grouped.set(peopleGroupId, names)
-    })
-  })
-
-  const clauses = Array.from(grouped.entries()).map(([peopleGroupId, names]) => (
-    `${formatList(names)} ${names.length === 1 ? 'is' : 'are'} part of the ${peopleGroupName(graph, peopleGroupId)}`
-  ))
-  return clauses.length > 0 ? `${formatList(clauses)}.` : ''
-}
-
-function relationshipCorePhrase(
-  graph: RelationshipGraph,
-  relationship: PlaceRelationshipRecord,
-  selectedIds: string[],
-  options: WordingOptions = defaultWordingOptions,
-) {
-  const nationIds = selectedNationIdsForRelationship(graph, relationship, selectedIds)
-  const nations = formatList(nationIds.map((nationId) => nationName(graph, nationId)))
-  const peopleGroups = options.includePeopleGroupContext
-    ? peopleGroupIdsForNations(relationship, nationIds).map((peopleGroupId) => peopleGroupName(graph, peopleGroupId))
-    : []
-
-  if (relationship.relationshipType === 'traditional_lands') {
-    const peoplePhrase = peopleGroups.length > 0 ? `the ${formatList(peopleGroups)} of ` : ''
-    const treatyPrefix = options.includeTreatyContext && relationship.treatyName ? `${relationship.treatyName} territory on ` : ''
-    return `${treatyPrefix}the traditional lands of ${peoplePhrase}${nations}`
-  }
-
-  if (relationship.relationshipType === 'operations_on_territories') {
-    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
-    const peoplePhrase = peopleGroups.length > 0 ? `the ${formatList(peopleGroups)}, including ` : ''
-    return `${status}territories of ${peoplePhrase}${nations}`
-  }
-
-  if (relationship.relationshipType === 'campus_on_peoples_territory') {
-    const qualifiers = relationship.territoryQualifiers?.length ? `${relationship.territoryQualifiers.join(', ')} ` : ''
-    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
-    return `the ${qualifiers}${status}territory of the ${nations}`
-  }
-
-  if (relationship.relationshipType === 'academic_campus_on_territory' || relationship.relationshipType === 'campus_on_territory') {
-    const qualifiers = relationship.territoryQualifiers?.length ? `${relationship.territoryQualifiers.join(', ')} ` : ''
-    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
-    const languagePrefix = options.includePeopleGroupContext && relationship.languageContext?.length
-      ? `${formatList(relationship.languageContext)} `
-      : ''
-    return `the ${qualifiers}${status}territory of the ${languagePrefix}${nations}`
-  }
-
-  if (relationship.relationshipType === 'on_or_near_traditional_territories') {
-    const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
-    const peoplePhrase = peopleGroups.length > 0 ? `${formatList(peopleGroups)} ` : ''
-    return `on or near ${status}traditional ${peoplePhrase}territories including ${nations}`
-  }
-
-  if (relationship.relationshipType === 'village_lands_within_treaty') {
-    const treaty = options.includeTreatyContext && relationship.treatyName ? ` within ${relationship.treatyName} territory` : ''
-    return `on ${relationship.landName ?? 'Village Lands'}${treaty}`
-  }
-
-  const status = relationship.territoryStatus === 'unceded' ? 'unceded ' : ''
-  const territory = relationship.relationshipType === 'traditional_territories' ? 'traditional territories' : 'traditional territory'
-  const peoplePhrase = peopleGroups.length === 1 ? `, part of the ${peopleGroups[0]} territory` : ''
-  return `${status}${territory} of ${nations}${peoplePhrase}`
-}
-
-function buildRelationshipAcknowledgement(
-  mode: WordingMode,
-  graph: RelationshipGraph,
-  match: MatchedRelationshipPlace,
-  selectedIds: string[],
-  options: WordingOptions = defaultWordingOptions,
-) {
-  const phrases = match.relationships.map((relationship) => relationshipCorePhrase(graph, relationship, selectedIds, options))
-  const core = phrases.length === 1 ? phrases[0] : formatList(phrases)
-  const affiliation = options.includePeopleGroupContext
-    ? match.relationships
-      .map((relationship) => buildAffiliationSentence(graph, relationship, selectedNationIdsForRelationship(graph, relationship, selectedIds)))
-      .filter(Boolean)
-      .join(' ')
-    : ''
-
-  if (mode === 'short') {
-    return `${match.place.name} is situated ${core}.`
-  }
-
-  if (mode === 'formal') {
-    return `We respectfully acknowledge that ${match.place.name} is situated ${core}. ${affiliation}`.trim()
-  }
-
-  if (mode === 'institutional') {
-    return `${match.place.name} is situated ${core}. This wording is generated from reviewed relationship records and should remain aligned with local guidance. ${affiliation}`.trim()
-  }
-
-  if (mode === 'educational') {
-    return `${match.place.name} is situated ${core}. This relationship connects place, Nation, people-group, treaty, and source context so users can review why the wording was suggested. ${affiliation}`.trim()
-  }
-
-  return `We are grateful to gather today at ${match.place.name}, situated ${core}. ${affiliation}`.trim()
-}
-
-function buildAcknowledgement(mode: WordingMode, nationNames: string[]) {
-  const names = nationNames.length > 0 ? nationNames.join(', ') : '[selected Nation(s)]'
-
-  if (mode === 'short') {
-    return `This place is connected to ${names}.`
-  }
-
-  if (mode === 'formal') {
-    return `We respectfully acknowledge that this place is connected to ${names}. We recognize their histories, cultures, rights, and ongoing relationships with these lands.`
-  }
-
-  if (mode === 'institutional') {
-    return `This institution is working from lands connected to ${names}. Confirm local wording, protocols, and review status before publication.`
-  }
-
-  if (mode === 'educational') {
-    return `This location has source signals connected to ${names}. Treat this as a learning and review prompt, not final wording.`
-  }
-
-  return `We are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
-}
-
-function parseFaults(faults: unknown[] | undefined) {
-  if (!faults) return []
-  return faults.map((fault) => {
-    if (typeof fault === 'string') return fault
-    if (fault && typeof fault === 'object' && 'value' in fault) return String(fault.value)
-    return String(fault)
-  })
-}
-
-async function geocodeAddress(address: string, signal?: AbortSignal): Promise<GeocodeResult> {
-  const params = new URLSearchParams({
-    addressString: address,
-    maxResults: '1',
-    interpolation: 'adaptive',
-    echo: 'true',
-    brief: 'false',
-    autoComplete: 'false',
-    setBack: '0',
-    outputSRS: '4326',
-  })
-
-  const response = await fetch(`${BC_GEOCODER_URL}?${params.toString()}`, { signal })
-  if (!response.ok) {
-    throw new Error(`BC Address Geocoder returned ${response.status}`)
-  }
-
-  const data = await response.json() as BcGeocoderResponse
-  const feature = data.features?.[0]
-  const coordinates = feature?.geometry?.coordinates
-  if (!feature || !coordinates || coordinates.length < 2) {
-    throw new Error('No B.C. address match found')
-  }
-
-  return {
-    fullAddress: feature.properties?.fullAddress ?? address,
-    longitude: coordinates[0],
-    latitude: coordinates[1],
-    score: feature.properties?.score ?? 0,
-    matchPrecision: feature.properties?.matchPrecision ?? 'Unknown',
-    precisionPoints: feature.properties?.precisionPoints ?? 0,
-    faults: parseFaults(feature.properties?.faults),
-    baseDataDate: data.baseDataDate ?? '',
-    searchTimestamp: data.searchTimestamp ?? '',
-  }
-}
+import { AcknowledgementDropMap, LocalMapBoundary } from './dev-acknowledgement/AcknowledgementMap'
+import { buildCandidatesFromLookups } from './dev-acknowledgement/candidates'
+import {
+  acknowledgementTemplatePrompts,
+  confidenceLabels,
+  confidenceStyles,
+  defaultWordingOptions,
+  INDIGENOUS_MANIFEST_DATA,
+  initialLookupState,
+  localLanguageResources,
+  pronunciationSources,
+  sourceMeta,
+  unresolvedDataGaps,
+  wordingModeLabels,
+} from './dev-acknowledgement/data'
+import { geocodeAddress, locationFromCoordinates } from './dev-acknowledgement/geocode'
+import {
+  loadRelationshipGraph,
+  localVerifiedMatches,
+  matchBoundaryRelationshipPlace,
+  matchRelationshipPlace,
+  queryNativeLandSource,
+  queryReserveSource,
+  queryTreatySources,
+  relationshipMatches,
+} from './dev-acknowledgement/spatial'
+import {
+  buildAcknowledgement,
+  buildRelationshipAcknowledgement,
+  formatList,
+  nationName,
+  selectedNationIdsForRelationship,
+} from './dev-acknowledgement/wording'
+import type {
+  DroppedLocation,
+  GeocodeResult,
+  GeocodeStatus,
+  IndigenousManifest,
+  MatchedRelationshipPlace,
+  MatchType,
+  RelationshipGraph,
+  SourceKey,
+  SourceLookupState,
+  SourceStatus,
+  WordingMode,
+  WordingOptions,
+} from './dev-acknowledgement/types'
 
 function sourceLookupMessage(status: SourceStatus) {
   if (status === 'loading') return 'Checking'
@@ -790,339 +73,6 @@ function sourceLookupMessage(status: SourceStatus) {
   if (status === 'error') return 'Issue'
   if (status === 'skipped') return 'Manual'
   return 'Ready'
-}
-
-function normalizeName(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/first nation|indian band|band|treaty area|treaty lands/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
-function candidateId(name: string) {
-  return normalizeName(name).replace(/\s+/g, '-') || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-}
-
-function findPronunciation(name: string) {
-  return pronunciationDatabase[normalizeName(name)]
-}
-
-function uniqueMatches(matches: SourceMatch[]) {
-  const seen = new Set<string>()
-  return matches.filter((match) => {
-    const key = `${match.source}:${normalizeName(match.name)}:${match.label}`
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
-type FeatureProperties = Record<string, unknown>
-
-const geojsonCache = new Map<string, Promise<GeoJSON.FeatureCollection>>()
-const relationshipGraphCache = new Map<string, Promise<RelationshipGraph>>()
-
-async function loadGeoJsonLayer(url: string): Promise<GeoJSON.FeatureCollection> {
-  const cached = geojsonCache.get(url)
-  if (cached) return cached
-  const request = fetch(url)
-    .then((response) => {
-      if (!response.ok) throw new Error(`Could not load ${url.split('/').pop()} (${response.status})`)
-      return response.json() as Promise<GeoJSON.FeatureCollection>
-    })
-    .catch((error: unknown) => {
-      // Drop the failed promise so a later lookup can retry the fetch.
-      geojsonCache.delete(url)
-      throw error instanceof Error ? error : new Error('Failed to load layer data')
-    })
-  geojsonCache.set(url, request)
-  return request
-}
-
-async function loadRelationshipGraph(url = RELATIONSHIP_GRAPH_DATA): Promise<RelationshipGraph> {
-  const cached = relationshipGraphCache.get(url)
-  if (cached) return cached
-  const request = fetch(url)
-    .then((response) => {
-      if (!response.ok) throw new Error(`Could not load relationship graph (${response.status})`)
-      return response.json() as Promise<RelationshipGraph>
-    })
-    .catch((error: unknown) => {
-      relationshipGraphCache.delete(url)
-      throw error instanceof Error ? error : new Error('Failed to load relationship graph')
-    })
-  relationshipGraphCache.set(url, request)
-  return request
-}
-
-function normalizeMatchText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
-}
-
-function relationshipPlaceScore(place: PlaceRecord, result: GeocodeResult, addressInput: string) {
-  const haystack = normalizeMatchText(`${result.fullAddress} ${addressInput}`)
-  const addressScore = (place.addressAliases ?? []).reduce((score, alias) => {
-    const normalizedAlias = normalizeMatchText(alias)
-    if (!normalizedAlias) return score
-    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length + (place.type === 'municipality' ? 0 : 1000)) : score
-  }, 0)
-
-  if (addressScore > 0) return addressScore
-
-  return [place.name, ...(place.locationNames ?? [])].reduce((score, alias) => {
-    const normalizedAlias = normalizeMatchText(alias)
-    if (!normalizedAlias) return score
-    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length) : score
-  }, 0)
-}
-
-function placeMatchType(place: PlaceRecord): MatchType {
-  return place.type === 'municipality' ? 'municipality' : 'place'
-}
-
-function matchRelationshipPlace(
-  graph: RelationshipGraph,
-  result: GeocodeResult,
-  addressInput: string,
-  enabledMatchTypes: Record<MatchType, boolean>,
-): MatchedRelationshipPlace | null {
-  const ranked = graph.places
-    .filter((place) => enabledMatchTypes[placeMatchType(place)])
-    .map((place) => ({ place, score: relationshipPlaceScore(place, result, addressInput) }))
-    .filter((entry) => entry.score > 0)
-    .sort((left, right) => right.score - left.score)
-
-  const place = ranked[0]?.place
-  if (!place) return null
-
-  const relationships = graph.placeRelationships.filter((relationship) => relationship.placeId === place.id)
-  return relationships.length > 0 ? { place, relationships } : null
-}
-
-function geometrySourceUrl(source: ReferenceAreaRecord['geometrySource']) {
-  if (!source) return null
-  if (source.dataset === 'native-land') return `${NATIVE_LAND_DATA_BASE}${source.category}.geojson`
-  if (source.category === 'first_nations_treaty_areas') return TREATY_AREAS_DATA
-  if (source.category === 'first_nations_treaty_lands') return TREATY_LANDS_DATA
-  return null
-}
-
-async function relationshipReferencesPoint(
-  graph: RelationshipGraph,
-  relationship: PlaceRelationshipRecord,
-  lat: number,
-  lng: number,
-) {
-  const pt = point([lng, lat])
-  const referenceAreas = relationship.referenceAreaIds
-    ?.map((areaId) => graph.referenceAreas?.find((area) => area.id === areaId))
-    .filter((area): area is ReferenceAreaRecord => Boolean(area?.geometrySource)) ?? []
-
-  for (const area of referenceAreas) {
-    const source = area.geometrySource
-    if (!source) continue
-    const url = geometrySourceUrl(source)
-    if (!url) continue
-    const collection = await loadGeoJsonLayer(url)
-    for (const feature of collection.features) {
-      const properties = (feature.properties ?? {}) as FeatureProperties
-      if (String(properties[source.property] ?? '') !== source.value) continue
-      const geometry = feature.geometry
-      if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) continue
-      if (booleanPointInPolygon(pt, geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon)) return true
-    }
-  }
-
-  return false
-}
-
-async function matchBoundaryRelationshipPlace(graph: RelationshipGraph, result: GeocodeResult): Promise<MatchedRelationshipPlace | null> {
-  for (const relationship of graph.placeRelationships) {
-    if (!relationship.referenceAreaIds?.length) continue
-    if (!(await relationshipReferencesPoint(graph, relationship, result.latitude, result.longitude))) continue
-    const place = graph.places.find((place) => place.id === relationship.placeId)
-    if (place) return { place, relationships: [relationship] }
-  }
-  return null
-}
-
-function relationshipMatches(graph: RelationshipGraph, match: MatchedRelationshipPlace): SourceMatch[] {
-  return uniqueMatches(match.relationships.flatMap((relationship) => (
-    relationship.nationIds.map((nationId) => ({
-      source: 'verified' as SourceKey,
-      name: nationName(graph, nationId),
-      label: `${match.place.name}: ${relationship.relationshipType.replace(/_/g, ' ')}`,
-      detail: [
-        ...relationship.sourceRefs.map((sourceRef) => sourceTitle(graph, sourceRef)),
-        ...(relationship.referenceAreaIds ?? []).map((areaId) => referenceAreaLabel(graph, areaId)),
-      ].join(' / '),
-    }))
-  )))
-}
-
-function joinDetail(parts: unknown[]) {
-  const detail = parts
-    .map((part) => (part == null ? '' : String(part).trim()))
-    .filter((part) => part && part.toLowerCase() !== 'blank')
-    .join(' / ')
-  return detail || undefined
-}
-
-async function queryPolygonLayer(
-  url: string,
-  lat: number,
-  lng: number,
-  toMatch: (properties: FeatureProperties) => SourceMatch | null,
-): Promise<SourceMatch[]> {
-  const collection = await loadGeoJsonLayer(url)
-  const pt = point([lng, lat])
-  const matches: SourceMatch[] = []
-  for (const feature of collection.features) {
-    const geometry = feature.geometry
-    if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) continue
-    if (!booleanPointInPolygon(pt, geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon)) continue
-    const match = toMatch((feature.properties ?? {}) as FeatureProperties)
-    if (match) matches.push(match)
-  }
-  return uniqueMatches(matches)
-}
-
-async function queryTreatySources(lat: number, lng: number) {
-  const [lands, areas] = await Promise.all([
-    queryPolygonLayer(TREATY_LANDS_DATA, lat, lng, (properties) => {
-      const name = String(properties.FIRST_NATION_NAME ?? properties.TREATY ?? '').trim()
-      if (!name) return null
-      return {
-        source: 'treaty',
-        name,
-        label: 'Treaty land intersection',
-        detail: joinDetail([properties.TREATY, properties.LAND_TYPE]),
-      }
-    }),
-    queryPolygonLayer(TREATY_AREAS_DATA, lat, lng, (properties) => {
-      const name = String(properties.FIRST_NATION_NAME ?? properties.TREATY ?? '').trim()
-      if (!name) return null
-      return {
-        source: 'treaty',
-        name,
-        label: 'Treaty area intersection',
-        detail: joinDetail([properties.TREATY, properties.AREA_TYPE, properties.GEOGRAPHIC_LOCATION]),
-      }
-    }),
-  ])
-  return uniqueMatches([...lands, ...areas])
-}
-
-async function queryReserveSource(lat: number, lng: number) {
-  return queryPolygonLayer(RESERVES_DATA, lat, lng, (properties) => {
-    const name = String(properties.BAND_NAME ?? properties.ENGLISH_NAME ?? '').trim()
-    if (!name) return null
-    return {
-      source: 'reserve',
-      name,
-      label: 'Reserve boundary intersection',
-      detail: joinDetail([properties.ENGLISH_NAME, properties.BAND_NUMBER ? `Band ${properties.BAND_NUMBER}` : null]),
-    }
-  })
-}
-
-async function queryNativeLandSource(lat: number, lng: number, signal?: AbortSignal) {
-  const results = await Promise.all(
-    NATIVE_LAND_LAYERS.map((layer) =>
-      queryPolygonLayer(layer.url, lat, lng, (properties) => {
-        if (signal?.aborted) return null
-        const name = String(properties.Name ?? '').trim()
-        if (!name) return null
-        return {
-          source: 'nativeLand',
-          name,
-          label: layer.label,
-          detail: joinDetail([properties.Slug, properties.description]),
-        }
-      }),
-    ),
-  )
-  return uniqueMatches(results.flat())
-}
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const toRad = (value: number) => (value * Math.PI) / 180
-  const earthRadiusKm = 6371
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(a)))
-}
-
-async function localVerifiedMatches(result: GeocodeResult): Promise<SourceMatch[]> {
-  const collection = await loadGeoJsonLayer(COMMUNITIES_DATA)
-  let nearest: { name: string; distanceKm: number; office: string } | null = null
-  for (const feature of collection.features) {
-    const coordinates = feature.geometry?.type === 'Point' ? feature.geometry.coordinates : null
-    if (!coordinates || coordinates.length < 2) continue
-    const properties = (feature.properties ?? {}) as FeatureProperties
-    const name = String(properties.FIRST_NATION_BC_NAME ?? properties.FIRST_NATION_FEDERAL_NAME ?? '').trim()
-    if (!name) continue
-    const distanceKm = haversineKm(result.latitude, result.longitude, coordinates[1], coordinates[0])
-    if (!nearest || distanceKm < nearest.distanceKm) {
-      nearest = { name, distanceKm, office: String(properties.BC_REGIONAL_OFFICE ?? '').trim() }
-    }
-  }
-
-  if (!nearest || nearest.distanceKm > LOCAL_COMMUNITY_MAX_KM) return []
-
-  return [{
-    source: 'local',
-    name: nearest.name,
-    label: 'Nearest First Nation community',
-    detail: `~${Math.round(nearest.distanceKm)} km away${nearest.office ? ` · ${nearest.office} office` : ''}`,
-  }]
-}
-
-function buildCandidatesFromLookups(lookups: Record<SourceKey, SourceLookupState>): CandidateNation[] {
-  const byName = new Map<string, CandidateNation>()
-  const sourceOrder: SourceKey[] = ['verified', 'local', 'nativeLand', 'treaty', 'reserve', 'cad']
-
-  Object.values(lookups).flatMap((lookup) => lookup.matches).forEach((match) => {
-    const key = normalizeName(match.name) || match.name
-    const existing = byName.get(key)
-    const nextSources = {
-      ...(existing?.sources ?? {}),
-      [match.source]: match.detail ? `${match.label}: ${match.detail}` : match.label,
-    }
-    const sourceCount = sourceOrder.filter((source) => nextSources[source]).length
-    const confidence: Confidence = nextSources.verified || sourceCount >= 2
-      ? 'strong'
-      : nextSources.reserve
-        ? 'strong'
-        : nextSources.treaty
-          ? 'moderate'
-          : 'review_required'
-    const sourceLabels = sourceOrder
-      .filter((source) => nextSources[source])
-      .map((source) => sourceMeta[source].label)
-
-    byName.set(key, {
-      id: candidateId(match.name),
-      name: existing?.name ?? match.name,
-      preferredName: existing?.preferredName ?? match.name,
-      confidence,
-      pronunciation: existing?.pronunciation ?? findPronunciation(match.name),
-      reason: `${match.name} appears in ${sourceLabels.join(', ')} for this location.`,
-      sources: nextSources,
-      notes: nextSources.verified
-        ? 'Curated relationship facts matched this place. Generated variants still need review before publication.'
-        : confidence === 'strong'
-        ? 'Multiple source signals are present. Final wording should still be reviewed.'
-        : 'Single-source match. Keep as context and confirm before using in final wording.',
-    })
-  })
-
-  return Array.from(byName.values()).sort((left, right) => {
-    const rank: Record<Confidence, number> = { strong: 0, moderate: 1, review_required: 2 }
-    return rank[left.confidence] - rank[right.confidence] || left.name.localeCompare(right.name)
-  })
 }
 
 export default function DevAcknowledgement() {
@@ -1151,6 +101,7 @@ export default function DevAcknowledgement() {
   const [wordingOptions, setWordingOptions] = useState<WordingOptions>(defaultWordingOptions)
   const [customWording, setCustomWording] = useState('')
   const [sourceLookups, setSourceLookups] = useState<Record<SourceKey, SourceLookupState>>(initialLookupState)
+  const [copied, setCopied] = useState(false)
 
   const candidates = useMemo(() => buildCandidatesFromLookups(sourceLookups), [sourceLookups])
   const automatedManifestSources = indigenousManifest?.automated ?? []
@@ -1244,7 +195,7 @@ export default function DevAcknowledgement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const runSourceLookups = async (result: GeocodeResult, matchTypes = enabledMatchTypes) => {
+  const runSourceLookups = useCallback(async (result: GeocodeResult, matchTypes = enabledMatchTypes, addressForMatch = address) => {
     const controller = new AbortController()
     setSourceLookups({
       verified: { status: 'loading', matches: [] },
@@ -1263,7 +214,7 @@ export default function DevAcknowledgement() {
     loadRelationshipGraph()
       .then(async (graph) => {
         setRelationshipGraph(graph)
-        const match = matchRelationshipPlace(graph, result, address, matchTypes)
+        const match = matchRelationshipPlace(graph, result, addressForMatch, matchTypes)
           ?? (matchTypes.boundary ? await matchBoundaryRelationshipPlace(graph, result) : null)
         setMatchedRelationshipPlace(match)
         settle('verified', {
@@ -1309,7 +260,7 @@ export default function DevAcknowledgement() {
         matches: [],
         message: error instanceof Error ? error.message : 'Community reference lookup failed.',
       }))
-  }
+  }, [address, enabledMatchTypes])
 
   const handleGeocode = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault()
@@ -1327,13 +278,22 @@ export default function DevAcknowledgement() {
       const result = await geocodeAddress(trimmedAddress)
       setGeocodeResult(result)
       setGeocodeStatus('success')
-      void runSourceLookups(result)
+      void runSourceLookups(result, enabledMatchTypes, trimmedAddress)
     } catch (error) {
       setGeocodeResult(null)
       setGeocodeStatus('error')
       setGeocodeError(error instanceof Error ? error.message : 'Unable to geocode this address')
     }
   }
+
+  const handleDroppedLocation = useCallback((location: DroppedLocation) => {
+    const result = locationFromCoordinates(location)
+    setGeocodeResult(result)
+    setGeocodeStatus('success')
+    setGeocodeError(null)
+    setAddress(result.fullAddress)
+    void runSourceLookups(result, enabledMatchTypes, result.fullAddress)
+  }, [enabledMatchTypes, runSourceLookups])
 
   const toggleSource = (source: SourceKey) => {
     setEnabledSources((current) => ({ ...current, [source]: !current[source] }))
@@ -1359,6 +319,18 @@ export default function DevAcknowledgement() {
     ))
   }
 
+  const handleCopyWording = useCallback(async () => {
+    const text = customWording.trim()
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }, [customWording])
+
   return (
     <div className="min-h-full bg-stone-50 pt-12 text-slate-950 sm:pt-0">
       <div className="border-b bg-white">
@@ -1375,9 +347,9 @@ export default function DevAcknowledgement() {
                 selecting candidate Nations, and generating editable wording with review guidance.
               </p>
             </div>
-            <Button className="w-full bg-teal-700 hover:bg-teal-800 sm:w-auto">
-              <FileText className="h-4 w-4" />
-              Save verified wording
+            <Button variant="outline" onClick={handleCopyWording} className="w-full sm:w-auto">
+              {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+              {copied ? 'Copied' : 'Copy wording'}
             </Button>
           </div>
 
@@ -1483,28 +455,12 @@ export default function DevAcknowledgement() {
           </section>
 
           <section className="rounded-lg border bg-white p-4 shadow-sm">
-            <div className="mb-2 flex items-center gap-2">
-              <Database className="h-4 w-4 text-teal-700" />
-              <h2 className="text-sm font-semibold">Pipeline</h2>
-            </div>
-            <div className="space-y-3 text-xs text-slate-600">
-              {['BC Address Geocoder', 'Point-in-polygon lookup', 'Source comparison', 'User-selected wording'].map((step, index) => (
-                <div key={step} className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 font-semibold text-slate-700">
-                    {index + 1}
-                  </span>
-                  <span>{step}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <Database className="h-4 w-4 text-teal-700" />
-              <h2 className="text-sm font-semibold">Automated Sources</h2>
+              <h2 className="text-sm font-semibold">Data Provenance</h2>
             </div>
             <div className="space-y-3 text-xs leading-5 text-slate-600">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Automated</div>
               {automatedManifestSources.map((source) => {
                 const href = source.sourceUrl ?? source.url ?? source.output ?? INDIGENOUS_MANIFEST_DATA
                 return (
@@ -1534,15 +490,7 @@ export default function DevAcknowledgement() {
                   bcdatamapper manifest not loaded yet.
                 </div>
               )}
-            </div>
-          </section>
-
-          <section className="rounded-lg border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-teal-700" />
-              <h2 className="text-sm font-semibold">Manual Sources</h2>
-            </div>
-            <div className="space-y-3 text-xs leading-5 text-slate-600">
+              <div className="pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Manual</div>
               {manualManifestSources.map((source) => {
                 const href = source.url ?? source.sourceUrl ?? INDIGENOUS_MANIFEST_DATA
                 return (
@@ -1572,15 +520,10 @@ export default function DevAcknowledgement() {
                   Manual bcdatamapper source metadata not loaded yet.
                 </div>
               )}
-            </div>
-          </section>
-
-          <section className="rounded-lg border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-700" />
-              <h2 className="text-sm font-semibold">Data Gaps</h2>
-            </div>
-            <div className="space-y-3 text-xs leading-5 text-slate-600">
+              <div className="flex items-center gap-1.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Gaps
+              </div>
               {unresolvedDataGaps.map((gap) => (
                 <a
                   key={gap.name}
@@ -1605,23 +548,37 @@ export default function DevAcknowledgement() {
         </aside>
 
         <section className="order-1 space-y-4 lg:order-2">
-          <div className="grid overflow-hidden rounded-lg border bg-white shadow-sm md:grid-cols-[1fr_240px]">
-            <div className="relative min-h-56 bg-[linear-gradient(135deg,#d8eee8_0%,#f4f0df_45%,#dbe7f3_100%)] sm:min-h-72">
-              <div className="absolute inset-0 opacity-55 [background-image:radial-gradient(circle_at_20%_20%,rgba(15,118,110,.18),transparent_22%),radial-gradient(circle_at_72%_40%,rgba(180,83,9,.15),transparent_24%),linear-gradient(90deg,rgba(15,23,42,.08)_1px,transparent_1px),linear-gradient(rgba(15,23,42,.08)_1px,transparent_1px)] [background-size:auto,auto,48px_48px,48px_48px]" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-white bg-teal-700 text-white shadow-lg">
-                  <MapPin className="h-6 w-6" />
-                </span>
-                <span className="max-w-56 rounded-md bg-white/95 px-3 py-1 text-center text-xs font-semibold shadow">
-                  {geocodeStatus === 'success' ? 'BC geocoded point' : geocodeStatus === 'loading' ? 'Looking up address' : 'Address lookup needed'}
+          <div className="grid overflow-hidden rounded-lg border bg-white shadow-sm xl:grid-cols-[minmax(0,1fr)_260px]">
+            <div className="relative min-h-[20rem]">
+              <LocalMapBoundary result={geocodeResult}>
+                <AcknowledgementDropMap
+                  result={geocodeResult}
+                  loading={geocodeStatus === 'loading'}
+                  onDrop={handleDroppedLocation}
+                />
+              </LocalMapBoundary>
+            </div>
+            <div className="border-t p-4 xl:border-l xl:border-t-0">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold">Location</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Search an address, click the map, or drag the pin.
+                  </p>
+                </div>
+                <span className={cn(
+                  'rounded px-2 py-1 text-[10px] font-semibold uppercase',
+                  geocodeStatus === 'success' && 'bg-emerald-100 text-emerald-800',
+                  geocodeStatus === 'loading' && 'bg-sky-100 text-sky-800',
+                  geocodeStatus === 'error' && 'bg-red-100 text-red-800',
+                  geocodeStatus === 'idle' && 'bg-slate-100 text-slate-600',
+                )}>
+                  {geocodeStatus}
                 </span>
               </div>
-            </div>
-            <div className="border-t p-4 md:border-l md:border-t-0">
-              <h2 className="text-sm font-semibold">Location Result</h2>
-              <dl className="mt-3 space-y-3 text-sm">
+              <dl className="mt-4 space-y-3 text-sm">
                 <div>
-                  <dt className="text-xs uppercase text-slate-500">Normalized address</dt>
+                  <dt className="text-xs uppercase text-slate-500">Selected point</dt>
                   <dd className="mt-1 break-words font-medium">{geocodeResult?.fullAddress ?? address}</dd>
                 </div>
                 <div>
@@ -1632,7 +589,7 @@ export default function DevAcknowledgement() {
                 </div>
                 <div>
                   <dt className="text-xs uppercase text-slate-500">Geocoder</dt>
-                  <dd className="mt-1">BC Address Geocoder</dd>
+                  <dd className="mt-1">{geocodeResult?.matchPrecision === 'Map point' ? 'Map drop' : 'BC Address Geocoder'}</dd>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1645,6 +602,14 @@ export default function DevAcknowledgement() {
                   </div>
                 </div>
               </dl>
+              <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                {(['verified', 'nativeLand', 'treaty'] as SourceKey[]).map((source) => (
+                  <div key={source} className="rounded-md border bg-slate-50 px-2 py-2">
+                    <div className="text-base font-semibold text-slate-950">{sourceLookups[source].matches.length}</div>
+                    <div className="mt-0.5 truncate text-slate-500">{sourceMeta[source].label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1883,9 +848,10 @@ export default function DevAcknowledgement() {
           <section className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <Globe2 className="h-4 w-4 text-teal-700" />
-              <h2 className="text-sm font-semibold">Pronunciation Sources</h2>
+              <h2 className="text-sm font-semibold">Language References</h2>
             </div>
             <div className="space-y-3 text-xs leading-5 text-slate-600">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Pronunciation</div>
               {pronunciationSources.map((source) => (
                 <a
                   key={source.name}
@@ -1908,15 +874,7 @@ export default function DevAcknowledgement() {
               <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">
                 Audio links are only shown when they come from a Nation site, FPCC permission/API access, or another source with clear reuse rights.
               </div>
-            </div>
-          </section>
-
-          <section className="rounded-lg border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-teal-700" />
-              <h2 className="text-sm font-semibold">Local Language Resources</h2>
-            </div>
-            <div className="space-y-3 text-xs leading-5 text-slate-600">
+              <div className="pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Local resources</div>
               {localLanguageResources.map((resource) => (
                 <div key={resource.name} className="rounded-md border p-3">
                   <div className="flex items-start justify-between gap-2">
@@ -1946,51 +904,6 @@ export default function DevAcknowledgement() {
                       )}
                     </div>
                   )}
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-lg border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <Globe2 className="h-4 w-4 text-teal-700" />
-              <h2 className="text-sm font-semibold">Source Transparency</h2>
-            </div>
-            <div className="space-y-3 text-xs leading-5 text-slate-600">
-              {(Object.keys(sourceMeta) as SourceKey[]).map((source) => (
-                <div key={source} className="rounded-md border p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-900">{sourceMeta[source].label}</span>
-                    <a href={sourceUrls[source]} target="_blank" rel="noreferrer" aria-label={`Open ${sourceMeta[source].label} source`}>
-                      <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
-                    </a>
-                  </div>
-                  <p className="mt-1">{sourceMeta[source].description}</p>
-                  <p className="mt-2 font-medium text-slate-700">
-                    {sourceLookupMessage(sourceLookups[source].status)}
-                    {sourceLookups[source].matches.length > 0 && ` · ${sourceLookups[source].matches.length} match${sourceLookups[source].matches.length === 1 ? '' : 'es'}`}
-                  </p>
-                  {sourceLookups[source].message && <p className="mt-1">{sourceLookups[source].message}</p>}
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-lg border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-teal-700" />
-              <h2 className="text-sm font-semibold">Practice Sources</h2>
-            </div>
-            <div className="space-y-3 text-xs leading-5 text-slate-600">
-              {acknowledgementPracticeSources.map((source) => (
-                <div key={source.name} className="rounded-md border p-3">
-                  <div className="font-semibold text-slate-900">{source.name}</div>
-                  <div className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
-                    {source.status}
-                  </div>
-                  <p className="mt-2">{source.use}</p>
-                  <p className="mt-1 text-slate-500">{source.limitation}</p>
-                  <p className="mt-2 break-words font-mono text-[10px] text-slate-400">{source.path}</p>
                 </div>
               ))}
             </div>

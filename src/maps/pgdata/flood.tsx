@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Waves } from 'lucide-react'
 import { MapClusterLayer, MapPopup } from '@/components/ui/map'
-import { MapFillLayer } from '@/components/ui/map-layers'
+import { MapLineLayer } from '@/components/ui/map-layers'
 import { InlineAlert, LegendItem, MapGradientLegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 
@@ -70,7 +70,7 @@ interface FloodStationProperties {
 
 type FloodStationFeature = GeoJSON.Feature<GeoJSON.Point, FloodStationProperties>
 type FloodStationCollection = GeoJSON.FeatureCollection<GeoJSON.Point, FloodStationProperties>
-type FloodBasinCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, Record<string, unknown>>
+type FloodBasinCollection = GeoJSON.FeatureCollection<GeoJSON.LineString | GeoJSON.MultiLineString, Record<string, unknown>>
 
 const RFC_ARCGIS_ROOT = 'https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services'
 
@@ -127,10 +127,24 @@ async function fetchArcGis<T>(url: string, signal: AbortSignal): Promise<ArcGisR
 }
 
 function stationGeometry<T extends { LATITUDE?: number; LONGITUDE?: number }>(feature: ArcGisFeature<T>): [number, number] | null {
-  const lon = feature.geometry?.x ?? feature.attributes?.LONGITUDE
-  const lat = feature.geometry?.y ?? feature.attributes?.LATITUDE
+  const attrLon = feature.attributes?.LONGITUDE
+  const attrLat = feature.attributes?.LATITUDE
+  if (
+    typeof attrLon === 'number' &&
+    typeof attrLat === 'number' &&
+    Number.isFinite(attrLon) &&
+    Number.isFinite(attrLat) &&
+    Math.abs(attrLon) <= 180 &&
+    Math.abs(attrLat) <= 90
+  ) {
+    return [attrLon, attrLat]
+  }
+
+  const lon = feature.geometry?.x
+  const lat = feature.geometry?.y
   if (typeof lon !== 'number' || typeof lat !== 'number') return null
   if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null
+  if (Math.abs(lon) > 180 || Math.abs(lat) > 90) return null
   return [lon, lat]
 }
 
@@ -368,7 +382,7 @@ function FloodDetailRow({ label, value }: { label: string; value: string }) {
 }
 
 export function FloodLayer({ flood }: { flood: FloodState }) {
-  const basinFillColor = useMemo(() => ([
+  const basinLineColor = useMemo(() => ([
     'match',
     ['get', 'BASIN'],
     'FRASER',
@@ -397,13 +411,11 @@ export function FloodLayer({ flood }: { flood: FloodState }) {
   return (
     <>
       {flood.showBasins && flood.basins.features.length > 0 && (
-        <MapFillLayer
+        <MapLineLayer
           data={flood.basins}
-          fillColor={basinFillColor}
-          fillOpacity={0.12}
-          lineColor="#0f172a"
-          lineWidth={0.8}
-          lineOpacity={0.4}
+          color={basinLineColor}
+          width={1.2}
+          opacity={0.55}
           idProperty="BASIN"
           visible
         />
