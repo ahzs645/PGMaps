@@ -12,6 +12,7 @@ import {
 import type { RelationshipGraph, SpeakerPerspective, WordingMode } from '@/lib/acknowledgement/engine'
 import { COMMUNITIES_DATA, wordingModeLabels } from '../data'
 import { organizations, type OrgRecord } from '../organizations'
+import { fpccLanguageNations } from '../organizations/fpcc'
 import { createNationResolver } from '../organizations/nations'
 import { loadGeoJsonLayer, resolveFpccLanguagesAtPoint, resolveNationsAtPoint } from '../spatial'
 import { LocalMapBoundary } from './AcknowledgementMap'
@@ -229,13 +230,22 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
                       <div className="mt-0.5 text-slate-800">
                         {point.status === 'loading' && 'Resolving…'}
                         {point.status === 'error' && 'Lookup failed'}
-                        {point.status === 'done' && (point.nationNames.length ? point.nationNames.join(', ') : 'No territory match')}
+                        {point.status === 'done' && (
+                          <>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Native Land</span>{' '}
+                            {point.nationNames.length ? point.nationNames.join(', ') : 'no territory match'}
+                          </>
+                        )}
                       </div>
-                      {point.status === 'done' && point.languages && point.languages.length > 0 && (
-                        <div className="mt-0.5 text-[10px] leading-4 text-teal-800">
-                          <span className="font-semibold uppercase tracking-wide text-slate-400">FPCC language</span> · {point.languages.join(', ')}
-                        </div>
-                      )}
+                      {point.status === 'done' && point.languages && point.languages.length > 0 && (() => {
+                        const langNations = fpccLanguageNations(point.languages)
+                        return (
+                          <div className="mt-0.5 text-[10px] leading-4 text-teal-800">
+                            <span className="font-semibold uppercase tracking-wide text-slate-400">FPCC</span> · {point.languages.join(', ')}
+                            {langNations.length > 0 && <span className="text-teal-900"> → {langNations.join(', ')}</span>}
+                          </div>
+                        )
+                      })()}
                     </div>
                     <button type="button" onClick={() => removePoint(point.id)} aria-label="Remove point" className="flex-none text-slate-400 hover:text-slate-700">
                       <X className="h-3.5 w-3.5" />

@@ -60,7 +60,10 @@ const pathMappings = [
   ['datascrapers/food-health/output/restaurant-classifications.json', 'restaurant-classifications.json'],
   ['datascrapers/food-health/output/restaurant-location-overrides.json', 'restaurant-location-overrides.json'],
   ['datascrapers/bc/indigenous/snapshot', 'indigenous'],
-  ['datascrapers/fpcc/output', 'fpcc'],
+  // Only the geojson map layers — not the multi-MB scraper state (nuxt-state.json, grants, source html).
+  ['datascrapers/fpcc/output/language-geo.geojson', 'fpcc/language-geo.geojson'],
+  ['datascrapers/fpcc/output/community-geo.geojson', 'fpcc/community-geo.geojson'],
+  ['datascrapers/fpcc/output/placename-geo.geojson', 'fpcc/placename-geo.geojson'],
   ['datascrapers/native-land/snapshot', 'native-land'],
 ]
 

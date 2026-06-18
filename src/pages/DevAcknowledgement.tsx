@@ -16,6 +16,7 @@ import { SourceLayersPanel } from './dev-acknowledgement/components/SourceLayers
 import { TemplatePrompts } from './dev-acknowledgement/components/TemplatePrompts'
 import { VariantControls, type AcknowledgementScope, type WordingToggle } from './dev-acknowledgement/components/VariantControls'
 import { VerifiedRelationshipMatch } from './dev-acknowledgement/components/VerifiedRelationshipMatch'
+import { WordingPreview } from './dev-acknowledgement/components/WordingPreview'
 
 export default function DevAcknowledgement() {
   const [enabledMatchTypes, setEnabledMatchTypes] = useState<Record<MatchType, boolean>>(() => ({
@@ -42,7 +43,7 @@ export default function DevAcknowledgement() {
   const [regionName, setRegionName] = useState('British Columbia')
   const [customWording, setCustomWording] = useState('')
   const [copied, setCopied] = useState(false)
-  const [activeTab, setActiveTab] = useState<'single' | 'multi'>('single')
+  const [activeTab, setActiveTab] = useState<'mapNations' | 'wording'>('mapNations')
 
   const {
     address,
@@ -151,7 +152,7 @@ export default function DevAcknowledgement() {
 
       <div className="border-b bg-white">
         <div className="mx-auto flex max-w-7xl gap-1 px-3 sm:px-6 lg:px-8">
-          {([['single', 'Single location'], ['multi', 'Multi-point']] as const).map(([value, label]) => (
+          {([['mapNations', 'Map & Nations'], ['wording', 'Wording']] as const).map(([value, label]) => (
             <button
               key={value}
               type="button"
@@ -168,36 +169,44 @@ export default function DevAcknowledgement() {
         </div>
       </div>
 
-      {activeTab === 'single' && (
-      <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[280px_1fr_360px] lg:gap-5 lg:px-8">
-        <aside className="order-3 space-y-4 lg:order-1">
-          <SourceLayersPanel sourceLookups={sourceLookups} enabledSources={enabledSources} onToggle={toggleSource} />
-          <MatchTypesPanel enabledMatchTypes={enabledMatchTypes} onToggle={toggleMatchType} />
-          <DataProvenancePanel automatedSources={automatedManifestSources} manualSources={manualManifestSources} />
-        </aside>
+      {activeTab === 'mapNations' && (
+        <>
+          <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:px-8">
+            <section className="space-y-4">
+              <LocationPanel
+                geocodeResult={geocodeResult}
+                geocodeStatus={geocodeStatus}
+                address={address}
+                sourceLookups={sourceLookups}
+                onDrop={dropLocation}
+              />
+              <SourceLayersPanel sourceLookups={sourceLookups} enabledSources={enabledSources} onToggle={toggleSource} />
+              <MatchTypesPanel enabledMatchTypes={enabledMatchTypes} onToggle={toggleMatchType} />
+              <DataProvenancePanel automatedSources={automatedManifestSources} manualSources={manualManifestSources} />
+            </section>
 
-        <section className="order-1 space-y-4 lg:order-2">
-          <LocationPanel
-            geocodeResult={geocodeResult}
-            geocodeStatus={geocodeStatus}
-            address={address}
-            sourceLookups={sourceLookups}
-            onDrop={dropLocation}
-          />
+            <aside className="space-y-4">
+              <WordingPreview wording={customWording} copied={copied} onCopy={handleCopyWording} />
 
-          {relationshipGraph && matchedRelationshipPlace && enabledSources.verified && (
-            <VerifiedRelationshipMatch graph={relationshipGraph} match={matchedRelationshipPlace} selectedIds={selectedIds} />
-          )}
+              {relationshipGraph && matchedRelationshipPlace && enabledSources.verified && (
+                <VerifiedRelationshipMatch graph={relationshipGraph} match={matchedRelationshipPlace} selectedIds={selectedIds} />
+              )}
 
-          <CandidateNations
-            candidates={visibleCandidates}
-            selectedIds={selectedIds}
-            enabledSources={enabledSources}
-            onToggle={toggleCandidate}
-          />
-        </section>
+              <CandidateNations
+                candidates={visibleCandidates}
+                selectedIds={selectedIds}
+                enabledSources={enabledSources}
+                onToggle={toggleCandidate}
+              />
+            </aside>
+          </main>
 
-        <aside className="order-2 space-y-4 lg:order-3">
+          <MultiPointComposer graph={relationshipGraph} />
+        </>
+      )}
+
+      {activeTab === 'wording' && (
+        <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:px-8">
           <VariantControls
             wordingMode={wordingMode}
             onWordingModeChange={setWordingMode}
@@ -214,13 +223,12 @@ export default function DevAcknowledgement() {
             customWording={customWording}
             onCustomWordingChange={setCustomWording}
           />
-          <TemplatePrompts />
-          <LanguageReferences />
-        </aside>
-      </main>
+          <aside className="space-y-4">
+            <TemplatePrompts />
+            <LanguageReferences />
+          </aside>
+        </main>
       )}
-
-      {activeTab === 'multi' && <MultiPointComposer graph={relationshipGraph} />}
     </div>
   )
 }
