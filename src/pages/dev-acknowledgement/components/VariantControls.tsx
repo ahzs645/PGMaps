@@ -129,6 +129,7 @@ export function VariantControls({
           />
         )}
       </div>
+      {scope !== 'regional' && (
       <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
         {([
           ['includeTreatyContext', 'Treaty context', 'Include phrases such as Treaty 8 territory or Nisg̱a’a Treaty territory when present.'],
@@ -153,6 +154,7 @@ export function VariantControls({
           </button>
         ))}
       </div>
+      )}
       <textarea
         value={customWording}
         onChange={(event) => onCustomWordingChange(event.target.value)}

@@ -145,16 +145,16 @@ function CandidateRow({ candidate, selected, enabledSources, onToggle }: Candida
             <p className="mt-2 text-xs leading-5 text-slate-500">{candidate.notes}</p>
           </div>
           <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
-            {SOURCE_KEYS.map((source) => (
+            {SOURCE_KEYS.filter((source) => candidate.sources[source]).map((source) => (
               <div
                 key={source}
                 className={cn(
                   'rounded-md border p-2',
-                  candidate.sources[source] && enabledSources[source] ? 'border-teal-200 bg-teal-50' : 'border-slate-100 bg-slate-50 text-slate-400',
+                  enabledSources[source] ? 'border-teal-200 bg-teal-50' : 'border-slate-100 bg-slate-50 text-slate-400',
                 )}
               >
                 <div className="font-medium">{sourceMeta[source].label}</div>
-                <div className="mt-1 leading-4">{candidate.sources[source] ?? 'No match'}</div>
+                <div className="mt-1 leading-4">{candidate.sources[source]}</div>
               </div>
             ))}
           </div>

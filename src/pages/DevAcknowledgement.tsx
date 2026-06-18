@@ -9,9 +9,9 @@ import { AcknowledgementHeader } from './dev-acknowledgement/components/Acknowle
 import { CandidateNations } from './dev-acknowledgement/components/CandidateNations'
 import { DataProvenancePanel } from './dev-acknowledgement/components/DataProvenancePanel'
 import { LanguageReferences } from './dev-acknowledgement/components/LanguageReferences'
-import { LocationPanel } from './dev-acknowledgement/components/LocationPanel'
 import { MatchTypesPanel } from './dev-acknowledgement/components/MatchTypesPanel'
 import { MultiPointComposer } from './dev-acknowledgement/components/MultiPointComposer'
+import { OrganizationsPanel } from './dev-acknowledgement/components/OrganizationsPanel'
 import { SourceLayersPanel } from './dev-acknowledgement/components/SourceLayersPanel'
 import { TemplatePrompts } from './dev-acknowledgement/components/TemplatePrompts'
 import { VariantControls, type AcknowledgementScope, type WordingToggle } from './dev-acknowledgement/components/VariantControls'
@@ -43,7 +43,13 @@ export default function DevAcknowledgement() {
   const [regionName, setRegionName] = useState('British Columbia')
   const [customWording, setCustomWording] = useState('')
   const [copied, setCopied] = useState(false)
-  const [activeTab, setActiveTab] = useState<'mapNations' | 'wording'>('mapNations')
+  const [activeTab, setActiveTab] = useState<'mapNations' | 'wording' | 'organizations'>('mapNations')
+  const [orgToLoad, setOrgToLoad] = useState<string | null>(null)
+
+  const loadOrgOnMap = useCallback((id: string) => {
+    setOrgToLoad(id)
+    setActiveTab('mapNations')
+  }, [])
 
   const {
     address,
@@ -152,7 +158,7 @@ export default function DevAcknowledgement() {
 
       <div className="border-b bg-white">
         <div className="mx-auto flex max-w-7xl gap-1 px-3 sm:px-6 lg:px-8">
-          {([['mapNations', 'Map & Nations'], ['wording', 'Wording']] as const).map(([value, label]) => (
+          {([['mapNations', 'Map & Nations'], ['wording', 'Wording'], ['organizations', 'Organizations']] as const).map(([value, label]) => (
             <button
               key={value}
               type="button"
@@ -170,39 +176,30 @@ export default function DevAcknowledgement() {
       </div>
 
       {activeTab === 'mapNations' && (
-        <>
-          <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:px-8">
-            <section className="space-y-4">
-              <LocationPanel
-                geocodeResult={geocodeResult}
-                geocodeStatus={geocodeStatus}
-                address={address}
-                sourceLookups={sourceLookups}
-                onDrop={dropLocation}
-              />
-              <SourceLayersPanel sourceLookups={sourceLookups} enabledSources={enabledSources} onToggle={toggleSource} />
-              <MatchTypesPanel enabledMatchTypes={enabledMatchTypes} onToggle={toggleMatchType} />
-              <DataProvenancePanel automatedSources={automatedManifestSources} manualSources={manualManifestSources} />
-            </section>
+        <MultiPointComposer
+          graph={relationshipGraph}
+          addressPoint={geocodeResult}
+          onActivePoint={(latitude, longitude) => dropLocation({ latitude, longitude })}
+          orgToLoad={orgToLoad}
+          onOrgLoaded={() => setOrgToLoad(null)}
+        >
+          <WordingPreview wording={customWording} copied={copied} onCopy={handleCopyWording} />
 
-            <aside className="space-y-4">
-              <WordingPreview wording={customWording} copied={copied} onCopy={handleCopyWording} />
+          {relationshipGraph && matchedRelationshipPlace && enabledSources.verified && (
+            <VerifiedRelationshipMatch graph={relationshipGraph} match={matchedRelationshipPlace} selectedIds={selectedIds} />
+          )}
 
-              {relationshipGraph && matchedRelationshipPlace && enabledSources.verified && (
-                <VerifiedRelationshipMatch graph={relationshipGraph} match={matchedRelationshipPlace} selectedIds={selectedIds} />
-              )}
+          <CandidateNations
+            candidates={visibleCandidates}
+            selectedIds={selectedIds}
+            enabledSources={enabledSources}
+            onToggle={toggleCandidate}
+          />
 
-              <CandidateNations
-                candidates={visibleCandidates}
-                selectedIds={selectedIds}
-                enabledSources={enabledSources}
-                onToggle={toggleCandidate}
-              />
-            </aside>
-          </main>
-
-          <MultiPointComposer graph={relationshipGraph} />
-        </>
+          <SourceLayersPanel sourceLookups={sourceLookups} enabledSources={enabledSources} onToggle={toggleSource} />
+          <MatchTypesPanel enabledMatchTypes={enabledMatchTypes} onToggle={toggleMatchType} />
+          <DataProvenancePanel automatedSources={automatedManifestSources} manualSources={manualManifestSources} />
+        </MultiPointComposer>
       )}
 
       {activeTab === 'wording' && (
@@ -229,6 +226,8 @@ export default function DevAcknowledgement() {
           </aside>
         </main>
       )}
+
+      {activeTab === 'organizations' && <OrganizationsPanel onLoadOrg={loadOrgOnMap} />}
     </div>
   )
 }

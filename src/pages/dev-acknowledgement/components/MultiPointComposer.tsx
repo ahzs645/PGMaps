@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Check, Copy, ExternalLink, MapPin, Trash2, X } from 'lucide-react'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
@@ -15,6 +15,7 @@ import { organizations, type OrgRecord } from '../organizations'
 import { fpccLanguageNations } from '../organizations/fpcc'
 import { createNationResolver } from '../organizations/nations'
 import { loadGeoJsonLayer, resolveFpccLanguagesAtPoint, resolveNationsAtPoint } from '../spatial'
+import type { GeocodeResult } from '../types'
 import { LocalMapBoundary } from './AcknowledgementMap'
 
 type MappedPoint = {
@@ -50,6 +51,16 @@ function MapClickLayer({ onAdd }: { onAdd: (lat: number, lng: number) => void })
   return null
 }
 
+/** Recenters the map on the active point so the focused location stays in view. */
+function FlyToActive({ point }: { point: { latitude: number; longitude: number } | null }) {
+  const { map, isLoaded } = useMap()
+  useEffect(() => {
+    if (!map || !isLoaded || !point) return
+    map.flyTo({ center: [point.longitude, point.latitude], zoom: Math.max(map.getZoom(), 9), duration: 700 })
+  }, [map, isLoaded, point])
+  return null
+}
+
 function CopyButton({ text, copiedKey, onCopy, id }: { text: string; copiedKey: string | null; onCopy: (text: string, id: string) => void; id: string }) {
   const done = copiedKey === id
   return (
@@ -78,8 +89,23 @@ function Chips({ label, names, tone }: { label: string; names: string[]; tone: '
   )
 }
 
-export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null }) {
+type MultiPointComposerProps = {
+  graph: RelationshipGraph | null
+  /** Called when the focused point changes, so the page can run the full source breakdown for it. */
+  onActivePoint?: (latitude: number, longitude: number) => void
+  /** The single-location geocode/drop result, mirrored onto the map as the active point. */
+  addressPoint?: GeocodeResult | null
+  /** Org id to load as campus points (set from the Organizations tab). */
+  orgToLoad?: string | null
+  /** Called once the requested org has been loaded, so the parent can reset its request. */
+  onOrgLoaded?: () => void
+  /** Active-point detail (wording preview, candidates, source panels) rendered beside the map. */
+  children?: ReactNode
+}
+
+export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLoad, onOrgLoaded, children }: MultiPointComposerProps) {
   const [points, setPoints] = useState<MappedPoint[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
   const [selectedOrgId, setSelectedOrgId] = useState('')
   const [mode, setMode] = useState<WordingMode>('institutional')
   const [perspective, setPerspective] = useState<SpeakerPerspective>('organization')
@@ -88,6 +114,7 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [gisFeatures, setGisFeatures] = useState<GeoJSON.Feature[] | undefined>(undefined)
   const counter = useRef(0)
+  const syncedAddressKey = useRef<string | null>(null)
 
   // Load the BC First Nation Community Locations GIS dataset to validate/enrich Nation names.
   useEffect(() => {
@@ -112,13 +139,20 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
   const addPoint = useCallback((latitude: number, longitude: number) => {
     const pt: MappedPoint = { id: `p${counter.current++}`, latitude, longitude, status: 'loading', nationNames: [] }
     setPoints((current) => [...current, pt])
+    setActiveId(pt.id)
     setSelectedOrgId('')
     resolve(pt)
-  }, [resolve])
+    onActivePoint?.(latitude, longitude)
+  }, [resolve, onActivePoint])
+
+  const selectPoint = useCallback((pt: MappedPoint) => {
+    setActiveId(pt.id)
+    onActivePoint?.(pt.latitude, pt.longitude)
+  }, [onActivePoint])
 
   const loadOrg = useCallback((org: OrgRecord | null) => {
     setSelectedOrgId(org?.id ?? '')
-    if (!org) { setPoints([]); return }
+    if (!org) { setPoints([]); setActiveId(null); return }
     setPerspective('organization')
     setOrganizationName(org.name)
     if (org.framing === 'regional') setRegionName('British Columbia')
@@ -128,9 +162,56 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
     }))
     setPoints(next)
     next.forEach(resolve)
-  }, [resolve])
+    const first = next[0]
+    if (first) {
+      setActiveId(first.id)
+      onActivePoint?.(first.latitude, first.longitude)
+    }
+  }, [resolve, onActivePoint])
 
-  const removePoint = (id: string) => setPoints((current) => current.filter((point) => point.id !== id))
+  const removePoint = (id: string) => {
+    setPoints((current) => current.filter((point) => point.id !== id))
+    setActiveId((current) => (current === id ? null : current))
+  }
+
+  // Mirror an address geocode (from the header search / initial sample) onto the map as a point.
+  // Map drops are added via addPoint, so skip them here to avoid duplicates / loops.
+  useEffect(() => {
+    if (!addressPoint || addressPoint.matchPrecision === 'Map point') return
+    const key = `${addressPoint.latitude.toFixed(5)},${addressPoint.longitude.toFixed(5)}`
+    if (syncedAddressKey.current === key) return
+    syncedAddressKey.current = key
+    const existing = points.find((point) => (
+      Math.abs(point.latitude - addressPoint.latitude) < 1e-5 && Math.abs(point.longitude - addressPoint.longitude) < 1e-5
+    ))
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    const pt: MappedPoint = {
+      id: `p${counter.current++}`,
+      name: addressPoint.fullAddress,
+      latitude: addressPoint.latitude,
+      longitude: addressPoint.longitude,
+      status: 'loading',
+      nationNames: [],
+    }
+    setPoints((current) => [...current, pt])
+    setActiveId(pt.id)
+    setSelectedOrgId('')
+    resolve(pt)
+    // points read for de-dupe only; syncedAddressKey guards re-entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addressPoint, resolve])
+
+  // Load an org's campuses when the Organizations tab requests it, then clear the request.
+  useEffect(() => {
+    if (!orgToLoad) return
+    const org = organizations.find((item) => item.id === orgToLoad)
+    if (org) loadOrg(org)
+    onOrgLoaded?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgToLoad])
 
   const copy = useCallback((text: string, id: string) => {
     if (!text) return
@@ -161,67 +242,80 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
   const graphBackedCount = coverage.filter((entry) => entry.inGraph).length
   const gisVerifiedCount = coverage.filter((entry) => entry.gis).length
 
+  const activePoint = activeId ? points.find((point) => point.id === activeId) ?? null : null
+
   return (
     <section className="mx-auto max-w-7xl px-3 py-4 sm:px-6 lg:px-8">
       <div className="rounded-lg border bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-          <p className="max-w-2xl text-sm text-slate-600">
-            Pick a tracked organization or click the map to drop a point per campus. Each resolves to the Nation whose
-            territory it falls in, so you can compare what the engine generates against what the organization names.
-          </p>
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedOrgId}
-              onChange={(event) => loadOrg(organizations.find((org) => org.id === event.target.value) ?? null)}
-              aria-label="Organization"
-              className="rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none"
-            >
-              <option value="">Pick an organization…</option>
-              {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
-            </select>
-            <button type="button" onClick={() => loadOrg(null)} disabled={points.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-teal-300 disabled:opacity-50">
-              <Trash2 className="h-3.5 w-3.5" />
-              Clear
-            </button>
-          </div>
-        </div>
-
         <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_400px]">
-          <div className="relative min-h-[24rem] overflow-hidden rounded-md border">
+          <div className="relative min-h-[18rem] overflow-hidden rounded-md border lg:sticky lg:top-4 lg:self-start">
             <LocalMapBoundary result={null}>
-              <PgMap className="h-full min-h-[24rem]" center={[-124.5, 54.5]} zoom={4} pitch={0} bearing={0} showStyleLoadingOverlay={false}>
+              <PgMap className="h-full min-h-[18rem]" center={[-124.5, 54.5]} zoom={4} pitch={0} bearing={0} showStyleLoadingOverlay={false}>
                 <MapClickLayer onAdd={addPoint} />
+                <FlyToActive point={activePoint} />
                 <MapControls position="top-right" showFullscreen />
                 {points.map((point, index) => (
                   <MapMarker key={point.id} longitude={point.longitude} latitude={point.latitude} anchor="bottom">
                     <MarkerContent>
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-teal-700 text-xs font-semibold text-white shadow-lg">{index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => selectPoint(point)}
+                        aria-label={`Focus point ${index + 1}`}
+                        className={cn(
+                          'flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-xs font-semibold text-white shadow-lg transition',
+                          point.id === activeId ? 'bg-rose-600 ring-2 ring-rose-300' : 'bg-teal-700 hover:bg-teal-600',
+                        )}
+                      >
+                        {index + 1}
+                      </button>
                     </MarkerContent>
                   </MapMarker>
                 ))}
               </PgMap>
             </LocalMapBoundary>
-            <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 rounded-md border bg-white/92 px-3 py-2 text-xs font-medium text-slate-900 shadow-sm backdrop-blur">
-              Click the map to add a campus / site point.
-            </div>
           </div>
 
           <div className="space-y-4 text-sm">
+            {children}
             <div>
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Campuses / points ({points.length})</span>
-                {summary.pointCount > 1 && (
-                  <span className="text-[10px] text-slate-500">{summary.distinctNationCount} Nations · ~{Math.round(summary.maxSpreadKm)} km</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {summary.pointCount > 1 && (
+                    <span className="text-[10px] text-slate-500">{summary.distinctNationCount} Nations · ~{Math.round(summary.maxSpreadKm)} km</span>
+                  )}
+                  {points.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => loadOrg(null)}
+                      className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 transition hover:text-slate-800"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 {points.length === 0 && (
                   <div className="rounded-md border border-dashed p-3 text-xs text-slate-500">Pick an organization above, or click the map.</div>
                 )}
                 {points.map((point, index) => (
-                  <div key={point.id} className="flex items-start gap-2 rounded-md border p-2 text-xs">
-                    <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-slate-100 font-semibold text-slate-700">{index + 1}</span>
+                  <div
+                    key={point.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => selectPoint(point)}
+                    onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectPoint(point) } }}
+                    className={cn(
+                      'flex cursor-pointer items-start gap-2 rounded-md border p-2 text-xs transition',
+                      point.id === activeId ? 'border-rose-300 bg-rose-50/50' : 'hover:border-teal-300',
+                    )}
+                  >
+                    <span className={cn(
+                      'flex h-5 w-5 flex-none items-center justify-center rounded-full font-semibold',
+                      point.id === activeId ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-700',
+                    )}>{index + 1}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         {point.name && <span className="font-medium text-slate-900">{point.name}</span>}
@@ -247,7 +341,12 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
                         )
                       })()}
                     </div>
-                    <button type="button" onClick={() => removePoint(point.id)} aria-label="Remove point" className="flex-none text-slate-400 hover:text-slate-700">
+                    <button
+                      type="button"
+                      onClick={(event) => { event.stopPropagation(); removePoint(point.id) }}
+                      aria-label="Remove point"
+                      className="flex-none text-slate-400 hover:text-slate-700"
+                    >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>

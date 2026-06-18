@@ -282,9 +282,6 @@ export function relationshipCorePhrase(
   return `${status}${territory} of ${nations}${peoplePhrase}`
 }
 
-const REVIEW_NOTE = 'This wording is generated from reviewed relationship records and should remain aligned with local guidance.'
-const EDUCATIONAL_NOTE = 'This relationship connects place, Nation, people-group, treaty, and source context so users can review why the wording was suggested.'
-
 /** Prefix a core phrase with "on" unless it already opens with one (e.g. "on Village Lands"). */
 function onPhrase(core: string) {
   return /^on\b/i.test(core) ? core : `on ${core}`
@@ -301,8 +298,7 @@ function composeAcknowledgement(
     const situated = onPhrase(core)
     if (mode === 'short') return `I am at ${place}, ${situated}.`
     if (mode === 'formal') return `I respectfully acknowledge that I am at ${place}, ${situated}. ${affiliation}`.trim()
-    if (mode === 'institutional') return `I am at ${place}, ${situated}. ${REVIEW_NOTE} ${affiliation}`.trim()
-    if (mode === 'educational') return `I am at ${place}, ${situated}. ${EDUCATIONAL_NOTE} ${affiliation}`.trim()
+    if (mode === 'institutional' || mode === 'educational') return `I am at ${place}, ${situated}. ${affiliation}`.trim()
     return `I am grateful to be at ${place} today, ${situated}. ${affiliation}`.trim()
   }
 
@@ -311,16 +307,14 @@ function composeAcknowledgement(
     const situated = onPhrase(core)
     if (mode === 'short') return `${org} operates at ${place}, ${situated}.`
     if (mode === 'formal') return `${org} respectfully acknowledges that it operates at ${place}, ${situated}. ${affiliation}`.trim()
-    if (mode === 'institutional') return `${org} operates at ${place}, ${situated}. ${REVIEW_NOTE} ${affiliation}`.trim()
-    if (mode === 'educational') return `${org} operates at ${place}, ${situated}. ${EDUCATIONAL_NOTE} ${affiliation}`.trim()
+    if (mode === 'institutional' || mode === 'educational') return `${org} operates at ${place}, ${situated}. ${affiliation}`.trim()
     return `On behalf of ${org}, we gather today at ${place}, ${situated}. ${affiliation}`.trim()
   }
 
   // collective (default) — preserves the original wording exactly.
   if (mode === 'short') return `${place} is situated ${core}.`
   if (mode === 'formal') return `We respectfully acknowledge that ${place} is situated ${core}. ${affiliation}`.trim()
-  if (mode === 'institutional') return `${place} is situated ${core}. ${REVIEW_NOTE} ${affiliation}`.trim()
-  if (mode === 'educational') return `${place} is situated ${core}. ${EDUCATIONAL_NOTE} ${affiliation}`.trim()
+  if (mode === 'institutional' || mode === 'educational') return `${place} is situated ${core}. ${affiliation}`.trim()
   return `We are grateful to gather today at ${place}, situated ${core}. ${affiliation}`.trim()
 }
 
@@ -359,8 +353,8 @@ export function buildFallbackAcknowledgement(
   if (perspective === 'individual') {
     if (mode === 'short') return `I am on land connected to ${names}.`
     if (mode === 'formal') return `I respectfully acknowledge that I am on land connected to ${names}. I recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
-    if (mode === 'institutional') return `I am working from land connected to ${names}. I will confirm local wording, protocols, and review status before publication.`
-    if (mode === 'educational') return `This location has source signals connected to ${names}. I treat this as a learning and review prompt, not final wording.`
+    if (mode === 'institutional') return `I am working from land connected to ${names}.`
+    if (mode === 'educational') return `This location has source signals connected to ${names}.`
     return `I am grateful to be on land connected to ${names}. I recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
   }
 
@@ -368,8 +362,8 @@ export function buildFallbackAcknowledgement(
     const org = options.organizationName?.trim() || 'Our organization'
     if (mode === 'short') return `${org} operates on land connected to ${names}.`
     if (mode === 'formal') return `${org} respectfully acknowledges that it operates on land connected to ${names}. We recognize their histories, cultures, rights, and ongoing relationships with these lands.`
-    if (mode === 'institutional') return `${org} is working from lands connected to ${names}. Confirm local wording, protocols, and review status before publication.`
-    if (mode === 'educational') return `This location has source signals connected to ${names}. ${org} should treat this as a learning and review prompt, not final wording.`
+    if (mode === 'institutional') return `${org} is working from lands connected to ${names}.`
+    if (mode === 'educational') return `This location has source signals connected to ${names}.`
     return `On behalf of ${org}, we are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
   }
 
@@ -382,11 +376,11 @@ export function buildFallbackAcknowledgement(
   }
 
   if (mode === 'institutional') {
-    return `This institution is working from lands connected to ${names}. Confirm local wording, protocols, and review status before publication.`
+    return `This institution is working from lands connected to ${names}.`
   }
 
   if (mode === 'educational') {
-    return `This location has source signals connected to ${names}. Treat this as a learning and review prompt, not final wording.`
+    return `This location has source signals connected to ${names}.`
   }
 
   return `We are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
@@ -408,8 +402,8 @@ export function buildRegionalAcknowledgement(
   if (perspective === 'individual') {
     if (mode === 'short') return `I acknowledge ${territories}.`
     if (mode === 'formal') return `I respectfully acknowledge ${territories}, and the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
-    if (mode === 'institutional') return `I carry out my work on ${territories}. I will confirm local Nation-specific wording before publication.`
-    if (mode === 'educational') return `This is a region-wide acknowledgement of ${territories}. I treat it as a starting point, not a substitute for Nation-specific wording.`
+    if (mode === 'institutional') return `I carry out my work on ${territories}.`
+    if (mode === 'educational') return `This is a region-wide acknowledgement of ${territories}.`
     return `I am grateful to live and work on ${territories}.`
   }
 
@@ -417,15 +411,15 @@ export function buildRegionalAcknowledgement(
     const org = options.organizationName?.trim() || 'Our organization'
     if (mode === 'short') return `${org} operates on ${territories}.`
     if (mode === 'formal') return `${org} respectfully acknowledges that it operates on ${territories}, and recognizes the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
-    if (mode === 'institutional') return `${org} operates on ${territories}. Confirm local Nation-specific wording before publication.`
-    if (mode === 'educational') return `This is a region-wide acknowledgement: ${org} operates on ${territories}. Treat it as a starting point, not a substitute for Nation-specific wording.`
+    if (mode === 'institutional') return `${org} operates on ${territories}.`
+    if (mode === 'educational') return `This is a region-wide acknowledgement: ${org} operates on ${territories}.`
     return `On behalf of ${org}, we are grateful to carry out our work on ${territories}.`
   }
 
   if (mode === 'short') return `We acknowledge ${territories}.`
   if (mode === 'formal') return `We respectfully acknowledge ${territories}, and recognize the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
-  if (mode === 'institutional') return `We carry out our work on ${territories}. Confirm local Nation-specific wording before publication.`
-  if (mode === 'educational') return `This is a region-wide acknowledgement of ${territories}. Treat it as a starting point, not a substitute for Nation-specific wording.`
+  if (mode === 'institutional') return `We carry out our work on ${territories}.`
+  if (mode === 'educational') return `This is a region-wide acknowledgement of ${territories}.`
   return `We are grateful to gather and work on ${territories}.`
 }
 

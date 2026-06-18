@@ -245,7 +245,7 @@ describe('buildRelationshipAcknowledgement fixtures', () => {
     const match = matchKnownPlace('100 Campus Way, Quesnel, BC')
 
     expect(buildRelationshipAcknowledgement('institutional', graph, match, ['lhtako-dene', 'esdilagh'])).toBe(
-      'UNBC South-Central campus is situated unceded traditional territories of Lhtako Dene Nation and ?Esdilagh First Nation. This wording is generated from reviewed relationship records and should remain aligned with local guidance. Lhtako Dene Nation is part of the Dakelh (Carrier) Peoples and ?Esdilagh First Nation is part of the Tsilhqot’in Nation.',
+      'UNBC South-Central campus is situated unceded traditional territories of Lhtako Dene Nation and ?Esdilagh First Nation. Lhtako Dene Nation is part of the Dakelh (Carrier) Peoples and ?Esdilagh First Nation is part of the Tsilhqot’in Nation.',
     )
   })
 
