@@ -1,0 +1,3301 @@
+{
+  "languages": {
+    "Wakashan": [
+      {
+        "name": "diiʔdiitidq",
+        "id": 26,
+        "color": "RGB(255, 112, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -124.956405,
+                48.393832
+              ],
+              [
+                -124.956405,
+                49.031749
+              ],
+              [
+                -123.895123,
+                49.031749
+              ],
+              [
+                -123.895123,
+                48.393832
+              ],
+              [
+                -124.956405,
+                48.393832
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Wakashan",
+          "color": "rgb(255, 235, 0)"
+        },
+        "other_names": "Ditidaht,Nitinat ~ Nitinaht,Ditidaht-Pacheedaht"
+      },
+      {
+        "name": "Haíɫzaqvḷa",
+        "id": 27,
+        "color": "RGB(255, 128, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -129.470489,
+                51.41929
+              ],
+              [
+                -129.470489,
+                53.107408
+              ],
+              [
+                -126.94754,
+                53.107408
+              ],
+              [
+                -126.94754,
+                51.41929
+              ],
+              [
+                -129.470489,
+                51.41929
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Wakashan",
+          "color": "rgb(255, 235, 0)"
+        },
+        "other_names": "Híɫzaqvḷa ,Hailhzaqvla,Haílhzaqvḷa,Heiltsuk,Heiltsukv,Heiltsukvla,Bella Bella"
+      },
+      {
+        "name": "Kwak̓wala",
+        "id": 29,
+        "color": "RGB(255, 176, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -128.928713,
+                49.610796
+              ],
+              [
+                -128.928713,
+                51.699168
+              ],
+              [
+                -124.994106,
+                51.699168
+              ],
+              [
+                -124.994106,
+                49.610796
+              ],
+              [
+                -128.928713,
+                49.610796
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Wakashan",
+          "color": "rgb(255, 235, 0)"
+        },
+        "other_names": "Kwakwaka’wakw,Kwakiutl"
+      },
+      {
+        "name": "nuučaan̓uł",
+        "id": 25,
+        "color": "RGB(255, 96, 176)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -127.895404,
+                48.69491
+              ],
+              [
+                -127.895404,
+                50.280109
+              ],
+              [
+                -124.408051,
+                50.280109
+              ],
+              [
+                -124.408051,
+                48.69491
+              ],
+              [
+                -127.895404,
+                48.69491
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Wakashan",
+          "color": "rgb(255, 235, 0)"
+        },
+        "other_names": "Nuu-chah-nulth,Nootka,Nootkans,Tahkaht"
+      },
+      {
+        "name": "’Wuik̓ala",
+        "id": 28,
+        "color": "RGB(255, 0, 138)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -127.907104,
+                51.334904
+              ],
+              [
+                -127.907104,
+                52.06213
+              ],
+              [
+                -125.708508,
+                52.06213
+              ],
+              [
+                -125.708508,
+                51.334904
+              ],
+              [
+                -127.907104,
+                51.334904
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Wakashan",
+          "color": "rgb(255, 235, 0)"
+        },
+        "other_names": "Oowekyala,’Uik̓ala,Oweek’ala,Oweke(e)no"
+      },
+      {
+        "name": "X̄enaksialak̓ala / X̄a’islak̓ala",
+        "id": 7,
+        "color": "RGB(255, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -129.227019,
+                52.715757
+              ],
+              [
+                -129.227019,
+                54.41516
+              ],
+              [
+                -127.109128,
+                54.41516
+              ],
+              [
+                -127.109128,
+                52.715757
+              ],
+              [
+                -129.227019,
+                52.715757
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Wakashan",
+          "color": "rgb(255, 235, 0)"
+        },
+        "other_names": "Haisla,Kitimat,Kitlope,Northern Kwakiutl"
+      }
+    ],
+    "Salishan": [
+      {
+        "name": "ʔayʔaǰuθəm",
+        "id": 8,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -125.436938,
+                49.234612
+              ],
+              [
+                -125.436938,
+                51.522293
+              ],
+              [
+                -123.80338,
+                51.522293
+              ],
+              [
+                -123.80338,
+                49.234612
+              ],
+              [
+                -125.436938,
+                49.234612
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Éy7á7juuthem,Comox,Island Comox,Mainland Comox,Sliammon,Comox-Sliammon"
+      },
+      {
+        "name": "Hul’q’umi’num’ / Halq’eméylem / hən̓q̓əmin̓əm̓",
+        "id": 9,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -124.709458,
+                48.561299
+              ],
+              [
+                -124.709458,
+                49.813565
+              ],
+              [
+                -121.291007,
+                49.813565
+              ],
+              [
+                -121.291007,
+                48.561299
+              ],
+              [
+                -124.709458,
+                48.561299
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Hul’q’umi’num’ (Island),Halq'eméylem (Upriver) ~ Halkomelem,hən̓q̓əmin̓əm̓ (Downriver)"
+      },
+      {
+        "name": "Klallam / nəxʷsƛ̕ay̓əm'úcən",
+        "id": 14,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -124.493842,
+                47.809324
+              ],
+              [
+                -124.493842,
+                48.358586
+              ],
+              [
+                -122.89221,
+                48.358586
+              ],
+              [
+                -122.89221,
+                47.809324
+              ],
+              [
+                -124.493842,
+                47.809324
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Klallam,Clallam,S'Klallam"
+      },
+      {
+        "name": "Nɬeʔkepmxcín",
+        "id": 12,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -122.273528,
+                48.605383
+              ],
+              [
+                -122.273528,
+                50.776472
+              ],
+              [
+                -120.398976,
+                50.776472
+              ],
+              [
+                -120.398976,
+                48.605383
+              ],
+              [
+                -122.273528,
+                48.605383
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Thompson,Nlaka’pamux,Nlha7kápmx"
+      },
+      {
+        "name": "Nsyilxcən",
+        "id": 36,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -121.332255,
+                47.557326
+              ],
+              [
+                -121.332255,
+                52.504169
+              ],
+              [
+                -116.808353,
+                52.504169
+              ],
+              [
+                -116.808353,
+                47.557326
+              ],
+              [
+                -121.332255,
+                47.557326
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Okanagan"
+      },
+      {
+        "name": "Nuxalk",
+        "id": 6,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -127.406994,
+                51.906485
+              ],
+              [
+                -127.406994,
+                53.186057
+              ],
+              [
+                -124.985556,
+                53.186057
+              ],
+              [
+                -124.985556,
+                51.906485
+              ],
+              [
+                -127.406994,
+                51.906485
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Bella Coola,Nass"
+      },
+      {
+        "name": "pentl’ach",
+        "id": 42,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -125.370565,
+                49.080751
+              ],
+              [
+                -125.370565,
+                49.75952
+              ],
+              [
+                -123.897694,
+                49.75952
+              ],
+              [
+                -123.897694,
+                49.080751
+              ],
+              [
+                -125.370565,
+                49.080751
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Pəntl’áč and Pentl’ach"
+      },
+      {
+        "name": "Secwepemctsín",
+        "id": 33,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -122.95027,
+                49.25705
+              ],
+              [
+                -122.95027,
+                53.082692
+              ],
+              [
+                -115.205294,
+                53.082692
+              ],
+              [
+                -115.205294,
+                49.25705
+              ],
+              [
+                -122.95027,
+                49.25705
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Shuswap,Secwepemc"
+      },
+      {
+        "name": "SENĆOŦEN / Malchosen / Lekwungen / Semiahmoo / T’Sou-ke",
+        "id": 15,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -124.003359,
+                48.294905
+              ],
+              [
+                -124.003359,
+                49.032663
+              ],
+              [
+                -121.523395,
+                49.032663
+              ],
+              [
+                -121.523395,
+                48.294905
+              ],
+              [
+                -124.003359,
+                48.294905
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Northern Straits Salish"
+      },
+      {
+        "name": "She shashishalhem",
+        "id": 10,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -124.557292,
+                49.387976
+              ],
+              [
+                -124.557292,
+                50.360816
+              ],
+              [
+                -123.483896,
+                50.360816
+              ],
+              [
+                -123.483896,
+                49.387976
+              ],
+              [
+                -124.557292,
+                49.387976
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Sechelt,sháshishálem"
+      },
+      {
+        "name": "Sḵwx̱wú7mesh sníchim",
+        "id": 11,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -124.141072,
+                49.272472
+              ],
+              [
+                -124.141072,
+                50.330336
+              ],
+              [
+                -122.793717,
+                50.330336
+              ],
+              [
+                -122.793717,
+                49.272472
+              ],
+              [
+                -124.141072,
+                49.272472
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Squamish"
+      },
+      {
+        "name": "St̓át̓imcets",
+        "id": 13,
+        "color": "RGB(0, 0, 255)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -123.958494,
+                49.545355
+              ],
+              [
+                -123.958494,
+                51.215599
+              ],
+              [
+                -121.625607,
+                51.215599
+              ],
+              [
+                -121.625607,
+                49.545355
+              ],
+              [
+                -123.958494,
+                49.545355
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Salishan",
+          "color": "rgb(0, 0, 255)"
+        },
+        "other_names": "Ucwalmícwts,St̓át̓imc,Lillooet,Statimc,Stl’atl’imx,Stl’atl’imc,Sƛ’aƛ’imxǝc,Stlatliumh,Slatlemuk"
+      }
+    ],
+    "Tsimshianic": [
+      {
+        "name": "Gitsenimx̱",
+        "id": 31,
+        "color": "RGB(208, 156, 0)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -129.033241,
+                54.631522
+              ],
+              [
+                -129.033241,
+                57.252379
+              ],
+              [
+                -127.216467,
+                57.252379
+              ],
+              [
+                -127.216467,
+                54.631522
+              ],
+              [
+                -129.033241,
+                54.631522
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Tsimshianic",
+          "color": "rgb(255, 192, 0)"
+        },
+        "other_names": "Gitksan,Gitsanimx̱,Gitxsanimax̱,Gitxsanimx̱,Gitxsen,Gyaanimx̱"
+      },
+      {
+        "name": "Nisg̱a’a",
+        "id": 32,
+        "color": "RGB(144, 108, 0)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -130.528852,
+                54.664004
+              ],
+              [
+                -130.528852,
+                57.469657
+              ],
+              [
+                -127.577326,
+                57.469657
+              ],
+              [
+                -127.577326,
+                54.664004
+              ],
+              [
+                -130.528852,
+                54.664004
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Tsimshianic",
+          "color": "rgb(255, 192, 0)"
+        },
+        "other_names": "Nisga’a,Nishga,Niska’,Nisk’a’"
+      },
+      {
+        "name": "Sgüüx̱s",
+        "id": 38,
+        "color": "RGB(0.5,0.5,0.5)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -128.525276,
+                52.579949
+              ],
+              [
+                -128.514848,
+                52.579949
+              ],
+              [
+                -128.514848,
+                52.5915
+              ],
+              [
+                -128.525276,
+                52.5915
+              ],
+              [
+                -128.525276,
+                52.579949
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Tsimshianic",
+          "color": "rgb(255, 192, 0)"
+        },
+        "other_names": "Klemtu ,Southern Tsimshian,Ski:xs"
+      },
+      {
+        "name": "Sm’algya̱x",
+        "id": 34,
+        "color": "RGB(192, 144, 0)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -131.239081,
+                52.273477
+              ],
+              [
+                -131.239081,
+                55.085229
+              ],
+              [
+                -127.495419,
+                55.085229
+              ],
+              [
+                -127.495419,
+                52.273477
+              ],
+              [
+                -131.239081,
+                52.273477
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Tsimshianic",
+          "color": "rgb(255, 192, 0)"
+        },
+        "other_names": "Coast Tsimshian,Tsimshian"
+      }
+    ],
+    "Athabaskan-Eyak-Tlingit or Na-Dene": [
+      {
+        "name": "Dakelh",
+        "id": 18,
+        "color": "RGB(0, 208, 104)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -127.834186,
+                52.227397
+              ],
+              [
+                -127.834186,
+                55.245895
+              ],
+              [
+                -118.47228,
+                55.245895
+              ],
+              [
+                -118.47228,
+                52.227397
+              ],
+              [
+                -127.834186,
+                52.227397
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "ᑕᗸᒡ,Carrier,Taculli ~ Takulie"
+      },
+      {
+        "name": "Dane-ẕaa Ẕáágéʔ",
+        "id": 22,
+        "color": "RGB(144, 240, 0)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -125.282066,
+                54.955292
+              ],
+              [
+                -125.282066,
+                58.71577
+              ],
+              [
+                -116.061524,
+                58.71577
+              ],
+              [
+                -116.061524,
+                54.955292
+              ],
+              [
+                -125.282066,
+                54.955292
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "ᑕᓀ ᖚ,Beaver,Dane-Ẕa,Dunne-za"
+      },
+      {
+        "name": "Dene K’e",
+        "id": 20,
+        "color": "RGB(192, 255, 96)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -124.83559,
+                57.608755
+              ],
+              [
+                -124.83559,
+                63.426226
+              ],
+              [
+                -116.595254,
+                63.426226
+              ],
+              [
+                -116.595254,
+                57.608755
+              ],
+              [
+                -124.83559,
+                57.608755
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Dene K’eh,Slavey,Dene ~ Dené,Dené Tha’ ~ Dháh,Dene Zhatıé,Acha'otinne"
+      },
+      {
+        "name": "Den k’e",
+        "id": 2,
+        "color": "RGB(115, 192, 0)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -135.839552,
+                59.510056
+              ],
+              [
+                -135.839552,
+                60.892452
+              ],
+              [
+                -133.295347,
+                60.892452
+              ],
+              [
+                -133.295347,
+                59.510056
+              ],
+              [
+                -135.839552,
+                59.510056
+              ]
+            ]
+          ]
+        },
+        "sleeping": true,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Tagish"
+      },
+      {
+        "name": "Kaska",
+        "id": 17,
+        "color": "RGB(0, 208, 0)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -131.498895,
+                58.222956
+              ],
+              [
+                -131.498895,
+                62.424698
+              ],
+              [
+                -122.947514,
+                62.424698
+              ],
+              [
+                -122.947514,
+                58.222956
+              ],
+              [
+                -131.498895,
+                58.222956
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Danezāgéʼ,Kaska Dena"
+      },
+      {
+        "name": "Lingít",
+        "id": 23,
+        "color": "RGB(255, 255, 144)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -139.864325,
+                54.640971
+              ],
+              [
+                -139.864325,
+                61.739567
+              ],
+              [
+                -129.981763,
+                61.739567
+              ],
+              [
+                -129.981763,
+                54.640971
+              ],
+              [
+                -139.864325,
+                54.640971
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Łingít,Tlingit,Inland Tlingit"
+      },
+      {
+        "name": "Nedut’en / Witsuwit’en",
+        "id": 16,
+        "color": "RGB(0, 244, 112)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -127.985986,
+                53.551643
+              ],
+              [
+                -127.985986,
+                56.588589
+              ],
+              [
+                -124.952259,
+                56.588589
+              ],
+              [
+                -124.952259,
+                53.551643
+              ],
+              [
+                -127.985986,
+                53.551643
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Babine ~ Lake Babine Nadot’en,Nat’oot’en Wet'suwet'en,Babine-Witsuwit'en,Bulkley Valley/Lakes District Language"
+      },
+      {
+        "name": "Nicola",
+        "id": 40,
+        "color": "RGB(0.5,0.5,0.5)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -120.928865,
+                48.916189
+              ],
+              [
+                -120.928865,
+                50.310255
+              ],
+              [
+                -119.865804,
+                50.310255
+              ],
+              [
+                -119.865804,
+                48.916189
+              ],
+              [
+                -120.928865,
+                48.916189
+              ]
+            ]
+          ]
+        },
+        "sleeping": true,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Nicola"
+      },
+      {
+        "name": "Southern Tutchone",
+        "id": 19,
+        "color": "RGB(0, 160, 0)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -139.839334,
+                59.717291
+              ],
+              [
+                -139.839334,
+                61.743778
+              ],
+              [
+                -133.893954,
+                61.743778
+              ],
+              [
+                -133.893954,
+                59.717291
+              ],
+              [
+                -139.839334,
+                59.717291
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Tutchone"
+      },
+      {
+        "name": "Tāłtān",
+        "id": 4,
+        "color": "RGB(0, 224, 0)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -133.349337,
+                56.295033
+              ],
+              [
+                -133.349337,
+                59.980901
+              ],
+              [
+                -127.489266,
+                59.980901
+              ],
+              [
+                -127.489266,
+                56.295033
+              ],
+              [
+                -133.349337,
+                56.295033
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Tahltan,Didene k’eh,Nahanni"
+      },
+      {
+        "name": "Tse’khene",
+        "id": 3,
+        "color": "RGB(80, 255, 80)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -128.320173,
+                54.246022
+              ],
+              [
+                -128.320173,
+                59.000411
+              ],
+              [
+                -121.159242,
+                59.000411
+              ],
+              [
+                -121.159242,
+                54.246022
+              ],
+              [
+                -128.320173,
+                54.246022
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Tsek’ene ,Tsek’ehne ,Sekani,Sékanais"
+      },
+      {
+        "name": "Tsilhqot’in",
+        "id": 5,
+        "color": "RGB(112, 255, 112)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -126.146638,
+                50.763519
+              ],
+              [
+                -126.146638,
+                53.060987
+              ],
+              [
+                -122.042439,
+                53.060987
+              ],
+              [
+                -122.042439,
+                50.763519
+              ],
+              [
+                -126.146638,
+                50.763519
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Chilcotin,Tsilhqut’in,Tzilkotin"
+      },
+      {
+        "name": "Wetalh",
+        "id": 39,
+        "color": "RGB(0.5,0.5,0.5)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -130.84718,
+                55.51297
+              ],
+              [
+                -130.84718,
+                57.315663
+              ],
+              [
+                -127.862934,
+                57.315663
+              ],
+              [
+                -127.862934,
+                55.51297
+              ],
+              [
+                -130.84718,
+                55.51297
+              ]
+            ]
+          ]
+        },
+        "sleeping": true,
+        "family": {
+          "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+          "color": "rgb(0, 160, 0)"
+        },
+        "other_names": "Tsetsaut,Ts'ets'aut"
+      }
+    ],
+    "Xaad Kil / Xaayda Kil": [
+      {
+        "name": "X̱aad Kil / X̱aayda Kil",
+        "id": 24,
+        "color": "RGB(160, 0, 160)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -133.375654,
+                51.904344
+              ],
+              [
+                -133.375654,
+                55.698328
+              ],
+              [
+                -130.91943,
+                55.698328
+              ],
+              [
+                -130.91943,
+                51.904344
+              ],
+              [
+                -133.375654,
+                51.904344
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Xaad Kil / Xaayda Kil",
+          "color": "rgb(160, 0, 160)"
+        },
+        "other_names": "Haida"
+      }
+    ],
+    "Ktunaxa": [
+      {
+        "name": "Ktunaxa",
+        "id": 35,
+        "color": "rgb(224, 56, 0)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -119.205722,
+                46.413848
+              ],
+              [
+                -119.205722,
+                53.225213
+              ],
+              [
+                -111.850012,
+                53.225213
+              ],
+              [
+                -111.850012,
+                46.413848
+              ],
+              [
+                -119.205722,
+                46.413848
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Ktunaxa",
+          "color": "rgb(224, 56, 0)"
+        },
+        "other_names": "Kootenay,Kootenai"
+      }
+    ],
+    "Algonquian": [
+      {
+        "name": "Anishinaabemowin",
+        "id": 37,
+        "color": "RGB(0.5,0.5,0.5)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -121.662656,
+                55.846742
+              ],
+              [
+                -121.641586,
+                55.846742
+              ],
+              [
+                -121.641586,
+                55.858594
+              ],
+              [
+                -121.662656,
+                55.858594
+              ],
+              [
+                -121.662656,
+                55.846742
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Algonquian",
+          "color": "rgb(176, 176, 176)"
+        },
+        "other_names": "Saulteau,Plains Ojibway,Ojibway,Ojibwe"
+      },
+      {
+        "name": "Cree / nēhiyawēwin",
+        "id": 21,
+        "color": "RGB(176, 176, 176)",
+        "bbox": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -122.542643,
+                52.206019
+              ],
+              [
+                -122.542643,
+                58.575521
+              ],
+              [
+                -109.942343,
+                58.575521
+              ],
+              [
+                -109.942343,
+                52.206019
+              ],
+              [
+                -122.542643,
+                52.206019
+              ]
+            ]
+          ]
+        },
+        "sleeping": false,
+        "family": {
+          "name": "Algonquian",
+          "color": "rgb(176, 176, 176)"
+        },
+        "other_names": "ᓀᐦᐃᔭᐍᐏᐣ,Plains Cree"
+      }
+    ]
+  },
+  "languagesCount": null,
+  "languageSet": [
+    {
+      "name": "diiʔdiitidq",
+      "id": 26,
+      "color": "RGB(255, 112, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -124.956405,
+              48.393832
+            ],
+            [
+              -124.956405,
+              49.031749
+            ],
+            [
+              -123.895123,
+              49.031749
+            ],
+            [
+              -123.895123,
+              48.393832
+            ],
+            [
+              -124.956405,
+              48.393832
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      },
+      "other_names": "Ditidaht,Nitinat ~ Nitinaht,Ditidaht-Pacheedaht"
+    },
+    {
+      "name": "Haíɫzaqvḷa",
+      "id": 27,
+      "color": "RGB(255, 128, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -129.470489,
+              51.41929
+            ],
+            [
+              -129.470489,
+              53.107408
+            ],
+            [
+              -126.94754,
+              53.107408
+            ],
+            [
+              -126.94754,
+              51.41929
+            ],
+            [
+              -129.470489,
+              51.41929
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      },
+      "other_names": "Híɫzaqvḷa ,Hailhzaqvla,Haílhzaqvḷa,Heiltsuk,Heiltsukv,Heiltsukvla,Bella Bella"
+    },
+    {
+      "name": "Kwak̓wala",
+      "id": 29,
+      "color": "RGB(255, 176, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -128.928713,
+              49.610796
+            ],
+            [
+              -128.928713,
+              51.699168
+            ],
+            [
+              -124.994106,
+              51.699168
+            ],
+            [
+              -124.994106,
+              49.610796
+            ],
+            [
+              -128.928713,
+              49.610796
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      },
+      "other_names": "Kwakwaka’wakw,Kwakiutl"
+    },
+    {
+      "name": "nuučaan̓uł",
+      "id": 25,
+      "color": "RGB(255, 96, 176)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -127.895404,
+              48.69491
+            ],
+            [
+              -127.895404,
+              50.280109
+            ],
+            [
+              -124.408051,
+              50.280109
+            ],
+            [
+              -124.408051,
+              48.69491
+            ],
+            [
+              -127.895404,
+              48.69491
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      },
+      "other_names": "Nuu-chah-nulth,Nootka,Nootkans,Tahkaht"
+    },
+    {
+      "name": "’Wuik̓ala",
+      "id": 28,
+      "color": "RGB(255, 0, 138)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -127.907104,
+              51.334904
+            ],
+            [
+              -127.907104,
+              52.06213
+            ],
+            [
+              -125.708508,
+              52.06213
+            ],
+            [
+              -125.708508,
+              51.334904
+            ],
+            [
+              -127.907104,
+              51.334904
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      },
+      "other_names": "Oowekyala,’Uik̓ala,Oweek’ala,Oweke(e)no"
+    },
+    {
+      "name": "X̄enaksialak̓ala / X̄a’islak̓ala",
+      "id": 7,
+      "color": "RGB(255, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -129.227019,
+              52.715757
+            ],
+            [
+              -129.227019,
+              54.41516
+            ],
+            [
+              -127.109128,
+              54.41516
+            ],
+            [
+              -127.109128,
+              52.715757
+            ],
+            [
+              -129.227019,
+              52.715757
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      },
+      "other_names": "Haisla,Kitimat,Kitlope,Northern Kwakiutl"
+    },
+    {
+      "name": "ʔayʔaǰuθəm",
+      "id": 8,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -125.436938,
+              49.234612
+            ],
+            [
+              -125.436938,
+              51.522293
+            ],
+            [
+              -123.80338,
+              51.522293
+            ],
+            [
+              -123.80338,
+              49.234612
+            ],
+            [
+              -125.436938,
+              49.234612
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Éy7á7juuthem,Comox,Island Comox,Mainland Comox,Sliammon,Comox-Sliammon"
+    },
+    {
+      "name": "Hul’q’umi’num’ / Halq’eméylem / hən̓q̓əmin̓əm̓",
+      "id": 9,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -124.709458,
+              48.561299
+            ],
+            [
+              -124.709458,
+              49.813565
+            ],
+            [
+              -121.291007,
+              49.813565
+            ],
+            [
+              -121.291007,
+              48.561299
+            ],
+            [
+              -124.709458,
+              48.561299
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Hul’q’umi’num’ (Island),Halq'eméylem (Upriver) ~ Halkomelem,hən̓q̓əmin̓əm̓ (Downriver)"
+    },
+    {
+      "name": "Klallam / nəxʷsƛ̕ay̓əm'úcən",
+      "id": 14,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -124.493842,
+              47.809324
+            ],
+            [
+              -124.493842,
+              48.358586
+            ],
+            [
+              -122.89221,
+              48.358586
+            ],
+            [
+              -122.89221,
+              47.809324
+            ],
+            [
+              -124.493842,
+              47.809324
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Klallam,Clallam,S'Klallam"
+    },
+    {
+      "name": "Nɬeʔkepmxcín",
+      "id": 12,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -122.273528,
+              48.605383
+            ],
+            [
+              -122.273528,
+              50.776472
+            ],
+            [
+              -120.398976,
+              50.776472
+            ],
+            [
+              -120.398976,
+              48.605383
+            ],
+            [
+              -122.273528,
+              48.605383
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Thompson,Nlaka’pamux,Nlha7kápmx"
+    },
+    {
+      "name": "Nsyilxcən",
+      "id": 36,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -121.332255,
+              47.557326
+            ],
+            [
+              -121.332255,
+              52.504169
+            ],
+            [
+              -116.808353,
+              52.504169
+            ],
+            [
+              -116.808353,
+              47.557326
+            ],
+            [
+              -121.332255,
+              47.557326
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Okanagan"
+    },
+    {
+      "name": "Nuxalk",
+      "id": 6,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -127.406994,
+              51.906485
+            ],
+            [
+              -127.406994,
+              53.186057
+            ],
+            [
+              -124.985556,
+              53.186057
+            ],
+            [
+              -124.985556,
+              51.906485
+            ],
+            [
+              -127.406994,
+              51.906485
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Bella Coola,Nass"
+    },
+    {
+      "name": "pentl’ach",
+      "id": 42,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -125.370565,
+              49.080751
+            ],
+            [
+              -125.370565,
+              49.75952
+            ],
+            [
+              -123.897694,
+              49.75952
+            ],
+            [
+              -123.897694,
+              49.080751
+            ],
+            [
+              -125.370565,
+              49.080751
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Pəntl’áč and Pentl’ach"
+    },
+    {
+      "name": "Secwepemctsín",
+      "id": 33,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -122.95027,
+              49.25705
+            ],
+            [
+              -122.95027,
+              53.082692
+            ],
+            [
+              -115.205294,
+              53.082692
+            ],
+            [
+              -115.205294,
+              49.25705
+            ],
+            [
+              -122.95027,
+              49.25705
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Shuswap,Secwepemc"
+    },
+    {
+      "name": "SENĆOŦEN / Malchosen / Lekwungen / Semiahmoo / T’Sou-ke",
+      "id": 15,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -124.003359,
+              48.294905
+            ],
+            [
+              -124.003359,
+              49.032663
+            ],
+            [
+              -121.523395,
+              49.032663
+            ],
+            [
+              -121.523395,
+              48.294905
+            ],
+            [
+              -124.003359,
+              48.294905
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Northern Straits Salish"
+    },
+    {
+      "name": "She shashishalhem",
+      "id": 10,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -124.557292,
+              49.387976
+            ],
+            [
+              -124.557292,
+              50.360816
+            ],
+            [
+              -123.483896,
+              50.360816
+            ],
+            [
+              -123.483896,
+              49.387976
+            ],
+            [
+              -124.557292,
+              49.387976
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Sechelt,sháshishálem"
+    },
+    {
+      "name": "Sḵwx̱wú7mesh sníchim",
+      "id": 11,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -124.141072,
+              49.272472
+            ],
+            [
+              -124.141072,
+              50.330336
+            ],
+            [
+              -122.793717,
+              50.330336
+            ],
+            [
+              -122.793717,
+              49.272472
+            ],
+            [
+              -124.141072,
+              49.272472
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Squamish"
+    },
+    {
+      "name": "St̓át̓imcets",
+      "id": 13,
+      "color": "RGB(0, 0, 255)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -123.958494,
+              49.545355
+            ],
+            [
+              -123.958494,
+              51.215599
+            ],
+            [
+              -121.625607,
+              51.215599
+            ],
+            [
+              -121.625607,
+              49.545355
+            ],
+            [
+              -123.958494,
+              49.545355
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      },
+      "other_names": "Ucwalmícwts,St̓át̓imc,Lillooet,Statimc,Stl’atl’imx,Stl’atl’imc,Sƛ’aƛ’imxǝc,Stlatliumh,Slatlemuk"
+    },
+    {
+      "name": "Gitsenimx̱",
+      "id": 31,
+      "color": "RGB(208, 156, 0)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -129.033241,
+              54.631522
+            ],
+            [
+              -129.033241,
+              57.252379
+            ],
+            [
+              -127.216467,
+              57.252379
+            ],
+            [
+              -127.216467,
+              54.631522
+            ],
+            [
+              -129.033241,
+              54.631522
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Tsimshianic",
+        "color": "rgb(255, 192, 0)"
+      },
+      "other_names": "Gitksan,Gitsanimx̱,Gitxsanimax̱,Gitxsanimx̱,Gitxsen,Gyaanimx̱"
+    },
+    {
+      "name": "Nisg̱a’a",
+      "id": 32,
+      "color": "RGB(144, 108, 0)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -130.528852,
+              54.664004
+            ],
+            [
+              -130.528852,
+              57.469657
+            ],
+            [
+              -127.577326,
+              57.469657
+            ],
+            [
+              -127.577326,
+              54.664004
+            ],
+            [
+              -130.528852,
+              54.664004
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Tsimshianic",
+        "color": "rgb(255, 192, 0)"
+      },
+      "other_names": "Nisga’a,Nishga,Niska’,Nisk’a’"
+    },
+    {
+      "name": "Sgüüx̱s",
+      "id": 38,
+      "color": "RGB(0.5,0.5,0.5)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -128.525276,
+              52.579949
+            ],
+            [
+              -128.514848,
+              52.579949
+            ],
+            [
+              -128.514848,
+              52.5915
+            ],
+            [
+              -128.525276,
+              52.5915
+            ],
+            [
+              -128.525276,
+              52.579949
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Tsimshianic",
+        "color": "rgb(255, 192, 0)"
+      },
+      "other_names": "Klemtu ,Southern Tsimshian,Ski:xs"
+    },
+    {
+      "name": "Sm’algya̱x",
+      "id": 34,
+      "color": "RGB(192, 144, 0)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -131.239081,
+              52.273477
+            ],
+            [
+              -131.239081,
+              55.085229
+            ],
+            [
+              -127.495419,
+              55.085229
+            ],
+            [
+              -127.495419,
+              52.273477
+            ],
+            [
+              -131.239081,
+              52.273477
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Tsimshianic",
+        "color": "rgb(255, 192, 0)"
+      },
+      "other_names": "Coast Tsimshian,Tsimshian"
+    },
+    {
+      "name": "Dakelh",
+      "id": 18,
+      "color": "RGB(0, 208, 104)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -127.834186,
+              52.227397
+            ],
+            [
+              -127.834186,
+              55.245895
+            ],
+            [
+              -118.47228,
+              55.245895
+            ],
+            [
+              -118.47228,
+              52.227397
+            ],
+            [
+              -127.834186,
+              52.227397
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "ᑕᗸᒡ,Carrier,Taculli ~ Takulie"
+    },
+    {
+      "name": "Dane-ẕaa Ẕáágéʔ",
+      "id": 22,
+      "color": "RGB(144, 240, 0)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -125.282066,
+              54.955292
+            ],
+            [
+              -125.282066,
+              58.71577
+            ],
+            [
+              -116.061524,
+              58.71577
+            ],
+            [
+              -116.061524,
+              54.955292
+            ],
+            [
+              -125.282066,
+              54.955292
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "ᑕᓀ ᖚ,Beaver,Dane-Ẕa,Dunne-za"
+    },
+    {
+      "name": "Dene K’e",
+      "id": 20,
+      "color": "RGB(192, 255, 96)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -124.83559,
+              57.608755
+            ],
+            [
+              -124.83559,
+              63.426226
+            ],
+            [
+              -116.595254,
+              63.426226
+            ],
+            [
+              -116.595254,
+              57.608755
+            ],
+            [
+              -124.83559,
+              57.608755
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Dene K’eh,Slavey,Dene ~ Dené,Dené Tha’ ~ Dháh,Dene Zhatıé,Acha'otinne"
+    },
+    {
+      "name": "Den k’e",
+      "id": 2,
+      "color": "RGB(115, 192, 0)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -135.839552,
+              59.510056
+            ],
+            [
+              -135.839552,
+              60.892452
+            ],
+            [
+              -133.295347,
+              60.892452
+            ],
+            [
+              -133.295347,
+              59.510056
+            ],
+            [
+              -135.839552,
+              59.510056
+            ]
+          ]
+        ]
+      },
+      "sleeping": true,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Tagish"
+    },
+    {
+      "name": "Kaska",
+      "id": 17,
+      "color": "RGB(0, 208, 0)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -131.498895,
+              58.222956
+            ],
+            [
+              -131.498895,
+              62.424698
+            ],
+            [
+              -122.947514,
+              62.424698
+            ],
+            [
+              -122.947514,
+              58.222956
+            ],
+            [
+              -131.498895,
+              58.222956
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Danezāgéʼ,Kaska Dena"
+    },
+    {
+      "name": "Lingít",
+      "id": 23,
+      "color": "RGB(255, 255, 144)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -139.864325,
+              54.640971
+            ],
+            [
+              -139.864325,
+              61.739567
+            ],
+            [
+              -129.981763,
+              61.739567
+            ],
+            [
+              -129.981763,
+              54.640971
+            ],
+            [
+              -139.864325,
+              54.640971
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Łingít,Tlingit,Inland Tlingit"
+    },
+    {
+      "name": "Nedut’en / Witsuwit’en",
+      "id": 16,
+      "color": "RGB(0, 244, 112)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -127.985986,
+              53.551643
+            ],
+            [
+              -127.985986,
+              56.588589
+            ],
+            [
+              -124.952259,
+              56.588589
+            ],
+            [
+              -124.952259,
+              53.551643
+            ],
+            [
+              -127.985986,
+              53.551643
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Babine ~ Lake Babine Nadot’en,Nat’oot’en Wet'suwet'en,Babine-Witsuwit'en,Bulkley Valley/Lakes District Language"
+    },
+    {
+      "name": "Nicola",
+      "id": 40,
+      "color": "RGB(0.5,0.5,0.5)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -120.928865,
+              48.916189
+            ],
+            [
+              -120.928865,
+              50.310255
+            ],
+            [
+              -119.865804,
+              50.310255
+            ],
+            [
+              -119.865804,
+              48.916189
+            ],
+            [
+              -120.928865,
+              48.916189
+            ]
+          ]
+        ]
+      },
+      "sleeping": true,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Nicola"
+    },
+    {
+      "name": "Southern Tutchone",
+      "id": 19,
+      "color": "RGB(0, 160, 0)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -139.839334,
+              59.717291
+            ],
+            [
+              -139.839334,
+              61.743778
+            ],
+            [
+              -133.893954,
+              61.743778
+            ],
+            [
+              -133.893954,
+              59.717291
+            ],
+            [
+              -139.839334,
+              59.717291
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Tutchone"
+    },
+    {
+      "name": "Tāłtān",
+      "id": 4,
+      "color": "RGB(0, 224, 0)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -133.349337,
+              56.295033
+            ],
+            [
+              -133.349337,
+              59.980901
+            ],
+            [
+              -127.489266,
+              59.980901
+            ],
+            [
+              -127.489266,
+              56.295033
+            ],
+            [
+              -133.349337,
+              56.295033
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Tahltan,Didene k’eh,Nahanni"
+    },
+    {
+      "name": "Tse’khene",
+      "id": 3,
+      "color": "RGB(80, 255, 80)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -128.320173,
+              54.246022
+            ],
+            [
+              -128.320173,
+              59.000411
+            ],
+            [
+              -121.159242,
+              59.000411
+            ],
+            [
+              -121.159242,
+              54.246022
+            ],
+            [
+              -128.320173,
+              54.246022
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Tsek’ene ,Tsek’ehne ,Sekani,Sékanais"
+    },
+    {
+      "name": "Tsilhqot’in",
+      "id": 5,
+      "color": "RGB(112, 255, 112)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -126.146638,
+              50.763519
+            ],
+            [
+              -126.146638,
+              53.060987
+            ],
+            [
+              -122.042439,
+              53.060987
+            ],
+            [
+              -122.042439,
+              50.763519
+            ],
+            [
+              -126.146638,
+              50.763519
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Chilcotin,Tsilhqut’in,Tzilkotin"
+    },
+    {
+      "name": "Wetalh",
+      "id": 39,
+      "color": "RGB(0.5,0.5,0.5)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -130.84718,
+              55.51297
+            ],
+            [
+              -130.84718,
+              57.315663
+            ],
+            [
+              -127.862934,
+              57.315663
+            ],
+            [
+              -127.862934,
+              55.51297
+            ],
+            [
+              -130.84718,
+              55.51297
+            ]
+          ]
+        ]
+      },
+      "sleeping": true,
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      },
+      "other_names": "Tsetsaut,Ts'ets'aut"
+    },
+    {
+      "name": "X̱aad Kil / X̱aayda Kil",
+      "id": 24,
+      "color": "RGB(160, 0, 160)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -133.375654,
+              51.904344
+            ],
+            [
+              -133.375654,
+              55.698328
+            ],
+            [
+              -130.91943,
+              55.698328
+            ],
+            [
+              -130.91943,
+              51.904344
+            ],
+            [
+              -133.375654,
+              51.904344
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Xaad Kil / Xaayda Kil",
+        "color": "rgb(160, 0, 160)"
+      },
+      "other_names": "Haida"
+    },
+    {
+      "name": "Ktunaxa",
+      "id": 35,
+      "color": "rgb(224, 56, 0)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -119.205722,
+              46.413848
+            ],
+            [
+              -119.205722,
+              53.225213
+            ],
+            [
+              -111.850012,
+              53.225213
+            ],
+            [
+              -111.850012,
+              46.413848
+            ],
+            [
+              -119.205722,
+              46.413848
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Ktunaxa",
+        "color": "rgb(224, 56, 0)"
+      },
+      "other_names": "Kootenay,Kootenai"
+    },
+    {
+      "name": "Anishinaabemowin",
+      "id": 37,
+      "color": "RGB(0.5,0.5,0.5)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -121.662656,
+              55.846742
+            ],
+            [
+              -121.641586,
+              55.846742
+            ],
+            [
+              -121.641586,
+              55.858594
+            ],
+            [
+              -121.662656,
+              55.858594
+            ],
+            [
+              -121.662656,
+              55.846742
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Algonquian",
+        "color": "rgb(176, 176, 176)"
+      },
+      "other_names": "Saulteau,Plains Ojibway,Ojibway,Ojibwe"
+    },
+    {
+      "name": "Cree / nēhiyawēwin",
+      "id": 21,
+      "color": "RGB(176, 176, 176)",
+      "bbox": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -122.542643,
+              52.206019
+            ],
+            [
+              -122.542643,
+              58.575521
+            ],
+            [
+              -109.942343,
+              58.575521
+            ],
+            [
+              -109.942343,
+              52.206019
+            ],
+            [
+              -122.542643,
+              52.206019
+            ]
+          ]
+        ]
+      },
+      "sleeping": false,
+      "family": {
+        "name": "Algonquian",
+        "color": "rgb(176, 176, 176)"
+      },
+      "other_names": "ᓀᐦᐃᔭᐍᐏᐣ,Plains Cree"
+    }
+  ],
+  "languageGeo": [],
+  "comingFromDetail": false,
+  "languageSearchSet": [
+    {
+      "name": "Anishinaabemowin",
+      "other_names": "Saulteau,Plains Ojibway,Ojibway,Ojibwe",
+      "family": {
+        "name": "Algonquian",
+        "color": "rgb(176, 176, 176)"
+      }
+    },
+    {
+      "name": "ʔayʔaǰuθəm",
+      "other_names": "Éy7á7juuthem,Comox,Island Comox,Mainland Comox,Sliammon,Comox-Sliammon",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "Cree / nēhiyawēwin",
+      "other_names": "ᓀᐦᐃᔭᐍᐏᐣ,Plains Cree",
+      "family": {
+        "name": "Algonquian",
+        "color": "rgb(176, 176, 176)"
+      }
+    },
+    {
+      "name": "Dakelh",
+      "other_names": "ᑕᗸᒡ,Carrier,Taculli ~ Takulie",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Dane-ẕaa Ẕáágéʔ",
+      "other_names": "ᑕᓀ ᖚ,Beaver,Dane-Ẕa,Dunne-za",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Dene K’e",
+      "other_names": "Dene K’eh,Slavey,Dene ~ Dené,Dené Tha’ ~ Dháh,Dene Zhatıé,Acha'otinne",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Den k’e",
+      "other_names": "Tagish",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "diiʔdiitidq",
+      "other_names": "Ditidaht,Nitinat ~ Nitinaht,Ditidaht-Pacheedaht",
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      }
+    },
+    {
+      "name": "Gitsenimx̱",
+      "other_names": "Gitksan,Gitsanimx̱,Gitxsanimax̱,Gitxsanimx̱,Gitxsen,Gyaanimx̱",
+      "family": {
+        "name": "Tsimshianic",
+        "color": "rgb(255, 192, 0)"
+      }
+    },
+    {
+      "name": "Haíɫzaqvḷa",
+      "other_names": "Híɫzaqvḷa ,Hailhzaqvla,Haílhzaqvḷa,Heiltsuk,Heiltsukv,Heiltsukvla,Bella Bella",
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      }
+    },
+    {
+      "name": "Hul’q’umi’num’ / Halq’eméylem / hən̓q̓əmin̓əm̓",
+      "other_names": "Hul’q’umi’num’ (Island),Halq'eméylem (Upriver) ~ Halkomelem,hən̓q̓əmin̓əm̓ (Downriver)",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "Kaska",
+      "other_names": "Danezāgéʼ,Kaska Dena",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Klallam / nəxʷsƛ̕ay̓əm'úcən",
+      "other_names": "Klallam,Clallam,S'Klallam",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "Ktunaxa",
+      "other_names": "Kootenay,Kootenai",
+      "family": {
+        "name": "Ktunaxa",
+        "color": "rgb(224, 56, 0)"
+      }
+    },
+    {
+      "name": "Kwak̓wala",
+      "other_names": "Kwakwaka’wakw,Kwakiutl",
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      }
+    },
+    {
+      "name": "Lingít",
+      "other_names": "Łingít,Tlingit,Inland Tlingit",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Nedut’en / Witsuwit’en",
+      "other_names": "Babine ~ Lake Babine Nadot’en,Nat’oot’en Wet'suwet'en,Babine-Witsuwit'en,Bulkley Valley/Lakes District Language",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Nɬeʔkepmxcín",
+      "other_names": "Thompson,Nlaka’pamux,Nlha7kápmx",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "Nicola",
+      "other_names": "Nicola",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Nisg̱a’a",
+      "other_names": "Nisga’a,Nishga,Niska’,Nisk’a’",
+      "family": {
+        "name": "Tsimshianic",
+        "color": "rgb(255, 192, 0)"
+      }
+    },
+    {
+      "name": "Nsyilxcən",
+      "other_names": "Okanagan",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "nuučaan̓uł",
+      "other_names": "Nuu-chah-nulth,Nootka,Nootkans,Tahkaht",
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      }
+    },
+    {
+      "name": "Nuxalk",
+      "other_names": "Bella Coola,Nass",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "pentl’ach",
+      "other_names": "Pəntl’áč and Pentl’ach",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "Secwepemctsín",
+      "other_names": "Shuswap,Secwepemc",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "SENĆOŦEN / Malchosen / Lekwungen / Semiahmoo / T’Sou-ke",
+      "other_names": "Northern Straits Salish",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "Sgüüx̱s",
+      "other_names": "Klemtu ,Southern Tsimshian,Ski:xs",
+      "family": {
+        "name": "Tsimshianic",
+        "color": "rgb(255, 192, 0)"
+      }
+    },
+    {
+      "name": "She shashishalhem",
+      "other_names": "Sechelt,sháshishálem",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "Sḵwx̱wú7mesh sníchim",
+      "other_names": "Squamish",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "Sm’algya̱x",
+      "other_names": "Coast Tsimshian,Tsimshian",
+      "family": {
+        "name": "Tsimshianic",
+        "color": "rgb(255, 192, 0)"
+      }
+    },
+    {
+      "name": "Southern Tutchone",
+      "other_names": "Tutchone",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "St̓át̓imcets",
+      "other_names": "Ucwalmícwts,St̓át̓imc,Lillooet,Statimc,Stl’atl’imx,Stl’atl’imc,Sƛ’aƛ’imxǝc,Stlatliumh,Slatlemuk",
+      "family": {
+        "name": "Salishan",
+        "color": "rgb(0, 0, 255)"
+      }
+    },
+    {
+      "name": "Tāłtān",
+      "other_names": "Tahltan,Didene k’eh,Nahanni",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Tse’khene",
+      "other_names": "Tsek’ene ,Tsek’ehne ,Sekani,Sékanais",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Tsilhqot’in",
+      "other_names": "Chilcotin,Tsilhqut’in,Tzilkotin",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "Wetalh",
+      "other_names": "Tsetsaut,Ts'ets'aut",
+      "family": {
+        "name": "Athabaskan-Eyak-Tlingit or Na-Dene",
+        "color": "rgb(0, 160, 0)"
+      }
+    },
+    {
+      "name": "’Wuik̓ala",
+      "other_names": "Oowekyala,’Uik̓ala,Oweek’ala,Oweke(e)no",
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      }
+    },
+    {
+      "name": "X̱aad Kil / X̱aayda Kil",
+      "other_names": "Haida",
+      "family": {
+        "name": "Xaad Kil / Xaayda Kil",
+        "color": "rgb(160, 0, 160)"
+      }
+    },
+    {
+      "name": "X̄enaksialak̓ala / X̄a’islak̓ala",
+      "other_names": "Haisla,Kitimat,Kitlope,Northern Kwakiutl",
+      "family": {
+        "name": "Wakashan",
+        "color": "rgb(255, 235, 0)"
+      }
+    }
+  ]
+}

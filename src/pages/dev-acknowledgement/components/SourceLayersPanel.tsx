@@ -1,6 +1,7 @@
 import { Check, Layers3 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { CollapsiblePanel } from './CollapsiblePanel'
 import { sourceMeta } from '../data'
 import type { SourceKey, SourceLookupState, SourceStatus } from '../types'
 
@@ -20,11 +21,7 @@ type SourceLayersPanelProps = {
 
 export function SourceLayersPanel({ sourceLookups, enabledSources, onToggle }: SourceLayersPanelProps) {
   return (
-    <section className="rounded-lg border bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <Layers3 className="h-4 w-4 text-teal-700" />
-        <h2 className="text-sm font-semibold">Source Layers</h2>
-      </div>
+    <CollapsiblePanel title="Source Layers" icon={<Layers3 className="h-4 w-4 text-teal-700" />}>
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
         {(Object.keys(sourceMeta) as SourceKey[]).map((source) => (
           <button
@@ -61,6 +58,6 @@ export function SourceLayersPanel({ sourceLookups, enabledSources, onToggle }: S
           </button>
         ))}
       </div>
-    </section>
+    </CollapsiblePanel>
   )
 }

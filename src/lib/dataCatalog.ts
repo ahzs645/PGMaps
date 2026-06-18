@@ -189,12 +189,13 @@ export const DATASETS = {
   },
   indigenousAcknowledgementSources: {
     title: 'Indigenous acknowledgement support sources',
-    description: 'Curated acknowledgement relationship graph plus CAD/PIP access metadata and public BC/Canada community, treaty, reserve, and location layers for review-oriented acknowledgement context.',
-    source: 'UNBC and local/Nation source pages, BC Data Catalogue, BC Geographic Warehouse, BC ArcGIS REST, Government of Canada',
+    description: 'Curated acknowledgement relationship graph plus CAD/PIP app and operational-service metadata, with public BC/Canada community, treaty, reserve, and location layers for review-oriented acknowledgement context.',
+    source: 'UNBC and local/Nation source pages, BC Data Catalogue, CAD/PIP Geocortex app, BC Geographic Warehouse, BC ArcGIS REST, Government of Canada',
     coverage: 'British Columbia and Canada, source-dependent',
     license: 'Source-dependent: Access Only metadata, Open Government Licence - Canada, and public BC service terms',
     formats: ['GeoJSON', 'JSON manifest', 'JSON relationship graph'],
     downloadUrl: '/data/indigenous/manifest.json',
+    apiUrl: 'https://maps.gov.bc.ca/arcserver/rest/services/mpcm/bcgw/MapServer',
     fields: ['source', 'featureCount', 'placeId', 'nationIds', 'peopleGroupIds', 'relationshipType', 'BAND_NAME', 'FIRST_NATION_NAME', 'TREATY', 'caveat'],
   },
   evCharging: {

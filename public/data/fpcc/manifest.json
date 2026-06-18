@@ -1,0 +1,119 @@
+{
+  "source": {
+    "name": "First Peoples' Map of B.C.",
+    "homepage": "https://maps.fpcc.ca",
+    "fetchedAt": "2026-06-18T18:34:43.659Z"
+  },
+  "files": {
+    "source-page.html": {
+      "url": "https://maps.fpcc.ca/",
+      "contentType": "text/html; charset=utf-8",
+      "etag": "\"2e017d-hRBYbxVc0EIBAmvt5e6psmS6SfI\"",
+      "bytes": 3015037,
+      "gzipBytes": 698022,
+      "sha256": "3a48ca69a00c68cdfe872664fb87deb17f6f7f9e8e95f02772e84437fa5c7307"
+    },
+    "nuxt-state.json": {
+      "bytes": 10468575,
+      "gzipBytes": 1394570,
+      "sha256": "c993226db749eac1402cd7f98c8d93d56c6338637acf52d832598f7b0363d001"
+    },
+    "state/app.json": {
+      "bytes": 251,
+      "gzipBytes": 142,
+      "sha256": "3ad963c496b65d8a00e0705a2b43035472388324aae79563132057df53f8d769"
+    },
+    "state/arts.json": {
+      "bytes": 595255,
+      "gzipBytes": 65983,
+      "sha256": "1f12a84d6b62160266e63559a96bc9c91662e2a9542dbb463f514a05d629dd5a"
+    },
+    "state/communities.json": {
+      "bytes": 113005,
+      "gzipBytes": 17126,
+      "sha256": "5b7b7391f5039617f32186e479fe8cb4aee9db31fd8361f8b82c30a9bdacedde"
+    },
+    "state/grants.json": {
+      "bytes": 8498858,
+      "gzipBytes": 1258311,
+      "sha256": "fd6b39f316717ba5c3e642119c657ca7d9fb9c15fed884405642b916fc530e76"
+    },
+    "state/languages.json": {
+      "bytes": 73274,
+      "gzipBytes": 7153,
+      "sha256": "85720a30501e4862eedef12542c58ec4fa7a98793196794ddac240ec031ced6c"
+    },
+    "state/layers.json": {
+      "bytes": 1352,
+      "gzipBytes": 355,
+      "sha256": "9c33eaaf0900a0a5f426450d814225adf628462047bd14f5fc3f98404e1e192a"
+    },
+    "state/places.json": {
+      "bytes": 68872,
+      "gzipBytes": 8677,
+      "sha256": "66958a36e19f7196000f416168e008722d3a6f22402adfcfe3346658922aa0ef"
+    },
+    "language-geo.geojson": {
+      "url": "https://maps.fpcc.ca/api/language-geo/",
+      "contentType": "application/json",
+      "etag": null,
+      "lastModified": null,
+      "featureCount": 39,
+      "bytes": 200756,
+      "gzipBytes": 69859,
+      "sha256": "99965e8c34108f356ba67b54af6854ceaef9c6adf50675f5da97051ae6689ca1"
+    },
+    "community-geo.geojson": {
+      "url": "https://maps.fpcc.ca/api/community-geo/",
+      "contentType": "application/json",
+      "etag": null,
+      "lastModified": null,
+      "featureCount": 205,
+      "bytes": 37741,
+      "gzipBytes": 7435,
+      "sha256": "3770af5bece3b9a2a6da39007544e3afe7ddfea530178106b41fa574622114d2"
+    },
+    "placename-geo.geojson": {
+      "url": "https://maps.fpcc.ca/api/placename-geo/",
+      "contentType": "application/json",
+      "etag": null,
+      "lastModified": null,
+      "featureCount": 419,
+      "bytes": 119092,
+      "gzipBytes": 32376,
+      "sha256": "0989e827891391534a08b8a5165d62f866575aee52e75bd20fe6128a637c1b5d"
+    },
+    "grants.geojson": {
+      "url": "https://maps.fpcc.ca/api/grants/",
+      "contentType": "application/json",
+      "etag": null,
+      "lastModified": null,
+      "featureCount": 5677,
+      "bytes": 3065607,
+      "gzipBytes": 587714,
+      "sha256": "c86d3481124240b0b9e8f1c30d724d36f78335642affb2381aa694eb889531c7"
+    }
+  },
+  "counts": {
+    "communities": 205,
+    "communitySearchRecords": 205,
+    "languages": 39,
+    "languageFamilies": {
+      "Wakashan": 6,
+      "Salishan": 12,
+      "Tsimshianic": 4,
+      "Athabaskan-Eyak-Tlingit or Na-Dene": 13,
+      "Xaad Kil / Xaayda Kil": 1,
+      "Ktunaxa": 1,
+      "Algonquian": 2
+    },
+    "artsSearchRecords": 653,
+    "artsGeoFeatures": 578,
+    "artsTaxonomyRecords": 261,
+    "grantRecords": 5677,
+    "grantGeoFeatures": 5677,
+    "grantCategoryRecords": 35,
+    "placenameSearchRecords": 420,
+    "layers": 6
+  }
+}

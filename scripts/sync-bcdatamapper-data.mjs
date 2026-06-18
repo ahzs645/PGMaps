@@ -60,6 +60,7 @@ const pathMappings = [
   ['datascrapers/food-health/output/restaurant-classifications.json', 'restaurant-classifications.json'],
   ['datascrapers/food-health/output/restaurant-location-overrides.json', 'restaurant-location-overrides.json'],
   ['datascrapers/bc/indigenous/snapshot', 'indigenous'],
+  ['datascrapers/fpcc/output', 'fpcc'],
   ['datascrapers/native-land/snapshot', 'native-land'],
 ]
 

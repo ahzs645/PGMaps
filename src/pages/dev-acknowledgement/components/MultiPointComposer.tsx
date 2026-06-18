@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Copy, ExternalLink, MapPin, Sparkles, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, Copy, ExternalLink, MapPin, Sparkles, Trash2, X } from 'lucide-react'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { cn } from '@/lib/utils'
@@ -84,6 +84,9 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
   const [regionName, setRegionName] = useState('British Columbia')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [gisFeatures, setGisFeatures] = useState<GeoJSON.Feature[] | undefined>(undefined)
+  // Collapsed by default so this experimental tool (and its embedded map) stays
+  // out of the way until opened.
+  const [open, setOpen] = useState(false)
   const counter = useRef(0)
 
   // Load the BC First Nation Community Locations GIS dataset to validate/enrich Nation names.
@@ -172,23 +175,35 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <select
-              value={selectedOrgId}
-              onChange={(event) => loadOrg(organizations.find((org) => org.id === event.target.value) ?? null)}
-              aria-label="Organization"
-              className="rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none"
-            >
-              <option value="">Pick an organization…</option>
-              {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
-            </select>
-            <button type="button" onClick={() => loadOrg(null)} disabled={points.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-teal-300 disabled:opacity-50">
-              <Trash2 className="h-3.5 w-3.5" />
-              Clear
+            {open && (
+              <>
+                <select
+                  value={selectedOrgId}
+                  onChange={(event) => loadOrg(organizations.find((org) => org.id === event.target.value) ?? null)}
+                  aria-label="Organization"
+                  className="rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none"
+                >
+                  <option value="">Pick an organization…</option>
+                  {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
+                </select>
+                <button type="button" onClick={() => loadOrg(null)} disabled={points.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-teal-300 disabled:opacity-50">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Clear
+                </button>
+              </>
+            )}
+            <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
+              aria-label={open ? 'Collapse composer' : 'Expand composer'}
+              className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-teal-300">
+              {open ? 'Hide' : 'Open'}
+              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
             </button>
           </div>
         </div>
 
+        {open && (
+        <>
         <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_400px]">
           <div className="relative min-h-[24rem] overflow-hidden rounded-md border">
             <LocalMapBoundary result={null}>
@@ -381,6 +396,8 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
           Geometry-derived drafts use Native Land territory polygons as context triggers, and the database stores facts +
           a source link (not verbatim statements). Treat both as review-level until confirmed with the Nation or the official source.
         </div>
+        </>
+        )}
       </div>
     </section>
   )

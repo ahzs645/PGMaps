@@ -1,0 +1,3375 @@
+{
+  "place": null,
+  "placeCommunity": null,
+  "placeLanguage": null,
+  "places": [],
+  "placesSet": [],
+  "medias": [],
+  "favourites": [],
+  "badgePlaces": [],
+  "filteredBadgePlaces": [],
+  "filterCategories": [],
+  "audioFile": null,
+  "placeSearchSet": [
+    {
+      "id": 325,
+      "name": "c̕išaaʔatḥ",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 326,
+      "name": "Bella Coola's Eagle Lodge",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 328,
+      "name": "CrossRiver Wilderness Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 329,
+      "name": "St. Eugene Golf Resort & Casino",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 330,
+      "name": "Mascot Gold Mine Tours and Snaza’ist Discovery Centre ",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 331,
+      "name": "Nk'Mip - The Okanagan’s Ultimate Destination Resort",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 332,
+      "name": "Nk'Mip Desert Cultural Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 333,
+      "name": "Secwepemc Museum and Heritage Park",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 334,
+      "name": "Talking Rock Resort and Quaaout Lodge",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 335,
+      "name": "Tillicum Lelum Aboriginal Friendship Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 336,
+      "name": "Lower Columbia All First Nations",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 337,
+      "name": "Tansi Friendship Centre Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 338,
+      "name": "Wachiay Friendship Centre Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 339,
+      "name": "Nawican Friendship Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 341,
+      "name": "Fort Nelson Aboriginal Friendship Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 342,
+      "name": "Fort St John Friendship Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 343,
+      "name": "Dzelk'ant Friendship Center - Houston Program Office",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 344,
+      "name": "Interior Indian Friendship Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 346,
+      "name": "Lillooet Friendship Centre Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 347,
+      "name": "Conayt Friendship Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 348,
+      "name": "OoknaKane Friendship Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 350,
+      "name": "Prince George Native Friendship Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 351,
+      "name": "Friendship House Association of Prince Rupert",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 352,
+      "name": "Quesnel Tillicum Society, Native Friendship Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 353,
+      "name": "Kermode Friendship Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 355,
+      "name": "First Nations Friendship Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 359,
+      "name": "Cariboo Friendship Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 367,
+      "name": "Secwepemc Cultural Education Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 368,
+      "name": "En'owkin Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 369,
+      "name": "Stoney Creek Elders Cultural Society",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 371,
+      "name": "Dze L K'ant Friendship Centre ",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 389,
+      "name": "Museum of Northern B.C.",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 391,
+      "name": "Wei Wai Kum House of Treasures",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 393,
+      "name": "XÁ:YTEM  Longhouse Interpretive Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 395,
+      "name": "Ruby Creek Art Gallery",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 397,
+      "name": "St'át'imc Cultural Experiences",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 398,
+      "name": "Sto:lo Artisan Centre",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2029,
+      "name": "Nuxalk Carved Pole",
+      "location": "Talleomy (South Bentick)",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 264,
+      "name": "ḵ’yang",
+      "location": "",
+      "other_names": "\"...from Auntie Bea's house up this way\" (describing the location of an old village site at modern-day Masset)",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 298,
+      "name": "Ẹdo",
+      "location": "",
+      "other_names": "Benin",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2030,
+      "name": "Confluence Of The Fraser And Brunette Rivers",
+      "location": "confluence of the Fraser and Brunette Rivers",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 279,
+      "name": "Kenpésq’t",
+      "location": "",
+      "other_names": "Shuswap",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2031,
+      "name": "Burns Bog",
+      "location": "Delta",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 251,
+      "name": "New Aiyansh",
+      "location": "",
+      "other_names": "New Aiyansh",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 252,
+      "name": "Lisims",
+      "location": "",
+      "other_names": "Nass (River)",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 253,
+      "name": "Gitlaxt’aamiks",
+      "location": "",
+      "other_names": "Gitlakdamiks literally, \"people on the ponds\"",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 257,
+      "name": "Nkatsám",
+      "location": "",
+      "other_names": "Boothroyd area",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 268,
+      "name": "HLG̱AAGILDA",
+      "location": "",
+      "other_names": "Skidegate (original name)",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 269,
+      "name": "nƛ̓əq̓ƛ̓áq̓tn",
+      "location": "",
+      "other_names": "Kanaka Bar area",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2032,
+      "name": "Reed Point",
+      "location": "Port Moody",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1600,
+      "name": "",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2033,
+      "name": "Burnaby Mountain",
+      "location": "Burnaby/Simon Fraser University",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1658,
+      "name": "Iwicten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 272,
+      "name": "sísqeʔ",
+      "location": "",
+      "other_names": "Siska Creek",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 273,
+      "name": "Tl’esqox",
+      "location": "",
+      "other_names": "Muddy Creek",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1764,
+      "name": "Nts̓exwts̓xwímem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 281,
+      "name": "Skítsesten",
+      "location": "",
+      "other_names": "Skeetchestn",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 283,
+      "name": "Tk’emlúps",
+      "location": "",
+      "other_names": "Kamloops",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 254,
+      "name": "G̱ut̕sala",
+      "location": "",
+      "other_names": "Quatsino Sound",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 255,
+      "name": "T̕łat̕łasiḵ̕wala",
+      "location": "",
+      "other_names": "Nahwitti",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1631,
+      "name": "Teq",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1548,
+      "name": "Kwétsa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1549,
+      "name": "Qwal̓ímak",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1730,
+      "name": "Npetqets",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1758,
+      "name": "Qam̓temin̓ twal stswaw̓cw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1769,
+      "name": "Senástam",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1778,
+      "name": "Ki̓smus",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2034,
+      "name": "Clam Beds At Ambleside Park",
+      "location": "Ambleside Park, West Vancouver",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 250,
+      "name": "T’AAXWII X̱AAYDAG̱A GWAAY.YAAY IINAG̱WAAY",
+      "location": "",
+      "other_names": "Moresby Island",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1901,
+      "name": "Douglas Treaties",
+      "location": "Fort Victoria",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2035,
+      "name": "Tum-tumay-whueton",
+      "location": "Belcarra Park",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1557,
+      "name": "Xwitima",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 288,
+      "name": "Qw7ewt",
+      "location": "",
+      "other_names": "Little Shuswap Lake",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 289,
+      "name": "Tsk’wéylecw",
+      "location": "",
+      "other_names": "Pavilion",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 290,
+      "name": "Xats’úll ",
+      "location": "",
+      "other_names": "Soda Creek",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2036,
+      "name": "Sleil-waututh",
+      "location": "Burrard Inlet",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1559,
+      "name": "̓elqámtensa ti skenknápa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1558,
+      "name": "Kaxwítima",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2037,
+      "name": "Say-mah-mit",
+      "location": "Port Moody",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1540,
+      "name": "Ts̓zil",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2038,
+      "name": "Inlailawatash",
+      "location": "at the mouth of the Indian River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1562,
+      "name": "Q̓welq̓welústen",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1717,
+      "name": "Nsqwitsu",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1697,
+      "name": "Yalhatkwa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1699,
+      "name": "Sao7sao",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 292,
+      "name": "Pelltíq’t",
+      "location": "",
+      "other_names": "Clinton",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 293,
+      "name": "Xgét’tem’",
+      "location": "",
+      "other_names": "Dog Creek",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1996,
+      "name": "Teslin Tlingit Heritage Centre",
+      "location": "Teslin, YT",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1733,
+      "name": "Tsíqten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1639,
+      "name": "Nkitseqw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1960,
+      "name": "Skwelkwek'welt",
+      "location": "Sun Peaks Resort Municipality",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1902,
+      "name": "Kamloopa Powwow",
+      "location": "Tk'emlúps te Secwépemc (Kamloops)",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1614,
+      "name": "Ts̓émts̓emeqw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1903,
+      "name": "Memorial To Sir Wilfred Laurier, 1910",
+      "location": "Kamloops",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1954,
+      "name": "Tsilhqot'in Nation V. British Columbia",
+      "location": "Williams Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1543,
+      "name": "Skelúla7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1615,
+      "name": "Sesilhts̓á7amten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1955,
+      "name": "Gwaii Hannas National Park Reserve And Haida Heritage Site",
+      "location": "Haida Gwaii",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1746,
+      "name": "Skweskwistqw7am",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 260,
+      "name": "nk̓əmcín",
+      "location": "",
+      "other_names": "Spences Bridge area",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 261,
+      "name": "4 villages of Massett",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2059,
+      "name": "Wahkohtowin Wellness Services Association",
+      "location": "Westbank",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 262,
+      "name": "aaw",
+      "location": "",
+      "other_names": "\"Way down the other end, as far as the hill...\" (describing the location of an old village site at modern-day Masset)",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 263,
+      "name": "iijaaw",
+      "location": "",
+      "other_names": "\"...from the hill up to Leona's mum's house\" (describing the location of an old village site at modern-day Masset)",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1620,
+      "name": "Nq’eq’leqw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1671,
+      "name": "Tixzuma nk’cecen’was",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1796,
+      "name": "Spul’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2062,
+      "name": "Oib Nql̕xʷcniɬxʷ",
+      "location": "Osoyoos Indian Band - Oliver BC",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1684,
+      "name": "Cwik’malhcw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1741,
+      "name": "Maowets stswaw’cw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1701,
+      "name": "Q’el’k’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 265,
+      "name": "jagwaal",
+      "location": "",
+      "other_names": "\"...from her (Leona's) parents' home down here to Auntie Bea's house\" (describing the location of an old village site at modern-day Masset)",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1905,
+      "name": "Nisga'a Final Agreement",
+      "location": "Gitlaxt'aamiks",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 266,
+      "name": "Sik-edakh",
+      "location": "",
+      "other_names": "Glen-Vowell",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 267,
+      "name": "Gwa'sala-'Nakwaxda'xw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 274,
+      "name": "X̱AAYDAG̱A GWAAY.YAAY IINAG̱WAAY",
+      "location": "",
+      "other_names": "Graham Island",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1947,
+      "name": "Susk'uz Headdress",
+      "location": "Fort St. James",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 275,
+      "name": "X̱AAYDAG̱A GWAAY.YAAY",
+      "location": "",
+      "other_names": "Haida Gwaii (Queen Charlotte Islands)",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 276,
+      "name": "Sexqeltqín",
+      "location": "",
+      "other_names": "Adams Lake",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1797,
+      "name": "Xwáta",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1613,
+      "name": "Qatsqilnesten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1781,
+      "name": "Tseqwtsétseqw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1906,
+      "name": "Delgamuuk'w V. British Columbia",
+      "location": "Anspayaxw (home of Delgamuuk'w)",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1616,
+      "name": "Cela7álhcw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 277,
+      "name": "St’uxwtéws ",
+      "location": "",
+      "other_names": "Bonaparte",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 284,
+      "name": "Tsq’éscen",
+      "location": "",
+      "other_names": "Canim Lake",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 285,
+      "name": "Stswécem’c",
+      "location": "",
+      "other_names": "Canoe Creek",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1667,
+      "name": "Susuzil’eq",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1936,
+      "name": "G’psgolox Pole",
+      "location": "Kitimaat Village",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1686,
+      "name": "Ts’ao7xwiya",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1956,
+      "name": "Peace-moberly Tract",
+      "location": "Landscape between Moberly Lake and the Peace River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 256,
+      "name": "Scw’́exmx",
+      "location": "",
+      "other_names": "\"People of the creek\" (Nicola Valley people)",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1949,
+      "name": "Common Camas",
+      "location": "Castlegar and East Kootenay region",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 258,
+      "name": "ƛ̓q̓əmcín",
+      "location": "",
+      "other_names": "Lytton area",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1943,
+      "name": "Chilliwack Lake Trail",
+      "location": "Vedder Crossing to Chilliwack Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1924,
+      "name": "Yuquot Whalers Shrine Site",
+      "location": "Nootka Island",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1908,
+      "name": "Keatley Creek",
+      "location": "On a plateau above the Fraser River, north of Lillooet",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 259,
+      "name": "PKOLS",
+      "location": "",
+      "other_names": "Mount Douglas",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 287,
+      "name": "Llenllenéy’ten",
+      "location": "",
+      "other_names": "High Bar ",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1925,
+      "name": "Secwépemc Village Site",
+      "location": "North Thompson River Provincial Park",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 295,
+      "name": "Xwisten",
+      "location": "",
+      "other_names": "Bridge River",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 296,
+      "name": "Lheidli-T'enneh",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 297,
+      "name": "Gitanmaax",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1642,
+      "name": "Nseqets",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1666,
+      "name": "Snat’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1537,
+      "name": "Qutál̓q",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1680,
+      "name": "Zets’emnatkwa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1679,
+      "name": "Sqw’elaw’em",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1715,
+      "name": "Xwel’pil’cten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1605,
+      "name": "Nsk’enu7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1560,
+      "name": "Cwát̓cwat̓",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1698,
+      "name": "Nku̓cwten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1716,
+      "name": "Tseqwtsuqum",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1638,
+      "name": "Nwuwqwileqs",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1823,
+      "name": "Smáxen",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1827,
+      "name": "G̲aw Tlagée",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1685,
+      "name": "Ses7istken",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1703,
+      "name": "Nsék’sek’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1720,
+      "name": "Koli7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1747,
+      "name": "Kacwitima",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1911,
+      "name": "Qa'intak",
+      "location": "Whiteswan Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1759,
+      "name": "Kuteteltecw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1612,
+      "name": "Sq̓u7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1640,
+      "name": "Wetscín’atkwa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1641,
+      "name": "Qwemsatak",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1665,
+      "name": "Nk’ecin’was",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1702,
+      "name": "Xwél̓ep",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1798,
+      "name": "Zíxam",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1719,
+      "name": "Spo7ez’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1722,
+      "name": "Xulqéqst",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1736,
+      "name": "T’ula",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1750,
+      "name": "Tsekalenal",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1929,
+      "name": "Farwell Canyon Fishing Rocks",
+      "location": "Chilcotin River south of Riske Creek",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1958,
+      "name": "Sacred Headwaters",
+      "location": "Klappan Range",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1914,
+      "name": "Mcabee Fossil Beds",
+      "location": "east of Cache Creek",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1881,
+      "name": "Myc Sharratt",
+      "location": "Nanaimo, BC",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1964,
+      "name": "Klin-se-za (twin Sisters)",
+      "location": "between Hudson's Hope and Chetwynd",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1951,
+      "name": "Calder V. Attorney General Of British Columbia",
+      "location": "Nisga'a Territory",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1962,
+      "name": "Coquihalla",
+      "location": "Flows form Coquihalla Lakes to the Fraser River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1959,
+      "name": "Gwininitxw Indigenous Protected Area",
+      "location": "Upper Skeena Watershed",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1932,
+      "name": "Nan Sdins",
+      "location": "SGang Gwaay, Haida Gwaii",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1952,
+      "name": "Declaration Of The Chilcotin Nation - 1984",
+      "location": "Williams Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1953,
+      "name": "Island Spirit Uprising - 2005",
+      "location": "Haida Gwaii",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1942,
+      "name": "Blackeye's Trail",
+      "location": "Tulameen to Hope",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1556,
+      "name": "s7i'tem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1940,
+      "name": "Atse Dena Tunna (davie Trail)",
+      "location": "from Fort Ware to Lower Post",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1939,
+      "name": "Nuxalk - Dakelh Grease Trail",
+      "location": "Quesnel to Bella Coola",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1938,
+      "name": "Peace River",
+      "location": "Northeast BC",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1967,
+      "name": "Boat Encampment",
+      "location": "On the Big Bend in the Columbia River, now Kinbasket Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1972,
+      "name": "Slhxí7lsh",
+      "location": "Stanley Park, Vancouver",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1971,
+      "name": "C̓əsnaʔəm (marpole Midden)",
+      "location": "Marpole Park, Vancouver",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1969,
+      "name": "Këyikh Wigit",
+      "location": "Witset Canyon",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1974,
+      "name": "Χʷay̓χʷəy ̓ (lumberman’s Arch, Stanley Park)",
+      "location": "Stanley Park, Vancouver",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1968,
+      "name": "Bowron Lake",
+      "location": "northeast of Baskerville",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1975,
+      "name": "Spapəy̓əq (brockton Point, Stanley Park)",
+      "location": "Stanley Park, Vancouver",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1976,
+      "name": "Xʷməm̓qʷe:m (camosun Bog)",
+      "location": "Pacific Spirit Regional Park, Vancouver",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1977,
+      "name": "Spel'kumtn",
+      "location": "Pemberton",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1725,
+      "name": "Hawint",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1981,
+      "name": "Hlgu Isgwit Hot Springs",
+      "location": "west of Gitlaxt'aamiks",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2000,
+      "name": "Yellowhead Pass",
+      "location": "west of Tete Jaune Cache",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1739,
+      "name": "Lil’watatkwa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1753,
+      "name": "Mum̓leq",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1993,
+      "name": "Pípsell",
+      "location": "south of Kamloops",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1990,
+      "name": "Amazay (duncan Lake)",
+      "location": "headwaters of the Finlay River watershed",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1992,
+      "name": "Ktunaxa Archaeology Site At Canal Flats",
+      "location": "Canal Flats, East Kootenays",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1989,
+      "name": "Chataway Lake",
+      "location": "south of Logan Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1991,
+      "name": "Slhu7kin (perry Ridge)",
+      "location": "Slocan Valley",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2001,
+      "name": "Kechika River",
+      "location": "Rocky Mountain trench to the Liard River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1554,
+      "name": "nsk̓enú7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2002,
+      "name": "Stuart River",
+      "location": "Flows from Stuart Lake to the Nechako River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1630,
+      "name": "Pipi7íyekw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2003,
+      "name": "K’alii-aksim Lisims (the Nass River)",
+      "location": "Northwest BC",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1657,
+      "name": "Sqúsem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1731,
+      "name": "Niqw’atkwa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1632,
+      "name": "Q’ewtaqs",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2014,
+      "name": "Nakina Trail",
+      "location": "From Canoe Landing to Kuthai Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1603,
+      "name": "Lhqw’uzalts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1633,
+      "name": "Nsp’uqwem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1598,
+      "name": "Nqempa stswaw̓ cw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2026,
+      "name": "Deer Lake",
+      "location": "Burnaby",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1628,
+      "name": "Spipel",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1655,
+      "name": "Sxet’xit’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1795,
+      "name": "Snent’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1629,
+      "name": "Maqwam Stswaw’cw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1656,
+      "name": "St’aqw.",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2011,
+      "name": "Precipice Trail",
+      "location": "Anahim Lake along the Antnarko River to Highway 20",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1948,
+      "name": "Chilkat Blanket",
+      "location": "Atlin",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1927,
+      "name": "Snaza'ist",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1601,
+      "name": "St’upets",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2019,
+      "name": "Surrey Columbian Centennial Totem Pole",
+      "location": "on the grounds of Surrey's Old City Hall",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2023,
+      "name": "Lheidli T'enneh Ancient Village Site",
+      "location": "Prince George",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1751,
+      "name": "Npeqw’q",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1904,
+      "name": "Declaration Of The Tahltan Tribe",
+      "location": "Telegraph Creek",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1946,
+      "name": "Ni’isjoohl Memorial Pole",
+      "location": "Laxgalts'ap on the Nass River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1961,
+      "name": "Wah’nah’juss Hilth’hooiss (meares Island Tribal Park)",
+      "location": "Meares Island",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1937,
+      "name": "Gitwangak Battle Hill",
+      "location": "On the Kitwanga River north of Gitwangak",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1762,
+      "name": "Ts̓aq̓alts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1966,
+      "name": "Fort Mcleod National Historic Site",
+      "location": "north end of McLeod Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1732,
+      "name": "Sqweyíts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1957,
+      "name": "Taku River",
+      "location": "south of Atlin",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1965,
+      "name": "Tthek'eneh Kúe (old Fort Nelson)",
+      "location": "west of Fort Nelson",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1982,
+      "name": "House Of Numst'",
+      "location": "Bella Coola",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1926,
+      "name": "Whey-a-wichen",
+      "location": "North Vancouver",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1909,
+      "name": "Eulachon Fishery",
+      "location": "mouth of the Nass River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1979,
+      "name": "Siy’ám’ Smánit (stawamus Chief)",
+      "location": "Squamish",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1910,
+      "name": "Kitselas Canyon",
+      "location": "Skeena River near Terrace",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1726,
+      "name": "T’eqw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1980,
+      "name": "Madáts’atl’ǫje (snare Hill)",
+      "location": "northeast BC",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1984,
+      "name": "Ts̱azuulh Saahgáe (big Timber Camp)",
+      "location": "along the Beatton River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1852,
+      "name": "Tse'k'wa",
+      "location": "Treaty 8 territory, BC",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1928,
+      "name": "Bridge River Fishing Rocks",
+      "location": "confluence of the Bridge River and Fraser River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1912,
+      "name": "Nch’kaý",
+      "location": "northeast of Squamish",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1913,
+      "name": "Anhluut’ukwsim Laxmihl Angwinga’asanskwhl Nisga’a",
+      "location": "east of Gitlaxt'aamiks Village",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1663,
+      "name": "Qw’aséset",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1915,
+      "name": "Secwépemc Museum & Heritage Park",
+      "location": "Tk'emlúps te Secwépemc (Kamloops)",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1978,
+      "name": "Todagin Lake",
+      "location": "Klappan Highlands",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1944,
+      "name": "Cheslatta Trail",
+      "location": "Ootsa Lake to Fraser Lake via Cheslatta Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1916,
+      "name": "Indigenous Interpretation Site At Historic Hat Creek Ranch",
+      "location": "north of Cache Creek",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1917,
+      "name": "U'mista Cultural Centre And Society",
+      "location": "Alert Bay",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1931,
+      "name": "Old Hagwilget Bridge",
+      "location": "Hagwilget on the Bulkely River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1973,
+      "name": "Səna̓ ʔqʷ",
+      "location": "Vanier Park, Vancouver",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1683,
+      "name": "Tsekwelwásten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1933,
+      "name": "Koeye River Fish Weir",
+      "location": "Koeye River near Bella Bella",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1921,
+      "name": "Ktunaxa Interpretive Centre",
+      "location": "Cranbrook",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1920,
+      "name": "Tuckkwiowhum Heritage Village",
+      "location": "Boston Bar on the Fraser River",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1963,
+      "name": "Chun T’oh Whudujut (ancient Forest)",
+      "location": "north of Prince George",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1941,
+      "name": "Sea To Sky Trail",
+      "location": "Cheakamus River north of Squamish",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1934,
+      "name": "Old Ulkatcho Village",
+      "location": "Gatcho Lake north of Anahim Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1734,
+      "name": "Cilqsan’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1983,
+      "name": "Tunkwa Lake",
+      "location": "north of Merritt",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1986,
+      "name": "Alááʔ S̱atǫ (petersen's Crossing)",
+      "location": "On the Beatton River north of Fort St. John",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1985,
+      "name": "Alédzé Tsáá (aledze Creek)",
+      "location": "north of Fort St. John",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1999,
+      "name": "Tsútswecw Provincial Park",
+      "location": "on the Adams River near Scotch Creek",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1997,
+      "name": "Yinka Dene Language Institute",
+      "location": "Stoney Creek south of Vanderhoof",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1987,
+      "name": "Suunéch'ii Kéch'iige (montney)",
+      "location": "north of Fort St. John",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1988,
+      "name": "Tłu Tué",
+      "location": "125 km north of Fort Nelson, near the NWT border",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1994,
+      "name": "Naa’waya’sum Coastal Indigenous Gardens",
+      "location": "Tofino",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1995,
+      "name": "Canoe Landing",
+      "location": "Confluence of the Nakina and Skolo Rivers",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2004,
+      "name": "Hanás saahgéʔ (doig River)",
+      "location": "north of Fort St. John",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2024,
+      "name": "1921 'namgis Potlatch",
+      "location": "Village Island",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2006,
+      "name": "Nyan Wheti",
+      "location": "between Stuart Lake and Fraser Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2007,
+      "name": "Duzcho Trail",
+      "location": "A trail from Stuart Lake to McLeod Lake",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2017,
+      "name": "K'omoks Guardian Pole",
+      "location": "K'omoks Estuary",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2008,
+      "name": "Douglas Lake Trail",
+      "location": "Between Port Douglas and Pemberton",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2022,
+      "name": "Triquet Island Ancient Village",
+      "location": "Triquet Island",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2009,
+      "name": "Chilkoot Trail",
+      "location": "between Skagway, Alaska and Bennett Lake, BC",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2010,
+      "name": "Penelakut Island Forest Trails",
+      "location": "Penelakut Island",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2012,
+      "name": "Yukon Telegraph Trail",
+      "location": "From Stewart to Atlin",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2016,
+      "name": "Kelp Forests",
+      "location": "Quadra Island",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2013,
+      "name": "Mount Edziza",
+      "location": "southeast of Telegraph Creek",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2015,
+      "name": "Gwaxdlala/nalaxdlala Indigenous Protected And Conserved Area",
+      "location": "Knight Inlet",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2021,
+      "name": "Toba Inlet",
+      "location": "Toba Inlet",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2018,
+      "name": "Gukwdzi (bighouse) at Tsulquate",
+      "location": "north of Port Hardy",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2020,
+      "name": "Chinese Market Gardens At Musqueam Reserve #2",
+      "location": "Musqueam Reserve #2",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1606,
+      "name": "Celcileqsten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1634,
+      "name": "Spáyem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1607,
+      "name": "Lhq’uqw’zalts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1635,
+      "name": "St’aqw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1611,
+      "name": "Npeq",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1664,
+      "name": "Tamaqsten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1660,
+      "name": "Npeq.",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1681,
+      "name": "Zezelkwa7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1608,
+      "name": "Qalinwas",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1636,
+      "name": "Sásts’xem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1661,
+      "name": "Mkw’alts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1682,
+      "name": "Sqw’ex",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1564,
+      "name": "Xbisuunt Dance Group",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1609,
+      "name": "Qéqlinwas",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1637,
+      "name": "Sts’em",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1662,
+      "name": "Kewkékew",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1700,
+      "name": "Qu7qu7ulinaoz",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1610,
+      "name": "Scniz7am",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1735,
+      "name": "Zaxwaoz’acen",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1748,
+      "name": "Cwitima",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1760,
+      "name": "Scwícwes",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1740,
+      "name": "Sqw̓axt",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1770,
+      "name": "Nxwelp’ilcten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1789,
+      "name": "(a)S7ukw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1668,
+      "name": "Mim’sa7ak",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1617,
+      "name": "Xwexwut’ewi7k",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1644,
+      "name": "P’eq’p’aqw’ulh",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1687,
+      "name": "Nt’exwtimem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1721,
+      "name": "Nca7ts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1749,
+      "name": "Nk’em’ts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1618,
+      "name": "Skelula7atkwa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1645,
+      "name": "Nq’il’eqw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1669,
+      "name": "Skwenkukwen",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1688,
+      "name": "K’emam’eqs",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1706,
+      "name": "Sqw’elapam",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1761,
+      "name": "Quley̓sút",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1619,
+      "name": "Sptacw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1646,
+      "name": "Q’áq’ep’ats",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1670,
+      "name": "Skism’eq",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1689,
+      "name": "Stlhaleqw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1723,
+      "name": "K’exmaoli",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1737,
+      "name": "Aq’uxao",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1771,
+      "name": "(S)t̓uqal̓ts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1784,
+      "name": "Skelwil̓",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1647,
+      "name": "Nq’ezqw’ezix",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1690,
+      "name": "Sts’ekwets’kwa7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1707,
+      "name": "Stsacwam",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1724,
+      "name": "Nwal’ts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1738,
+      "name": "Qwal’imak",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1752,
+      "name": "Sq̓em̓p",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1763,
+      "name": "Ts̓ets̓q́alts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1772,
+      "name": "St̓ewt̓eweq",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1779,
+      "name": "Sútsmicw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1785,
+      "name": "T̓éna7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1790,
+      "name": "Skénkenam",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1799,
+      "name": "Nk’ecín’was",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1621,
+      "name": "Yecwláo7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1648,
+      "name": "Zaxqs",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1672,
+      "name": "Lhekmaw’as",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1691,
+      "name": "Nqeql’alus",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1708,
+      "name": "Ts’ats’qw’em",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1773,
+      "name": "Nsqwiláoz’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1780,
+      "name": "Qw̓eseset",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1786,
+      "name": "S7ull̓us",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1791,
+      "name": "Cwelao7alhcw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1800,
+      "name": "Snak’ cal",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1745,
+      "name": "Metsaltsem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1622,
+      "name": "(s)Kakwel’eqsa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1649,
+      "name": "Nsek’sek’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1673,
+      "name": "Kwlol7its",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1692,
+      "name": "Lh7álhmec",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1774,
+      "name": "Yáy'celem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1709,
+      "name": "Sú7a",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1754,
+      "name": "Sp̓ep̓ts̓en",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1765,
+      "name": "Lhelhqw̓ut",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1787,
+      "name": "Slecwelcwets",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1792,
+      "name": "Ncá7a ském’em",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1801,
+      "name": "Lha7aq",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1623,
+      "name": "Skisemtn",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1650,
+      "name": "St’et’eqw’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1674,
+      "name": "El7ílacwten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1693,
+      "name": "Nkukwm’alhmec",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1710,
+      "name": "Tselel’elh",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1727,
+      "name": "Ntaoz’a",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1755,
+      "name": "K̓et̓a",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1714,
+      "name": "S7um’ik",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1766,
+      "name": "Lécwelcwets",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1775,
+      "name": "Qw̓exwqw̓ixaltcw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1788,
+      "name": "Ns7aq̓awex",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1793,
+      "name": "Nxew’ena skem’em",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1624,
+      "name": "Ngeptem",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1651,
+      "name": "Séstik",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1675,
+      "name": "Qw’exmalhcw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1694,
+      "name": "Nq’elzaten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1711,
+      "name": "Slécwelcweq",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1767,
+      "name": "Lhewlhawin̓",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1728,
+      "name": "Nqemqan’st",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1742,
+      "name": "Skelula7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1756,
+      "name": "Q̓ewq̓ewtsin",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1776,
+      "name": "P'eq'mál'ek",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1783,
+      "name": "S7a7alkw̓em",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1818,
+      "name": "Tsatsisnukwomi Village",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1837,
+      "name": "Eslhá7an",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1547,
+      "name": "Xet̓ólacw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1625,
+      "name": "Kasut’ten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1652,
+      "name": "Qelum’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1676,
+      "name": "Tat7i",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1712,
+      "name": "Kitsectsecten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1743,
+      "name": "Lil’wat Tselalh",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1626,
+      "name": "Tsixwlu7ts",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1653,
+      "name": "Nqwixwlaten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1677,
+      "name": "Sxul, sxula",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1695,
+      "name": "Np’as",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1713,
+      "name": "Stsátscwam",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1729,
+      "name": "Lálaten",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1744,
+      "name": "Sqlaw’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1777,
+      "name": "Skelula7átkwa",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1757,
+      "name": "Sq̓u7 Stswaw̓ CW",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1768,
+      "name": "Szenep",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1794,
+      "name": "S7ay’anicw",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1627,
+      "name": "Sqw’axt",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1544,
+      "name": "Léqmets",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1696,
+      "name": "Hihi7",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1678,
+      "name": "Nseq’",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 1546,
+      "name": "Nkúkwem̓a",
+      "location": "",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    },
+    {
+      "id": 2096,
+      "name": "Lax Xsin Tsihl",
+      "location": "Gitxsan Lax Yip",
+      "other_names": "",
+      "kind": "poi",
+      "artists": []
+    }
+  ]
+}

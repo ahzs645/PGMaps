@@ -1,14 +1,11 @@
 import { ExternalLink, Globe2 } from 'lucide-react'
 
+import { CollapsiblePanel } from './CollapsiblePanel'
 import { localLanguageResources, pronunciationSources } from '../data'
 
 export function LanguageReferences() {
   return (
-    <section className="rounded-lg border bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <Globe2 className="h-4 w-4 text-teal-700" />
-        <h2 className="text-sm font-semibold">Language References</h2>
-      </div>
+    <CollapsiblePanel title="Language References" icon={<Globe2 className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
       <div className="space-y-3 text-xs leading-5 text-slate-600">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Pronunciation</div>
         {pronunciationSources.map((source) => (
@@ -66,6 +63,6 @@ export function LanguageReferences() {
           </div>
         ))}
       </div>
-    </section>
+    </CollapsiblePanel>
   )
 }

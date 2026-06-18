@@ -1,0 +1,5748 @@
+{
+  "communities": [
+    {
+      "name": "Ahousaht First Nation",
+      "id": 206,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.066667,
+          49.283333
+        ]
+      },
+      "audio": 244
+    },
+    {
+      "name": "Aitchelitz First Nation",
+      "id": 207,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.997999,
+          49.147883
+        ]
+      },
+      "audio": 84
+    },
+    {
+      "name": "ʔakisq̓nuk (Akisqnuk First Nation)",
+      "id": 405,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -115.96332089999996,
+          50.4580581
+        ]
+      },
+      "audio": 238
+    },
+    {
+      "name": "Anspayaxw",
+      "id": 266,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.691748,
+          55.35075
+        ]
+      },
+      "audio": 245
+    },
+    {
+      "name": "ʔaq̓am (St. Mary’s Indian Band)",
+      "id": 361,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -115.758794,
+          49.568002
+        ]
+      },
+      "audio": 133
+    },
+    {
+      "name": "Ashcroft Indian Band",
+      "id": 209,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.322376,
+          50.72043
+        ]
+      },
+      "audio": 136
+    },
+    {
+      "name": "Binche Whut'en",
+      "id": 408,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.45452421087953,
+          54.545942111895215
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Blueberry River First Nations",
+      "id": 211,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.139179,
+          56.762252
+        ]
+      },
+      "audio": 138
+    },
+    {
+      "name": "BOḰEĆEN (Pauquachin)",
+      "id": 320,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.458092,
+          48.627842
+        ]
+      },
+      "audio": 246
+    },
+    {
+      "name": "Boothroyd Band",
+      "id": 213,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.485035,
+          49.963092
+        ]
+      },
+      "audio": 130
+    },
+    {
+      "name": "Boston Bar First Nation",
+      "id": 214,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.45235,
+          49.877864
+        ]
+      },
+      "audio": 131
+    },
+    {
+      "name": "Champagne and Aishihik First Nations (CAFN)",
+      "id": 407,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -135.0588737,
+          60.721674
+        ]
+      },
+      "audio": 247
+    },
+    {
+      "name": "Chawathil First Nation",
+      "id": 223,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.442475,
+          49.382993
+        ]
+      },
+      "audio": 248
+    },
+    {
+      "name": "Cheam First Nation",
+      "id": 224,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.753566,
+          49.189934
+        ]
+      },
+      "audio": 249
+    },
+    {
+      "name": "Cheslatta Carrier Nation",
+      "id": 227,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.771431,
+          54.018417
+        ]
+      },
+      "audio": 251
+    },
+    {
+      "name": "Coldwater Indian Band",
+      "id": 228,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.783954,
+          50.109014
+        ]
+      },
+      "audio": 137
+    },
+    {
+      "name": "Cook’s Ferry Indian Band",
+      "id": 230,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.474551,
+          50.435748
+        ]
+      },
+      "audio": 134
+    },
+    {
+      "name": "Cowichan Tribes",
+      "id": 231,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.712194,
+          48.772671
+        ]
+      },
+      "audio": 252
+    },
+    {
+      "name": "Da’naxda’xw First Nation",
+      "id": 232,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.939437,
+          50.59691
+        ]
+      },
+      "audio": 135
+    },
+    {
+      "name": "Daylu Dena Council",
+      "id": 233,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.486391,
+          59.923837
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Dease Lake (Tahltan Nation)",
+      "id": 409,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -130.00821875127068,
+          58.443652512792426
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Dease River First Nation",
+      "id": 234,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.29178539999998,
+          59.2953873
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Ditidaht First Nation",
+      "id": 235,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.669873,
+          48.809223
+        ]
+      },
+      "audio": 139
+    },
+    {
+      "name": "Doig River First Nation",
+      "id": 236,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.794702,
+          56.4926
+        ]
+      },
+      "audio": 140
+    },
+    {
+      "name": "Dzawada’enuxw First Nation",
+      "id": 378,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.182678,
+          50.977258
+        ]
+      },
+      "audio": 142
+    },
+    {
+      "name": "Ehattesaht Chinehkint",
+      "id": 238,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.859345,
+          49.984998
+        ]
+      },
+      "audio": 143
+    },
+    {
+      "name": "ʔEsdilagh",
+      "id": 204,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.496132,
+          52.685657
+        ]
+      },
+      "audio": 144
+    },
+    {
+      "name": "Esk’etemc First Nation",
+      "id": 239,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.2708634,
+          51.822973
+        ]
+      },
+      "audio": 310
+    },
+    {
+      "name": "Fort Nelson First Nation",
+      "id": 241,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.663214,
+          58.775837
+        ]
+      },
+      "audio": 219
+    },
+    {
+      "name": "Gingolx Village Government",
+      "id": 306,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.95486,
+          54.994657
+        ]
+      },
+      "audio": 253
+    },
+    {
+      "name": "Gitanmaax",
+      "id": 242,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.674802,
+          55.256489
+        ]
+      },
+      "audio": 254
+    },
+    {
+      "name": "Gitanyow",
+      "id": 243,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.06436181662235,
+          55.26549715441192
+        ]
+      },
+      "audio": 255
+    },
+    {
+      "name": "Gitga’at Nation",
+      "id": 254,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.25351,
+          53.423919
+        ]
+      },
+      "audio": 146
+    },
+    {
+      "name": "Gitlaxt’aamiks Village Government",
+      "id": 309,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.07833,
+          55.20578
+        ]
+      },
+      "audio": 256
+    },
+    {
+      "name": "Gitsegukla",
+      "id": 244,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.82947673391773,
+          55.08767995495301
+        ]
+      },
+      "audio": 257
+    },
+    {
+      "name": "Gitwangak",
+      "id": 245,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.067759,
+          55.09952
+        ]
+      },
+      "audio": 258
+    },
+    {
+      "name": "Gitxaala Nation",
+      "id": 246,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -130.433219,
+          53.79448
+        ]
+      },
+      "audio": 147
+    },
+    {
+      "name": "Gwa’sala-’Nakwaxda’xw Nations",
+      "id": 248,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.496759,
+          50.734148
+        ]
+      },
+      "audio": 148
+    },
+    {
+      "name": "Gwawaʼenux̱w",
+      "id": 249,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.376158,
+          50.682539
+        ]
+      },
+      "audio": 149
+    },
+    {
+      "name": "Hagwilget Village Council",
+      "id": 250,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.591578,
+          55.247553
+        ]
+      },
+      "audio": 259
+    },
+    {
+      "name": "Haisla Nation",
+      "id": 252,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.647123,
+          53.974585
+        ]
+      },
+      "audio": 150
+    },
+    {
+      "name": "Halalt First Nation",
+      "id": 251,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.696533,
+          48.875036
+        ]
+      },
+      "audio": 260
+    },
+    {
+      "name": "Halfway River First Nation",
+      "id": 253,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.808989,
+          56.730259
+        ]
+      },
+      "audio": 151
+    },
+    {
+      "name": "Heiltsuk Nation (Bella Bella)",
+      "id": 255,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.145551,
+          52.160363
+        ]
+      },
+      "audio": 152
+    },
+    {
+      "name": "Hesquiaht First Nation",
+      "id": 256,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.272027,
+          49.368206
+        ]
+      },
+      "audio": 223
+    },
+    {
+      "name": "Homalco First Nation",
+      "id": 258,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.243551,
+          49.951572
+        ]
+      },
+      "audio": 153
+    },
+    {
+      "name": "Hupacasath First Nation",
+      "id": 259,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.825175,
+          49.265582
+        ]
+      },
+      "audio": 154
+    },
+    {
+      "name": "Huu-ay-aht First Nation",
+      "id": 260,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.142608,
+          48.833366
+        ]
+      },
+      "audio": 220
+    },
+    {
+      "name": "Iskut Nation (Tahltan Nation)",
+      "id": 261,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.983333,
+          57.833333
+        ]
+      },
+      "audio": 261
+    },
+    {
+      "name": "Kanaka Bar Indian Band",
+      "id": 264,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.581413,
+          50.233253
+        ]
+      },
+      "audio": 155
+    },
+    {
+      "name": "Katzie First Nation",
+      "id": 265,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.677769,
+          49.202096
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Ka:’yu:’k’t’h’/Che:k:tles7et’h’ First Nation",
+      "id": 262,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.34913,
+          50.069314
+        ]
+      },
+      "audio": 156
+    },
+    {
+      "name": "Kenpésq’t (Shuswap Indian Band)",
+      "id": 339,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -116.028423,
+          50.504375
+        ]
+      },
+      "audio": 313
+    },
+    {
+      "name": "Kitasoo / Xai’xais (Klemtu)",
+      "id": 267,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.5200916712107,
+          52.587568617803626
+        ]
+      },
+      "audio": 224
+    },
+    {
+      "name": "Kitselas First Nation",
+      "id": 268,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.411968,
+          54.607542
+        ]
+      },
+      "audio": 157
+    },
+    {
+      "name": "Kitsumkalum",
+      "id": 269,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.588081,
+          54.517637
+        ]
+      },
+      "audio": 158
+    },
+    {
+      "name": "Klahoose First Nation",
+      "id": 270,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.916667,
+          50.116667
+        ]
+      },
+      "audio": 159
+    },
+    {
+      "name": "K’omoks First Nation",
+      "id": 229,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.991313,
+          49.692481
+        ]
+      },
+      "audio": 198
+    },
+    {
+      "name": "Kwadacha Nation",
+      "id": 272,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.63588479999996,
+          57.4230728
+        ]
+      },
+      "audio": 262
+    },
+    {
+      "name": "Kwakiutl Band Council",
+      "id": 273,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.407601,
+          50.694847
+        ]
+      },
+      "audio": 199
+    },
+    {
+      "name": "Kwantlen First Nation",
+      "id": 274,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.585946,
+          49.162674
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Kwaw-kwaw-apilt First Nation",
+      "id": 275,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.950135,
+          49.171767
+        ]
+      },
+      "audio": 263
+    },
+    {
+      "name": "Kwiakah First Nation",
+      "id": 276,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.254285,
+          50.030677
+        ]
+      },
+      "audio": 200
+    },
+    {
+      "name": "Kwikwasut’inuxw Haxwa’mis",
+      "id": 277,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.600309,
+          50.695955
+        ]
+      },
+      "audio": 201
+    },
+    {
+      "name": "Kwikwetlem First Nation",
+      "id": 278,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.80658,
+          49.243879
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Lake Babine Nation",
+      "id": 279,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.758363,
+          54.238409
+        ]
+      },
+      "audio": 225
+    },
+    {
+      "name": "Ławitʼsis (Tlowitsis) Nation",
+      "id": 373,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.246662,
+          49.950523
+        ]
+      },
+      "audio": 221
+    },
+    {
+      "name": "Laxgalts’ap Village Government",
+      "id": 308,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.58121,
+          55.032217
+        ]
+      },
+      "audio": 266
+    },
+    {
+      "name": "Lax Kw’alaams Band",
+      "id": 281,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -130.431908,
+          54.550636
+        ]
+      },
+      "audio": 160
+    },
+    {
+      "name": "Leq’a:mel First Nation",
+      "id": 282,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.028914,
+          49.204394
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Lheidli-T’enneh First Nation",
+      "id": 283,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.622734,
+          54.003664
+        ]
+      },
+      "audio": 267
+    },
+    {
+      "name": "Lhoosk’uz Dene Nation",
+      "id": 271,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.511102,
+          52.973361
+        ]
+      },
+      "audio": 161
+    },
+    {
+      "name": "Lhtako Dene Nation",
+      "id": 329,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.4511,
+          52.954897
+        ]
+      },
+      "audio": 162
+    },
+    {
+      "name": "Liard First Nation",
+      "id": 284,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.703116,
+          60.065433
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Líl’wat Nation",
+      "id": 297,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.721341,
+          50.318251
+        ]
+      },
+      "audio": 163
+    },
+    {
+      "name": "Llenllenéy’ten (High Bar First Nation)",
+      "id": 257,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.586667,
+          51.091389
+        ]
+      },
+      "audio": 314
+    },
+    {
+      "name": "Lower Nicola Indian Band",
+      "id": 287,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.813389,
+          50.118515
+        ]
+      },
+      "audio": 164
+    },
+    {
+      "name": "Lower Similkameen Indian Band",
+      "id": 288,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.826151,
+          49.205055
+        ]
+      },
+      "audio": 165
+    },
+    {
+      "name": "Lyackson First Nation",
+      "id": 289,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.69494,
+          48.874814
+        ]
+      },
+      "audio": 268
+    },
+    {
+      "name": "Lytton First Nation",
+      "id": 290,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.577486,
+          50.237468
+        ]
+      },
+      "audio": 166
+    },
+    {
+      "name": "MÁLEXEȽ (Malahat First Nation)",
+      "id": 291,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.546451,
+          48.637369
+        ]
+      },
+      "audio": 269
+    },
+    {
+      "name": "Mamalilikulla First Nation",
+      "id": 292,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.253724,
+          50.030629
+        ]
+      },
+      "audio": 202
+    },
+    {
+      "name": "Matsqui First Nation",
+      "id": 293,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.294187,
+          49.110683
+        ]
+      },
+      "audio": 167
+    },
+    {
+      "name": "McLeod Lake Indian Band",
+      "id": 294,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.043873,
+          54.993075
+        ]
+      },
+      "audio": 270
+    },
+    {
+      "name": "Metlakatla First Nation",
+      "id": 295,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -130.444669,
+          54.337324
+        ]
+      },
+      "audio": 226
+    },
+    {
+      "name": "Mowachaht/Muchalaht First Nations",
+      "id": 298,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.049235,
+          49.778232
+        ]
+      },
+      "audio": 168
+    },
+    {
+      "name": "Nadleh Whut’en First Nation",
+      "id": 300,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.552796,
+          54.061971
+        ]
+      },
+      "audio": 222
+    },
+    {
+      "name": "Nak’azdli Whut’en",
+      "id": 301,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.255661,
+          54.438839
+        ]
+      },
+      "audio": 169
+    },
+    {
+      "name": "ʼNa̱mǥis First Nation",
+      "id": 302,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.916397,
+          50.58266
+        ]
+      },
+      "audio": 203
+    },
+    {
+      "name": "Nazko First Nation",
+      "id": 303,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.493297,
+          52.977637
+        ]
+      },
+      "audio": 170
+    },
+    {
+      "name": "Nee-Tahi-Buhn Indian Band",
+      "id": 404,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.67,
+          53.93
+        ]
+      },
+      "audio": 271
+    },
+    {
+      "name": "Nicomen Indian Band",
+      "id": 305,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.577,
+          50.225
+        ]
+      },
+      "audio": 227
+    },
+    {
+      "name": "Nisga’a Village of Gitwinksihlkw",
+      "id": 307,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.221334,
+          55.191753
+        ]
+      },
+      "audio": 272
+    },
+    {
+      "name": "Nooaitch Indian Band",
+      "id": 310,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.793075,
+          50.126034
+        ]
+      },
+      "audio": 171
+    },
+    {
+      "name": "N’Quatqua First Nations",
+      "id": 311,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.478883,
+          50.553902
+        ]
+      },
+      "audio": 172
+    },
+    {
+      "name": "Nuchatlaht First Nation",
+      "id": 312,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.378224,
+          50.030571
+        ]
+      },
+      "audio": 173
+    },
+    {
+      "name": "Nuxalk Nation",
+      "id": 313,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.748767,
+          52.551529
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Okanagan Indian Band",
+      "id": 314,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.345779,
+          50.261402
+        ]
+      },
+      "audio": 174
+    },
+    {
+      "name": "Old Massett Village Council",
+      "id": 315,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -132.125,
+          54.027222
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Oregon Jack Creek Band",
+      "id": 316,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.28,
+          50.7259
+        ]
+      },
+      "audio": 204
+    },
+    {
+      "name": "Osoyoos Indian Band",
+      "id": 317,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.550249,
+          49.173898
+        ]
+      },
+      "audio": 175
+    },
+    {
+      "name": "Pacheedaht First Nation",
+      "id": 319,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.422299,
+          48.552966
+        ]
+      },
+      "audio": 273
+    },
+    {
+      "name": "Pelltíq’t (Whispering Pines / Clinton)",
+      "id": 396,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.251652,
+          50.966485
+        ]
+      },
+      "audio": 315
+    },
+    {
+      "name": "Penelakut Tribe",
+      "id": 321,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.717128,
+          48.922331
+        ]
+      },
+      "audio": 205
+    },
+    {
+      "name": "Penticton Indian Band",
+      "id": 322,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.599229,
+          49.452805
+        ]
+      },
+      "audio": 176
+    },
+    {
+      "name": "Peters First Nation",
+      "id": 323,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.658092,
+          49.299746
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Popkum First Nation",
+      "id": 324,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.959983,
+          49.134135
+        ]
+      },
+      "audio": 177
+    },
+    {
+      "name": "Prophet River First Nation",
+      "id": 325,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.713265,
+          58.109949
+        ]
+      },
+      "audio": 337
+    },
+    {
+      "name": "Qayqayt First Nation",
+      "id": 326,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.02457,
+          49.236492
+        ]
+      },
+      "audio": 274
+    },
+    {
+      "name": "Qualicum First Nation",
+      "id": 327,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.615836,
+          49.393913
+        ]
+      },
+      "audio": 275
+    },
+    {
+      "name": "Quatsino First Nation",
+      "id": 328,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.582293,
+          50.59979
+        ]
+      },
+      "audio": 206
+    },
+    {
+      "name": "Saik’uz First Nation",
+      "id": 330,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.010533,
+          54.01451
+        ]
+      },
+      "audio": 229
+    },
+    {
+      "name": "Samahquam Nation",
+      "id": 331,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.53926289370848,
+          50.052209553691206
+        ]
+      },
+      "audio": 228
+    },
+    {
+      "name": "Saulteau First Nations",
+      "id": 332,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.65212085397664,
+          55.85266813686347
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "SȾÁUTW̱ (Tsawout)",
+      "id": 379,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.416143,
+          48.594972
+        ]
+      },
+      "audio": 338
+    },
+    {
+      "name": "Scia’new (Beecher Bay)",
+      "id": 210,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.603283,
+          48.341991
+        ]
+      },
+      "audio": 352
+    },
+    {
+      "name": "Seabird Island Band",
+      "id": 334,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.73030801533025,
+          49.25526162639659
+        ]
+      },
+      "audio": 279
+    },
+    {
+      "name": "Sekw’el’was (Cayoose Creek Band)",
+      "id": 222,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.934096,
+          50.674308
+        ]
+      },
+      "audio": 178
+    },
+    {
+      "name": "SEMYOME (Semiahmoo)",
+      "id": 336,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.77069,
+          49.010614
+        ]
+      },
+      "audio": 280
+    },
+    {
+      "name": "Sexqeltqín (Adams Lake Indian Band)",
+      "id": 205,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.704671,
+          50.829225
+        ]
+      },
+      "audio": 316
+    },
+    {
+      "name": "Shackan Indian Band",
+      "id": 338,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.779685,
+          50.10926
+        ]
+      },
+      "audio": 179
+    },
+    {
+      "name": "shíshálh Nation",
+      "id": 335,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.756889,
+          49.474004
+        ]
+      },
+      "audio": 180
+    },
+    {
+      "name": "Shxwhá:y Village",
+      "id": 340,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.990644,
+          49.177721
+        ]
+      },
+      "audio": 181
+    },
+    {
+      "name": "Shxw’owhamel First Nation",
+      "id": 341,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.606668,
+          49.342992
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Sik-e-Dakh",
+      "id": 247,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.674549,
+          55.312394
+        ]
+      },
+      "audio": 281
+    },
+    {
+      "name": "Simpcw First Nation",
+      "id": 342,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.139405,
+          51.186928
+        ]
+      },
+      "audio": 317
+    },
+    {
+      "name": "Siska Indian Band",
+      "id": 343,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.581692,
+          50.233375
+        ]
+      },
+      "audio": 182
+    },
+    {
+      "name": "Skatin Nations",
+      "id": 344,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.409089,
+          49.937605
+        ]
+      },
+      "audio": 183
+    },
+    {
+      "name": "Sk’atsin (Neskonlith Indian Band)",
+      "id": 304,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.716902,
+          50.773478
+        ]
+      },
+      "audio": 318
+    },
+    {
+      "name": "Skeetchestn First Nation",
+      "id": 345,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.847624,
+          50.751563
+        ]
+      },
+      "audio": 319
+    },
+    {
+      "name": "Skidegate Band Council",
+      "id": 346,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -132.011618,
+          53.248159
+        ]
+      },
+      "audio": 282
+    },
+    {
+      "name": "Skin Tyee Nation",
+      "id": 347,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.766667,
+          54.016667
+        ]
+      },
+      "audio": 283
+    },
+    {
+      "name": "Skowkale First Nation",
+      "id": 348,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.003911,
+          49.120906
+        ]
+      },
+      "audio": 185
+    },
+    {
+      "name": "Skuppah Indian Band",
+      "id": 349,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.572379,
+          50.187677
+        ]
+      },
+      "audio": 186
+    },
+    {
+      "name": "Skwah First Nation",
+      "id": 350,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.972313,
+          49.177881
+        ]
+      },
+      "audio": 284
+    },
+    {
+      "name": "Skwlax (Little Shuswap Lake)",
+      "id": 285,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.694672,
+          50.817125
+        ]
+      },
+      "audio": 320
+    },
+    {
+      "name": "Snaw-naw-as First Nation",
+      "id": 352,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.086704,
+          49.246277
+        ]
+      },
+      "audio": 285
+    },
+    {
+      "name": "Snuneymuxw First Nation",
+      "id": 353,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.929869,
+          49.15158
+        ]
+      },
+      "audio": 286
+    },
+    {
+      "name": "Songhees Nation",
+      "id": 355,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.426264,
+          48.44728
+        ]
+      },
+      "audio": 287
+    },
+    {
+      "name": "Soowahlie Indian Band",
+      "id": 356,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.964248,
+          49.079689
+        ]
+      },
+      "audio": 288
+    },
+    {
+      "name": "Splatsin First Nation",
+      "id": 357,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.138466,
+          50.551313
+        ]
+      },
+      "audio": 321
+    },
+    {
+      "name": "Spuzzum First Nation",
+      "id": 358,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.41257012077227,
+          49.66139986365309
+        ]
+      },
+      "audio": 187
+    },
+    {
+      "name": "Sq’ewá:lxw (Skawahlook First Nation)",
+      "id": 401,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.42608,
+          49.56221
+        ]
+      },
+      "audio": 184
+    },
+    {
+      "name": "Sq'éwlets (Scowlitz First Nation)",
+      "id": 333,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.027044,
+          49.264792
+        ]
+      },
+      "audio": 278
+    },
+    {
+      "name": "Squamish Nation",
+      "id": 359,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.078383,
+          49.311924
+        ]
+      },
+      "audio": 230
+    },
+    {
+      "name": "Squiala First Nation",
+      "id": 360,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.980951,
+          49.158324
+        ]
+      },
+      "audio": 188
+    },
+    {
+      "name": "Stellat’en First Nation",
+      "id": 362,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.849555,
+          54.05623
+        ]
+      },
+      "audio": 189
+    },
+    {
+      "name": "Sts'ailes (Chehalis Indian Band)",
+      "id": 225,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.792563,
+          49.247409
+        ]
+      },
+      "audio": 250
+    },
+    {
+      "name": "Stswécem’c Xget’tem",
+      "id": 220,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.234758,
+          51.638908
+        ]
+      },
+      "audio": 323
+    },
+    {
+      "name": "St’uxwtéws (Bonaparte First Nation)",
+      "id": 212,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.322,
+          50.7753
+        ]
+      },
+      "audio": 322
+    },
+    {
+      "name": "Stz’uminus First Nation",
+      "id": 226,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.854656,
+          49.016593
+        ]
+      },
+      "audio": 190
+    },
+    {
+      "name": "Sumas First Nation",
+      "id": 364,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.195856,
+          49.055468
+        ]
+      },
+      "audio": 191
+    },
+    {
+      "name": "SXIMEȽEȽ (Esquimalt)",
+      "id": 240,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.426903,
+          48.441255
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Takla First Nation",
+      "id": 366,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.73253,
+          53.913367
+        ]
+      },
+      "audio": 289
+    },
+    {
+      "name": "Taku River Tlingit First Nation",
+      "id": 367,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -133.689524,
+          59.578028
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Telegraph Creek (Tahltan Nation)",
+      "id": 365,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -131.1762898920487,
+          57.90393806785692
+        ]
+      },
+      "audio": 192
+    },
+    {
+      "name": "T’exélc (Williams Lake First Nation)",
+      "id": 397,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.954304,
+          52.089713
+        ]
+      },
+      "audio": 324
+    },
+    {
+      "name": "T’it’q’et",
+      "id": 368,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.942234,
+          50.678105
+        ]
+      },
+      "audio": 193
+    },
+    {
+      "name": "Tk’emlúps (Kamloops Indian Band)",
+      "id": 263,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.299102,
+          50.682532
+        ]
+      },
+      "audio": 325
+    },
+    {
+      "name": "Tla'amin Nation",
+      "id": 351,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.607755,
+          49.897946
+        ]
+      },
+      "audio": 346
+    },
+    {
+      "name": "Tla-o-qui-aht First Nation",
+      "id": 369,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.91211,
+          49.173333
+        ]
+      },
+      "audio": 290
+    },
+    {
+      "name": "Tlatlasikwala First Nation",
+      "id": 370,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.934156,
+          50.915548
+        ]
+      },
+      "audio": 207
+    },
+    {
+      "name": "Tl’azt’en Nation",
+      "id": 371,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.723674,
+          54.655855
+        ]
+      },
+      "audio": 231
+    },
+    {
+      "name": "Tl’esqox",
+      "id": 375,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.50915,
+          51.958737
+        ]
+      },
+      "audio": 235
+    },
+    {
+      "name": "Tl’etinqox",
+      "id": 372,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.277992,
+          52.082986
+        ]
+      },
+      "audio": 236
+    },
+    {
+      "name": "Toquaht Nation",
+      "id": 376,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.557106,
+          48.945081
+        ]
+      },
+      "audio": 194
+    },
+    {
+      "name": "Tsal’alh (Seton Lake Band)",
+      "id": 337,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.062334,
+          50.741062
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Tsawwassen First Nation",
+      "id": 380,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.098162,
+          49.03802
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Tsay Keh Dene Nation",
+      "id": 381,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.742437,
+          53.90748
+        ]
+      },
+      "audio": 291
+    },
+    {
+      "name": "Tseshaht First Nation",
+      "id": 382,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.849213,
+          49.265408
+        ]
+      },
+      "audio": 195
+    },
+    {
+      "name": "Tsi Deldel",
+      "id": 208,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.064853,
+          52.112068
+        ]
+      },
+      "audio": 196
+    },
+    {
+      "name": "Ts’il Kaz Koh Nation",
+      "id": 216,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.767365,
+          54.234083
+        ]
+      },
+      "audio": 292
+    },
+    {
+      "name": "Ts’kw’aylaxw First Nation",
+      "id": 384,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.828755,
+          50.882798
+        ]
+      },
+      "audio": 240
+    },
+    {
+      "name": "Tsleil-Waututh Nation",
+      "id": 217,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.989415,
+          49.3113
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "T’Sou-ke Nation",
+      "id": 385,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.70788,
+          48.386336
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Tsq’éscen First Nation",
+      "id": 219,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.600328,
+          51.672786
+        ]
+      },
+      "audio": 326
+    },
+    {
+      "name": "Ts'uubaa-asatx Nation",
+      "id": 280,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.054167,
+          48.825833
+        ]
+      },
+      "audio": 265
+    },
+    {
+      "name": "Tzeachten First Nation",
+      "id": 386,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.957355,
+          49.11139
+        ]
+      },
+      "audio": 208
+    },
+    {
+      "name": "Uchucklesaht Tribe",
+      "id": 387,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.81144105767055,
+          49.23523380577505
+        ]
+      },
+      "audio": 209
+    },
+    {
+      "name": "Ulkatcho First Nation",
+      "id": 389,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.316667,
+          52.466667
+        ]
+      },
+      "audio": 293
+    },
+    {
+      "name": "Union Bar First Nation",
+      "id": 390,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.443619,
+          49.379979
+        ]
+      },
+      "audio": 294
+    },
+    {
+      "name": "Upper Nicola Band",
+      "id": 391,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.282641,
+          50.143035
+        ]
+      },
+      "audio": 210
+    },
+    {
+      "name": "Upper Similkameen Indian Band",
+      "id": 392,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.824477,
+          49.205307
+        ]
+      },
+      "audio": 211
+    },
+    {
+      "name": "Wei Wai Kai First Nation",
+      "id": 221,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.209929,
+          50.041855
+        ]
+      },
+      "audio": 234
+    },
+    {
+      "name": "Wei Wai Kum First Nation",
+      "id": 218,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.247016,
+          50.039943
+        ]
+      },
+      "audio": 212
+    },
+    {
+      "name": "Westbank First Nation",
+      "id": 394,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.532736,
+          49.883744
+        ]
+      },
+      "audio": 213
+    },
+    {
+      "name": "West Moberly First Nations",
+      "id": 393,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.733333,
+          55.833333
+        ]
+      },
+      "audio": 340
+    },
+    {
+      "name": "Wet’suwet’en Nation",
+      "id": 395,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.168554,
+          54.782355
+        ]
+      },
+      "audio": 295
+    },
+    {
+      "name": "Witset First Nation",
+      "id": 296,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.269792,
+          54.893185
+        ]
+      },
+      "audio": 296
+    },
+    {
+      "name": "W̱JOȽEȽP (Tsartlip)",
+      "id": 377,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.404747,
+          48.575229
+        ]
+      },
+      "audio": 214
+    },
+    {
+      "name": "W̱SIḴEM  (Tseycum)",
+      "id": 383,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.452918,
+          48.665304
+        ]
+      },
+      "audio": 298
+    },
+    {
+      "name": "Wuikinuxv Nation (Rivers Inlet)",
+      "id": 318,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.224862,
+          51.680376
+        ]
+      },
+      "audio": 215
+    },
+    {
+      "name": "Xatśūll (Soda Creek)",
+      "id": 354,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.123529,
+          52.268393
+        ]
+      },
+      "audio": 327
+    },
+    {
+      "name": "Xaxli’p",
+      "id": 398,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.864321,
+          50.734703
+        ]
+      },
+      "audio": 241
+    },
+    {
+      "name": "Xa’xtsa (Douglas First Nation)",
+      "id": 237,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.081111,
+          49.174372
+        ]
+      },
+      "audio": 141
+    },
+    {
+      "name": "Xeni Gwet’in",
+      "id": 399,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.842341,
+          51.48353
+        ]
+      },
+      "audio": 233
+    },
+    {
+      "name": "xʷməθkʷəy̓əm (Musqueam)",
+      "id": 299,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.197439,
+          49.226703
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Xwísten (Bridge River Indian Band)",
+      "id": 215,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.964765,
+          50.770176
+        ]
+      },
+      "audio": 216
+    },
+    {
+      "name": "Yakweakwioose Band",
+      "id": 400,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.010926,
+          49.079808
+        ]
+      },
+      "audio": 217
+    },
+    {
+      "name": "Yale First Nation",
+      "id": 403,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.4401511,
+          49.37800029999999
+        ]
+      },
+      "audio": 299
+    },
+    {
+      "name": "Yaqan Nukiy (Lower Kootenay Band)",
+      "id": 286,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -116.498333,
+          49.036944
+        ]
+      },
+      "audio": 218
+    },
+    {
+      "name": "Yaq̓it ʔa·knuqⱡi ‘it (Tobacco Plains)",
+      "id": 374,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -115.083811,
+          49.099084
+        ]
+      },
+      "audio": 132
+    },
+    {
+      "name": "Yekooche First Nation",
+      "id": 402,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.757295,
+          53.920497
+        ]
+      },
+      "audio": 336
+    },
+    {
+      "name": "Yunesit’in",
+      "id": 363,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.080383,
+          51.806382
+        ]
+      },
+      "audio": 237
+    },
+    {
+      "name": "Yuułuʔiłʔatḥ Government (Ucluelet First Nation)",
+      "id": 388,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.535375,
+          48.944172
+        ]
+      },
+      "audio": 232
+    }
+  ],
+  "communitySet": [
+    {
+      "name": "Ahousaht First Nation",
+      "id": 206,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.066667,
+          49.283333
+        ]
+      },
+      "audio": 244
+    },
+    {
+      "name": "Aitchelitz First Nation",
+      "id": 207,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.997999,
+          49.147883
+        ]
+      },
+      "audio": 84
+    },
+    {
+      "name": "ʔakisq̓nuk (Akisqnuk First Nation)",
+      "id": 405,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -115.96332089999996,
+          50.4580581
+        ]
+      },
+      "audio": 238
+    },
+    {
+      "name": "Anspayaxw",
+      "id": 266,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.691748,
+          55.35075
+        ]
+      },
+      "audio": 245
+    },
+    {
+      "name": "ʔaq̓am (St. Mary’s Indian Band)",
+      "id": 361,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -115.758794,
+          49.568002
+        ]
+      },
+      "audio": 133
+    },
+    {
+      "name": "Ashcroft Indian Band",
+      "id": 209,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.322376,
+          50.72043
+        ]
+      },
+      "audio": 136
+    },
+    {
+      "name": "Binche Whut'en",
+      "id": 408,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.45452421087953,
+          54.545942111895215
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Blueberry River First Nations",
+      "id": 211,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.139179,
+          56.762252
+        ]
+      },
+      "audio": 138
+    },
+    {
+      "name": "BOḰEĆEN (Pauquachin)",
+      "id": 320,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.458092,
+          48.627842
+        ]
+      },
+      "audio": 246
+    },
+    {
+      "name": "Boothroyd Band",
+      "id": 213,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.485035,
+          49.963092
+        ]
+      },
+      "audio": 130
+    },
+    {
+      "name": "Boston Bar First Nation",
+      "id": 214,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.45235,
+          49.877864
+        ]
+      },
+      "audio": 131
+    },
+    {
+      "name": "Champagne and Aishihik First Nations (CAFN)",
+      "id": 407,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -135.0588737,
+          60.721674
+        ]
+      },
+      "audio": 247
+    },
+    {
+      "name": "Chawathil First Nation",
+      "id": 223,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.442475,
+          49.382993
+        ]
+      },
+      "audio": 248
+    },
+    {
+      "name": "Cheam First Nation",
+      "id": 224,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.753566,
+          49.189934
+        ]
+      },
+      "audio": 249
+    },
+    {
+      "name": "Cheslatta Carrier Nation",
+      "id": 227,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.771431,
+          54.018417
+        ]
+      },
+      "audio": 251
+    },
+    {
+      "name": "Coldwater Indian Band",
+      "id": 228,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.783954,
+          50.109014
+        ]
+      },
+      "audio": 137
+    },
+    {
+      "name": "Cook’s Ferry Indian Band",
+      "id": 230,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.474551,
+          50.435748
+        ]
+      },
+      "audio": 134
+    },
+    {
+      "name": "Cowichan Tribes",
+      "id": 231,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.712194,
+          48.772671
+        ]
+      },
+      "audio": 252
+    },
+    {
+      "name": "Da’naxda’xw First Nation",
+      "id": 232,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.939437,
+          50.59691
+        ]
+      },
+      "audio": 135
+    },
+    {
+      "name": "Daylu Dena Council",
+      "id": 233,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.486391,
+          59.923837
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Dease Lake (Tahltan Nation)",
+      "id": 409,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -130.00821875127068,
+          58.443652512792426
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Dease River First Nation",
+      "id": 234,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.29178539999998,
+          59.2953873
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Ditidaht First Nation",
+      "id": 235,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.669873,
+          48.809223
+        ]
+      },
+      "audio": 139
+    },
+    {
+      "name": "Doig River First Nation",
+      "id": 236,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.794702,
+          56.4926
+        ]
+      },
+      "audio": 140
+    },
+    {
+      "name": "Dzawada’enuxw First Nation",
+      "id": 378,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.182678,
+          50.977258
+        ]
+      },
+      "audio": 142
+    },
+    {
+      "name": "Ehattesaht Chinehkint",
+      "id": 238,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.859345,
+          49.984998
+        ]
+      },
+      "audio": 143
+    },
+    {
+      "name": "ʔEsdilagh",
+      "id": 204,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.496132,
+          52.685657
+        ]
+      },
+      "audio": 144
+    },
+    {
+      "name": "Esk’etemc First Nation",
+      "id": 239,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.2708634,
+          51.822973
+        ]
+      },
+      "audio": 310
+    },
+    {
+      "name": "Fort Nelson First Nation",
+      "id": 241,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.663214,
+          58.775837
+        ]
+      },
+      "audio": 219
+    },
+    {
+      "name": "Gingolx Village Government",
+      "id": 306,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.95486,
+          54.994657
+        ]
+      },
+      "audio": 253
+    },
+    {
+      "name": "Gitanmaax",
+      "id": 242,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.674802,
+          55.256489
+        ]
+      },
+      "audio": 254
+    },
+    {
+      "name": "Gitanyow",
+      "id": 243,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.06436181662235,
+          55.26549715441192
+        ]
+      },
+      "audio": 255
+    },
+    {
+      "name": "Gitga’at Nation",
+      "id": 254,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.25351,
+          53.423919
+        ]
+      },
+      "audio": 146
+    },
+    {
+      "name": "Gitlaxt’aamiks Village Government",
+      "id": 309,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.07833,
+          55.20578
+        ]
+      },
+      "audio": 256
+    },
+    {
+      "name": "Gitsegukla",
+      "id": 244,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.82947673391773,
+          55.08767995495301
+        ]
+      },
+      "audio": 257
+    },
+    {
+      "name": "Gitwangak",
+      "id": 245,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.067759,
+          55.09952
+        ]
+      },
+      "audio": 258
+    },
+    {
+      "name": "Gitxaala Nation",
+      "id": 246,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -130.433219,
+          53.79448
+        ]
+      },
+      "audio": 147
+    },
+    {
+      "name": "Gwa’sala-’Nakwaxda’xw Nations",
+      "id": 248,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.496759,
+          50.734148
+        ]
+      },
+      "audio": 148
+    },
+    {
+      "name": "Gwawaʼenux̱w",
+      "id": 249,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.376158,
+          50.682539
+        ]
+      },
+      "audio": 149
+    },
+    {
+      "name": "Hagwilget Village Council",
+      "id": 250,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.591578,
+          55.247553
+        ]
+      },
+      "audio": 259
+    },
+    {
+      "name": "Haisla Nation",
+      "id": 252,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.647123,
+          53.974585
+        ]
+      },
+      "audio": 150
+    },
+    {
+      "name": "Halalt First Nation",
+      "id": 251,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.696533,
+          48.875036
+        ]
+      },
+      "audio": 260
+    },
+    {
+      "name": "Halfway River First Nation",
+      "id": 253,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.808989,
+          56.730259
+        ]
+      },
+      "audio": 151
+    },
+    {
+      "name": "Heiltsuk Nation (Bella Bella)",
+      "id": 255,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.145551,
+          52.160363
+        ]
+      },
+      "audio": 152
+    },
+    {
+      "name": "Hesquiaht First Nation",
+      "id": 256,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.272027,
+          49.368206
+        ]
+      },
+      "audio": 223
+    },
+    {
+      "name": "Homalco First Nation",
+      "id": 258,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.243551,
+          49.951572
+        ]
+      },
+      "audio": 153
+    },
+    {
+      "name": "Hupacasath First Nation",
+      "id": 259,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.825175,
+          49.265582
+        ]
+      },
+      "audio": 154
+    },
+    {
+      "name": "Huu-ay-aht First Nation",
+      "id": 260,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.142608,
+          48.833366
+        ]
+      },
+      "audio": 220
+    },
+    {
+      "name": "Iskut Nation (Tahltan Nation)",
+      "id": 261,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.983333,
+          57.833333
+        ]
+      },
+      "audio": 261
+    },
+    {
+      "name": "Kanaka Bar Indian Band",
+      "id": 264,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.581413,
+          50.233253
+        ]
+      },
+      "audio": 155
+    },
+    {
+      "name": "Katzie First Nation",
+      "id": 265,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.677769,
+          49.202096
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Ka:’yu:’k’t’h’/Che:k:tles7et’h’ First Nation",
+      "id": 262,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.34913,
+          50.069314
+        ]
+      },
+      "audio": 156
+    },
+    {
+      "name": "Kenpésq’t (Shuswap Indian Band)",
+      "id": 339,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -116.028423,
+          50.504375
+        ]
+      },
+      "audio": 313
+    },
+    {
+      "name": "Kitasoo / Xai’xais (Klemtu)",
+      "id": 267,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.5200916712107,
+          52.587568617803626
+        ]
+      },
+      "audio": 224
+    },
+    {
+      "name": "Kitselas First Nation",
+      "id": 268,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.411968,
+          54.607542
+        ]
+      },
+      "audio": 157
+    },
+    {
+      "name": "Kitsumkalum",
+      "id": 269,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.588081,
+          54.517637
+        ]
+      },
+      "audio": 158
+    },
+    {
+      "name": "Klahoose First Nation",
+      "id": 270,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.916667,
+          50.116667
+        ]
+      },
+      "audio": 159
+    },
+    {
+      "name": "K’omoks First Nation",
+      "id": 229,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.991313,
+          49.692481
+        ]
+      },
+      "audio": 198
+    },
+    {
+      "name": "Kwadacha Nation",
+      "id": 272,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.63588479999996,
+          57.4230728
+        ]
+      },
+      "audio": 262
+    },
+    {
+      "name": "Kwakiutl Band Council",
+      "id": 273,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.407601,
+          50.694847
+        ]
+      },
+      "audio": 199
+    },
+    {
+      "name": "Kwantlen First Nation",
+      "id": 274,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.585946,
+          49.162674
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Kwaw-kwaw-apilt First Nation",
+      "id": 275,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.950135,
+          49.171767
+        ]
+      },
+      "audio": 263
+    },
+    {
+      "name": "Kwiakah First Nation",
+      "id": 276,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.254285,
+          50.030677
+        ]
+      },
+      "audio": 200
+    },
+    {
+      "name": "Kwikwasut’inuxw Haxwa’mis",
+      "id": 277,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.600309,
+          50.695955
+        ]
+      },
+      "audio": 201
+    },
+    {
+      "name": "Kwikwetlem First Nation",
+      "id": 278,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.80658,
+          49.243879
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Lake Babine Nation",
+      "id": 279,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.758363,
+          54.238409
+        ]
+      },
+      "audio": 225
+    },
+    {
+      "name": "Ławitʼsis (Tlowitsis) Nation",
+      "id": 373,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.246662,
+          49.950523
+        ]
+      },
+      "audio": 221
+    },
+    {
+      "name": "Laxgalts’ap Village Government",
+      "id": 308,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.58121,
+          55.032217
+        ]
+      },
+      "audio": 266
+    },
+    {
+      "name": "Lax Kw’alaams Band",
+      "id": 281,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -130.431908,
+          54.550636
+        ]
+      },
+      "audio": 160
+    },
+    {
+      "name": "Leq’a:mel First Nation",
+      "id": 282,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.028914,
+          49.204394
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Lheidli-T’enneh First Nation",
+      "id": 283,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.622734,
+          54.003664
+        ]
+      },
+      "audio": 267
+    },
+    {
+      "name": "Lhoosk’uz Dene Nation",
+      "id": 271,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.511102,
+          52.973361
+        ]
+      },
+      "audio": 161
+    },
+    {
+      "name": "Lhtako Dene Nation",
+      "id": 329,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.4511,
+          52.954897
+        ]
+      },
+      "audio": 162
+    },
+    {
+      "name": "Liard First Nation",
+      "id": 284,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -128.703116,
+          60.065433
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Líl’wat Nation",
+      "id": 297,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.721341,
+          50.318251
+        ]
+      },
+      "audio": 163
+    },
+    {
+      "name": "Llenllenéy’ten (High Bar First Nation)",
+      "id": 257,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.586667,
+          51.091389
+        ]
+      },
+      "audio": 314
+    },
+    {
+      "name": "Lower Nicola Indian Band",
+      "id": 287,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.813389,
+          50.118515
+        ]
+      },
+      "audio": 164
+    },
+    {
+      "name": "Lower Similkameen Indian Band",
+      "id": 288,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.826151,
+          49.205055
+        ]
+      },
+      "audio": 165
+    },
+    {
+      "name": "Lyackson First Nation",
+      "id": 289,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.69494,
+          48.874814
+        ]
+      },
+      "audio": 268
+    },
+    {
+      "name": "Lytton First Nation",
+      "id": 290,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.577486,
+          50.237468
+        ]
+      },
+      "audio": 166
+    },
+    {
+      "name": "MÁLEXEȽ (Malahat First Nation)",
+      "id": 291,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.546451,
+          48.637369
+        ]
+      },
+      "audio": 269
+    },
+    {
+      "name": "Mamalilikulla First Nation",
+      "id": 292,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.253724,
+          50.030629
+        ]
+      },
+      "audio": 202
+    },
+    {
+      "name": "Matsqui First Nation",
+      "id": 293,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.294187,
+          49.110683
+        ]
+      },
+      "audio": 167
+    },
+    {
+      "name": "McLeod Lake Indian Band",
+      "id": 294,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.043873,
+          54.993075
+        ]
+      },
+      "audio": 270
+    },
+    {
+      "name": "Metlakatla First Nation",
+      "id": 295,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -130.444669,
+          54.337324
+        ]
+      },
+      "audio": 226
+    },
+    {
+      "name": "Mowachaht/Muchalaht First Nations",
+      "id": 298,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.049235,
+          49.778232
+        ]
+      },
+      "audio": 168
+    },
+    {
+      "name": "Nadleh Whut’en First Nation",
+      "id": 300,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.552796,
+          54.061971
+        ]
+      },
+      "audio": 222
+    },
+    {
+      "name": "Nak’azdli Whut’en",
+      "id": 301,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.255661,
+          54.438839
+        ]
+      },
+      "audio": 169
+    },
+    {
+      "name": "ʼNa̱mǥis First Nation",
+      "id": 302,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.916397,
+          50.58266
+        ]
+      },
+      "audio": 203
+    },
+    {
+      "name": "Nazko First Nation",
+      "id": 303,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.493297,
+          52.977637
+        ]
+      },
+      "audio": 170
+    },
+    {
+      "name": "Nee-Tahi-Buhn Indian Band",
+      "id": 404,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.67,
+          53.93
+        ]
+      },
+      "audio": 271
+    },
+    {
+      "name": "Nicomen Indian Band",
+      "id": 305,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.577,
+          50.225
+        ]
+      },
+      "audio": 227
+    },
+    {
+      "name": "Nisga’a Village of Gitwinksihlkw",
+      "id": 307,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -129.221334,
+          55.191753
+        ]
+      },
+      "audio": 272
+    },
+    {
+      "name": "Nooaitch Indian Band",
+      "id": 310,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.793075,
+          50.126034
+        ]
+      },
+      "audio": 171
+    },
+    {
+      "name": "N’Quatqua First Nations",
+      "id": 311,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.478883,
+          50.553902
+        ]
+      },
+      "audio": 172
+    },
+    {
+      "name": "Nuchatlaht First Nation",
+      "id": 312,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.378224,
+          50.030571
+        ]
+      },
+      "audio": 173
+    },
+    {
+      "name": "Nuxalk Nation",
+      "id": 313,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -126.748767,
+          52.551529
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Okanagan Indian Band",
+      "id": 314,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.345779,
+          50.261402
+        ]
+      },
+      "audio": 174
+    },
+    {
+      "name": "Old Massett Village Council",
+      "id": 315,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -132.125,
+          54.027222
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Oregon Jack Creek Band",
+      "id": 316,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.28,
+          50.7259
+        ]
+      },
+      "audio": 204
+    },
+    {
+      "name": "Osoyoos Indian Band",
+      "id": 317,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.550249,
+          49.173898
+        ]
+      },
+      "audio": 175
+    },
+    {
+      "name": "Pacheedaht First Nation",
+      "id": 319,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.422299,
+          48.552966
+        ]
+      },
+      "audio": 273
+    },
+    {
+      "name": "Pelltíq’t (Whispering Pines / Clinton)",
+      "id": 396,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.251652,
+          50.966485
+        ]
+      },
+      "audio": 315
+    },
+    {
+      "name": "Penelakut Tribe",
+      "id": 321,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.717128,
+          48.922331
+        ]
+      },
+      "audio": 205
+    },
+    {
+      "name": "Penticton Indian Band",
+      "id": 322,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.599229,
+          49.452805
+        ]
+      },
+      "audio": 176
+    },
+    {
+      "name": "Peters First Nation",
+      "id": 323,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.658092,
+          49.299746
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Popkum First Nation",
+      "id": 324,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.959983,
+          49.134135
+        ]
+      },
+      "audio": 177
+    },
+    {
+      "name": "Prophet River First Nation",
+      "id": 325,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.713265,
+          58.109949
+        ]
+      },
+      "audio": 337
+    },
+    {
+      "name": "Qayqayt First Nation",
+      "id": 326,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.02457,
+          49.236492
+        ]
+      },
+      "audio": 274
+    },
+    {
+      "name": "Qualicum First Nation",
+      "id": 327,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.615836,
+          49.393913
+        ]
+      },
+      "audio": 275
+    },
+    {
+      "name": "Quatsino First Nation",
+      "id": 328,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.582293,
+          50.59979
+        ]
+      },
+      "audio": 206
+    },
+    {
+      "name": "Saik’uz First Nation",
+      "id": 330,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.010533,
+          54.01451
+        ]
+      },
+      "audio": 229
+    },
+    {
+      "name": "Samahquam Nation",
+      "id": 331,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.53926289370848,
+          50.052209553691206
+        ]
+      },
+      "audio": 228
+    },
+    {
+      "name": "Saulteau First Nations",
+      "id": 332,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.65212085397664,
+          55.85266813686347
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "SȾÁUTW̱ (Tsawout)",
+      "id": 379,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.416143,
+          48.594972
+        ]
+      },
+      "audio": 338
+    },
+    {
+      "name": "Scia’new (Beecher Bay)",
+      "id": 210,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.603283,
+          48.341991
+        ]
+      },
+      "audio": 352
+    },
+    {
+      "name": "Seabird Island Band",
+      "id": 334,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.73030801533025,
+          49.25526162639659
+        ]
+      },
+      "audio": 279
+    },
+    {
+      "name": "Sekw’el’was (Cayoose Creek Band)",
+      "id": 222,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.934096,
+          50.674308
+        ]
+      },
+      "audio": 178
+    },
+    {
+      "name": "SEMYOME (Semiahmoo)",
+      "id": 336,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.77069,
+          49.010614
+        ]
+      },
+      "audio": 280
+    },
+    {
+      "name": "Sexqeltqín (Adams Lake Indian Band)",
+      "id": 205,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.704671,
+          50.829225
+        ]
+      },
+      "audio": 316
+    },
+    {
+      "name": "Shackan Indian Band",
+      "id": 338,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.779685,
+          50.10926
+        ]
+      },
+      "audio": 179
+    },
+    {
+      "name": "shíshálh Nation",
+      "id": 335,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.756889,
+          49.474004
+        ]
+      },
+      "audio": 180
+    },
+    {
+      "name": "Shxwhá:y Village",
+      "id": 340,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.990644,
+          49.177721
+        ]
+      },
+      "audio": 181
+    },
+    {
+      "name": "Shxw’owhamel First Nation",
+      "id": 341,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.606668,
+          49.342992
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Sik-e-Dakh",
+      "id": 247,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.674549,
+          55.312394
+        ]
+      },
+      "audio": 281
+    },
+    {
+      "name": "Simpcw First Nation",
+      "id": 342,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.139405,
+          51.186928
+        ]
+      },
+      "audio": 317
+    },
+    {
+      "name": "Siska Indian Band",
+      "id": 343,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.581692,
+          50.233375
+        ]
+      },
+      "audio": 182
+    },
+    {
+      "name": "Skatin Nations",
+      "id": 344,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.409089,
+          49.937605
+        ]
+      },
+      "audio": 183
+    },
+    {
+      "name": "Sk’atsin (Neskonlith Indian Band)",
+      "id": 304,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.716902,
+          50.773478
+        ]
+      },
+      "audio": 318
+    },
+    {
+      "name": "Skeetchestn First Nation",
+      "id": 345,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.847624,
+          50.751563
+        ]
+      },
+      "audio": 319
+    },
+    {
+      "name": "Skidegate Band Council",
+      "id": 346,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -132.011618,
+          53.248159
+        ]
+      },
+      "audio": 282
+    },
+    {
+      "name": "Skin Tyee Nation",
+      "id": 347,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.766667,
+          54.016667
+        ]
+      },
+      "audio": 283
+    },
+    {
+      "name": "Skowkale First Nation",
+      "id": 348,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.003911,
+          49.120906
+        ]
+      },
+      "audio": 185
+    },
+    {
+      "name": "Skuppah Indian Band",
+      "id": 349,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.572379,
+          50.187677
+        ]
+      },
+      "audio": 186
+    },
+    {
+      "name": "Skwah First Nation",
+      "id": 350,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.972313,
+          49.177881
+        ]
+      },
+      "audio": 284
+    },
+    {
+      "name": "Skwlax (Little Shuswap Lake)",
+      "id": 285,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.694672,
+          50.817125
+        ]
+      },
+      "audio": 320
+    },
+    {
+      "name": "Snaw-naw-as First Nation",
+      "id": 352,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.086704,
+          49.246277
+        ]
+      },
+      "audio": 285
+    },
+    {
+      "name": "Snuneymuxw First Nation",
+      "id": 353,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.929869,
+          49.15158
+        ]
+      },
+      "audio": 286
+    },
+    {
+      "name": "Songhees Nation",
+      "id": 355,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.426264,
+          48.44728
+        ]
+      },
+      "audio": 287
+    },
+    {
+      "name": "Soowahlie Indian Band",
+      "id": 356,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.964248,
+          49.079689
+        ]
+      },
+      "audio": 288
+    },
+    {
+      "name": "Splatsin First Nation",
+      "id": 357,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.138466,
+          50.551313
+        ]
+      },
+      "audio": 321
+    },
+    {
+      "name": "Spuzzum First Nation",
+      "id": 358,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.41257012077227,
+          49.66139986365309
+        ]
+      },
+      "audio": 187
+    },
+    {
+      "name": "Sq’ewá:lxw (Skawahlook First Nation)",
+      "id": 401,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.42608,
+          49.56221
+        ]
+      },
+      "audio": 184
+    },
+    {
+      "name": "Sq'éwlets (Scowlitz First Nation)",
+      "id": 333,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.027044,
+          49.264792
+        ]
+      },
+      "audio": 278
+    },
+    {
+      "name": "Squamish Nation",
+      "id": 359,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.078383,
+          49.311924
+        ]
+      },
+      "audio": 230
+    },
+    {
+      "name": "Squiala First Nation",
+      "id": 360,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.980951,
+          49.158324
+        ]
+      },
+      "audio": 188
+    },
+    {
+      "name": "Stellat’en First Nation",
+      "id": 362,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.849555,
+          54.05623
+        ]
+      },
+      "audio": 189
+    },
+    {
+      "name": "Sts'ailes (Chehalis Indian Band)",
+      "id": 225,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.792563,
+          49.247409
+        ]
+      },
+      "audio": 250
+    },
+    {
+      "name": "Stswécem’c Xget’tem",
+      "id": 220,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.234758,
+          51.638908
+        ]
+      },
+      "audio": 323
+    },
+    {
+      "name": "St’uxwtéws (Bonaparte First Nation)",
+      "id": 212,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.322,
+          50.7753
+        ]
+      },
+      "audio": 322
+    },
+    {
+      "name": "Stz’uminus First Nation",
+      "id": 226,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.854656,
+          49.016593
+        ]
+      },
+      "audio": 190
+    },
+    {
+      "name": "Sumas First Nation",
+      "id": 364,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.195856,
+          49.055468
+        ]
+      },
+      "audio": 191
+    },
+    {
+      "name": "SXIMEȽEȽ (Esquimalt)",
+      "id": 240,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.426903,
+          48.441255
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Takla First Nation",
+      "id": 366,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.73253,
+          53.913367
+        ]
+      },
+      "audio": 289
+    },
+    {
+      "name": "Taku River Tlingit First Nation",
+      "id": 367,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -133.689524,
+          59.578028
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Telegraph Creek (Tahltan Nation)",
+      "id": 365,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -131.1762898920487,
+          57.90393806785692
+        ]
+      },
+      "audio": 192
+    },
+    {
+      "name": "T’exélc (Williams Lake First Nation)",
+      "id": 397,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.954304,
+          52.089713
+        ]
+      },
+      "audio": 324
+    },
+    {
+      "name": "T’it’q’et",
+      "id": 368,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.942234,
+          50.678105
+        ]
+      },
+      "audio": 193
+    },
+    {
+      "name": "Tk’emlúps (Kamloops Indian Band)",
+      "id": 263,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.299102,
+          50.682532
+        ]
+      },
+      "audio": 325
+    },
+    {
+      "name": "Tla'amin Nation",
+      "id": 351,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.607755,
+          49.897946
+        ]
+      },
+      "audio": 346
+    },
+    {
+      "name": "Tla-o-qui-aht First Nation",
+      "id": 369,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.91211,
+          49.173333
+        ]
+      },
+      "audio": 290
+    },
+    {
+      "name": "Tlatlasikwala First Nation",
+      "id": 370,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.934156,
+          50.915548
+        ]
+      },
+      "audio": 207
+    },
+    {
+      "name": "Tl’azt’en Nation",
+      "id": 371,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.723674,
+          54.655855
+        ]
+      },
+      "audio": 231
+    },
+    {
+      "name": "Tl’esqox",
+      "id": 375,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.50915,
+          51.958737
+        ]
+      },
+      "audio": 235
+    },
+    {
+      "name": "Tl’etinqox",
+      "id": 372,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.277992,
+          52.082986
+        ]
+      },
+      "audio": 236
+    },
+    {
+      "name": "Toquaht Nation",
+      "id": 376,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.557106,
+          48.945081
+        ]
+      },
+      "audio": 194
+    },
+    {
+      "name": "Tsal’alh (Seton Lake Band)",
+      "id": 337,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.062334,
+          50.741062
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Tsawwassen First Nation",
+      "id": 380,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.098162,
+          49.03802
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Tsay Keh Dene Nation",
+      "id": 381,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.742437,
+          53.90748
+        ]
+      },
+      "audio": 291
+    },
+    {
+      "name": "Tseshaht First Nation",
+      "id": 382,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.849213,
+          49.265408
+        ]
+      },
+      "audio": 195
+    },
+    {
+      "name": "Tsi Deldel",
+      "id": 208,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.064853,
+          52.112068
+        ]
+      },
+      "audio": 196
+    },
+    {
+      "name": "Ts’il Kaz Koh Nation",
+      "id": 216,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.767365,
+          54.234083
+        ]
+      },
+      "audio": 292
+    },
+    {
+      "name": "Ts’kw’aylaxw First Nation",
+      "id": 384,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.828755,
+          50.882798
+        ]
+      },
+      "audio": 240
+    },
+    {
+      "name": "Tsleil-Waututh Nation",
+      "id": 217,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.989415,
+          49.3113
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "T’Sou-ke Nation",
+      "id": 385,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.70788,
+          48.386336
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Tsq’éscen First Nation",
+      "id": 219,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.600328,
+          51.672786
+        ]
+      },
+      "audio": 326
+    },
+    {
+      "name": "Ts'uubaa-asatx Nation",
+      "id": 280,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.054167,
+          48.825833
+        ]
+      },
+      "audio": 265
+    },
+    {
+      "name": "Tzeachten First Nation",
+      "id": 386,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.957355,
+          49.11139
+        ]
+      },
+      "audio": 208
+    },
+    {
+      "name": "Uchucklesaht Tribe",
+      "id": 387,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -124.81144105767055,
+          49.23523380577505
+        ]
+      },
+      "audio": 209
+    },
+    {
+      "name": "Ulkatcho First Nation",
+      "id": 389,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.316667,
+          52.466667
+        ]
+      },
+      "audio": 293
+    },
+    {
+      "name": "Union Bar First Nation",
+      "id": 390,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.443619,
+          49.379979
+        ]
+      },
+      "audio": 294
+    },
+    {
+      "name": "Upper Nicola Band",
+      "id": 391,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -120.282641,
+          50.143035
+        ]
+      },
+      "audio": 210
+    },
+    {
+      "name": "Upper Similkameen Indian Band",
+      "id": 392,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.824477,
+          49.205307
+        ]
+      },
+      "audio": 211
+    },
+    {
+      "name": "Wei Wai Kai First Nation",
+      "id": 221,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.209929,
+          50.041855
+        ]
+      },
+      "audio": 234
+    },
+    {
+      "name": "Wei Wai Kum First Nation",
+      "id": 218,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.247016,
+          50.039943
+        ]
+      },
+      "audio": 212
+    },
+    {
+      "name": "Westbank First Nation",
+      "id": 394,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -119.532736,
+          49.883744
+        ]
+      },
+      "audio": 213
+    },
+    {
+      "name": "West Moberly First Nations",
+      "id": 393,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.733333,
+          55.833333
+        ]
+      },
+      "audio": 340
+    },
+    {
+      "name": "Wet’suwet’en Nation",
+      "id": 395,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.168554,
+          54.782355
+        ]
+      },
+      "audio": 295
+    },
+    {
+      "name": "Witset First Nation",
+      "id": 296,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.269792,
+          54.893185
+        ]
+      },
+      "audio": 296
+    },
+    {
+      "name": "W̱JOȽEȽP (Tsartlip)",
+      "id": 377,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.404747,
+          48.575229
+        ]
+      },
+      "audio": 214
+    },
+    {
+      "name": "W̱SIḴEM  (Tseycum)",
+      "id": 383,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.452918,
+          48.665304
+        ]
+      },
+      "audio": 298
+    },
+    {
+      "name": "Wuikinuxv Nation (Rivers Inlet)",
+      "id": 318,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -127.224862,
+          51.680376
+        ]
+      },
+      "audio": 215
+    },
+    {
+      "name": "Xatśūll (Soda Creek)",
+      "id": 354,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.123529,
+          52.268393
+        ]
+      },
+      "audio": 327
+    },
+    {
+      "name": "Xaxli’p",
+      "id": 398,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.864321,
+          50.734703
+        ]
+      },
+      "audio": 241
+    },
+    {
+      "name": "Xa’xtsa (Douglas First Nation)",
+      "id": 237,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.081111,
+          49.174372
+        ]
+      },
+      "audio": 141
+    },
+    {
+      "name": "Xeni Gwet’in",
+      "id": 399,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.842341,
+          51.48353
+        ]
+      },
+      "audio": 233
+    },
+    {
+      "name": "xʷməθkʷəy̓əm (Musqueam)",
+      "id": 299,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.197439,
+          49.226703
+        ]
+      },
+      "audio": null
+    },
+    {
+      "name": "Xwísten (Bridge River Indian Band)",
+      "id": 215,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.964765,
+          50.770176
+        ]
+      },
+      "audio": 216
+    },
+    {
+      "name": "Yakweakwioose Band",
+      "id": 400,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.010926,
+          49.079808
+        ]
+      },
+      "audio": 217
+    },
+    {
+      "name": "Yale First Nation",
+      "id": 403,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -121.4401511,
+          49.37800029999999
+        ]
+      },
+      "audio": 299
+    },
+    {
+      "name": "Yaqan Nukiy (Lower Kootenay Band)",
+      "id": 286,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -116.498333,
+          49.036944
+        ]
+      },
+      "audio": 218
+    },
+    {
+      "name": "Yaq̓it ʔa·knuqⱡi ‘it (Tobacco Plains)",
+      "id": 374,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -115.083811,
+          49.099084
+        ]
+      },
+      "audio": 132
+    },
+    {
+      "name": "Yekooche First Nation",
+      "id": 402,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.757295,
+          53.920497
+        ]
+      },
+      "audio": 336
+    },
+    {
+      "name": "Yunesit’in",
+      "id": 363,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -123.080383,
+          51.806382
+        ]
+      },
+      "audio": 237
+    },
+    {
+      "name": "Yuułuʔiłʔatḥ Government (Ucluelet First Nation)",
+      "id": 388,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -125.535375,
+          48.944172
+        ]
+      },
+      "audio": 232
+    }
+  ],
+  "communitySearchSet": [
+    {
+      "name": "Ahousaht First Nation",
+      "other_names": "Ahousat,Ahousaht"
+    },
+    {
+      "name": "Aitchelitz First Nation",
+      "other_names": "Aitchelitz First Nation"
+    },
+    {
+      "name": "ʔakisq̓nuk (Akisqnuk First Nation)",
+      "other_names": "Columbia Lake,Akisqnuk First Nation"
+    },
+    {
+      "name": "Anspayaxw",
+      "other_names": "Kispiox Band Council,Anspa yaxw (Kispiox)"
+    },
+    {
+      "name": "ʔaq̓am (St. Mary’s Indian Band)",
+      "other_names": "St. Mary's Indian Band"
+    },
+    {
+      "name": "Ashcroft Indian Band",
+      "other_names": ""
+    },
+    {
+      "name": "Binche Whut'en",
+      "other_names": ""
+    },
+    {
+      "name": "Blueberry River First Nations",
+      "other_names": "Blueberry River Indian Band"
+    },
+    {
+      "name": "BOḰEĆEN (Pauquachin)",
+      "other_names": "Pauquachin First Nation"
+    },
+    {
+      "name": "Boothroyd Band",
+      "other_names": "Boothroyd Band"
+    },
+    {
+      "name": "Boston Bar First Nation",
+      "other_names": "Boston Bar First Nation"
+    },
+    {
+      "name": "Champagne and Aishihik First Nations (CAFN)",
+      "other_names": ""
+    },
+    {
+      "name": "Chawathil First Nation",
+      "other_names": "Chawathil First Nation"
+    },
+    {
+      "name": "Cheam First Nation",
+      "other_names": ""
+    },
+    {
+      "name": "Cheslatta Carrier Nation",
+      "other_names": ""
+    },
+    {
+      "name": "Coldwater Indian Band",
+      "other_names": "nc̓́əł́etkʷu (cold water),Coldwater"
+    },
+    {
+      "name": "Cook’s Ferry Indian Band",
+      "other_names": "Cook's Ferry Indian Band"
+    },
+    {
+      "name": "Cowichan Tribes",
+      "other_names": ""
+    },
+    {
+      "name": "Da’naxda’xw First Nation",
+      "other_names": "Da̱'naxda̱'xw,A̱waetla̱la̱"
+    },
+    {
+      "name": "Daylu Dena Council",
+      "other_names": ""
+    },
+    {
+      "name": "Dease Lake (Tahltan Nation)",
+      "other_names": ""
+    },
+    {
+      "name": "Dease River First Nation",
+      "other_names": "Dease River First Nation"
+    },
+    {
+      "name": "Ditidaht First Nation",
+      "other_names": ",Ditidaht,Nitinat ~ Nitinaht,Ditidaht-Pacheedaht"
+    },
+    {
+      "name": "Doig River First Nation",
+      "other_names": "Doig River First Nation"
+    },
+    {
+      "name": "Dzawada’enuxw First Nation",
+      "other_names": "Tsawataineuk First Nation,Tsadzis'nukwa̱me',Tsawataineuk,Dzawada̱ʼenux̱w"
+    },
+    {
+      "name": "Ehattesaht Chinehkint",
+      "other_names": "Ehattesaht First Nation,Ehattesaht Tribe,ʔiiḥatis"
+    },
+    {
+      "name": "ʔEsdilagh",
+      "other_names": "Alexandria Indian Band,Esdilagh"
+    },
+    {
+      "name": "Esk’etemc First Nation",
+      "other_names": "Alkali Lake Indian Band,Esketemc"
+    },
+    {
+      "name": "Fort Nelson First Nation",
+      "other_names": "Fort Nelson Slavey Band,Fort Nelson Indian Band"
+    },
+    {
+      "name": "Gingolx Village Government",
+      "other_names": "Kincolith (Gingolx) Village Government"
+    },
+    {
+      "name": "Gitanmaax",
+      "other_names": "Gitanmaax Band,Gitanmaax Band Council"
+    },
+    {
+      "name": "Gitanyow",
+      "other_names": "Kitwancool,Gitanyow Band Council"
+    },
+    {
+      "name": "Gitga’at Nation",
+      "other_names": "Hartley Bay Village Council,Hartley Bay Band,Gitga'at Nation"
+    },
+    {
+      "name": "Gitlaxt’aamiks Village Government",
+      "other_names": "Gitlaxt’aamiks,Gitlakdamiks,Gitlardamiks,Kitlakdamix,New Aiyansh Village,New Aiyansh,Gitlaxt'aamiks Village Government (formerly New Aiyansh),Gitlaxt'aamiks Village Government (formerly New Aiyansh)"
+    },
+    {
+      "name": "Gitsegukla",
+      "other_names": "Gitsegukla Band,Gitsegukla Band Council"
+    },
+    {
+      "name": "Gitwangak",
+      "other_names": "Gitwangax̱,Gitwangak Band Council"
+    },
+    {
+      "name": "Gitxaala Nation",
+      "other_names": "Kitkatla Band"
+    },
+    {
+      "name": "Gwa’sala-’Nakwaxda’xw Nations",
+      "other_names": ",Gwa'sala-'Nakwaxda'xw First Nation"
+    },
+    {
+      "name": "Gwawaʼenux̱w",
+      "other_names": "Gwawaenuk Tribe"
+    },
+    {
+      "name": "Hagwilget Village Council",
+      "other_names": "Hagwilget Village Council,Tse-kya,Hagwilget Village"
+    },
+    {
+      "name": "Haisla Nation",
+      "other_names": "Kitamaat Village Council,Haisla"
+    },
+    {
+      "name": "Halalt First Nation",
+      "other_names": "Halalt First Nation"
+    },
+    {
+      "name": "Halfway River First Nation",
+      "other_names": ""
+    },
+    {
+      "name": "Heiltsuk Nation (Bella Bella)",
+      "other_names": "Heiltsuk Band,Heiltsuk Nation"
+    },
+    {
+      "name": "Hesquiaht First Nation",
+      "other_names": "ḥiškʷi,Hesquiaht"
+    },
+    {
+      "name": "Homalco First Nation",
+      "other_names": ""
+    },
+    {
+      "name": "Hupacasath First Nation",
+      "other_names": "Opetchesaht,Hupacasath"
+    },
+    {
+      "name": "Huu-ay-aht First Nation",
+      "other_names": "Ohiaht,huʕiʔatḥ,Huu-ay-aht"
+    },
+    {
+      "name": "Iskut Nation (Tahltan Nation)",
+      "other_names": "Iskut First Nation"
+    },
+    {
+      "name": "Kanaka Bar Indian Band",
+      "other_names": "Kanaka Bar Indian Band"
+    },
+    {
+      "name": "Katzie First Nation",
+      "other_names": "Katzie First Nation"
+    },
+    {
+      "name": "Ka:’yu:’k’t’h’/Che:k:tles7et’h’ First Nation",
+      "other_names": "Kyuquot,Checleseht,Chickliset,Checlesaht,Cheklesahht,Ka:'yu:'k't'h' / Che:k:tles7et'h'"
+    },
+    {
+      "name": "Kenpésq’t (Shuswap Indian Band)",
+      "other_names": "Shuswap Indian Band,Kenpesq't (Shuswap)"
+    },
+    {
+      "name": "Kitasoo / Xai’xais (Klemtu)",
+      "other_names": "Kitasoo Band Council,Kitasoo Indian Band,Kitasoo/Xaixais Nation,Kitasoo/Xai'xais,Kitasoo/Xai'xais Nation"
+    },
+    {
+      "name": "Kitselas First Nation",
+      "other_names": "Gitselasu"
+    },
+    {
+      "name": "Kitsumkalum",
+      "other_names": "Kitsumkalum Band Council"
+    },
+    {
+      "name": "Klahoose First Nation",
+      "other_names": ""
+    },
+    {
+      "name": "K’omoks First Nation",
+      "other_names": "Comox First Nation,Komox Nation,K'ómoks First Nation"
+    },
+    {
+      "name": "Kwadacha Nation",
+      "other_names": "Fort Ware Indian Band,Kwadacha Natoin,Kwadacha"
+    },
+    {
+      "name": "Kwakiutl Band Council",
+      "other_names": "Kwakiutl Band Council"
+    },
+    {
+      "name": "Kwantlen First Nation",
+      "other_names": "Kwantlen First Nation"
+    },
+    {
+      "name": "Kwaw-kwaw-apilt First Nation",
+      "other_names": "Kwaw-kwaw-apilt First Nation"
+    },
+    {
+      "name": "Kwiakah First Nation",
+      "other_names": "Kwiakah First Nation"
+    },
+    {
+      "name": "Kwikwasut’inuxw Haxwa’mis",
+      "other_names": "Kwicksutaineuk-ah-kwaw-ah-mish,Ak-Kwa-Mish,Kwicksutaineuk/Ak-Kwa-Mish,Ḵwikwa̱sutinux̱,Ha̱'xwa-mis,Ḵwikwa̱sutinux̱  / Ha̱'xwa-mis"
+    },
+    {
+      "name": "Kwikwetlem First Nation",
+      "other_names": "Kwikwetlem First Nation"
+    },
+    {
+      "name": "Lake Babine Nation",
+      "other_names": "Lake Babine Nation"
+    },
+    {
+      "name": "Ławitʼsis (Tlowitsis) Nation",
+      "other_names": "Tlowitsis Tribe,Lawitsis,Ławitʼsis (Tlowitsis)"
+    },
+    {
+      "name": "Laxgalts’ap Village Government",
+      "other_names": "Laxgalts'ap Village Government"
+    },
+    {
+      "name": "Lax Kw’alaams Band",
+      "other_names": "Lax Kw'alaams Band"
+    },
+    {
+      "name": "Leq’a:mel First Nation",
+      "other_names": "Lakahahmen First Nation,Leq'á:mel First Nation"
+    },
+    {
+      "name": "Lheidli-T’enneh First Nation",
+      "other_names": "Lheidli T'enneh Band,Lheidli T'enneh First Nation"
+    },
+    {
+      "name": "Lhoosk’uz Dene Nation",
+      "other_names": "Kluskus First Nation,Lhoosk'us Dene Nation,Lhoosk'uz Dene Nation"
+    },
+    {
+      "name": "Lhtako Dene Nation",
+      "other_names": "Red Bluff Band"
+    },
+    {
+      "name": "Liard First Nation",
+      "other_names": ""
+    },
+    {
+      "name": "Líl’wat Nation",
+      "other_names": "Mount Currie Band,Lil’wat7ul,Lil'wat Nation"
+    },
+    {
+      "name": "Llenllenéy’ten (High Bar First Nation)",
+      "other_names": "High Bar First Nation,Llenlleney'ten (High Bar),Llenlleney'ten (High Bar First Nation)"
+    },
+    {
+      "name": "Lower Nicola Indian Band",
+      "other_names": ""
+    },
+    {
+      "name": "Lower Similkameen Indian Band",
+      "other_names": "Lower Similkameen Indian Band"
+    },
+    {
+      "name": "Lyackson First Nation",
+      "other_names": "Lyackson First Nation"
+    },
+    {
+      "name": "Lytton First Nation",
+      "other_names": "Lytton First Nation"
+    },
+    {
+      "name": "MÁLEXEȽ (Malahat First Nation)",
+      "other_names": "Malahat First Nation,Malahat Indian Band,MÁLEXEȽ (Malahat)"
+    },
+    {
+      "name": "Mamalilikulla First Nation",
+      "other_names": "Mama̱liliḵa̱la"
+    },
+    {
+      "name": "Matsqui First Nation",
+      "other_names": "Matsqui First Nation"
+    },
+    {
+      "name": "McLeod Lake Indian Band",
+      "other_names": "McLeod Lake Indian Band,McLeod Lake"
+    },
+    {
+      "name": "Metlakatla First Nation",
+      "other_names": "Metlakahtla,Metlakatla Band Council"
+    },
+    {
+      "name": "Mowachaht/Muchalaht First Nations",
+      "other_names": "Nootka Band (Mowachaht),Mowachaht,Muchalaht,Mowachaht / Muchalaht First Nations"
+    },
+    {
+      "name": "Nadleh Whut’en First Nation",
+      "other_names": "Fraser Lake Indian Band,Nadleh Whut'en"
+    },
+    {
+      "name": "Nak’azdli Whut’en",
+      "other_names": "Nak'azdli First Nation,Nak'azdli Whut'en,Necoslie,Necausley,Nak'azdli Band"
+    },
+    {
+      "name": "ʼNa̱mǥis First Nation",
+      "other_names": "Nimpkish"
+    },
+    {
+      "name": "Nazko First Nation",
+      "other_names": "Nazko Indian Band"
+    },
+    {
+      "name": "Nee-Tahi-Buhn Indian Band",
+      "other_names": "Nee-Tahi-Buhn Indian Band"
+    },
+    {
+      "name": "Nicomen Indian Band",
+      "other_names": "Nicomen Indian Band"
+    },
+    {
+      "name": "Nisga’a Village of Gitwinksihlkw",
+      "other_names": "Nisg̱a'a Village Of Gitwinksihlkw,Nisga'a Village of Gitwinksihlkw"
+    },
+    {
+      "name": "Nooaitch Indian Band",
+      "other_names": ",Nooaitch"
+    },
+    {
+      "name": "N’Quatqua First Nations",
+      "other_names": "N'Quatqua First Nations,N'quatqua First Nation,Nequatque First Nation,Anderson Lake Indian Band,N'Quatqua"
+    },
+    {
+      "name": "Nuchatlaht First Nation",
+      "other_names": "nuča-łʔtḥ,Oclucje"
+    },
+    {
+      "name": "Nuxalk Nation",
+      "other_names": "Bella Coola Indian Band,Nuxalk Nation"
+    },
+    {
+      "name": "Okanagan Indian Band",
+      "other_names": "Okanagan Indian Band"
+    },
+    {
+      "name": "Old Massett Village Council",
+      "other_names": "Old Massett Band,Old Masset Village Council"
+    },
+    {
+      "name": "Oregon Jack Creek Band",
+      "other_names": "Oregon Jack Creek Band"
+    },
+    {
+      "name": "Osoyoos Indian Band",
+      "other_names": "Osoyoos Indian Band"
+    },
+    {
+      "name": "Pacheedaht First Nation",
+      "other_names": ",Pacheedaht First Nation"
+    },
+    {
+      "name": "Pelltíq’t (Whispering Pines / Clinton)",
+      "other_names": "Whispering Pines / Clinton Indian Band,Clinton Band,Pellt'iq't (Whispering Pines/Clinton),Pellt'iq't (Whispering Pines/Clinton Band)"
+    },
+    {
+      "name": "Penelakut Tribe",
+      "other_names": "Penelakut Tribe"
+    },
+    {
+      "name": "Penticton Indian Band",
+      "other_names": "Pentiction Indian Band"
+    },
+    {
+      "name": "Peters First Nation",
+      "other_names": "Peters Band"
+    },
+    {
+      "name": "Popkum First Nation",
+      "other_names": "Popkum First Nation"
+    },
+    {
+      "name": "Prophet River First Nation",
+      "other_names": ""
+    },
+    {
+      "name": "Qayqayt First Nation",
+      "other_names": "New Westminster First Nation"
+    },
+    {
+      "name": "Qualicum First Nation",
+      "other_names": "Qualicum First Nation"
+    },
+    {
+      "name": "Quatsino First Nation",
+      "other_names": "Quatsino First Nation,G̱usgimukw"
+    },
+    {
+      "name": "Saik’uz First Nation",
+      "other_names": "Stoney Creek,Saik'uz First Nation"
+    },
+    {
+      "name": "Samahquam Nation",
+      "other_names": "Samakwa Band"
+    },
+    {
+      "name": "Saulteau First Nations",
+      "other_names": ""
+    },
+    {
+      "name": "SȾÁUTW̱ (Tsawout)",
+      "other_names": "Tsawout First Nation,SȾÁUTW̱ (Tsawout)"
+    },
+    {
+      "name": "Scia’new (Beecher Bay)",
+      "other_names": "Beecher Bay First Nations,Scia'new (Beecher Bay)"
+    },
+    {
+      "name": "Seabird Island Band",
+      "other_names": "Seabird Island Band,Seabird Island Indian Band"
+    },
+    {
+      "name": "Sekw’el’was (Cayoose Creek Band)",
+      "other_names": "Cayoose Creek Band,Sekw’el’wás (Cayoose Creek)"
+    },
+    {
+      "name": "SEMYOME (Semiahmoo)",
+      "other_names": "Semiahmoo First Nation"
+    },
+    {
+      "name": "Sexqeltqín (Adams Lake Indian Band)",
+      "other_names": "Adams Lake Indian Band,Sexqeltqín (Adams Lake)"
+    },
+    {
+      "name": "Shackan Indian Band",
+      "other_names": ",Shackan"
+    },
+    {
+      "name": "shíshálh Nation",
+      "other_names": "Sechelt Indian Nation,Sechelt Indian Band"
+    },
+    {
+      "name": "Shxwhá:y Village",
+      "other_names": "Skway First Nation"
+    },
+    {
+      "name": "Shxw’owhamel First Nation",
+      "other_names": "Shxw'owhamel First Nation"
+    },
+    {
+      "name": "Sik-e-Dakh",
+      "other_names": "Glen Vowell Band,Sik-adox,Sik-e-dakh,Sik-edakh (Glen Vowell)"
+    },
+    {
+      "name": "Simpcw First Nation",
+      "other_names": "North Thompson Indian Band,Simpcw"
+    },
+    {
+      "name": "Siska Indian Band",
+      "other_names": "Siska Indian Band"
+    },
+    {
+      "name": "Skatin Nations",
+      "other_names": "Skatin Nations Council,Skookumchuck"
+    },
+    {
+      "name": "Sk’atsin (Neskonlith Indian Band)",
+      "other_names": "Neskonlith Indian Band,Neskonlith"
+    },
+    {
+      "name": "Skeetchestn First Nation",
+      "other_names": "Skeetchestn Indian Band,Skeetchestn"
+    },
+    {
+      "name": "Skidegate Band Council",
+      "other_names": "Skidegate Band Council"
+    },
+    {
+      "name": "Skin Tyee Nation",
+      "other_names": "Skin Tyee Nation"
+    },
+    {
+      "name": "Skowkale First Nation",
+      "other_names": "Skowkale First Nation"
+    },
+    {
+      "name": "Skuppah Indian Band",
+      "other_names": "Skuppah Indian Band"
+    },
+    {
+      "name": "Skwah First Nation",
+      "other_names": "Skwah First Nation"
+    },
+    {
+      "name": "Skwlax (Little Shuswap Lake)",
+      "other_names": "Little Shuswap Indian Band,Squilax,Skwlax (Little Shuswap),Skwlax (Little Shuswap Lake Indian Band)"
+    },
+    {
+      "name": "Snaw-naw-as First Nation",
+      "other_names": "Nanoose First Nation,Snaw-Naw-As First Nation"
+    },
+    {
+      "name": "Snuneymuxw First Nation",
+      "other_names": "Snuneymuxw First Nation"
+    },
+    {
+      "name": "Songhees Nation",
+      "other_names": "Songhees First Nation,Songish,Lekwungen"
+    },
+    {
+      "name": "Soowahlie Indian Band",
+      "other_names": "Soowahlie Indian Band"
+    },
+    {
+      "name": "Splatsin First Nation",
+      "other_names": "Spallumcheen Indian Band,Splats'in"
+    },
+    {
+      "name": "Spuzzum First Nation",
+      "other_names": "Spuzzum First Nation"
+    },
+    {
+      "name": "Sq’ewá:lxw (Skawahlook First Nation)",
+      "other_names": "Sq’ewá:lxw (Skawahlook First Nation)"
+    },
+    {
+      "name": "Sq'éwlets (Scowlitz First Nation)",
+      "other_names": "Sq'éwlets (Scowlitz First Nation)"
+    },
+    {
+      "name": "Squamish Nation",
+      "other_names": "Squamish Band"
+    },
+    {
+      "name": "Squiala First Nation",
+      "other_names": "Squiala First Nation"
+    },
+    {
+      "name": "Stellat’en First Nation",
+      "other_names": "Stellat'en,Stellat'en First Nation"
+    },
+    {
+      "name": "Sts'ailes (Chehalis Indian Band)",
+      "other_names": "Sts'ailes,Chehalis Indian Band"
+    },
+    {
+      "name": "Stswécem’c Xget’tem",
+      "other_names": "Canoe Creek Band,Canoe Creek,Stswécem’c"
+    },
+    {
+      "name": "St’uxwtéws (Bonaparte First Nation)",
+      "other_names": "Bonaparte Indian Band,St'uxwtéws (Bonaparte)"
+    },
+    {
+      "name": "Stz’uminus First Nation",
+      "other_names": "Chemainus First Nation,Stz'uminus First Nation"
+    },
+    {
+      "name": "Sumas First Nation",
+      "other_names": "Sumas First Nation"
+    },
+    {
+      "name": "SXIMEȽEȽ (Esquimalt)",
+      "other_names": "Esquimalt Nation"
+    },
+    {
+      "name": "Takla First Nation",
+      "other_names": "Takla Lake First Nation, North Takla Lake Indian Band,Fort Connolly Indian Band,Sustutenne"
+    },
+    {
+      "name": "Taku River Tlingit First Nation",
+      "other_names": "Taku River Tlingit First Nation"
+    },
+    {
+      "name": "Telegraph Creek (Tahltan Nation)",
+      "other_names": "Tahltan Band"
+    },
+    {
+      "name": "T’exélc (Williams Lake First Nation)",
+      "other_names": "Williams Lake Band,T'exelcemc (Williams Lake),T'exelc (Williams Lake Indian Band)"
+    },
+    {
+      "name": "T’it’q’et",
+      "other_names": "T'it'q'et,Tl'itl'ikt,Lillooet Indian Band,T’ít’q’et First Nation"
+    },
+    {
+      "name": "Tk’emlúps (Kamloops Indian Band)",
+      "other_names": "Kamloops Indian Band,Tk’umlups Indian Band,Tk'emlups (Kamloops)"
+    },
+    {
+      "name": "Tla'amin Nation",
+      "other_names": "Sliammon First Nation, Kla Ah Men"
+    },
+    {
+      "name": "Tla-o-qui-aht First Nation",
+      "other_names": "Clayoquot First Nation"
+    },
+    {
+      "name": "Tlatlasikwala First Nation",
+      "other_names": "Tlatlasikwala First Nation,T̕łat̕łasiḵ̕wala,Tlatlasikwala"
+    },
+    {
+      "name": "Tl’azt’en Nation",
+      "other_names": "Stuart Trembleur,Tl’azt’en Nation"
+    },
+    {
+      "name": "Tl’esqox",
+      "other_names": "Toosey Indian Band"
+    },
+    {
+      "name": "Tl’etinqox",
+      "other_names": "Tl'etinqox-T'in Government Office"
+    },
+    {
+      "name": "Toquaht Nation",
+      "other_names": "Toquart,Toquaht First Nation"
+    },
+    {
+      "name": "Tsal’alh (Seton Lake Band)",
+      "other_names": "Seton Lake Band,Chalath,Tsal'álh (Seton Lake),Tsal’alh (Seton Lake Band))"
+    },
+    {
+      "name": "Tsawwassen First Nation",
+      "other_names": "Tsawwassen First Nation"
+    },
+    {
+      "name": "Tsay Keh Dene Nation",
+      "other_names": "Ingenika Indian Band,Tsay Keh Dene"
+    },
+    {
+      "name": "Tseshaht First Nation",
+      "other_names": "Sheshaht"
+    },
+    {
+      "name": "Tsi Deldel",
+      "other_names": "Alexis Creek Indian Band,Tsi Del Del"
+    },
+    {
+      "name": "Ts’il Kaz Koh Nation",
+      "other_names": "Burns Lake Band,Ts'il Kaz Koh (Burns Lake)"
+    },
+    {
+      "name": "Ts’kw’aylaxw First Nation",
+      "other_names": "Tsk’wáylacw,Pavilion,Ts'kw'aylaxw First Nation (Pavillion),Ts'kw'aylaxw"
+    },
+    {
+      "name": "Tsleil-Waututh Nation",
+      "other_names": "Burrard Indian Band"
+    },
+    {
+      "name": "T’Sou-ke Nation",
+      "other_names": "T'Sou-ke Nation"
+    },
+    {
+      "name": "Tsq’éscen First Nation",
+      "other_names": "Formerly 'Canim Lake Band',Tsq'escenemc (Canim Lake),Tsq'escenemc (Canim Lake Band)"
+    },
+    {
+      "name": "Ts'uubaa-asatx Nation",
+      "other_names": "Ts'uubaa-asatx Nation"
+    },
+    {
+      "name": "Tzeachten First Nation",
+      "other_names": "Tzeachten First Nation"
+    },
+    {
+      "name": "Uchucklesaht Tribe",
+      "other_names": "Uchucklesit"
+    },
+    {
+      "name": "Ulkatcho First Nation",
+      "other_names": "Ulkatcho First Nation,Ulkatchos,Ulkatcho people,Ulkatchot'en"
+    },
+    {
+      "name": "Union Bar First Nation",
+      "other_names": "Union Bar Band"
+    },
+    {
+      "name": "Upper Nicola Band",
+      "other_names": "Upper Nicola Band"
+    },
+    {
+      "name": "Upper Similkameen Indian Band",
+      "other_names": "Upper Similkameen Indian Band"
+    },
+    {
+      "name": "Wei Wai Kai First Nation",
+      "other_names": "Cape Mudge,We Wai Kai First Nation"
+    },
+    {
+      "name": "Wei Wai Kum First Nation",
+      "other_names": "Campbell River First Nation"
+    },
+    {
+      "name": "Westbank First Nation",
+      "other_names": "Westbank First Nation"
+    },
+    {
+      "name": "West Moberly First Nations",
+      "other_names": "West Moberly First Nations"
+    },
+    {
+      "name": "Wet’suwet’en Nation",
+      "other_names": "Broman Lake Indian Band,Wet'suwet'en First Nation"
+    },
+    {
+      "name": "Witset First Nation",
+      "other_names": "Moricetown Band Office"
+    },
+    {
+      "name": "W̱JOȽEȽP (Tsartlip)",
+      "other_names": "Tsartlip First Nation"
+    },
+    {
+      "name": "W̱SIḴEM  (Tseycum)",
+      "other_names": "Tseycum First Nation,W̱SIḴEM (Tseycum)"
+    },
+    {
+      "name": "Wuikinuxv Nation (Rivers Inlet)",
+      "other_names": "Oweekeno Nation,Wuikinuxv Nation"
+    },
+    {
+      "name": "Xatśūll (Soda Creek)",
+      "other_names": "Soda Creek Indian Band,Hat'sull,Xats'ull (Soda Creek)"
+    },
+    {
+      "name": "Xaxli’p",
+      "other_names": "Xaxli'p Band,Fountain Indian Band,Xaxli'p First Nation"
+    },
+    {
+      "name": "Xa’xtsa (Douglas First Nation)",
+      "other_names": "Douglas First Nation,Xa'xtsa Nation"
+    },
+    {
+      "name": "Xeni Gwet’in",
+      "other_names": "Nemiah Valley Indian Band,Xeni Gwet'in"
+    },
+    {
+      "name": "xʷməθkʷəy̓əm (Musqueam)",
+      "other_names": "Musqueam"
+    },
+    {
+      "name": "Xwísten (Bridge River Indian Band)",
+      "other_names": "Bridge River Indian Band,Nxwísten"
+    },
+    {
+      "name": "Yakweakwioose Band",
+      "other_names": "Yakweakwioose Band"
+    },
+    {
+      "name": "Yale First Nation",
+      "other_names": "Yale First Nation"
+    },
+    {
+      "name": "Yaqan Nukiy (Lower Kootenay Band)",
+      "other_names": "Lower Kootenay Band, yaqan nuʔkiy (Lower Kootenay)"
+    },
+    {
+      "name": "Yaq̓it ʔa·knuqⱡi ‘it (Tobacco Plains)",
+      "other_names": "Tobacco Plains Indian Band"
+    },
+    {
+      "name": "Yekooche First Nation",
+      "other_names": "Portage Reserve"
+    },
+    {
+      "name": "Yunesit’in",
+      "other_names": "Stone First Nation,Stone Band,Yunesit'in"
+    },
+    {
+      "name": "Yuułuʔiłʔatḥ Government (Ucluelet First Nation)",
+      "other_names": "yu-łuʔiłʔatḥ,Yu-cluth-aht"
+    }
+  ]
+}

@@ -25,8 +25,8 @@ export const sourceMeta: Record<SourceKey, { label: string; type: string; descri
   },
   cad: {
     label: 'BC CAD',
-    type: 'Consultative area',
-    description: 'External report workflow for preliminary First Nations consultation contacts. Boundaries are not public.',
+    type: 'Report workflow',
+    description: 'External CAD/PIP workflow for preliminary First Nations consultation contacts. The public app does not expose consultation-area polygons as downloadable boundary data.',
   },
   treaty: {
     label: 'Treaty lands',
@@ -54,7 +54,7 @@ export const INDIGENOUS_MANIFEST_DATA = `${INDIGENOUS_DATA_BASE}manifest.json`
 export const RELATIONSHIP_GRAPH_DATA = `${import.meta.env.BASE_URL}data/acknowledgement/relationship-graph.json`
 export const TREATY_LANDS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_lands.geojson`
 export const TREATY_AREAS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_areas.geojson`
-export const RESERVES_DATA = `${INDIGENOUS_DATA_BASE}indian_reserves_band_names.geojson`
+export const RESERVES_DATA = `${INDIGENOUS_DATA_BASE}cad_pip_layer_382_indian_reserves_band_names.geojson`
 export const COMMUNITIES_DATA = `${INDIGENOUS_DATA_BASE}first_nation_community_locations.geojson`
 export const NATIVE_LAND_DATA_BASE = `${import.meta.env.BASE_URL}data/native-land/`
 export const NATIVE_LAND_LAYERS = [
@@ -67,7 +67,7 @@ export const LOCAL_COMMUNITY_MAX_KM = 120
 export const initialLookupState: Record<SourceKey, SourceLookupState> = {
   verified: { status: 'idle', matches: [] },
   nativeLand: { status: 'idle', matches: [] },
-  cad: { status: 'skipped', matches: [], message: 'Use the B.C. CAD map/report manually. Public CAD docs say boundaries are not viewable and outputs are preliminary contact lists.' },
+  cad: { status: 'skipped', matches: [], message: 'Use the B.C. CAD map/report manually. The public app exposes contact reports; consultation-area polygons are not available as bundled boundary data.' },
   treaty: { status: 'idle', matches: [] },
   reserve: { status: 'idle', matches: [] },
   local: { status: 'idle', matches: [] },

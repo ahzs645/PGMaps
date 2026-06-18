@@ -1,6 +1,7 @@
 import { Check, ShieldCheck } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { CollapsiblePanel } from './CollapsiblePanel'
 import type { MatchType } from '../types'
 
 type MatchTypesPanelProps = {
@@ -10,11 +11,7 @@ type MatchTypesPanelProps = {
 
 export function MatchTypesPanel({ enabledMatchTypes, onToggle }: MatchTypesPanelProps) {
   return (
-    <section className="rounded-lg border bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <ShieldCheck className="h-4 w-4 text-teal-700" />
-        <h2 className="text-sm font-semibold">Match Types</h2>
-      </div>
+    <CollapsiblePanel title="Match Types" icon={<ShieldCheck className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
       <div className="space-y-2 text-xs leading-5 text-slate-600">
         {([
           ['place', 'Exact places', 'Campuses, institutes, and named facilities with curated records.'],
@@ -40,6 +37,6 @@ export function MatchTypesPanel({ enabledMatchTypes, onToggle }: MatchTypesPanel
           </button>
         ))}
       </div>
-    </section>
+    </CollapsiblePanel>
   )
 }

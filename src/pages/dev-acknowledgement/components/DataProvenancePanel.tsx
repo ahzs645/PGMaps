@@ -1,5 +1,6 @@
 import { AlertTriangle, Database, ExternalLink } from 'lucide-react'
 
+import { CollapsiblePanel } from './CollapsiblePanel'
 import { INDIGENOUS_MANIFEST_DATA, unresolvedDataGaps } from '../data'
 import type { IndigenousManifestSource } from '../types'
 
@@ -10,11 +11,7 @@ type DataProvenancePanelProps = {
 
 export function DataProvenancePanel({ automatedSources, manualSources }: DataProvenancePanelProps) {
   return (
-    <section className="rounded-lg border bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <Database className="h-4 w-4 text-teal-700" />
-        <h2 className="text-sm font-semibold">Data Provenance</h2>
-      </div>
+    <CollapsiblePanel title="Data Provenance" icon={<Database className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
       <div className="space-y-3 text-xs leading-5 text-slate-600">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Automated</div>
         {automatedSources.map((source) => {
@@ -100,6 +97,6 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
           </a>
         ))}
       </div>
-    </section>
+    </CollapsiblePanel>
   )
 }
