@@ -76,11 +76,14 @@ type MultiPointComposerProps = {
   orgToLoad?: string | null
   /** Called once the requested org has been loaded, so the parent can reset its request. */
   onOrgLoaded?: () => void
+  /** Fires when the loaded organization changes (null = free-form points), so the
+   *  parent can lock the voice to that org and hide the redundant voice picker. */
+  onOrgChange?: (org: OrgRecord | null) => void
   /** Active-point detail (wording preview, candidates, source panels) rendered beside the map. */
   children?: ReactNode
 }
 
-export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLoad, onOrgLoaded, children }: MultiPointComposerProps) {
+export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLoad, onOrgLoaded, onOrgChange, children }: MultiPointComposerProps) {
   const [points, setPoints] = useState<MappedPoint[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   // Single-point by default: a map click moves the active point. "Add point" arms
@@ -201,6 +204,13 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
     onOrgLoaded?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgToLoad])
+
+  // Tell the parent which org (if any) is currently loaded so it can lock the
+  // voice to that org. Keyed on the id string to fire only on real changes
+  // (loading an org, clearing, or dropping a free-form point that resets it).
+  useEffect(() => {
+    onOrgChange?.(organizations.find((org) => org.id === selectedOrgId) ?? null)
+  }, [selectedOrgId, onOrgChange])
 
   const resolved = points.filter((point) => point.status === 'done')
   const summary = useMemo(

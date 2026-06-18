@@ -3,7 +3,7 @@ import { point } from '@turf/helpers'
 
 export type SourceKey = 'verified' | 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
 export type MatchType = 'place' | 'municipality' | 'boundary'
-export type WordingMode = 'short' | 'formal' | 'event' | 'institutional' | 'educational'
+export type WordingMode = 'short' | 'formal' | 'event' | 'institutional'
 
 /** Whose voice the acknowledgement is spoken in. */
 export type SpeakerPerspective = 'collective' | 'individual' | 'organization'
@@ -287,35 +287,39 @@ function onPhrase(core: string) {
   return /^on\b/i.test(core) ? core : `on ${core}`
 }
 
+// Acknowledgements lead with the territory itself — the matched place name is
+// intentionally NOT spoken. An institution name therefore only appears when the
+// speaker is an organization (via organizationName); it never leaks into the
+// individual/community voice, nor onto a point that merely falls inside a
+// nearby territory polygon. `ctx.place` is kept for callers but left unspoken.
 function composeAcknowledgement(
   mode: WordingMode,
   perspective: SpeakerPerspective,
   ctx: { place: string; core: string; affiliation: string; organizationName?: string },
 ) {
-  const { place, core, affiliation } = ctx
+  const { core, affiliation } = ctx
+  const situated = onPhrase(core)
 
   if (perspective === 'individual') {
-    const situated = onPhrase(core)
-    if (mode === 'short') return `I am at ${place}, ${situated}.`
-    if (mode === 'formal') return `I respectfully acknowledge that I am at ${place}, ${situated}. ${affiliation}`.trim()
-    if (mode === 'institutional' || mode === 'educational') return `I am at ${place}, ${situated}. ${affiliation}`.trim()
-    return `I am grateful to be at ${place} today, ${situated}. ${affiliation}`.trim()
+    if (mode === 'short') return `I am ${situated}.`
+    if (mode === 'formal') return `I respectfully acknowledge that I am ${situated}. ${affiliation}`.trim()
+    if (mode === 'institutional') return `I am ${situated}. ${affiliation}`.trim()
+    return `I am grateful to be ${situated}. ${affiliation}`.trim()
   }
 
   if (perspective === 'organization') {
     const org = ctx.organizationName?.trim() || 'Our organization'
-    const situated = onPhrase(core)
-    if (mode === 'short') return `${org} operates at ${place}, ${situated}.`
-    if (mode === 'formal') return `${org} respectfully acknowledges that it operates at ${place}, ${situated}. ${affiliation}`.trim()
-    if (mode === 'institutional' || mode === 'educational') return `${org} operates at ${place}, ${situated}. ${affiliation}`.trim()
-    return `On behalf of ${org}, we gather today at ${place}, ${situated}. ${affiliation}`.trim()
+    if (mode === 'short') return `${org} operates ${situated}.`
+    if (mode === 'formal') return `${org} respectfully acknowledges that it operates ${situated}. ${affiliation}`.trim()
+    if (mode === 'institutional') return `${org} operates ${situated}. ${affiliation}`.trim()
+    return `On behalf of ${org}, we are grateful to gather ${situated}. ${affiliation}`.trim()
   }
 
-  // collective (default) — preserves the original wording exactly.
-  if (mode === 'short') return `${place} is situated ${core}.`
-  if (mode === 'formal') return `We respectfully acknowledge that ${place} is situated ${core}. ${affiliation}`.trim()
-  if (mode === 'institutional' || mode === 'educational') return `${place} is situated ${core}. ${affiliation}`.trim()
-  return `We are grateful to gather today at ${place}, situated ${core}. ${affiliation}`.trim()
+  // collective (default)
+  if (mode === 'short') return `We are ${situated}.`
+  if (mode === 'formal') return `We respectfully acknowledge that we are ${situated}. ${affiliation}`.trim()
+  if (mode === 'institutional') return `We are ${situated}. ${affiliation}`.trim()
+  return `We are grateful to gather ${situated}. ${affiliation}`.trim()
 }
 
 export function buildRelationshipAcknowledgement(
@@ -347,14 +351,13 @@ export function buildFallbackAcknowledgement(
   nationNames: string[],
   options: { perspective?: SpeakerPerspective; organizationName?: string } = {},
 ) {
-  const names = nationNames.length > 0 ? nationNames.join(', ') : '[selected Nation(s)]'
+  const names = nationNames.length > 0 ? formatList(nationNames) : '[selected Nation(s)]'
   const perspective = options.perspective ?? 'collective'
 
   if (perspective === 'individual') {
     if (mode === 'short') return `I am on land connected to ${names}.`
     if (mode === 'formal') return `I respectfully acknowledge that I am on land connected to ${names}. I recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
     if (mode === 'institutional') return `I am working from land connected to ${names}.`
-    if (mode === 'educational') return `This location has source signals connected to ${names}.`
     return `I am grateful to be on land connected to ${names}. I recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
   }
 
@@ -363,7 +366,6 @@ export function buildFallbackAcknowledgement(
     if (mode === 'short') return `${org} operates on land connected to ${names}.`
     if (mode === 'formal') return `${org} respectfully acknowledges that it operates on land connected to ${names}. We recognize their histories, cultures, rights, and ongoing relationships with these lands.`
     if (mode === 'institutional') return `${org} is working from lands connected to ${names}.`
-    if (mode === 'educational') return `This location has source signals connected to ${names}.`
     return `On behalf of ${org}, we are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
   }
 
@@ -377,10 +379,6 @@ export function buildFallbackAcknowledgement(
 
   if (mode === 'institutional') {
     return `This institution is working from lands connected to ${names}.`
-  }
-
-  if (mode === 'educational') {
-    return `This location has source signals connected to ${names}.`
   }
 
   return `We are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
@@ -403,7 +401,6 @@ export function buildRegionalAcknowledgement(
     if (mode === 'short') return `I acknowledge ${territories}.`
     if (mode === 'formal') return `I respectfully acknowledge ${territories}, and the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
     if (mode === 'institutional') return `I carry out my work on ${territories}.`
-    if (mode === 'educational') return `This is a region-wide acknowledgement of ${territories}.`
     return `I am grateful to live and work on ${territories}.`
   }
 
@@ -412,14 +409,12 @@ export function buildRegionalAcknowledgement(
     if (mode === 'short') return `${org} operates on ${territories}.`
     if (mode === 'formal') return `${org} respectfully acknowledges that it operates on ${territories}, and recognizes the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
     if (mode === 'institutional') return `${org} operates on ${territories}.`
-    if (mode === 'educational') return `This is a region-wide acknowledgement: ${org} operates on ${territories}.`
     return `On behalf of ${org}, we are grateful to carry out our work on ${territories}.`
   }
 
   if (mode === 'short') return `We acknowledge ${territories}.`
   if (mode === 'formal') return `We respectfully acknowledge ${territories}, and recognize the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
   if (mode === 'institutional') return `We carry out our work on ${territories}.`
-  if (mode === 'educational') return `This is a region-wide acknowledgement of ${territories}.`
   return `We are grateful to gather and work on ${territories}.`
 }
 
@@ -506,9 +501,14 @@ export async function matchBoundaryRelationshipPlace(
 ): Promise<MatchedRelationshipPlace | null> {
   for (const relationship of graph.placeRelationships) {
     if (!relationship.referenceAreaIds?.length) continue
-    if (!(await relationshipReferencesPoint(graph, relationship, result.latitude, result.longitude, resolveGeometryUrl, loadGeoJsonLayer))) continue
     const place = graph.places.find((place) => place.id === relationship.placeId)
-    if (place) return { place, relationships: [relationship] }
+    // A boundary hit only proves the point sits inside a territory polygon — not
+    // that it is at a specific campus. Resolve those to the generic territory
+    // context places only, never to an institution/campus-specific place; that
+    // way a point near (but not at) UBC reads as Musqueam territory, not "at UBC".
+    if (!place || place.type !== 'boundary_reference_area') continue
+    if (!(await relationshipReferencesPoint(graph, relationship, result.latitude, result.longitude, resolveGeometryUrl, loadGeoJsonLayer))) continue
+    return { place, relationships: [relationship] }
   }
   return null
 }

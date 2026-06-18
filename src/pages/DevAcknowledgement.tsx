@@ -5,6 +5,7 @@ import { defaultWordingOptions } from './dev-acknowledgement/data'
 import { useAcknowledgementLookups } from './dev-acknowledgement/hooks/useAcknowledgementLookups'
 import { buildFallbackAcknowledgement as buildAcknowledgement, buildRegionalAcknowledgement, buildRelationshipAcknowledgement, peopleGroupName } from '@/lib/acknowledgement/engine'
 import type { MatchType, SourceKey, SpeakerPerspective, WordingMode, WordingOptions } from './dev-acknowledgement/types'
+import type { OrgRecord } from './dev-acknowledgement/organizations'
 import { AcknowledgementHeader } from './dev-acknowledgement/components/AcknowledgementHeader'
 import { CandidateNations } from './dev-acknowledgement/components/CandidateNations'
 import { DataProvenancePanel } from './dev-acknowledgement/components/DataProvenancePanel'
@@ -46,11 +47,24 @@ export default function DevAcknowledgement() {
   const [activeTab, setActiveTab] = useState<'mapNations' | 'wording' | 'organizations'>('mapNations')
   const [orgToLoad, setOrgToLoad] = useState<string | null>(null)
   const [orgPreset, setOrgPreset] = useState<string | null>(null)
+  // The org currently loaded onto the map (null = free-form points). When set, the
+  // speaker is unambiguously that organization, so we lock the voice to it and hide
+  // the redundant Community/Individual/Organization picker.
+  const [loadedOrg, setLoadedOrg] = useState<OrgRecord | null>(null)
 
   // From the Organizations tab: load the selected org onto the map and jump there.
   const previewOnMap = useCallback((id: string) => {
     setOrgToLoad(id)
     setActiveTab('mapNations')
+  }, [])
+
+  // Keep the voice in sync with whatever org the map currently has loaded.
+  const handleOrgChange = useCallback((org: OrgRecord | null) => {
+    setLoadedOrg(org)
+    if (org) {
+      setPerspective('organization')
+      setOrganizationName(org.name)
+    }
   }, [])
 
   const {
@@ -208,34 +222,46 @@ export default function DevAcknowledgement() {
           onActivePoint={(latitude, longitude) => dropLocation({ latitude, longitude })}
           orgToLoad={orgToLoad}
           onOrgLoaded={() => setOrgToLoad(null)}
+          onOrgChange={handleOrgChange}
         >
-          <section className="rounded-lg border bg-white p-3 shadow-sm">
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
-            <div className="grid grid-cols-3 gap-2">
-              {([['collective', 'Community'], ['individual', 'Individual'], ['organization', 'Organization']] as const).map(([value, voiceLabel]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setPerspective(value)}
-                  className={cn(
-                    'rounded-md border px-2 py-1.5 text-xs font-medium',
-                    perspective === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
-                  )}
-                >
-                  {voiceLabel}
-                </button>
-              ))}
-            </div>
-            {perspective === 'organization' && (
-              <input
-                value={organizationName}
-                onChange={(event) => setOrganizationName(event.target.value)}
-                placeholder="Organization name (e.g. UNBC)"
-                aria-label="Organization name"
-                className="mt-2 w-full rounded-md border bg-white px-3 py-1.5 text-sm outline-none"
-              />
-            )}
-          </section>
+          {loadedOrg ? (
+            // An org is loaded: the voice is unambiguously this organization, so
+            // show a read-only indicator instead of the voice picker.
+            <section className="rounded-lg border bg-white p-3 shadow-sm">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+              <div className="rounded-md border border-teal-700 bg-teal-700 px-3 py-1.5 text-xs font-medium text-white">
+                Organization · {loadedOrg.name}
+              </div>
+            </section>
+          ) : (
+            <section className="rounded-lg border bg-white p-3 shadow-sm">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+              <div className="grid grid-cols-3 gap-2">
+                {([['collective', 'Community'], ['individual', 'Individual'], ['organization', 'Organization']] as const).map(([value, voiceLabel]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setPerspective(value)}
+                    className={cn(
+                      'rounded-md border px-2 py-1.5 text-xs font-medium',
+                      perspective === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
+                    )}
+                  >
+                    {voiceLabel}
+                  </button>
+                ))}
+              </div>
+              {perspective === 'organization' && (
+                <input
+                  value={organizationName}
+                  onChange={(event) => setOrganizationName(event.target.value)}
+                  placeholder="Organization name (e.g. UNBC)"
+                  aria-label="Organization name"
+                  className="mt-2 w-full rounded-md border bg-white px-3 py-1.5 text-sm outline-none"
+                />
+              )}
+            </section>
+          )}
 
           <WordingPreview wording={customWording} copied={copied} onCopy={handleCopyWording} />
 

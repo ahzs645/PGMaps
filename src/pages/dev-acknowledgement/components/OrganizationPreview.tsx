@@ -168,6 +168,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
               wordingOptions={wordingOptions}
               onToggleOption={toggleOption}
               showContextToggles={false}
+              showVoice={false}
             />
           </div>
         </div>

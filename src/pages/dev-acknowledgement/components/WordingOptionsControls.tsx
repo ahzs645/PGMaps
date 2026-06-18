@@ -10,7 +10,7 @@ export type WordingToggle = 'includeTreatyContext' | 'includePeopleGroupContext'
 /** Whether to name the specific Nation(s) or fall back to a region-wide statement. */
 export type AcknowledgementScope = 'specific' | 'regional'
 
-const MODES: WordingMode[] = ['short', 'formal', 'event', 'institutional', 'educational']
+const MODES: WordingMode[] = ['short', 'formal', 'event', 'institutional']
 
 const PERSPECTIVES: { value: SpeakerPerspective; label: string }[] = [
   { value: 'collective', label: 'Community' },
@@ -38,6 +38,8 @@ export type WordingOptionsControlsProps = {
   onToggleOption: (option: WordingToggle) => void
   /** Context toggles only affect verified-relationship wording; hide where they have no effect. */
   showContextToggles?: boolean
+  /** Voice picker — hide where the speaker is already fixed (e.g. an org preview). */
+  showVoice?: boolean
 }
 
 /** Shared mode / voice / scope / context controls used by the Wording tab and the org preview. */
@@ -55,6 +57,7 @@ export function WordingOptionsControls({
   wordingOptions,
   onToggleOption,
   showContextToggles = true,
+  showVoice = true,
 }: WordingOptionsControlsProps) {
   return (
     <div className="space-y-3">
@@ -73,33 +76,35 @@ export function WordingOptionsControls({
           </button>
         ))}
       </div>
-      <div>
-        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
-        <div className="grid grid-cols-3 gap-2">
-          {PERSPECTIVES.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => onPerspectiveChange(value)}
-              className={cn(
-                'rounded-md border px-2 py-2 text-xs font-medium',
-                perspective === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
-              )}
-            >
-              {label}
-            </button>
-          ))}
+      {showVoice && (
+        <div>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+          <div className="grid grid-cols-3 gap-2">
+            {PERSPECTIVES.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onPerspectiveChange(value)}
+                className={cn(
+                  'rounded-md border px-2 py-2 text-xs font-medium',
+                  perspective === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {perspective === 'organization' && (
+            <input
+              value={organizationName}
+              onChange={(event) => onOrganizationNameChange(event.target.value)}
+              placeholder="Organization name (e.g. UNBC)"
+              aria-label="Organization name"
+              className="mt-2 w-full rounded-md border bg-white px-3 py-2 text-sm outline-none"
+            />
+          )}
         </div>
-        {perspective === 'organization' && (
-          <input
-            value={organizationName}
-            onChange={(event) => onOrganizationNameChange(event.target.value)}
-            placeholder="Organization name (e.g. UNBC)"
-            aria-label="Organization name"
-            className="mt-2 w-full rounded-md border bg-white px-3 py-2 text-sm outline-none"
-          />
-        )}
-      </div>
+      )}
       <div>
         <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Scope</div>
         <div className="grid grid-cols-2 gap-2">

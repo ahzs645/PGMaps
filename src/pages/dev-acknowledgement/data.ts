@@ -311,7 +311,6 @@ export const wordingModeLabels: Record<WordingMode, string> = {
   formal: 'Formal',
   event: 'Event',
   institutional: 'Institution',
-  educational: 'Education',
 }
 
 export const defaultWordingOptions: WordingOptions = {
