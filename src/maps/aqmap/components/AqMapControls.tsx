@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Crosshair, RotateCcw } from 'lucide-react'
+import { Crosshair, Layers as LayersIcon, RotateCcw } from 'lucide-react'
 import { useMap } from '@/components/ui/map'
 import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { cn } from '@/lib/utils'
@@ -405,34 +405,45 @@ export function MainLayerControl({
   locale: AqmapLocale
 }) {
   return (
-    <MapFloatingPanel position="top-right" className="w-56 rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur">
-      <div className="font-semibold text-foreground">{translate('controls.layers', locale)}</div>
-      <div className="mt-1 max-h-72 space-y-1 overflow-y-auto">
-        <div className="pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          {translate('sidebar.observationData', locale)}
+    <MapFloatingPanel position="top-right" className="group">
+      <button
+        type="button"
+        title={translate('controls.layers', locale)}
+        aria-label={translate('controls.layers', locale)}
+        aria-haspopup="true"
+        className="flex size-9 items-center justify-center rounded border border-border bg-background text-foreground shadow-md transition-colors hover:bg-secondary"
+      >
+        <LayersIcon className="size-4" />
+      </button>
+      <div className="pointer-events-none absolute right-0 top-0 hidden w-max min-w-40 max-w-[calc(100vw-1.5rem)] rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur group-hover:pointer-events-auto group-hover:block group-focus-within:pointer-events-auto group-focus-within:block">
+        <div className="font-semibold text-foreground">{translate('controls.layers', locale)}</div>
+        <div className="mt-1 max-h-72 space-y-1 overflow-y-auto">
+          <div className="pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {translate('sidebar.observationData', locale)}
+          </div>
+          {AQ_OBSERVATION_NETWORKS.map((network) => (
+            <label key={network} className="flex items-center gap-2 text-muted-foreground">
+              <input type="checkbox" checked={visibleNetworks.has(network)} onChange={() => onToggleNetwork(network)} />
+              <span>{formatNetworkLabel(network, locale)}</span>
+            </label>
+          ))}
+          <label className="flex items-center gap-2 text-muted-foreground">
+            <input type="checkbox" checked={windVisible} onChange={onToggleWind} />
+            <span>{translate('sidebar.wind', locale)}</span>
+          </label>
+          {smokeLayers.map((layer) => (
+            <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
+              <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
+              <span>{localizeSmokeLabel(layer.key, locale)}</span>
+            </label>
+          ))}
+          {WMS_LAYERS.map((layer) => (
+            <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
+              <input type="checkbox" checked={visibleWmsLayers.has(layer.key)} onChange={() => onToggleWmsLayer(layer.key)} />
+              <span>{localizeWmsLabel(layer.key, locale)}</span>
+            </label>
+          ))}
         </div>
-        {AQ_OBSERVATION_NETWORKS.map((network) => (
-          <label key={network} className="flex items-center gap-2 text-muted-foreground">
-            <input type="checkbox" checked={visibleNetworks.has(network)} onChange={() => onToggleNetwork(network)} />
-            <span>{formatNetworkLabel(network, locale)}</span>
-          </label>
-        ))}
-        <label className="flex items-center gap-2 text-muted-foreground">
-          <input type="checkbox" checked={windVisible} onChange={onToggleWind} />
-          <span>{translate('sidebar.wind', locale)}</span>
-        </label>
-        {smokeLayers.map((layer) => (
-          <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
-            <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
-            <span>{localizeSmokeLabel(layer.key, locale)}</span>
-          </label>
-        ))}
-        {WMS_LAYERS.map((layer) => (
-          <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
-            <input type="checkbox" checked={visibleWmsLayers.has(layer.key)} onChange={() => onToggleWmsLayer(layer.key)} />
-            <span>{localizeWmsLabel(layer.key, locale)}</span>
-          </label>
-        ))}
       </div>
     </MapFloatingPanel>
   )

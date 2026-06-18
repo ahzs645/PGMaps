@@ -2,6 +2,13 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 
 import {
+  matchBoundaryRelationshipPlace as engineMatchBoundaryRelationshipPlace,
+  matchRelationshipPlace,
+  relationshipMatches,
+  uniqueMatches,
+} from '@/lib/acknowledgement/engine'
+import type { GeocodeLike, ReferenceAreaRecord, RelationshipGraph } from '@/lib/acknowledgement/engine'
+import {
   COMMUNITIES_DATA,
   LOCAL_COMMUNITY_MAX_KM,
   NATIVE_LAND_DATA_BASE,
@@ -11,26 +18,17 @@ import {
   TREATY_AREAS_DATA,
   TREATY_LANDS_DATA,
 } from './data'
-import { normalizeMatchText, uniqueMatches } from './names'
-import { nationName, referenceAreaLabel, sourceTitle } from './wording'
-import type {
-  GeocodeResult,
-  MatchedRelationshipPlace,
-  MatchType,
-  PlaceRecord,
-  PlaceRelationshipRecord,
-  ReferenceAreaRecord,
-  RelationshipGraph,
-  SourceKey,
-  SourceMatch,
-} from './types'
+import type { GeocodeResult, SourceMatch } from './types'
+
+// Re-export the engine's pure matching so the app has a single import surface.
+export { matchRelationshipPlace, relationshipMatches }
 
 type FeatureProperties = Record<string, unknown>
 
 const geojsonCache = new Map<string, Promise<GeoJSON.FeatureCollection>>()
 const relationshipGraphCache = new Map<string, Promise<RelationshipGraph>>()
 
-async function loadGeoJsonLayer(url: string): Promise<GeoJSON.FeatureCollection> {
+export async function loadGeoJsonLayer(url: string): Promise<GeoJSON.FeatureCollection> {
   const cached = geojsonCache.get(url)
   if (cached) return cached
   const request = fetch(url)
@@ -63,46 +61,7 @@ export async function loadRelationshipGraph(url = RELATIONSHIP_GRAPH_DATA): Prom
   return request
 }
 
-function relationshipPlaceScore(place: PlaceRecord, result: GeocodeResult, addressInput: string) {
-  const haystack = normalizeMatchText(`${result.fullAddress} ${addressInput}`)
-  const addressScore = (place.addressAliases ?? []).reduce((score, alias) => {
-    const normalizedAlias = normalizeMatchText(alias)
-    if (!normalizedAlias) return score
-    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length + (place.type === 'municipality' ? 0 : 1000)) : score
-  }, 0)
-
-  if (addressScore > 0) return addressScore
-
-  return [place.name, ...(place.locationNames ?? [])].reduce((score, alias) => {
-    const normalizedAlias = normalizeMatchText(alias)
-    if (!normalizedAlias) return score
-    return haystack.includes(normalizedAlias) ? Math.max(score, normalizedAlias.length) : score
-  }, 0)
-}
-
-function placeMatchType(place: PlaceRecord): MatchType {
-  return place.type === 'municipality' ? 'municipality' : 'place'
-}
-
-export function matchRelationshipPlace(
-  graph: RelationshipGraph,
-  result: GeocodeResult,
-  addressInput: string,
-  enabledMatchTypes: Record<MatchType, boolean>,
-): MatchedRelationshipPlace | null {
-  const ranked = graph.places
-    .filter((place) => enabledMatchTypes[placeMatchType(place)])
-    .map((place) => ({ place, score: relationshipPlaceScore(place, result, addressInput) }))
-    .filter((entry) => entry.score > 0)
-    .sort((left, right) => right.score - left.score)
-
-  const place = ranked[0]?.place
-  if (!place) return null
-
-  const relationships = graph.placeRelationships.filter((relationship) => relationship.placeId === place.id)
-  return relationships.length > 0 ? { place, relationships } : null
-}
-
+/** Concrete resolver mapping a reference area's geometrySource to a bundled GeoJSON URL. */
 function geometrySourceUrl(source: ReferenceAreaRecord['geometrySource']) {
   if (!source) return null
   if (source.dataset === 'native-land') return `${NATIVE_LAND_DATA_BASE}${source.category}.geojson`
@@ -111,57 +70,9 @@ function geometrySourceUrl(source: ReferenceAreaRecord['geometrySource']) {
   return null
 }
 
-async function relationshipReferencesPoint(
-  graph: RelationshipGraph,
-  relationship: PlaceRelationshipRecord,
-  lat: number,
-  lng: number,
-) {
-  const pt = point([lng, lat])
-  const referenceAreas = relationship.referenceAreaIds
-    ?.map((areaId) => graph.referenceAreas?.find((area) => area.id === areaId))
-    .filter((area): area is ReferenceAreaRecord => Boolean(area?.geometrySource)) ?? []
-
-  for (const area of referenceAreas) {
-    const source = area.geometrySource
-    if (!source) continue
-    const url = geometrySourceUrl(source)
-    if (!url) continue
-    const collection = await loadGeoJsonLayer(url)
-    for (const feature of collection.features) {
-      const properties = (feature.properties ?? {}) as FeatureProperties
-      if (String(properties[source.property] ?? '') !== source.value) continue
-      const geometry = feature.geometry
-      if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) continue
-      if (booleanPointInPolygon(pt, geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon)) return true
-    }
-  }
-
-  return false
-}
-
-export async function matchBoundaryRelationshipPlace(graph: RelationshipGraph, result: GeocodeResult): Promise<MatchedRelationshipPlace | null> {
-  for (const relationship of graph.placeRelationships) {
-    if (!relationship.referenceAreaIds?.length) continue
-    if (!(await relationshipReferencesPoint(graph, relationship, result.latitude, result.longitude))) continue
-    const place = graph.places.find((place) => place.id === relationship.placeId)
-    if (place) return { place, relationships: [relationship] }
-  }
-  return null
-}
-
-export function relationshipMatches(graph: RelationshipGraph, match: MatchedRelationshipPlace): SourceMatch[] {
-  return uniqueMatches(match.relationships.flatMap((relationship) => (
-    relationship.nationIds.map((nationId) => ({
-      source: 'verified' as SourceKey,
-      name: nationName(graph, nationId),
-      label: `${match.place.name}: ${relationship.relationshipType.replace(/_/g, ' ')}`,
-      detail: [
-        ...relationship.sourceRefs.map((sourceRef) => sourceTitle(graph, sourceRef)),
-        ...(relationship.referenceAreaIds ?? []).map((areaId) => referenceAreaLabel(graph, areaId)),
-      ].join(' / '),
-    }))
-  )))
+/** Boundary match wired to the bundled-GeoJSON loader + URL resolver. */
+export function matchBoundaryRelationshipPlace(graph: RelationshipGraph, result: GeocodeLike) {
+  return engineMatchBoundaryRelationshipPlace(graph, result, geometrySourceUrl, loadGeoJsonLayer)
 }
 
 function joinDetail(parts: unknown[]) {

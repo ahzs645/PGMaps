@@ -220,7 +220,7 @@ describe('buildRelationshipAcknowledgement fixtures', () => {
   it('keeps Quesnel people-group affiliations when a subset of Nations is selected', () => {
     const match = matchKnownPlace('100 Campus Way, Quesnel, BC')
 
-    expect(buildRelationshipAcknowledgement('formal', graph, match, ['lhtako-dene-nation', 'esdilagh'])).toBe(
+    expect(buildRelationshipAcknowledgement('formal', graph, match, ['lhtako-dene', 'esdilagh'])).toBe(
       'We respectfully acknowledge that UNBC South-Central campus is situated unceded traditional territories of Lhtako Dene Nation and ?Esdilagh First Nation. Lhtako Dene Nation is part of the Dakelh (Carrier) Peoples and ?Esdilagh First Nation is part of the Tsilhqot’in Nation.',
     )
   })
@@ -240,7 +240,7 @@ describe('buildRelationshipAcknowledgement fixtures', () => {
   it('keeps institutional wording distinct from short event wording', () => {
     const match = matchKnownPlace('100 Campus Way, Quesnel, BC')
 
-    expect(buildRelationshipAcknowledgement('institutional', graph, match, ['lhtako-dene-nation', 'esdilagh'])).toBe(
+    expect(buildRelationshipAcknowledgement('institutional', graph, match, ['lhtako-dene', 'esdilagh'])).toBe(
       'UNBC South-Central campus is situated unceded traditional territories of Lhtako Dene Nation and ?Esdilagh First Nation. This wording is generated from reviewed relationship records and should remain aligned with local guidance. Lhtako Dene Nation is part of the Dakelh (Carrier) Peoples and ?Esdilagh First Nation is part of the Tsilhqot’in Nation.',
     )
   })
@@ -250,6 +250,44 @@ describe('buildRelationshipAcknowledgement fixtures', () => {
 
     expect(buildRelationshipAcknowledgement('formal', graph, match)).toBe(
       'We respectfully acknowledge that UBC Vancouver-Point Grey academic campus is situated the traditional, ancestral unceded territory of the hən̓q̓əmin̓əm̓-speaking xʷməθkʷəy̓əm (Musqueam).',
+    )
+  })
+})
+
+describe('speaker perspective', () => {
+  const pgMatch = () => matchKnownPlace('3333 University Way, Prince George, BC')
+
+  it('keeps the collective voice as the default', () => {
+    expect(buildRelationshipAcknowledgement('short', graph, pgMatch())).toBe(
+      'UNBC Prince George campuses is situated unceded traditional territory of Lheidli T’enneh First Nation, part of the Dakelh (Carrier) Peoples territory.',
+    )
+  })
+
+  it('speaks in the first person for the individual voice', () => {
+    expect(buildRelationshipAcknowledgement('event', graph, pgMatch(), [], {
+      ...defaultWordingOptions,
+      perspective: 'individual',
+    })).toBe(
+      'I am grateful to be at UNBC Prince George campuses today, on unceded traditional territory of Lheidli T’enneh First Nation, part of the Dakelh (Carrier) Peoples territory.',
+    )
+  })
+
+  it('names the organization for the organization voice', () => {
+    expect(buildRelationshipAcknowledgement('short', graph, pgMatch(), [], {
+      ...defaultWordingOptions,
+      perspective: 'organization',
+      organizationName: 'UNBC',
+    })).toBe(
+      'UNBC operates at UNBC Prince George campuses, on unceded traditional territory of Lheidli T’enneh First Nation, part of the Dakelh (Carrier) Peoples territory.',
+    )
+  })
+
+  it('falls back to a generic organization subject when unnamed', () => {
+    expect(buildRelationshipAcknowledgement('short', graph, pgMatch(), [], {
+      ...defaultWordingOptions,
+      perspective: 'organization',
+    })).toBe(
+      'Our organization operates at UNBC Prince George campuses, on unceded traditional territory of Lheidli T’enneh First Nation, part of the Dakelh (Carrier) Peoples territory.',
     )
   })
 })

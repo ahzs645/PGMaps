@@ -2,13 +2,26 @@ import { AlertTriangle, BookOpen, Check } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { wordingModeLabels } from '../data'
-import type { WordingMode, WordingOptions } from '../types'
+import type { SpeakerPerspective, WordingMode, WordingOptions } from '../types'
+
+/** The boolean wording options that the context checkboxes toggle. */
+export type WordingToggle = 'includeTreatyContext' | 'includePeopleGroupContext'
+
+const PERSPECTIVES: { value: SpeakerPerspective; label: string }[] = [
+  { value: 'collective', label: 'Community' },
+  { value: 'individual', label: 'Individual' },
+  { value: 'organization', label: 'Organization' },
+]
 
 type VariantControlsProps = {
   wordingMode: WordingMode
   onWordingModeChange: (mode: WordingMode) => void
+  perspective: SpeakerPerspective
+  onPerspectiveChange: (perspective: SpeakerPerspective) => void
+  organizationName: string
+  onOrganizationNameChange: (value: string) => void
   wordingOptions: WordingOptions
-  onToggleOption: (option: keyof WordingOptions) => void
+  onToggleOption: (option: WordingToggle) => void
   customWording: string
   onCustomWordingChange: (value: string) => void
 }
@@ -16,6 +29,10 @@ type VariantControlsProps = {
 export function VariantControls({
   wordingMode,
   onWordingModeChange,
+  perspective,
+  onPerspectiveChange,
+  organizationName,
+  onOrganizationNameChange,
   wordingOptions,
   onToggleOption,
   customWording,
@@ -41,6 +58,33 @@ export function VariantControls({
             {wordingModeLabels[mode]}
           </button>
         ))}
+      </div>
+      <div className="mt-3">
+        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+        <div className="grid grid-cols-3 gap-2">
+          {PERSPECTIVES.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onPerspectiveChange(value)}
+              className={cn(
+                'rounded-md border px-2 py-2 text-xs font-medium',
+                perspective === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {perspective === 'organization' && (
+          <input
+            value={organizationName}
+            onChange={(event) => onOrganizationNameChange(event.target.value)}
+            placeholder="Organization name (e.g. UNBC)"
+            aria-label="Organization name"
+            className="mt-2 w-full rounded-md border bg-white px-3 py-2 text-sm outline-none"
+          />
+        )}
       </div>
       <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
         {([

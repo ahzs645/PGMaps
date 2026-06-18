@@ -450,11 +450,15 @@ function dedupeRows(rows: RawMonitor[]): RawMonitor[] {
 }
 
 async function fetchAqmapCompatibleRows(signal: AbortSignal): Promise<RawMonitor[]> {
-  const directEndpoints = [
-    '/data/recent/all/json',
-    '/data/recent/pm25/json',
-    '/data/monitors/all.json',
-  ]
+  const directEndpoints = import.meta.env.DEV
+    ? [
+        '/data/recent/all/json',
+        '/data/recent/pm25/json',
+        '/data/monitors/all.json',
+      ]
+    : [
+        '/data/monitors/all.json',
+      ]
 
   for (const endpoint of directEndpoints) {
     try {

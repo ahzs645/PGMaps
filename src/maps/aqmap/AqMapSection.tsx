@@ -103,6 +103,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   const [visibleSmokeLayers, setVisibleSmokeLayers] = useState<Set<SmokeLayerKey>>(() => initialUrlState.visibleSmokeLayers)
   const [activeFiresMode, setActiveFiresMode] = useState<ActiveFiresRenderMode>(() => {
     const params = new URLSearchParams(window.location.search)
+    if (!import.meta.env.DEV) return 'raster'
     return params.get('activeFires') === 'raster' ? 'raster' : 'vector'
   })
   const [fireDangerMode, setFireDangerMode] = useState<FireDangerRenderMode>(() => {
@@ -180,7 +181,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   // On the main page everything renders as vector and the monitor icons are
   // locked to "reveal" mode — there are no raster/icon-mode toggles to flip.
   const effIconMode: AqMonitorIconMode = isMain ? 'revealed' : iconMode
-  const effActiveFiresMode: ActiveFiresRenderMode = isMain ? 'vector' : activeFiresMode
+  const effActiveFiresMode: ActiveFiresRenderMode = !import.meta.env.DEV ? 'raster' : isMain ? 'vector' : activeFiresMode
   const effFireDangerMode: FireDangerRenderMode = isMain ? 'vector' : fireDangerMode
   const effFirePerimetersMode: FirePerimetersRenderMode = isMain ? 'vector' : firePerimetersMode
   const effForecastZonesMode: ForecastZonesRenderMode = isMain ? 'vector' : forecastZonesMode

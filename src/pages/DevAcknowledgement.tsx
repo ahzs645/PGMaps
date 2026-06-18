@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { defaultWordingOptions } from './dev-acknowledgement/data'
 import { useAcknowledgementLookups } from './dev-acknowledgement/hooks/useAcknowledgementLookups'
-import { buildAcknowledgement, buildRelationshipAcknowledgement } from './dev-acknowledgement/wording'
-import type { MatchType, SourceKey, WordingMode, WordingOptions } from './dev-acknowledgement/types'
+import { buildFallbackAcknowledgement as buildAcknowledgement, buildRelationshipAcknowledgement } from '@/lib/acknowledgement/engine'
+import type { MatchType, SourceKey, SpeakerPerspective, WordingMode, WordingOptions } from './dev-acknowledgement/types'
 import { AcknowledgementHeader } from './dev-acknowledgement/components/AcknowledgementHeader'
 import { CandidateNations } from './dev-acknowledgement/components/CandidateNations'
 import { DataProvenancePanel } from './dev-acknowledgement/components/DataProvenancePanel'
@@ -12,7 +12,7 @@ import { LocationPanel } from './dev-acknowledgement/components/LocationPanel'
 import { MatchTypesPanel } from './dev-acknowledgement/components/MatchTypesPanel'
 import { SourceLayersPanel } from './dev-acknowledgement/components/SourceLayersPanel'
 import { TemplatePrompts } from './dev-acknowledgement/components/TemplatePrompts'
-import { VariantControls } from './dev-acknowledgement/components/VariantControls'
+import { VariantControls, type WordingToggle } from './dev-acknowledgement/components/VariantControls'
 import { VerifiedRelationshipMatch } from './dev-acknowledgement/components/VerifiedRelationshipMatch'
 
 export default function DevAcknowledgement() {
@@ -29,9 +29,13 @@ export default function DevAcknowledgement() {
     reserve: true,
     local: true,
   }))
-  const [selectedIds, setSelectedIds] = useState<string[]>(['lheidli'])
+  // Candidate identity is the stable nation.id (see buildCandidates), so the
+  // default pre-selects Lheidli T'enneh by id.
+  const [selectedIds, setSelectedIds] = useState<string[]>(['lheidli-tenneh'])
   const [wordingMode, setWordingMode] = useState<WordingMode>('event')
   const [wordingOptions, setWordingOptions] = useState<WordingOptions>(defaultWordingOptions)
+  const [perspective, setPerspective] = useState<SpeakerPerspective>('collective')
+  const [organizationName, setOrganizationName] = useState('')
   const [customWording, setCustomWording] = useState('')
   const [copied, setCopied] = useState(false)
 
@@ -70,9 +74,9 @@ export default function DevAcknowledgement() {
 
   const wording = useMemo(() => (
     relationshipGraph && matchedRelationshipPlace && enabledSources.verified
-      ? buildRelationshipAcknowledgement(wordingMode, relationshipGraph, matchedRelationshipPlace, selectedIds, wordingOptions)
-      : buildAcknowledgement(wordingMode, selectedNames)
-  ), [enabledSources.verified, matchedRelationshipPlace, relationshipGraph, selectedIds, selectedNames, wordingMode, wordingOptions])
+      ? buildRelationshipAcknowledgement(wordingMode, relationshipGraph, matchedRelationshipPlace, selectedIds, { ...wordingOptions, perspective, organizationName })
+      : buildAcknowledgement(wordingMode, selectedNames, { perspective, organizationName })
+  ), [enabledSources.verified, matchedRelationshipPlace, organizationName, perspective, relationshipGraph, selectedIds, selectedNames, wordingMode, wordingOptions])
 
   useEffect(() => {
     setCustomWording(wording)
@@ -101,7 +105,7 @@ export default function DevAcknowledgement() {
     })
   }
 
-  const toggleWordingOption = (option: keyof WordingOptions) => {
+  const toggleWordingOption = (option: WordingToggle) => {
     setWordingOptions((current) => ({ ...current, [option]: !current[option] }))
   }
 
@@ -169,6 +173,10 @@ export default function DevAcknowledgement() {
           <VariantControls
             wordingMode={wordingMode}
             onWordingModeChange={setWordingMode}
+            perspective={perspective}
+            onPerspectiveChange={setPerspective}
+            organizationName={organizationName}
+            onOrganizationNameChange={setOrganizationName}
             wordingOptions={wordingOptions}
             onToggleOption={toggleWordingOption}
             customWording={customWording}

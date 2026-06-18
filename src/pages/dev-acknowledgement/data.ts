@@ -1,4 +1,4 @@
-import { normalizeName } from './names'
+import { normalizeName } from '@/lib/acknowledgement/engine'
 import type {
   Confidence,
   DataGap,
@@ -283,6 +283,21 @@ export const confidenceLabels: Record<Confidence, string> = {
   strong: 'Strong',
   moderate: 'Moderate',
   review_required: 'Review',
+}
+
+const verificationMeta: Record<string, { label: string; className: string }> = {
+  verified_institutional: { label: 'Institutional', className: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
+  verified_local_context: { label: 'Local context', className: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
+  verified_institutional_context: { label: 'Institutional context', className: 'border-amber-200 bg-amber-50 text-amber-800' },
+  boundary_context: { label: 'Boundary context', className: 'border-amber-200 bg-amber-50 text-amber-800' },
+  template_context: { label: 'Template', className: 'border-slate-200 bg-slate-50 text-slate-700' },
+}
+
+export function verificationLabel(status: string) {
+  return verificationMeta[status] ?? {
+    label: status.replace(/_/g, ' '),
+    className: 'border-slate-200 bg-slate-50 text-slate-700',
+  }
 }
 
 export const wordingModeLabels: Record<WordingMode, string> = {

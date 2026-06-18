@@ -45,7 +45,7 @@ export function useAcknowledgementLookups(
   const [matchedRelationshipPlace, setMatchedRelationshipPlace] = useState<MatchedRelationshipPlace | null>(null)
   const [sourceLookups, setSourceLookups] = useState<Record<SourceKey, SourceLookupState>>(initialLookupState)
 
-  const candidates = useMemo(() => buildCandidatesFromLookups(sourceLookups), [sourceLookups])
+  const candidates = useMemo(() => buildCandidatesFromLookups(sourceLookups, relationshipGraph), [sourceLookups, relationshipGraph])
 
   const runSourceLookups = useCallback(async (result: GeocodeResult, matchTypes = enabledMatchTypes, addressForMatch = address) => {
     const controller = new AbortController()

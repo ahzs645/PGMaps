@@ -5,9 +5,16 @@ export type SourceKey = 'verified' | 'nativeLand' | 'cad' | 'treaty' | 'reserve'
 export type MatchType = 'place' | 'municipality' | 'boundary'
 export type WordingMode = 'short' | 'formal' | 'event' | 'institutional' | 'educational'
 
+/** Whose voice the acknowledgement is spoken in. */
+export type SpeakerPerspective = 'collective' | 'individual' | 'organization'
+
 export type WordingOptions = {
   includeTreatyContext: boolean
   includePeopleGroupContext: boolean
+  /** Speaker voice — defaults to 'collective' (the existing "we" framing). */
+  perspective?: SpeakerPerspective
+  /** Organization name, used when perspective is 'organization'. */
+  organizationName?: string
 }
 
 export type RelationshipSource = {
@@ -109,6 +116,8 @@ export type SourceMatch = {
   name: string
   label: string
   detail?: string
+  /** Curated trust level, set only on `verified` matches (from the relationship record). */
+  verificationStatus?: string
 }
 
 export type GeometryUrlResolver = (source: ReferenceAreaRecord['geometrySource']) => string | null
@@ -139,6 +148,29 @@ export function candidateId(name: string) {
   return normalizeName(name).replace(/\s+/g, '-') || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 }
 
+/**
+ * Index of normalized Nation name (preferred + alternates) -> stable nation.id,
+ * so source matches that name a Nation differently still resolve to one identity.
+ */
+export function buildNationAliasIndex(graph: RelationshipGraph): Map<string, string> {
+  const index = new Map<string, string>()
+  for (const nation of graph.nations) {
+    const add = (name: string | undefined) => {
+      if (!name) return
+      const key = normalizeName(name)
+      if (key && !index.has(key)) index.set(key, nation.id)
+    }
+    add(nation.preferredName)
+    nation.alternateNames?.forEach(add)
+  }
+  return index
+}
+
+/** Resolve a free-text Nation name to a graph nation.id via the alias index. */
+export function resolveNationId(name: string, index: Map<string, string>): string | undefined {
+  return index.get(normalizeName(name))
+}
+
 export function sourceTitle(graph: RelationshipGraph | null, sourceId: string) {
   return graph?.sources.find((source) => source.id === sourceId)?.title ?? sourceId
 }
@@ -156,13 +188,13 @@ export function referenceAreaLabel(graph: RelationshipGraph, areaId: string) {
 }
 
 export function selectedNationIdsForRelationship(
-  graph: RelationshipGraph,
   relationship: PlaceRelationshipRecord,
   selectedIds: string[],
 ) {
   if (selectedIds.length === 0) return relationship.nationIds
   const selected = new Set(selectedIds)
-  const filtered = relationship.nationIds.filter((nationId) => selected.has(candidateId(nationName(graph, nationId))))
+  // Candidate identity is the stable nation.id, so selection matches directly.
+  const filtered = relationship.nationIds.filter((nationId) => selected.has(nationId))
   return filtered.length > 0 ? filtered : relationship.nationIds
 }
 
@@ -200,7 +232,7 @@ export function relationshipCorePhrase(
   selectedIds: string[] = [],
   options: WordingOptions = defaultWordingOptions,
 ) {
-  const nationIds = selectedNationIdsForRelationship(graph, relationship, selectedIds)
+  const nationIds = selectedNationIdsForRelationship(relationship, selectedIds)
   const nations = formatList(nationIds.map((nationId) => nationName(graph, nationId)))
   const peopleGroups = options.includePeopleGroupContext
     ? peopleGroupIdsForNations(relationship, nationIds).map((peopleGroupId) => peopleGroupName(graph, peopleGroupId))
@@ -250,6 +282,48 @@ export function relationshipCorePhrase(
   return `${status}${territory} of ${nations}${peoplePhrase}`
 }
 
+const REVIEW_NOTE = 'This wording is generated from reviewed relationship records and should remain aligned with local guidance.'
+const EDUCATIONAL_NOTE = 'This relationship connects place, Nation, people-group, treaty, and source context so users can review why the wording was suggested.'
+
+/** Prefix a core phrase with "on" unless it already opens with one (e.g. "on Village Lands"). */
+function onPhrase(core: string) {
+  return /^on\b/i.test(core) ? core : `on ${core}`
+}
+
+function composeAcknowledgement(
+  mode: WordingMode,
+  perspective: SpeakerPerspective,
+  ctx: { place: string; core: string; affiliation: string; organizationName?: string },
+) {
+  const { place, core, affiliation } = ctx
+
+  if (perspective === 'individual') {
+    const situated = onPhrase(core)
+    if (mode === 'short') return `I am at ${place}, ${situated}.`
+    if (mode === 'formal') return `I respectfully acknowledge that I am at ${place}, ${situated}. ${affiliation}`.trim()
+    if (mode === 'institutional') return `I am at ${place}, ${situated}. ${REVIEW_NOTE} ${affiliation}`.trim()
+    if (mode === 'educational') return `I am at ${place}, ${situated}. ${EDUCATIONAL_NOTE} ${affiliation}`.trim()
+    return `I am grateful to be at ${place} today, ${situated}. ${affiliation}`.trim()
+  }
+
+  if (perspective === 'organization') {
+    const org = ctx.organizationName?.trim() || 'Our organization'
+    const situated = onPhrase(core)
+    if (mode === 'short') return `${org} operates at ${place}, ${situated}.`
+    if (mode === 'formal') return `${org} respectfully acknowledges that it operates at ${place}, ${situated}. ${affiliation}`.trim()
+    if (mode === 'institutional') return `${org} operates at ${place}, ${situated}. ${REVIEW_NOTE} ${affiliation}`.trim()
+    if (mode === 'educational') return `${org} operates at ${place}, ${situated}. ${EDUCATIONAL_NOTE} ${affiliation}`.trim()
+    return `On behalf of ${org}, we gather today at ${place}, ${situated}. ${affiliation}`.trim()
+  }
+
+  // collective (default) — preserves the original wording exactly.
+  if (mode === 'short') return `${place} is situated ${core}.`
+  if (mode === 'formal') return `We respectfully acknowledge that ${place} is situated ${core}. ${affiliation}`.trim()
+  if (mode === 'institutional') return `${place} is situated ${core}. ${REVIEW_NOTE} ${affiliation}`.trim()
+  if (mode === 'educational') return `${place} is situated ${core}. ${EDUCATIONAL_NOTE} ${affiliation}`.trim()
+  return `We are grateful to gather today at ${place}, situated ${core}. ${affiliation}`.trim()
+}
+
 export function buildRelationshipAcknowledgement(
   mode: WordingMode,
   graph: RelationshipGraph,
@@ -261,32 +335,43 @@ export function buildRelationshipAcknowledgement(
   const core = phrases.length === 1 ? phrases[0] : formatList(phrases)
   const affiliation = options.includePeopleGroupContext
     ? match.relationships
-      .map((relationship) => buildAffiliationSentence(graph, relationship, selectedNationIdsForRelationship(graph, relationship, selectedIds)))
+      .map((relationship) => buildAffiliationSentence(graph, relationship, selectedNationIdsForRelationship(relationship, selectedIds)))
       .filter(Boolean)
       .join(' ')
     : ''
 
-  if (mode === 'short') {
-    return `${match.place.name} is situated ${core}.`
-  }
-
-  if (mode === 'formal') {
-    return `We respectfully acknowledge that ${match.place.name} is situated ${core}. ${affiliation}`.trim()
-  }
-
-  if (mode === 'institutional') {
-    return `${match.place.name} is situated ${core}. This wording is generated from reviewed relationship records and should remain aligned with local guidance. ${affiliation}`.trim()
-  }
-
-  if (mode === 'educational') {
-    return `${match.place.name} is situated ${core}. This relationship connects place, Nation, people-group, treaty, and source context so users can review why the wording was suggested. ${affiliation}`.trim()
-  }
-
-  return `We are grateful to gather today at ${match.place.name}, situated ${core}. ${affiliation}`.trim()
+  return composeAcknowledgement(mode, options.perspective ?? 'collective', {
+    place: match.place.name,
+    core,
+    affiliation,
+    organizationName: options.organizationName,
+  })
 }
 
-export function buildFallbackAcknowledgement(mode: WordingMode, nationNames: string[]) {
+export function buildFallbackAcknowledgement(
+  mode: WordingMode,
+  nationNames: string[],
+  options: { perspective?: SpeakerPerspective; organizationName?: string } = {},
+) {
   const names = nationNames.length > 0 ? nationNames.join(', ') : '[selected Nation(s)]'
+  const perspective = options.perspective ?? 'collective'
+
+  if (perspective === 'individual') {
+    if (mode === 'short') return `I am on land connected to ${names}.`
+    if (mode === 'formal') return `I respectfully acknowledge that I am on land connected to ${names}. I recognize the histories, cultures, rights, and ongoing relationships of these Nations with these lands.`
+    if (mode === 'institutional') return `I am working from land connected to ${names}. I will confirm local wording, protocols, and review status before publication.`
+    if (mode === 'educational') return `This location has source signals connected to ${names}. I treat this as a learning and review prompt, not final wording.`
+    return `I am grateful to be on land connected to ${names}. I recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
+  }
+
+  if (perspective === 'organization') {
+    const org = options.organizationName?.trim() || 'Our organization'
+    if (mode === 'short') return `${org} operates on land connected to ${names}.`
+    if (mode === 'formal') return `${org} respectfully acknowledges that it operates on land connected to ${names}. We recognize their histories, cultures, rights, and ongoing relationships with these lands.`
+    if (mode === 'institutional') return `${org} is working from lands connected to ${names}. Confirm local wording, protocols, and review status before publication.`
+    if (mode === 'educational') return `This location has source signals connected to ${names}. ${org} should treat this as a learning and review prompt, not final wording.`
+    return `On behalf of ${org}, we are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
+  }
 
   if (mode === 'short') {
     return `This place is connected to ${names}.`
@@ -417,6 +502,7 @@ export function relationshipMatches(graph: RelationshipGraph, match: MatchedRela
         ...relationship.sourceRefs.map((sourceRef) => sourceTitle(graph, sourceRef)),
         ...(relationship.referenceAreaIds ?? []).map((areaId) => referenceAreaLabel(graph, areaId)),
       ].join(' / '),
+      verificationStatus: relationship.verificationStatus,
     }))
   )))
 }

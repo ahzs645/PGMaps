@@ -1,6 +1,8 @@
 import { ExternalLink, ShieldCheck } from 'lucide-react'
 
-import { formatList, nationName, selectedNationIdsForRelationship } from '../wording'
+import { cn } from '@/lib/utils'
+import { formatList, nationName, selectedNationIdsForRelationship } from '@/lib/acknowledgement/engine'
+import { verificationLabel } from '../data'
 import type { MatchedRelationshipPlace, RelationshipGraph } from '../types'
 
 type VerifiedRelationshipMatchProps = {
@@ -24,12 +26,22 @@ export function VerifiedRelationshipMatch({ graph, match, selectedIds }: Verifie
       </div>
       <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
         {match.relationships.map((relationship) => {
-          const nationIds = selectedNationIdsForRelationship(graph, relationship, selectedIds)
+          const nationIds = selectedNationIdsForRelationship(relationship, selectedIds)
           return (
             <div key={relationship.id} className="rounded-md border bg-teal-50/50 p-3">
-              <div className="font-semibold text-slate-900">
-                {relationship.relationshipType.replace(/_/g, ' ')}
-                {relationship.treatyName ? ` · ${relationship.treatyName}` : ''}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-semibold text-slate-900">
+                  {relationship.relationshipType.replace(/_/g, ' ')}
+                  {relationship.treatyName ? ` · ${relationship.treatyName}` : ''}
+                </div>
+                {(() => {
+                  const verification = verificationLabel(relationship.verificationStatus)
+                  return (
+                    <span className={cn('rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase', verification.className)}>
+                      {verification.label}
+                    </span>
+                  )
+                })()}
               </div>
               <div className="mt-1">
                 {formatList(nationIds.map((nationId) => nationName(graph, nationId)))}

@@ -7,7 +7,7 @@
     "predev": "node scripts/ensure-vendor-json-url.mjs && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs",
     "dev": "vite",
     "prebuild": "npm --prefix vendor/json-url run build && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/write-spa-fallback.mjs",
     "data:sync-from-bcdatamapper": "node scripts/sync-bcdatamapper-data.mjs",
     "data:sync-from-bcdatamapper:clean": "node scripts/sync-bcdatamapper-data.mjs --clean",
     "preview": "vite preview",
