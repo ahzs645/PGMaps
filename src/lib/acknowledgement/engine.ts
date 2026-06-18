@@ -392,6 +392,43 @@ export function buildFallbackAcknowledgement(
   return `We are grateful to gather on lands connected to ${names}. We recognize the continuing presence, rights, and stewardship of Indigenous Peoples.`
 }
 
+/**
+ * Region-wide acknowledgement for operations spread across many territories
+ * (e.g. a provincial Crown agency). Names a region instead of specific Nations,
+ * in any of the three speaker voices.
+ */
+export function buildRegionalAcknowledgement(
+  mode: WordingMode,
+  options: { perspective?: SpeakerPerspective; organizationName?: string; regionName?: string } = {},
+) {
+  const region = options.regionName?.trim() || 'British Columbia'
+  const territories = `the traditional territories of First Nations across ${region}`
+  const perspective = options.perspective ?? 'collective'
+
+  if (perspective === 'individual') {
+    if (mode === 'short') return `I acknowledge ${territories}.`
+    if (mode === 'formal') return `I respectfully acknowledge ${territories}, and the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
+    if (mode === 'institutional') return `I carry out my work on ${territories}. I will confirm local Nation-specific wording before publication.`
+    if (mode === 'educational') return `This is a region-wide acknowledgement of ${territories}. I treat it as a starting point, not a substitute for Nation-specific wording.`
+    return `I am grateful to live and work on ${territories}.`
+  }
+
+  if (perspective === 'organization') {
+    const org = options.organizationName?.trim() || 'Our organization'
+    if (mode === 'short') return `${org} operates on ${territories}.`
+    if (mode === 'formal') return `${org} respectfully acknowledges that it operates on ${territories}, and recognizes the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
+    if (mode === 'institutional') return `${org} operates on ${territories}. Confirm local Nation-specific wording before publication.`
+    if (mode === 'educational') return `This is a region-wide acknowledgement: ${org} operates on ${territories}. Treat it as a starting point, not a substitute for Nation-specific wording.`
+    return `On behalf of ${org}, we are grateful to carry out our work on ${territories}.`
+  }
+
+  if (mode === 'short') return `We acknowledge ${territories}.`
+  if (mode === 'formal') return `We respectfully acknowledge ${territories}, and recognize the rights, cultures, and ongoing relationships of Indigenous Peoples with these lands.`
+  if (mode === 'institutional') return `We carry out our work on ${territories}. Confirm local Nation-specific wording before publication.`
+  if (mode === 'educational') return `This is a region-wide acknowledgement of ${territories}. Treat it as a starting point, not a substitute for Nation-specific wording.`
+  return `We are grateful to gather and work on ${territories}.`
+}
+
 export function normalizeMatchText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
@@ -505,4 +542,66 @@ export function relationshipMatches(graph: RelationshipGraph, match: MatchedRela
       verificationStatus: relationship.verificationStatus,
     }))
   )))
+}
+
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const toRad = (value: number) => (value * Math.PI) / 180
+  const earthRadiusKm = 6371
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(a)))
+}
+
+export type MultiPointInput = { latitude: number; longitude: number; nationNames: string[] }
+
+export type MultiPointSummary = {
+  /** Deduped union of Nation names across all points, in first-seen order. */
+  nationNames: string[]
+  pointCount: number
+  distinctNationCount: number
+  /** Largest pairwise distance between points, in km. */
+  maxSpreadKm: number
+  /** True when the footprint is wide/many-Nationed enough to prefer a regional statement. */
+  suggestRegional: boolean
+}
+
+/**
+ * Fold a set of mapped points (each already resolved to its Nation names) into a
+ * single relationship: the union of Nations, how spread out they are, and whether
+ * that footprint is broad enough to recommend the region-wide template.
+ */
+export function summarizeMultiPoint(
+  points: MultiPointInput[],
+  opts: { maxNations?: number; maxSpreadKm?: number } = {},
+): MultiPointSummary {
+  const maxNations = opts.maxNations ?? 4
+  const maxSpreadKm = opts.maxSpreadKm ?? 300
+
+  const seen = new Set<string>()
+  const nationNames: string[] = []
+  for (const point of points) {
+    for (const raw of point.nationNames) {
+      const name = raw.trim()
+      if (name && !seen.has(name)) {
+        seen.add(name)
+        nationNames.push(name)
+      }
+    }
+  }
+
+  let spread = 0
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      spread = Math.max(spread, haversineKm(points[i].latitude, points[i].longitude, points[j].latitude, points[j].longitude))
+    }
+  }
+
+  return {
+    nationNames,
+    pointCount: points.length,
+    distinctNationCount: nationNames.length,
+    maxSpreadKm: spread,
+    suggestRegional: nationNames.length > maxNations || spread > maxSpreadKm,
+  }
 }

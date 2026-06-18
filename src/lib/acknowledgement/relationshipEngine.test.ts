@@ -3,13 +3,16 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildRegionalAcknowledgement,
   buildRelationshipAcknowledgement,
   defaultWordingOptions,
+  haversineKm,
   matchRelationshipPlace,
   matchBoundaryRelationshipPlace,
   type RelationshipGraph,
   type ReferenceAreaRecord,
   relationshipCorePhrase,
+  summarizeMultiPoint,
 } from './engine'
 
 const graph = JSON.parse(
@@ -289,5 +292,66 @@ describe('speaker perspective', () => {
     })).toBe(
       'Our organization operates at UNBC Prince George campuses, on unceded traditional territory of Lheidli T’enneh First Nation, part of the Dakelh (Carrier) Peoples territory.',
     )
+  })
+})
+
+describe('regional acknowledgement', () => {
+  it('names a region instead of specific Nations, in each voice', () => {
+    expect(buildRegionalAcknowledgement('short')).toBe(
+      'We acknowledge the traditional territories of First Nations across British Columbia.',
+    )
+    expect(buildRegionalAcknowledgement('short', { perspective: 'individual' })).toBe(
+      'I acknowledge the traditional territories of First Nations across British Columbia.',
+    )
+    expect(buildRegionalAcknowledgement('short', { perspective: 'organization', organizationName: 'BC Ferries' })).toBe(
+      'BC Ferries operates on the traditional territories of First Nations across British Columbia.',
+    )
+  })
+
+  it('honours a custom region name', () => {
+    expect(buildRegionalAcknowledgement('event', {
+      perspective: 'organization',
+      organizationName: 'Northern Health',
+      regionName: 'northern British Columbia',
+    })).toBe(
+      'On behalf of Northern Health, we are grateful to carry out our work on the traditional territories of First Nations across northern British Columbia.',
+    )
+  })
+})
+
+describe('summarizeMultiPoint', () => {
+  const pg = { latitude: 53.9171, longitude: -122.7497 }
+  const vancouver = { latitude: 49.2827, longitude: -123.1207 }
+
+  it('unions Nation names across points, deduped in first-seen order', () => {
+    const summary = summarizeMultiPoint([
+      { ...pg, nationNames: ['Lheidli T’enneh First Nation'] },
+      { ...pg, nationNames: ['Lheidli T’enneh First Nation', 'Nazko First Nation'] },
+    ])
+    expect(summary.nationNames).toEqual(['Lheidli T’enneh First Nation', 'Nazko First Nation'])
+    expect(summary.distinctNationCount).toBe(2)
+    expect(summary.suggestRegional).toBe(false)
+  })
+
+  it('suggests regional when points are far apart', () => {
+    const summary = summarizeMultiPoint([
+      { ...pg, nationNames: ['A'] },
+      { ...vancouver, nationNames: ['B'] },
+    ])
+    expect(summary.maxSpreadKm).toBeGreaterThan(400)
+    expect(summary.suggestRegional).toBe(true)
+  })
+
+  it('suggests regional when many distinct Nations are named', () => {
+    const summary = summarizeMultiPoint([{ ...pg, nationNames: ['A', 'B', 'C', 'D', 'E'] }])
+    expect(summary.suggestRegional).toBe(true)
+  })
+})
+
+describe('haversineKm', () => {
+  it('approximates the Prince George to Vancouver distance', () => {
+    const km = haversineKm(53.9171, -122.7497, 49.2827, -123.1207)
+    expect(km).toBeGreaterThan(490)
+    expect(km).toBeLessThan(540)
   })
 })

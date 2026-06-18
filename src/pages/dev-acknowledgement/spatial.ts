@@ -2,9 +2,12 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 
 import {
+  buildNationAliasIndex,
   matchBoundaryRelationshipPlace as engineMatchBoundaryRelationshipPlace,
   matchRelationshipPlace,
+  nationName,
   relationshipMatches,
+  resolveNationId,
   uniqueMatches,
 } from '@/lib/acknowledgement/engine'
 import type { GeocodeLike, ReferenceAreaRecord, RelationshipGraph } from '@/lib/acknowledgement/engine'
@@ -192,4 +195,33 @@ export async function localVerifiedMatches(result: GeocodeResult): Promise<Sourc
     label: 'Nearest First Nation community',
     detail: `~${Math.round(nearest.distanceKm)} km away${nearest.office ? ` · ${nearest.office} office` : ''}`,
   }]
+}
+
+/**
+ * Resolve the Nation name(s) whose Native Land territory covers a point, mapped
+ * to canonical names via the relationship graph's alias index. Used by the
+ * multi-point composer to turn dropped dots into a Nation set.
+ */
+export async function resolveNationsAtPoint(
+  lat: number,
+  lng: number,
+  graph: RelationshipGraph | null,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  const matches = await queryNativeLandSource(lat, lng, signal)
+  const territoryNames = matches.filter((match) => match.label === 'Native Land territory overlap').map((match) => match.name)
+  const names = territoryNames.length > 0 ? territoryNames : matches.map((match) => match.name)
+
+  const aliasIndex = graph ? buildNationAliasIndex(graph) : null
+  const seen = new Set<string>()
+  const resolved: string[] = []
+  for (const name of names) {
+    const id = aliasIndex ? resolveNationId(name, aliasIndex) : undefined
+    const display = id && graph ? nationName(graph, id) : name
+    if (display && !seen.has(display)) {
+      seen.add(display)
+      resolved.push(display)
+    }
+  }
+  return resolved
 }

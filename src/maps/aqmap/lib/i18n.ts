@@ -143,6 +143,7 @@ const EN: StringMap = {
   'export.failed': 'Export failed',
 
   'plot.noData': 'No plot data available',
+  'plot.loading': 'Loading plot data…',
   'plot.yAxis': 'PM2.5 (µg m⁻³)',
   'plot.tooltipLabel': 'PM2.5',
 
@@ -304,6 +305,7 @@ const FR: StringMap = {
   'export.failed': 'Échec de l’export',
 
   'plot.noData': 'Aucune donnée à tracer',
+  'plot.loading': 'Chargement des données…',
   'plot.yAxis': 'PM2,5 (µg m⁻³)',
   'plot.tooltipLabel': 'PM2,5',
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, ChevronRight, HeartPulse, LineChart, Users } from 'lucide-react'
+import { AlertCircle, HeartPulse, LineChart, Users } from 'lucide-react'
 import { MapPopup, useMap } from '@/components/ui/map'
 import type { AirMonitor } from '@/maps/airquality'
 import {
@@ -52,6 +52,7 @@ export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor:
   const [plotMode, setPlotMode] = useState<PlotMode>('ts')
   const [plotPoints, setPlotPoints] = useState<AqPlotPoint[]>([])
   const [plotSource, setPlotSource] = useState<'endpoint' | 'fallback'>('fallback')
+  const [plotLoading, setPlotLoading] = useState(false)
   const pm25 = getMonitorAqhiPm25(monitor)
   const aqhiCategory = getAqhiCategory(pm25)
   const health = localizeHealthMessage(aqhiCategory, locale)
@@ -100,6 +101,7 @@ export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor:
   useEffect(() => {
     if (!showPlot) return
     const controller = new AbortController()
+    setPlotLoading(true)
     fetchAqmapPlotSeries(monitor, controller.signal)
       .then((result) => {
         setPlotPoints(result.points)
@@ -110,6 +112,9 @@ export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor:
           setPlotPoints([])
           setPlotSource('fallback')
         }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPlotLoading(false)
       })
     return () => controller.abort()
   }, [monitor, showPlot])
@@ -124,7 +129,7 @@ export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor:
       anchor="bottom"
       offset={[0, -5]}
       maxWidth="540px"
-      className={`aqmap-popup overflow-hidden p-0 max-w-[calc(100vw-32px)] ${showPlot ? 'w-[480px]' : 'w-[360px]'}`}
+      className={`aqmap-popup overflow-hidden p-0 max-w-[calc(100vw-32px)] ${showPlot || supportsComparison ? 'w-[480px]' : 'w-[360px]'}`}
     >
       <div ref={contentRef} className="max-h-[78vh] overflow-y-auto overscroll-contain text-[12px] leading-[1.35] text-gray-700">
         {/* AQHI-colored accent bar keyed to the monitor's current category */}
@@ -219,44 +224,43 @@ export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor:
 
         {/* Timeseries + comparison plots */}
         <div className="px-3 pb-2.5">
-          <button
-            type="button"
-            onClick={() => {
-              if (showPlot && plotMode === 'ts') setShowPlot(false)
-              else { setPlotMode('ts'); setShowPlot(true) }
-            }}
-            className={plotButtonClass(showPlot && plotMode === 'ts')}
-          >
-            <LineChart className="size-3.5" />
-            {translate('popup.plotButton', locale)}
-          </button>
+          <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5">
+            <button
+              type="button"
+              title={translate('popup.hourlyPm25', locale)}
+              onClick={() => {
+                if (showPlot && plotMode === 'ts') setShowPlot(false)
+                else { setPlotMode('ts'); setShowPlot(true) }
+              }}
+              className={plotButtonClass(showPlot && plotMode === 'ts')}
+            >
+              <LineChart className="size-3.5" />
+              {translate('popup.plotButton', locale)}
+            </button>
 
-          {supportsComparison && (
-            <details className="group mt-2">
-              <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[11px] font-medium text-gray-600 hover:text-gray-900 [&::-webkit-details-marker]:hidden">
-                <ChevronRight className="size-3 transition-transform group-open:rotate-90" aria-hidden="true" />
-                {translate('popup.compare', locale)}
-              </summary>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {supportsComparison && (
+              <>
                 <button
                   type="button"
+                  title={translate('plot.ab.title', locale)}
                   onClick={() => { setPlotMode('xy'); setShowPlot(true) }}
                   className={plotButtonClass(showPlot && plotMode === 'xy')}
                 >
                   {translate('popup.compare.internal', locale)}
                 </button>
-                <button
-                  type="button"
-                  disabled={!nearbyFem}
-                  title={nearbyFem ? undefined : translate('plot.fem.none', locale)}
-                  onClick={() => { if (nearbyFem) { setPlotMode('xy_cor'); setShowPlot(true) } }}
-                  className={plotButtonClass(showPlot && plotMode === 'xy_cor', !nearbyFem)}
-                >
-                  {translate('popup.compare.fem', locale)}
-                </button>
-              </div>
-            </details>
-          )}
+                <span className="inline-flex" title={nearbyFem ? translate('plot.fem.title', locale) : translate('plot.fem.none', locale)}>
+                  <button
+                    type="button"
+                    disabled={!nearbyFem}
+                    onClick={() => { if (nearbyFem) { setPlotMode('xy_cor'); setShowPlot(true) } }}
+                    className={plotButtonClass(showPlot && plotMode === 'xy_cor', !nearbyFem)}
+                  >
+                    {translate('popup.compare.fem', locale)}
+                  </button>
+                </span>
+              </>
+            )}
+          </div>
 
           {showPlot && (
             <div className="mt-2.5 rounded-md border border-gray-200 bg-gray-50 p-2">
@@ -280,11 +284,11 @@ export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor:
                 />
               )}
               {plotMode === 'xy' && (
-                <MonitorScatterChart mode="xy" abPoints={abPoints} locale={locale} height={200} />
+                <MonitorScatterChart mode="xy" abPoints={abPoints} locale={locale} height={200} loading={plotLoading} />
               )}
               {plotMode === 'xy_cor' && (
                 <>
-                  <MonitorScatterChart mode="xy_cor" paFemPoints={paFemPoints} locale={locale} height={200} />
+                  <MonitorScatterChart mode="xy_cor" paFemPoints={paFemPoints} locale={locale} height={200} loading={plotLoading} />
                   {nearbyFem && (
                     <div className="mt-1 text-[10px] text-gray-500">
                       {translate('plot.fem.comparedWith', locale)
@@ -303,7 +307,7 @@ export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor:
 }
 
 function plotButtonClass(active: boolean, disabled = false): string {
-  const base = 'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-colors'
+  const base = 'inline-flex whitespace-nowrap items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-colors'
   if (disabled) return `${base} cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400`
   if (active) return `${base} border-gray-400 bg-gray-100 text-gray-900`
   return `${base} border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900`
