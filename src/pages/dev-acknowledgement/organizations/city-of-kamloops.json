@@ -1,0 +1,21 @@
+{
+  "id": "city-of-kamloops",
+  "name": "City of Kamloops",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.kamloops.ca/our-community/indigenous-relations",
+  "note": "Tk’emlúps te Secwépemc within Secwépemc territory.",
+  "acknowledges": [
+    "Tk’emlúps te Secwépemc"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 50.6745,
+      "longitude": -120.3273,
+      "acknowledges": [
+        "Tk’emlúps te Secwépemc"
+      ]
+    }
+  ]
+}

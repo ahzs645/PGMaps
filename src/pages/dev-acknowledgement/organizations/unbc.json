@@ -1,0 +1,77 @@
+{
+  "id": "unbc",
+  "name": "University of Northern British Columbia",
+  "sector": "university",
+  "framing": "mixed",
+  "sourceUrl": "https://www.unbc.ca/about-unbc/traditional-territory-acknowledgement",
+  "note": "Broad institution-wide territory acknowledgement; each campus connects to specific Nations.",
+  "acknowledges": [
+    "Lheidli T’enneh First Nation",
+    "Lhtako Dene Nation",
+    "Nazko First Nation",
+    "Lhoosk’uz Dené Nation",
+    "?Esdilagh First Nation",
+    "Doig River First Nation",
+    "Blueberry River First Nations",
+    "Halfway River First Nation",
+    "Kitsumkalum First Nation",
+    "Kitselas First Nation",
+    "Lax Kw’alaams Band",
+    "Metlakatla First Nation",
+    "Gitxaała Nation",
+    "Gitga’at First Nation",
+    "Kitasoo Band"
+  ],
+  "campuses": [
+    {
+      "name": "Prince George",
+      "latitude": 53.8939,
+      "longitude": -122.8136,
+      "acknowledges": [
+        "Lheidli T’enneh First Nation"
+      ]
+    },
+    {
+      "name": "South-Central (Quesnel)",
+      "latitude": 52.9784,
+      "longitude": -122.4944,
+      "acknowledges": [
+        "Lhtako Dene Nation",
+        "Nazko First Nation",
+        "Lhoosk’uz Dené Nation",
+        "?Esdilagh First Nation"
+      ]
+    },
+    {
+      "name": "Peace River-Liard (Fort St. John)",
+      "latitude": 56.2465,
+      "longitude": -120.8476,
+      "acknowledges": [
+        "Doig River First Nation",
+        "Blueberry River First Nations",
+        "Halfway River First Nation"
+      ]
+    },
+    {
+      "name": "Northwest (Terrace)",
+      "latitude": 54.5182,
+      "longitude": -128.5996,
+      "acknowledges": [
+        "Kitsumkalum First Nation",
+        "Kitselas First Nation"
+      ]
+    },
+    {
+      "name": "Prince Rupert",
+      "latitude": 54.3122,
+      "longitude": -130.3271,
+      "acknowledges": [
+        "Lax Kw’alaams Band",
+        "Metlakatla First Nation",
+        "Gitxaała Nation",
+        "Gitga’at First Nation",
+        "Kitasoo Band"
+      ]
+    }
+  ]
+}

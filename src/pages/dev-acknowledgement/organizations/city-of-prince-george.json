@@ -1,0 +1,22 @@
+{
+  "id": "city-of-prince-george",
+  "name": "City of Prince George",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "on_whose_land_we_live_work_play",
+  "sourceUrl": "https://www.princegeorge.ca/community-culture/indigenous-relations-reconciliation/lheidli-tenneh-first-nation",
+  "note": "Lheidli T’enneh, on whose ancestral lands the city sits.",
+  "acknowledges": [
+    "Lheidli T’enneh First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 53.9169,
+      "longitude": -122.7494,
+      "acknowledges": [
+        "Lheidli T’enneh First Nation"
+      ]
+    }
+  ]
+}

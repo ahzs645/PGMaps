@@ -1,0 +1,27 @@
+{
+  "id": "city-of-langley",
+  "name": "City of Langley",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.langleycity.ca/",
+  "note": "Katzie, Kwantlen, Matsqui, and Semiahmoo First Nations.",
+  "acknowledges": [
+    "Katzie",
+    "Kwantlen",
+    "Matsqui",
+    "Semiahmoo"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.1041,
+      "longitude": -122.6604,
+      "acknowledges": [
+        "Katzie",
+        "Kwantlen",
+        "Matsqui",
+        "Semiahmoo"
+      ]
+    }
+  ]
+}

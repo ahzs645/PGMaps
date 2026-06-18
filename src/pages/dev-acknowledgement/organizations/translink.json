@@ -1,0 +1,17 @@
+{
+  "id": "translink",
+  "name": "TransLink",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://www.translink.ca/about-us/about-translink/indigenous-relations",
+  "note": "Region-wide framing acknowledging First Nations stewardship of Metro Vancouver.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "New Westminster",
+      "latitude": 49.2057,
+      "longitude": -122.911,
+      "acknowledges": []
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "bcit",
+  "name": "British Columbia Institute of Technology",
+  "sector": "institute",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.bcit.ca/strategic-plan/reconciliation/",
+  "note": "Coast Salish Nations of Musqueam, Squamish, and Tsleil-Waututh.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Burnaby",
+      "latitude": 49.2506,
+      "longitude": -123.0021,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

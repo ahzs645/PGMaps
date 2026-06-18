@@ -1,0 +1,21 @@
+{
+  "id": "cnc",
+  "name": "College of New Caledonia",
+  "sector": "college",
+  "framing": "single_specific",
+  "sourceUrl": "https://cnc.bc.ca/services/prince-george/aboriginal-resources",
+  "note": "Prince George campus acknowledges the unceded territory of Lheidli T’enneh.",
+  "acknowledges": [
+    "Lheidli T’enneh First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Prince George",
+      "latitude": 53.9012,
+      "longitude": -122.787,
+      "acknowledges": [
+        "Lheidli T’enneh First Nation"
+      ]
+    }
+  ]
+}

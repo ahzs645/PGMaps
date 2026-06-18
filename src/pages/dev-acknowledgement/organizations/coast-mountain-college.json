@@ -1,0 +1,55 @@
+{
+  "id": "coast-mountain-college",
+  "name": "Coast Mountain College",
+  "sector": "college",
+  "framing": "mixed",
+  "sourceUrl": "https://coastmountaincollege.ca/indigenous-resources/traditional-territories/acknowledgement-of-traditional-territories",
+  "note": "Broad multi-Nation acknowledgement plus campus-specific wording across the northwest.",
+  "acknowledges": [
+    "Ts’msyen",
+    "Gitxsan",
+    "Wet’suwet’en",
+    "Nisg̱a’a",
+    "Haisla",
+    "Tahltan",
+    "Haida"
+  ],
+  "campuses": [
+    {
+      "name": "Terrace",
+      "latitude": 54.5182,
+      "longitude": -128.5996,
+      "acknowledges": [
+        "Ts’msyen",
+        "Kitsumkalum First Nation",
+        "Kitselas First Nation"
+      ]
+    },
+    {
+      "name": "Prince Rupert",
+      "latitude": 54.3122,
+      "longitude": -130.3271,
+      "acknowledges": [
+        "Ts’msyen",
+        "Lax Kw’alaams Band",
+        "Metlakatla First Nation"
+      ]
+    },
+    {
+      "name": "Smithers",
+      "latitude": 54.7804,
+      "longitude": -127.1686,
+      "acknowledges": [
+        "Wet’suwet’en"
+      ]
+    },
+    {
+      "name": "Hazelton",
+      "latitude": 55.2549,
+      "longitude": -127.6655,
+      "acknowledges": [
+        "Gitxsan"
+      ]
+    }
+  ]
+}

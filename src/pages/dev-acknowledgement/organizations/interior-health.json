@@ -1,0 +1,25 @@
+{
+  "id": "interior-health",
+  "name": "Interior Health",
+  "sector": "health",
+  "framing": "regional",
+  "sourceUrl": "https://www.interiorhealth.ca/about-ih/indigenous-partnerships/nations-and-communities",
+  "note": "Names Dãkelh Dené, Ktunaxa, Nlaka’pamux, Secwépemc, St’át’imc, Syilx, and Tŝilhqot’in Nations.",
+  "acknowledges": [
+    "Dãkelh Dené",
+    "Ktunaxa",
+    "Nlaka’pamux",
+    "Secwépemc",
+    "St’át’imc",
+    "Syilx",
+    "Tŝilhqot’in"
+  ],
+  "campuses": [
+    {
+      "name": "Kelowna (HQ)",
+      "latitude": 49.888,
+      "longitude": -119.496,
+      "acknowledges": []
+    }
+  ]
+}

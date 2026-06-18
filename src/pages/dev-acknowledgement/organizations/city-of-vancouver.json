@@ -1,0 +1,25 @@
+{
+  "id": "city-of-vancouver",
+  "name": "City of Vancouver",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://vancouver.ca/people-programs/city-of-reconciliation.aspx",
+  "note": "Unceded territories of Musqueam, Squamish, and Tsleil-Waututh.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.2606,
+      "longitude": -123.114,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

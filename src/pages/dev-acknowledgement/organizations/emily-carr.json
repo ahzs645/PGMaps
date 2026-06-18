@@ -1,0 +1,26 @@
+{
+  "id": "emily-carr",
+  "name": "Emily Carr University of Art + Design",
+  "sector": "university",
+  "framing": "single_specific",
+  "sourceUrl": "https://aboriginal.ecuad.ca/ecu-community-resources/territorial-acknowledgement/",
+  "pattern": "situated_on_unceded",
+  "note": "Unceded Musqueam, Squamish, and Tsleil-Waututh territories.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver (Great Northern Way)",
+      "latitude": 49.2658,
+      "longitude": -123.0852,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

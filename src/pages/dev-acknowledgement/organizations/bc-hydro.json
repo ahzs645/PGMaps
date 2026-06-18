@@ -1,0 +1,17 @@
+{
+  "id": "bc-hydro",
+  "name": "BC Hydro",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://www.bchydro.com/",
+  "note": "Region-wide; infrastructure on lands where First Nations hold rights and title across BC.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Vancouver (HQ)",
+      "latitude": 49.2845,
+      "longitude": -123.1116,
+      "acknowledges": []
+    }
+  ]
+}

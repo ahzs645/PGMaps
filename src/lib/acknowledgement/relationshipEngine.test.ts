@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildRegionalAcknowledgement,
   buildRelationshipAcknowledgement,
+  compareNationSets,
   defaultWordingOptions,
   haversineKm,
   matchRelationshipPlace,
@@ -353,5 +354,17 @@ describe('haversineKm', () => {
     const km = haversineKm(53.9171, -122.7497, 49.2827, -123.1207)
     expect(km).toBeGreaterThan(490)
     expect(km).toBeLessThan(540)
+  })
+})
+
+describe('compareNationSets', () => {
+  it('matches fuzzily and flags missed + extra', () => {
+    const result = compareNationSets(
+      ['Musqueam', 'Lheidli T’enneh First Nation'],
+      ['xʷməθkʷəy̓əm (Musqueam) *', 'Dakeł Keyoh *'],
+    )
+    expect(result.matched).toEqual(['Musqueam'])
+    expect(result.missed).toEqual(['Lheidli T’enneh First Nation'])
+    expect(result.extra).toEqual(['Dakeł Keyoh *'])
   })
 })

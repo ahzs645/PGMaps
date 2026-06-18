@@ -1,0 +1,18 @@
+{
+  "id": "bc-ferries",
+  "name": "BC Ferries",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "pattern": "operates_on_lands_and_waters",
+  "sourceUrl": "https://www.bcferries.com/",
+  "note": "Region/coast-wide framing acknowledging coastal First Nations’ lands and waters.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Victoria (HQ)",
+      "latitude": 48.4284,
+      "longitude": -123.3656,
+      "acknowledges": []
+    }
+  ]
+}

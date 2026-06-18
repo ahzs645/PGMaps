@@ -1,0 +1,24 @@
+{
+  "id": "royal-roads",
+  "name": "Royal Roads University",
+  "sector": "university",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.royalroads.ca/about/indigenous-engagement/land-acknowledgment-welcome",
+  "pattern": "located_on",
+  "note": "Lekwungen-speaking Songhees and Esquimalt Nations.",
+  "acknowledges": [
+    "Songhees Nation",
+    "Esquimalt Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Colwood (Victoria)",
+      "latitude": 48.4316,
+      "longitude": -123.4787,
+      "acknowledges": [
+        "Songhees Nation",
+        "Esquimalt Nation"
+      ]
+    }
+  ]
+}

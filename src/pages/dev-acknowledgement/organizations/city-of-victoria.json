@@ -1,0 +1,23 @@
+{
+  "id": "city-of-victoria",
+  "name": "City of Victoria",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.victoria.ca/",
+  "note": "Homelands of the Songhees and Esquimalt Peoples.",
+  "acknowledges": [
+    "Songhees Nation",
+    "Esquimalt Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 48.4276,
+      "longitude": -123.3656,
+      "acknowledges": [
+        "Songhees Nation",
+        "Esquimalt Nation"
+      ]
+    }
+  ]
+}

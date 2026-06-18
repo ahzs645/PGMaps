@@ -1,0 +1,25 @@
+{
+  "id": "uvic",
+  "name": "University of Victoria",
+  "sector": "university",
+  "framing": "mixed",
+  "sourceUrl": "https://www.uvic.ca/ovpi/ways-of-knowing/culture-and-protocol/index.php",
+  "note": "Lekwungen peoples (Songhees and Esquimalt) and the continuing relationships of W̱SÁNEĆ Peoples.",
+  "acknowledges": [
+    "Songhees Nation",
+    "Esquimalt Nation",
+    "W̱SÁNEĆ Peoples"
+  ],
+  "campuses": [
+    {
+      "name": "Victoria",
+      "latitude": 48.4634,
+      "longitude": -123.3117,
+      "acknowledges": [
+        "Songhees Nation",
+        "Esquimalt Nation",
+        "W̱SÁNEĆ Peoples"
+      ]
+    }
+  ]
+}

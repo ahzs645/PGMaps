@@ -1,0 +1,22 @@
+{
+  "id": "city-of-abbotsford",
+  "name": "City of Abbotsford",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "located_on_unceded",
+  "sourceUrl": "https://www.abbotsford.ca/",
+  "note": "Traditional, ancestral, and unceded territory of the Stó:lō Nation.",
+  "acknowledges": [
+    "Stó:lō Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.0517,
+      "longitude": -122.3294,
+      "acknowledges": [
+        "Stó:lō Nation"
+      ]
+    }
+  ]
+}

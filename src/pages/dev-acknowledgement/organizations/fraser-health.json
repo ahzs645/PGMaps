@@ -1,0 +1,20 @@
+{
+  "id": "fraser-health",
+  "name": "Fraser Health",
+  "sector": "health",
+  "framing": "regional",
+  "sourceUrl": "https://www.fraserhealth.ca/about-us/about-fraser-health",
+  "note": "Coast Salish and Nlaka’pamux Nations across its region.",
+  "acknowledges": [
+    "Coast Salish",
+    "Nlaka’pamux"
+  ],
+  "campuses": [
+    {
+      "name": "Surrey",
+      "latitude": 49.1893,
+      "longitude": -122.849,
+      "acknowledges": []
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "vcc",
+  "name": "Vancouver Community College",
+  "sector": "college",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.vcc.ca/services/services-for-students/indigenous-services/welcome/",
+  "pattern": "on_whose_lands_we_live_learn_work",
+  "note": "Musqueam, Squamish, and Tsleil-Waututh, on whose territories the college works.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver (Broadway)",
+      "latitude": 49.2659,
+      "longitude": -123.0855,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

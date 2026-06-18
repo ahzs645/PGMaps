@@ -1,0 +1,25 @@
+{
+  "id": "vancouver-island-university",
+  "name": "Vancouver Island University",
+  "sector": "university",
+  "framing": "mixed",
+  "sourceUrl": "https://indigenous.viu.ca/",
+  "note": "Snuneymuxw, Quw’utsun, Tla’amin, Snaw-naw-as, and Qualicum First Nations.",
+  "acknowledges": [
+    "Snuneymuxw",
+    "Quw’utsun",
+    "Tla’amin",
+    "Snaw-naw-as",
+    "Qualicum"
+  ],
+  "campuses": [
+    {
+      "name": "Nanaimo",
+      "latitude": 49.1573,
+      "longitude": -123.9698,
+      "acknowledges": [
+        "Snuneymuxw"
+      ]
+    }
+  ]
+}

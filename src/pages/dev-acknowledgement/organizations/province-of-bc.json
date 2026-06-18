@@ -1,0 +1,17 @@
+{
+  "id": "province-of-bc",
+  "name": "Province of BC / BC Public Service",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://www2.gov.bc.ca/gov/content/careers-myhr/about-the-bc-public-service/diversity-inclusion/indigenous-initiatives",
+  "note": "Acknowledges the territories of First Nations across BC.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Victoria (Legislature)",
+      "latitude": 48.4197,
+      "longitude": -123.37,
+      "acknowledges": []
+    }
+  ]
+}

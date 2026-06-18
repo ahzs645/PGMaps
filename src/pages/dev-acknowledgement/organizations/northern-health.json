@@ -1,0 +1,17 @@
+{
+  "id": "northern-health",
+  "name": "Northern Health",
+  "sector": "health",
+  "framing": "regional",
+  "sourceUrl": "https://www.northernhealth.ca/",
+  "note": "Region-wide framing across northern BC; does not name a single Nation institution-wide.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Prince George (regional office)",
+      "latitude": 53.9169,
+      "longitude": -122.7494,
+      "acknowledges": []
+    }
+  ]
+}

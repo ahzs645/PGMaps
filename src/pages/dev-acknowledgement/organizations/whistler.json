@@ -1,0 +1,24 @@
+{
+  "id": "whistler",
+  "name": "Resort Municipality of Whistler",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "shared_territories",
+  "sourceUrl": "https://www.whistler.ca/about/shared-territories-lilwat-and-squamish-nations/",
+  "note": "Shared territories of the Lil’wat Nation and Squamish Nation.",
+  "acknowledges": [
+    "Lil’wat Nation",
+    "Squamish"
+  ],
+  "campuses": [
+    {
+      "name": "Whistler Village",
+      "latitude": 50.1163,
+      "longitude": -122.9574,
+      "acknowledges": [
+        "Lil’wat Nation",
+        "Squamish"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "city-of-nanaimo",
+  "name": "City of Nanaimo",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "located_on",
+  "sourceUrl": "https://www.nanaimo.ca/",
+  "note": "Traditional territory of the Snuneymuxw First Nation.",
+  "acknowledges": [
+    "Snuneymuxw First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.1659,
+      "longitude": -123.9367,
+      "acknowledges": [
+        "Snuneymuxw First Nation"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "city-of-kelowna",
+  "name": "City of Kelowna",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.kelowna.ca/",
+  "note": "Traditional, ancestral, unceded territory of the Syilx Okanagan people.",
+  "acknowledges": [
+    "Syilx Okanagan Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.888,
+      "longitude": -119.496,
+      "acknowledges": [
+        "Syilx Okanagan Nation"
+      ]
+    }
+  ]
+}

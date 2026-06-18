@@ -605,3 +605,38 @@ export function summarizeMultiPoint(
     suggestRegional: nationNames.length > maxNations || spread > maxSpreadKm,
   }
 }
+
+function nameMatches(a: string, b: string) {
+  if (!a || !b) return false
+  if (a === b) return true
+  if (a.includes(b) && b.length >= 4) return true
+  if (b.includes(a) && a.length >= 4) return true
+  return false
+}
+
+export type NationSetComparison = {
+  /** Expected Nations our resolution did surface. */
+  matched: string[]
+  /** Expected Nations our resolution missed. */
+  missed: string[]
+  /** Nations our resolution surfaced that the org does not name (noise / over-resolution). */
+  extra: string[]
+}
+
+/**
+ * Compare what an organization names (`expected`) against what our engine
+ * resolved (`actual`), using normalized fuzzy matching so e.g. "Musqueam"
+ * lines up with "xʷməθkʷəy̓əm (Musqueam)".
+ */
+export function compareNationSets(expected: string[], actual: string[]): NationSetComparison {
+  const normActual = actual.map((value) => normalizeName(value))
+  const normExpected = expected.map((value) => normalizeName(value))
+
+  const matched: string[] = []
+  const missed: string[] = []
+  expected.forEach((name, index) => {
+    (normActual.some((value) => nameMatches(value, normExpected[index])) ? matched : missed).push(name)
+  })
+  const extra = actual.filter((_, index) => !normExpected.some((value) => nameMatches(value, normActual[index])))
+  return { matched, missed, extra }
+}

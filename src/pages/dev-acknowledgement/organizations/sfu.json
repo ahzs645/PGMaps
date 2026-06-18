@@ -1,0 +1,55 @@
+{
+  "id": "sfu",
+  "name": "Simon Fraser University",
+  "sector": "university",
+  "framing": "per_campus",
+  "sourceUrl": "https://www.sfu.ca/main/about/truth-reconciliation/ways-to-learn/terminology-language/land-acknowledgements-for-sfu.html",
+  "note": "Campus-specific acknowledgements for Burnaby, Surrey, and Vancouver.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh",
+    "Kwikwetlem",
+    "Semiahmoo",
+    "Katzie",
+    "Kwantlen",
+    "Qayqayt",
+    "Tsawwassen"
+  ],
+  "campuses": [
+    {
+      "name": "Burnaby",
+      "latitude": 49.2781,
+      "longitude": -122.9199,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh",
+        "Kwikwetlem"
+      ]
+    },
+    {
+      "name": "Surrey",
+      "latitude": 49.1893,
+      "longitude": -122.849,
+      "acknowledges": [
+        "Semiahmoo",
+        "Katzie",
+        "Kwikwetlem",
+        "Kwantlen",
+        "Qayqayt",
+        "Tsawwassen"
+      ]
+    },
+    {
+      "name": "Vancouver (Harbour Centre)",
+      "latitude": 49.2845,
+      "longitude": -123.1116,
+      "acknowledges": [
+        "Squamish",
+        "Tsleil-Waututh",
+        "Musqueam"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "island-health",
+  "name": "Island Health",
+  "sector": "health",
+  "framing": "regional",
+  "pattern": "offers_services_on",
+  "sourceUrl": "https://www.islandhealth.ca/",
+  "note": "Coast Salish, Nuu-chah-nulth, and Kwakwaka’wakw Peoples (people-groups, not single Nations).",
+  "acknowledges": [
+    "Coast Salish",
+    "Nuu-chah-nulth",
+    "Kwakwaka’wakw"
+  ],
+  "campuses": [
+    {
+      "name": "Victoria",
+      "latitude": 48.4284,
+      "longitude": -123.3656,
+      "acknowledges": []
+    }
+  ]
+}

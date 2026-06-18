@@ -1,0 +1,31 @@
+{
+  "id": "ubc",
+  "name": "University of British Columbia",
+  "sector": "university",
+  "framing": "per_campus",
+  "sourceUrl": "https://indigenous.ubc.ca/",
+  "pattern": "gathered_today_unceded",
+  "note": "Campus-specific: Musqueam for Vancouver/Point Grey, Syilx Okanagan for the Okanagan campus.",
+  "acknowledges": [
+    "Musqueam",
+    "Syilx Okanagan Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver (Point Grey)",
+      "latitude": 49.2606,
+      "longitude": -123.246,
+      "acknowledges": [
+        "Musqueam"
+      ]
+    },
+    {
+      "name": "Okanagan (Kelowna)",
+      "latitude": 49.9395,
+      "longitude": -119.396,
+      "acknowledges": [
+        "Syilx Okanagan Nation"
+      ]
+    }
+  ]
+}
