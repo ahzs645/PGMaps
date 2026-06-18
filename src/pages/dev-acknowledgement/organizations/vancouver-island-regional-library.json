@@ -1,0 +1,17 @@
+{
+  "id": "vancouver-island-regional-library",
+  "name": "Vancouver Island Regional Library",
+  "sector": "library",
+  "framing": "regional",
+  "sourceUrl": "https://virl.bc.ca/",
+  "note": "Region-wide acknowledgement naming many First Nations across its service area.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Nanaimo (admin)",
+      "latitude": 49.1659,
+      "longitude": -123.9367,
+      "acknowledges": []
+    }
+  ]
+}

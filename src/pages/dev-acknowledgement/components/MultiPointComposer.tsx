@@ -10,10 +10,10 @@ import {
   summarizeMultiPoint,
 } from '@/lib/acknowledgement/engine'
 import type { RelationshipGraph, SpeakerPerspective, WordingMode } from '@/lib/acknowledgement/engine'
-import { wordingModeLabels } from '../data'
+import { COMMUNITIES_DATA, wordingModeLabels } from '../data'
 import { organizations, type OrgRecord } from '../organizations'
 import { createNationResolver } from '../organizations/nations'
-import { resolveNationsAtPoint } from '../spatial'
+import { loadGeoJsonLayer, resolveNationsAtPoint } from '../spatial'
 import { LocalMapBoundary } from './AcknowledgementMap'
 
 type MappedPoint = {
@@ -83,7 +83,17 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
   const [organizationName, setOrganizationName] = useState('')
   const [regionName, setRegionName] = useState('British Columbia')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [gisFeatures, setGisFeatures] = useState<GeoJSON.Feature[] | undefined>(undefined)
   const counter = useRef(0)
+
+  // Load the BC First Nation Community Locations GIS dataset to validate/enrich Nation names.
+  useEffect(() => {
+    let cancelled = false
+    loadGeoJsonLayer(COMMUNITIES_DATA)
+      .then((collection) => { if (!cancelled) setGisFeatures(collection.features) })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [])
 
   const selectedOrg = organizations.find((org) => org.id === selectedOrgId) ?? null
 
@@ -139,10 +149,11 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
 
   const orgComparison = selectedOrg && selectedOrg.acknowledges.length ? compareNationSets(selectedOrg.acknowledges, summary.nationNames) : null
 
-  const resolveNation = useMemo(() => createNationResolver(graph), [graph])
+  const resolveNation = useMemo(() => createNationResolver(graph, gisFeatures), [graph, gisFeatures])
   const coverage = selectedOrg ? selectedOrg.acknowledges.map(resolveNation) : []
   const unlistedNations = coverage.filter((entry) => entry.status === 'unlisted')
   const graphBackedCount = coverage.filter((entry) => entry.inGraph).length
+  const gisVerifiedCount = coverage.filter((entry) => entry.gis).length
 
   return (
     <section className="mx-auto max-w-7xl px-3 pb-10 sm:px-6 lg:px-8">
@@ -275,7 +286,7 @@ export function MultiPointComposer({ graph }: { graph: RelationshipGraph | null 
             {coverage.length > 0 && (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                 <span className="font-medium text-slate-700">Mapped to our database: {coverage.length - unlistedNations.length}/{coverage.length}</span>
-                <span className="text-[10px] text-slate-500">({graphBackedCount} in verified graph, rest in registry)</span>
+                <span className="text-[10px] text-slate-500">({graphBackedCount} in verified graph · {gisVerifiedCount} GIS-verified)</span>
                 {unlistedNations.length > 0 && (
                   <span className="flex flex-wrap items-center gap-1">
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">not in our DB yet</span>

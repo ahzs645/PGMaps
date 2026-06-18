@@ -1,0 +1,17 @@
+{
+  "id": "bc-transit",
+  "name": "BC Transit",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://www.bctransit.com/",
+  "note": "Operates across ancestral and unceded territories of Indigenous Peoples throughout BC.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Victoria (HQ)",
+      "latitude": 48.4284,
+      "longitude": -123.3656,
+      "acknowledges": []
+    }
+  ]
+}

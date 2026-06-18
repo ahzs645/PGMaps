@@ -1,0 +1,26 @@
+{
+  "id": "health-quality-bc",
+  "name": "Health Quality BC",
+  "sector": "health",
+  "framing": "regional",
+  "sourceUrl": "https://bcpsqc.ca/about-the-council/",
+  "note": "First Nations territories across BC; main office on Musqueam, Squamish, and Tsleil-Waututh; recognizes Métis and Inuit.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh",
+    "Métis"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.282,
+      "longitude": -123.116,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

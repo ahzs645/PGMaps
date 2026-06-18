@@ -1,0 +1,21 @@
+{
+  "id": "richmond-school-district",
+  "name": "Richmond School District (SD38)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://sd38.bc.ca/",
+  "note": "First Peoples of the hən̓q̓əmin̓əm̓ language group (Musqueam).",
+  "acknowledges": [
+    "Musqueam"
+  ],
+  "campuses": [
+    {
+      "name": "Richmond",
+      "latitude": 49.1666,
+      "longitude": -123.1336,
+      "acknowledges": [
+        "Musqueam"
+      ]
+    }
+  ]
+}

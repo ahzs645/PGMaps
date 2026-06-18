@@ -1,0 +1,28 @@
+{
+  "id": "city-of-nelson",
+  "name": "City of Nelson",
+  "sector": "municipality",
+  "framing": "regional",
+  "sourceUrl": "https://www.nelson.ca/673/Imagine-Kootenay",
+  "note": "Ktunaxa, Sinixt, Syilx, and Secwépemc Nations; home to Métis Chartered Communities.",
+  "acknowledges": [
+    "Ktunaxa",
+    "Sinixt",
+    "Syilx",
+    "Secwépemc",
+    "Métis"
+  ],
+  "campuses": [
+    {
+      "name": "Nelson",
+      "latitude": 49.4928,
+      "longitude": -117.2948,
+      "acknowledges": [
+        "Ktunaxa",
+        "Sinixt",
+        "Syilx",
+        "Secwépemc"
+      ]
+    }
+  ]
+}

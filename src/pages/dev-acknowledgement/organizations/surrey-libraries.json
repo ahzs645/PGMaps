@@ -1,0 +1,33 @@
+{
+  "id": "surrey-libraries",
+  "name": "Surrey Libraries",
+  "sector": "library",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.surreylibraries.ca/",
+  "note": "Semiahmoo, Katzie, Kwikwetlem, Kwantlen, Qayqayt, Musqueam, and Tsawwassen.",
+  "acknowledges": [
+    "Semiahmoo",
+    "Katzie",
+    "Kwikwetlem",
+    "Kwantlen",
+    "Qayqayt",
+    "Musqueam",
+    "Tsawwassen"
+  ],
+  "campuses": [
+    {
+      "name": "Surrey",
+      "latitude": 49.19,
+      "longitude": -122.849,
+      "acknowledges": [
+        "Semiahmoo",
+        "Katzie",
+        "Kwikwetlem",
+        "Kwantlen",
+        "Qayqayt",
+        "Musqueam",
+        "Tsawwassen"
+      ]
+    }
+  ]
+}

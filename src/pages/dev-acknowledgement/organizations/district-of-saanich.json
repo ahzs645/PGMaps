@@ -1,0 +1,30 @@
+{
+  "id": "district-of-saanich",
+  "name": "District of Saanich",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.saanich.ca/",
+  "note": "lək̓ʷəŋən (Songhees, Esquimalt) and W̱SÁNEĆ (Tsartlip, Pauquachin, Tsawout, Tseycum, Malahat) peoples.",
+  "acknowledges": [
+    "Songhees Nation",
+    "Esquimalt Nation",
+    "W̱SÁNEĆ Peoples",
+    "Tsartlip",
+    "Pauquachin",
+    "Tsawout",
+    "Tseycum",
+    "Malahat"
+  ],
+  "campuses": [
+    {
+      "name": "Saanich",
+      "latitude": 48.484,
+      "longitude": -123.381,
+      "acknowledges": [
+        "Songhees Nation",
+        "Esquimalt Nation",
+        "W̱SÁNEĆ Peoples"
+      ]
+    }
+  ]
+}

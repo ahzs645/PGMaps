@@ -1,0 +1,25 @@
+{
+  "id": "vancouver-art-gallery",
+  "name": "Vancouver Art Gallery",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.vanartgallery.bc.ca/landacknowledgement/",
+  "note": "Unceded territories of Musqueam, Squamish, and Tsleil-Waututh.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.2828,
+      "longitude": -123.1207,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

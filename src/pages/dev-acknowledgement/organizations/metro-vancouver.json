@@ -1,0 +1,39 @@
+{
+  "id": "metro-vancouver",
+  "name": "Metro Vancouver",
+  "sector": "regional-district",
+  "framing": "regional",
+  "sourceUrl": "https://metrovancouver.org/",
+  "note": "Shared territories of 10 local First Nations across the region.",
+  "acknowledges": [
+    "Katzie",
+    "Kwantlen",
+    "Kwikwetlem",
+    "Matsqui",
+    "Musqueam",
+    "Qayqayt",
+    "Semiahmoo",
+    "Squamish",
+    "Tsawwassen",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Burnaby",
+      "latitude": 49.249,
+      "longitude": -122.993,
+      "acknowledges": [
+        "Katzie",
+        "Kwantlen",
+        "Kwikwetlem",
+        "Matsqui",
+        "Musqueam",
+        "Qayqayt",
+        "Semiahmoo",
+        "Squamish",
+        "Tsawwassen",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

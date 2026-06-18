@@ -1,0 +1,27 @@
+{
+  "id": "rdffg",
+  "name": "Regional District of Fraser-Fort George",
+  "sector": "regional-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.rdffg.bc.ca/",
+  "note": "Lheidli T’enneh, McLeod Lake Indian Band, Simpcw First Nation, and West Moberly First Nations.",
+  "acknowledges": [
+    "Lheidli T’enneh First Nation",
+    "McLeod Lake Indian Band",
+    "Simpcw First Nation",
+    "West Moberly First Nations"
+  ],
+  "campuses": [
+    {
+      "name": "Prince George",
+      "latitude": 53.9169,
+      "longitude": -122.7494,
+      "acknowledges": [
+        "Lheidli T’enneh First Nation",
+        "McLeod Lake Indian Band",
+        "Simpcw First Nation",
+        "West Moberly First Nations"
+      ]
+    }
+  ]
+}

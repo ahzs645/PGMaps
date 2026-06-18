@@ -1,0 +1,25 @@
+{
+  "id": "sd57-prince-george",
+  "name": "School District 57 (Prince George)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.sd57.bc.ca/",
+  "note": "Lheidli T’enneh First Nation; McLeod Lake Indian Band and Simpcw First Nation territories.",
+  "acknowledges": [
+    "Lheidli T’enneh First Nation",
+    "McLeod Lake Indian Band",
+    "Simpcw First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Prince George",
+      "latitude": 53.9169,
+      "longitude": -122.7494,
+      "acknowledges": [
+        "Lheidli T’enneh First Nation",
+        "McLeod Lake Indian Band",
+        "Simpcw First Nation"
+      ]
+    }
+  ]
+}

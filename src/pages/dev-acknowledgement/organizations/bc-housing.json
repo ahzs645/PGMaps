@@ -1,0 +1,25 @@
+{
+  "id": "bc-housing",
+  "name": "BC Housing",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://www.bchousing.org/",
+  "note": "Province-wide; corporate office on Musqueam, Squamish, and Tsleil-Waututh territory.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Burnaby (HQ)",
+      "latitude": 49.248,
+      "longitude": -122.993,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "comox-valley-regional-district",
+  "name": "Comox Valley Regional District",
+  "sector": "regional-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.comoxvalleyrd.ca/",
+  "note": "Unceded traditional territory of the K’ómoks First Nation.",
+  "acknowledges": [
+    "K’ómoks First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Courtenay",
+      "latitude": 49.684,
+      "longitude": -124.997,
+      "acknowledges": [
+        "K’ómoks First Nation"
+      ]
+    }
+  ]
+}

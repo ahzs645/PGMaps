@@ -1,0 +1,25 @@
+{
+  "id": "polygon-gallery",
+  "name": "The Polygon Gallery",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://thepolygon.ca/",
+  "note": "In the ancestral Sḵwx̱wú7mesh village of Eslha7an; lands of Squamish, Tsleil-Waututh, and Musqueam.",
+  "acknowledges": [
+    "Squamish",
+    "Tsleil-Waututh",
+    "Musqueam"
+  ],
+  "campuses": [
+    {
+      "name": "North Vancouver",
+      "latitude": 49.3107,
+      "longitude": -123.083,
+      "acknowledges": [
+        "Squamish",
+        "Tsleil-Waututh",
+        "Musqueam"
+      ]
+    }
+  ]
+}

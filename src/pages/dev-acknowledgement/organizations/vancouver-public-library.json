@@ -1,0 +1,25 @@
+{
+  "id": "vancouver-public-library",
+  "name": "Vancouver Public Library",
+  "sector": "library",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.vpl.ca/rights-reconciliation",
+  "note": "Unceded territories of Musqueam, Squamish, and Tsleil-Waututh.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Central Library (Vancouver)",
+      "latitude": 49.2797,
+      "longitude": -123.1156,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

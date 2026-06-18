@@ -1,0 +1,23 @@
+{
+  "id": "city-of-maple-ridge",
+  "name": "City of Maple Ridge",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.mapleridge.ca/",
+  "note": "Katzie and Kwantlen First Nations.",
+  "acknowledges": [
+    "Katzie",
+    "Kwantlen"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.219,
+      "longitude": -122.598,
+      "acknowledges": [
+        "Katzie",
+        "Kwantlen"
+      ]
+    }
+  ]
+}

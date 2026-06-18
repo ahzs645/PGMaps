@@ -1,0 +1,25 @@
+{
+  "id": "district-of-north-vancouver",
+  "name": "District of North Vancouver",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.dnv.org/",
+  "note": "Tsleil-Waututh, Squamish, and Musqueam.",
+  "acknowledges": [
+    "Tsleil-Waututh",
+    "Squamish",
+    "Musqueam"
+  ],
+  "campuses": [
+    {
+      "name": "North Vancouver (District Hall)",
+      "latitude": 49.328,
+      "longitude": -123.066,
+      "acknowledges": [
+        "Tsleil-Waututh",
+        "Squamish",
+        "Musqueam"
+      ]
+    }
+  ]
+}

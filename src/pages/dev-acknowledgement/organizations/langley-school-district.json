@@ -1,0 +1,27 @@
+{
+  "id": "langley-school-district",
+  "name": "Langley School District (SD35)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.sd35.bc.ca/",
+  "note": "Matsqui, Katzie, Kwantlen, and Semiahmoo First Nations.",
+  "acknowledges": [
+    "Matsqui",
+    "Katzie",
+    "Kwantlen",
+    "Semiahmoo"
+  ],
+  "campuses": [
+    {
+      "name": "Langley",
+      "latitude": 49.1041,
+      "longitude": -122.6604,
+      "acknowledges": [
+        "Matsqui",
+        "Katzie",
+        "Kwantlen",
+        "Semiahmoo"
+      ]
+    }
+  ]
+}

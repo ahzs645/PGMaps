@@ -1,0 +1,23 @@
+{
+  "id": "city-of-terrace",
+  "name": "City of Terrace",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.terrace.ca/city-hall/reconciliation",
+  "note": "Laxyuubm Ts’msyen — Kitsumkalum and Kitselas territories.",
+  "acknowledges": [
+    "Kitsumkalum First Nation",
+    "Kitselas First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 54.516,
+      "longitude": -128.603,
+      "acknowledges": [
+        "Kitsumkalum First Nation",
+        "Kitselas First Nation"
+      ]
+    }
+  ]
+}

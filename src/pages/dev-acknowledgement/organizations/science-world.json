@@ -1,0 +1,25 @@
+{
+  "id": "science-world",
+  "name": "Science World",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.scienceworld.ca/",
+  "note": "Unceded territory of Musqueam, Squamish, and Tsleil-Waututh.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.2734,
+      "longitude": -123.1038,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "intrepid-theatre",
+  "name": "Intrepid Theatre",
+  "sector": "non-profit",
+  "framing": "single_specific",
+  "sourceUrl": "https://intrepidtheatre.com/land-acknowledgement-resources/",
+  "note": "Lekwungen People — the Esquimalt and Songhees Nations.",
+  "acknowledges": [
+    "Esquimalt Nation",
+    "Songhees Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Victoria",
+      "latitude": 48.425,
+      "longitude": -123.364,
+      "acknowledges": [
+        "Esquimalt Nation",
+        "Songhees Nation"
+      ]
+    }
+  ]
+}

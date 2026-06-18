@@ -1,0 +1,24 @@
+{
+  "id": "okanagan-regional-library",
+  "name": "Okanagan Regional Library",
+  "sector": "library",
+  "framing": "regional",
+  "sourceUrl": "https://orl.bc.ca/accessibility-plan/acknowledgements/",
+  "note": "Sinixt, Ktunaxa, Secwépemc, and Syilx peoples across the service area.",
+  "acknowledges": [
+    "Sinixt",
+    "Ktunaxa",
+    "Secwépemc",
+    "Syilx"
+  ],
+  "campuses": [
+    {
+      "name": "Kelowna",
+      "latitude": 49.888,
+      "longitude": -119.496,
+      "acknowledges": [
+        "Syilx"
+      ]
+    }
+  ]
+}

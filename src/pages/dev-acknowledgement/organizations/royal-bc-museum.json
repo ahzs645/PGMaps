@@ -1,0 +1,23 @@
+{
+  "id": "royal-bc-museum",
+  "name": "Royal BC Museum",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://rbcm.ca/history-of-the-territory/",
+  "note": "lək̓ʷəŋən peoples — the Songhees and Esquimalt Nations.",
+  "acknowledges": [
+    "Songhees Nation",
+    "Esquimalt Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Victoria",
+      "latitude": 48.4197,
+      "longitude": -123.3675,
+      "acknowledges": [
+        "Songhees Nation",
+        "Esquimalt Nation"
+      ]
+    }
+  ]
+}

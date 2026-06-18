@@ -1,0 +1,25 @@
+{
+  "id": "museum-of-vancouver",
+  "name": "Museum of Vancouver",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://museumofvancouver.ca/",
+  "note": "Unceded Musqueam, Squamish, and Tsleil-Waututh; near the ancestral village of Sen̓áḵw.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.2763,
+      "longitude": -123.1447,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

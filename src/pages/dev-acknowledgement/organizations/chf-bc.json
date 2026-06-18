@@ -1,0 +1,17 @@
+{
+  "id": "chf-bc",
+  "name": "Co-operative Housing Federation of BC",
+  "sector": "non-profit",
+  "framing": "regional",
+  "sourceUrl": "https://www.chf.bc.ca/indigenous-reconciliation/",
+  "note": "Acknowledges unceded territories and commits to honouring and learning from Indigenous Peoples.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Vancouver",
+      "latitude": 49.266,
+      "longitude": -123.114,
+      "acknowledges": []
+    }
+  ]
+}

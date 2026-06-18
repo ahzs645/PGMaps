@@ -7,7 +7,11 @@ import { createNationResolver } from './nations'
 const graph = JSON.parse(
   readFileSync(new URL('../../../../public/data/acknowledgement/relationship-graph.json', import.meta.url), 'utf8'),
 ) as RelationshipGraph
+const communities = JSON.parse(
+  readFileSync(new URL('../../../../public/data/indigenous/first_nation_community_locations.geojson', import.meta.url), 'utf8'),
+) as GeoJSON.FeatureCollection
 const canonicalize = createNationResolver(graph)
+const canonicalizeWithGis = createNationResolver(graph, communities.features)
 
 describe('createNationResolver', () => {
   it('resolves Nations already in the graph', () => {
@@ -35,5 +39,15 @@ describe('createNationResolver', () => {
 
   it('still flags genuinely unknown names as unlisted', () => {
     expect(canonicalize('Definitely Not A Nation 123').status).toBe('unlisted')
+  })
+
+  it('enriches with GIS data (coordinates) when community locations are supplied', () => {
+    const withoutGis = canonicalize('Snuneymuxw First Nation')
+    expect(withoutGis.gis).toBeUndefined()
+
+    const withGis = canonicalizeWithGis('Snuneymuxw First Nation')
+    expect(withGis.gis).toBeDefined()
+    expect(withGis.gis?.coordinates).toHaveLength(2)
+    expect(withGis.gis?.name).toMatch(/Snuneymuxw/)
   })
 })

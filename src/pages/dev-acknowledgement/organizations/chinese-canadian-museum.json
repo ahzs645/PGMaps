@@ -1,0 +1,25 @@
+{
+  "id": "chinese-canadian-museum",
+  "name": "Chinese Canadian Museum",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.chinesecanadianmuseum.ca/land-acknowledgement/",
+  "note": "Unceded traditional territories of Musqueam, Squamish, and Tsleil-Waututh.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish",
+    "Tsleil-Waututh"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver (Chinatown)",
+      "latitude": 49.28,
+      "longitude": -123.104,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish",
+        "Tsleil-Waututh"
+      ]
+    }
+  ]
+}

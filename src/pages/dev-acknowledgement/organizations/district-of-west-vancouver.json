@@ -1,0 +1,25 @@
+{
+  "id": "district-of-west-vancouver",
+  "name": "District of West Vancouver",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "sourceUrl": "https://westvancouver.ca/government-administration/truth-and-reconciliation",
+  "note": "Squamish, Tsleil-Waututh, and Musqueam Nations.",
+  "acknowledges": [
+    "Squamish",
+    "Tsleil-Waututh",
+    "Musqueam"
+  ],
+  "campuses": [
+    {
+      "name": "West Vancouver",
+      "latitude": 49.328,
+      "longitude": -123.16,
+      "acknowledges": [
+        "Squamish",
+        "Tsleil-Waututh",
+        "Musqueam"
+      ]
+    }
+  ]
+}

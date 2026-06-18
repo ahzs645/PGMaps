@@ -22,6 +22,12 @@ the framing). Do not paste the sentence into the JSON, and do not paraphrase it
 so closely that it reproduces the original. `note` is a short factual summary
 (e.g. "Musqueam, Squamish, and Tsleil-Waututh"), not a reworded quote.
 
+**How we "store" the statement: the link.** `sourceUrl` is the canonical
+reference to the org's full wording — that's the source, one click away (the
+comparison UI surfaces it as an "Official statement" link). There is also an
+optional `statement` field for a short attributed excerpt or your own notes, but
+it's not required and is never auto-filled — prefer the source link.
+
 ## Schema (`OrgRecord`, see `index.ts`)
 
 ```jsonc
@@ -75,13 +81,18 @@ canonical identity:
 - `people-group` — matches a people-group (e.g. "Ts'msyen", "Coast Salish");
 - `unlisted` — not in our database yet.
 
-The resolver references **two** sources, so coverage does **not** depend on the
-submodule relationship graph:
+The resolver (`createNationResolver`) references **three** sources, so coverage
+does **not** depend on the submodule relationship graph:
 
-1. the **relationship graph** (verified Nations + people-groups), and
-2. **`nationRegistry`** in `nations.ts` — an in-repo list we maintain ourselves.
+1. the **relationship graph** (verified Nations + people-groups);
+2. **`nation-registry.json`** — an in-repo list we maintain ourselves (data file;
+   `nations.ts` only holds the loader + resolver logic); and
+3. the **BC First Nation Community Locations GIS dataset**
+   (`public/data/indigenous/first_nation_community_locations.geojson`, 208 Nations)
+   — used to *validate* a Nation and *enrich* it with coordinates, website, and
+   language group (`resolution.gis`). The composer shows a "GIS-verified" count.
 
-To map a Nation an org names, add a `nationRegistry` entry (no submodule edit):
+To map a Nation an org names, add a record to `nation-registry.json` (no submodule edit):
 
 - **Nation already in the graph, different name** → add an entry with
   `graphNationId` set + the free-text form in `aliases` (e.g. Squamish,

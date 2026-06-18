@@ -1,0 +1,23 @@
+{
+  "id": "burnaby-public-library",
+  "name": "Burnaby Public Library",
+  "sector": "library",
+  "framing": "single_specific",
+  "sourceUrl": "https://bpl.bc.ca/",
+  "note": "Homelands of the hən̓q̓əmin̓əm̓ (Musqueam) and Sḵwx̱wú7mesh (Squamish) speaking peoples.",
+  "acknowledges": [
+    "Musqueam",
+    "Squamish"
+  ],
+  "campuses": [
+    {
+      "name": "Burnaby",
+      "latitude": 49.248,
+      "longitude": -122.9805,
+      "acknowledges": [
+        "Musqueam",
+        "Squamish"
+      ]
+    }
+  ]
+}

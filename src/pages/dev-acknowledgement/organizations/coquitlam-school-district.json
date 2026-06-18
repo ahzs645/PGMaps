@@ -1,0 +1,31 @@
+{
+  "id": "coquitlam-school-district",
+  "name": "Coquitlam School District (SD43)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.sd43.bc.ca/",
+  "note": "Kwikwetlem core territory within shared lands of Tsleil-Waututh, Katzie, Musqueam, Qayqayt, and Squamish.",
+  "acknowledges": [
+    "Kwikwetlem",
+    "Tsleil-Waututh",
+    "Katzie",
+    "Musqueam",
+    "Qayqayt",
+    "Squamish"
+  ],
+  "campuses": [
+    {
+      "name": "Coquitlam",
+      "latitude": 49.284,
+      "longitude": -122.793,
+      "acknowledges": [
+        "Kwikwetlem",
+        "Tsleil-Waututh",
+        "Katzie",
+        "Musqueam",
+        "Qayqayt",
+        "Squamish"
+      ]
+    }
+  ]
+}

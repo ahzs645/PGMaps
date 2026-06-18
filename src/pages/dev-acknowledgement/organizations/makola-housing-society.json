@@ -1,0 +1,17 @@
+{
+  "id": "makola-housing-society",
+  "name": "M’akola Housing Society",
+  "sector": "non-profit",
+  "framing": "regional",
+  "sourceUrl": "https://makola.bc.ca/about/traditional-territory-acknowledgement/",
+  "note": "Many location-specific acknowledgements across Vancouver Island, the coast, and the north.",
+  "acknowledges": [],
+  "campuses": [
+    {
+      "name": "Victoria (head office)",
+      "latitude": 48.45,
+      "longitude": -123.38,
+      "acknowledges": []
+    }
+  ]
+}

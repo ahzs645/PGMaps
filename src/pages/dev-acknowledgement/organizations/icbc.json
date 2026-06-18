@@ -1,0 +1,21 @@
+{
+  "id": "icbc",
+  "name": "ICBC",
+  "sector": "crown-agency",
+  "framing": "regional",
+  "sourceUrl": "https://www.icbc.com/",
+  "note": "Province-wide acknowledgement; head office near Eslhá7an on Squamish Nation territory.",
+  "acknowledges": [
+    "Squamish"
+  ],
+  "campuses": [
+    {
+      "name": "North Vancouver (HQ)",
+      "latitude": 49.31,
+      "longitude": -123.083,
+      "acknowledges": [
+        "Squamish"
+      ]
+    }
+  ]
+}

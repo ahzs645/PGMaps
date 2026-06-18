@@ -1,0 +1,23 @@
+{
+  "id": "greater-victoria-school-district",
+  "name": "Greater Victoria School District (SD61)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.sd61.bc.ca/",
+  "note": "Esquimalt and Songhees Nations.",
+  "acknowledges": [
+    "Esquimalt Nation",
+    "Songhees Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Victoria",
+      "latitude": 48.428,
+      "longitude": -123.365,
+      "acknowledges": [
+        "Esquimalt Nation",
+        "Songhees Nation"
+      ]
+    }
+  ]
+}

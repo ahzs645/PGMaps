@@ -1,0 +1,23 @@
+{
+  "id": "maple-ridge-pitt-meadows-school-district",
+  "name": "Maple Ridge–Pitt Meadows School District (SD42)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "sourceUrl": "https://www.sd42.ca/",
+  "note": "Shared, traditional, unceded territory of Katzie and Kwantlen First Nations.",
+  "acknowledges": [
+    "Katzie",
+    "Kwantlen"
+  ],
+  "campuses": [
+    {
+      "name": "Maple Ridge",
+      "latitude": 49.219,
+      "longitude": -122.598,
+      "acknowledges": [
+        "Katzie",
+        "Kwantlen"
+      ]
+    }
+  ]
+}
