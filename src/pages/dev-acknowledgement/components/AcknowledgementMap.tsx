@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { MapPin } from 'lucide-react'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
-import type { DroppedLocation, GeocodeResult } from './types'
+import type { DroppedLocation, GeocodeResult } from '../types'
 
 function DropMapEvents({
   result,
