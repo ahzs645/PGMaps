@@ -9,18 +9,48 @@ import {
   SPECIALIST_WAIT_DATA_URL,
   SPECIALIST_WAIT_MAP_CENTER,
   SPECIALIST_WAIT_MAP_ZOOM,
+  buildProcedureOptions,
+  compareFacilities,
+  facilityMatchesFilter,
   facilityWaitMetrics,
   formatCases,
   formatWeeks,
+  procedureMatchesFilter,
   searchFacility,
   waitBand,
   type FacilitySpecialist,
   type FacilityWaitMetrics,
+  type PatientType,
   type SpecialistFacility,
+  type SpecialistFilter,
   type SpecialistMapData,
+  type SpecialistSort,
+  type WaitBand,
 } from './dev-wait/specialistData'
 
 type AuthorityFilter = 'all' | string
+type BandFilter = 'all' | WaitBand
+
+const PATIENT_OPTIONS: Array<{ id: PatientType; label: string }> = [
+  { id: 'all', label: 'All ages' },
+  { id: 'adult', label: 'Adult' },
+  { id: 'pediatric', label: 'Pediatric' },
+]
+
+const BAND_OPTIONS: Array<{ id: BandFilter; label: string; swatch: string }> = [
+  { id: 'all', label: 'All', swatch: 'bg-slate-400' },
+  { id: 'short', label: '< 12w', swatch: 'bg-[#0f766e]' },
+  { id: 'medium', label: '12-26w', swatch: 'bg-[#b45309]' },
+  { id: 'long', label: '26w+', swatch: 'bg-[#991b1b]' },
+  { id: 'unknown', label: 'No P90', swatch: 'bg-[#475569]' },
+]
+
+const SORT_OPTIONS: Array<{ id: SpecialistSort; label: string }> = [
+  { id: 'wait', label: 'Longest P90 wait' },
+  { id: 'cases', label: 'Most known cases' },
+  { id: 'specialists', label: 'Most specialists' },
+  { id: 'name', label: 'Facility name (A-Z)' },
+]
 
 interface SpecialistMarkerCluster {
   id: string
@@ -39,6 +69,10 @@ function DevWaitSpecialist() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [authority, setAuthority] = useState<AuthorityFilter>('all')
+  const [procedureName, setProcedureName] = useState<string>('all')
+  const [patientType, setPatientType] = useState<PatientType>('all')
+  const [band, setBand] = useState<BandFilter>('all')
+  const [sort, setSort] = useState<SpecialistSort>('wait')
   const [selected, setSelected] = useState<SpecialistFacility | null>(null)
   const [metadata, setMetadata] = useState<SpecialistMapData['metadata'] | null>(null)
 
@@ -71,18 +105,36 @@ function DevWaitSpecialist() {
     Array.from(new Set(facilities.map((facility) => facility.health_authority))).sort()
   ), [facilities])
 
-  const filteredFacilities = useMemo(() => facilities.filter((facility) => {
-    if (authority !== 'all' && facility.health_authority !== authority) return false
-    return searchFacility(facility, query)
-  }), [authority, facilities, query])
+  const procedureOptions = useMemo(() => buildProcedureOptions(facilities), [facilities])
+
+  const filter = useMemo<SpecialistFilter>(() => ({
+    procedureName: procedureName === 'all' ? null : procedureName,
+    patientType,
+  }), [procedureName, patientType])
+
+  const filterActive = procedureName !== 'all' || patientType !== 'all' || band !== 'all'
+
+  const filteredFacilities = useMemo(() => {
+    const matched = facilities.filter((facility) => {
+      if (authority !== 'all' && facility.health_authority !== authority) return false
+      if (!facilityMatchesFilter(facility, filter)) return false
+      if (band !== 'all' && waitBand(facilityWaitMetrics(facility, filter).p90MedianWeeks) !== band) return false
+      return searchFacility(facility, query)
+    })
+    return matched.sort(compareFacilities(sort, filter))
+  }, [authority, band, facilities, filter, query, sort])
 
   const stats = useMemo(() => {
     const visibleSpecialists = new Set<string>()
     const p90Values: number[] = []
     let knownCases = 0
     filteredFacilities.forEach((facility) => {
-      facility.specialists.forEach((specialist) => visibleSpecialists.add(specialist.specialist_id))
-      const metrics = facilityWaitMetrics(facility)
+      facility.specialists.forEach((specialist) => {
+        if (specialist.procedures.some((procedure) => procedureMatchesFilter(procedure, filter))) {
+          visibleSpecialists.add(specialist.specialist_id)
+        }
+      })
+      const metrics = facilityWaitMetrics(facility, filter)
       knownCases += metrics.knownCases
       if (metrics.p90MedianWeeks != null) p90Values.push(metrics.p90MedianWeeks)
     })
@@ -94,7 +146,7 @@ function DevWaitSpecialist() {
       knownCases,
       medianP90: medianNumber(p90Values),
     }
-  }, [facilities.length, filteredFacilities])
+  }, [facilities.length, filteredFacilities, filter])
 
   const sidebar = (
     <aside className="flex h-full w-full flex-col bg-background/95 md:w-[380px] md:border-r md:shadow-xl">
@@ -133,15 +185,108 @@ function DevWaitSpecialist() {
         </section>
 
         <section className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Health authority</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Filters</div>
+            {filterActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  setProcedureName('all')
+                  setPatientType('all')
+                  setBand('all')
+                }}
+                className="text-[11px] font-medium text-sky-700 hover:underline"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
           <select
             value={authority}
             onChange={(event) => setAuthority(event.target.value)}
             className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+            aria-label="Health authority"
           >
-            <option value="all">All authorities</option>
+            <option value="all">All health authorities</option>
             {authorities.map((name) => (
               <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+
+          <select
+            value={procedureName}
+            onChange={(event) => setProcedureName(event.target.value)}
+            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+            aria-label="Procedure"
+          >
+            <option value="all">All procedures</option>
+            {procedureOptions.map((option) => (
+              <option key={option.name} value={option.name}>
+                {option.name} ({option.facilityCount})
+              </option>
+            ))}
+          </select>
+        </section>
+
+        <section className="space-y-2">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Patient type</div>
+          <div className="grid grid-cols-3 gap-1">
+            {PATIENT_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setPatientType(option.id)}
+                aria-pressed={patientType === option.id}
+                className={cn(
+                  'rounded-md border px-2 py-1.5 text-xs font-medium transition-colors',
+                  patientType === option.id
+                    ? 'border-sky-500 bg-sky-500/10 text-sky-700'
+                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">P90 wait band</div>
+          <div className="grid grid-cols-5 gap-1">
+            {BAND_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setBand(option.id)}
+                aria-pressed={band === option.id}
+                className={cn(
+                  'flex flex-col items-center gap-1 rounded-md border px-1 py-1.5 text-[10px] font-medium transition-colors',
+                  band === option.id
+                    ? 'border-sky-500 bg-sky-500/10 text-sky-700'
+                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
+                )}
+              >
+                <span className={cn('size-2.5 rounded-sm', option.swatch)} />
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] leading-4 text-muted-foreground">
+            Marker color and value reflect the median 90th-percentile wait{procedureName !== 'all' ? ` for ${procedureName}` : ''}.
+          </p>
+        </section>
+
+        <section className="space-y-2">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Sort facilities</div>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as SpecialistSort)}
+            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+            aria-label="Sort facilities"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
             ))}
           </select>
         </section>
@@ -160,30 +305,36 @@ function DevWaitSpecialist() {
 
         <section className="border-t border-border pt-4">
           <h2 className="mb-2 text-sm font-semibold">Facilities</h2>
-          <div className="space-y-2">
-            {filteredFacilities.slice(0, 80).map((facility) => (
-              <button
-                key={facility.id}
-                type="button"
-                onClick={() => setSelected(facility)}
-                className={cn(
-                  'w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted',
-                  selected?.id === facility.id ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background',
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-sm font-medium">{facility.facility_name}</span>
-                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold">
-                    {facility.specialist_count}
-                  </span>
-                </div>
-                <div className="mt-1 truncate text-xs text-muted-foreground">
-                  {[facility.locality, facility.health_authority].filter(Boolean).join(' • ')}
-                </div>
-                <FacilityListMetrics facility={facility} />
-              </button>
-            ))}
-          </div>
+          {filteredFacilities.length === 0 ? (
+            <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
+              No facilities match the current filters.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {filteredFacilities.slice(0, 80).map((facility) => (
+                <button
+                  key={facility.id}
+                  type="button"
+                  onClick={() => setSelected(facility)}
+                  className={cn(
+                    'w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted',
+                    selected?.id === facility.id ? 'border-sky-500 bg-sky-500/10' : 'border-border bg-background',
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm font-medium">{facility.facility_name}</span>
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold">
+                      {facility.specialist_count}
+                    </span>
+                  </div>
+                  <div className="mt-1 truncate text-xs text-muted-foreground">
+                    {[facility.locality, facility.health_authority].filter(Boolean).join(' • ')}
+                  </div>
+                  <FacilityListMetrics facility={facility} filter={filter} />
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </aside>
@@ -209,6 +360,7 @@ function DevWaitSpecialist() {
 
           <SpecialistFacilityMarkers
             facilities={filteredFacilities}
+            filter={filter}
             selectedId={selected?.id ?? null}
             onSelect={setSelected}
           />
@@ -220,7 +372,7 @@ function DevWaitSpecialist() {
               onClose={() => setSelected(null)}
               closeButton={false}
             >
-              <SpecialistFacilityPopup facility={selected} onClose={() => setSelected(null)} />
+              <SpecialistFacilityPopup facility={selected} filter={filter} onClose={() => setSelected(null)} />
             </MapPopup>
           )}
         </Map>
@@ -237,10 +389,12 @@ function DevWaitSpecialist() {
 
 function SpecialistFacilityMarkers({
   facilities,
+  filter,
   selectedId,
   onSelect,
 }: {
   facilities: SpecialistFacility[]
+  filter: SpecialistFilter
   selectedId: string | null
   onSelect: (facility: SpecialistFacility) => void
 }) {
@@ -280,7 +434,7 @@ function SpecialistFacilityMarkers({
     const width = canvas.clientWidth
     const height = canvas.clientHeight
     const nextClusters: Array<SpecialistMarkerCluster & { x: number; y: number }> = []
-    const orderedFacilities = [...facilities].sort((a, b) => markerPriority(a) - markerPriority(b))
+    const orderedFacilities = [...facilities].sort((a, b) => markerPriority(a, filter) - markerPriority(b, filter))
 
     for (const facility of orderedFacilities) {
       const point = map.project([facility.longitude, facility.latitude])
@@ -311,7 +465,7 @@ function SpecialistFacilityMarkers({
     }
 
     return nextClusters.map(({ x: _x, y: _y, ...cluster }) => cluster)
-  }, [facilities, map, version])
+  }, [facilities, filter, map, version])
 
   return (
     <>
@@ -322,6 +476,7 @@ function SpecialistFacilityMarkers({
             <SpecialistFacilityMarker
               key={facility.id}
               facility={facility}
+              filter={filter}
               selected={selectedId === facility.id}
               onSelect={onSelect}
             />
@@ -355,6 +510,7 @@ function SpecialistFacilityMarkers({
               <SpecialistFacilityMarker
                 key={`${cluster.id}-${facility.id}`}
                 facility={facility}
+                filter={filter}
                 longitude={cluster.longitude}
                 latitude={cluster.latitude}
                 selected={selectedId === facility.id}
@@ -388,6 +544,7 @@ function SpecialistFacilityMarkers({
 
 function SpecialistFacilityMarker({
   facility,
+  filter,
   longitude = facility.longitude,
   latitude = facility.latitude,
   selected,
@@ -396,6 +553,7 @@ function SpecialistFacilityMarker({
   revealIndex,
 }: {
   facility: SpecialistFacility
+  filter: SpecialistFilter
   longitude?: number
   latitude?: number
   selected: boolean
@@ -403,8 +561,10 @@ function SpecialistFacilityMarker({
   visualOffset?: [number, number]
   revealIndex?: number
 }) {
-  const metrics = facilityWaitMetrics(facility)
-  const markerText = metrics.p90MedianWeeks == null ? String(facility.specialist_count) : formatWeeks(metrics.p90MedianWeeks)
+  const metrics = facilityWaitMetrics(facility, filter)
+  const markerText = metrics.p90MedianWeeks == null
+    ? String(metrics.procedureRows || facility.specialist_count)
+    : formatWeeks(metrics.p90MedianWeeks)
 
   return (
     <MapMarker longitude={longitude} latitude={latitude} anchor="center">
@@ -439,10 +599,21 @@ function SpecialistFacilityMarker({
   )
 }
 
-function SpecialistFacilityPopup({ facility, onClose }: { facility: SpecialistFacility; onClose: () => void }) {
-  const metrics = facilityWaitMetrics(facility)
-  const topSpecialists = facility.specialists.slice(0, 8)
-  const topProcedures = facility.procedures.slice(0, 6)
+function SpecialistFacilityPopup({ facility, filter, onClose }: { facility: SpecialistFacility; filter: SpecialistFilter; onClose: () => void }) {
+  const filterActive = Boolean(filter.procedureName) || (filter.patientType != null && filter.patientType !== 'all')
+  const metrics = facilityWaitMetrics(facility, filter)
+  const matchingSpecialists = facility.specialists
+    .filter((specialist) => specialist.procedures.some((procedure) => procedureMatchesFilter(procedure, filter)))
+  const matchingProcedures = facility.procedures.filter((procedure) => {
+    if (filter.procedureName && procedure.name !== filter.procedureName) return false
+    if (filter.patientType === 'adult' && procedure.adult_flag !== 'Y') return false
+    if (filter.patientType === 'pediatric' && procedure.adult_flag !== 'N') return false
+    return true
+  })
+  const topSpecialists = matchingSpecialists.slice(0, 8)
+  const topProcedures = matchingProcedures.slice(0, 6)
+  const specialistCount = filterActive ? matchingSpecialists.length : facility.specialist_count
+  const procedureCount = filterActive ? matchingProcedures.length : facility.procedure_count
 
   return (
     <div className="w-80 overflow-hidden rounded-md bg-popover text-popover-foreground">
@@ -463,8 +634,8 @@ function SpecialistFacilityPopup({ facility, onClose }: { facility: SpecialistFa
 
       <div className="space-y-3 px-3 py-3">
         <div className="grid grid-cols-3 gap-2">
-          <PopupStat icon={<Stethoscope className="size-3.5" />} label="Specialists" value={facility.specialist_count} />
-          <PopupStat icon={<Activity className="size-3.5" />} label="Procedures" value={facility.procedure_count} />
+          <PopupStat icon={<Stethoscope className="size-3.5" />} label="Specialists" value={specialistCount} />
+          <PopupStat icon={<Activity className="size-3.5" />} label="Procedures" value={procedureCount} />
           <PopupStat icon={<MapPin className="size-3.5" />} label="Known cases" value={formatCases(metrics.knownCases)} />
           <PopupStat icon={<Activity className="size-3.5" />} label="Median P50" value={formatWeeks(metrics.p50MedianWeeks)} />
           <PopupStat icon={<Activity className="size-3.5" />} label="Median P90" value={formatWeeks(metrics.p90MedianWeeks)} />
@@ -481,7 +652,7 @@ function SpecialistFacilityPopup({ facility, onClose }: { facility: SpecialistFa
           <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Top specialists</h3>
           <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
             {topSpecialists.map((specialist) => (
-              <SpecialistRow key={specialist.specialist_id} specialist={specialist} />
+              <SpecialistRow key={specialist.specialist_id} specialist={specialist} filter={filter} />
             ))}
           </div>
         </section>
@@ -513,8 +684,9 @@ function SpecialistFacilityPopup({ facility, onClose }: { facility: SpecialistFa
   )
 }
 
-function SpecialistRow({ specialist }: { specialist: FacilitySpecialist }) {
-  const firstProcedure = specialist.procedures[0]
+function SpecialistRow({ specialist, filter }: { specialist: FacilitySpecialist; filter: SpecialistFilter }) {
+  const firstProcedure = specialist.procedures.find((procedure) => procedureMatchesFilter(procedure, filter))
+    ?? specialist.procedures[0]
 
   return (
     <div className="rounded-md border border-border bg-muted/25 px-2.5 py-2">
@@ -560,8 +732,8 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function FacilityListMetrics({ facility }: { facility: SpecialistFacility }) {
-  const metrics = facilityWaitMetrics(facility)
+function FacilityListMetrics({ facility, filter }: { facility: SpecialistFacility; filter: SpecialistFilter }) {
+  const metrics = facilityWaitMetrics(facility, filter)
 
   return (
     <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-muted-foreground">
@@ -587,9 +759,9 @@ function markerClass(metrics: FacilityWaitMetrics): string {
   return 'border-white bg-[#475569]'
 }
 
-function markerPriority(facility: SpecialistFacility): number {
+function markerPriority(facility: SpecialistFacility, filter: SpecialistFilter): number {
   if (facility.is_rollup_child) return 0
-  const metrics = facilityWaitMetrics(facility)
+  const metrics = facilityWaitMetrics(facility, filter)
   const band = waitBand(metrics.p90MedianWeeks)
   if (band === 'long') return 1
   if (band === 'medium') return 2
