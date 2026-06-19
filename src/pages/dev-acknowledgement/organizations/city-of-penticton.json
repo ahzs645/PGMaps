@@ -3,8 +3,10 @@
   "name": "City of Penticton",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.penticton.ca/",
+  "sourceUrl": "https://www.penticton.ca/city-hall/news-alerts/mayors-statement-national-day-truth-and-reconciliation-0",
   "note": "Syilx Okanagan people.",
+  "statement": "As a city, we acknowledge that we are on the traditional, ancestral and unceded territory of the Syilx Okanagan people.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Syilx"
   ],

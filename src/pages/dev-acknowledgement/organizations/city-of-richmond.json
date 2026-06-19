@@ -3,8 +3,9 @@
   "name": "City of Richmond",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.richmond.ca/",
+  "sourceUrl": "https://www.richmond.ca/culture/discover-richmond/profile/indigenousrelations.htm",
   "note": "hən̓q̓əmin̓əm̓-speaking Musqueam peoples.",
+  "statementKind": "not_found",
   "acknowledges": [
     "Musqueam"
   ],

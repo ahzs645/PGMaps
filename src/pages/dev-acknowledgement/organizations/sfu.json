@@ -3,8 +3,10 @@
   "name": "Simon Fraser University",
   "sector": "university",
   "framing": "per_campus",
-  "sourceUrl": "https://www.sfu.ca/main/about/truth-reconciliation/ways-to-learn/terminology-language/land-acknowledgements-for-sfu.html",
+  "sourceUrl": "https://www.sfu.ca/about/truth-reconciliation/ways-to-learn/terminology-language/land-acknowledgements-for-sfu.html",
   "note": "Campus-specific acknowledgements for Burnaby, Surrey, and Vancouver.",
+  "statement": "Simon Fraser University respectfully acknowledges the xʷməθkʷəy̓əm (Musqueam), Sḵwx̱wú7mesh Úxwumixw (Squamish), səlilw̓ətaɬ (Tsleil-Waututh), q̓íc̓əy̓ (Katzie), kʷikʷəƛ̓əm (Kwikwetlem), Qayqayt, Kwantlen, Semiahmoo and Tsawwassen peoples",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

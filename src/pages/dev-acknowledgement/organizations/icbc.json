@@ -3,8 +3,10 @@
   "name": "ICBC",
   "sector": "crown-agency",
   "framing": "regional",
-  "sourceUrl": "https://www.icbc.com/",
+  "sourceUrl": "https://icbc.com/about-icbc/reconciliation",
   "note": "Province-wide acknowledgement; head office near Eslhá7an on Squamish Nation territory.",
+  "statement": "ICBC respectfully acknowledges that we are privileged to live and work on the traditional and ancestral homelands, both unceded and treatied",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Squamish"
   ],

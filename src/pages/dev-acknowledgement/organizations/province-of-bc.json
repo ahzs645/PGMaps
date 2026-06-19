@@ -3,8 +3,10 @@
   "name": "Province of BC / BC Public Service",
   "sector": "crown-agency",
   "framing": "regional",
-  "sourceUrl": "https://www2.gov.bc.ca/gov/content/careers-myhr/about-the-bc-public-service/diversity-inclusion/indigenous-initiatives",
+  "sourceUrl": "https://www.emergencyinfobc.gov.bc.ca/territorial-acknowledgement/",
   "note": "Acknowledges the territories of First Nations across BC.",
+  "statement": "The B.C. Public Service acknowledges the territories of First Nations around B.C. and is grateful to carry out our work on these lands.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [],
   "campuses": [
     {

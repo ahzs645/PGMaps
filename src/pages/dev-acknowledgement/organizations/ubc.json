@@ -3,9 +3,11 @@
   "name": "University of British Columbia",
   "sector": "university",
   "framing": "per_campus",
-  "sourceUrl": "https://indigenous.ubc.ca/",
   "pattern": "gathered_today_unceded",
+  "sourceUrl": "https://vpfo.ubc.ca/news/what-is-a-land-acknowledgement/",
   "note": "Campus-specific: Musqueam for Vancouver/Point Grey, Syilx Okanagan for the Okanagan campus.",
+  "statement": "We acknowledge that UBC’s campuses are situated within the traditional territories of the Musqueam, Squamish and Tsleil-Waututh",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Syilx Okanagan Nation"

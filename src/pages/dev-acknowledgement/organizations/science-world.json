@@ -3,8 +3,10 @@
   "name": "Science World",
   "sector": "cultural",
   "framing": "single_specific",
-  "sourceUrl": "https://www.scienceworld.ca/",
+  "sourceUrl": "https://www.scienceworld.ca/your-visit/",
   "note": "Unceded territory of Musqueam, Squamish, and Tsleil-Waututh.",
+  "statement": "We gratefully acknowledge that Science World is located on the traditional, unceded territory of the xʷməθkʷəy̓əm (Musqueam), Sḵwx̱wú7mesh (Squamish) and səlilwətaɬ (Tsleil-Waututh) peoples.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Musqueam",
     "Squamish",

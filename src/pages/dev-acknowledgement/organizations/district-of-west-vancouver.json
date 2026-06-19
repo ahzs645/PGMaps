@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://westvancouver.ca/government-administration/truth-and-reconciliation",
   "note": "Squamish, Tsleil-Waututh, and Musqueam Nations.",
+  "statement": "We acknowledge that we are on the traditional, ancestral, and unceded territory of the Sḵwx̱wú7mesh Úxwumixw (Squamish Nation)",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Squamish",
     "Tsleil-Waututh",

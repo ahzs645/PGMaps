@@ -4,8 +4,10 @@
   "sector": "crown-agency",
   "framing": "regional",
   "pattern": "operates_on_lands_and_waters",
-  "sourceUrl": "https://www.bcferries.com/",
+  "sourceUrl": "https://www.bcferries.com/web_image/images/h01/h1d/9053957521438.pdf",
   "note": "Region/coast-wide framing acknowledging coastal First Nations’ lands and waters.",
+  "statement": "BC Ferries acknowledges the enduring ancestral connections of coastal First Nations",
+  "statementKind": "exact_excerpt",
   "acknowledges": [],
   "campuses": [
     {

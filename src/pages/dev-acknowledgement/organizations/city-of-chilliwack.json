@@ -3,8 +3,10 @@
   "name": "City of Chilliwack",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.chilliwack.com/",
+  "sourceUrl": "https://www.engagechilliwack.com/inclusion/news_feed/land-acknowledgement",
   "note": "Stó:lō Coast Salish peoples.",
+  "statement": "The City of Chilliwack acknowledges that we are honoured to live, work, and play on the traditional, ancestral and unceded territory",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Stó:lō"
   ],

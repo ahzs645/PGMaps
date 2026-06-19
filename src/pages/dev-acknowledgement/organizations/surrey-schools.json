@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.surreyschools.ca/",
   "note": "Coast Salish: Katzie, Kwantlen, and Semiahmoo First Nations.",
+  "statement": "We respectfully acknowledge that Surrey Schools resides on the traditional, unceded and shared territories of Coast Salish peoples",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Katzie",
     "Kwantlen",

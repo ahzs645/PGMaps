@@ -3,8 +3,10 @@
   "name": "Legislative Assembly of British Columbia",
   "sector": "crown-agency",
   "framing": "regional",
-  "sourceUrl": "https://www.leg.bc.ca/about/reconciliation",
+  "sourceUrl": "https://leg.bc.ca/about/reconciliation",
   "note": "Recognizes the 200+ First Nations of BC and the Assembly’s historic role in colonial systems.",
+  "statement": "The Legislative Precinct, including the Parliament Buildings, other buildings, and surrounding grounds, are located on the traditional territory of the lək̓ʷəŋən Peoples",
+  "statementKind": "exact_excerpt",
   "acknowledges": [],
   "campuses": [
     {

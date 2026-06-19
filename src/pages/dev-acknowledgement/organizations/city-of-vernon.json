@@ -3,8 +3,10 @@
   "name": "City of Vernon",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.vernon.ca/",
+  "sourceUrl": "https://www.vernon.ca/sites/default/files/docs/meetings/agendas/241120_TC_AG_PKG.pdf",
   "note": "Syilx people of the Okanagan Nation.",
+  "statement": "I recognize the City of Vernon is located in the traditional territory of the Syilx people of the Okanagan Nation.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Syilx"
   ],

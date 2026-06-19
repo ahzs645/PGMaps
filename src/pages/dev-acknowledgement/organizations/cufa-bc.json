@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://cufa.bc.ca/",
   "note": "Musqueam, Squamish, Tsleil-Waututh, and Stó:lō Nations.",
+  "statement": "We respectfully acknowledge our office is located on the traditional, ancestral, and unceded territory of the xʷməθkwəy̓əm (Musqueam), Skwxwú7mesh (Squamish), Səl̓ı́lwətaʔ/Selilwitulh (Tsleil-Waututh), and Stó:lō Nations.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Musqueam",
     "Squamish",

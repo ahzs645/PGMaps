@@ -3,8 +3,10 @@
   "name": "Comox Valley Regional District",
   "sector": "regional-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.comoxvalleyrd.ca/",
+  "sourceUrl": "https://www.comoxvalleyrd.ca/indigenousrelations",
   "note": "Unceded traditional territory of the K’ómoks First Nation.",
+  "statement": "The CVRD respectfully acknowledges that the land on which it operates is on the unceded traditional territory of the K'ómoks First Nation",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "K’ómoks First Nation"
   ],

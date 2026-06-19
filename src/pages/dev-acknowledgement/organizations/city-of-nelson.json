@@ -3,8 +3,10 @@
   "name": "City of Nelson",
   "sector": "municipality",
   "framing": "regional",
-  "sourceUrl": "https://www.nelson.ca/673/Imagine-Kootenay",
+  "sourceUrl": "https://www.nelson.ca/576/Community-Engagement",
   "note": "Ktunaxa, Sinixt, Syilx, and Secwépemc Nations; home to Métis Chartered Communities.",
+  "statement": "The City of Nelson acknowledges that it resides and operates within the unceded traditional territories of the Sinixt, the Syilx, and the Ktunaxa peoples.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Ktunaxa",
     "Sinixt",

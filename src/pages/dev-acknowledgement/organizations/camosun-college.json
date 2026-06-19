@@ -3,8 +3,10 @@
   "name": "Camosun College",
   "sector": "college",
   "framing": "single_specific",
-  "sourceUrl": "https://camosun.ca/about/indigenous-education-community-connections",
+  "sourceUrl": "https://50.camosun.ca/how-did-camosun-get-its-name/",
   "note": "Lekwungen (Songhees, Esquimalt) and W̱SÁNEĆ peoples.",
+  "statement": "Camosun College is located in beautiful Victoria, British Columbia with campuses on the Traditional Territories of the Lekwungen and W̱SÁNEĆ peoples.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Songhees Nation",
     "Esquimalt Nation",

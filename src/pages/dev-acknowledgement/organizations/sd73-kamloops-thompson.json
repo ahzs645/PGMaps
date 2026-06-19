@@ -3,8 +3,10 @@
   "name": "Kamloops-Thompson School District (SD73)",
   "sector": "school-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.sd73.bc.ca/",
+  "sourceUrl": "https://www.sd73.bc.ca/indigenous-education",
   "note": "Secwépemc (Secwepemcúl’ecw).",
+  "statement": "We respectfully honour and acknowledge that School District No. 73 (Kamloops-Thompson) is located within the traditional territory of the Secwépemc Nation",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Secwépemc"
   ],

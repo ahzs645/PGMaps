@@ -3,8 +3,10 @@
   "name": "District of Squamish",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://squamish.ca/",
+  "sourceUrl": "https://squamish.ca/government-and-administration/squamish-nation/first-nations/",
   "note": "Skwxwú7mesh Úxwumixw (Squamish Nation).",
+  "statement": "The District of Squamish is located in the unceded traditional territory of the Skwxwú7mesh Úxwumixw (Squamish Nation).",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Squamish"
   ],

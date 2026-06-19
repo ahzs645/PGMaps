@@ -6,6 +6,8 @@
   "pattern": "located_on",
   "sourceUrl": "https://www.nanaimo.ca/",
   "note": "Traditional territory of the Snuneymuxw First Nation.",
+  "statement": "The City of Nanaimo is located on the Traditional Territory of the Snuneymuxw First Nation.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Snuneymuxw First Nation"
   ],

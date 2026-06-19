@@ -3,9 +3,11 @@
   "name": "Emily Carr University of Art + Design",
   "sector": "university",
   "framing": "single_specific",
-  "sourceUrl": "https://aboriginal.ecuad.ca/ecu-community-resources/territorial-acknowledgement/",
   "pattern": "situated_on_unceded",
+  "sourceUrl": "https://aboriginal.ecuad.ca/ecu-community-resources/territorial-acknowledgement/",
   "note": "Unceded Musqueam, Squamish, and Tsleil-Waututh territories.",
+  "statement": "Emily Carr University is situated on traditional unceded Coast Salish Territories",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Musqueam",
     "Squamish",

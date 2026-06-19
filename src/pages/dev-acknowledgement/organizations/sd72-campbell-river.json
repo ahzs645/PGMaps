@@ -3,8 +3,10 @@
   "name": "Campbell River School District (SD72)",
   "sector": "school-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.sd72.bc.ca/",
+  "sourceUrl": "https://media.sd72.bc.ca/media/Default/medialib/2024-sd72-framework-for-enhanced-student-learning.9ee95418093.pdf",
   "note": "Laich-Kwil-Tach, Xwémalhkwu, Klahoose, Métis, Kwakiutl, and Nuu-chah-nulth.",
+  "statement": "Campbell River and Quadra Island schools and our school board office are located on the traditional territory of the Liǧʷiɫdax̌ʷ people",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Laich-Kwil-Tach",
     "Xwémalhkwu",

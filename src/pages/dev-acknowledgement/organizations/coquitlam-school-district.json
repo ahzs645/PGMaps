@@ -3,8 +3,10 @@
   "name": "Coquitlam School District (SD43)",
   "sector": "school-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.sd43.bc.ca/",
+  "sourceUrl": "https://www.sd43.bc.ca/District/Pages/AbouttheDistrict.aspx",
   "note": "Kwikwetlem core territory within shared lands of Tsleil-Waututh, Katzie, Musqueam, Qayqayt, and Squamish.",
+  "statement": "School District No. 43 (Coquitlam) resides on the ancestral unceded territory of the kʷikʷəƛəm (Kwikwetlem First Nation).",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Kwikwetlem",
     "Tsleil-Waututh",

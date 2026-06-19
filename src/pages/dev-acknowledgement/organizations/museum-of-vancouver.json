@@ -3,8 +3,10 @@
   "name": "Museum of Vancouver",
   "sector": "cultural",
   "framing": "single_specific",
-  "sourceUrl": "https://museumofvancouver.ca/",
+  "sourceUrl": "https://museumofvancouver.ca/territorial-acknowledgement",
   "note": "Unceded Musqueam, Squamish, and Tsleil-Waututh; near the ancestral village of Sen̓áḵw.",
+  "statement": "The Museum of Vancouver and the city of Vancouver is located within the shared, unceded, ancestral territories",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

@@ -3,8 +3,10 @@
   "name": "Nicola Valley Institute of Technology",
   "sector": "institute",
   "framing": "single_specific",
-  "sourceUrl": "https://www.nvit.ca/",
+  "sourceUrl": "https://www.nvit.ca/about-us/campuses/merritt/",
   "note": "Merritt campus on unceded Nłeʔkepmx (Nlaka’pamux) and Syilx territory.",
+  "statement": "Our Merritt campus is located on the unceded traditional territories of the Nłeʔkepmx and Syilx people.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Nlaka’pamux",
     "Syilx"

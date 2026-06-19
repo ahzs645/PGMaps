@@ -6,6 +6,8 @@
   "pattern": "shared_territories",
   "sourceUrl": "https://www.whistler.ca/about/shared-territories-lilwat-and-squamish-nations/",
   "note": "Shared territories of the Lil’wat Nation and Squamish Nation.",
+  "statement": "The Resort Municipality of Whistler is grateful to be on the shared, unceded territory of the Líl̓wat People, known in their language",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Lil’wat Nation",
     "Squamish"

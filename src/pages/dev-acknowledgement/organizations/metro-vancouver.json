@@ -3,8 +3,10 @@
   "name": "Metro Vancouver",
   "sector": "regional-district",
   "framing": "regional",
-  "sourceUrl": "https://metrovancouver.org/",
+  "sourceUrl": "https://metrovancouver.org/about-us/indigenous-relations/territorial-acknowledgement",
   "note": "Shared territories of 10 local First Nations across the region.",
+  "statement": "Metro Vancouver acknowledges that the region’s residents live, work, and learn on the shared territories of many Indigenous Peoples, including 10 local First Nations",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Katzie",
     "Kwantlen",

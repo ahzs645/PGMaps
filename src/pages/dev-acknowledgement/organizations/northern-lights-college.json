@@ -5,6 +5,8 @@
   "framing": "mixed",
   "sourceUrl": "https://www.nlc.bc.ca/",
   "note": "Dane-zaa, Cree, Tse’Khene, Saulteau, Kaska Dena, Tahltan, Tlingit, and Métis.",
+  "statement": "Northern Lights College serves the communities of Northern British Columbia that are located on the territories of the Cree, Dene, Dunne-Za, Kaska, Saulteau",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Dane-zaa",
     "Cree",

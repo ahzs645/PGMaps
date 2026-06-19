@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://thecultch.com/",
   "note": "Musqueam, Squamish, and Tsleil-Waututh Nations.",
+  "statement": "The Cultch acknowledges that it is on unceded territories belonging to the xʷməθkʷəy̓əm (Musqueam), Sḵwx̱wú7mesh (Squamish), and səlilwətaɬ (Tsleil-Waututh) Nations.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Musqueam",
     "Squamish",

@@ -3,8 +3,10 @@
   "name": "City of Langley",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.langleycity.ca/",
+  "sourceUrl": "https://www.langleycity.ca/contact-us/langley-city",
   "note": "Katzie, Kwantlen, Matsqui, and Semiahmoo First Nations.",
+  "statement": "The City of Langley respectfully acknowledges the traditional unceded territory of the q̓ic̓əy̓ (Katzie)",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Katzie",
     "Kwantlen",

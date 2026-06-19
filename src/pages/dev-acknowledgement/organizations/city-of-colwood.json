@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.colwood.ca/",
   "note": "Lekwungen-speaking Songhees and Esquimalt Nations (Teechamista lands).",
+  "statement": "The City of Colwood sits on the ancestral lands of Teechamista and the Lekwungen-speaking people of the Songhees and Xwsepsum Nations.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Songhees Nation",
     "Esquimalt Nation"

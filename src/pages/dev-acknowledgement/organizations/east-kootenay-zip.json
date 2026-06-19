@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://ekzip.ca/",
   "note": "Ktunaxa Nation and Secwépemc people.",
+  "statement": "We acknowledge these lands on which we live and operate, rest and breathe, is the unceded, traditional and current territories of the Ktunaxa Nation",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Ktunaxa",
     "Secwépemc"

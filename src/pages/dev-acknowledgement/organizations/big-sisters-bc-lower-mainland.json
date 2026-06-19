@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.bigsisters.bc.ca/the-land-we-live-and-work-on/",
   "note": "Musqueam, Squamish, Tsleil-Waututh, Qayqayt, Kwantlen, Katzie, Semiahmoo, Tsawwassen, Kwikwetlem, and Stó:lō.",
+  "statement": "At Big Sisters, we honour that the land on which we work and mentor is the traditional and unceded territory of the xʷməθkʷəy̓əm (Musqueam)",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

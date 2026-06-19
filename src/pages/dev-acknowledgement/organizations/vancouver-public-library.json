@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.vpl.ca/rights-reconciliation",
   "note": "Unceded territories of Musqueam, Squamish, and Tsleil-Waututh.",
+  "statement": "Vancouver Public Library is on the unceded traditional territories of the xʷməθkʷəy̓əm (Musqueam Indian Band)",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

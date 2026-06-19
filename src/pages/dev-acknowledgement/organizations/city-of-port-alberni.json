@@ -3,8 +3,10 @@
   "name": "City of Port Alberni",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://portalberni.ca/",
+  "sourceUrl": "https://www.portalberni.ca/first-nations",
   "note": "Hupacasath and Tseshaht First Nations.",
+  "statement": "The City of Port Alberni boundary lies within the traditional territories of the Hupacasath and Tseshaht First Nations.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Hupacasath",
     "Tseshaht"

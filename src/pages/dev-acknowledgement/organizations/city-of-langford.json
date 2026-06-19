@@ -3,8 +3,10 @@
   "name": "City of Langford",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.langford.ca/",
+  "sourceUrl": "https://langford.ca/city-hall/land-acknowledgment/",
   "note": "Xwsepsum (Esquimalt), Lekwungen (Songhees), Sc’ianew, and W̱SÁNEĆ peoples.",
+  "statement": "The City of Langford acknowledges and honours the traditional territories of the Coast Salish",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Esquimalt Nation",
     "Songhees Nation",

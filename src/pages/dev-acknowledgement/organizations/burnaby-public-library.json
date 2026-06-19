@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://bpl.bc.ca/",
   "note": "Homelands of the hən̓q̓əmin̓əm̓ (Musqueam) and Sḵwx̱wú7mesh (Squamish) speaking peoples.",
+  "statement": "We respectfully acknowledge that Burnaby Public Library is located on the unceded territories of the xʷməθkʷəy̓əm (Musqueam), Sḵwx̱wú7mesh (Squamish), səlilwətaɬ (Tsleil-Waututh), and kʷikʷəƛ̓əm (Kwikwetlem) Peoples.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Musqueam",
     "Squamish"

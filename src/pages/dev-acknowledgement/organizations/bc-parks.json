@@ -5,6 +5,8 @@
   "framing": "regional",
   "sourceUrl": "https://bcparks.ca/about/indigenous-relations-reconciliation/",
   "note": "Acknowledges all First Nations on whose territories BC parks were established.",
+  "statement": "We acknowledge all First Nations on whose territories BC Parks were established.",
+  "statementKind": "exact_statement",
   "acknowledges": [],
   "campuses": [
     {

@@ -3,8 +3,10 @@
   "name": "Provincial Health Services Authority",
   "sector": "health",
   "framing": "regional",
-  "sourceUrl": "https://www.phsa.ca/about/who-we-are/eradicating-indigenous-specific-racism/our-commitment",
+  "sourceUrl": "https://www.phsa.ca/our-services/programs-services/indigenous-health",
   "note": "Operates on territories of Indigenous Peoples across BC; head office on Coast Salish territories.",
+  "statement": "PHSA provides services on the traditional, ancestral and unceded and ceded territories of First Nations across British Columbia.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

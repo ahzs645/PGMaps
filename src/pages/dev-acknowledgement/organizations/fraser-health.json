@@ -5,6 +5,8 @@
   "framing": "regional",
   "sourceUrl": "https://www.fraserhealth.ca/about-us/about-fraser-health",
   "note": "Coast Salish and Nlaka’pamux Nations across its region.",
+  "statement": "We recognize that Fraser Health provides care on the traditional, ancestral and unceded lands of the Coast Salish and Nlaka’pamux Nations",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Coast Salish",
     "Nlaka’pamux"

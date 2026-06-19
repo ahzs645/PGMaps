@@ -3,8 +3,10 @@
   "name": "First Nations Health Authority",
   "sector": "health",
   "framing": "regional",
-  "sourceUrl": "https://www.fnha.ca/",
+  "sourceUrl": "https://www.fnha.ca/Documents/FNHA-Annual-Report-2024-2025.pdf",
   "note": "Province-wide guidance acknowledging the traditional territories of BC First Nations.",
+  "statement": "acknowledges the unceded lands and territories of the self-determining First Nations",
+  "statementKind": "exact_excerpt",
   "acknowledges": [],
   "campuses": [
     {

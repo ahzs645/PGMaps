@@ -3,9 +3,11 @@
   "name": "Royal Roads University",
   "sector": "university",
   "framing": "single_specific",
-  "sourceUrl": "https://www.royalroads.ca/about/indigenous-engagement/land-acknowledgment-welcome",
   "pattern": "located_on",
+  "sourceUrl": "https://www.royalroads.ca/about/indigenous-engagement/land-acknowledgment-welcome",
   "note": "Lekwungen-speaking Songhees and Esquimalt Nations.",
+  "statement": "Royal Roads University is on the traditional Lands of the Lekwungen-speaking Peoples, the Songhees and Esquimalt Nations.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Songhees Nation",
     "Esquimalt Nation"

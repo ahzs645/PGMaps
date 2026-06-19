@@ -5,6 +5,8 @@
   "framing": "per_campus",
   "sourceUrl": "https://www.jibc.ca/office-indigenization/indigenization",
   "note": "New Westminster on Qayqayt/Musqueam/Coast Salish; regional campuses across Katzie, Kwantlen, Stó:lō, Syilx, Songhees, Esquimalt, W̱SÁNEĆ.",
+  "statement": "We respectfully acknowledge JIBC's New Westminster campus is located on the unceded Traditional Territories of the Qayqayt, Musqueam and Coast Salish Peoples.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Qayqayt",
     "Musqueam",

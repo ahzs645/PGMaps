@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://intrepidtheatre.com/land-acknowledgement-resources/",
   "note": "Lekwungen People — the Esquimalt and Songhees Nations.",
+  "statement": "We acknowledge with respect the beautiful and traditional territories of the Lekwungen People",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Esquimalt Nation",
     "Songhees Nation"

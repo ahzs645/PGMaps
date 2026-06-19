@@ -5,6 +5,8 @@
   "framing": "regional",
   "sourceUrl": "https://orl.bc.ca/accessibility-plan/acknowledgements/",
   "note": "Sinixt, Ktunaxa, Secwépemc, and Syilx peoples across the service area.",
+  "statement": "the ORL’s service area is in the traditional and unceded territories of the Sinixt, K’tunaxa, Secwepemc, and Syilx peoples.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Sinixt",
     "Ktunaxa",

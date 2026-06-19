@@ -3,8 +3,10 @@
   "name": "City of Salmon Arm",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.salmonarm.ca/",
+  "sourceUrl": "https://www.salmonarm.ca/Archive/ViewFile/Item/1231",
   "note": "Secwépemc people.",
+  "statement": "We acknowledge that we are gathering here on the traditional territory of the Secwepemc people",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Secwépemc"
   ],

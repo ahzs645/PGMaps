@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.mission.ca/council-government/indigenous-relations",
   "note": "Traditional territory of the Stó:lō.",
+  "statement": "This place is situated on the unceded, ancestral, and shared territory of the Stó:lō people, who have occupied these lands since time immemorial.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Stó:lō Nation"
   ],

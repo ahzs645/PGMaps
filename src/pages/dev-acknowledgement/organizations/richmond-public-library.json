@@ -3,8 +3,10 @@
   "name": "Richmond Public Library",
   "sector": "library",
   "framing": "single_specific",
-  "sourceUrl": "https://www.yourlibrary.ca/",
+  "sourceUrl": "https://rpl.yourlibrary.ca/wp-content/uploads/2025/06/Board-Meeting-Agenda-May282025.pdf",
   "note": "hən̓q̓əmin̓əm̓-speaking Musqueam peoples.",
+  "statement": "The Richmond Public Library is located on the ancestral territory of the hən̓q̓əmin̓əm̓",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam"
   ],

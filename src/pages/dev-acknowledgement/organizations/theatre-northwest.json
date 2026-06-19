@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.theatrenorthwest.com/about-us/",
   "note": "Lheidli T’enneh First Nation.",
+  "statement": "Theatre Northwest is located on the traditional, ancestral, and unceded Territory of the Lheidli T’enneh First Nations.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Lheidli T’enneh"
   ],

@@ -4,8 +4,10 @@
   "sector": "health",
   "framing": "regional",
   "pattern": "offers_services_on",
-  "sourceUrl": "https://www.islandhealth.ca/",
+  "sourceUrl": "https://www.islandhealth.ca/learn-about-health/indigenous-health",
   "note": "Coast Salish, Nuu-chah-nulth, and Kwakwaka’wakw Peoples (people-groups, not single Nations).",
+  "statement": "Island Health offers services and programs on the unceded and traditional territories of the Coast Salish, Kwakwa̱ka̱ʼwakw, and Nuu-chah-nulth Peoples.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Coast Salish",
     "Nuu-chah-nulth",

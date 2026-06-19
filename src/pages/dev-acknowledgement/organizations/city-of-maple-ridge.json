@@ -3,8 +3,10 @@
   "name": "City of Maple Ridge",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.mapleridge.ca/",
+  "sourceUrl": "https://www.mapleridge.ca/explore-maple-ridge/about-maple-ridge",
   "note": "Katzie and Kwantlen First Nations.",
+  "statement": "traditional territories of the Katzie (q̓ic̓əy̓) First Nation and Kwantlen (qʼʷa:n̓ƛʼən̓) First Nation.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Katzie",
     "Kwantlen"

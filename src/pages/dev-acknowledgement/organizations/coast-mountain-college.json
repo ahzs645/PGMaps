@@ -5,6 +5,8 @@
   "framing": "mixed",
   "sourceUrl": "https://coastmountaincollege.ca/indigenous-resources/traditional-territories/acknowledgement-of-traditional-territories",
   "note": "Broad multi-Nation acknowledgement plus campus-specific wording across the northwest.",
+  "statement": "Coast Mountain College acknowledges the Ts'msyen (or Tsimshian) people on whose unceded, traditional territory the Terrace campus is located.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Ts’msyen",
     "Gitxsan",

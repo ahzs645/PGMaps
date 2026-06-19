@@ -3,8 +3,10 @@
   "name": "British Columbia Institute of Technology",
   "sector": "institute",
   "framing": "single_specific",
-  "sourceUrl": "https://www.bcit.ca/strategic-plan/reconciliation/",
+  "sourceUrl": "https://www.bcit.ca/indigenous-initiatives/",
   "note": "Coast Salish Nations of Musqueam, Squamish, and Tsleil-Waututh.",
+  "statement": "The British Columbia Institute of Technology acknowledges that our campuses are located on the unceded traditional territories of the Coast Salish Nations",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

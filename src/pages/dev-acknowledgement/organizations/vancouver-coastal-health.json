@@ -3,8 +3,10 @@
   "name": "Vancouver Coastal Health",
   "sector": "health",
   "framing": "regional",
-  "sourceUrl": "https://www.vch.ca/",
+  "sourceUrl": "https://medicalstaff.vch.ca/Documents/Final_MQLP%202022%20Impact%20Report.pdf",
   "note": "Coast Salish territories (Musqueam, Squamish, Tsleil-Waututh) and many First Nations across its region.",
+  "statement": "We wish to acknowledge that the land on which we gather is the traditional and unceded territory of the Coast Salish Peoples",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

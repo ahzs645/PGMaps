@@ -3,8 +3,10 @@
   "name": "BC Cancer",
   "sector": "health",
   "framing": "mixed",
-  "sourceUrl": "https://www.bccancer.bc.ca/our-services/centres-clinics/bc-cancer-prince-george/territorial-acknowledgement-and-indigenous-design",
+  "sourceUrl": "https://www.bccancer.bc.ca/our-services/centres-clinics/bc-cancer-surrey/territorial-acknowledgement-and-indigenous-design",
   "note": "Centre-specific acknowledgements; the Centre for the North connects to Lheidli T’enneh territory.",
+  "statement": "BC Cancer-Surrey is located on the unceded, traditional and ancestral shared territories",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Lheidli T’enneh First Nation",
     "Musqueam",

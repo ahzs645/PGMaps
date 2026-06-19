@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.newwestcity.ca/indigenous_reconciliation/land-acknowledgement",
   "note": "Qayqayt and Coast Salish Peoples (Musqueam, Squamish, Tsleil-Waututh, Kwikwetlem, Kwantlen, Katzie).",
+  "statement": "New Westminster is on the unceded and unsurrendered land of the Halkomelem speaking peoples",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Qayqayt",
     "Musqueam",

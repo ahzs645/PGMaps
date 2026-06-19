@@ -3,8 +3,10 @@
   "name": "City of Coquitlam",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.coquitlam.ca/",
+  "sourceUrl": "https://www.coquitlam.ca/1251/Reconciliation",
   "note": "Kwikwetlem traditional and ancestral lands, historically shared with Katzie and other Coast Salish Peoples.",
+  "statement": "The City is honoured to be located on the kʷikʷəƛ̓əm traditional and ancestral lands",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Kwikwetlem",
     "Katzie"

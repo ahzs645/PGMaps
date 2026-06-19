@@ -3,8 +3,10 @@
   "name": "WorkSafeBC",
   "sector": "crown-agency",
   "framing": "regional",
-  "sourceUrl": "https://www.worksafebc.com/",
+  "sourceUrl": "https://accessibility.worksafebc.com/-/media/WorksafeBC/Resources/about-us/what-we-do/accessibility-plan-pdf-en.pdf",
   "note": "Acknowledges Indigenous communities on whose territories employees work, province-wide.",
+  "statement": "We acknowledge and respect the Indigenous communities on whose territories our employees work and live.",
+  "statementKind": "exact_statement",
   "acknowledges": [],
   "campuses": [
     {

@@ -3,8 +3,10 @@
   "name": "Chilliwack School District (SD33)",
   "sector": "school-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.sd33.bc.ca/",
+  "sourceUrl": "https://sd33.bc.ca/",
   "note": "Stó:lō — Pil’alt, Semá:th, and Ts’elxwéyeqw tribes.",
+  "statement": "We are privileged to work and learn on the unceded traditional territory of Pilalt, Sema:th and Ts’elxwéyeqw.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Stó:lō",
     "Pil'alt",

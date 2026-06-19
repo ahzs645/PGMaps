@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.surreylibraries.ca/",
   "note": "Semiahmoo, Katzie, Kwikwetlem, Kwantlen, Qayqayt, Musqueam, and Tsawwassen.",
+  "statement": "Surrey Libraries recognizes that our work takes place on the ancestral, traditional, and unceded territories of the SEMYOME (Semiahmoo), q̓ic̓əy̓ (Katzie)",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Semiahmoo",
     "Katzie",

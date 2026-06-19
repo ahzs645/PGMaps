@@ -3,8 +3,10 @@
   "name": "BC Transit",
   "sector": "crown-agency",
   "framing": "regional",
-  "sourceUrl": "https://www.bctransit.com/",
+  "sourceUrl": "https://www.bctransit.com/final-reminder-changes-to-fare-product-sales-5/",
   "note": "Operates across ancestral and unceded territories of Indigenous Peoples throughout BC.",
+  "statement": "We respectfully acknowledge that BC Transit operates across the ancestral and unceded territories of Indigenous Peoples throughout British Columbia",
+  "statementKind": "exact_excerpt",
   "acknowledges": [],
   "campuses": [
     {

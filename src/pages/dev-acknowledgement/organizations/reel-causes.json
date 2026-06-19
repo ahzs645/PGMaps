@@ -3,8 +3,10 @@
   "name": "Reel Causes",
   "sector": "non-profit",
   "framing": "single_specific",
-  "sourceUrl": "https://reelcauses.org/",
+  "sourceUrl": "https://reelcauses.org/acknowledgment/",
   "note": "Coast Salish peoples.",
+  "statement": "We acknowledge that Reel Causes and its events are held on the unceded Indigenous land belonging to Coast Salish peoples.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Coast Salish"
   ],

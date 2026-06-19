@@ -5,6 +5,8 @@
   "framing": "regional",
   "sourceUrl": "https://info.bcassessment.ca/services-and-products/government/Pages/First-Nations.aspx",
   "note": "Acknowledges the many Indigenous Nations on whose territories it operates across BC.",
+  "statement": "BC Assessment (BCA) respectfully acknowledges the many Indigenous Nations on whose traditional territories we live and work.",
+  "statementKind": "exact_statement",
   "acknowledges": [],
   "campuses": [
     {

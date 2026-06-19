@@ -3,8 +3,10 @@
   "name": "North Island College",
   "sector": "college",
   "framing": "regional",
-  "sourceUrl": "https://www.nic.bc.ca/",
+  "sourceUrl": "https://www.nic.bc.ca/about/indigenization/index.html",
   "note": "Traditional territories of 35 First Nations of the Nuu-chah-nulth, Kwakwaka’wakw, and Coast Salish traditions.",
+  "statement": "We’re honoured to acknowledge the traditional territories of the combined 35 First Nations",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Nuu-chah-nulth",
     "Kwakwaka’wakw",

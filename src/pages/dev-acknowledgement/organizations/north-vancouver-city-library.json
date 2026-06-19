@@ -3,8 +3,10 @@
   "name": "North Vancouver City Library",
   "sector": "library",
   "framing": "single_specific",
-  "sourceUrl": "https://www.nvcl.ca/",
+  "sourceUrl": "https://www.nvcl.ca/indigenous-peoples-community-hub",
   "note": "Squamish and Tsleil-Waututh Nations.",
+  "statement": "North Vancouver City Library is grateful for the opportunity to learn and grow on the traditional, ancestral and unceded lands",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Squamish",
     "Tsleil-Waututh"

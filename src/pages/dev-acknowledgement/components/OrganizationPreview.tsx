@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Copy, ExternalLink, MapPin } from 'lucide-react'
+import { Check, Copy, ExternalLink, MapPin, Quote } from 'lucide-react'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { buildFallbackAcknowledgement, buildRegionalAcknowledgement } from '@/lib/acknowledgement/engine'
@@ -10,6 +10,12 @@ import { LocalMapBoundary } from './AcknowledgementMap'
 import { WordingOptionsControls, type AcknowledgementScope, type WordingToggle } from './WordingOptionsControls'
 
 const humanize = (value: string) => value.replace(/[_-]+/g, ' ')
+const statementKindLabel = (kind: string | undefined) => {
+  if (kind === 'exact_statement') return 'Exact statement'
+  if (kind === 'exact_excerpt') return 'Exact excerpt'
+  if (kind === 'not_found') return 'Not found'
+  return 'Source wording'
+}
 
 type LatLng = { latitude: number; longitude: number }
 
@@ -144,6 +150,28 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
             {org.acknowledges.length ? org.acknowledges.join(', ') : <span className="text-slate-400">Region-wide — no specific Nations</span>}
           </div>
         </div>
+
+        {(org.statement || org.statementKind === 'not_found') && (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                <Quote className="h-4 w-4 text-slate-500" />
+                Official source wording
+              </h3>
+              <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">
+                {statementKindLabel(org.statementKind)}
+              </span>
+            </div>
+            {org.statement ? (
+              <blockquote className="text-sm leading-6 text-slate-800">“{org.statement}”</blockquote>
+            ) : (
+              <p className="text-sm leading-6 text-slate-500">No official acknowledgement wording found.</p>
+            )}
+            <a href={org.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-teal-800">
+              Open source <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        )}
 
         <div className="mt-4 rounded-lg border border-teal-200 p-3">
           <div className="mb-2 flex items-center justify-between gap-2">

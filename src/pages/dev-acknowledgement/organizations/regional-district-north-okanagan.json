@@ -3,8 +3,10 @@
   "name": "Regional District of North Okanagan",
   "sector": "regional-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.rdno.ca/",
+  "sourceUrl": "https://www.rdno.ca/sites/default/files/2023-09/230906_RPT_Coldstream_Ranchlands_Dev_Plan.pdf",
   "note": "Syilx and Secwépemc First Nations.",
+  "statement": "Coldstream Ranchlands is in the traditional territory of the Secwepemc First Nations and the Syilx Okanagan People.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Syilx",
     "Secwépemc"

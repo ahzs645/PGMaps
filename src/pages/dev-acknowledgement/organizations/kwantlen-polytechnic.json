@@ -3,8 +3,10 @@
   "name": "Kwantlen Polytechnic University",
   "sector": "university",
   "framing": "single_specific",
-  "sourceUrl": "https://www.kpu.ca/indigenous",
+  "sourceUrl": "https://www.kpu.ca/design/territorial-acknowledgement",
   "note": "Musqueam, Katzie, Semiahmoo, Tsawwassen, Qayqayt, Kwikwetlem, and Kwantlen.",
+  "statement": "We at Kwantlen Polytechnic University respectfully acknowledge that we live, work and study in a region that overlaps with the unceded traditional and ancestral",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Katzie",

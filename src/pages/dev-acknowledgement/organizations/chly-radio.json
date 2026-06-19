@@ -3,8 +3,10 @@
   "name": "CHLY 101.7FM",
   "sector": "non-profit",
   "framing": "single_specific",
-  "sourceUrl": "https://www.chly.ca/",
+  "sourceUrl": "https://www.chly.ca/reconciliation",
   "note": "Snuneymuxw First Nation.",
+  "statement": "CHLY 101.7FM acknowledges and thanks the Snuneymuxw First Nation",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Snuneymuxw"
   ],

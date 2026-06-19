@@ -3,8 +3,10 @@
   "name": "Fraser Valley Regional District",
   "sector": "regional-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.fvrd.ca/",
+  "sourceUrl": "https://www.fvrd.ca/EN/main/about-the-fvrd/indigenous-relations.html",
   "note": "Stó:lō, Nlaka’pamux, and St’át’imc peoples.",
+  "statement": "The Nlaka'pamux, St'at'imc, Stó:lō, and Sts’ailes Peoples, each with their own distinct history, traditions, and culture",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Stó:lō",
     "Nlaka’pamux",

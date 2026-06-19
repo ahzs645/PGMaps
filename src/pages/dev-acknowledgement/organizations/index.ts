@@ -64,17 +64,17 @@ export type OrgRecord = {
   acknowledges: string[]
   /** Official page where the full wording lives. */
   sourceUrl: string
-  /** Short factual paraphrase of their approach (never their verbatim statement). */
+  /** Short factual summary of their approach. */
   note?: string
   /** Optional short structural label for the wording form (e.g. "located_on"). */
   pattern?: string
   /**
-   * Optional: the organization's own acknowledgement wording. Left empty by
-   * default — populate only with text you have the right to store (e.g. a short
-   * attributed excerpt or your own gathered notes). The full statement lives at
-   * `sourceUrl`. Not auto-filled to avoid reproducing copyrighted wording.
+   * Optional: the organization's own acknowledgement wording, a sourced excerpt,
+   * or a wording-specific note.
    */
   statement?: string
+  /** Whether `statement` is a full exact source statement, exact excerpt, or not found. */
+  statementKind?: 'exact_statement' | 'exact_excerpt' | 'not_found'
   campuses: OrgCampus[]
 }
 

@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.delta.ca/city-hall/diversity-inclusion/truth-and-reconciliation",
   "note": "Coast Salish Peoples, including Tsawwassen and Musqueam.",
+  "statement": "The City of Delta recognizes that Delta is located on the shared, traditional, ancestral, and unceded territories of the scəw̓aθən (Tsawwassen)",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Tsawwassen",
     "Musqueam"

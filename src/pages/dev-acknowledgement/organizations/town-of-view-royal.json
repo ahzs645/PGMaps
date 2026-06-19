@@ -3,8 +3,10 @@
   "name": "Town of View Royal",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.viewroyal.ca/",
+  "sourceUrl": "https://www.viewroyal.ca/assets/Town~Hall/Documents-Forms/Engineering/Urban%20Forest%20Strategy%20ADOPTED%2020260317.pdf",
   "note": "Lekwungen peoples — Esquimalt and Songhees Nations.",
+  "statement": "The Town of View Royal acknowledges with respect that it is on the unceded traditional territories of the Lekwungen peoples",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Esquimalt Nation",
     "Songhees Nation"

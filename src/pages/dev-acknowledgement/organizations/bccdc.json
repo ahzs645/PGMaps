@@ -3,8 +3,10 @@
   "name": "BC Centre for Disease Control",
   "sector": "health",
   "framing": "regional",
-  "sourceUrl": "https://www.bccdc.ca/",
+  "sourceUrl": "https://www.bccdc.ca/resource-gallery/Documents/BCCDC_Action_Plan_Reconciliation.pdf",
   "note": "BC First Nations Title and Rights province-wide; main office on Coast Salish territories.",
+  "statement": "We are grateful to all the First Nations who have cared for and nurtured this land for all time",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

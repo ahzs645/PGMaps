@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.vanartgallery.bc.ca/landacknowledgement/",
   "note": "Unceded territories of Musqueam, Squamish, and Tsleil-Waututh.",
+  "statement": "The Vancouver Art Gallery is situated on the unceded territories of the xʷməθkʷəy̓əm (Musqueam), Sḵwx̱wú7mesh (Squamish) and səlilwətaɬ (Tsleil-Waututh) nations.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Musqueam",
     "Squamish",

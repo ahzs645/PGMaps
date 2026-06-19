@@ -3,8 +3,10 @@
   "name": "Vancouver School Board (SD39)",
   "sector": "school-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.vsb.bc.ca/",
+  "sourceUrl": "https://www.vsb.bc.ca/our-district",
   "note": "Musqueam, Squamish Nation, and Tsleil-Waututh Nation.",
+  "statement": "With deep gratitude and respect, we are honoured to be learning and unlearning on the ancestral and unceded lands",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

@@ -5,6 +5,8 @@
   "framing": "mixed",
   "sourceUrl": "https://www.unbc.ca/about-unbc/traditional-territory-acknowledgement",
   "note": "Broad institution-wide territory acknowledgement; each campus connects to specific Nations.",
+  "statement": "We are committed to building and nurturing relationships with Indigenous peoples and we acknowledge their traditional lands.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Lheidli T’enneh First Nation",
     "Lhtako Dene Nation",

@@ -3,8 +3,10 @@
   "name": "CARFAC BC",
   "sector": "cultural",
   "framing": "single_specific",
-  "sourceUrl": "https://www.carfacbc.ca/",
+  "sourceUrl": "https://www.carfacbc.org/",
   "note": "Musqueam, Squamish, and Tsleil-Waututh Nations.",
+  "statement": "The work of CARFAC BC takes place on the traditional, ancestral, and unceded territories of the xʷməθkʷəy̓əm (Musqueam)",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

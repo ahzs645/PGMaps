@@ -3,8 +3,10 @@
   "name": "Thompson Rivers University",
   "sector": "university",
   "framing": "mixed",
-  "sourceUrl": "https://www.tru.ca/",
+  "sourceUrl": "https://www.tru.ca/marcom/styleguide/indigenous-language.html",
   "note": "Tk’emlúps te Secwépemc and T’exelc within Secwepemcúl’ecw.",
+  "statement": "Thompson Rivers University campuses are on the ancestral lands of the Tk'emlúps te Secwépemc (Kamloops campus) and the T’exelc",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Tk’emlúps te Secwépemc",
     "T’exelc"

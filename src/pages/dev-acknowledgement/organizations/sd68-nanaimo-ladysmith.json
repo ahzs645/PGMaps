@@ -3,8 +3,10 @@
   "name": "Nanaimo Ladysmith Public Schools (SD68)",
   "sector": "school-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.sd68.bc.ca/",
+  "sourceUrl": "https://www.sd68.bc.ca/wp-content/uploads/602.19AP-Anti-racism-and-Cultural-Safety.pdf",
   "note": "Snuneymuxw, Snaw-naw-as, and Stz’uminus First Nations.",
+  "statement": "With great respect and humility, we acknowledge and honour the lands of the Snuneymuxw, Snaw Naw As and Stz’uiminus people.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Snuneymuxw",
     "Snaw-naw-as",

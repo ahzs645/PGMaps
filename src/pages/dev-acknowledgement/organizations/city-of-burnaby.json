@@ -3,8 +3,10 @@
   "name": "City of Burnaby",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.burnaby.ca/our-city/indigenous-peoples-and-reconciliation",
+  "sourceUrl": "https://www.burnaby.ca/our-city/indigenous-peoples-and-reconciliation/indigenous-resources",
   "note": "Unceded territories of Musqueam, Squamish, Tsleil-Waututh, and Kwikwetlem.",
+  "statement": "We respectfully acknowledge that the City of Burnaby is located on the unceded territories of the xʷməθkʷəy̓əm (Musqueam), Sḵwx̱wú7mesh (Squamish)",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

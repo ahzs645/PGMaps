@@ -4,8 +4,10 @@
   "sector": "municipality",
   "framing": "single_specific",
   "pattern": "located_on_unceded",
-  "sourceUrl": "https://www.abbotsford.ca/",
+  "sourceUrl": "https://www.abbotsford.ca/business-development/economic-development/indigenous-businesses",
   "note": "Traditional, ancestral, and unceded territory of the Stó:lō Nation.",
+  "statement": "the City of Abbotsford is located on the traditional and ancestral territory of the Semá:th, Mathxwí, and Leq’á:mel First Nations",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Stó:lō Nation"
   ],

@@ -3,9 +3,11 @@
   "name": "Vancouver Community College",
   "sector": "college",
   "framing": "single_specific",
-  "sourceUrl": "https://www.vcc.ca/services/services-for-students/indigenous-services/welcome/",
   "pattern": "on_whose_lands_we_live_learn_work",
+  "sourceUrl": "https://www.vcc.ca/services/services-for-students/indigenous-services/welcome/",
   "note": "Musqueam, Squamish, and Tsleil-Waututh, on whose territories the college works.",
+  "statement": "We respectfully acknowledge that Vancouver Community College is located on the traditional and unceded territories of the xʷməθkʷəy̓əm (Musqueam), Sḵwx̱wú7mesh (Squamish), and səlilwətaɬ (Tsleil-Waututh) Nations.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Musqueam",
     "Squamish",

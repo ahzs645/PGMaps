@@ -3,8 +3,10 @@
   "name": "Chinese Canadian Museum",
   "sector": "cultural",
   "framing": "single_specific",
-  "sourceUrl": "https://www.chinesecanadianmuseum.ca/land-acknowledgement/",
+  "sourceUrl": "https://www.chinesecanadianmuseum.ca/resource/about-us/land-acknowledgement/",
   "note": "Unceded traditional territories of Musqueam, Squamish, and Tsleil-Waututh.",
+  "statement": "The Chinese Canadian Museum is located on the traditional, ancestral, and unceded territories of the Musqueam, Squamish, and Tsleil-Waututh peoples in Vancouver, British Columbia.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Musqueam",
     "Squamish",

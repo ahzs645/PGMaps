@@ -3,8 +3,10 @@
   "name": "City of Vancouver",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://vancouver.ca/people-programs/city-of-reconciliation.aspx",
+  "sourceUrl": "https://vancouver.ca/people-programs/land-acknowledgement.aspx",
   "note": "Unceded territories of Musqueam, Squamish, and Tsleil-Waututh.",
+  "statement": "Vancouver is located on territory that was never ceded, or given up to the Crown by the Musqueam, Squamish, or Tsleil-Waututh peoples.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Musqueam",
     "Squamish",

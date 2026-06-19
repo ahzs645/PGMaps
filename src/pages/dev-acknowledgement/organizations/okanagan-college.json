@@ -3,8 +3,10 @@
   "name": "Okanagan College",
   "sector": "college",
   "framing": "mixed",
-  "sourceUrl": "https://www.okanagan.bc.ca/indigenization",
+  "sourceUrl": "https://www.okanagan.bc.ca/indigenization/indigenization-protocols-and-guidelines",
   "note": "Syilx Okanagan for Penticton/Kelowna/Vernon; Secwépemc for Salmon Arm.",
+  "statement": "Okanagan College respectfully acknowledges that the Penticton, Kelowna and Vernon campuses are located on the lands of the Syilx Okanagan People",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Syilx Okanagan Nation",
     "Secwépemc"

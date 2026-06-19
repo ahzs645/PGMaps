@@ -3,8 +3,10 @@
   "name": "City of Prince Rupert",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.princerupert.ca/",
+  "sourceUrl": "https://www.princerupert.ca/sites/7/files/2026-02/23075%20Prince%20Rupert%20CCAP.pdf",
   "note": "Ts’msyen people.",
+  "statement": "We respectfully acknowledge that what is now known as Prince Rupert is the traditional, ancestral, unceded territory of the Ts’msyen people.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Ts’msyen"
   ],

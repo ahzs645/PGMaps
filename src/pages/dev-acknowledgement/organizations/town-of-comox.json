@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.comox.ca/",
   "note": "K’ómoks First Nation.",
+  "statement": "The Town of Comox respectfully acknowledges that we gather and work on the unceded traditional territory of the K’ómoks First Nation",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "K’ómoks"
   ],

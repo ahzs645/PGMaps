@@ -3,8 +3,10 @@
   "name": "Elections BC",
   "sector": "crown-agency",
   "framing": "mixed",
-  "sourceUrl": "https://elections.bc.ca/",
+  "sourceUrl": "https://elections.bc.ca/docs/accessibility-plan-2023.pdf",
   "note": "Head office on Lekwungen territory (Songhees, Esquimalt); administers elections across First Nations territories province-wide.",
+  "statement": "Elections BC acknowledges, with respect, that our head office is located on the traditional territory of the Lekwungen People",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Songhees Nation",
     "Esquimalt Nation"

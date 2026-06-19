@@ -3,8 +3,10 @@
   "name": "BC Housing",
   "sector": "crown-agency",
   "framing": "regional",
-  "sourceUrl": "https://www.bchousing.org/",
+  "sourceUrl": "https://www.bchousing.org/indigenous",
   "note": "Province-wide; corporate office on Musqueam, Squamish, and Tsleil-Waututh territory.",
+  "statement": "BC Housing gratefully acknowledges that we live and work on the unceded traditional and ancestral homelands of hundreds of Indigenous Peoples",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

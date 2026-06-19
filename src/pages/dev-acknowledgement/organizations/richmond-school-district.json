@@ -3,8 +3,10 @@
   "name": "Richmond School District (SD38)",
   "sector": "school-district",
   "framing": "single_specific",
-  "sourceUrl": "https://sd38.bc.ca/",
+  "sourceUrl": "https://sd38.bc.ca/wp-content/uploads/2026/02/FESL-Report-2023.pdf",
   "note": "First Peoples of the hən̓q̓əmin̓əm̓ language group (Musqueam).",
+  "statement": "The Richmond Board of Education acknowledges with gratitude, the First Peoples of the hən̓q̓əmin̓əm̓ language group",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam"
   ],

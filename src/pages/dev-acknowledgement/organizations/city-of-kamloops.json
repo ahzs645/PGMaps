@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.kamloops.ca/our-community/indigenous-relations",
   "note": "Tk’emlúps te Secwépemc within Secwépemc territory.",
+  "statement": "The City of Kamloops acknowledges that we are located on Tk̓emlúps te Secwépemc territory, situated within the unceded ancestral lands of the Secwépemc Nation.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Tk’emlúps te Secwépemc"
   ],

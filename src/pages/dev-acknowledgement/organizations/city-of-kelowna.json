@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.kelowna.ca/",
   "note": "Traditional, ancestral, unceded territory of the Syilx Okanagan people.",
+  "statement": "Kelowna is located on the traditional, ancestral, unceded territory of the syilx/Okanagan people.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Syilx Okanagan Nation"
   ],

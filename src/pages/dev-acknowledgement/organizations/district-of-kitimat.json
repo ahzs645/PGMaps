@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://getinvolved.kitimat.ca/indigenous-relations",
   "note": "Haisla Nation.",
+  "statement": "We/I respectfully acknowledge that we are gathered on the unceded territory of the Haisla Nation.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Haisla"
   ],

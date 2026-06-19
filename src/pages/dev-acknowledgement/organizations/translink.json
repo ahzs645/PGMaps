@@ -5,6 +5,8 @@
   "framing": "regional",
   "sourceUrl": "https://www.translink.ca/about-us/about-translink/indigenous-relations",
   "note": "Region-wide framing acknowledging First Nations stewardship of Metro Vancouver.",
+  "statement": "TransLink respects the First Nations for their stewardship of the region from time immemorial",
+  "statementKind": "exact_excerpt",
   "acknowledges": [],
   "campuses": [
     {

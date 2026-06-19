@@ -3,8 +3,10 @@
   "name": "District of North Vancouver",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.dnv.org/",
+  "sourceUrl": "https://www.dnv.org/community-environment/our-journey-towards-reconciliation",
   "note": "Tsleil-Waututh, Squamish, and Musqueam.",
+  "statement": "The District of North Vancouver respectfully acknowledges the original peoples of these lands and waters, specifically the səlilwətaɬ (Tsleil-Waututh), Sḵwx̱wú7mesh Úxwumixw (Squamish)",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Tsleil-Waututh",
     "Squamish",

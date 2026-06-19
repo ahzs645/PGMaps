@@ -5,6 +5,8 @@
   "framing": "regional",
   "sourceUrl": "https://www.northernhealth.ca/",
   "note": "Region-wide framing across northern BC; does not name a single Nation institution-wide.",
+  "statement": "Northern Health acknowledges with gratitude that our work takes place on the territories of the Tlingit, Tahltan, Nisga’a, Gitxsan, Tsimshian, Haisla",
+  "statementKind": "exact_excerpt",
   "acknowledges": [],
   "campuses": [
     {

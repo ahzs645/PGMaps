@@ -9,24 +9,20 @@ This database powers the **Multi-point composer & org comparison** on
 Nation(s) our engine derives from geography, and compares that against what the
 org actually names.
 
-## ⚠️ The one hard rule: facts + a link, never the verbatim statement
+## Statement storage
 
-We do **not** store an organization's verbatim land/territory acknowledgement
-text (it is the organization's copyrighted wording). Store only:
+Each organization record can store both the extracted facts used by the
+comparison engine and the organization's own acknowledgement wording:
 
-- the **facts** — which Nations they name, where their sites are, how they frame it; and
-- the **`sourceUrl`** — the official page where the full wording lives.
+- the **facts** — which Nations they name, where their sites are, how they frame it;
+- the **`sourceUrl`** — the official page where the wording was found; and
+- the optional **`statement`** — the acknowledgement wording or a short note about
+  the wording.
 
-If you are given a statement, **extract the facts from it** (the list of Nations,
-the framing). Do not paste the sentence into the JSON, and do not paraphrase it
-so closely that it reproduces the original. `note` is a short factual summary
-(e.g. "Musqueam, Squamish, and Tsleil-Waututh"), not a reworded quote.
-
-**How we "store" the statement: the link.** `sourceUrl` is the canonical
-reference to the org's full wording — that's the source, one click away (the
-comparison UI surfaces it as an "Official statement" link). There is also an
-optional `statement` field for a short attributed excerpt or your own notes, but
-it's not required and is never auto-filled — prefer the source link.
+When adding or updating `statement`, keep `sourceUrl` pointed at the official
+source so the wording can be checked later. `note` remains a short factual
+summary for the UI; use `statement` for the actual acknowledgement text or
+wording-specific notes.
 
 ## Schema (`OrgRecord`, see `index.ts`)
 
@@ -38,7 +34,9 @@ it's not required and is never auto-filled — prefer the source link.
   "framing": "single_specific | per_campus | regional | mixed",
   "acknowledges": ["Nation A", "Nation B"], // institution-wide union of Nations named (facts)
   "sourceUrl": "https://…",              // official acknowledgement page
-  "note": "Short factual summary (not the verbatim statement).",
+  "note": "Short factual summary for the comparison UI.",
+  "statement": "Official acknowledgement wording, excerpt, or wording note.",
+  "statementKind": "exact_statement",    // exact_statement | exact_excerpt | not_found
   "pattern": "located_on",               // optional: short structural label, see below
   "campuses": [
     { "name": "Campus / site name", "latitude": 0, "longitude": 0, "acknowledges": ["Nation A"] }
@@ -56,6 +54,9 @@ it's not required and is never auto-filled — prefer the source link.
 - **`acknowledges`** (org level) — the union of Nations named across sites. Use the names the org uses; common English names are fine (the engine fuzzy-matches).
 - **`campuses[].acknowledges`** — the Nation(s) for that specific site. For `regional` orgs this is usually `[]`.
 - **`latitude`/`longitude`** — campus/site or city-hall coordinates (approximate is OK; verify if precision matters). Used to resolve the territory polygon at that point.
+- **`statementKind`** — mark whether `statement` is the complete official wording
+  found (`exact_statement`), an exact source excerpt from a longer statement
+  (`exact_excerpt`), or no official wording was found (`not_found`).
 - **`pattern`** (optional) — a short structural label for the wording *form* (never the words), useful for the engine/template comparison. Examples seen so far:
   `located_on`, `situated_on_unceded`, `gathered_today_unceded`,
   `on_whose_land_we_live_work_play`, `operates_on_lands_and_waters`,
@@ -64,8 +65,8 @@ it's not required and is never auto-filled — prefer the source link.
 ## How to add an org from a source
 
 1. Find the org's **official** acknowledgement page → `sourceUrl`.
-2. Read it and **extract facts only**: the Nation(s) named (and per campus if it
-   differs), and the framing style. Do **not** copy the sentence in.
+2. Read it and extract the Nation(s) named (and per campus if it differs), the
+   framing style, and the acknowledgement wording you want stored in `statement`.
 3. Get coordinates for each campus/site (campus address or city hall).
 4. Choose a kebab-case `id`; write `src/pages/dev-acknowledgement/organizations/<id>.json`.
 5. Done — it appears in the picker automatically. Verify on `/dev/acknowledgement`

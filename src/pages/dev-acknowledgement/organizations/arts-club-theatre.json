@@ -3,8 +3,10 @@
   "name": "Arts Club Theatre Company",
   "sector": "cultural",
   "framing": "single_specific",
-  "sourceUrl": "https://artsclub.com/",
+  "sourceUrl": "https://artsclub.com/about/commitment-to-anti-oppression-and-inclusion",
   "note": "Musqueam, Squamish, and Tsleil-Waututh Nations.",
+  "statement": "The Arts Club Theatre Company acknowledges the traditional, ancestral, and unceded territories of the xʷməθkʷəy̓əm, Sḵwx̱wú7mesh, and səlilwətaɬ Nations",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Musqueam",
     "Squamish",

@@ -3,8 +3,10 @@
   "name": "BC Hydro",
   "sector": "crown-agency",
   "framing": "regional",
-  "sourceUrl": "https://www.bchydro.com/",
+  "sourceUrl": "https://www.bchydro.com/community/recreation_areas.html",
   "note": "Region-wide; infrastructure on lands where First Nations hold rights and title across BC.",
+  "statement": "All of our assets and recreation sites are located on these traditional territories.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [],
   "campuses": [
     {

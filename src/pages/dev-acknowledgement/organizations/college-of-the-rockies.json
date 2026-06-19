@@ -3,8 +3,10 @@
   "name": "College of the Rockies",
   "sector": "college",
   "framing": "mixed",
-  "sourceUrl": "https://www.cotr.bc.ca/",
+  "sourceUrl": "https://cotr.bc.ca/about-us/indigenous-education/",
   "note": "Ktunaxa traditional territory (with Secwépemc presence and Métis Nation BC partnership).",
+  "statement": "All of the College’s campuses are located in the traditional territory of the Ktunaxa people which is also home to the Kinbasket people.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Ktunaxa",
     "Secwépemc",

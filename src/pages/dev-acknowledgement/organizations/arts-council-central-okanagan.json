@@ -3,8 +3,10 @@
   "name": "Arts Council of the Central Okanagan (ARTSCO)",
   "sector": "cultural",
   "framing": "single_specific",
-  "sourceUrl": "https://www.artsco.ca/about-1",
+  "sourceUrl": "https://www.artsco.ca/",
   "note": "Syilx / Okanagan people (tm̓xʷúlaʔxʷ).",
+  "statement": "We recognize, honour, and respect the syilx / Okanagan lands upon which we live, work, and play.",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Syilx"
   ],

@@ -3,8 +3,10 @@
   "name": "College of New Caledonia",
   "sector": "college",
   "framing": "single_specific",
-  "sourceUrl": "https://cnc.bc.ca/services/prince-george/aboriginal-resources",
+  "sourceUrl": "https://cnc.bc.ca/docs/default-source/default-document-library/cnc-indigenous-strategy-booklet.pdf",
   "note": "Prince George campus acknowledges the unceded territory of Lheidli T’enneh.",
+  "statement": "The College of New Caledonia is honoured to work with the Indigenous communities in this region",
+  "statementKind": "exact_excerpt",
   "acknowledges": [
     "Lheidli T’enneh First Nation"
   ],

@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.rdmw.bc.ca/",
   "note": "Kwakwaka’wakw peoples.",
+  "statement": "We acknowledge that the Regional District of Mount Waddington is located within the traditional territory of the Kwakwaka’wakw people.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Kwakwaka’wakw"
   ],

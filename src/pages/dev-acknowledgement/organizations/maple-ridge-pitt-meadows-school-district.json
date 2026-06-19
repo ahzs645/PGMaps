@@ -3,8 +3,10 @@
   "name": "Maple Ridge–Pitt Meadows School District (SD42)",
   "sector": "school-district",
   "framing": "single_specific",
-  "sourceUrl": "https://www.sd42.ca/",
+  "sourceUrl": "https://www.sd42.ca/program/indigenous-education/",
   "note": "Shared, traditional, unceded territory of Katzie and Kwantlen First Nations.",
+  "statement": "Maple Ridge – Pitt Meadows School District No. 42 lies within the traditional territories of the Katzie First Nation and the Kwantlen First Nation.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Katzie",
     "Kwantlen"

@@ -3,8 +3,10 @@
   "name": "City of Surrey",
   "sector": "municipality",
   "framing": "single_specific",
-  "sourceUrl": "https://www.surrey.ca/",
+  "sourceUrl": "https://www.surrey.ca/about-surrey/social-development/supporting-urban-indigenous-leadership-surrey",
   "note": "Coast Salish Peoples, including Katzie, Kwantlen, and Semiahmoo.",
+  "statement": "The City of Surrey acknowledges the traditional territories of the Semiahmoo, Katzie, Kwikwetlem, Kwantlen, Qayqayt and Tsawwassen First Nations.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Katzie",
     "Kwantlen",

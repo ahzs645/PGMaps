@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.cnv.org/City-Hall/Truth-and-Reconciliation",
   "note": "Traditional and unceded territories of the Squamish and Tsleil-Waututh Nations.",
+  "statement": "We respectfully acknowledge that we live and work on the traditional and unceded territories of the Sḵwx̱wú7mesh (Squamish) and səlilwətaɬ (Tsleil-Waututh) Nations.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Squamish",
     "Tsleil-Waututh"

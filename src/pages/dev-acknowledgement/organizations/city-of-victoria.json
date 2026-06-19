@@ -5,6 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.victoria.ca/",
   "note": "Homelands of the Songhees and Esquimalt Peoples.",
+  "statement": "The City of Victoria is located on the homelands of the Songhees Nation and the Xwsepsum Nation.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Songhees Nation",
     "Esquimalt Nation"
