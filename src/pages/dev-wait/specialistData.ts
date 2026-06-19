@@ -69,6 +69,22 @@ export interface FacilityWaitMetrics {
   procedureRows: number
 }
 
+export type WaitBand = 'short' | 'medium' | 'long' | 'unknown'
+export type PatientType = 'all' | 'adult' | 'pediatric'
+export type SpecialistSort = 'wait' | 'cases' | 'specialists' | 'name'
+
+export interface SpecialistFilter {
+  procedureName?: string | null
+  patientType?: PatientType
+}
+
+export interface ProcedureOption {
+  name: string
+  rowCount: number
+  caseTotalKnown: number
+  facilityCount: number
+}
+
 export const SPECIALIST_WAIT_DATA_URL = '/data/bc-wait-specialists.json'
 export const SPECIALIST_WAIT_MAP_CENTER: [number, number] = [-124.4, 51.8]
 export const SPECIALIST_WAIT_MAP_ZOOM = 4.7
@@ -83,29 +99,84 @@ export function formatWeeks(value: number | null | undefined): string {
   return `${value.toFixed(1)}w`
 }
 
-export function facilityWaitMetrics(facility: SpecialistFacility): FacilityWaitMetrics {
+export function procedureMatchesFilter(procedure: SpecialistProcedure, filter: SpecialistFilter): boolean {
+  if (filter.procedureName && procedure.procedure_name !== filter.procedureName) return false
+  if (filter.patientType === 'adult' && procedure.adult_flag !== 'Y') return false
+  if (filter.patientType === 'pediatric' && procedure.adult_flag !== 'N') return false
+  return true
+}
+
+export function facilityMatchesFilter(facility: SpecialistFacility, filter: SpecialistFilter): boolean {
+  if (!filter.procedureName && (!filter.patientType || filter.patientType === 'all')) return true
+  return facility.specialists.some((specialist) => (
+    specialist.procedures.some((procedure) => procedureMatchesFilter(procedure, filter))
+  ))
+}
+
+export function facilityWaitMetrics(facility: SpecialistFacility, filter: SpecialistFilter = {}): FacilityWaitMetrics {
   const p50Values: number[] = []
   const p90Values: number[] = []
   let suppressedCaseRows = 0
   let procedureRows = 0
+  let knownCases = 0
 
   facility.specialists.forEach((specialist) => {
     specialist.procedures.forEach((procedure) => {
+      if (!procedureMatchesFilter(procedure, filter)) return
       procedureRows += 1
       if (procedure.p50_weeks != null) p50Values.push(procedure.p50_weeks)
       if (procedure.p90_weeks != null) p90Values.push(procedure.p90_weeks)
-      if (procedure.cases_waiting == null && procedure.cases_waiting_raw?.toLowerCase().includes('less than')) {
-        suppressedCaseRows += 1
-      }
+      if (procedure.cases_waiting != null) knownCases += procedure.cases_waiting
+      else if (procedure.cases_waiting_raw?.toLowerCase().includes('less than')) suppressedCaseRows += 1
     })
   })
 
   return {
-    knownCases: facility.case_total_known,
+    knownCases,
     suppressedCaseRows,
     p50MedianWeeks: median(p50Values),
     p90MedianWeeks: median(p90Values),
     procedureRows,
+  }
+}
+
+export function buildProcedureOptions(facilities: SpecialistFacility[]): ProcedureOption[] {
+  const options = new Map<string, ProcedureOption>()
+  facilities.forEach((facility) => {
+    const countedNames = new Set<string>()
+    facility.procedures.forEach((procedure) => {
+      const existing = options.get(procedure.name) ?? {
+        name: procedure.name,
+        rowCount: 0,
+        caseTotalKnown: 0,
+        facilityCount: 0,
+      }
+      existing.rowCount += procedure.row_count
+      existing.caseTotalKnown += procedure.case_total_known
+      if (!countedNames.has(procedure.name)) {
+        existing.facilityCount += 1
+        countedNames.add(procedure.name)
+      }
+      options.set(procedure.name, existing)
+    })
+  })
+  return Array.from(options.values()).sort((a, b) => b.rowCount - a.rowCount || a.name.localeCompare(b.name))
+}
+
+export function compareFacilities(sort: SpecialistSort, filter: SpecialistFilter) {
+  return (a: SpecialistFacility, b: SpecialistFacility): number => {
+    if (sort === 'name') return a.facility_name.localeCompare(b.facility_name)
+    if (sort === 'specialists') return b.specialist_count - a.specialist_count
+    const metricsA = facilityWaitMetrics(a, filter)
+    const metricsB = facilityWaitMetrics(b, filter)
+    if (sort === 'cases') return metricsB.knownCases - metricsA.knownCases
+    // sort === 'wait': longest median P90 first, unknowns last
+    const waitA = metricsA.p90MedianWeeks
+    const waitB = metricsB.p90MedianWeeks
+    if (waitA == null && waitB == null) return a.facility_name.localeCompare(b.facility_name)
+    if (waitA == null) return 1
+    if (waitB == null) return -1
+    return waitB - waitA
   }
 }
 
