@@ -106,6 +106,20 @@ export function RouletteModal({
     return () => window.removeEventListener('keydown', handleKeydown)
   }, [handleClose])
 
+  // Hide the floating mobile top toolbar (PGMaps menu, search, info, theme)
+  // while the sheet is open so its controls don't peek out above the modal.
+  // The Navbar listens for this event; desktop is unaffected.
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden: true } })
+    )
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden: false } })
+      )
+    }
+  }, [])
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
@@ -225,8 +239,11 @@ export function RouletteModal({
             )}
           </div>
 
-          {/* Spinner or Result */}
-          <div className="flex min-w-0 flex-col items-center">
+          {/* Spinner or Result.
+              Reserve the wheel's height (mirrors RouletteWheel's reserved box
+              per breakpoint) so swapping the wheel for the shorter result card
+              — or hiding controls mid-spin — never shrinks the sheet. */}
+          <div className="flex min-h-[358px] min-w-0 flex-col items-center justify-center max-[360px]:min-h-[342px] min-[390px]:min-h-[388px] sm:min-h-[368px]">
             {/* Show result popup */}
             {hasSpun && !isSpinning && winner && (
               <RouletteResult
