@@ -133,7 +133,7 @@ export function RouletteModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4">
+        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4">
           {/* Filters & Wheel Options */}
           <div className="space-y-3 rounded-xl border border-border bg-muted/50 p-3">
             {/* Use Filters + Options on one line */}
