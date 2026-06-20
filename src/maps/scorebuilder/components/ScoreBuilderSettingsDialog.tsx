@@ -114,7 +114,7 @@ export function ScoreBuilderSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[min(960px,calc(100vw-2rem))] overflow-hidden p-0 sm:max-w-[960px]">
+      <DialogContent elevated className="max-h-[90vh] w-[min(960px,calc(100vw-2rem))] overflow-hidden p-0 sm:max-w-[960px]">
         <DialogHeader className="border-b border-border px-5 py-4">
           <DialogTitle>Index settings</DialogTitle>
           <DialogDescription>{TAB_DESCRIPTIONS[activeTab]}</DialogDescription>

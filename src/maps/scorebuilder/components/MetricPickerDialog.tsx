@@ -30,7 +30,7 @@ export function MetricPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[86vh] overflow-hidden p-0 sm:max-w-2xl">
+      <DialogContent elevated className="max-h-[86vh] overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
           <DialogTitle>Add Metric</DialogTitle>
           <DialogDescription>Choose one metric to add to the active score equation.</DialogDescription>

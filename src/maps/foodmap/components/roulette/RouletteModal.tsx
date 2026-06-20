@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { RouletteFilters } from './RouletteFilters'
 import { RouletteWheel } from './RouletteWheel'
 import { RouletteResult } from './RouletteResult'
@@ -96,30 +97,22 @@ export function RouletteModal({
     onClose()
   }, [resetFilters, onClose])
 
-  useEffect(() => {
-    const handleKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeydown)
-    return () => window.removeEventListener('keydown', handleKeydown)
-  }, [handleClose])
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      onClick={(e) => e.target === e.currentTarget && handleClose()}
-    >
-      <div className="flex max-h-[96dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[calc(100dvh-1rem)] sm:max-w-lg sm:rounded-2xl">
+    <Dialog open onOpenChange={(open) => { if (!open) handleClose() }}>
+      <DialogContent
+        variant="sheet"
+        elevated
+        showClose={false}
+        className="sm:max-h-[calc(100dvh-1rem)]"
+      >
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border p-4">
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-lg font-bold leading-tight text-foreground sm:text-xl">
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold leading-tight text-foreground sm:text-xl">
               <span className="text-xl sm:text-2xl" aria-hidden="true">🎰</span>
               Restaurant Roulette
-            </h2>
-            <p className="text-sm text-muted-foreground">Spin to pick a random restaurant</p>
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">Spin to pick a random restaurant</DialogDescription>
           </div>
           <button
             onClick={handleClose}
@@ -225,8 +218,11 @@ export function RouletteModal({
             )}
           </div>
 
-          {/* Spinner or Result */}
-          <div className="flex min-w-0 flex-col items-center">
+          {/* Spinner or Result.
+              Reserve the wheel's height (mirrors RouletteWheel's reserved box
+              per breakpoint) so swapping the wheel for the shorter result card
+              — or hiding controls mid-spin — never shrinks the sheet. */}
+          <div className="flex min-h-[358px] min-w-0 flex-col items-center justify-center max-[360px]:min-h-[342px] min-[390px]:min-h-[388px] sm:min-h-[368px]">
             {/* Show result popup */}
             {hasSpun && !isSpinning && winner && (
               <RouletteResult
@@ -246,7 +242,7 @@ export function RouletteModal({
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -157,7 +157,7 @@ export function ScorePresetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-0 sm:max-w-3xl">
+      <DialogContent elevated className="max-h-[88vh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-0 sm:max-w-3xl">
         <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
           <DialogTitle>Browse Presets</DialogTitle>
           <DialogDescription>Pick a recipe to reset the active weights and required data sources.</DialogDescription>

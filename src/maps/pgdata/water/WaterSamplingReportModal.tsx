@@ -1,6 +1,5 @@
-import { useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { formatDate } from '../shared'
 import { firstDate, firstString, formatUnknown, getNoticeDetailsUrl } from './utils'
 import { EmptyWaterDetail, WaterNoticeCard } from './WaterDetails'
@@ -10,30 +9,19 @@ import type { WaterState } from './useWaterData'
 export function WaterSamplingReportModal({ water, onClose }: { water: WaterState; onClose: () => void }) {
   const facility = water.selectedFacility
 
-  useEffect(() => {
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeydown)
-    return () => window.removeEventListener('keydown', handleKeydown)
-  }, [onClose])
-
   if (!facility) return null
 
   const detailsUrl = getNoticeDetailsUrl(facility.source) || firstString(facility.source, ['details_url'])
   const sampleRows = facility.bacteriologicalSamples + facility.chemicalResults
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      onClick={(event) => event.target === event.currentTarget && onClose()}
-    >
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-2xl backdrop-blur">
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent variant="sheet" elevated showClose={false} className="sm:max-w-5xl sm:max-h-[92dvh]">
         <div className="shrink-0 border-b border-border bg-background/90 p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="truncate text-xl font-bold text-foreground">{facility.name}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{facility.community || facility.address || facility.geocodedAddress || 'No locality provided'}</p>
+              <DialogTitle className="truncate text-xl font-bold text-foreground">{facility.name}</DialogTitle>
+              <DialogDescription className="mt-1 text-sm text-muted-foreground">{facility.community || facility.address || facility.geocodedAddress || 'No locality provided'}</DialogDescription>
               {facility.geocodedAddress && (
                 <p className="mt-1 text-xs text-muted-foreground">{facility.geocodedAddress}</p>
               )}
@@ -148,9 +136,8 @@ export function WaterSamplingReportModal({ water, onClose }: { water: WaterState
             </div>
           </div>
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   )
 }
 
