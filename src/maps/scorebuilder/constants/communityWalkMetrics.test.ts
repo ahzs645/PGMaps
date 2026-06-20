@@ -27,4 +27,17 @@ describe('community walkability variant metrics', () => {
       expect(metric.directionLabel).toBe('higher helps')
     }
   })
+
+  it('registers the MI-surface zonal metric with all lookup tables filled in', () => {
+    const metric = SCORE_METRICS.find((entry) => entry.key === 'walkabilityMiSurface')
+    expect(metric).toBeDefined()
+    if (!metric) return
+    expect(metric.category).toBe('walkability')
+    expect(metric.direction).toBe('higherIsBetter')
+    expect(metric.component).toBeDefined()
+    expect(metric.spatialMethod).toBe('pointInPolygon')
+    expect(metric.uncertainty).toBeDefined()
+    expect(metric.indexModule).toBeDefined()
+    expect(metric.indexDomain).toBeDefined()
+  })
 })

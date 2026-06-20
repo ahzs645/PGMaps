@@ -25,6 +25,7 @@ import { useScoreBuilderPointRecords } from './hooks/useScoreBuilderPointRecords
 import { useScoreBuilderResults } from './hooks/useScoreBuilderResults'
 import { useScoreBuilderState } from './hooks/useScoreBuilderState'
 import { useUserDatasets } from './hooks/useUserDatasets'
+import { useWalkabilityMiZonal } from './hooks/useWalkabilityMiZonal'
 import { exportMapImage, exportScoredRegions, type ScoreBuilderExportFormat } from './lib/exportRegions'
 import { exportPdfReport } from './lib/exportPdfReport'
 import {
@@ -159,6 +160,13 @@ export default function ScoreBuilderSection() {
     onNetworksLoaded(points.allNetworks)
   }, [onNetworksLoaded, points.allNetworks])
 
+  // The MI-surface zonal aggregation is expensive, so it only runs when the user
+  // actually weights the metric (turning the raster into a scored, ranked input).
+  const walkabilityMiByRegion = useWalkabilityMiZonal(
+    (state.weights.walkabilityMiSurface ?? 0) !== 0,
+    datasets.regions,
+  )
+
   const { regionMetricRows, metricRanges, metricValueLists } = useScoreBuilderMetricRows({
     regions: datasets.regions,
     points,
@@ -167,6 +175,7 @@ export default function ScoreBuilderSection() {
     datasetCollections,
     healthyPlanPgEnabled: sb.enabledSourceSet.has('healthyPlanPg'),
     activeMetricDefinitions: sb.activeMetricDefinitions,
+    walkabilityMiByRegion,
   })
 
   const results = useScoreBuilderResults({
