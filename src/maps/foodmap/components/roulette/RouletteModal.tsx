@@ -111,7 +111,7 @@ export function RouletteModal({
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
-      <div className="flex h-[min(96dvh,880px)] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[calc(100dvh-1rem)] sm:max-w-lg sm:rounded-2xl">
+      <div className="flex max-h-[96dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[calc(100dvh-1rem)] sm:max-w-lg sm:rounded-2xl">
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border p-4">
           <div className="min-w-0">
@@ -157,8 +157,11 @@ export function RouletteModal({
                 </button>
               </div>
 
-              {/* Options + eligible count + shuffle */}
-              <div className="flex items-center gap-2">
+              {/* Options + eligible count + shuffle.
+                  min-h-8 reserves the Shuffle button's height so the row
+                  doesn't shrink when the button hides on spin (which would
+                  toggle the modal scrollbar). */}
+              <div className="flex min-h-8 items-center gap-2">
                 <span className="text-sm text-muted-foreground">Options:</span>
                 <span
                   className={`text-right text-sm leading-tight ${

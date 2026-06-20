@@ -1,10 +1,19 @@
 /* Overrides for @firstform/spinnerwheel.
    Imported after the library styles so these win. */
 
-/* Bigger "Press ► to spin the wheel" prompt; pill grows with the text
-   instead of being clipped to the library's fixed 312px width. */
+/* Bigger "Press ► to spin the wheel" prompt. Keep a FIXED width (wider than
+   the library's 312px to fit the larger font, but still narrower than the
+   512px wheel) so the pill never resizes — long restaurant names shown while
+   spinning ellipsis-truncate instead of expanding the pill and toggling the
+   modal scrollbars. box-sizing keeps the border from changing the total width. */
 .spinner-wheel-label {
-  width: auto !important;
+  width: 480px !important;
+  /* Constant height: the library drops the 1.5px border while spinning
+     (.--has-text -> border:none), which would shorten the label ~3px and
+     toggle the modal scrollbar every spin. A fixed height (border-box, flex-
+     centered by the library) keeps the content height rock-steady. */
+  height: 58px !important;
+  box-sizing: border-box !important;
   padding: 0.6rem 1.5rem !important;
   font-size: 28px !important;
 }
@@ -17,4 +26,16 @@
    (library default is 20px). */
 .spinner-wheel__wheel-section {
   gap: 4px !important;
+}
+
+/* On phones the library shrinks the wheel-canvas an extra 35%
+   (@media max-width:480px -> .wheel-canvas{transform:scale(.65)}), on top of
+   the scaling our wrapper already applies. That left the wheel much smaller
+   than the label pill with a big empty gap below it. Cancel the extra shrink
+   so the wheel stays full-size on mobile (it still fits the reserved box,
+   whose corners are clipped by overflow-hidden while spinning). */
+@media (max-width: 480px) {
+  .wheel-canvas {
+    transform: none !important;
+  }
 }
