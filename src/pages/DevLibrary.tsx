@@ -5,6 +5,11 @@ import { ArrowRight, Beaker, CircleDot, Clock3, Droplets, Handshake, MousePointe
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+type DevSubpage = {
+  label: string
+  href: string
+}
+
 type DevEntry = {
   title: string
   description: string
@@ -12,6 +17,7 @@ type DevEntry = {
   icon: ElementType
   color: string
   label: string
+  subpages?: DevSubpage[]
 }
 
 const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0000/-96.0000/B1/L1/L2'
@@ -24,6 +30,7 @@ const devEntries: DevEntry[] = [
     icon: Wind,
     color: 'bg-sky-500',
     label: '/dev/aqmap',
+    subpages: [{ label: 'Main variant', href: '/dev/aqmap/main' }],
   },
   {
     title: 'Watersheds',
@@ -64,6 +71,7 @@ const devEntries: DevEntry[] = [
     icon: Clock3,
     color: 'bg-red-600',
     label: '/dev/wait',
+    subpages: [{ label: 'Specialist', href: '/dev/wait/specialist' }],
   },
   {
     title: 'Fallout Sites',
@@ -83,12 +91,14 @@ const devEntries: DevEntry[] = [
   },
 ]
 
-function DevCard({ title, description, href, icon: Icon, color, label }: DevEntry) {
+function DevCard({ title, description, href, icon: Icon, color, label, subpages }: DevEntry) {
   return (
-    <Link
-      to={href}
-      className="group flex h-full flex-col rounded-lg border bg-card p-5 transition-all duration-200 hover:border-primary/50 hover:shadow-lg sm:p-6"
-    >
+    <div className="group relative flex h-full flex-col rounded-lg border bg-card p-5 transition-all duration-200 hover:border-primary/50 hover:shadow-lg sm:p-6">
+      {/* Stretched link makes the whole card open the main page, while the
+          subpage buttons below sit on top (relative z-10) as separate links —
+          avoids nesting anchors inside an anchor. */}
+      <Link to={href} aria-label={`Open ${title}`} className="absolute inset-0 rounded-lg" />
+
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className={cn('flex h-11 w-11 items-center justify-center rounded-lg', color)}>
           <Icon className="h-5 w-5 text-white" />
@@ -105,7 +115,27 @@ function DevCard({ title, description, href, icon: Icon, color, label }: DevEntr
         Open dev page
         <ArrowRight className="h-4 w-4" />
       </div>
-    </Link>
+
+      {subpages && subpages.length > 0 && (
+        <div className="relative z-10 mt-4 border-t pt-4">
+          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Subpages
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {subpages.map((subpage) => (
+              <Link
+                key={subpage.href}
+                to={subpage.href}
+                className="inline-flex items-center gap-1 rounded-md border bg-background px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-muted"
+              >
+                {subpage.label}
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
