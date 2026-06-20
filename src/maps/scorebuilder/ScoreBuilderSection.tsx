@@ -16,6 +16,7 @@ import { ScoreBuilderRegionInsightDialog } from './components/ScoreBuilderRegion
 import { ScoreBuilderRightPanel } from './components/ScoreBuilderRightPanel'
 import { ScoreBuilderSettingsDialog } from './components/ScoreBuilderSettingsDialog'
 import { ScoreBuilderSidebar } from './components/ScoreBuilderSidebar'
+import { ScoreBuilderWalkabilitySurfacePanel } from './components/ScoreBuilderWalkabilitySurfacePanel'
 import { useMediaQuery } from './hooks/useMediaQuery'
 import { useScoreBuilderDatasets } from './hooks/useScoreBuilderDatasets'
 import { useScoreBuilderMapColors } from './hooks/useScoreBuilderMapColors'
@@ -24,6 +25,7 @@ import { useScoreBuilderPointRecords } from './hooks/useScoreBuilderPointRecords
 import { useScoreBuilderResults } from './hooks/useScoreBuilderResults'
 import { useScoreBuilderState } from './hooks/useScoreBuilderState'
 import { useUserDatasets } from './hooks/useUserDatasets'
+import { useWalkabilityMiZonal } from './hooks/useWalkabilityMiZonal'
 import { exportMapImage, exportScoredRegions, type ScoreBuilderExportFormat } from './lib/exportRegions'
 import { exportPdfReport } from './lib/exportPdfReport'
 import {
@@ -158,6 +160,13 @@ export default function ScoreBuilderSection() {
     onNetworksLoaded(points.allNetworks)
   }, [onNetworksLoaded, points.allNetworks])
 
+  // The MI-surface zonal aggregation is expensive, so it only runs when the user
+  // actually weights the metric (turning the raster into a scored, ranked input).
+  const walkabilityMiByRegion = useWalkabilityMiZonal(
+    (state.weights.walkabilityMiSurface ?? 0) !== 0,
+    datasets.regions,
+  )
+
   const { regionMetricRows, metricRanges, metricValueLists } = useScoreBuilderMetricRows({
     regions: datasets.regions,
     points,
@@ -166,6 +175,7 @@ export default function ScoreBuilderSection() {
     datasetCollections,
     healthyPlanPgEnabled: sb.enabledSourceSet.has('healthyPlanPg'),
     activeMetricDefinitions: sb.activeMetricDefinitions,
+    walkabilityMiByRegion,
   })
 
   const results = useScoreBuilderResults({
@@ -485,9 +495,19 @@ export default function ScoreBuilderSection() {
               regionFillColors={mapRegionFillColors}
               walkabilitySourceSurface={sb.showWalkabilitySourceSurface}
               sourceGridWeights={state.weights}
+              walkabilitySurfaceTuning={state.walkabilitySurfaceTuning}
               loading={datasets.loading}
               onMapInstance={handleMapInstance}
             />
+
+            {sb.showWalkabilitySourceSurface && (
+              <ScoreBuilderWalkabilitySurfacePanel
+                tuning={state.walkabilitySurfaceTuning}
+                onChange={sb.setWalkabilitySurfaceTuning}
+                metricWeights={state.weights}
+                isDesktop={isDesktop}
+              />
+            )}
 
             {!isDesktop && (
               <div

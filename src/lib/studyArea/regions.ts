@@ -22,6 +22,7 @@ import type {
   RegionalDistrictBoundaryLevel,
   StudyAreaRegion,
   UwrBoundaryLevel,
+  WalkabilityCommunityBoundaryLevel,
   WatershedBoundaryLevel,
 } from './types'
 
@@ -74,6 +75,9 @@ const RANGE_TENURE_FILE_BY_LEVEL: Record<RangeTenureBoundaryLevel, string> = {
 const MINERAL_TENURE_FILE_BY_LEVEL: Record<MineralTenureBoundaryLevel, string> = {
   mineralTenure: '/data/boundaries/BCMineral/mineral_tenures.geojson',
 }
+const WALKABILITY_COMMUNITY_FILE_BY_LEVEL: Record<WalkabilityCommunityBoundaryLevel, string> = {
+  walkabilityCommunity: '/data/walkability/community_walkability.geojson',
+}
 
 const HEALTH_LEVEL_SET = new Set<BoundaryLevel>(['healthAuthority', 'hsda', 'lha', 'chsa'])
 const REGIONAL_DISTRICT_LEVEL_SET = new Set<RegionalDistrictBoundaryLevel>(['regionalDistrict'])
@@ -89,6 +93,7 @@ const UWR_LEVEL_SET = new Set<UwrBoundaryLevel>(['ungulateWinterRange'])
 const CROWN_TENURE_LEVEL_SET = new Set<CrownTenureBoundaryLevel>(['crownTenure'])
 const RANGE_TENURE_LEVEL_SET = new Set<RangeTenureBoundaryLevel>(['rangeTenurePolygon', 'rangePasture'])
 const MINERAL_TENURE_LEVEL_SET = new Set<MineralTenureBoundaryLevel>(['mineralTenure'])
+const WALKABILITY_COMMUNITY_LEVEL_SET = new Set<WalkabilityCommunityBoundaryLevel>(['walkabilityCommunity'])
 
 let boundaryIndexCache: BoundaryIndex | null = null
 const boundaryRegionCache = new Map<string, StudyAreaRegion[]>()
@@ -151,6 +156,42 @@ function isRangeTenureBoundaryLevel(level: RegionLevel): level is RangeTenureBou
 
 function isMineralTenureBoundaryLevel(level: RegionLevel): level is MineralTenureBoundaryLevel {
   return MINERAL_TENURE_LEVEL_SET.has(level as MineralTenureBoundaryLevel)
+}
+
+function isWalkabilityCommunityBoundaryLevel(level: RegionLevel): level is WalkabilityCommunityBoundaryLevel {
+  return WALKABILITY_COMMUNITY_LEVEL_SET.has(level as WalkabilityCommunityBoundaryLevel)
+}
+
+/**
+ * Maps one community-walkability feature into a study-area region. Exposed for
+ * unit testing; the precomputed variant scores ride along in `feature.properties`
+ * so the score builder can surface them as community-only metrics.
+ */
+export function mapWalkabilityCommunityFeatureToRegion(
+  rawFeature: RawBoundaryFeature,
+  level: WalkabilityCommunityBoundaryLevel,
+): StudyAreaRegion | null {
+  const feature = toPolygonFeature(rawFeature)
+  if (!feature) return null
+
+  const properties = (feature.properties ?? {}) as Record<string, unknown>
+  const code = String(properties.communityId ?? properties.OBJECTID ?? rawFeature.id ?? '').trim()
+  if (!code) return null
+
+  const displayName = String(properties.communityName ?? properties.CommunityName ?? code).trim() || code
+  const areaKm2 = area(feature) / 1_000_000
+  const bounds = bbox(feature) as [number, number, number, number]
+
+  return {
+    id: `walkabilityCommunity:${level}:${code}`,
+    code,
+    name: displayName,
+    source: 'walkabilityCommunity',
+    level,
+    feature,
+    bounds,
+    areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+  } satisfies StudyAreaRegion
 }
 
 function toPolygonFeature(feature: RawBoundaryFeature): BoundaryFeature | null {
@@ -418,6 +459,24 @@ async function loadStandardBoundaryRegions(
   return sortedRegions
 }
 
+async function loadWalkabilityCommunityRegions(
+  level: WalkabilityCommunityBoundaryLevel,
+): Promise<StudyAreaRegion[]> {
+  const cacheKey = `walkabilityCommunity:${level}`
+  const cached = boundaryRegionCache.get(cacheKey)
+  if (cached) return cached
+
+  const geometry = await fetchJson<BoundaryFeatureCollection>(WALKABILITY_COMMUNITY_FILE_BY_LEVEL[level])
+
+  const regions = geometry.features
+    .map<StudyAreaRegion | null>((rawFeature) => mapWalkabilityCommunityFeatureToRegion(rawFeature, level))
+    .filter((region): region is StudyAreaRegion => region !== null)
+
+  const sortedRegions = sortRegions(regions)
+  boundaryRegionCache.set(cacheKey, sortedRegions)
+  return sortedRegions
+}
+
 export async function loadStudyAreaRegions(
   source: BoundarySource,
   level: RegionLevel,
@@ -483,6 +542,13 @@ export async function loadStudyAreaRegions(
       throw new Error(`Invalid mineral tenure level: ${level}`)
     }
     return loadStandardBoundaryRegions(source, level, MINERAL_TENURE_FILE_BY_LEVEL[level])
+  }
+
+  if (source === 'walkabilityCommunity') {
+    if (!isWalkabilityCommunityBoundaryLevel(level)) {
+      throw new Error(`Invalid walkability community level: ${level}`)
+    }
+    return loadWalkabilityCommunityRegions(level)
   }
 
   if (!isWatershedBoundaryLevel(level)) {

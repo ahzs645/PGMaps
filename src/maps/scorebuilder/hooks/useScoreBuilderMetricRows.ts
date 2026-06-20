@@ -30,6 +30,8 @@ export interface ScoreBuilderMetricRowsOptions {
   datasetCollections: Partial<Record<MetricRecipeSource, GeoJSON.FeatureCollection | null>>
   healthyPlanPgEnabled: boolean
   activeMetricDefinitions: ScoreMetricDefinition[]
+  /** Per-region mean MI band from the walkability raster, keyed by region id. */
+  walkabilityMiByRegion?: Map<string, { mean: number; cellCount: number }>
 }
 
 /**
@@ -45,6 +47,7 @@ export function useScoreBuilderMetricRows({
   datasetCollections,
   healthyPlanPgEnabled,
   activeMetricDefinitions,
+  walkabilityMiByRegion,
 }: ScoreBuilderMetricRowsOptions) {
   const {
     monitorPointRecords,
@@ -437,6 +440,25 @@ export function useScoreBuilderMetricRows({
       metricValues.retailServiceAccess1km = retailServiceAccess?.value ?? 0
       metricValues.educationFacilityAccess1km = educationFacilityAccess?.value ?? 0
       metricValues.geocodedBusinessDensity = geocodedBusinessDensity?.value ?? 0
+
+      // Zonal mean of the citywide MI raster aggregated into this region (only
+      // populated when the MI-surface metric is weighted, see the gating hook).
+      metricValues.walkabilityMiSurface = walkabilityMiByRegion?.get(region.id)?.mean ?? 0
+
+      // Community walkability variants are precomputed and ride along in the
+      // boundary feature properties (PG Community boundary only).
+      if (region.source === 'walkabilityCommunity') {
+        const props = (region.feature.properties ?? {}) as Record<string, unknown>
+        const readScore = (key: string): number => {
+          const value = Number(props[key])
+          return Number.isFinite(value) ? value : 0
+        }
+        metricValues.communityWalkBalanced = readScore('balancedScore')
+        metricValues.communityWalkInfrastructure = readScore('infrastructureScore')
+        metricValues.communityWalkAccess = readScore('accessScore')
+        metricValues.communityWalkSafetyAdjusted = readScore('safetyAdjustedScore')
+        metricValues.communityWalkSupplementedLocal = readScore('supplementedLocalScore')
+      }
       customMetricRecipes.forEach((recipe) => {
         if (recipe.operation === 'censusVariable') {
           metricValues[recipe.id] = computeCensusMetricValue(recipe, region.id, censusCategoryData)
@@ -473,6 +495,7 @@ export function useScoreBuilderMetricRows({
     censusCategoryData,
     pointRecipeValues,
     regions,
+    walkabilityMiByRegion,
   ])
 
   const metricRanges = useMemo(

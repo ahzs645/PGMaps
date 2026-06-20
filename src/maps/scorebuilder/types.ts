@@ -100,6 +100,14 @@ export type BuiltInScoreMetricKey =
   | 'walkabilityPoiDensity'
   | 'class3CrosswalkDensity'
   | 'pedestrianCrashDensity'
+  // Community walkability variants (precomputed, community boundary only)
+  | 'communityWalkBalanced'
+  | 'communityWalkInfrastructure'
+  | 'communityWalkAccess'
+  | 'communityWalkSafetyAdjusted'
+  | 'communityWalkSupplementedLocal'
+  // Walkability MI raster aggregated into the active boundary (zonal mean band)
+  | 'walkabilityMiSurface'
   // Accessibility
   | 'parkWalk10Access'
   | 'parkWalk20Access'

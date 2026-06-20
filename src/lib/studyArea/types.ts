@@ -13,6 +13,7 @@ export type {
   RegionalDistrictBoundaryLevel,
   SelectedBoundaryRegion,
   UwrBoundaryLevel,
+  WalkabilityCommunityBoundaryLevel,
   WatershedBoundaryLevel,
 } from '@/maps/airquality/types'
 

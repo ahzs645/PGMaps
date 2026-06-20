@@ -7,6 +7,7 @@ import {
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
   NR_ADMIN_BOUNDARY_LEVEL_OPTIONS,
   REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
+  WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
   WATERSHED_BOUNDARY_LEVEL_OPTIONS,
   SCORE_METRICS,
   SCORE_PRESETS,
@@ -30,6 +31,10 @@ import {
   encodeCustomMetricWeights,
   getQuickIndexLabPresetKey,
 } from '../lib/urlState'
+import {
+  encodeWalkabilitySurfaceTuning,
+  type WalkabilitySurfaceTuning,
+} from '../lib/walkabilitySurface'
 import type {
   ScoreDataSource,
   ScoreFilterKey,
@@ -221,6 +226,8 @@ export function useScoreBuilderState() {
     }
     params.set('accessMin', String(state.methodSettings.accessThreshold.minimumAccess))
     params.set('accessHits', String(state.methodSettings.accessThreshold.minimumHits))
+    const walkabilitySurfaceToken = encodeWalkabilitySurfaceTuning(state.walkabilitySurfaceTuning)
+    if (walkabilitySurfaceToken) params.set('wsurf', walkabilitySurfaceToken)
     setSearchParams(params, { replace: true })
   }, [
     state.boundarySource,
@@ -230,6 +237,7 @@ export function useScoreBuilderState() {
     state.mapSurface,
     state.methodSettings,
     state.customMetricRecipes,
+    state.walkabilitySurfaceTuning,
     setSearchParams,
   ])
 
@@ -278,7 +286,9 @@ export function useScoreBuilderState() {
               ? WATERSHED_BOUNDARY_LEVEL_OPTIONS
               : state.boundarySource === 'nrAdmin'
                 ? NR_ADMIN_BOUNDARY_LEVEL_OPTIONS
-                : CENSUS_BOUNDARY_LEVEL_OPTIONS
+                : state.boundarySource === 'walkabilityCommunity'
+                  ? WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS
+                  : CENSUS_BOUNDARY_LEVEL_OPTIONS
     return options.map((option) => ({ value: option.value, label: option.label }))
   }, [state.boundarySource])
 
@@ -334,6 +344,9 @@ export function useScoreBuilderState() {
   }, [])
   const handleMapSurfaceChange = useCallback((surface: 'source' | 'boundary') => {
     dispatch({ type: 'setMapSurface', surface })
+  }, [])
+  const setWalkabilitySurfaceTuning = useCallback((tuning: WalkabilitySurfaceTuning) => {
+    dispatch({ type: 'setWalkabilitySurfaceTuning', tuning })
   }, [])
   const handleMapRegionClick = useCallback((regionId: string) => {
     dispatch({ type: 'mapRegionClick', regionId })
@@ -405,6 +418,7 @@ export function useScoreBuilderState() {
       methodSettings: state.methodSettings,
       mapSurface: state.mapSurface,
       customMetricRecipes: state.customMetricRecipes,
+      walkabilitySurfaceTuning: state.walkabilitySurfaceTuning.enabled ? state.walkabilitySurfaceTuning : undefined,
     }),
     [state],
   )
@@ -481,6 +495,7 @@ export function useScoreBuilderState() {
     clearNetworks,
     togglePoints,
     handleMapSurfaceChange,
+    setWalkabilitySurfaceTuning,
     handleMapRegionClick,
     selectRegion,
     clearRegionSelection,
