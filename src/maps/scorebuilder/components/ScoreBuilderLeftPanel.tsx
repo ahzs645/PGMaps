@@ -6,7 +6,7 @@ import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
-import { BOUNDARY_SOURCE_OPTIONS } from '../constants'
+import { SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS } from '../constants'
 import type { ScoreDataSource } from '../types'
 import { SCORE_DATA_SOURCES } from '../types'
 import { SCORE_BUILDER_DATASETS, type DatasetProfile } from '../lib/datasetCatalog'
@@ -95,7 +95,7 @@ export function ScoreBuilderLeftPanel({
 
         <StudyAreaSelector<BoundarySource, RegionLevel>
           source={displayedBoundarySource}
-          sourceOptions={BOUNDARY_SOURCE_OPTIONS}
+          sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
           level={selectedRegionLevel}
           levelOptions={boundaryLevelOptions}
           onSourceChange={(source) => {

@@ -437,6 +437,21 @@ export function useScoreBuilderMetricRows({
       metricValues.retailServiceAccess1km = retailServiceAccess?.value ?? 0
       metricValues.educationFacilityAccess1km = educationFacilityAccess?.value ?? 0
       metricValues.geocodedBusinessDensity = geocodedBusinessDensity?.value ?? 0
+
+      // Community walkability variants are precomputed and ride along in the
+      // boundary feature properties (PG Community boundary only).
+      if (region.source === 'walkabilityCommunity') {
+        const props = (region.feature.properties ?? {}) as Record<string, unknown>
+        const readScore = (key: string): number => {
+          const value = Number(props[key])
+          return Number.isFinite(value) ? value : 0
+        }
+        metricValues.communityWalkBalanced = readScore('balancedScore')
+        metricValues.communityWalkInfrastructure = readScore('infrastructureScore')
+        metricValues.communityWalkAccess = readScore('accessScore')
+        metricValues.communityWalkSafetyAdjusted = readScore('safetyAdjustedScore')
+        metricValues.communityWalkSupplementedLocal = readScore('supplementedLocalScore')
+      }
       customMetricRecipes.forEach((recipe) => {
         if (recipe.operation === 'censusVariable') {
           metricValues[recipe.id] = computeCensusMetricValue(recipe, region.id, censusCategoryData)

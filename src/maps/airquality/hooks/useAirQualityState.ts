@@ -49,6 +49,7 @@ export const REGION_LEVEL_LABELS: Record<RegionLevel, string> = {
   rangeTenurePolygon: 'Range Tenure',
   rangePasture: 'Range Pasture',
   mineralTenure: 'Mineral / Placer / Coal Tenure',
+  walkabilityCommunity: 'PG Community',
 }
 
 /** Study-area boundary picker selection; null means boundaries are hidden. */

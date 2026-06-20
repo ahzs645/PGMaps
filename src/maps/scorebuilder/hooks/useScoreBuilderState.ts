@@ -7,6 +7,7 @@ import {
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
   NR_ADMIN_BOUNDARY_LEVEL_OPTIONS,
   REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
+  WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
   WATERSHED_BOUNDARY_LEVEL_OPTIONS,
   SCORE_METRICS,
   SCORE_PRESETS,
@@ -285,7 +286,9 @@ export function useScoreBuilderState() {
               ? WATERSHED_BOUNDARY_LEVEL_OPTIONS
               : state.boundarySource === 'nrAdmin'
                 ? NR_ADMIN_BOUNDARY_LEVEL_OPTIONS
-                : CENSUS_BOUNDARY_LEVEL_OPTIONS
+                : state.boundarySource === 'walkabilityCommunity'
+                  ? WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS
+                  : CENSUS_BOUNDARY_LEVEL_OPTIONS
     return options.map((option) => ({ value: option.value, label: option.label }))
   }, [state.boundarySource])
 

@@ -140,6 +140,7 @@ export type ScoreBuilderAction =
   | { type: 'restoreState'; state: ScoreBuilderControlState }
 
 export function getSelectedRegionLevel(state: ScoreBuilderControlState): RegionLevel {
+  if (state.boundarySource === 'walkabilityCommunity') return 'walkabilityCommunity'
   return state.boundarySource === 'bcHealth'
     ? state.healthBoundaryLevel
     : state.boundarySource === 'regionalDistrict'

@@ -7,7 +7,7 @@ import { DATASETS } from '@/lib/dataCatalog'
 import { Slider } from '@/components/ui/slider'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import {
-  BOUNDARY_SOURCE_OPTIONS,
+  SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS,
   SCORE_METRICS,
   SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
@@ -370,7 +370,7 @@ export function ScoreBuilderSidebar({
             <div className="pb-4">
               <StudyAreaSelector<BoundarySource, RegionLevel>
                 source={displayedBoundarySource}
-                sourceOptions={BOUNDARY_SOURCE_OPTIONS}
+                sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
                 level={selectedRegionLevel}
                 levelOptions={boundaryLevelOptions}
                 onSourceChange={(source) => {

@@ -67,6 +67,7 @@ export type BoundarySource =
   | 'crownTenure'
   | 'rangeTenure'
   | 'mineralTenure'
+  | 'walkabilityCommunity'
 export type BoundaryLevel = 'healthAuthority' | 'hsda' | 'lha' | 'chsa'
 export type RegionalDistrictBoundaryLevel = 'regionalDistrict'
 export type CensusBoundaryLevel = 'cd' | 'csd' | 'ct' | 'da'
@@ -77,6 +78,7 @@ export type UwrBoundaryLevel = 'ungulateWinterRange'
 export type CrownTenureBoundaryLevel = 'crownTenure'
 export type RangeTenureBoundaryLevel = 'rangeTenurePolygon' | 'rangePasture'
 export type MineralTenureBoundaryLevel = 'mineralTenure'
+export type WalkabilityCommunityBoundaryLevel = 'walkabilityCommunity'
 export type RegionLevel =
   | BoundaryLevel
   | RegionalDistrictBoundaryLevel
@@ -88,6 +90,7 @@ export type RegionLevel =
   | CrownTenureBoundaryLevel
   | RangeTenureBoundaryLevel
   | MineralTenureBoundaryLevel
+  | WalkabilityCommunityBoundaryLevel
 
 export interface BoundaryRegionRecord {
   id: string

@@ -11,6 +11,7 @@ import type {
   RegionLevel,
   RegionalDistrictBoundaryLevel,
   UwrBoundaryLevel,
+  WalkabilityCommunityBoundaryLevel,
   WatershedBoundaryLevel,
 } from '@/maps/airquality/types'
 
@@ -114,6 +115,10 @@ export const MINERAL_TENURE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<MineralT
   { value: 'mineralTenure', label: 'Mineral / Placer / Coal Tenure' },
 ]
 
+export const WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<WalkabilityCommunityBoundaryLevel>[] = [
+  { value: 'walkabilityCommunity', label: 'PG Community' },
+]
+
 export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelOption[] {
   switch (source) {
     case 'bcHealth':
@@ -136,6 +141,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return RANGE_TENURE_BOUNDARY_LEVEL_OPTIONS
     case 'mineralTenure':
       return MINERAL_TENURE_BOUNDARY_LEVEL_OPTIONS
+    case 'walkabilityCommunity':
+      return WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS
   }
 }
 
