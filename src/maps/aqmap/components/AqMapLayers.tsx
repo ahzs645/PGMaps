@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMap } from '@/components/ui/map'
 import type { AirMonitor } from '@/maps/airquality'
-import { getAqhiColor, getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
+import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import maplibregl from 'maplibre-gl'
 import type { SmokeLayerDefinition } from '../lib/smokeLayers'
 import type { WmsLayerDefinition } from '../lib/wmsLayers'
@@ -9,6 +9,7 @@ import type { AqMonitorGroup, AqNetworkSlug } from '../lib/monitorPresentation'
 import { getAqmapNetworkSlug, getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
+import { getAqhiPlusColor } from '../lib/aqhiScale'
 import { getClusterCircleColor, getClusterCircleRadius, getClusterStrokeColor } from '../lib/clusterColors'
 import {
   ACTIVE_FIRES_VECTOR_URL,
@@ -294,7 +295,7 @@ function styleForecastZoneData(
         properties: {
           ...feature.properties,
           pm25,
-          fillColor: getAqhiColor(pm25),
+          fillColor: getAqhiPlusColor(pm25),
         },
       }
     }),
@@ -1136,7 +1137,7 @@ export function AqMonitorLayer({
               status: monitor.status ?? '',
               pm25,
               aqhi: pm25,
-              color: getAqhiColor(pm25),
+              color: getAqhiPlusColor(pm25),
               markerText: '',
               iconId: icon.id,
               iconSize: icon.size,

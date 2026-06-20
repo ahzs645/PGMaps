@@ -405,7 +405,7 @@ export function MainLayerControl({
   locale: AqmapLocale
 }) {
   return (
-    <MapFloatingPanel position="top-right" className="group">
+    <MapFloatingPanel position="top-right" className="group top-[calc(env(safe-area-inset-top)+3.75rem)] md:top-3">
       <button
         type="button"
         title={translate('controls.layers', locale)}
@@ -464,7 +464,7 @@ export function MapUtilityControls({ onReset, locale }: { onReset: () => void; l
   }
 
   return (
-    <MapFloatingPanel position="top-left" className="flex flex-col overflow-hidden rounded border border-border bg-background shadow-md">
+    <MapFloatingPanel position="top-left" className="top-[calc(env(safe-area-inset-top)+3.75rem)] flex flex-col overflow-hidden rounded border border-border bg-background shadow-md md:top-3">
       <button type="button" title={translate('controls.zoomToLocation', locale)} onClick={locate} className="p-2 hover:bg-secondary">
         <Crosshair className="size-4" />
       </button>
