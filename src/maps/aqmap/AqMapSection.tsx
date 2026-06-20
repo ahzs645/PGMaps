@@ -182,10 +182,10 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   // locked to "reveal" mode — there are no raster/icon-mode toggles to flip.
   const effIconMode: AqMonitorIconMode = isMain ? 'revealed' : iconMode
   const effActiveFiresMode: ActiveFiresRenderMode = !import.meta.env.DEV ? 'raster' : isMain ? 'vector' : activeFiresMode
-  const effFireDangerMode: FireDangerRenderMode = isMain ? 'vector' : fireDangerMode
+  const effFireDangerMode: FireDangerRenderMode = isMain ? 'raster' : fireDangerMode
   const effFirePerimetersMode: FirePerimetersRenderMode = isMain ? 'vector' : firePerimetersMode
   const effForecastZonesMode: ForecastZonesRenderMode = isMain ? 'vector' : forecastZonesMode
-  const effModelledSmokeMode: ModelledSmokeRenderMode = isMain ? 'vector' : modelledSmokeMode
+  const effModelledSmokeMode: ModelledSmokeRenderMode = isMain ? 'raster' : modelledSmokeMode
   const latestDate = enrichedMonitors
     .map((monitor) => monitor.dateObserved)
     .filter((date): date is string => Boolean(date))

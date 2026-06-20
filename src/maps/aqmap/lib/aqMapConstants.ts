@@ -8,7 +8,7 @@ export const URL_UPDATE_DELAY_MS = 350
 // Reveal-mode clustering. Lower radius = clusters grab fewer monitors (more shown
 // individually); lower maxZoom = clusters break apart sooner as you zoom in.
 export const REVEAL_CLUSTER_DEFAULTS = {
-  radius: 28,
+  radius: 44,
   maxZoom: 8,
 }
 

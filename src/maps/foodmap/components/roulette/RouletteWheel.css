@@ -1,0 +1,20 @@
+/* Overrides for @firstform/spinnerwheel.
+   Imported after the library styles so these win. */
+
+/* Bigger "Press ► to spin the wheel" prompt; pill grows with the text
+   instead of being clipped to the library's fixed 312px width. */
+.spinner-wheel-label {
+  width: auto !important;
+  padding: 0.6rem 1.5rem !important;
+  font-size: 28px !important;
+}
+
+.spinner-wheel-label__prompt {
+  font-size: 28px !important;
+}
+
+/* Tighter gap between the wheel and the label below it
+   (library default is 20px). */
+.spinner-wheel__wheel-section {
+  gap: 4px !important;
+}

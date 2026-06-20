@@ -9,6 +9,18 @@ export interface WmsLayerDefinition {
   tiles: string[]
   opacity: number
   attribution: string
+  /** Raster source tile size in px (default 256). */
+  tileSize?: number
+  /** Min source zoom (default 0). */
+  minzoom?: number
+  /**
+   * Max source zoom. Coarse model rasters (e.g. ~10 km RAQDPS PM2.5, daily fire
+   * danger) carry no extra detail past ~z7, so cap here and let MapLibre overzoom
+   * the top tiles instead of re-rendering 4x as many WMS GetMap tiles per level.
+   */
+  maxzoom?: number
+  /** Raster resampling; 'nearest' keeps classified band edges crisp (default 'linear'). */
+  resampling?: 'linear' | 'nearest'
   legendUrl?: string
   legendRenderer?: 'image' | 'structured'
   legendPosition?: 'bottomleft' | 'bottomright' | 'topleft' | 'topright'
@@ -36,6 +48,10 @@ export const WMS_LAYERS: WmsLayerDefinition[] = [
     ],
     opacity: 0.6,
     attribution: 'ECCC GeoMet',
+    // RAQDPS is a ~10 km model; past z7 the WMS just upscales. Cap + overzoom,
+    // and use nearest so the discretized PM2.5_0to100ugm3_Dis bands stay crisp.
+    maxzoom: 7,
+    resampling: 'nearest',
     legendUrl: 'https://geo.weather.gc.ca/geomet?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=RAQDPS.SFC_PM2.5&STYLE=PM2.5_0to100ugm3_Dis&FORMAT=image/png',
     legendRenderer: 'structured',
     legendPosition: 'bottomleft',
@@ -73,6 +89,10 @@ export const WMS_LAYERS: WmsLayerDefinition[] = [
     ],
     opacity: 0.6,
     attribution: 'Natural Resources Canada CWFIS',
+    // Daily, coarse fire-danger classes. Cap source zoom + overzoom to cut WMS
+    // GetMap volume, and keep the 5 danger classes crisp with nearest resampling.
+    maxzoom: 7,
+    resampling: 'nearest',
     legendUrl: 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=public:fdr_current&STYLE=public:cffdrs_fdr&FORMAT=image/png',
     legendRenderer: 'structured',
     legendPosition: 'bottomright',

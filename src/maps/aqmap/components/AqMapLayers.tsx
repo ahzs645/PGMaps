@@ -9,7 +9,7 @@ import type { AqMonitorGroup, AqNetworkSlug } from '../lib/monitorPresentation'
 import { getAqmapNetworkSlug, getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
-import { getClusterCircleColor, getClusterCircleRadius, getClusterCountTextColor, getClusterStrokeColor } from '../lib/clusterColors'
+import { getClusterCircleColor, getClusterCircleRadius, getClusterStrokeColor } from '../lib/clusterColors'
 import {
   ACTIVE_FIRES_VECTOR_URL,
   FIRE_DANGER_FILL_COLORS,
@@ -369,7 +369,12 @@ export function WmsRasterLayer({
       map.addSource(sourceId, {
         type: 'raster',
         tiles: definition.tiles,
-        tileSize: 256,
+        tileSize: definition.tileSize ?? 256,
+        minzoom: definition.minzoom ?? 0,
+        // Cap source zoom so MapLibre overzooms (scales) the top tiles rather than
+        // issuing 4x as many WMS GetMap requests per level for data with no finer
+        // detail. Default 22 preserves prior behaviour for layers that don't set it.
+        maxzoom: definition.maxzoom ?? 22,
         attribution: definition.attribution,
       })
     }
@@ -381,6 +386,7 @@ export function WmsRasterLayer({
         source: sourceId,
         paint: {
           'raster-opacity': definition.opacity,
+          'raster-resampling': definition.resampling ?? 'linear',
         },
       })
     }
@@ -1103,7 +1109,6 @@ export function AqMonitorLayer({
   const offlineLayerId = `aqmap-monitor-offline-icon-${iconMode}`
   const onlineLayerId = `aqmap-monitor-online-icon-${iconMode}`
   const clusterLayerId = `aqmap-monitor-clusters-${iconMode}`
-  const clusterCountLayerId = `aqmap-monitor-cluster-count-${iconMode}`
   const revealedLayerId = `aqmap-monitor-revealed-icon-${iconMode}`
 
   const features = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, AqMapFeatureProperties>>(() => {
@@ -1247,24 +1252,6 @@ export function AqMonitorLayer({
           })
         }
 
-        if (!currentMap.getLayer(clusterCountLayerId)) {
-          currentMap.addLayer({
-            id: clusterCountLayerId,
-            type: 'symbol',
-            source: sourceId,
-            filter: ['has', 'point_count'],
-            layout: {
-              'text-field': '{point_count_abbreviated}',
-              'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-              'text-size': 12,
-              'text-allow-overlap': true,
-            },
-            paint: {
-              'text-color': getClusterCountTextColor(clusterColorScheme),
-            },
-          })
-        }
-
         if (!currentMap.getLayer(revealedLayerId)) {
           currentMap.addLayer({
             id: revealedLayerId,
@@ -1309,7 +1296,6 @@ export function AqMonitorLayer({
         currentMap.off('click', clusterLayerId, handleClusterClick)
         currentMap.off('mouseenter', clusterLayerId, handleMouseMove)
         currentMap.off('mouseleave', clusterLayerId, handleMouseLeave)
-        if (currentMap.getLayer(clusterCountLayerId)) currentMap.removeLayer(clusterCountLayerId)
         if (currentMap.getLayer(clusterLayerId)) currentMap.removeLayer(clusterLayerId)
         if (currentMap.getLayer(revealedLayerId)) currentMap.removeLayer(revealedLayerId)
         if (currentMap.getLayer(onlineLayerId)) currentMap.removeLayer(onlineLayerId)
@@ -1319,7 +1305,7 @@ export function AqMonitorLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [clusterCountLayerId, clusterLayerId, clusterColorScheme, clusterMaxZoom, clusterRadius, tightClusters, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
+  }, [clusterLayerId, clusterColorScheme, clusterMaxZoom, clusterRadius, tightClusters, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
 
   useEffect(() => {
     if (!isLoaded || !map) return

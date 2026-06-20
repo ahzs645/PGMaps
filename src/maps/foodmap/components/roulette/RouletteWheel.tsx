@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useEffect } from 'react'
 import { SpinnerWheel, useSpinnerWheelState } from '@firstform/spinnerwheel'
 import '@firstform/spinnerwheel/styles'
+import './RouletteWheel.css'
 import type { WheelEntry } from '@firstform/spinnerwheel'
 import type { RouletteRestaurant } from '../../types'
 
@@ -61,9 +62,9 @@ export function RouletteWheel({
   }
 
   return (
-    <div className="-mt-6 flex w-full min-w-0 justify-center overflow-visible py-1">
-      <div className="relative h-[290px] w-[307px] overflow-visible max-[360px]:h-[275px] max-[360px]:w-[292px] min-[390px]:h-[315px] min-[390px]:w-[333px] sm:h-[300px] sm:w-[318px]">
-        <div className="absolute left-1/2 top-1/2 h-[465px] w-[465px] origin-center -translate-x-1/2 -translate-y-1/2 scale-[0.6] max-[360px]:scale-[0.57] min-[390px]:scale-[0.65] sm:scale-[0.62]">
+    <div className="-mt-2 flex w-full min-w-0 justify-center overflow-visible">
+      <div className="relative h-[358px] w-[307px] overflow-visible max-[360px]:h-[342px] max-[360px]:w-[292px] min-[390px]:h-[388px] min-[390px]:w-[333px] sm:h-[368px] sm:w-[318px]">
+        <div className="absolute left-1/2 top-0 w-[465px] origin-top -translate-x-1/2 scale-[0.6] max-[360px]:scale-[0.57] min-[390px]:scale-[0.65] sm:scale-[0.62]">
         <SpinnerWheel
           entries={wheel.entries}
           isSpinning={wheel.isSpinning}
