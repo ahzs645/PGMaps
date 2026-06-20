@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { RouletteFilters } from './RouletteFilters'
 import { RouletteWheel } from './RouletteWheel'
 import { RouletteResult } from './RouletteResult'
@@ -96,44 +97,22 @@ export function RouletteModal({
     onClose()
   }, [resetFilters, onClose])
 
-  useEffect(() => {
-    const handleKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeydown)
-    return () => window.removeEventListener('keydown', handleKeydown)
-  }, [handleClose])
-
-  // Hide the floating mobile top toolbar (PGMaps menu, search, info, theme)
-  // while the sheet is open so its controls don't peek out above the modal.
-  // The Navbar listens for this event; desktop is unaffected.
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden: true } })
-    )
-    return () => {
-      window.dispatchEvent(
-        new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden: false } })
-      )
-    }
-  }, [])
-
   return (
-    <div
-      className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      onClick={(e) => e.target === e.currentTarget && handleClose()}
-    >
-      <div className="flex max-h-[96dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[calc(100dvh-1rem)] sm:max-w-lg sm:rounded-2xl">
+    <Dialog open onOpenChange={(open) => { if (!open) handleClose() }}>
+      <DialogContent
+        variant="sheet"
+        elevated
+        showClose={false}
+        className="sm:max-h-[calc(100dvh-1rem)]"
+      >
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border p-4">
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-lg font-bold leading-tight text-foreground sm:text-xl">
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold leading-tight text-foreground sm:text-xl">
               <span className="text-xl sm:text-2xl" aria-hidden="true">🎰</span>
               Restaurant Roulette
-            </h2>
-            <p className="text-sm text-muted-foreground">Spin to pick a random restaurant</p>
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">Spin to pick a random restaurant</DialogDescription>
           </div>
           <button
             onClick={handleClose}
@@ -263,7 +242,7 @@ export function RouletteModal({
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

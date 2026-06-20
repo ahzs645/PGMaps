@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { assessViolationRisk, summarizeViolationRisk } from '../risk'
 import type { RestaurantWithStats, HazardRating, Inspection, Violation, ViolationRiskBand } from '../types'
 
@@ -132,46 +133,22 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
 
   const selectedInspection = selectedIndex !== null ? inspections[selectedIndex] ?? null : null
 
-  useEffect(() => {
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeydown)
-    return () => window.removeEventListener('keydown', handleKeydown)
-  }, [onClose])
-
-  // Hide the floating mobile top toolbar (PGMaps menu, search, info, theme)
-  // while the sheet is open so its controls don't peek out above the modal —
-  // matches the Restaurant Roulette sheet. The Navbar listens for this event;
-  // desktop is unaffected.
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden: true } })
-    )
-    return () => {
-      window.dispatchEvent(
-        new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden: false } })
-      )
-    }
-  }, [])
-
   return (
-    <div
-      className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      onClick={(event) => event.target === event.currentTarget && onClose()}
-    >
-      <div className="flex h-[96dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[92dvh] sm:rounded-2xl">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent
+        variant="sheet"
+        elevated
+        showClose={false}
+        className="h-[96dvh] sm:h-auto sm:max-h-[92dvh] sm:max-w-4xl"
+      >
         {/* Header */}
         <div className="shrink-0 border-b border-border bg-background/90 p-3 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-lg font-bold leading-tight text-foreground sm:truncate sm:text-xl">{restaurant.name}</h2>
-              <p className="mt-1 text-sm leading-snug text-muted-foreground">
+              <DialogTitle className="text-lg font-bold leading-tight text-foreground sm:truncate sm:text-xl">{restaurant.name}</DialogTitle>
+              <DialogDescription className="mt-1 text-sm leading-snug text-muted-foreground">
                 {restaurant.full_address || restaurant.address}
-              </p>
+              </DialogDescription>
               {useFilteredInspections && periodLabel && (
                 <p className="mt-1 text-xs font-medium text-sky-600 dark:text-sky-400">
                   Showing inspections for {periodLabel}
@@ -306,8 +283,8 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
