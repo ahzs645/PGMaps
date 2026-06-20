@@ -9,6 +9,7 @@ import type {
 } from '@/maps/airquality'
 import type { ScoreDataSource, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
 import type { MetricRecipe } from './metricRecipes'
+import type { WalkabilitySurfaceTuning } from './walkabilitySurface'
 
 export interface ScoreBuilderShareState {
   version: 1
@@ -24,6 +25,7 @@ export interface ScoreBuilderShareState {
   methodSettings?: ScoreMethodSettings
   mapSurface?: 'source' | 'boundary'
   customMetricRecipes?: MetricRecipe[]
+  walkabilitySurfaceTuning?: WalkabilitySurfaceTuning
 }
 
 const shareEngine = createWebShareEngine<ScoreBuilderShareState>({

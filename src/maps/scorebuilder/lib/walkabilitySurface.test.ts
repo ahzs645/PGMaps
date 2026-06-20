@@ -7,6 +7,8 @@ import {
 import {
   buildSourceGridFactorWeights,
   createDefaultWalkabilitySurfaceTuning,
+  encodeWalkabilitySurfaceTuning,
+  parseWalkabilitySurfaceTuning,
   resolveWalkabilitySurfaceModel,
 } from './walkabilitySurface'
 
@@ -90,5 +92,38 @@ describe('createDefaultWalkabilitySurfaceTuning', () => {
     expect(tuning.enabled).toBe(false)
     expect(tuning.options).toEqual(HEATMAP_REPORT_FIDELITY_OPTIONS)
     expect(Object.values(tuning.factorWeights).every((value) => value === 1)).toBe(true)
+  })
+})
+
+describe('walkability surface URL serialization', () => {
+  it('encodes nothing while direct control is off', () => {
+    expect(encodeWalkabilitySurfaceTuning(createDefaultWalkabilitySurfaceTuning())).toBeNull()
+  })
+
+  it('parses an absent token back to the default (disabled) tuning', () => {
+    expect(parseWalkabilitySurfaceTuning(null)).toEqual(createDefaultWalkabilitySurfaceTuning())
+  })
+
+  it('round-trips an enabled tuning at slider resolution', () => {
+    const tuning = {
+      ...createDefaultWalkabilitySurfaceTuning(),
+      enabled: true,
+      options: { ...HEATMAP_REPORT_FIDELITY_OPTIONS, tightBuffer: true, dropPopAge: false },
+      factorWeights: { ...createDefaultWalkabilitySurfaceTuning().factorWeights, A0: 0, F0: 0.5, G5: 2 },
+    }
+    const token = encodeWalkabilitySurfaceTuning(tuning)
+    expect(token).not.toBeNull()
+    const restored = parseWalkabilitySurfaceTuning(token)
+    expect(restored.enabled).toBe(true)
+    expect(restored.options).toEqual(tuning.options)
+    expect(restored.factorWeights.A0).toBe(0)
+    expect(restored.factorWeights.F0).toBe(0.5)
+    expect(restored.factorWeights.G5).toBe(2)
+    expect(restored.factorWeights.B0).toBe(1)
+  })
+
+  it('clamps malformed/out-of-range tokens', () => {
+    const restored = parseWalkabilitySurfaceTuning('')
+    expect(restored).toEqual(createDefaultWalkabilitySurfaceTuning())
   })
 })

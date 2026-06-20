@@ -21,6 +21,11 @@ import {
 import { metricToDataSource } from '../lib/metrics'
 import { metricRecipeToDefinition } from '../lib/metricDefinitions'
 import type { MetricRecipe } from '../lib/metricRecipes'
+import {
+  createDefaultWalkabilitySurfaceTuning,
+  parseWalkabilitySurfaceTuning,
+  type WalkabilitySurfaceTuning,
+} from '../lib/walkabilitySurface'
 import type { ScoreBuilderShareState } from '../lib/shareState'
 import {
   getQuickIndexLabPresetKey,
@@ -79,6 +84,8 @@ export interface ScoreBuilderControlState {
   methodSettings: ScoreMethodSettings
   activeExampleKey: string | null
   mapSurface: 'source' | 'boundary'
+  /** Direct 44-factor tuning for the walkability MI source surface (visualization only). */
+  walkabilitySurfaceTuning: WalkabilitySurfaceTuning
   showPoints: boolean
   densityMetric: ScoreMetricKey
   densityMode: boolean
@@ -112,6 +119,7 @@ export type ScoreBuilderAction =
   | { type: 'networksLoaded'; allNetworks: string[] }
   | { type: 'togglePoints' }
   | { type: 'setMapSurface'; surface: 'source' | 'boundary' }
+  | { type: 'setWalkabilitySurfaceTuning'; tuning: WalkabilitySurfaceTuning }
   | { type: 'mapRegionClick'; regionId: string }
   | { type: 'selectRegion'; regionId: string | null }
   | { type: 'openRegionInsight'; regionId: string }
@@ -393,6 +401,7 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       }
       if (share.methodSettings) next.methodSettings = { ...state.methodSettings, ...share.methodSettings }
       if (share.mapSurface) next.mapSurface = parseMapSurface(share.mapSurface)
+      next.walkabilitySurfaceTuning = share.walkabilitySurfaceTuning ?? createDefaultWalkabilitySurfaceTuning()
       return next
     }
     case 'createCustomMetric': {
@@ -466,6 +475,8 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
         mapSurface: action.surface,
         selectedRegionId: action.surface === 'source' ? null : state.selectedRegionId,
       }
+    case 'setWalkabilitySurfaceTuning':
+      return { ...state, walkabilitySurfaceTuning: action.tuning }
     case 'mapRegionClick': {
       const next: ScoreBuilderControlState = {
         ...state,
@@ -652,6 +663,7 @@ export function createInitialScoreBuilderState(searchParams: URLSearchParams): S
     methodSettings,
     activeExampleKey: quickPresetKey ? null : !hasUrlWeights ? SCORE_BUILDER_EXAMPLES[0]?.key || null : null,
     mapSurface: parseMapSurface(searchParams.get('surface')),
+    walkabilitySurfaceTuning: parseWalkabilitySurfaceTuning(searchParams.get('wsurf')),
     showPoints: true,
     densityMetric: 'overallDensity',
     densityMode: false,

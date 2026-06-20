@@ -18,6 +18,7 @@ import {
   WALKABILITY_REPORT_FACTOR_REFS,
   normalizeHeatmapOptions,
   type HeatmapFactorWeightState,
+  type HeatmapOptionKey,
   type HeatmapOptionState,
 } from '@/maps/pgdata/walkabilityFactors'
 import type { ScoreMetricKey, ScoreMetricWeightMap } from '../types'
@@ -51,7 +52,7 @@ export const SCORE_METRIC_TO_REPORT_REFS: Partial<Record<ScoreMetricKey, string[
 }
 
 /** Projects metric weights onto a 0–2 factor-weight map normalized to the strongest factor. */
-export function buildSourceGridFactorWeights(weights?: ScoreMetricWeightMap): HeatmapFactorWeightState {
+export function buildSourceGridFactorWeights(weights?: Partial<ScoreMetricWeightMap>): HeatmapFactorWeightState {
   const factorScores = Object.fromEntries(WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, 0])) as HeatmapFactorWeightState
   if (!weights) return factorScores
 
@@ -99,7 +100,7 @@ export interface ResolvedWalkabilitySurfaceModel {
 /** Resolves the factor weights + worker options the raster should use. */
 export function resolveWalkabilitySurfaceModel(
   tuning: WalkabilitySurfaceTuning | undefined,
-  metricWeights: ScoreMetricWeightMap | undefined,
+  metricWeights: Partial<ScoreMetricWeightMap> | undefined,
 ): ResolvedWalkabilitySurfaceModel {
   if (tuning?.enabled) {
     return { factorWeights: tuning.factorWeights, options: normalizeHeatmapOptions(tuning.options) }
@@ -108,4 +109,60 @@ export function resolveWalkabilitySurfaceModel(
     factorWeights: buildSourceGridFactorWeights(metricWeights),
     options: { ...DERIVED_SURFACE_OPTIONS },
   }
+}
+
+// --- Compact URL serialization -------------------------------------------------
+//
+// Only persisted while direct control is on, so the common case adds nothing to
+// the URL. Layout: 9 option bits (fixed order) followed by one hex digit per
+// report factor encoding weight*4 (0–8, since the slider step is 0.25).
+
+const SURFACE_OPTION_ORDER: HeatmapOptionKey[] = [
+  'dropGtfsHf',
+  'narrowCivic',
+  'narrowGrowth',
+  'dropPopAge',
+  'dropF0',
+  'dropC0',
+  'dropF8',
+  'dropSuppPoi',
+  'tightBuffer',
+]
+
+function clampFactorWeight(value: number): number {
+  if (!Number.isFinite(value)) return 1
+  return Math.max(0, Math.min(2, value))
+}
+
+/** Encodes the tuning for the URL, or null when direct control is off. */
+export function encodeWalkabilitySurfaceTuning(tuning: WalkabilitySurfaceTuning): string | null {
+  if (!tuning.enabled) return null
+  const optionBits = SURFACE_OPTION_ORDER.map((key) => (tuning.options[key] ? '1' : '0')).join('')
+  const factorDigits = WALKABILITY_REPORT_FACTOR_REFS.map((ref) =>
+    Math.round(clampFactorWeight(tuning.factorWeights[ref] ?? 1) * 4).toString(16),
+  ).join('')
+  return `${optionBits}${factorDigits}`
+}
+
+/** Parses the URL token back into a tuning; falls back to the default when absent/malformed. */
+export function parseWalkabilitySurfaceTuning(raw: string | null): WalkabilitySurfaceTuning {
+  const fallback = createDefaultWalkabilitySurfaceTuning()
+  if (!raw || raw.length < SURFACE_OPTION_ORDER.length) return fallback
+
+  const optionBits = raw.slice(0, SURFACE_OPTION_ORDER.length)
+  const options = { ...HEATMAP_REPORT_FIDELITY_OPTIONS }
+  SURFACE_OPTION_ORDER.forEach((key, index) => {
+    options[key] = optionBits[index] === '1'
+  })
+
+  const factorDigits = raw.slice(SURFACE_OPTION_ORDER.length)
+  const factorWeights = { ...HEATMAP_DEFAULT_FACTOR_WEIGHTS }
+  WALKABILITY_REPORT_FACTOR_REFS.forEach((ref, index) => {
+    const digit = factorDigits[index]
+    if (digit == null) return
+    const parsed = Number.parseInt(digit, 16)
+    if (Number.isFinite(parsed)) factorWeights[ref] = clampFactorWeight(parsed / 4)
+  })
+
+  return { enabled: true, options: normalizeHeatmapOptions(options), factorWeights }
 }

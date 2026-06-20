@@ -16,6 +16,7 @@ interface ScoreBuilderWalkabilitySurfacePanelProps {
   tuning: WalkabilitySurfaceTuning
   onChange: (next: WalkabilitySurfaceTuning) => void
   metricWeights: ScoreMetricWeightMap
+  isDesktop: boolean
 }
 
 /**
@@ -32,6 +33,7 @@ export function ScoreBuilderWalkabilitySurfacePanel({
   tuning,
   onChange,
   metricWeights,
+  isDesktop,
 }: ScoreBuilderWalkabilitySurfacePanelProps) {
   const [collapsed, setCollapsed] = useState(true)
 
@@ -67,14 +69,19 @@ export function ScoreBuilderWalkabilitySurfacePanel({
   return (
     <div
       className={cn(
-        'absolute left-3 top-3 z-20 w-[min(20rem,calc(100vw-1.5rem))] rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur md:left-6 md:top-4 md:rounded-xl',
+        'absolute z-20 flex max-h-[calc(100dvh-9rem)] w-[min(20rem,calc(100vw-1.5rem))] flex-col rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur',
+        // On mobile, sit below the density/correlate/undo action buttons; on
+        // desktop, dock to the top-left corner the legend leaves free.
+        isDesktop
+          ? 'left-6 top-4 rounded-xl'
+          : 'left-2 top-[calc(env(safe-area-inset-top)+7rem)]',
       )}
       data-score-builder-walkability-surface-panel="true"
     >
       <button
         type="button"
         onClick={() => setCollapsed((current) => !current)}
-        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+        className="flex w-full shrink-0 items-center justify-between gap-3 px-3 py-2.5 text-left"
       >
         <span className="flex min-w-0 items-center gap-2">
           <Footprints className="h-4 w-4 shrink-0 text-emerald-600" />
@@ -89,7 +96,7 @@ export function ScoreBuilderWalkabilitySurfacePanel({
       </button>
 
       {!collapsed && (
-        <div className="space-y-3 border-t border-border px-3 py-3 text-xs">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto border-t border-border px-3 py-3 text-xs">
           <label className="flex items-start gap-2 rounded border border-border bg-background px-2 py-1.5">
             <input
               type="checkbox"
@@ -152,7 +159,7 @@ export function ScoreBuilderWalkabilitySurfacePanel({
                 <div className="font-medium text-foreground">Factor weights</div>
                 <div className="text-[10px] leading-4 text-muted-foreground">0 disables a factor; 1 is report weight; 2 doubles it.</div>
               </div>
-              <div className="max-h-[22rem] space-y-1.5 overflow-y-auto pr-1">
+              <div className="space-y-1.5 pr-1">
                 {WALKABILITY_FACTOR_GROUPS.map((factor) => {
                   const dropped = isFactorDroppedByOptions(factor.ref, tuning.options)
                   const value = tuning.factorWeights[factor.ref] ?? 1

@@ -17,7 +17,6 @@ import { ScoreBuilderRightPanel } from './components/ScoreBuilderRightPanel'
 import { ScoreBuilderSettingsDialog } from './components/ScoreBuilderSettingsDialog'
 import { ScoreBuilderSidebar } from './components/ScoreBuilderSidebar'
 import { ScoreBuilderWalkabilitySurfacePanel } from './components/ScoreBuilderWalkabilitySurfacePanel'
-import { createDefaultWalkabilitySurfaceTuning, type WalkabilitySurfaceTuning } from './lib/walkabilitySurface'
 import { useMediaQuery } from './hooks/useMediaQuery'
 import { useScoreBuilderDatasets } from './hooks/useScoreBuilderDatasets'
 import { useScoreBuilderMapColors } from './hooks/useScoreBuilderMapColors'
@@ -219,13 +218,6 @@ export default function ScoreBuilderSection() {
   const baselineComparison = useMemo(
     () => (baseline ? compareAgainstBaseline(baseline, results.scoredRegions) : null),
     [baseline, results.scoredRegions],
-  )
-
-  // Walkability MI source-surface tuning is visualization state (like the
-  // scenario baseline), not part of the scored equation, so it lives here
-  // rather than in the score reducer.
-  const [walkabilitySurfaceTuning, setWalkabilitySurfaceTuning] = useState<WalkabilitySurfaceTuning>(
-    createDefaultWalkabilitySurfaceTuning,
   )
 
   const mapInstanceRef = useRef<MapRef | null>(null)
@@ -494,16 +486,17 @@ export default function ScoreBuilderSection() {
               regionFillColors={mapRegionFillColors}
               walkabilitySourceSurface={sb.showWalkabilitySourceSurface}
               sourceGridWeights={state.weights}
-              walkabilitySurfaceTuning={walkabilitySurfaceTuning}
+              walkabilitySurfaceTuning={state.walkabilitySurfaceTuning}
               loading={datasets.loading}
               onMapInstance={handleMapInstance}
             />
 
-            {isDesktop && sb.showWalkabilitySourceSurface && (
+            {sb.showWalkabilitySourceSurface && (
               <ScoreBuilderWalkabilitySurfacePanel
-                tuning={walkabilitySurfaceTuning}
-                onChange={setWalkabilitySurfaceTuning}
+                tuning={state.walkabilitySurfaceTuning}
+                onChange={sb.setWalkabilitySurfaceTuning}
                 metricWeights={state.weights}
+                isDesktop={isDesktop}
               />
             )}
 
