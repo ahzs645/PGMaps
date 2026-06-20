@@ -1,6 +1,7 @@
-import { MapImageLegend, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
+import { MapImageLegend, MapLegendPanel, MapLegendSection, MapSteppedLegend } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { AQHI_STOPS } from '../lib/aqMapConstants'
+import { AQHI_LEVELS, AQHI_NO_DATA_COLOR } from '../lib/aqhiScale'
 import {
   localizeSmokeDensity,
   localizeSmokeLabel,
@@ -60,27 +61,40 @@ export function AqMonitorLegend({
       contentClassName="max-h-[calc(min(22rem,calc(100vh-8rem))-3rem)] space-y-3 overflow-y-auto pr-1"
     >
       <MapLegendSection title={translate('sidebar.pm25Legend', locale)}>
-        <div className="space-y-1">
-          {AQHI_STOPS.map((stop) => (
-            <div key={stop.labelKey} className="flex items-center gap-2 text-[11px] leading-4 text-muted-foreground">
-              <span className="size-2.5 shrink-0 rounded-full border border-black/20 shadow-sm" style={{ backgroundColor: stop.color }} />
-              <span className="truncate">
-                {translate(stop.labelKey, locale)}
-                {' '}
-                {translate(stop.rangeKey, locale)}
-                {' '}
-                {translate('aqhi.unit', locale)}
-              </span>
-            </div>
-          ))}
+        <div className="space-y-2">
+          <MapSteppedLegend
+            variant="strip"
+            bands={AQHI_LEVELS.map((level) => ({
+              label: level.level === '+' ? '100+' : String(level.min),
+              color: level.color,
+            }))}
+            labels={['0', '30', '60', '100+']}
+          />
+          <div className="text-[10px] text-muted-foreground">
+            AQHI+ · PM2.5 {translate('aqhi.unit', locale)}
+          </div>
+          <div className="space-y-1">
+            {AQHI_STOPS.map((stop) => (
+              <div key={stop.labelKey} className="flex items-center gap-2 text-[11px] leading-4 text-muted-foreground">
+                <span className="size-2.5 shrink-0 rounded-full border border-black/20 shadow-sm" style={{ backgroundColor: stop.color }} />
+                <span className="truncate">
+                  {translate(stop.labelKey, locale)}
+                  {' '}
+                  {translate(stop.rangeKey, locale)}
+                  {' '}
+                  {translate('aqhi.unit', locale)}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </MapLegendSection>
 
       <MapLegendSection title={translate('sidebar.iconLegend', locale)} className="border-t border-border pt-3">
-        <MonitorIconLegendItem shape="diamond" fill="#3bb54a" stroke="#111827" label={translate('monitorType.fem', locale)} />
-        <MonitorIconLegendItem shape="circle" fill="#3bb54a" stroke="#ffffff" label={`${translate('monitorType.pa', locale)} / ${translate('groups.lcm', locale)}`} />
-        <MonitorIconLegendItem shape="square" fill="#3bb54a" stroke="#ffffff" label={translate('monitorType.egg', locale)} />
-        <MonitorIconLegendItem shape="circle" fill="#94a3b8" stroke="#ffffff" label={translate('monitorType.missing', locale)} muted />
+        <MonitorIconLegendItem shape="diamond" fill="#189aca" stroke="#111827" label={translate('monitorType.fem', locale)} />
+        <MonitorIconLegendItem shape="circle" fill="#189aca" stroke="#ffffff" label={`${translate('monitorType.pa', locale)} / ${translate('groups.lcm', locale)}`} />
+        <MonitorIconLegendItem shape="square" fill="#189aca" stroke="#ffffff" label={translate('monitorType.egg', locale)} />
+        <MonitorIconLegendItem shape="circle" fill={AQHI_NO_DATA_COLOR} stroke="#ffffff" label={translate('monitorType.missing', locale)} muted />
       </MapLegendSection>
 
       {windVisible && (

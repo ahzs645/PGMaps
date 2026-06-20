@@ -47,13 +47,28 @@ function parseGeneratedIconText(valueText: string): string {
   return String(value)
 }
 
+// AQHI+ colour scale — kept in lockstep with src/maps/aqmap/lib/aqhiScale.ts.
+// (Inlined rather than imported: this file compiles under the separate
+// tsconfig.node project and can't reach the client lib.)
+const AQHI_PLUS_COLORS = [
+  { max: 10, color: '#21c6f5' },
+  { max: 20, color: '#189aca' },
+  { max: 30, color: '#0d6797' },
+  { max: 40, color: '#fffd37' },
+  { max: 50, color: '#ffcc2e' },
+  { max: 60, color: '#fe9a3f' },
+  { max: 70, color: '#fd6769' },
+  { max: 80, color: '#ff3b3b' },
+  { max: 90, color: '#ff0101' },
+  { max: 100, color: '#cb0713' },
+] as const
+const AQHI_PLUS_OVER_100 = '#650205'
+const AQHI_NO_DATA_COLOR = '#bbbbbb'
+
 function fillColor(raw: string | number | null | undefined): string {
   const value = parseIconValue(raw)
-  if (value === null) return '#94a3b8'
-  if (value < 30) return '#3bb54a'
-  if (value < 60) return '#f7d13d'
-  if (value < 100) return '#f59e0b'
-  return '#c81e1e'
+  if (value === null) return AQHI_NO_DATA_COLOR
+  return AQHI_PLUS_COLORS.find((stop) => value < stop.max)?.color ?? AQHI_PLUS_OVER_100
 }
 
 function contrastText(fill: string): string {

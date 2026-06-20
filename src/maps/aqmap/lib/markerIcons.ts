@@ -1,5 +1,6 @@
 import type { AirMonitor } from '@/maps/airquality'
-import { getAqhiColor, getMarkerText, getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
+import { getMarkerText, getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
+import { getAqhiPlusColor } from './aqhiScale'
 import { getAqmapMarkerGroup } from './monitorPresentation'
 
 export interface AqMarkerIcon {
@@ -19,7 +20,7 @@ function getReadableMarkerTextColor(fill: string): string {
 
 function makeMarkerIconSvg(group: ReturnType<typeof getAqmapMarkerGroup>, value: number | null | undefined, size: number): string {
   const markerValue = getMarkerText(value)
-  const fill = getAqhiColor(value)
+  const fill = getAqhiPlusColor(value)
   const textColor = getReadableMarkerTextColor(fill)
   const stroke = group === 'agency' ? '#111827' : '#ffffff'
   const fontSize = markerValue.length > 2 ? 9.5 : markerValue.length > 1 ? 11.5 : 13.5

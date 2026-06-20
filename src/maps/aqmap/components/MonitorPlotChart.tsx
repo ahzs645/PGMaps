@@ -10,15 +10,16 @@ import {
   YAxis,
 } from 'recharts'
 import type { AqPlotPoint } from '../lib/plotData'
-import { getAqhiColor } from '@/maps/airquality/lib/monitorPopup'
+import { getAqhiPlusColor } from '../lib/aqhiScale'
 import type { AqmapLocale } from '../lib/i18n'
 import { translate } from '../lib/i18n'
 
+// AQHI+ risk-category band tints (Low / Moderate / High / Very High).
 const AQHI_BANDS: Array<{ from: number; to: number; color: string }> = [
-  { from: 0, to: 30, color: 'rgb(59 181 74 / 0.10)' },
-  { from: 30, to: 60, color: 'rgb(247 209 61 / 0.12)' },
-  { from: 60, to: 100, color: 'rgb(245 158 11 / 0.12)' },
-  { from: 100, to: 600, color: 'rgb(200 30 30 / 0.10)' },
+  { from: 0, to: 30, color: 'rgb(24 154 202 / 0.10)' },
+  { from: 30, to: 60, color: 'rgb(255 204 46 / 0.12)' },
+  { from: 60, to: 100, color: 'rgb(255 59 59 / 0.10)' },
+  { from: 100, to: 600, color: 'rgb(101 2 5 / 0.10)' },
 ]
 
 const AQHI_THRESHOLDS = [30, 60, 100]
@@ -197,7 +198,7 @@ export function MonitorPlotChart({
             <ReferenceLine
               key={threshold}
               y={threshold}
-              stroke={getAqhiColor(threshold)}
+              stroke={getAqhiPlusColor(threshold)}
               strokeDasharray="4 4"
               strokeOpacity={0.55}
             />

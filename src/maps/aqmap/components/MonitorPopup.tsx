@@ -4,9 +4,9 @@ import { MapPopup, useMap } from '@/components/ui/map'
 import type { AirMonitor } from '@/maps/airquality'
 import {
   getAqhiCategory,
-  getAqhiColor,
   getMonitorAqhiPm25,
 } from '@/maps/airquality/lib/monitorPopup'
+import { getAqhiPlusColor } from '../lib/aqhiScale'
 import {
   buildObservationRowLabels,
   formatAqhiCategory,
@@ -57,7 +57,7 @@ export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor:
   const aqhiCategory = getAqhiCategory(pm25)
   const health = localizeHealthMessage(aqhiCategory, locale)
   const monitorTypeLabel = localizeMonitorType(monitor.network, locale)
-  const aqColor = getAqhiColor(pm25)
+  const aqColor = getAqhiPlusColor(pm25)
   const categoryLabel = formatAqhiCategory(aqhiCategory, locale)
   const unit = translate('aqhi.unit', locale)
   const isNoData = pm25 === null
@@ -185,7 +185,7 @@ export function MonitorPopup({ monitor, locale, onClose, nearbyFem }: { monitor:
                   <span className="inline-flex items-center gap-1.5 font-medium tabular-nums text-gray-900">
                     <span
                       className="h-1.5 w-1.5 rounded-full"
-                      style={{ backgroundColor: getAqhiColor(row.value) }}
+                      style={{ backgroundColor: getAqhiPlusColor(row.value) }}
                       aria-hidden="true"
                     />
                     {formatAqmapPm25Localized(row.value, locale)}

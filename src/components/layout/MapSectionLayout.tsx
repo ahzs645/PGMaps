@@ -357,6 +357,13 @@ export function MapSectionLayout({
 
   // Position on first paint (before browser paints → no flash)
   useLayoutEffect(() => {
+    // No bottom sheet is rendered when the sidebar is disabled — bail so we
+    // don't publish a phantom sheet height (getSheetHeight() would fall back to
+    // window.innerHeight and shove bottom-anchored overlays up into the toolbar).
+    if (disableSidebar) {
+      rootRef.current?.style.removeProperty('--map-mobile-sheet-visible-height')
+      return
+    }
     if (isMobileViewport()) {
       const y = getSnapPositions(getSheetHeight(), getFullSnapOffset())[mobileInitialSheetState]
       if (sheetRef.current) {
