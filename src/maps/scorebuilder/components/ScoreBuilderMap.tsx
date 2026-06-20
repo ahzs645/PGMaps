@@ -6,7 +6,11 @@ import { useMap } from '@/components/ui/map'
 import { useJsonManifest } from '@/maps/pgdata/shared'
 import type { AirMonitor } from '@/maps/airquality'
 import { WALKABILITY_REPORT_MI_COLORS } from '../constants'
-import type { ScoreMetricKey, ScoreMetricWeightMap, ScoredBoundaryRegion } from '../types'
+import {
+  resolveWalkabilitySurfaceModel,
+  type WalkabilitySurfaceTuning,
+} from '../lib/walkabilitySurface'
+import type { ScoreMetricWeightMap, ScoredBoundaryRegion } from '../types'
 
 interface ScoreBuilderMapProps {
   regions: ScoredBoundaryRegion[]
@@ -17,6 +21,7 @@ interface ScoreBuilderMapProps {
   regionFillColors?: Record<string, string> | null
   walkabilitySourceSurface?: boolean
   sourceGridWeights?: ScoreMetricWeightMap
+  walkabilitySurfaceTuning?: WalkabilitySurfaceTuning
   loading?: boolean
   onMapInstance?: (map: MapRef | null) => void
 }
@@ -43,47 +48,6 @@ interface WalkabilityLiveGridState {
   grid: WalkabilityLiveGrid | null
 }
 
-const WALKABILITY_REPORT_FACTOR_REFS = [
-  'A0', 'A1', 'A2', 'A3', 'A4', 'A5',
-  'B0', 'B1', 'B2', 'B3',
-  'C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6',
-  'D0', 'D1', 'D2', 'D3', 'D4',
-  'E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6',
-  'F0', 'F1', 'F2', 'F3', 'F4', 'F6', 'F7', 'F8', 'F9',
-  'G0', 'G1', 'G2', 'G3', 'G4', 'G5',
-]
-
-const SCORE_METRIC_TO_REPORT_REFS: Partial<Record<ScoreMetricKey, string[]>> = {
-  sidewalkDensity: ['G1', 'G5'],
-  walkwayDensity: ['G1'],
-  walkabilityIntersectionDensity: ['F1', 'G2', 'G3', 'G4', 'G5'],
-  walkabilityCrossingDensity: ['F0'],
-  class3CrosswalkDensity: ['F0'],
-  childcareDensity: ['C0'],
-  transitStopDensity: ['F9', 'G0'],
-  accessibleTransitStopDensity: ['F9', 'G0'],
-  frequentTransitStopAccess: ['F9', 'G0'],
-  accessibleFrequentTransitAccess: ['F9', 'G0'],
-  transitServiceSpan: ['F9', 'G0'],
-  transitTripsPerStop: ['F9', 'G0'],
-  parkWalk10Access: ['A2', 'A3', 'A4', 'A5'],
-  parkWalk20Access: ['A2', 'A3', 'A4', 'A5'],
-  parkTransit20Access: ['A2', 'A3', 'A4', 'A5', 'F9', 'G0'],
-  walkabilityPoiDensity: [
-    'A0', 'A1', 'B0', 'B1', 'B2', 'B3',
-    'C1', 'C2', 'C3', 'C4', 'C5', 'C6',
-    'D0', 'D1', 'D2', 'D3', 'D4',
-    'E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6',
-  ],
-}
-
-const LIVE_GRID_OPTIONS = {
-  dropGtfsHf: true,
-  narrowCivic: true,
-  narrowGrowth: true,
-  dropPopAge: true,
-}
-
 const ZOOM = 12
 const SCORE_BUILDER_MAP_STYLES = {
   light: MAP_STYLES.light,
@@ -99,6 +63,7 @@ export function ScoreBuilderMap({
   regionFillColors = null,
   walkabilitySourceSurface = false,
   sourceGridWeights,
+  walkabilitySurfaceTuning,
   loading = false,
   onMapInstance,
 }: ScoreBuilderMapProps) {
@@ -176,7 +141,9 @@ export function ScoreBuilderMap({
       <PgMap ref={setMapRef} center={PG_CENTER} zoom={ZOOM} styles={SCORE_BUILDER_MAP_STYLES} loading={loading}>
         <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
-        {walkabilitySourceSurface && <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} />}
+        {walkabilitySourceSurface && (
+          <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} tuning={walkabilitySurfaceTuning} />
+        )}
 
         <MapFillLayer
           data={featureCollection}
@@ -212,36 +179,24 @@ function hexToRgba(hex: string, alpha = 217): [number, number, number, number] {
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255, alpha]
 }
 
-function buildSourceGridFactorWeights(weights?: ScoreMetricWeightMap): Record<string, number> {
-  const factorScores = Object.fromEntries(WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, 0])) as Record<string, number>
-  if (!weights) return factorScores
-
-  for (const [metricKey, weight] of Object.entries(weights) as Array<[ScoreMetricKey, number]>) {
-    if (!weight) continue
-    const refs = SCORE_METRIC_TO_REPORT_REFS[metricKey]
-    if (!refs?.length) continue
-    const contribution = weight / refs.length
-    for (const ref of refs) {
-      factorScores[ref] = Math.max(0, (factorScores[ref] ?? 0) + contribution)
-    }
-  }
-
-  const maxScore = Math.max(...Object.values(factorScores))
-  if (maxScore <= 0) return factorScores
-  return Object.fromEntries(
-    WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, Math.max(0, Math.min(2, (factorScores[ref] / maxScore) * 2))]),
-  )
-}
-
-function ScoreBuilderWalkabilitySourceGrid({ weights }: { weights?: ScoreMetricWeightMap }) {
+function ScoreBuilderWalkabilitySourceGrid({
+  weights,
+  tuning,
+}: {
+  weights?: ScoreMetricWeightMap
+  tuning?: WalkabilitySurfaceTuning
+}) {
   const { map, isLoaded } = useMap()
   const grid = useJsonManifest<WalkabilityGridData>('/data/walkability/heatmap/citywide_mi_grid.json')
   const sourceId = 'score-builder-walkability-source-grid'
   const layerId = 'score-builder-walkability-source-grid-layer'
-  const factorWeights = useMemo(() => buildSourceGridFactorWeights(weights), [weights])
+  const { factorWeights, options } = useMemo(
+    () => resolveWalkabilitySurfaceModel(tuning, weights),
+    [tuning, weights],
+  )
   const liveRequestKey = useMemo(
-    () => JSON.stringify({ options: LIVE_GRID_OPTIONS, factorWeights }),
-    [factorWeights],
+    () => JSON.stringify({ options, factorWeights }),
+    [factorWeights, options],
   )
   const [liveGrid, setLiveGrid] = useState<WalkabilityLiveGridState>({
     status: 'idle',
@@ -274,12 +229,12 @@ function ScoreBuilderWalkabilitySourceGrid({ weights }: { weights?: ScoreMetricW
     worker.onerror = () => {
       if (!cancelled) setLiveGrid({ status: 'error', requestKey, grid: null })
     }
-    worker.postMessage({ type: 'compute', requestKey, options: { ...LIVE_GRID_OPTIONS, factorWeights } })
+    worker.postMessage({ type: 'compute', requestKey, options: { ...options, factorWeights } })
     return () => {
       cancelled = true
       worker.terminate()
     }
-  }, [factorWeights, grid.data, liveRequestKey])
+  }, [factorWeights, grid.data, liveRequestKey, options])
 
   useEffect(() => {
     const data = grid.data
