@@ -143,6 +143,21 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
     return () => window.removeEventListener('keydown', handleKeydown)
   }, [onClose])
 
+  // Hide the floating mobile top toolbar (PGMaps menu, search, info, theme)
+  // while the sheet is open so its controls don't peek out above the modal —
+  // matches the Restaurant Roulette sheet. The Navbar listens for this event;
+  // desktop is unaffected.
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden: true } })
+    )
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden: false } })
+      )
+    }
+  }, [])
+
   return (
     <div
       className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"

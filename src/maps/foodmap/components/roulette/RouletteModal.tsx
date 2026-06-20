@@ -122,7 +122,7 @@ export function RouletteModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[1200] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
       <div className="flex max-h-[96dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-2xl backdrop-blur sm:h-auto sm:max-h-[calc(100dvh-1rem)] sm:max-w-lg sm:rounded-2xl">
