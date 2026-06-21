@@ -1,6 +1,5 @@
 import { MapImageLegend, MapLegendPanel, MapLegendSection, MapSteppedLegend } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
-import { AQHI_STOPS } from '../lib/aqMapConstants'
 import { AQHI_LEVELS, AQHI_NO_DATA_COLOR } from '../lib/aqhiScale'
 import {
   localizeSmokeDensity,
@@ -57,11 +56,14 @@ export function AqMonitorLegend({
       title={translate('map.legend', locale)}
       width="md"
       collapsible
-      className="max-h-[min(22rem,calc(100vh-8rem))]"
+      className="aqmap-monitor-legend max-h-[min(22rem,calc(100vh-8rem))] max-md:w-[min(14rem,calc(100vw-1.5rem))]"
       contentClassName="max-h-[calc(min(22rem,calc(100vh-8rem))-3rem)] space-y-3 overflow-y-auto pr-1"
     >
-      <MapLegendSection title={translate('sidebar.pm25Legend', locale)}>
+      <MapLegendSection>
         <div className="space-y-2">
+          <div className="text-[10px] text-muted-foreground">
+            AQHI+ · PM2.5 {translate('aqhi.unit', locale)}
+          </div>
           <MapSteppedLegend
             variant="strip"
             bands={AQHI_LEVELS.map((level) => ({
@@ -70,23 +72,6 @@ export function AqMonitorLegend({
             }))}
             labels={['0', '30', '60', '100+']}
           />
-          <div className="text-[10px] text-muted-foreground">
-            AQHI+ · PM2.5 {translate('aqhi.unit', locale)}
-          </div>
-          <div className="space-y-1">
-            {AQHI_STOPS.map((stop) => (
-              <div key={stop.labelKey} className="flex items-center gap-2 text-[11px] leading-4 text-muted-foreground">
-                <span className="size-2.5 shrink-0 rounded-full border border-black/20 shadow-sm" style={{ backgroundColor: stop.color }} />
-                <span className="truncate">
-                  {translate(stop.labelKey, locale)}
-                  {' '}
-                  {translate(stop.rangeKey, locale)}
-                  {' '}
-                  {translate('aqhi.unit', locale)}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       </MapLegendSection>
 

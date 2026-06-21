@@ -357,11 +357,11 @@ export function MapSectionLayout({
 
   // Position on first paint (before browser paints → no flash)
   useLayoutEffect(() => {
-    // No bottom sheet is rendered when the sidebar is disabled — bail so we
-    // don't publish a phantom sheet height (getSheetHeight() would fall back to
-    // window.innerHeight and shove bottom-anchored overlays up into the toolbar).
+    // No bottom sheet is rendered when the sidebar is disabled. Keep publishing
+    // an explicit 0px height so nested map overlays do not fall back to their
+    // mobile sheet offsets.
     if (disableSidebar) {
-      rootRef.current?.style.removeProperty('--map-mobile-sheet-visible-height')
+      rootRef.current?.style.setProperty('--map-mobile-sheet-visible-height', '0px')
       return
     }
     if (isMobileViewport()) {

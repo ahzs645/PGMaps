@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
-import { Map as PgMap, MapControls } from '@/components/ui/map'
+import { Map as PgMap } from '@/components/ui/map'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useAirQualityData, type AirMonitor } from '@/maps/airquality'
 import { distanceKm, getAqhiCategory, getMonitorAqhiPm25, isFemMonitor } from '@/maps/airquality/lib/monitorPopup'
@@ -43,7 +43,7 @@ import {
   clampRevealClusterRadius,
 } from './lib/aqMapConstants'
 import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZoneFeatureProperties, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from './lib/aqMapTypes'
-import { FloatingLayerControl, MainLayerControl, MapTimestamp, MapUtilityControls, ScaleBar } from './components/AqMapControls'
+import { FloatingLayerControl, MainLayerControl, MapStatusBar, MapUtilityControls } from './components/AqMapControls'
 import { AqMonitorLegend } from './components/AqMapLegends'
 import { AqMapSidebar } from './components/AqMapSidebar'
 import { ActiveFiresVectorLayer, AqMonitorLayer, FireDangerVectorLayer, FirePerimetersVectorLayer, ForecastZonesVectorLayer, ModelledPm25VectorLayer, SmokePolygonLayer, WmsRasterLayer } from './components/AqMapLayers'
@@ -148,6 +148,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     const params = new URLSearchParams(window.location.search)
     return params.get('feature') === 'popup' ? 'popup' : 'card'
   })
+  const effectiveMobileFeatureDisplay: MobileFeatureDisplay = isMain ? 'card' : mobileFeatureDisplay
   const basemap: AqBasemap = resolvedTheme === 'dark' ? 'dark' : 'light'
   const [mapView, setMapView] = useState(() => initialUrlState.mapView)
   const [locale, setLocale] = useState<AqmapLocale>(() => initialUrlState.locale)
@@ -221,6 +222,12 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
 
     return () => controller.abort()
   }, [forecastZoneData, forecastZoneError, visibleWmsLayers])
+
+  useEffect(() => {
+    if (isMobileViewport) {
+      setHoveredMonitor(null)
+    }
+  }, [isMobileViewport])
 
   useEffect(() => {
     // The main page is a fixed, shareable view — don't mirror its (locked) state to the URL.
@@ -465,6 +472,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
           }}
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
+          attributionControl={false}
           renderWorldCopies
           styles={BASEMAP_STYLES[basemap]}
           // Symbol labels fade out over fadeDuration (default 300ms) while
@@ -523,13 +531,13 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             clusterMaxZoom={clusterMaxZoom}
             tightClusters={tightClusters}
             onMonitorClick={handleMonitorClick}
-            onMonitorHover={setHoveredMonitor}
+            onMonitorHover={isMobileViewport ? () => setHoveredMonitor(null) : setHoveredMonitor}
           />
-          {hoveredMonitor && selectedMonitorWithZone !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} locale={locale} />}
-          {selectedMonitorWithZone && (!isMobileViewport || mobileFeatureDisplay === 'popup') && (
+          {!isMobileViewport && hoveredMonitor && selectedMonitorWithZone !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} locale={locale} />}
+          {selectedMonitorWithZone && (!isMobileViewport || effectiveMobileFeatureDisplay === 'popup') && (
             <MonitorPopup monitor={selectedMonitorWithZone} locale={locale} nearbyFem={nearbyFem} onClose={() => setSelectedMonitor(null)} />
           )}
-          {selectedMonitorWithZone && isMobileViewport && mobileFeatureDisplay === 'card' && (
+          {selectedMonitorWithZone && isMobileViewport && effectiveMobileFeatureDisplay === 'card' && (
             <MobileAqMonitorFeatureCard
               monitor={selectedMonitorWithZone}
               locale={locale}
@@ -594,9 +602,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             locale={locale}
           />
           <MapUtilityControls onReset={resetView} locale={locale} />
-          <MapTimestamp latestDate={latestDate} locale={locale} />
-          <ScaleBar />
-          <MapControls showFullscreen />
+          <MapStatusBar latestDate={latestDate} locale={locale} />
         </PgMap>
       </div>
     </MapSectionLayout>

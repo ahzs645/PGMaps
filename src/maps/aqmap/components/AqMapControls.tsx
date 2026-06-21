@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Crosshair, Layers as LayersIcon, RotateCcw } from 'lucide-react'
+import { Crosshair, Info, Layers as LayersIcon, Maximize, Minus, Plus, RotateCcw } from 'lucide-react'
 import { useMap } from '@/components/ui/map'
 import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { cn } from '@/lib/utils'
@@ -452,6 +452,14 @@ export function MainLayerControl({
 export function MapUtilityControls({ onReset, locale }: { onReset: () => void; locale: AqmapLocale }) {
   const { map } = useMap()
 
+  const zoomIn = () => {
+    map?.zoomTo(map.getZoom() + 1, { duration: 300 })
+  }
+
+  const zoomOut = () => {
+    map?.zoomTo(map.getZoom() - 1, { duration: 300 })
+  }
+
   const locate = () => {
     if (!navigator.geolocation || !map) return
     navigator.geolocation.getCurrentPosition((position) => {
@@ -463,27 +471,38 @@ export function MapUtilityControls({ onReset, locale }: { onReset: () => void; l
     })
   }
 
+  const toggleFullscreen = () => {
+    const container = map?.getContainer()
+    if (!container) return
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      container.requestFullscreen()
+    }
+  }
+
   return (
     <MapFloatingPanel position="top-left" className="top-[calc(env(safe-area-inset-top)+3.75rem)] flex flex-col overflow-hidden rounded border border-border bg-background shadow-md md:top-3">
-      <button type="button" title={translate('controls.zoomToLocation', locale)} onClick={locate} className="p-2 hover:bg-secondary">
+      <button type="button" aria-label="Zoom in" onClick={zoomIn} className="p-2 hover:bg-secondary">
+        <Plus className="size-4" />
+      </button>
+      <button type="button" aria-label="Zoom out" onClick={zoomOut} className="border-t border-border p-2 hover:bg-secondary">
+        <Minus className="size-4" />
+      </button>
+      <button type="button" title={translate('controls.zoomToLocation', locale)} onClick={locate} className="border-t border-border p-2 hover:bg-secondary">
         <Crosshair className="size-4" />
       </button>
       <button type="button" title={translate('controls.resetView', locale)} onClick={onReset} className="border-t border-border p-2 hover:bg-secondary">
         <RotateCcw className="size-4" />
       </button>
+      <button type="button" aria-label="Toggle fullscreen" onClick={toggleFullscreen} className="border-t border-border p-2 hover:bg-secondary">
+        <Maximize className="size-4" />
+      </button>
     </MapFloatingPanel>
   )
 }
 
-export function MapTimestamp({ latestDate, locale }: { latestDate: string | null | undefined; locale: AqmapLocale }) {
-  return (
-    <MapFloatingPanel position="bottom-left" className="rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md">
-      {translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}
-    </MapFloatingPanel>
-  )
-}
-
-export function ScaleBar() {
+export function MapStatusBar({ latestDate, locale }: { latestDate: string | null | undefined; locale: AqmapLocale }) {
   const { map } = useMap()
   const [scale, setScale] = useState({ width: 80, label: '500 km' })
 
@@ -498,7 +517,7 @@ export function ScaleBar() {
         * Math.PI
         * 6378137
       ) / (512 * (2 ** map.getZoom()))
-      const maxWidth = 100
+      const maxWidth = window.innerWidth < 768 ? 72 : 100
       const rawDistanceMeters = metersPerPixel * maxWidth
       const niceDistances = [
         1, 2, 5, 10, 20, 50, 100, 200, 500,
@@ -521,9 +540,49 @@ export function ScaleBar() {
   }, [map])
 
   return (
-    <MapFloatingPanel position="bottom-right" className="rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md md:mr-52">
-      <div className="h-1 border-x border-b border-foreground" style={{ width: scale.width }} />
-      <div className="mt-0.5 text-center">{scale.label}</div>
+    <MapFloatingPanel reserveLegendSpace={false} position="bottom-left" className="flex max-w-[calc(100vw-1.5rem)] items-end gap-2 md:max-w-[calc(100vw-16rem)]">
+      <details data-aqmap-status-info="true" className="group relative md:hidden">
+        <summary
+          aria-label="Map information"
+          className="flex size-8 cursor-pointer list-none items-center justify-center rounded-full border border-border bg-background/95 text-foreground shadow-md transition-colors hover:bg-secondary [&::-webkit-details-marker]:hidden"
+        >
+          <Info className="size-4" />
+        </summary>
+        <div className="absolute bottom-full left-0 mb-2 w-64 max-w-[calc(100vw-1.5rem)] rounded border border-border bg-background/95 px-2 py-1.5 text-[11px] leading-snug text-foreground shadow-md">
+          <div>{translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}</div>
+          <div className="mt-1 text-muted-foreground">
+            ©{' '}
+            <a href="https://carto.com/about-carto/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
+              CARTO
+            </a>
+            , ©{' '}
+            <a href="http://www.openstreetmap.org/about/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
+              OpenStreetMap
+            </a>
+            {' '}
+            contributors
+          </div>
+        </div>
+      </details>
+      <div data-aqmap-status-time="true" className="hidden min-w-0 flex-1 truncate rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md md:block">
+        <span>{translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}</span>
+        <span className="ml-2 text-muted-foreground">
+          ©{' '}
+          <a href="https://carto.com/about-carto/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
+            CARTO
+          </a>
+          , ©{' '}
+          <a href="http://www.openstreetmap.org/about/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
+            OpenStreetMap
+          </a>
+          {' '}
+          contributors
+        </span>
+      </div>
+      <div data-aqmap-scale-bar="true" className="shrink-0 rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md">
+        <div className="h-1 border-x border-b border-foreground" style={{ width: scale.width }} />
+        <div className="mt-0.5 text-center">{scale.label}</div>
+      </div>
     </MapFloatingPanel>
   )
 }

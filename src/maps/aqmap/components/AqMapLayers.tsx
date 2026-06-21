@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMap } from '@/components/ui/map'
+import { dispatchMobileMapFeatureClick } from '@/components/ui/map-context'
 import type { AirMonitor } from '@/maps/airquality'
 import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import maplibregl from 'maplibre-gl'
@@ -1167,6 +1168,9 @@ export function AqMonitorLayer({
       const key = String(feature.properties?.key ?? '')
       const monitor = monitors.find((item) => monitorKey(item) === key)
       if (monitor) {
+        event.preventDefault()
+        event.originalEvent?.preventDefault()
+        dispatchMobileMapFeatureClick()
         onMonitorClick(monitor)
       }
     }
@@ -1187,6 +1191,9 @@ export function AqMonitorLayer({
       const feature = rendered[0]
       if (!feature) return
 
+      event.preventDefault()
+      event.originalEvent?.preventDefault()
+      dispatchMobileMapFeatureClick()
       const clusterId = feature.properties?.cluster_id as number | undefined
       const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
       const source = currentMap.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
@@ -1262,8 +1269,8 @@ export function AqMonitorLayer({
             layout: {
               'icon-image': ['get', 'iconId'],
               'icon-size': 1,
-              'icon-allow-overlap': false,
-              'icon-ignore-placement': false,
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
               'symbol-sort-key': ['get', 'zIndex'],
             },
           })

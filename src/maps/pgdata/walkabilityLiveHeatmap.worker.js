@@ -11,7 +11,11 @@ const GIS_DIR = `${SOURCE_ROOT}/data/public_gis`
 const SUPP_DIR = `${SOURCE_ROOT}/data/supplemental`
 const CELL_M = 30
 const NODATA = 0
-const PROX = [[400, 1], [250, 2], [100, 2]]
+const PROX = [
+  [400, 1],
+  [250, 2],
+  [100, 2],
+]
 
 const LAYERS = {
   parks: { source: 'arcgis', file: `${GIS_DIR}/parks.json` },
@@ -38,40 +42,162 @@ const LAYERS = {
   census_da_age: { source: 'geojson', file: `${SUPP_DIR}/census_da_age.geojson` },
 }
 
-const f = (ref, description, layerKey, mode, field = '', values = [], scores = [], score = 0, where = '') => (
-  { ref, description, layerKey, mode, field, values, scores, score, where }
-)
+const f = (ref, description, layerKey, mode, field = '', values = [], scores = [], score = 0, where = '') => ({
+  ref,
+  description,
+  layerKey,
+  mode,
+  field,
+  values,
+  scores,
+  score,
+  where,
+})
 
 const FACTORS = [
   f('A2', 'Park - Park Site', 'parks', 'proximity', '', [], PROX, 0, "LifeCycleStatus = 'Active'"),
   f('A3', 'Park - Activity Area', 'playing_area', 'proximity', '', [], PROX, 0, "LifeCycleStatus = 'Active'"),
   f('A4', 'Park - Playground Area', 'playground', 'proximity', '', [], PROX, 0, "LifeCycleStatus = 'Active'"),
-  f('B0', 'Community Centre or Club - OCP', 'community_facility_ocp', 'proximity', 'FacilityClass', ['1', 'Community Centre or Club'], PROX),
-  f('B1', 'Community Facility - Future Land Use', 'future_landuse_ocp', 'proximity', 'FutureLanduse', ['Community Facility'], PROX),
-  f('B2', 'Religious Space - OCP', 'community_facility_ocp', 'proximity', 'FacilityClass', ['6', 'Religious Assembly'], PROX),
+  f(
+    'B0',
+    'Community Centre or Club - OCP',
+    'community_facility_ocp',
+    'proximity',
+    'FacilityClass',
+    ['1', 'Community Centre or Club'],
+    PROX,
+  ),
+  f(
+    'B1',
+    'Community Facility - Future Land Use',
+    'future_landuse_ocp',
+    'proximity',
+    'FutureLanduse',
+    ['Community Facility'],
+    PROX,
+  ),
+  f(
+    'B2',
+    'Religious Space - OCP',
+    'community_facility_ocp',
+    'proximity',
+    'FacilityClass',
+    ['6', 'Religious Assembly'],
+    PROX,
+  ),
   f('B3', 'Schools - Elementary', 'schools', 'proximity', 'SchoolType', ['1', 'Elementary'], PROX),
   f('B3', 'Schools - Secondary', 'schools', 'proximity', 'SchoolType', ['3', 'Secondary'], PROX),
   f('B3', 'Schools - Post Secondary', 'schools', 'proximity', 'SchoolType', ['4', '5', 'Post Secondary'], PROX),
   f('C2', 'Health Centre - OCP', 'community_facility_ocp', 'proximity', 'FacilityClass', ['5', 'Health'], PROX),
   f('C3', 'Land Use - Commercial', 'zoning_class', 'area_association', 'USECODE', ['11', 'Commercial'], [], 5),
-  f('C4', 'Land Use - Recreation Institutional', 'zoning_class', 'area_association', 'USECODE', ['13', 'Recreation_Institutional', 'Recreation Institutional'], [], 5),
-  f('C5', 'Land Use - Business Industrial', 'zoning_class', 'area_association', 'USECODE', ['12', 'Business Industrial'], [], 3),
+  f(
+    'C4',
+    'Land Use - Recreation Institutional',
+    'zoning_class',
+    'area_association',
+    'USECODE',
+    ['13', 'Recreation_Institutional', 'Recreation Institutional'],
+    [],
+    5,
+  ),
+  f(
+    'C5',
+    'Land Use - Business Industrial',
+    'zoning_class',
+    'area_association',
+    'USECODE',
+    ['12', 'Business Industrial'],
+    [],
+    3,
+  ),
   f('C6', 'Land Use - Residential', 'zoning_class', 'area_association', 'USECODE', ['10', 'Residential'], [], 2),
   f('D0', 'Commercial - Downtown', 'future_landuse_ocp', 'proximity', 'FutureLanduse', ['Downtown'], PROX),
   f('D1', 'Commercial - Service', 'future_landuse_ocp', 'proximity', 'FutureLanduse', ['Service Commercial'], PROX),
   f('D2', 'Commercial - Corridor', 'future_landuse_ocp', 'proximity', 'FutureLanduse', ['Corridor'], PROX),
-  f('D3', 'Commercial - Recreational', 'future_landuse_ocp', 'proximity', 'FutureLanduse', ['Commercial Recreation'], PROX),
+  f(
+    'D3',
+    'Commercial - Recreational',
+    'future_landuse_ocp',
+    'proximity',
+    'FutureLanduse',
+    ['Commercial Recreation'],
+    PROX,
+  ),
   f('D4', 'Commercial - Regional', 'future_landuse_ocp', 'proximity', 'FutureLanduse', ['Regional Commercial'], PROX),
   f('E6', 'Intensive Residential', 'intensive_residential_ocp', 'area_association', '', [], [], 5),
   f('F1', 'Traffic Signals', 'traffic_signals', 'proximity', '', [], PROX, 0, "LifeCycleStatus = 'Active'"),
-  f('F9', 'Transit - Bus Stops (GTFS, all)', 'gtfs_stops', 'proximity', '', [], [[400, 1], [250, 1], [100, 1]]),
-  f('F9', 'Transit - Bus Stops (GTFS, high frequency, band >= 4)', 'gtfs_stops', 'proximity', 'frequency_band', ['4', '5'], [[400, 0], [250, 1], [100, 1]]),
+  f(
+    'F9',
+    'Transit - Bus Stops (GTFS, all)',
+    'gtfs_stops',
+    'proximity',
+    '',
+    [],
+    [
+      [400, 1],
+      [250, 1],
+      [100, 1],
+    ],
+  ),
+  f(
+    'F9',
+    'Transit - Bus Stops (GTFS, high frequency, band >= 4)',
+    'gtfs_stops',
+    'proximity',
+    'frequency_band',
+    ['4', '5'],
+    [
+      [400, 0],
+      [250, 1],
+      [100, 1],
+    ],
+  ),
   f('G0', 'Transit Corridors', 'transit_routes', 'proximity', '', [], PROX),
   f('G1', 'Active Corridors', 'cycle_network', 'line_association', '', [], [], 5),
-  f('G2', 'Road Classification - Arterial/Freeway/Highway/Ramp', 'roads', 'line_association', 'RoadClass', ['2', '3', '9', 'Arterial', 'Freeway', 'Highway', 'Ramp'], [], 5, "LifeCycleStatus = 'Active'"),
-  f('G3', 'Road Classification - Major Collector', 'roads', 'line_association', 'RoadClass', ['4', 'Major Collector'], [], 4, "LifeCycleStatus = 'Active'"),
-  f('G4', 'Road Classification - Minor Collector', 'roads', 'line_association', 'RoadClass', ['5', 'Minor Collector'], [], 3, "LifeCycleStatus = 'Active'"),
-  f('G5', 'Road Classification - Local', 'roads', 'line_association', 'RoadClass', ['6', 'Local'], [], 1, "LifeCycleStatus = 'Active'"),
+  f(
+    'G2',
+    'Road Classification - Arterial/Freeway/Highway/Ramp',
+    'roads',
+    'line_association',
+    'RoadClass',
+    ['2', '3', '9', 'Arterial', 'Freeway', 'Highway', 'Ramp'],
+    [],
+    5,
+    "LifeCycleStatus = 'Active'",
+  ),
+  f(
+    'G3',
+    'Road Classification - Major Collector',
+    'roads',
+    'line_association',
+    'RoadClass',
+    ['4', 'Major Collector'],
+    [],
+    4,
+    "LifeCycleStatus = 'Active'",
+  ),
+  f(
+    'G4',
+    'Road Classification - Minor Collector',
+    'roads',
+    'line_association',
+    'RoadClass',
+    ['5', 'Minor Collector'],
+    [],
+    3,
+    "LifeCycleStatus = 'Active'",
+  ),
+  f(
+    'G5',
+    'Road Classification - Local',
+    'roads',
+    'line_association',
+    'RoadClass',
+    ['6', 'Local'],
+    [],
+    1,
+    "LifeCycleStatus = 'Active'",
+  ),
   f('A1', 'Entertainment - POI Supplement', 'poi_supplement', 'proximity', 'poi_class', ['Entertainment'], PROX),
   f('E0', 'Affordable Housing - Low Income', 'poi_supplement', 'proximity', 'poi_class', ['Low Income Housing'], PROX),
   f('E1', 'Affordable Housing - Apartments', 'poi_supplement', 'proximity', 'poi_class', ['Apartment Building'], PROX),
@@ -81,32 +207,163 @@ const FACTORS = [
   f('F0', 'Crosswalks - OSM Marked Crossings', 'osm_crossings', 'proximity', '', [], PROX),
   f('F0', 'Crosswalks - Report Class 3 List (Geocoded)', 'report_crosswalks', 'proximity', '', [], PROX),
   f('F8', 'Intercity Bus Depot', 'intercity_bus', 'proximity', '', [], PROX),
-  f('F2', 'Population Density - High (Census Block 2021, top quintile)', 'census_blocks_2021', 'area_association', 'PopDensQuintile', ['5'], [], 5),
-  f('F3', 'Population Density - Medium (Census Block 2021, mid quintiles)', 'census_blocks_2021', 'area_association', 'PopDensQuintile', ['3', '4'], [], 3),
-  f('F4', 'Population Density - Low (Census Block 2021, bottom quintiles)', 'census_blocks_2021', 'area_association', 'PopDensQuintile', ['1', '2'], [], 1),
-  f('F6', 'Seniors Density - High (DA 2021, top quintile)', 'census_da_age', 'area_association', 'SeniorQuintile', ['5'], [], 5),
-  f('F6', 'Seniors Density - Medium (DA 2021, mid quintiles)', 'census_da_age', 'area_association', 'SeniorQuintile', ['3', '4'], [], 3),
-  f('F6', 'Seniors Density - Low (DA 2021, bottom quintiles)', 'census_da_age', 'area_association', 'SeniorQuintile', ['1', '2'], [], 1),
-  f('F7', 'Youth Density - High (DA 2021, top quintile)', 'census_da_age', 'area_association', 'YouthQuintile', ['5'], [], 5),
-  f('F7', 'Youth Density - Medium (DA 2021, mid quintiles)', 'census_da_age', 'area_association', 'YouthQuintile', ['3', '4'], [], 3),
-  f('F7', 'Youth Density - Low (DA 2021, bottom quintiles)', 'census_da_age', 'area_association', 'YouthQuintile', ['1', '2'], [], 1),
-  f('A0', 'Community Space - Cultural / Leased', 'civic_facility_buildings', 'proximity', 'SubType_TEXT', ['Cultural', 'Leased'], PROX),
-  f('A5', 'Recreation - Aquatic / Arena / Stadium', 'civic_facility_buildings', 'proximity', 'SubType_TEXT', ['Aquatic', 'Arena', 'Stadium'], PROX),
-  f('C1', 'Government Services - Administration / Fire / Police', 'civic_facility_buildings', 'proximity', 'SubType_TEXT', ['Administration', 'Fire Hall', 'Police'], PROX),
+  f(
+    'F2',
+    'Population Density - High (Census Block 2021, top quintile)',
+    'census_blocks_2021',
+    'area_association',
+    'PopDensQuintile',
+    ['5'],
+    [],
+    5,
+  ),
+  f(
+    'F3',
+    'Population Density - Medium (Census Block 2021, mid quintiles)',
+    'census_blocks_2021',
+    'area_association',
+    'PopDensQuintile',
+    ['3', '4'],
+    [],
+    3,
+  ),
+  f(
+    'F4',
+    'Population Density - Low (Census Block 2021, bottom quintiles)',
+    'census_blocks_2021',
+    'area_association',
+    'PopDensQuintile',
+    ['1', '2'],
+    [],
+    1,
+  ),
+  f(
+    'F6',
+    'Seniors Density - High (DA 2021, top quintile)',
+    'census_da_age',
+    'area_association',
+    'SeniorQuintile',
+    ['5'],
+    [],
+    5,
+  ),
+  f(
+    'F6',
+    'Seniors Density - Medium (DA 2021, mid quintiles)',
+    'census_da_age',
+    'area_association',
+    'SeniorQuintile',
+    ['3', '4'],
+    [],
+    3,
+  ),
+  f(
+    'F6',
+    'Seniors Density - Low (DA 2021, bottom quintiles)',
+    'census_da_age',
+    'area_association',
+    'SeniorQuintile',
+    ['1', '2'],
+    [],
+    1,
+  ),
+  f(
+    'F7',
+    'Youth Density - High (DA 2021, top quintile)',
+    'census_da_age',
+    'area_association',
+    'YouthQuintile',
+    ['5'],
+    [],
+    5,
+  ),
+  f(
+    'F7',
+    'Youth Density - Medium (DA 2021, mid quintiles)',
+    'census_da_age',
+    'area_association',
+    'YouthQuintile',
+    ['3', '4'],
+    [],
+    3,
+  ),
+  f(
+    'F7',
+    'Youth Density - Low (DA 2021, bottom quintiles)',
+    'census_da_age',
+    'area_association',
+    'YouthQuintile',
+    ['1', '2'],
+    [],
+    1,
+  ),
+  f(
+    'A0',
+    'Community Space - Cultural / Leased',
+    'civic_facility_buildings',
+    'proximity',
+    'SubType_TEXT',
+    ['Cultural', 'Leased'],
+    PROX,
+  ),
+  f(
+    'A5',
+    'Recreation - Aquatic / Arena / Stadium',
+    'civic_facility_buildings',
+    'proximity',
+    'SubType_TEXT',
+    ['Aquatic', 'Arena', 'Stadium'],
+    PROX,
+  ),
+  f(
+    'C1',
+    'Government Services - Administration / Fire / Police',
+    'civic_facility_buildings',
+    'proximity',
+    'SubType_TEXT',
+    ['Administration', 'Fire Hall', 'Police'],
+    PROX,
+  ),
   f('E4', 'Growth Area - Priority / Infill', 'growth_management', 'area_association', 'GrowthPhase', ['1', '2'], [], 5),
-  f('E5', 'Growth Area - Future / Phased', 'growth_management', 'area_association', 'GrowthPhase', ['3', '4', '5'], [], 3),
+  f(
+    'E5',
+    'Growth Area - Future / Phased',
+    'growth_management',
+    'area_association',
+    'GrowthPhase',
+    ['3', '4', '5'],
+    [],
+    3,
+  ),
 ]
 
 let cachedInputs = null
+let inputsPromise = null
+let pendingComputeRequest = null
+let processingComputeRequest = false
+const maskCache = new Map()
+const MAX_MASK_CACHE_ENTRIES = 160
 
 self.onmessage = async (event) => {
   const { type, requestKey, options } = event.data ?? {}
   if (type !== 'compute') return
+  pendingComputeRequest = { requestKey, options: options ?? {} }
+  if (!processingComputeRequest) setTimeout(processLatestComputeRequest, 0)
+}
+
+async function processLatestComputeRequest() {
+  if (processingComputeRequest || !pendingComputeRequest) return
+  processingComputeRequest = true
+  const { requestKey, options } = pendingComputeRequest
+  pendingComputeRequest = null
   try {
-    const grid = await computeLiveGrid(requestKey, options ?? {})
+    const grid = await computeLiveGrid(requestKey, options)
     postMessage({ type: 'result', requestKey, grid })
   } catch (error) {
     postMessage({ type: 'error', requestKey, error: error instanceof Error ? error.message : String(error) })
+  } finally {
+    processingComputeRequest = false
+    if (pendingComputeRequest) setTimeout(processLatestComputeRequest, 0)
   }
 }
 
@@ -141,19 +398,11 @@ async function computeLiveGrid(requestKey, options) {
     if (factor.mode === 'proximity') {
       for (const [distance, score] of factor.scores) {
         if (!score) continue
-        const mask = new Uint8Array(inputs.rows * inputs.cols)
-        for (const feature of features) {
-          const buffered = bufferProjectedGeometry(feature, distance)
-          if (buffered) addGeometryInteriorToMask(mask, inputs.rows, inputs.cols, inputs.bounds, buffered)
-        }
+        const mask = factorMask(inputs, factor, features, distance)
         addMaskScoreToGrid(grid, mask, score * factor.multiplier)
       }
     } else {
-      const mask = new Uint8Array(inputs.rows * inputs.cols)
-      for (const feature of features) {
-        const buffered = bufferProjectedGeometry(feature, areaBufferM)
-        if (buffered) addGeometryInteriorToMask(mask, inputs.rows, inputs.cols, inputs.bounds, buffered)
-      }
+      const mask = factorMask(inputs, factor, features, areaBufferM)
       addMaskScoreToGrid(grid, mask, factor.score * factor.multiplier)
     }
   }
@@ -186,6 +435,19 @@ async function computeLiveGrid(requestKey, options) {
 
 async function loadInputs(requestKey) {
   if (cachedInputs) return cachedInputs
+  if (inputsPromise) return inputsPromise
+  inputsPromise = loadInputsUncached(requestKey)
+    .then((inputs) => {
+      cachedInputs = inputs
+      return inputs
+    })
+    .finally(() => {
+      inputsPromise = null
+    })
+  return inputsPromise
+}
+
+async function loadInputsUncached(requestKey) {
   progress(requestKey, 'Fetching source layers')
   const layerKeys = [...new Set(FACTORS.map((factor) => factor.layerKey))]
   const layerFeatures = {}
@@ -211,7 +473,7 @@ async function loadInputs(requestKey) {
   const inside = new Uint8Array(rows * cols)
   for (const boundary of boundaryFeatures) addGeometryInteriorToMask(inside, rows, cols, bounds, boundary)
 
-  cachedInputs = {
+  return {
     layerFeatures,
     rows,
     cols,
@@ -219,7 +481,6 @@ async function loadInputs(requestKey) {
     inside,
     imageCoordinates: [topLeft, topRight, bottomRight, bottomLeft],
   }
-  return cachedInputs
 }
 
 async function fetchJson(url) {
@@ -231,25 +492,26 @@ async function fetchJson(url) {
 async function readLayer(layerKey) {
   const layer = LAYERS[layerKey]
   const data = await fetchJson(layer.file)
-  const rawFeatures = layer.source === 'arcgis' ? data : data.features ?? []
+  const rawFeatures = layer.source === 'arcgis' ? data : (data.features ?? [])
   const features = []
   for (const raw of rawFeatures) {
-    const feature = layer.source === 'arcgis'
-      ? arcgisGeomToProjectedGeometry(raw.geometry)
-      : normalizeProjectedGeometry(raw)
+    const feature =
+      layer.source === 'arcgis' ? arcgisGeomToProjectedGeometry(raw.geometry) : normalizeProjectedGeometry(raw)
     if (!feature) continue
-    feature.properties = layer.source === 'arcgis' ? raw.attributes ?? {} : raw.properties ?? {}
+    feature.properties = layer.source === 'arcgis' ? (raw.attributes ?? {}) : (raw.properties ?? {})
     features.push(feature)
   }
   return features
 }
 
 function readLayerFromArcgisData(data) {
-  return data.map((feature) => {
-    const projected = arcgisGeomToProjectedGeometry(feature.geometry)
-    if (projected) projected.properties = feature.attributes ?? {}
-    return projected
-  }).filter(Boolean)
+  return data
+    .map((feature) => {
+      const projected = arcgisGeomToProjectedGeometry(feature.geometry)
+      if (projected) projected.properties = feature.attributes ?? {}
+      return projected
+    })
+    .filter(Boolean)
 }
 
 function readArcgisProjectedBounds(data) {
@@ -282,19 +544,32 @@ function lonlatToUtm10n(lon, lat) {
   const flattening = 1 / 298.257223563
   const e2 = flattening * (2 - flattening)
   const k0 = 0.9996
-  const lon0 = -123 * Math.PI / 180
-  const latR = lat * Math.PI / 180
-  const lonR = lon * Math.PI / 180
+  const lon0 = (-123 * Math.PI) / 180
+  const latR = (lat * Math.PI) / 180
+  const lonR = (lon * Math.PI) / 180
   const n = a / Math.sqrt(1 - e2 * Math.sin(latR) ** 2)
   const t = Math.tan(latR) ** 2
-  const c = e2 / (1 - e2) * Math.cos(latR) ** 2
+  const c = (e2 / (1 - e2)) * Math.cos(latR) ** 2
   const a1 = Math.cos(latR) * (lonR - lon0)
-  const m = a * ((1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * latR
-    - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * latR)
-    + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * latR)
-    - (35 * e2 ** 3 / 3072) * Math.sin(6 * latR))
-  const x = k0 * n * (a1 + (1 - t + c) * a1 ** 3 / 6 + (5 - 18 * t + t ** 2 + 72 * c - 58 * e2 / (1 - e2)) * a1 ** 5 / 120) + 500000
-  const y = k0 * (m + n * Math.tan(latR) * (a1 ** 2 / 2 + (5 - t + 9 * c + 4 * c ** 2) * a1 ** 4 / 24 + (61 - 58 * t + t ** 2 + 600 * c - 330 * e2 / (1 - e2)) * a1 ** 6 / 720))
+  const m =
+    a *
+    ((1 - e2 / 4 - (3 * e2 ** 2) / 64 - (5 * e2 ** 3) / 256) * latR -
+      ((3 * e2) / 8 + (3 * e2 ** 2) / 32 + (45 * e2 ** 3) / 1024) * Math.sin(2 * latR) +
+      ((15 * e2 ** 2) / 256 + (45 * e2 ** 3) / 1024) * Math.sin(4 * latR) -
+      ((35 * e2 ** 3) / 3072) * Math.sin(6 * latR))
+  const x =
+    k0 *
+      n *
+      (a1 + ((1 - t + c) * a1 ** 3) / 6 + ((5 - 18 * t + t ** 2 + 72 * c - (58 * e2) / (1 - e2)) * a1 ** 5) / 120) +
+    500000
+  const y =
+    k0 *
+    (m +
+      n *
+        Math.tan(latR) *
+        (a1 ** 2 / 2 +
+          ((5 - t + 9 * c + 4 * c ** 2) * a1 ** 4) / 24 +
+          ((61 - 58 * t + t ** 2 + 600 * c - (330 * e2) / (1 - e2)) * a1 ** 6) / 720))
   return [x, y]
 }
 
@@ -306,22 +581,30 @@ function utm10nToLonlat(x, y) {
   const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2))
   x -= 500000
   const m = y / k0
-  const mu = m / (a * (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256))
-  const phi1 = mu
-    + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu)
-    + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu)
-    + (151 * e1 ** 3 / 96) * Math.sin(6 * mu)
+  const mu = m / (a * (1 - e2 / 4 - (3 * e2 ** 2) / 64 - (5 * e2 ** 3) / 256))
+  const phi1 =
+    mu +
+    ((3 * e1) / 2 - (27 * e1 ** 3) / 32) * Math.sin(2 * mu) +
+    ((21 * e1 ** 2) / 16 - (55 * e1 ** 4) / 32) * Math.sin(4 * mu) +
+    ((151 * e1 ** 3) / 96) * Math.sin(6 * mu)
   const n1 = a / Math.sqrt(1 - e2 * Math.sin(phi1) ** 2)
   const t1 = Math.tan(phi1) ** 2
-  const c1 = e2 / (1 - e2) * Math.cos(phi1) ** 2
-  const r1 = a * (1 - e2) / (1 - e2 * Math.sin(phi1) ** 2) ** 1.5
+  const c1 = (e2 / (1 - e2)) * Math.cos(phi1) ** 2
+  const r1 = (a * (1 - e2)) / (1 - e2 * Math.sin(phi1) ** 2) ** 1.5
   const d = x / (n1 * k0)
-  const lat = phi1 - (n1 * Math.tan(phi1) / r1) * (d ** 2 / 2
-    - (5 + 3 * t1 + 10 * c1 - 4 * c1 ** 2 - 9 * e2 / (1 - e2)) * d ** 4 / 24
-    + (61 + 90 * t1 + 298 * c1 + 45 * t1 ** 2 - 252 * e2 / (1 - e2) - 3 * c1 ** 2) * d ** 6 / 720)
-  const lon = -123 * Math.PI / 180 + (d - (1 + 2 * t1 + c1) * d ** 3 / 6
-    + (5 - 2 * c1 + 28 * t1 - 3 * c1 ** 2 + 8 * e2 / (1 - e2) + 24 * t1 ** 2) * d ** 5 / 120) / Math.cos(phi1)
-  return [lon * 180 / Math.PI, lat * 180 / Math.PI]
+  const lat =
+    phi1 -
+    ((n1 * Math.tan(phi1)) / r1) *
+      (d ** 2 / 2 -
+        ((5 + 3 * t1 + 10 * c1 - 4 * c1 ** 2 - (9 * e2) / (1 - e2)) * d ** 4) / 24 +
+        ((61 + 90 * t1 + 298 * c1 + 45 * t1 ** 2 - (252 * e2) / (1 - e2) - 3 * c1 ** 2) * d ** 6) / 720)
+  const lon =
+    (-123 * Math.PI) / 180 +
+    (d -
+      ((1 + 2 * t1 + c1) * d ** 3) / 6 +
+      ((5 - 2 * c1 + 28 * t1 - 3 * c1 ** 2 + (8 * e2) / (1 - e2) + 24 * t1 ** 2) * d ** 5) / 120) /
+      Math.cos(phi1)
+  return [(lon * 180) / Math.PI, (lat * 180) / Math.PI]
 }
 
 function makeGeometry(type, coordinates, properties = {}) {
@@ -366,7 +649,9 @@ function arcgisGeomToProjectedGeometry(geometry) {
   if (!geometry) return null
   if ('x' in geometry && 'y' in geometry) return makeGeometry('Point', [Number(geometry.x), Number(geometry.y)])
   if (geometry.paths) {
-    const lines = geometry.paths.map((line) => line.map(([x, y]) => [Number(x), Number(y)])).filter((line) => line.length >= 2)
+    const lines = geometry.paths
+      .map((line) => line.map(([x, y]) => [Number(x), Number(y)]))
+      .filter((line) => line.length >= 2)
     if (!lines.length) return null
     return lines.length === 1 ? makeGeometry('LineString', lines[0]) : makeGeometry('MultiLineString', lines)
   }
@@ -398,9 +683,24 @@ function normalizeProjectedGeometry(feature) {
   const convertPoint = (point) => lonLatOrProjectedToUtm(point, properties)
   if (geom.type === 'Point') return makeGeometry('Point', convertPoint(geom.coordinates), properties)
   if (geom.type === 'LineString') return makeGeometry('LineString', geom.coordinates.map(convertPoint), properties)
-  if (geom.type === 'MultiLineString') return makeGeometry('MultiLineString', geom.coordinates.map((line) => line.map(convertPoint)), properties)
-  if (geom.type === 'Polygon') return makeGeometry('Polygon', geom.coordinates.map((ring) => ring.map(convertPoint)), properties)
-  if (geom.type === 'MultiPolygon') return makeGeometry('MultiPolygon', geom.coordinates.map((poly) => poly.map((ring) => ring.map(convertPoint))), properties)
+  if (geom.type === 'MultiLineString')
+    return makeGeometry(
+      'MultiLineString',
+      geom.coordinates.map((line) => line.map(convertPoint)),
+      properties,
+    )
+  if (geom.type === 'Polygon')
+    return makeGeometry(
+      'Polygon',
+      geom.coordinates.map((ring) => ring.map(convertPoint)),
+      properties,
+    )
+  if (geom.type === 'MultiPolygon')
+    return makeGeometry(
+      'MultiPolygon',
+      geom.coordinates.map((poly) => poly.map((ring) => ring.map(convertPoint))),
+      properties,
+    )
   return null
 }
 
@@ -421,7 +721,12 @@ function fieldMatches(attrs, field, values) {
   if (!field || !values.length) return true
   const actual = norm(attrs[field])
   const actualLower = actual.toLowerCase()
-  return values.some((value) => actual === value || actualLower === String(value).toLowerCase() || actualLower.includes(String(value).toLowerCase()))
+  return values.some(
+    (value) =>
+      actual === value ||
+      actualLower === String(value).toLowerCase() ||
+      actualLower.includes(String(value).toLowerCase()),
+  )
 }
 
 function assignPopDensityQuintiles(features) {
@@ -434,7 +739,9 @@ function assignPopDensityQuintiles(features) {
   })
   const nonzero = densities.filter((density) => density > 0).sort((a, b) => a - b)
   if (!nonzero.length) {
-    features.forEach((feature) => { feature.properties.PopDensQuintile = '1' })
+    features.forEach((feature) => {
+      feature.properties.PopDensQuintile = '1'
+    })
     return
   }
   const cut = (q) => nonzero[Math.max(0, Math.min(nonzero.length - 1, Math.floor(q * nonzero.length) - 1))]
@@ -444,7 +751,8 @@ function assignPopDensityQuintiles(features) {
   const q4 = cut(0.8)
   for (const feature of features) {
     const density = feature.properties._pop_density
-    feature.properties.PopDensQuintile = density <= 0 || density <= q1 ? '1' : density <= q2 ? '2' : density <= q3 ? '3' : density <= q4 ? '4' : '5'
+    feature.properties.PopDensQuintile =
+      density <= 0 || density <= q1 ? '1' : density <= q2 ? '2' : density <= q3 ? '3' : density <= q4 ? '4' : '5'
   }
 }
 
@@ -460,7 +768,11 @@ function applyVariant(factors, config) {
     if (config.drop_supp_poi && factor.layerKey === 'poi_supplement') return []
     if (config.narrow_civic || config.narrow_growth) {
       const narrow = { A0: ['Cultural'], A5: ['Aquatic'], C1: ['Administration'], E4: ['1'], E5: ['3'] }
-      if (narrow[factor.ref] && ((config.narrow_civic && ['A0', 'A5', 'C1'].includes(factor.ref)) || (config.narrow_growth && ['E4', 'E5'].includes(factor.ref)))) {
+      if (
+        narrow[factor.ref] &&
+        ((config.narrow_civic && ['A0', 'A5', 'C1'].includes(factor.ref)) ||
+          (config.narrow_growth && ['E4', 'E5'].includes(factor.ref)))
+      ) {
         const values = factor.values.filter((value) => narrow[factor.ref].includes(value))
         if (!values.length) return []
         return [{ ...factor, values }]
@@ -482,7 +794,51 @@ function normalizeFactorWeights(rawWeights) {
 }
 
 function activeSourceFeatures(layerFeatures, factor) {
-  return (layerFeatures[factor.layerKey] ?? []).filter((feature) => whereMatches(feature.properties ?? {}, factor.where) && fieldMatches(feature.properties ?? {}, factor.field, factor.values))
+  return (layerFeatures[factor.layerKey] ?? []).filter(
+    (feature) =>
+      whereMatches(feature.properties ?? {}, factor.where) &&
+      fieldMatches(feature.properties ?? {}, factor.field, factor.values),
+  )
+}
+
+function factorMask(inputs, factor, features, distanceM) {
+  const key = factorMaskKey(inputs, factor, distanceM)
+  const cached = maskCache.get(key)
+  if (cached) return cached
+
+  const mask = new Uint8Array(inputs.rows * inputs.cols)
+  for (const feature of features) {
+    const buffered = bufferProjectedGeometry(feature, distanceM)
+    if (buffered) addGeometryInteriorToMask(mask, inputs.rows, inputs.cols, inputs.bounds, buffered)
+  }
+  setCachedMask(key, mask)
+  return mask
+}
+
+function setCachedMask(key, mask) {
+  if (!maskCache.has(key) && maskCache.size >= MAX_MASK_CACHE_ENTRIES) {
+    const oldestKey = maskCache.keys().next().value
+    if (oldestKey) maskCache.delete(oldestKey)
+  }
+  maskCache.set(key, mask)
+}
+
+function factorMaskKey(inputs, factor, distanceM) {
+  return [
+    inputs.rows,
+    inputs.cols,
+    inputs.bounds.minX,
+    inputs.bounds.maxY,
+    CELL_M,
+    factor.ref,
+    factor.description,
+    factor.layerKey,
+    factor.mode,
+    factor.field,
+    factor.where,
+    JSON.stringify(factor.values),
+    distanceM,
+  ].join('|')
 }
 
 function addGeometryDistanceToMask(mask, rows, cols, bounds, geometry, distanceM) {
@@ -508,7 +864,8 @@ function addGeometryInteriorToMask(mask, rows, cols, bounds, geometry) {
 
 function geometryArea(geometry) {
   if (geometry.type === 'Polygon') return polygonArea(geometry.coordinates)
-  if (geometry.type === 'MultiPolygon') return geometry.coordinates.reduce((sum, polygon) => sum + polygonArea(polygon), 0)
+  if (geometry.type === 'MultiPolygon')
+    return geometry.coordinates.reduce((sum, polygon) => sum + polygonArea(polygon), 0)
   return 0
 }
 
@@ -535,7 +892,7 @@ function pointInRing(point, ring) {
   for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
     const [xi, yi] = ring[index]
     const [xj, yj] = ring[previous]
-    const intersects = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi)
+    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi
     if (intersects) inside = !inside
   }
   return inside
@@ -575,11 +932,14 @@ function distanceToPolygonSquared(point, rings) {
 }
 
 function distanceToGeometrySquared(point, geometry) {
-  if (geometry.type === 'Point') return (point[0] - geometry.coordinates[0]) ** 2 + (point[1] - geometry.coordinates[1]) ** 2
+  if (geometry.type === 'Point')
+    return (point[0] - geometry.coordinates[0]) ** 2 + (point[1] - geometry.coordinates[1]) ** 2
   if (geometry.type === 'LineString') return distanceToLineStringSquared(point, geometry.coordinates)
-  if (geometry.type === 'MultiLineString') return Math.min(...geometry.coordinates.map((line) => distanceToLineStringSquared(point, line)))
+  if (geometry.type === 'MultiLineString')
+    return Math.min(...geometry.coordinates.map((line) => distanceToLineStringSquared(point, line)))
   if (geometry.type === 'Polygon') return distanceToPolygonSquared(point, geometry.coordinates)
-  if (geometry.type === 'MultiPolygon') return Math.min(...geometry.coordinates.map((polygon) => distanceToPolygonSquared(point, polygon)))
+  if (geometry.type === 'MultiPolygon')
+    return Math.min(...geometry.coordinates.map((polygon) => distanceToPolygonSquared(point, polygon)))
   return Infinity
 }
 
