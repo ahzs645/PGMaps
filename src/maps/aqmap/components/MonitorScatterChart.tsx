@@ -1,27 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  CartesianGrid,
-  ReferenceLine,
-  Scatter,
-  ScatterChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { CartesianGrid, ReferenceLine, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AbPoint, PaFemPoint } from '../lib/comparisonData'
 import { translate, type AqmapLocale } from '../lib/i18n'
 
-const CHART_MARGIN = { top: 12, right: 14, bottom: 26, left: 0 }
+const CHART_MARGIN = { top: 6, right: 10, bottom: 28, left: 8 }
 const VALID_COLOR = '#16a34a'
 const INVALID_COLOR = '#dc2626'
 const RAW_COLOR = '#f59e0b'
 const CORRECTED_COLOR = '#16a34a'
-const LEGEND_HEIGHT = 28
+const CHART_CHROME_HEIGHT = 22
 
 function niceMax(value: number): number {
   const padded = Math.max(value * 1.1, 10)
   const step = padded <= 30 ? 5 : padded <= 60 ? 10 : padded <= 150 ? 25 : 50
   return Math.ceil(padded / step) * step
+}
+
+function formatAxisTick(value: number): string {
+  if (Math.abs(value) >= 1000) return `${Number((value / 1000).toFixed(1))}k`
+  return `${Math.round(value)}`
 }
 
 function ScatterTooltip({
@@ -43,8 +40,12 @@ function ScatterTooltip({
   return (
     <div className="rounded border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] shadow-sm">
       {point.series && <div className="font-medium text-gray-900">{point.series}</div>}
-      <div className="text-gray-600">{xLabel}: <b className="text-gray-900">{point.x.toFixed(1)}</b> {unit}</div>
-      <div className="text-gray-600">{yLabel}: <b className="text-gray-900">{point.y.toFixed(1)}</b> {unit}</div>
+      <div className="text-gray-600">
+        {xLabel}: <b className="text-gray-900">{point.x.toFixed(1)}</b> {unit}
+      </div>
+      <div className="text-gray-600">
+        {yLabel}: <b className="text-gray-900">{point.y.toFixed(1)}</b> {unit}
+      </div>
     </div>
   )
 }
@@ -84,8 +85,12 @@ export function MonitorScatterChart({
     if (mode === 'xy') {
       const points = abPoints ?? []
       const max = niceMax(Math.max(1, ...points.flatMap((point) => [point.a, point.b])))
-      const valid = points.filter((point) => point.valid).map((point) => ({ x: point.b, y: point.a, series: translate('plot.ab.valid', locale) }))
-      const invalid = points.filter((point) => !point.valid).map((point) => ({ x: point.b, y: point.a, series: translate('plot.ab.invalid', locale) }))
+      const valid = points
+        .filter((point) => point.valid)
+        .map((point) => ({ x: point.b, y: point.a, series: translate('plot.ab.valid', locale) }))
+      const invalid = points
+        .filter((point) => !point.valid)
+        .map((point) => ({ x: point.b, y: point.a, series: translate('plot.ab.invalid', locale) }))
       return {
         axisMax: max,
         series: [
@@ -97,7 +102,11 @@ export function MonitorScatterChart({
     const points = paFemPoints ?? []
     const max = niceMax(Math.max(1, ...points.flatMap((point) => [point.raw, point.corrected, point.fem])))
     const raw = points.map((point) => ({ x: point.raw, y: point.fem, series: translate('plot.fem.raw', locale) }))
-    const corrected = points.map((point) => ({ x: point.corrected, y: point.fem, series: translate('plot.fem.corrected', locale) }))
+    const corrected = points.map((point) => ({
+      x: point.corrected,
+      y: point.fem,
+      series: translate('plot.fem.corrected', locale),
+    }))
     return {
       axisMax: max,
       series: [
@@ -107,7 +116,7 @@ export function MonitorScatterChart({
     }
   }, [mode, abPoints, paFemPoints, locale])
   const hasData = series.some((entry) => entry.data.length > 0)
-  const chartHeight = Math.max(140, height - LEGEND_HEIGHT)
+  const chartHeight = Math.max(140, height - CHART_CHROME_HEIGHT)
 
   return (
     <div
@@ -121,60 +130,86 @@ export function MonitorScatterChart({
         <div className="flex h-full items-center justify-center px-3 text-center text-[11px] text-gray-500">
           {loading ? translate('plot.loading', locale) : translate('plot.noData', locale)}
         </div>
-      ) : chartWidth > 0 && (
-        <>
-          <ScatterChart width={chartWidth} height={chartHeight} margin={CHART_MARGIN}>
-            <CartesianGrid stroke="rgb(15 23 42 / 0.08)" />
-            <XAxis
-              type="number"
-              dataKey="x"
-              domain={[0, axisMax]}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-              axisLine={false}
-              tickLine={false}
-              label={{ value: xLabel, position: 'insideBottom', offset: -12, fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-            />
-            <YAxis
-              type="number"
-              dataKey="y"
-              domain={[0, axisMax]}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-              axisLine={false}
-              tickLine={false}
-              width={40}
-              label={{ value: yLabel, angle: -90, position: 'insideLeft', offset: 8, fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-            />
-            <ReferenceLine
-              segment={[{ x: 0, y: 0 }, { x: axisMax, y: axisMax }]}
-              stroke="#6b7280"
-              strokeDasharray="5 4"
-              strokeOpacity={0.7}
-              ifOverflow="hidden"
-            />
-            <Tooltip
-              cursor={{ strokeDasharray: '3 3', stroke: '#9ca3af' }}
-              content={<ScatterTooltip locale={locale} xLabel={xLabel} yLabel={yLabel} />}
-            />
-            {series.map((entry) => (
-              <Scatter
-                key={entry.name}
-                name={entry.name}
-                data={entry.data}
-                fill={entry.color}
-                fillOpacity={0.7}
-                isAnimationActive={false}
-              />
-            ))}
-          </ScatterChart>
-          <div className="flex h-7 items-center justify-center gap-4 text-[10px] leading-none text-gray-600">
-            {series.map((entry) => (
-              <span key={entry.name} className="inline-flex items-center gap-1 whitespace-nowrap">
-                <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} aria-hidden="true" />
-                {entry.name}
-              </span>
-            ))}
+      ) : (
+        chartWidth > 0 && (
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="flex h-[22px] shrink-0 items-center justify-end gap-3 border-b border-border/60 px-2.5 text-[10px] leading-none text-muted-foreground">
+              {series.map((entry) => (
+                <span key={entry.name} className="inline-flex items-center gap-1 whitespace-nowrap">
+                  <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} aria-hidden="true" />
+                  {entry.name}
+                </span>
+              ))}
+            </div>
+            <div className="min-h-0 flex-1">
+              <ScatterChart width={chartWidth} height={chartHeight} margin={CHART_MARGIN}>
+                <CartesianGrid stroke="rgb(15 23 42 / 0.08)" />
+                <XAxis
+                  type="number"
+                  dataKey="x"
+                  domain={[0, axisMax]}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tickFormatter={formatAxisTick}
+                  axisLine={false}
+                  tickLine={false}
+                  label={{
+                    value: xLabel,
+                    position: 'insideBottom',
+                    offset: -6,
+                    fill: 'hsl(var(--muted-foreground))',
+                    fontSize: 10,
+                    fontWeight: 600,
+                  }}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="y"
+                  domain={[0, axisMax]}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  tickFormatter={formatAxisTick}
+                  axisLine={false}
+                  tickLine={false}
+                  width={62}
+                  label={{
+                    value: yLabel,
+                    angle: -90,
+                    position: 'insideLeft',
+                    offset: 6,
+                    fill: 'hsl(var(--muted-foreground))',
+                    fontSize: 10,
+                    fontWeight: 600,
+                  }}
+                />
+                <ReferenceLine
+                  segment={[
+                    { x: 0, y: 0 },
+                    { x: axisMax, y: axisMax },
+                  ]}
+                  stroke="#6b7280"
+                  strokeDasharray="5 4"
+                  strokeOpacity={0.7}
+                  ifOverflow="hidden"
+                />
+                <Tooltip
+                  cursor={{ strokeDasharray: '3 3', stroke: '#9ca3af' }}
+                  content={<ScatterTooltip locale={locale} xLabel={xLabel} yLabel={yLabel} />}
+                />
+                {series.map((entry) => (
+                  <Scatter
+                    key={entry.name}
+                    name={entry.name}
+                    data={entry.data}
+                    fill={entry.color}
+                    fillOpacity={0.7}
+                    line={false}
+                    shape="circle"
+                    isAnimationActive={false}
+                  />
+                ))}
+              </ScatterChart>
+            </div>
           </div>
-        </>
+        )
       )}
     </div>
   )

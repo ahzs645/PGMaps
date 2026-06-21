@@ -11,11 +11,13 @@ import {
   RotateCcw,
   Save,
   Settings,
+  Shapes,
   Share2,
   SlidersHorizontal,
   Sparkles,
   Spline,
   Trash2,
+  Type,
   X,
 } from 'lucide-react'
 
@@ -34,8 +36,10 @@ import { Slider } from '@/components/ui/slider'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapCurvePath, MapStoryPanel, MapStorySection, MapTitleChip } from '@/components/ui/map-story'
 import {
+  deriveThemeColors,
   EditorMarkerView,
-  IconifyIcon,
+  MarkerGlyph,
+  MAP_THEMES,
   MapClickHandler,
   MapColorPicker,
   MapEditorPanel,
@@ -44,6 +48,8 @@ import {
   MarkerFlyout,
   PathFlyout,
   PATH_COLOR,
+  ShapeToolsFlyout,
+  ThemeSwatchButton,
   useMapEditor,
 } from '@/components/map-editor'
 import { type UrlCodec, useUrlState } from '@/hooks/useUrlState'
@@ -74,6 +80,10 @@ type DesignState = {
   showPath: boolean
   showTitleChip: boolean
   showToolRail: boolean
+  articleBackground: string
+  textDefault: string
+  textPrimary: string
+  textSecondary: string
 }
 
 const SHARED_BASEMAP_CAPTURE: DesignState = {
@@ -99,6 +109,10 @@ const SHARED_BASEMAP_CAPTURE: DesignState = {
   showPath: true,
   showTitleChip: true,
   showToolRail: true,
+  articleBackground: '#ffffff',
+  textDefault: '#525252',
+  textPrimary: '#1e293b',
+  textSecondary: '#64748b',
 }
 
 const ALT_THEME: DesignState = {
@@ -112,6 +126,15 @@ const ALT_THEME: DesignState = {
   buildingColor: '#d9f99d',
   markerFill: '#0f766e',
   markerInset: '#f7fee7',
+}
+
+type TextColors = Pick<DesignState, 'articleBackground' | 'textDefault' | 'textPrimary' | 'textSecondary'>
+
+// Named text-color presets for the story-text settings popover.
+const TEXT_PRESETS: Record<string, TextColors> = {
+  Default: { articleBackground: '#ffffff', textDefault: '#525252', textPrimary: '#1e293b', textSecondary: '#64748b' },
+  Inverted: { articleBackground: '#0f172a', textDefault: '#cbd5e1', textPrimary: '#f8fafc', textSecondary: '#94a3b8' },
+  Warm: { articleBackground: '#fffaf0', textDefault: '#6b5b4b', textPrimary: '#3b2f25', textSecondary: '#9c8b78' },
 }
 
 const DESIGN_CENTER = PG_CENTER
@@ -164,6 +187,14 @@ function coerceDesignState(value: unknown): DesignState {
       typeof candidate.showTitleChip === 'boolean' ? candidate.showTitleChip : SHARED_BASEMAP_CAPTURE.showTitleChip,
     showToolRail:
       typeof candidate.showToolRail === 'boolean' ? candidate.showToolRail : SHARED_BASEMAP_CAPTURE.showToolRail,
+    articleBackground: isHexColor(candidate.articleBackground)
+      ? candidate.articleBackground
+      : SHARED_BASEMAP_CAPTURE.articleBackground,
+    textDefault: isHexColor(candidate.textDefault) ? candidate.textDefault : SHARED_BASEMAP_CAPTURE.textDefault,
+    textPrimary: isHexColor(candidate.textPrimary) ? candidate.textPrimary : SHARED_BASEMAP_CAPTURE.textPrimary,
+    textSecondary: isHexColor(candidate.textSecondary)
+      ? candidate.textSecondary
+      : SHARED_BASEMAP_CAPTURE.textSecondary,
   }
 }
 
@@ -529,6 +560,51 @@ export default function DevDesign() {
     [design.primaryColor, design.backgroundColor, design.waterColor, design.landcoverColor],
   )
 
+  // Apply a tasmap-style theme preset: recolor the whole basemap stack
+  // (background / water / roads / landcover / boundary / buildings) plus the
+  // marker fill + inset from the palette's derived roles.
+  const applyTheme = (colors: string[]) => {
+    const next = deriveThemeColors(colors)
+    setNextDesign((current) => ({
+      ...current,
+      primaryColor: next.primaryColor,
+      backgroundColor: next.backgroundColor,
+      waterColor: next.waterColor,
+      landcoverColor: next.landcoverColor,
+      roadColor: next.roadColor,
+      boundaryColor: next.boundaryColor,
+      buildingColor: next.buildingColor,
+      markerFill: next.primaryColor,
+      markerInset: next.backgroundColor,
+    }))
+  }
+
+  // Which preset (if any) matches the current palette, for the active ring.
+  // The four wedge-derived roles uniquely identify a theme.
+  const activeThemeId = useMemo(() => {
+    return MAP_THEMES.find((theme) => {
+      const derived = deriveThemeColors(theme.colors)
+      return (
+        derived.backgroundColor === design.backgroundColor &&
+        derived.waterColor === design.waterColor &&
+        derived.roadColor === design.roadColor &&
+        derived.landcoverColor === design.landcoverColor
+      )
+    })?.id
+  }, [design.backgroundColor, design.waterColor, design.roadColor, design.landcoverColor])
+
+  // Which named text preset (if any) the story-text colors currently match.
+  const textPresetName = useMemo(() => {
+    const match = Object.entries(TEXT_PRESETS).find(
+      ([, preset]) =>
+        preset.articleBackground === design.articleBackground &&
+        preset.textDefault === design.textDefault &&
+        preset.textPrimary === design.textPrimary &&
+        preset.textSecondary === design.textSecondary,
+    )
+    return match?.[0] ?? 'Custom'
+  }, [design.articleBackground, design.textDefault, design.textPrimary, design.textSecondary])
+
   // Keyboard: Esc cancels, Delete removes selection, Cmd/Ctrl+S exports.
   const editorRef = useRef(editor)
   useEffect(() => {
@@ -845,7 +921,7 @@ export default function DevDesign() {
                         <EditorMarkerView
                           variant={marker.variant}
                           label={marker.label}
-                          icon={<IconifyIcon name={marker.icon} />}
+                          icon={<MarkerGlyph icon={marker.icon} image={marker.image} />}
                           color1={marker.color1}
                           color2={marker.color2}
                           size={marker.size}
@@ -955,36 +1031,23 @@ export default function DevDesign() {
                 onClick={() => setOpenTool((current) => (current === 'palette' ? null : 'palette'))}
                 flyoutOpen={openTool === 'palette'}
                 flyout={
-                  <MapEditorPanel className="w-60 space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-muted-foreground">Primary</span>
-                        <MapColorPicker
-                          value={design.primaryColor}
-                          onChange={(value) => setNextDesign((current) => ({ ...current, primaryColor: value, markerFill: value }))}
-                          title="Primary"
-                          swatches={themeSwatches}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-muted-foreground">Background</span>
-                        <MapColorPicker
-                          value={design.backgroundColor}
-                          onChange={(value) => setNextDesign((current) => ({ ...current, backgroundColor: value, markerInset: value }))}
-                          title="Background"
-                          swatches={themeSwatches}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-muted-foreground">Water</span>
-                        <MapColorPicker value={design.waterColor} onChange={(value) => updateDesign('waterColor', value)} title="Water" swatches={themeSwatches} />
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs text-muted-foreground">Landcover</span>
-                        <MapColorPicker value={design.landcoverColor} onChange={(value) => updateDesign('landcoverColor', value)} title="Landcover" swatches={themeSwatches} />
-                      </div>
+                  <MapEditorPanel className="w-64 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Map themes</span>
+                      <Palette className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid max-h-[280px] grid-cols-4 gap-2 overflow-y-auto pr-1">
+                      {MAP_THEMES.map((theme) => (
+                        <ThemeSwatchButton
+                          key={theme.id}
+                          colors={theme.colors}
+                          label={theme.label}
+                          active={activeThemeId === theme.id}
+                          onClick={() => applyTheme(theme.colors)}
+                        />
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
                       <button
                         type="button"
                         onClick={() => setDesign(SHARED_BASEMAP_CAPTURE)}
@@ -1028,6 +1091,14 @@ export default function DevDesign() {
                 flyout={<PathFlyout editor={editor} swatches={themeSwatches} />}
               />
               <MapToolRailButton
+                icon={<Shapes />}
+                label="Add a place"
+                active={openTool === 'shapes'}
+                onClick={() => setOpenTool((current) => (current === 'shapes' ? null : 'shapes'))}
+                flyoutOpen={openTool === 'shapes'}
+                flyout={<ShapeToolsFlyout editor={editor} onPlaced={() => setOpenTool(null)} />}
+              />
+              <MapToolRailButton
                 icon={<Settings />}
                 label="Settings"
                 active={openTool === 'settings'}
@@ -1047,6 +1118,51 @@ export default function DevDesign() {
                       <Trash2 className="h-3.5 w-3.5" />
                       Clear all
                     </button>
+                  </MapEditorPanel>
+                }
+              />
+              <MapToolRailButton
+                icon={<Type />}
+                label="Story text colors"
+                active={openTool === 'text'}
+                onClick={() => setOpenTool((current) => (current === 'text' ? null : 'text'))}
+                flyoutOpen={openTool === 'text'}
+                flyout={
+                  <MapEditorPanel className="w-72 space-y-3">
+                    <AppSelect
+                      value={textPresetName}
+                      onValueChange={(value) => {
+                        const preset = TEXT_PRESETS[value]
+                        if (preset) setNextDesign((current) => ({ ...current, ...preset }))
+                      }}
+                      options={[
+                        ...Object.keys(TEXT_PRESETS).map((name) => ({ value: name, label: name })),
+                        ...(textPresetName === 'Custom' ? [{ value: 'Custom', label: 'Custom' }] : []),
+                      ]}
+                    />
+                    <div className="space-y-3">
+                      {(
+                        [
+                          { key: 'articleBackground', title: 'Background', desc: 'Article background color' },
+                          { key: 'textDefault', title: 'Default color', desc: 'Default text color' },
+                          { key: 'textPrimary', title: 'Primary color', desc: 'Primary text color' },
+                          { key: 'textSecondary', title: 'Secondary color', desc: 'Secondary text color' },
+                        ] as const
+                      ).map((row) => (
+                        <div key={row.key} className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-foreground">{row.title}</div>
+                            <div className="text-xs text-muted-foreground">{row.desc}</div>
+                          </div>
+                          <MapColorPicker
+                            value={design[row.key]}
+                            onChange={(value) => updateDesign(row.key, value)}
+                            title={row.title}
+                            swatches={themeSwatches}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </MapEditorPanel>
                 }
               />
@@ -1136,19 +1252,21 @@ export default function DevDesign() {
           <MapStoryPanel
             title={design.title}
             eyebrow="Field guide"
-            accentColor={design.primaryColor}
-            backgroundColor={design.backgroundColor}
+            accentColor={design.textPrimary}
+            backgroundColor={design.articleBackground}
+            textColor={design.textDefault}
+            mutedColor={design.textSecondary}
             onClose={() => updateDesign('showStory', false)}
           >
             <p>{design.subtitle}</p>
-            <MapStorySection heading="The route" accentColor={design.primaryColor}>
+            <MapStorySection heading="The route" accentColor={design.textPrimary} textColor={design.textDefault}>
               <p>
                 Follow the dashed trail from the <strong>Start</strong> flag along the Fraser River, past the market,
                 and up to the lookout. Each stop is a tasmap-style marker rendered with the shared MapLibre marker
                 layer.
               </p>
             </MapStorySection>
-            <MapStorySection heading="About this panel" accentColor={design.primaryColor}>
+            <MapStorySection heading="About this panel" accentColor={design.textPrimary} textColor={design.textDefault}>
               <p>
                 This is tasmap&rsquo;s &ldquo;classic&rdquo; story panel rebuilt on PGMaps&rsquo; own stack &mdash;
                 drag the handle on its left edge to resize. Recolor the basemap and markers from the sidebar; the share

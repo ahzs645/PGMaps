@@ -121,3 +121,22 @@ export function IconifyIcon({ name, className }: IconifyIconProps) {
     />
   );
 }
+
+/**
+ * Marker glyph: an image URL when present (tasmap's "Image" marker tab),
+ * otherwise the iconify icon. Sizing is left to the parent marker container.
+ */
+export function MarkerGlyph({
+  icon,
+  image,
+  className,
+}: {
+  icon: string;
+  image?: string;
+  className?: string;
+}) {
+  if (image) {
+    return <img src={image} alt="" className={cn("size-full object-contain", className)} />;
+  }
+  return <IconifyIcon name={icon} className={className} />;
+}

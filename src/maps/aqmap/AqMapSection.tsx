@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
+import { AlertCircle, HeartPulse, Users } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Map as PgMap } from '@/components/ui/map'
@@ -26,6 +27,8 @@ import {
 } from './lib/urlState'
 import { WMS_LAYERS, type WmsLayerKey } from './lib/wmsLayers'
 import {
+  buildObservationRowLabels,
+  formatAqhiCategory,
   formatAqmapPm25Localized,
   formatLocalizedDate,
   localizeHealthMessage,
@@ -42,18 +45,65 @@ import {
   clampRevealClusterMaxZoom,
   clampRevealClusterRadius,
 } from './lib/aqMapConstants'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZoneFeatureProperties, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from './lib/aqMapTypes'
+import type {
+  ActiveFiresRenderMode,
+  AqClusterColorScheme,
+  AqMonitorIconMode,
+  FireDangerRenderMode,
+  FirePerimetersRenderMode,
+  ForecastZoneFeatureProperties,
+  ForecastZonesRenderMode,
+  MobileFeatureDisplay,
+  ModelledSmokeRenderMode,
+} from './lib/aqMapTypes'
+import { getAqhiPlusColor } from './lib/aqhiScale'
 import { FloatingLayerControl, MainLayerControl, MapStatusBar, MapUtilityControls } from './components/AqMapControls'
 import { AqMonitorLegend } from './components/AqMapLegends'
 import { AqMapSidebar } from './components/AqMapSidebar'
-import { ActiveFiresVectorLayer, AqMonitorLayer, FireDangerVectorLayer, FirePerimetersVectorLayer, ForecastZonesVectorLayer, ModelledPm25VectorLayer, SmokePolygonLayer, WmsRasterLayer } from './components/AqMapLayers'
-import { MonitorPopup, MonitorTooltip, type NearbyFem } from './components/MonitorPopup'
+import {
+  ActiveFiresVectorLayer,
+  AqMonitorLayer,
+  FireDangerVectorLayer,
+  FirePerimetersVectorLayer,
+  ForecastZonesVectorLayer,
+  ModelledPm25VectorLayer,
+  SmokePolygonLayer,
+  WmsRasterLayer,
+} from './components/AqMapLayers'
+import { MonitorPopup, MonitorTooltip } from './components/MonitorPopup'
+import { MonitorPlotPanel, type NearbyFem } from './components/MonitorPlotPanel'
 import { WindCanvasLayer } from './components/WindCanvasLayer'
 import { VectorWindBarbLayer } from './components/VectorWindBarbLayer'
 import type maplibregl from 'maplibre-gl'
 
 type ForecastZoneFeature = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>
-type ForecastZoneCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>
+type ForecastZoneCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  ForecastZoneFeatureProperties
+>
+
+let forecastZoneDataCache: ForecastZoneCollection | null = null
+let forecastZoneDataPromise: Promise<ForecastZoneCollection> | null = null
+
+function loadForecastZoneData(): Promise<ForecastZoneCollection> {
+  if (forecastZoneDataCache) return Promise.resolve(forecastZoneDataCache)
+
+  forecastZoneDataPromise ??= fetch(FORECAST_ZONES_VECTOR_URL)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Failed to load forecast zones: ${response.status}`)
+      return response.json()
+    })
+    .then((payload) => {
+      forecastZoneDataCache = payload as ForecastZoneCollection
+      return forecastZoneDataCache
+    })
+    .catch((error) => {
+      forecastZoneDataPromise = null
+      throw error
+    })
+
+  return forecastZoneDataPromise
+}
 
 function pointInRing(lng: number, lat: number, ring: GeoJSON.Position[]): boolean {
   let inside = false
@@ -62,7 +112,7 @@ function pointInRing(lng: number, lat: number, ring: GeoJSON.Position[]): boolea
     const yi = Number(ring[index][1])
     const xj = Number(ring[previous][0])
     const yj = Number(ring[previous][1])
-    const intersects = ((yi > lat) !== (yj > lat)) && (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi)
+    const intersects = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi
     if (intersects) inside = !inside
   }
   return inside
@@ -87,20 +137,31 @@ function getForecastZoneName(properties: ForecastZoneFeatureProperties): string 
   return name || null
 }
 
+function splitHealthLine(line: string): { label: string; detail: string } {
+  const match = line.match(/^(.*?)\s[-—–]\s(.*)$/)
+  if (match) return { label: match[1], detail: match[2] }
+  return { label: '', detail: line }
+}
+
 export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 'main' } = {}) {
   const isMain = variant === 'main'
   const { resolvedTheme } = useTheme()
   const { monitors, loading, error } = useAirQualityData({ aqmapCompatible: true })
   const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const { layers: smokeLayers, error: smokeError } = useAqmapSmokeLayers()
-  const initialUrlState = useMemo(() => parseAqmapHash(window.location.hash, new URLSearchParams(window.location.search)), [])
+  const initialUrlState = useMemo(
+    () => parseAqmapHash(window.location.hash, new URLSearchParams(window.location.search)),
+    [],
+  )
   const [showSidebar, setShowSidebar] = useState(false)
   const [visibleGroups, setVisibleGroups] = useState<Set<AqMonitorGroup>>(() => initialUrlState.visibleGroups)
   // Main page (/dev/aqmap/main) toggles individual observation networks
   // (FEM/PA/EGG) rather than the agency/lcm/other groups. All three start on.
   const [visibleNetworks, setVisibleNetworks] = useState<Set<AqNetworkSlug>>(() => new Set(AQ_OBSERVATION_NETWORKS))
   const [visibleWmsLayers, setVisibleWmsLayers] = useState<Set<WmsLayerKey>>(() => initialUrlState.visibleWmsLayers)
-  const [visibleSmokeLayers, setVisibleSmokeLayers] = useState<Set<SmokeLayerKey>>(() => initialUrlState.visibleSmokeLayers)
+  const [visibleSmokeLayers, setVisibleSmokeLayers] = useState<Set<SmokeLayerKey>>(
+    () => initialUrlState.visibleSmokeLayers,
+  )
   const [activeFiresMode, setActiveFiresMode] = useState<ActiveFiresRenderMode>(() => {
     const params = new URLSearchParams(window.location.search)
     if (!import.meta.env.DEV) return 'raster'
@@ -162,7 +223,10 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   })
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
   const [hoveredMonitor, setHoveredMonitor] = useState<AirMonitor | null>(null)
-  const [exportStatus, setExportStatus] = useState<{ format: ExportFormat | null; error: string | null }>({ format: null, error: null })
+  const [exportStatus, setExportStatus] = useState<{ format: ExportFormat | null; error: string | null }>({
+    format: null,
+    error: null,
+  })
   const [forecastZoneData, setForecastZoneData] = useState<ForecastZoneCollection | null>(null)
   const [forecastZoneError, setForecastZoneError] = useState<string | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -182,7 +246,11 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   // On the main page everything renders as vector and the monitor icons are
   // locked to "reveal" mode — there are no raster/icon-mode toggles to flip.
   const effIconMode: AqMonitorIconMode = isMain ? 'revealed' : iconMode
-  const effActiveFiresMode: ActiveFiresRenderMode = !import.meta.env.DEV ? 'raster' : isMain ? 'vector' : activeFiresMode
+  const effActiveFiresMode: ActiveFiresRenderMode = !import.meta.env.DEV
+    ? 'raster'
+    : isMain
+      ? 'vector'
+      : activeFiresMode
   const effFireDangerMode: FireDangerRenderMode = isMain ? 'raster' : fireDangerMode
   const effFirePerimetersMode: FirePerimetersRenderMode = isMain ? 'vector' : firePerimetersMode
   const effForecastZonesMode: ForecastZonesRenderMode = isMain ? 'vector' : forecastZonesMode
@@ -205,22 +273,22 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
 
   useEffect(() => {
     if (!visibleWmsLayers.has('forecastZones') || forecastZoneData || forecastZoneError) return
-    const controller = new AbortController()
+    let cancelled = false
 
-    fetch(FORECAST_ZONES_VECTOR_URL, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Failed to load forecast zones: ${response.status}`)
-        return response.json()
+    loadForecastZoneData()
+      .then((payload) => {
+        if (!cancelled) setForecastZoneData(payload)
       })
-      .then((payload) => setForecastZoneData(payload as ForecastZoneCollection))
       .catch((err) => {
-        if ((err as Error).name !== 'AbortError') {
+        if (!cancelled) {
           console.error('Forecast zone monitor join failed', err)
           setForecastZoneError((err as Error).message)
         }
       })
 
-    return () => controller.abort()
+    return () => {
+      cancelled = true
+    }
   }, [forecastZoneData, forecastZoneError, visibleWmsLayers])
 
   useEffect(() => {
@@ -270,10 +338,12 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
       if (iconMode === 'revealed') next.set('icons', 'revealed')
       else next.delete('icons')
 
-      if (iconMode === 'revealed' && clusterRadius !== REVEAL_CLUSTER_DEFAULTS.radius) next.set('clusterRadius', String(clusterRadius))
+      if (iconMode === 'revealed' && clusterRadius !== REVEAL_CLUSTER_DEFAULTS.radius)
+        next.set('clusterRadius', String(clusterRadius))
       else next.delete('clusterRadius')
 
-      if (iconMode === 'revealed' && clusterMaxZoom !== REVEAL_CLUSTER_DEFAULTS.maxZoom) next.set('clusterMaxZoom', String(clusterMaxZoom))
+      if (iconMode === 'revealed' && clusterMaxZoom !== REVEAL_CLUSTER_DEFAULTS.maxZoom)
+        next.set('clusterMaxZoom', String(clusterMaxZoom))
       else next.delete('clusterMaxZoom')
 
       if (clusterColorScheme === 'classic') next.set('clusterColors', 'classic')
@@ -309,7 +379,28 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     }, URL_UPDATE_DELAY_MS)
 
     return () => window.clearTimeout(timeout)
-  }, [activeFiresMode, basemap, clusterColorScheme, clusterMaxZoom, clusterRadius, fireDangerMode, firePerimetersMode, forecastZonesMode, iconMode, isMain, locale, mapView, mobileFeatureDisplay, modelledSmokeMode, tightClusters, vectorWindBarbsVisible, visibleGroups, visibleSmokeLayers, visibleWmsLayers, windVisible])
+  }, [
+    activeFiresMode,
+    basemap,
+    clusterColorScheme,
+    clusterMaxZoom,
+    clusterRadius,
+    fireDangerMode,
+    firePerimetersMode,
+    forecastZonesMode,
+    iconMode,
+    isMain,
+    locale,
+    mapView,
+    mobileFeatureDisplay,
+    modelledSmokeMode,
+    tightClusters,
+    vectorWindBarbsVisible,
+    visibleGroups,
+    visibleSmokeLayers,
+    visibleWmsLayers,
+    windVisible,
+  ])
 
   const toggleGroup = useCallback((group: AqMonitorGroup) => {
     setVisibleGroups((current) => {
@@ -352,46 +443,55 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   }, [])
 
   const handleMonitorClick = useCallback((monitor: AirMonitor) => {
-    setSelectedMonitor((current) => current?.id === monitor.id ? null : monitor)
+    setSelectedMonitor((current) => (current?.id === monitor.id ? null : monitor))
   }, [])
 
-  const handleMonitorHover = useCallback((monitor: AirMonitor | null) => {
-    if (isMobileViewport) {
-      return
-    }
-    setHoveredMonitor(monitor)
-  }, [isMobileViewport])
+  const handleMonitorHover = useCallback(
+    (monitor: AirMonitor | null) => {
+      if (isMobileViewport) {
+        return
+      }
+      setHoveredMonitor(monitor)
+    },
+    [isMobileViewport],
+  )
 
   const handleForecastZoneClick = useCallback(() => {
     setSelectedMonitor(null)
   }, [])
 
-  const handleExport = useCallback(async (format: ExportFormat) => {
-    if (!mapRef.current) return
-    setExportStatus({ format, error: null })
-    try {
-      await exportAqmap(format, {
-        map: mapRef.current,
-        container: mapContainerRef.current,
-        baseName: 'aqmap',
-      })
-      setExportStatus({ format: null, error: null })
-    } catch (error) {
-      console.error('AQmap export failed', error)
-      setExportStatus({ format: null, error: translate('export.failed', locale) })
-    }
-  }, [locale])
+  const handleExport = useCallback(
+    async (format: ExportFormat) => {
+      if (!mapRef.current) return
+      setExportStatus({ format, error: null })
+      try {
+        await exportAqmap(format, {
+          map: mapRef.current,
+          container: mapContainerRef.current,
+          baseName: 'aqmap',
+        })
+        setExportStatus({ format: null, error: null })
+      } catch (error) {
+        console.error('AQmap export failed', error)
+        setExportStatus({ format: null, error: translate('export.failed', locale) })
+      }
+    },
+    [locale],
+  )
 
   const toggleWind = useCallback(() => setWindVisible((value) => !value), [])
   const toggleVectorWindBarbs = useCallback(() => setVectorWindBarbsVisible((value) => !value), [])
   const selectedMonitorWithZone = useMemo(() => {
     if (!selectedMonitor) return null
-    return enrichedMonitors.find((monitor) => (
-      monitor.id === selectedMonitor.id
-      && monitor.network === selectedMonitor.network
-      && monitor.latitude === selectedMonitor.latitude
-      && monitor.longitude === selectedMonitor.longitude
-    )) ?? selectedMonitor
+    return (
+      enrichedMonitors.find(
+        (monitor) =>
+          monitor.id === selectedMonitor.id &&
+          monitor.network === selectedMonitor.network &&
+          monitor.latitude === selectedMonitor.latitude &&
+          monitor.longitude === selectedMonitor.longitude,
+      ) ?? selectedMonitor
+    )
   }, [enrichedMonitors, selectedMonitor])
 
   // Nearest regulatory (FEM) monitor for the "Compare → With Nearby FEM" plot.
@@ -493,29 +593,38 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             <SmokePolygonLayer
               key={layer.key}
               definition={layer}
-              visible={layer.key === 'modelledSmoke'
-                ? visibleSmokeLayers.has('modelledSmoke')
-                : visibleSmokeLayers.has(layer.key)}
+              visible={
+                layer.key === 'modelledSmoke'
+                  ? visibleSmokeLayers.has('modelledSmoke')
+                  : visibleSmokeLayers.has(layer.key)
+              }
             />
           ))}
           {WMS_LAYERS.map((layer) => (
             <WmsRasterLayer
               key={layer.key}
               definition={layer}
-              visible={visibleWmsLayers.has(layer.key)
-                && (layer.key !== 'activeFires' || effActiveFiresMode === 'raster')
-                && (layer.key !== 'fireDanger' || effFireDangerMode === 'raster')
-                && (layer.key !== 'firePerimeters' || effFirePerimetersMode === 'raster')
-                && (layer.key !== 'forecastZones' || effForecastZonesMode === 'raster')
-                && (layer.key !== 'modelledPm25' || effModelledSmokeMode === 'raster')}
+              visible={
+                visibleWmsLayers.has(layer.key) &&
+                (layer.key !== 'activeFires' || effActiveFiresMode === 'raster') &&
+                (layer.key !== 'fireDanger' || effFireDangerMode === 'raster') &&
+                (layer.key !== 'firePerimeters' || effFirePerimetersMode === 'raster') &&
+                (layer.key !== 'forecastZones' || effForecastZonesMode === 'raster') &&
+                (layer.key !== 'modelledPm25' || effModelledSmokeMode === 'raster')
+              }
             />
           ))}
           <ActiveFiresVectorLayer visible={visibleWmsLayers.has('activeFires') && effActiveFiresMode === 'vector'} />
-          <ModelledPm25VectorLayer visible={visibleWmsLayers.has('modelledPm25') && effModelledSmokeMode === 'vector'} />
+          <ModelledPm25VectorLayer
+            visible={visibleWmsLayers.has('modelledPm25') && effModelledSmokeMode === 'vector'}
+          />
           <FireDangerVectorLayer visible={visibleWmsLayers.has('fireDanger') && effFireDangerMode === 'vector'} />
-          <FirePerimetersVectorLayer visible={visibleWmsLayers.has('firePerimeters') && effFirePerimetersMode === 'vector'} />
+          <FirePerimetersVectorLayer
+            visible={visibleWmsLayers.has('firePerimeters') && effFirePerimetersMode === 'vector'}
+          />
           <ForecastZonesVectorLayer
             visible={visibleWmsLayers.has('forecastZones') && effForecastZonesMode === 'vector'}
+            data={forecastZoneData}
             monitors={enrichedMonitors}
             onZoneClick={handleForecastZoneClick}
           />
@@ -534,14 +643,22 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             onMonitorClick={handleMonitorClick}
             onMonitorHover={handleMonitorHover}
           />
-          {!isMobileViewport && hoveredMonitor && selectedMonitorWithZone !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} locale={locale} />}
+          {!isMobileViewport && hoveredMonitor && selectedMonitorWithZone !== hoveredMonitor && (
+            <MonitorTooltip monitor={hoveredMonitor} locale={locale} />
+          )}
           {selectedMonitorWithZone && (!isMobileViewport || effectiveMobileFeatureDisplay === 'popup') && (
-            <MonitorPopup monitor={selectedMonitorWithZone} locale={locale} nearbyFem={nearbyFem} onClose={() => setSelectedMonitor(null)} />
+            <MonitorPopup
+              monitor={selectedMonitorWithZone}
+              locale={locale}
+              nearbyFem={nearbyFem}
+              onClose={() => setSelectedMonitor(null)}
+            />
           )}
           {selectedMonitorWithZone && isMobileViewport && effectiveMobileFeatureDisplay === 'card' && (
             <MobileAqMonitorFeatureCard
               monitor={selectedMonitorWithZone}
               locale={locale}
+              nearbyFem={nearbyFem}
               onClose={() => setSelectedMonitor(null)}
             />
           )}
@@ -558,41 +675,43 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
               smokeLayers={smokeLayers}
               locale={locale}
             />
-          ) : !isMobileViewport && (
-            <FloatingLayerControl
-              visibleGroups={visibleGroups}
-              onToggleGroup={toggleGroup}
-              iconMode={iconMode}
-              onIconModeChange={setIconMode}
-              clusterColorScheme={clusterColorScheme}
-              onClusterColorSchemeChange={setClusterColorScheme}
-              clusterRadius={clusterRadius}
-              onClusterRadiusChange={setClusterRadius}
-              clusterMaxZoom={clusterMaxZoom}
-              onClusterMaxZoomChange={setClusterMaxZoom}
-              tightClusters={tightClusters}
-              onTightClustersChange={setTightClusters}
-              visibleWmsLayers={visibleWmsLayers}
-              onToggleWmsLayer={toggleWmsLayer}
-              visibleSmokeLayers={visibleSmokeLayers}
-              onToggleSmokeLayer={toggleSmokeLayer}
-              activeFiresMode={activeFiresMode}
-              onActiveFiresModeChange={setActiveFiresMode}
-              fireDangerMode={fireDangerMode}
-              onFireDangerModeChange={setFireDangerMode}
-              firePerimetersMode={firePerimetersMode}
-              onFirePerimetersModeChange={setFirePerimetersMode}
-              forecastZonesMode={forecastZonesMode}
-              onForecastZonesModeChange={setForecastZonesMode}
-              modelledSmokeMode={modelledSmokeMode}
-              onModelledSmokeModeChange={setModelledSmokeMode}
-              windVisible={windVisible}
-              onToggleWind={toggleWind}
-              vectorWindBarbsVisible={vectorWindBarbsVisible}
-              onToggleVectorWindBarbs={toggleVectorWindBarbs}
-              smokeLayers={smokeLayers}
-              locale={locale}
-            />
+          ) : (
+            !isMobileViewport && (
+              <FloatingLayerControl
+                visibleGroups={visibleGroups}
+                onToggleGroup={toggleGroup}
+                iconMode={iconMode}
+                onIconModeChange={setIconMode}
+                clusterColorScheme={clusterColorScheme}
+                onClusterColorSchemeChange={setClusterColorScheme}
+                clusterRadius={clusterRadius}
+                onClusterRadiusChange={setClusterRadius}
+                clusterMaxZoom={clusterMaxZoom}
+                onClusterMaxZoomChange={setClusterMaxZoom}
+                tightClusters={tightClusters}
+                onTightClustersChange={setTightClusters}
+                visibleWmsLayers={visibleWmsLayers}
+                onToggleWmsLayer={toggleWmsLayer}
+                visibleSmokeLayers={visibleSmokeLayers}
+                onToggleSmokeLayer={toggleSmokeLayer}
+                activeFiresMode={activeFiresMode}
+                onActiveFiresModeChange={setActiveFiresMode}
+                fireDangerMode={fireDangerMode}
+                onFireDangerModeChange={setFireDangerMode}
+                firePerimetersMode={firePerimetersMode}
+                onFirePerimetersModeChange={setFirePerimetersMode}
+                forecastZonesMode={forecastZonesMode}
+                onForecastZonesModeChange={setForecastZonesMode}
+                modelledSmokeMode={modelledSmokeMode}
+                onModelledSmokeModeChange={setModelledSmokeMode}
+                windVisible={windVisible}
+                onToggleWind={toggleWind}
+                vectorWindBarbsVisible={vectorWindBarbsVisible}
+                onToggleVectorWindBarbs={toggleVectorWindBarbs}
+                smokeLayers={smokeLayers}
+                locale={locale}
+              />
+            )
           )}
           <AqMonitorLegend
             visibleWmsLayers={legendVisibleWmsLayers}
@@ -613,16 +732,33 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
 function MobileAqMonitorFeatureCard({
   monitor,
   locale,
+  nearbyFem,
   onClose,
 }: {
   monitor: AirMonitor
   locale: AqmapLocale
+  nearbyFem?: NearbyFem | null
   onClose: () => void
 }) {
   const pm25 = getMonitorAqhiPm25(monitor)
   const aqhiCategory = getAqhiCategory(pm25)
   const health = localizeHealthMessage(aqhiCategory, locale)
   const monitorTypeLabel = localizeMonitorType(monitor.network, locale)
+  const unit = translate('aqhi.unit', locale)
+  const aqColor = getAqhiPlusColor(pm25)
+  const categoryLabel = formatAqhiCategory(aqhiCategory, locale)
+  const isNoData = pm25 === null
+  const observationRows = buildObservationRowLabels(locale)
+    .map((row) => {
+      const valueByKey: Record<string, number | null> = {
+        pm25_10min: monitor.pm25Recent ?? null,
+        pm25_1hr: monitor.pm25OneHour ?? null,
+        pm25_3hr: monitor.pm25ThreeHour ?? null,
+        pm25_24hr: monitor.pm25TwentyFourHour ?? null,
+      }
+      return { ...row, value: valueByKey[row.key] ?? null }
+    })
+    .filter((row) => !isFemMonitor(monitor) || row.key !== 'pm25_10min')
 
   return (
     <MobileFeatureCard
@@ -631,21 +767,83 @@ function MobileAqMonitorFeatureCard({
       cardKey={monitor.id}
       onClose={onClose}
     >
-      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
-        <div className="space-y-1">
-          {[
-            { label: 'Observed', value: formatLocalizedDate(monitor.dateObserved, locale) },
-            { label: 'PM2.5', value: `${formatAqmapPm25Localized(pm25, locale)} ${translate('aqhi.unit', locale)}` },
-            monitor.forecastZoneName ? { label: translate('popup.forecastZone', locale), value: monitor.forecastZoneName } : null,
-            { label: translate('popup.healthMessage', locale), value: health.heading },
-            { label: 'Network', value: monitor.network },
-          ].filter((row): row is { label: string; value: string } => row !== null).map((row) => (
-            <div key={row.label} className="flex items-start justify-between gap-3">
-              <span className="text-muted-foreground">{row.label}</span>
-              <span className="max-w-[12rem] text-right font-medium text-foreground">{row.value}</span>
+      <div className="space-y-3 text-xs text-foreground">
+        <div className="rounded-md border border-border bg-background p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold text-foreground"
+              style={{ backgroundColor: `${aqColor}26` }}
+            >
+              <span className="size-2 rounded-full" style={{ backgroundColor: aqColor }} aria-hidden="true" />
+              {categoryLabel}
+              <span className="font-normal text-muted-foreground">·</span>
+              <span className="tabular-nums">
+                {formatAqmapPm25Localized(pm25, locale)} {unit}
+              </span>
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {formatLocalizedDate(monitor.dateObserved, locale)}
+            </span>
+          </div>
+          {monitor.forecastZoneName && (
+            <div className="mt-2 flex items-start justify-between gap-3">
+              <span className="text-muted-foreground">{translate('popup.forecastZone', locale)}</span>
+              <span className="max-w-[13rem] text-right font-medium text-foreground">{monitor.forecastZoneName}</span>
             </div>
-          ))}
+          )}
+          <div className="mt-1 flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Network</span>
+            <span className="font-medium text-foreground">{monitor.network}</span>
+          </div>
         </div>
+
+        <div className="rounded-md border border-border bg-background p-3">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {translate('popup.readings', locale)}
+          </div>
+          <div className="space-y-1.5">
+            {observationRows.map((row) => (
+              <div key={row.key} className="flex items-center justify-between gap-3" title={row.title}>
+                <span className="text-muted-foreground">{row.label}</span>
+                <span className="inline-flex items-center gap-1.5 font-medium tabular-nums text-foreground">
+                  <span
+                    className="size-1.5 rounded-full"
+                    style={{ backgroundColor: getAqhiPlusColor(row.value) }}
+                    aria-hidden="true"
+                  />
+                  {formatAqmapPm25Localized(row.value, locale)}
+                  <span className="font-normal text-muted-foreground">{unit}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-md border border-border bg-muted/40 p-3">
+          <div
+            className="text-[11px] font-semibold leading-snug text-foreground"
+            title={translate('popup.healthMessage', locale)}
+          >
+            {health.heading}
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {health.lines.map((line, index) => {
+              const { label, detail } = splitHealthLine(line)
+              const Icon = isNoData ? AlertCircle : index === 0 ? Users : HeartPulse
+              return (
+                <div key={line} className="flex items-start gap-2">
+                  <Icon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-muted-foreground">
+                    {label && <span className="font-medium text-foreground">{label}: </span>}
+                    {detail}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <MonitorPlotPanel monitor={monitor} locale={locale} nearbyFem={nearbyFem} />
       </div>
     </MobileFeatureCard>
   )

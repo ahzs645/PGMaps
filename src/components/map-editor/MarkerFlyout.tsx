@@ -1,20 +1,34 @@
 "use client";
 
-import { Plus, Search, Wand2 } from "lucide-react";
+import { useState } from "react";
+import { ImageOff, Plus, Search, Wand2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { EditorMarkerView, type EditorMarkerVariant } from "./editor-core";
-import { IconifyIcon } from "./iconify";
+import { IconifyIcon, MarkerGlyph } from "./iconify";
 import { MapColorPicker } from "./color-picker";
 import { MapEditorPanel, MapSubToolButton } from "./tool-rail";
 import type { MapEditorController } from "./use-map-editor";
 
 const MARKER_VARIANTS: EditorMarkerVariant[] = ["dot", "pin", "badge"];
 
+/** Colourful sample images for the "Image" tab (Twemoji SVGs render as <img>). */
+const SAMPLE_IMAGES = [
+  "https://api.iconify.design/twemoji/round-pushpin.svg",
+  "https://api.iconify.design/twemoji/camera.svg",
+  "https://api.iconify.design/twemoji/national-park.svg",
+  "https://api.iconify.design/twemoji/department-store.svg",
+  "https://api.iconify.design/twemoji/fork-and-knife-with-plate.svg",
+  "https://api.iconify.design/twemoji/mountain.svg",
+  "https://api.iconify.design/twemoji/tent.svg",
+  "https://api.iconify.design/twemoji/hot-beverage.svg",
+];
+
 /**
  * tasmap's marker submenu: a column of sub-buttons (new / recolor / the marker
- * list) plus an editor popover (type tiles, color pickers, iconify search grid,
- * size). Picking a type drops a marker at the map center. Theme-aware.
+ * list) plus an editor popover — marker-type tiles, colour pickers, and an
+ * Icon / Image tabbed picker (iconify search grid, or an image URL / sample).
+ * Picking a type drops a marker at the map center. Theme-aware.
  */
 export function MarkerFlyout({
   editor,
@@ -38,6 +52,8 @@ export function MarkerFlyout({
     iconResults,
   } = editor;
 
+  const [tab, setTab] = useState<"icon" | "image">("icon");
+
   return (
     <div className="relative flex flex-col gap-3">
       <MapSubToolButton
@@ -58,7 +74,7 @@ export function MarkerFlyout({
             <EditorMarkerView
               variant={marker.variant}
               label=""
-              icon={<IconifyIcon name={marker.icon} />}
+              icon={<MarkerGlyph icon={marker.icon} image={marker.image} />}
               color1={marker.color1}
               color2={marker.color2}
               size={marker.size}
@@ -87,7 +103,7 @@ export function MarkerFlyout({
                       <EditorMarkerView
                         variant={variant}
                         label=""
-                        icon={<IconifyIcon name={markerDraft.icon} />}
+                        icon={<MarkerGlyph icon={markerDraft.icon} image={markerDraft.image} />}
                         color1={markerDraft.color1}
                         color2={markerDraft.color2}
                         size={44}
@@ -112,32 +128,99 @@ export function MarkerFlyout({
               </div>
             </div>
 
-            <div className="mt-3 flex items-center gap-2 rounded-md border border-input bg-background px-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input
-                value={iconQuery}
-                onChange={(event) => setIconQuery(event.target.value)}
-                placeholder="Search icons"
-                className="h-8 w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-              />
-            </div>
-            <div className="mt-2 grid max-h-[160px] grid-cols-8 gap-1 overflow-y-auto">
-              {iconResults.map((name) => (
+            <div role="tablist" className="mt-3 flex gap-1 border-b border-border">
+              {(["icon", "image"] as const).map((value) => (
                 <button
-                  key={name}
+                  key={value}
                   type="button"
-                  onClick={() => setMarkerDraft((current) => ({ ...current, icon: name }))}
-                  aria-label={name}
-                  title={name}
+                  role="tab"
+                  aria-selected={tab === value}
+                  onClick={() => setTab(value)}
                   className={cn(
-                    "flex aspect-square items-center justify-center rounded-md transition-colors",
-                    markerDraft.icon === name ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent",
+                    "-mb-px border-b-2 px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                    tab === value
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <IconifyIcon name={name} className="h-5 w-5" />
+                  {value}
                 </button>
               ))}
             </div>
+
+            {tab === "icon" ? (
+              <>
+                <div className="mt-3 flex items-center gap-2 rounded-md border border-input bg-background px-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <input
+                    value={iconQuery}
+                    onChange={(event) => setIconQuery(event.target.value)}
+                    placeholder="Search icons"
+                    className="h-8 w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  />
+                </div>
+                <div className="mt-2 grid max-h-[160px] grid-cols-8 gap-1 overflow-y-auto">
+                  {iconResults.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => setMarkerDraft((current) => ({ ...current, icon: name, image: undefined }))}
+                      aria-label={name}
+                      title={name}
+                      className={cn(
+                        "flex aspect-square items-center justify-center rounded-md transition-colors",
+                        markerDraft.icon === name && !markerDraft.image
+                          ? "bg-accent text-foreground"
+                          : "text-muted-foreground hover:bg-accent",
+                      )}
+                    >
+                      <IconifyIcon name={name} className="h-5 w-5" />
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center gap-2 rounded-md border border-input bg-background px-2">
+                  <input
+                    value={markerDraft.image ?? ""}
+                    onChange={(event) =>
+                      setMarkerDraft((current) => ({ ...current, image: event.target.value || undefined }))
+                    }
+                    placeholder="Paste an image URL"
+                    spellCheck={false}
+                    className="h-8 w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  />
+                  {markerDraft.image ? (
+                    <button
+                      type="button"
+                      onClick={() => setMarkerDraft((current) => ({ ...current, image: undefined }))}
+                      aria-label="Remove image"
+                      title="Remove image"
+                      className="text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <ImageOff className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+                <div className="grid max-h-[160px] grid-cols-4 gap-2 overflow-y-auto">
+                  {SAMPLE_IMAGES.map((url) => (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => setMarkerDraft((current) => ({ ...current, image: url }))}
+                      aria-label="Use image"
+                      className={cn(
+                        "flex aspect-square items-center justify-center rounded-md border p-1.5 transition-colors",
+                        markerDraft.image === url ? "border-primary bg-accent" : "border-border hover:bg-accent",
+                      )}
+                    >
+                      <img src={url} alt="" className="size-full object-contain" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mt-3">
               <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">

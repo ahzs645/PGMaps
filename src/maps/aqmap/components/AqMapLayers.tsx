@@ -17,7 +17,6 @@ import {
   FIRE_DANGER_FILL_COLORS,
   FIRE_DANGER_VECTOR_URL,
   FIRE_PERIMETERS_VECTOR_URL,
-  FORECAST_ZONES_VECTOR_URL,
 } from '../lib/aqMapConstants'
 import type {
   ActiveFireFeatureProperties,
@@ -276,9 +275,13 @@ function getForecastZonePm25(
   zone: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
   monitors: AirMonitor[],
 ): number | null {
+  const zoneCode = String(zone.properties?.CLC ?? '').trim()
+  const zoneMonitors = zoneCode
+    ? monitors.filter((monitor) => monitor.forecastZoneCode === zoneCode)
+    : []
+
   return mean(
-    monitors
-      .filter((monitor) => monitorInForecastZone(monitor, zone))
+    (zoneMonitors.length ? zoneMonitors : monitors.filter((monitor) => monitorInForecastZone(monitor, zone)))
       .map((monitor) => getMonitorAqhiPm25(monitor)),
   )
 }
@@ -307,7 +310,13 @@ function formatForecastZoneSummaryPopup(
   zone: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
   monitors: AirMonitor[],
 ): string {
-  const zoneMonitors = monitors.filter((monitor) => monitorInForecastZone(monitor, zone))
+  const zoneCode = String(zone.properties?.CLC ?? '').trim()
+  const monitorsByCode = zoneCode
+    ? monitors.filter((monitor) => monitor.forecastZoneCode === zoneCode)
+    : []
+  const zoneMonitors = monitorsByCode.length
+    ? monitorsByCode
+    : monitors.filter((monitor) => monitorInForecastZone(monitor, zone))
   const columns = ['FEM', 'PA', 'EGG', 'ALL'] as const
   const grouped = {
     FEM: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'FEM'),
@@ -809,10 +818,12 @@ export function FirePerimetersVectorLayer({ visible }: { visible: boolean }) {
 
 export function ForecastZonesVectorLayer({
   visible,
+  data,
   monitors,
   onZoneClick,
 }: {
   visible: boolean
+  data: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties> | null
   monitors: AirMonitor[]
   onZoneClick?: () => void
 }) {
@@ -820,32 +831,7 @@ export function ForecastZonesVectorLayer({
   const sourceId = 'aqmap-forecast-zones-vector-source'
   const fillLayerId = 'aqmap-forecast-zones-vector-fill'
   const lineLayerId = 'aqmap-forecast-zones-vector-line'
-  const [data, setData] = useState<GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties> | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const styledData = useMemo(() => data ? styleForecastZoneData(data, monitors) : null, [data, monitors])
-
-  useEffect(() => {
-    if (!visible || data || error) return
-    const controller = new AbortController()
-
-    fetch(FORECAST_ZONES_VECTOR_URL, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Failed to load forecast zones: ${response.status}`)
-        return response.json()
-      })
-      .then((payload) => {
-        const collection = payload as GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>
-        setData(collection)
-      })
-      .catch((err) => {
-        if ((err as Error).name !== 'AbortError') {
-          console.error('Forecast zones vector layer failed', err)
-          setError((err as Error).message)
-        }
-      })
-
-    return () => controller.abort()
-  }, [data, error, visible])
 
   useEffect(() => {
     if (!isLoaded || !map || !visible || !styledData) return

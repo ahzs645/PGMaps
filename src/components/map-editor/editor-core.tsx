@@ -25,6 +25,8 @@ export type EditorMarker = {
   label: string;
   /** Iconify name (e.g. "mdi:flag") */
   icon: string;
+  /** Optional image URL — when set, renders instead of the iconify icon. */
+  image?: string;
   color1: string;
   color2: string;
   size: number;
@@ -197,6 +199,7 @@ export function serializeEditorMap({
         color1: marker.color1,
         color2: marker.color2,
         iconDescription: marker.icon,
+        ...(marker.image ? { imageUrl: marker.image } : {}),
         lngLat: [marker.longitude, marker.latitude],
       })),
       paths: paths.map((path) => ({

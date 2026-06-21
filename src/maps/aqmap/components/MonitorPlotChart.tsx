@@ -1,14 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ReferenceArea,
-  ReferenceLine,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Area, AreaChart, CartesianGrid, ReferenceArea, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AqPlotPoint } from '../lib/plotData'
 import { getAqhiPlusColor } from '../lib/aqhiScale'
 import type { AqmapLocale } from '../lib/i18n'
@@ -23,7 +14,7 @@ const AQHI_BANDS: Array<{ from: number; to: number; color: string }> = [
 ]
 
 const AQHI_THRESHOLDS = [30, 60, 100]
-const CHART_MARGIN = { top: 12, right: 12, bottom: 14, left: 0 }
+const CHART_MARGIN = { top: 10, right: 12, bottom: 14, left: 0 }
 
 interface ChartPoint {
   time: number
@@ -65,16 +56,14 @@ function formatFullLabel(value: number, locale: AqmapLocale): string {
 function makeFakePlotData(locale: AqmapLocale, currentValue?: number): ChartPoint[] {
   const end = new Date()
   end.setMinutes(0, 0, 0)
-  const baseline = Number.isFinite(currentValue) && currentValue !== undefined
-    ? Math.max(1.5, currentValue)
-    : 8
+  const baseline = Number.isFinite(currentValue) && currentValue !== undefined ? Math.max(1.5, currentValue) : 8
 
   return Array.from({ length: 24 }, (_, index) => {
     const time = end.getTime() - (23 - index) * 60 * 60 * 1000
     const wave = Math.sin(index / 2.8) * 2.6
     const commuteBump = Math.exp(-Math.pow(index - 8, 2) / 10) * 5.5
     const eveningBump = Math.exp(-Math.pow(index - 18, 2) / 12) * 3.8
-    const smallVariation = ((index * 17) % 7 - 3) * 0.28
+    const smallVariation = (((index * 17) % 7) - 3) * 0.28
     const pm25 = Math.max(0.4, baseline + wave + commuteBump + eveningBump + smallVariation)
 
     return {
@@ -86,13 +75,7 @@ function makeFakePlotData(locale: AqmapLocale, currentValue?: number): ChartPoin
   })
 }
 
-function MonitorPlotTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean
-  payload?: Array<{ payload: ChartPoint }>
-}) {
+function MonitorPlotTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartPoint }> }) {
   const point = payload?.[0]?.payload
   if (!active || !point) return null
 
@@ -224,9 +207,10 @@ export function MonitorPlotChart({
               position: 'insideLeft',
               fill: 'hsl(var(--muted-foreground))',
               fontSize: 10,
-              offset: 8,
+              fontWeight: 600,
+              offset: 14,
             }}
-            width={40}
+            width={50}
           />
           <Tooltip cursor={{ stroke: strokeColor, strokeOpacity: 0.25 }} content={<MonitorPlotTooltip />} />
           <Area

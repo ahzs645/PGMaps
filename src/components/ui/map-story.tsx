@@ -40,6 +40,10 @@ type MapStoryPanelProps = {
   accentColor?: string;
   /** Panel background (default tasmap off-white) */
   backgroundColor?: string;
+  /** Body text color (default neutral-600) */
+  textColor?: string;
+  /** Muted text color for the eyebrow (defaults to the accent color) */
+  mutedColor?: string;
   /** Initial panel width in px */
   defaultWidth?: number;
   /** Minimum drag width in px */
@@ -62,6 +66,8 @@ export function MapStoryPanel({
   children,
   accentColor = STORY_ACCENT,
   backgroundColor = STORY_BG,
+  textColor,
+  mutedColor,
   defaultWidth = 384,
   minWidth = 280,
   maxWidth = 560,
@@ -127,7 +133,7 @@ export function MapStoryPanel({
             {eyebrow ? (
               <div
                 className="text-[11px] font-semibold uppercase tracking-wide"
-                style={{ color: accentColor }}
+                style={{ color: mutedColor ?? accentColor }}
               >
                 {eyebrow}
               </div>
@@ -150,7 +156,10 @@ export function MapStoryPanel({
             </button>
           ) : null}
         </div>
-        <div className="space-y-3 px-5 pb-6 text-sm leading-relaxed text-neutral-600">
+        <div
+          className="space-y-3 px-5 pb-6 text-sm leading-relaxed text-neutral-600"
+          style={textColor ? { color: textColor } : undefined}
+        >
           {children}
         </div>
       </div>
@@ -162,6 +171,8 @@ type MapStorySectionProps = {
   heading?: ReactNode;
   children: ReactNode;
   accentColor?: string;
+  /** Body text color (default neutral-600) */
+  textColor?: string;
   className?: string;
 };
 
@@ -170,6 +181,7 @@ export function MapStorySection({
   heading,
   children,
   accentColor = STORY_ACCENT,
+  textColor,
   className,
 }: MapStorySectionProps) {
   return (
@@ -182,7 +194,9 @@ export function MapStorySection({
           {heading}
         </h3>
       ) : null}
-      <div className="space-y-2 text-neutral-600">{children}</div>
+      <div className="space-y-2 text-neutral-600" style={textColor ? { color: textColor } : undefined}>
+        {children}
+      </div>
     </section>
   );
 }

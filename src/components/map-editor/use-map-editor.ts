@@ -28,6 +28,8 @@ export type EditorTheme = {
 type MarkerDraft = {
   variant: EditorMarkerVariant;
   icon: string;
+  /** Optional image URL — overrides the icon when set. */
+  image?: string;
   size: number;
   color1: string;
   color2: string;
@@ -159,23 +161,29 @@ export function useMapEditor({
     setMarkerEditorOpen(false);
   };
 
-  /** tasmap behavior: a new marker drops at the current viewport center. */
-  const addMarkerAtCenter = (variant: EditorMarkerVariant) => {
+  /**
+   * tasmap behavior: a new marker drops at the current viewport center.
+   * `overrides` lets callers (e.g. the shape-tool rail) drop a marker with a
+   * specific icon/colour in one click without waiting on draft state.
+   */
+  const addMarkerAtCenter = (variant: EditorMarkerVariant, overrides?: Partial<MarkerDraft>) => {
     const center = mapRef.current?.getCenter();
     const lngLat: LngLat = center ? [center.lng, center.lat] : [PG_CENTER[0], PG_CENTER[1]];
+    const draft = { ...markerDraft, ...overrides };
     const marker: EditorMarker = {
       id: newId(),
       longitude: lngLat[0],
       latitude: lngLat[1],
       variant,
       label: variant === "badge" ? "Label" : "",
-      icon: markerDraft.icon,
-      color1: markerDraft.color1,
-      color2: markerDraft.color2,
-      size: markerDraft.size,
+      icon: draft.icon,
+      image: draft.image,
+      color1: draft.color1,
+      color2: draft.color2,
+      size: draft.size,
     };
     markDirty();
-    setMarkerDraft((current) => ({ ...current, variant }));
+    setMarkerDraft((current) => ({ ...current, ...overrides, variant }));
     setMarkers((current) => [...current, marker]);
     setSelectedId(marker.id);
   };
@@ -190,6 +198,7 @@ export function useMapEditor({
         variant: markerDraft.variant,
         label: markerDraft.variant === "badge" ? "Label" : "",
         icon: markerDraft.icon,
+        image: markerDraft.image,
         color1: markerDraft.color1,
         color2: markerDraft.color2,
         size: markerDraft.size,
