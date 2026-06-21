@@ -11,13 +11,11 @@ import {
   RotateCcw,
   Save,
   Settings,
-  Shapes,
   Share2,
   SlidersHorizontal,
   Sparkles,
   Spline,
   Trash2,
-  Type,
   X,
 } from 'lucide-react'
 
@@ -65,6 +63,10 @@ type DesignState = {
   waterColor: string
   landcoverColor: string
   boundaryColor: string
+  countryBoundaryColor: string
+  otherBoundaryColor: string
+  labelColor: string
+  labelHaloColor: string
   roadColor: string
   buildingColor: string
   markerFill: string
@@ -74,6 +76,8 @@ type DesignState = {
   showLabels: boolean
   showWater: boolean
   showLandcover: boolean
+  showCountryBoundaries: boolean
+  showOtherBoundaries: boolean
   showFocusArea: boolean
   showStory: boolean
   showMarkers: boolean
@@ -94,6 +98,10 @@ const SHARED_BASEMAP_CAPTURE: DesignState = {
   waterColor: '#bae6fd',
   landcoverColor: '#dcfce7',
   boundaryColor: '#94a3b8',
+  countryBoundaryColor: '#94a3b8',
+  otherBoundaryColor: '#94a3b8',
+  labelColor: '#2563eb',
+  labelHaloColor: '#f8fafc',
   roadColor: '#ffffff',
   buildingColor: '#e2e8f0',
   markerFill: '#2563eb',
@@ -103,6 +111,8 @@ const SHARED_BASEMAP_CAPTURE: DesignState = {
   showLabels: true,
   showWater: true,
   showLandcover: true,
+  showCountryBoundaries: true,
+  showOtherBoundaries: true,
   showFocusArea: true,
   showStory: true,
   showMarkers: true,
@@ -122,6 +132,10 @@ const ALT_THEME: DesignState = {
   waterColor: '#67e8f9',
   landcoverColor: '#bef264',
   boundaryColor: '#64748b',
+  countryBoundaryColor: '#64748b',
+  otherBoundaryColor: '#64748b',
+  labelColor: '#0f766e',
+  labelHaloColor: '#f7fee7',
   roadColor: '#fefce8',
   buildingColor: '#d9f99d',
   markerFill: '#0f766e',
@@ -161,6 +175,26 @@ function coerceDesignState(value: unknown): DesignState {
       ? candidate.landcoverColor
       : SHARED_BASEMAP_CAPTURE.landcoverColor,
     boundaryColor: isHexColor(candidate.boundaryColor) ? candidate.boundaryColor : SHARED_BASEMAP_CAPTURE.boundaryColor,
+    countryBoundaryColor: isHexColor(candidate.countryBoundaryColor)
+      ? candidate.countryBoundaryColor
+      : isHexColor(candidate.boundaryColor)
+        ? candidate.boundaryColor
+        : SHARED_BASEMAP_CAPTURE.countryBoundaryColor,
+    otherBoundaryColor: isHexColor(candidate.otherBoundaryColor)
+      ? candidate.otherBoundaryColor
+      : isHexColor(candidate.boundaryColor)
+        ? candidate.boundaryColor
+        : SHARED_BASEMAP_CAPTURE.otherBoundaryColor,
+    labelColor: isHexColor(candidate.labelColor)
+      ? candidate.labelColor
+      : isHexColor(candidate.primaryColor)
+        ? candidate.primaryColor
+        : SHARED_BASEMAP_CAPTURE.labelColor,
+    labelHaloColor: isHexColor(candidate.labelHaloColor)
+      ? candidate.labelHaloColor
+      : isHexColor(candidate.backgroundColor)
+        ? candidate.backgroundColor
+        : SHARED_BASEMAP_CAPTURE.labelHaloColor,
     roadColor: isHexColor(candidate.roadColor) ? candidate.roadColor : SHARED_BASEMAP_CAPTURE.roadColor,
     buildingColor: isHexColor(candidate.buildingColor) ? candidate.buildingColor : SHARED_BASEMAP_CAPTURE.buildingColor,
     markerFill: isHexColor(candidate.markerFill) ? candidate.markerFill : SHARED_BASEMAP_CAPTURE.markerFill,
@@ -177,6 +211,14 @@ function coerceDesignState(value: unknown): DesignState {
     showWater: typeof candidate.showWater === 'boolean' ? candidate.showWater : SHARED_BASEMAP_CAPTURE.showWater,
     showLandcover:
       typeof candidate.showLandcover === 'boolean' ? candidate.showLandcover : SHARED_BASEMAP_CAPTURE.showLandcover,
+    showCountryBoundaries:
+      typeof candidate.showCountryBoundaries === 'boolean'
+        ? candidate.showCountryBoundaries
+        : SHARED_BASEMAP_CAPTURE.showCountryBoundaries,
+    showOtherBoundaries:
+      typeof candidate.showOtherBoundaries === 'boolean'
+        ? candidate.showOtherBoundaries
+        : SHARED_BASEMAP_CAPTURE.showOtherBoundaries,
     showFocusArea:
       typeof candidate.showFocusArea === 'boolean' ? candidate.showFocusArea : SHARED_BASEMAP_CAPTURE.showFocusArea,
     showStory: typeof candidate.showStory === 'boolean' ? candidate.showStory : SHARED_BASEMAP_CAPTURE.showStory,
@@ -273,8 +315,12 @@ function buildSharedBasemapStyle(baseStyle: StyleSpecification, design: DesignSt
     }
 
     if (layer.type === 'line' && sourceLayer === 'boundary') {
-      paint['line-color'] = design.boundaryColor
-      paint['line-opacity'] = layerId.includes('country') ? 0.72 : 0.48
+      const isCountryBoundary = layerId.includes('country')
+      layout.visibility = isCountryBoundary
+        ? design.showCountryBoundaries ? 'visible' : 'none'
+        : design.showOtherBoundaries ? 'visible' : 'none'
+      paint['line-color'] = isCountryBoundary ? design.countryBoundaryColor : design.otherBoundaryColor
+      paint['line-opacity'] = isCountryBoundary ? 0.72 : 0.48
     }
 
     if (layer.type === 'line' && sourceLayer === 'transportation' && !layerId.includes('case')) {
@@ -291,9 +337,9 @@ function buildSharedBasemapStyle(baseStyle: StyleSpecification, design: DesignSt
     if (layer.type === 'symbol') {
       layout.visibility = design.showLabels ? 'visible' : 'none'
       if ('text-color' in paint) {
-        paint['text-color'] = sourceLayer.includes('water') ? design.waterColor : design.primaryColor
+        paint['text-color'] = sourceLayer.includes('water') ? design.waterColor : design.labelColor
       }
-      if ('text-halo-color' in paint) paint['text-halo-color'] = design.backgroundColor
+      if ('text-halo-color' in paint) paint['text-halo-color'] = design.labelHaloColor
     }
 
     return {
@@ -397,6 +443,51 @@ function EditorToggle({
   )
 }
 
+function SourceStyleRow({
+  title,
+  description,
+  color,
+  onColorChange,
+  visible,
+  onVisibleChange,
+  swatches,
+}: {
+  title: string
+  description: string
+  color: string
+  onColorChange: (value: string) => void
+  visible?: boolean
+  onVisibleChange?: (value: boolean) => void
+  swatches: string[]
+}) {
+  return (
+    <div className="flex min-h-12 items-center justify-between gap-4">
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-foreground">{title}</div>
+        <div className="text-xs text-muted-foreground">{description}</div>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        {visible !== undefined && onVisibleChange ? (
+          <button
+            type="button"
+            onClick={() => onVisibleChange(!visible)}
+            title={visible ? `Hide ${title}` : `Show ${title}`}
+            aria-label={visible ? `Hide ${title}` : `Show ${title}`}
+            aria-pressed={visible}
+            className={cn(
+              'flex size-8 items-center justify-center rounded-full transition-colors',
+              visible ? 'text-foreground hover:bg-accent' : 'text-muted-foreground/60 hover:bg-accent',
+            )}
+          >
+            <Eye className="h-5 w-5" />
+          </button>
+        ) : null}
+        <MapColorPicker value={color} onChange={onColorChange} title={title} swatches={swatches} />
+      </div>
+    </div>
+  )
+}
+
 function DesignerMarker({ design }: { design: DesignState }) {
   const markerPath =
     design.markerShape === 'badge'
@@ -464,10 +555,22 @@ function StaticMapPreview({ design }: { design: DesignState }) {
           <path d="M70 270 C220 315 395 350 560 420 C725 490 900 560 1125 610" strokeWidth="10" />
           <path d="M320 765 C390 635 475 525 610 455 C755 378 880 335 1040 245" strokeWidth="8" />
         </g>
-        <g fill="none" stroke={design.boundaryColor} strokeDasharray="18 15" opacity="0.48">
-          <path d="M155 115 L1080 170 L1035 700 L215 665Z" strokeWidth="4" />
-          <path d="M595 118 L565 705" strokeWidth="3" />
-        </g>
+        {design.showOtherBoundaries ? (
+          <g fill="none" stroke={design.otherBoundaryColor} strokeDasharray="18 15" opacity="0.48">
+            <path d="M155 115 L1080 170 L1035 700 L215 665Z" strokeWidth="4" />
+            <path d="M595 118 L565 705" strokeWidth="3" />
+          </g>
+        ) : null}
+        {design.showCountryBoundaries ? (
+          <path
+            d="M90 85 L1110 125 L1088 735 L140 705Z"
+            fill="none"
+            stroke={design.countryBoundaryColor}
+            strokeDasharray="22 14"
+            strokeWidth="5"
+            opacity="0.62"
+          />
+        ) : null}
         {design.showFocusArea ? (
           <circle
             cx="600"
@@ -482,11 +585,11 @@ function StaticMapPreview({ design }: { design: DesignState }) {
         ) : null}
         {design.showLabels ? (
           <g
-            fill={design.primaryColor}
+            fill={design.labelColor}
             fontFamily="Inter, ui-sans-serif, system-ui, sans-serif"
             fontWeight="600"
             paintOrder="stroke"
-            stroke={design.backgroundColor}
+            stroke={design.labelHaloColor}
             strokeWidth="6"
             strokeLinejoin="round"
           >
@@ -553,11 +656,24 @@ export default function DevDesign() {
       design.backgroundColor,
       design.waterColor,
       design.landcoverColor,
+      design.countryBoundaryColor,
+      design.otherBoundaryColor,
+      design.labelColor,
+      design.labelHaloColor,
       PATH_COLOR,
       '#ffffff',
       '#000000',
     ],
-    [design.primaryColor, design.backgroundColor, design.waterColor, design.landcoverColor],
+    [
+      design.primaryColor,
+      design.backgroundColor,
+      design.waterColor,
+      design.landcoverColor,
+      design.countryBoundaryColor,
+      design.otherBoundaryColor,
+      design.labelColor,
+      design.labelHaloColor,
+    ],
   )
 
   // Apply a tasmap-style theme preset: recolor the whole basemap stack
@@ -573,6 +689,10 @@ export default function DevDesign() {
       landcoverColor: next.landcoverColor,
       roadColor: next.roadColor,
       boundaryColor: next.boundaryColor,
+      countryBoundaryColor: next.boundaryColor,
+      otherBoundaryColor: next.boundaryColor,
+      labelColor: next.primaryColor,
+      labelHaloColor: next.backgroundColor,
       buildingColor: next.buildingColor,
       markerFill: next.primaryColor,
       markerInset: next.backgroundColor,
@@ -687,6 +807,178 @@ export default function DevDesign() {
     await navigator.clipboard?.writeText(window.location.href)
   }
 
+  const boundaryPanel = (
+    <MapEditorPanel className="w-72 space-y-3">
+      <div className="text-xs font-medium text-muted-foreground">Boundaries</div>
+      <SourceStyleRow
+        title="Country"
+        description="Country boundaries"
+        color={design.countryBoundaryColor}
+        onColorChange={(value) =>
+          setNextDesign((current) => ({ ...current, countryBoundaryColor: value, boundaryColor: value }))
+        }
+        visible={design.showCountryBoundaries}
+        onVisibleChange={(checked) => updateDesign('showCountryBoundaries', checked)}
+        swatches={themeSwatches}
+      />
+      <SourceStyleRow
+        title="Other"
+        description="Other boundaries"
+        color={design.otherBoundaryColor}
+        onColorChange={(value) =>
+          setNextDesign((current) => ({ ...current, otherBoundaryColor: value, boundaryColor: value }))
+        }
+        visible={design.showOtherBoundaries}
+        onVisibleChange={(checked) => updateDesign('showOtherBoundaries', checked)}
+        swatches={themeSwatches}
+      />
+    </MapEditorPanel>
+  )
+
+  const articlePanel = (
+    <MapEditorPanel className="w-72 space-y-3">
+      <AppSelect
+        value={textPresetName}
+        onValueChange={(value) => {
+          const preset = TEXT_PRESETS[value]
+          if (preset) setNextDesign((current) => ({ ...current, ...preset }))
+        }}
+        options={[
+          ...Object.keys(TEXT_PRESETS).map((name) => ({ value: name, label: name })),
+          ...(textPresetName === 'Custom' ? [{ value: 'Custom', label: 'Custom' }] : []),
+        ]}
+      />
+      <SourceStyleRow
+        title="Background"
+        description="Article background color"
+        color={design.articleBackground}
+        onColorChange={(value) => updateDesign('articleBackground', value)}
+        swatches={themeSwatches}
+      />
+      <SourceStyleRow
+        title="Default color"
+        description="Default text color"
+        color={design.textDefault}
+        onColorChange={(value) => updateDesign('textDefault', value)}
+        swatches={themeSwatches}
+      />
+      <SourceStyleRow
+        title="Primary color"
+        description="Primary text color"
+        color={design.textPrimary}
+        onColorChange={(value) => updateDesign('textPrimary', value)}
+        swatches={themeSwatches}
+      />
+      <SourceStyleRow
+        title="Secondary color"
+        description="Secondary text color"
+        color={design.textSecondary}
+        onColorChange={(value) => updateDesign('textSecondary', value)}
+        swatches={themeSwatches}
+      />
+    </MapEditorPanel>
+  )
+
+  const labelPanel = (
+    <MapEditorPanel className="w-72 space-y-3">
+      <div className="text-xs font-medium text-muted-foreground">Map labels</div>
+      <EditorToggle label="Labels" checked={design.showLabels} onChange={(checked) => updateDesign('showLabels', checked)} />
+      <SourceStyleRow
+        title="Country"
+        description="Country labels"
+        color={design.labelColor}
+        onColorChange={(value) => updateDesign('labelColor', value)}
+        visible={design.showLabels}
+        onVisibleChange={(checked) => updateDesign('showLabels', checked)}
+        swatches={themeSwatches}
+      />
+      <SourceStyleRow
+        title="Halo"
+        description="Label border color"
+        color={design.labelHaloColor}
+        onColorChange={(value) => updateDesign('labelHaloColor', value)}
+        swatches={themeSwatches}
+      />
+    </MapEditorPanel>
+  )
+
+  const roadPanel = (
+    <MapEditorPanel className="w-72 space-y-3">
+      <div className="text-xs font-medium text-muted-foreground">Road</div>
+      <SourceStyleRow
+        title="Primary"
+        description="Road color"
+        color={design.roadColor}
+        onColorChange={(value) => updateDesign('roadColor', value)}
+        swatches={themeSwatches}
+      />
+    </MapEditorPanel>
+  )
+
+  const naturalPanel = (
+    <MapEditorPanel className="w-72 space-y-3">
+      <div className="text-xs font-medium text-muted-foreground">Natural</div>
+      <SourceStyleRow
+        title="Lands"
+        description="Base land surface"
+        color={design.backgroundColor}
+        onColorChange={(value) => updateDesign('backgroundColor', value)}
+        swatches={themeSwatches}
+      />
+      <SourceStyleRow
+        title="Water"
+        description="Oceans, lakes, rivers, and waterways"
+        color={design.waterColor}
+        onColorChange={(value) => updateDesign('waterColor', value)}
+        visible={design.showWater}
+        onVisibleChange={(checked) => updateDesign('showWater', checked)}
+        swatches={themeSwatches}
+      />
+      <SourceStyleRow
+        title="Greenland"
+        description="Grasslands, parks, and gardens"
+        color={design.landcoverColor}
+        onColorChange={(value) => updateDesign('landcoverColor', value)}
+        visible={design.showLandcover}
+        onVisibleChange={(checked) => updateDesign('showLandcover', checked)}
+        swatches={themeSwatches}
+      />
+    </MapEditorPanel>
+  )
+
+  const landusePanel = (
+    <MapEditorPanel className="w-72 space-y-3">
+      <div className="text-xs font-medium text-muted-foreground">Landuse and Building</div>
+      <SourceStyleRow
+        title="Building"
+        description="All kinds of buildings and structures"
+        color={design.buildingColor}
+        onColorChange={(value) => updateDesign('buildingColor', value)}
+        swatches={themeSwatches}
+      />
+    </MapEditorPanel>
+  )
+
+  const poiPanel = (
+    <MapEditorPanel className="w-72 space-y-3">
+      <div className="text-xs font-medium text-muted-foreground">Point of Interests</div>
+      <SourceStyleRow
+        title="POI"
+        description="Point marker accent color"
+        color={design.markerFill}
+        onColorChange={(value) => updateDesign('markerFill', value)}
+        swatches={themeSwatches}
+      />
+      <SourceStyleRow
+        title="POI halo"
+        description="Point marker inset color"
+        color={design.markerInset}
+        onColorChange={(value) => updateDesign('markerInset', value)}
+        swatches={themeSwatches}
+      />
+    </MapEditorPanel>
+  )
+
   return (
     <div className="flex h-full min-h-[calc(100vh-3rem)] flex-col bg-background lg:min-h-[calc(100vh-3.5rem)] lg:flex-row">
       <aside className="order-2 w-full overflow-y-auto bg-background lg:order-1 lg:w-[25rem]">
@@ -724,13 +1016,20 @@ export default function DevDesign() {
               <ColorField
                 label="Primary"
                 value={design.primaryColor}
-                onChange={(value) => setNextDesign((current) => ({ ...current, primaryColor: value, markerFill: value }))}
+                onChange={(value) =>
+                  setNextDesign((current) => ({ ...current, primaryColor: value, markerFill: value, labelColor: value }))
+                }
               />
               <ColorField
                 label="Background"
                 value={design.backgroundColor}
                 onChange={(value) =>
-                  setNextDesign((current) => ({ ...current, backgroundColor: value, markerInset: value }))
+                  setNextDesign((current) => ({
+                    ...current,
+                    backgroundColor: value,
+                    markerInset: value,
+                    labelHaloColor: value,
+                  }))
                 }
               />
               <ColorField label="Water" value={design.waterColor} onChange={(value) => updateDesign('waterColor', value)} />
@@ -742,7 +1041,14 @@ export default function DevDesign() {
               <ColorField
                 label="Boundary"
                 value={design.boundaryColor}
-                onChange={(value) => updateDesign('boundaryColor', value)}
+                onChange={(value) =>
+                  setNextDesign((current) => ({
+                    ...current,
+                    boundaryColor: value,
+                    countryBoundaryColor: value,
+                    otherBoundaryColor: value,
+                  }))
+                }
               />
               <ColorField
                 label="Roads"
@@ -780,6 +1086,16 @@ export default function DevDesign() {
                 label="Landcover layer"
                 checked={design.showLandcover}
                 onChange={(checked) => updateDesign('showLandcover', checked)}
+              />
+              <ToggleRow
+                label="Country boundaries"
+                checked={design.showCountryBoundaries}
+                onChange={(checked) => updateDesign('showCountryBoundaries', checked)}
+              />
+              <ToggleRow
+                label="Other boundaries"
+                checked={design.showOtherBoundaries}
+                onChange={(checked) => updateDesign('showOtherBoundaries', checked)}
               />
               <ToggleRow
                 label="Focus area"
@@ -1091,12 +1407,24 @@ export default function DevDesign() {
                 flyout={<PathFlyout editor={editor} swatches={themeSwatches} />}
               />
               <MapToolRailButton
-                icon={<Shapes />}
-                label="Add a place"
+                icon={<SlidersHorizontal />}
+                label="Style"
                 active={openTool === 'shapes'}
                 onClick={() => setOpenTool((current) => (current === 'shapes' ? null : 'shapes'))}
                 flyoutOpen={openTool === 'shapes'}
-                flyout={<ShapeToolsFlyout editor={editor} onPlaced={() => setOpenTool(null)} />}
+                flyout={
+                  <ShapeToolsFlyout
+                    panels={{
+                      article: articlePanel,
+                      boundary: boundaryPanel,
+                      label: labelPanel,
+                      road: roadPanel,
+                      natural: naturalPanel,
+                      landuse: landusePanel,
+                      poi: poiPanel,
+                    }}
+                  />
+                }
               />
               <MapToolRailButton
                 icon={<Settings />}
@@ -1105,11 +1433,43 @@ export default function DevDesign() {
                 onClick={() => setOpenTool((current) => (current === 'settings' ? null : 'settings'))}
                 flyoutOpen={openTool === 'settings'}
                 flyout={
-                  <MapEditorPanel className="w-56 space-y-1">
+                  <MapEditorPanel className="w-72 space-y-3">
                     <EditorToggle label="Story panel" checked={design.showStory} onChange={(checked) => updateDesign('showStory', checked)} />
                     <EditorToggle label="Focus area" checked={design.showFocusArea} onChange={(checked) => updateDesign('showFocusArea', checked)} />
                     <EditorToggle label="Markers" checked={design.showMarkers} onChange={(checked) => updateDesign('showMarkers', checked)} />
                     <EditorToggle label="Paths" checked={design.showPath} onChange={(checked) => updateDesign('showPath', checked)} />
+                    <div className="border-t border-border pt-3">
+                      <SourceStyleRow
+                        title="Country"
+                        description="Country boundaries"
+                        color={design.countryBoundaryColor}
+                        onColorChange={(value) =>
+                          setNextDesign((current) => ({
+                            ...current,
+                            countryBoundaryColor: value,
+                            boundaryColor: value,
+                          }))
+                        }
+                        visible={design.showCountryBoundaries}
+                        onVisibleChange={(checked) => updateDesign('showCountryBoundaries', checked)}
+                        swatches={themeSwatches}
+                      />
+                      <SourceStyleRow
+                        title="Other"
+                        description="Other boundaries"
+                        color={design.otherBoundaryColor}
+                        onColorChange={(value) =>
+                          setNextDesign((current) => ({
+                            ...current,
+                            otherBoundaryColor: value,
+                            boundaryColor: value,
+                          }))
+                        }
+                        visible={design.showOtherBoundaries}
+                        onVisibleChange={(checked) => updateDesign('showOtherBoundaries', checked)}
+                        swatches={themeSwatches}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={clearAll}
@@ -1118,51 +1478,6 @@ export default function DevDesign() {
                       <Trash2 className="h-3.5 w-3.5" />
                       Clear all
                     </button>
-                  </MapEditorPanel>
-                }
-              />
-              <MapToolRailButton
-                icon={<Type />}
-                label="Story text colors"
-                active={openTool === 'text'}
-                onClick={() => setOpenTool((current) => (current === 'text' ? null : 'text'))}
-                flyoutOpen={openTool === 'text'}
-                flyout={
-                  <MapEditorPanel className="w-72 space-y-3">
-                    <AppSelect
-                      value={textPresetName}
-                      onValueChange={(value) => {
-                        const preset = TEXT_PRESETS[value]
-                        if (preset) setNextDesign((current) => ({ ...current, ...preset }))
-                      }}
-                      options={[
-                        ...Object.keys(TEXT_PRESETS).map((name) => ({ value: name, label: name })),
-                        ...(textPresetName === 'Custom' ? [{ value: 'Custom', label: 'Custom' }] : []),
-                      ]}
-                    />
-                    <div className="space-y-3">
-                      {(
-                        [
-                          { key: 'articleBackground', title: 'Background', desc: 'Article background color' },
-                          { key: 'textDefault', title: 'Default color', desc: 'Default text color' },
-                          { key: 'textPrimary', title: 'Primary color', desc: 'Primary text color' },
-                          { key: 'textSecondary', title: 'Secondary color', desc: 'Secondary text color' },
-                        ] as const
-                      ).map((row) => (
-                        <div key={row.key} className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium text-foreground">{row.title}</div>
-                            <div className="text-xs text-muted-foreground">{row.desc}</div>
-                          </div>
-                          <MapColorPicker
-                            value={design[row.key]}
-                            onChange={(value) => updateDesign(row.key, value)}
-                            title={row.title}
-                            swatches={themeSwatches}
-                          />
-                        </div>
-                      ))}
-                    </div>
                   </MapEditorPanel>
                 }
               />
