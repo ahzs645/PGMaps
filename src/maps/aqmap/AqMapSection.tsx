@@ -224,12 +224,6 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   }, [forecastZoneData, forecastZoneError, visibleWmsLayers])
 
   useEffect(() => {
-    if (isMobileViewport) {
-      setHoveredMonitor(null)
-    }
-  }, [isMobileViewport])
-
-  useEffect(() => {
     // The main page is a fixed, shareable view — don't mirror its (locked) state to the URL.
     if (isMain) return
     const timeout = window.setTimeout(() => {
@@ -360,6 +354,13 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   const handleMonitorClick = useCallback((monitor: AirMonitor) => {
     setSelectedMonitor((current) => current?.id === monitor.id ? null : monitor)
   }, [])
+
+  const handleMonitorHover = useCallback((monitor: AirMonitor | null) => {
+    if (isMobileViewport) {
+      return
+    }
+    setHoveredMonitor(monitor)
+  }, [isMobileViewport])
 
   const handleForecastZoneClick = useCallback(() => {
     setSelectedMonitor(null)
@@ -531,7 +532,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             clusterMaxZoom={clusterMaxZoom}
             tightClusters={tightClusters}
             onMonitorClick={handleMonitorClick}
-            onMonitorHover={isMobileViewport ? () => setHoveredMonitor(null) : setHoveredMonitor}
+            onMonitorHover={handleMonitorHover}
           />
           {!isMobileViewport && hoveredMonitor && selectedMonitorWithZone !== hoveredMonitor && <MonitorTooltip monitor={hoveredMonitor} locale={locale} />}
           {selectedMonitorWithZone && (!isMobileViewport || effectiveMobileFeatureDisplay === 'popup') && (
