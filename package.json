@@ -51,6 +51,7 @@
     "walkability:build": "npm --prefix vendor/bcdatamapper run walkability:build --",
     "walkability:import-supplements": "npm --prefix vendor/bcdatamapper run walkability:import-supplements --",
     "walkability:build-grid-heatmap": "npm --prefix vendor/bcdatamapper run walkability:build-grid-heatmap --",
+    "walkability:build-factor-masks": "node scripts/build-walkability-factor-masks.mjs",
     "lint": "eslint src/",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",

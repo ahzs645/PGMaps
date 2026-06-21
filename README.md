@@ -39,3 +39,7 @@ The scraper inventory is documented in [vendor/bcdatamapper/README.md](vendor/bc
 ## Data source policy
 
 See [BC Data Catalogue and ArcGIS Live Usage](docs/bc-data-live-usage.md) for guidance on using BC Data Catalogue records and BC-published ArcGIS REST services in PGMaps. In short: licences are often permissive with attribution, but live APIs have operational limits, so large or core datasets should usually be synced and cached instead of queried directly from the browser.
+
+## Walkability generated assets
+
+The walkability equation builder uses committed bit-packed factor masks so arbitrary weights and supported option changes can update quickly in the browser. See [Walkability Factor Masks](docs/walkability-factor-masks.md) for the build command, committed asset policy, and why this project-level note lives in `docs/`.

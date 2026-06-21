@@ -1,14 +1,9 @@
 /* global self, postMessage, fetch */
-import GeoJSONReader from 'jsts/org/locationtech/jts/io/GeoJSONReader.js'
-import GeoJSONWriter from 'jsts/org/locationtech/jts/io/GeoJSONWriter.js'
-import BufferOp from 'jsts/org/locationtech/jts/operation/buffer/BufferOp.js'
-
-const jstsReader = new GeoJSONReader()
-const jstsWriter = new GeoJSONWriter()
 
 const SOURCE_ROOT = '/data/walkability/source'
 const GIS_DIR = `${SOURCE_ROOT}/data/public_gis`
 const SUPP_DIR = `${SOURCE_ROOT}/data/supplemental`
+const PREBUILT_FACTOR_MASKS_URL = '/data/walkability/heatmap/factor_masks.json'
 const CELL_M = 30
 const NODATA = 0
 const PROX = [
@@ -339,6 +334,8 @@ const FACTORS = [
 
 let cachedInputs = null
 let inputsPromise = null
+let cachedPrebuiltMasks = null
+let prebuiltMasksPromise = null
 let pendingComputeRequest = null
 let processingComputeRequest = false
 const maskCache = new Map()
@@ -372,7 +369,6 @@ function progress(requestKey, message) {
 }
 
 async function computeLiveGrid(requestKey, options) {
-  const inputs = await loadInputs(requestKey)
   const config = {
     drop_gtfs_hf: Boolean(options.dropGtfsHf),
     narrow_civic: Boolean(options.narrowCivic),
@@ -388,6 +384,18 @@ async function computeLiveGrid(requestKey, options) {
   const activeFactors = applyVariant(FACTORS, config)
     .map((factor) => ({ ...factor, multiplier: factorWeights[factor.ref] ?? 1 }))
     .filter((factor) => factor.multiplier > 0)
+
+  const prebuilt = await loadPrebuiltMasks(requestKey)
+  if (prebuilt) {
+    try {
+      return computeLiveGridFromPrebuilt(requestKey, activeFactors, areaBufferM, prebuilt)
+    } catch (error) {
+      progress(requestKey, 'Prebuilt masks unavailable; rasterizing source layers')
+      console.warn('Walkability prebuilt mask fallback:', error)
+    }
+  }
+
+  const inputs = await loadInputs(requestKey)
   const grid = new Float32Array(inputs.rows * inputs.cols)
 
   for (let index = 0; index < activeFactors.length; index += 1) {
@@ -430,6 +438,94 @@ async function computeLiveGrid(requestKey, options) {
     imageCoordinates: inputs.imageCoordinates,
     bandCounts,
     rle: rleEncode(bands),
+  }
+}
+
+function computeLiveGridFromPrebuilt(requestKey, activeFactors, areaBufferM, prebuilt) {
+  progress(requestKey, 'Combining prebuilt factor masks')
+  const cellCount = prebuilt.rows * prebuilt.cols
+  const grid = new Float32Array(cellCount)
+
+  for (let index = 0; index < activeFactors.length; index += 1) {
+    const factor = activeFactors[index]
+    progress(requestKey, `Scoring ${index + 1}/${activeFactors.length}: ${factor.ref}`)
+    if (factor.mode === 'proximity') {
+      for (const [distance, score] of factor.scores) {
+        if (!score) continue
+        const mask = prebuilt.masks[componentMaskKey(factor, distance)]
+        if (!mask) throw new Error(`Missing prebuilt walkability mask for ${factor.ref} at ${distance}m`)
+        addPackedMaskScoreToGrid(grid, mask.bytes, score * factor.multiplier)
+      }
+    } else {
+      const mask = prebuilt.masks[componentMaskKey(factor, areaBufferM)]
+      if (!mask) throw new Error(`Missing prebuilt walkability mask for ${factor.ref} at ${areaBufferM}m`)
+      addPackedMaskScoreToGrid(grid, mask.bytes, factor.score * factor.multiplier)
+    }
+  }
+
+  const bands = new Uint8Array(cellCount)
+  const bandCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  for (let index = 0; index < grid.length; index += 1) {
+    if (!packedMaskHas(prebuilt.insideMask.bytes, index)) {
+      bands[index] = NODATA
+      continue
+    }
+    const band = scoreBand(grid[index])
+    bands[index] = band
+    bandCounts[band] += 1
+  }
+
+  return {
+    key: `live-${requestKey}`,
+    label: 'Live browser recalculation',
+    generatedAt: new Date().toISOString(),
+    cellSizeM: prebuilt.cellSizeM,
+    rows: prebuilt.rows,
+    cols: prebuilt.cols,
+    noData: prebuilt.noData ?? NODATA,
+    imageCoordinates: prebuilt.imageCoordinates,
+    bandCounts,
+    rle: rleEncode(bands),
+  }
+}
+
+async function loadPrebuiltMasks(requestKey) {
+  if (cachedPrebuiltMasks) return cachedPrebuiltMasks
+  if (prebuiltMasksPromise) return prebuiltMasksPromise
+  progress(requestKey, 'Loading prebuilt factor masks')
+  prebuiltMasksPromise = fetchJson(PREBUILT_FACTOR_MASKS_URL)
+    .then((raw) => {
+      cachedPrebuiltMasks = normalizePrebuiltMasks(raw)
+      return cachedPrebuiltMasks
+    })
+    .catch((error) => {
+      console.warn('Unable to load walkability prebuilt masks:', error)
+      return null
+    })
+    .finally(() => {
+      prebuiltMasksPromise = null
+    })
+  return prebuiltMasksPromise
+}
+
+function normalizePrebuiltMasks(raw) {
+  if (!raw || raw.encoding !== 'bitpack-base64') throw new Error('Unsupported prebuilt mask encoding')
+  if (raw.cellSizeM !== CELL_M) throw new Error(`Unexpected prebuilt mask cell size: ${raw.cellSizeM}`)
+  if (!Number.isFinite(raw.rows) || !Number.isFinite(raw.cols)) throw new Error('Invalid prebuilt mask dimensions')
+  const cellCount = raw.rows * raw.cols
+  const expectedBytes = Math.ceil(cellCount / 8)
+  const insideBytes = decodeBase64ToBytes(raw.insideMask?.data ?? '')
+  if (insideBytes.length !== expectedBytes) throw new Error('Invalid prebuilt city boundary mask length')
+  const masks = {}
+  for (const [key, value] of Object.entries(raw.masks ?? {})) {
+    const bytes = decodeBase64ToBytes(value?.data ?? '')
+    if (bytes.length !== expectedBytes) throw new Error(`Invalid prebuilt factor mask length for ${key}`)
+    masks[key] = { ...value, bytes }
+  }
+  return {
+    ...raw,
+    insideMask: { ...raw.insideMask, bytes: insideBytes },
+    masks,
   }
 }
 
@@ -611,26 +707,6 @@ function makeGeometry(type, coordinates, properties = {}) {
   return { type, coordinates, properties, bbox: geometryBbox(type, coordinates) }
 }
 
-function geometryToGeojson(geometry) {
-  return { type: geometry.type, coordinates: geometry.coordinates }
-}
-
-function geojsonToProjectedGeometry(geometry, properties = {}) {
-  if (!geometry?.type || !geometry.coordinates) return null
-  return makeGeometry(geometry.type, geometry.coordinates, properties)
-}
-
-function bufferProjectedGeometry(geometry, distanceM) {
-  try {
-    const jstsGeometry = jstsReader.read(geometryToGeojson(geometry))
-    const buffered = BufferOp.bufferOp(jstsGeometry, distanceM, 16)
-    if (!buffered || buffered.isEmpty()) return null
-    return geojsonToProjectedGeometry(jstsWriter.write(buffered), geometry.properties)
-  } catch {
-    return null
-  }
-}
-
 function geometryBbox(type, coordinates) {
   const xs = []
   const ys = []
@@ -808,8 +884,7 @@ function factorMask(inputs, factor, features, distanceM) {
 
   const mask = new Uint8Array(inputs.rows * inputs.cols)
   for (const feature of features) {
-    const buffered = bufferProjectedGeometry(feature, distanceM)
-    if (buffered) addGeometryInteriorToMask(mask, inputs.rows, inputs.cols, inputs.bounds, buffered)
+    addGeometryDistanceToMask(mask, inputs.rows, inputs.cols, inputs.bounds, feature, distanceM)
   }
   setCachedMask(key, mask)
   return mask
@@ -841,19 +916,126 @@ function factorMaskKey(inputs, factor, distanceM) {
   ].join('|')
 }
 
+function componentMaskKey(factor, distanceM) {
+  return [
+    factor.ref,
+    factor.description,
+    factor.layerKey,
+    factor.mode,
+    factor.field,
+    factor.where,
+    JSON.stringify(factor.values),
+    distanceM,
+  ].join('|')
+}
+
 function addGeometryDistanceToMask(mask, rows, cols, bounds, geometry, distanceM) {
-  const bbox = geometry.bbox
+  if (geometry.type === 'Point') {
+    addPointDistanceToMask(mask, rows, cols, bounds, geometry.coordinates, distanceM)
+  } else if (geometry.type === 'LineString') {
+    addLineStringDistanceToMask(mask, rows, cols, bounds, geometry.coordinates, distanceM)
+  } else if (geometry.type === 'MultiLineString') {
+    for (const line of geometry.coordinates) addLineStringDistanceToMask(mask, rows, cols, bounds, line, distanceM)
+  } else if (geometry.type === 'Polygon') {
+    addPolygonDistanceToMask(mask, rows, cols, bounds, geometry.coordinates, distanceM)
+  } else if (geometry.type === 'MultiPolygon') {
+    for (const polygon of geometry.coordinates) addPolygonDistanceToMask(mask, rows, cols, bounds, polygon, distanceM)
+  }
+}
+
+function scanWindowForBbox(rows, cols, bounds, bbox, distanceM) {
   const minCol = Math.max(0, Math.floor((bbox.minX - distanceM - bounds.minX) / CELL_M))
   const maxCol = Math.min(cols - 1, Math.ceil((bbox.maxX + distanceM - bounds.minX) / CELL_M))
   const minRow = Math.max(0, Math.floor((bounds.maxY - (bbox.maxY + distanceM)) / CELL_M))
   const maxRow = Math.min(rows - 1, Math.ceil((bounds.maxY - (bbox.minY - distanceM)) / CELL_M))
+  return { minCol, maxCol, minRow, maxRow }
+}
+
+function addPointDistanceToMask(mask, rows, cols, bounds, point, distanceM) {
+  const [px, py] = point
+  const { minCol, maxCol, minRow, maxRow } = scanWindowForBbox(
+    rows,
+    cols,
+    bounds,
+    { minX: px, minY: py, maxX: px, maxY: py },
+    distanceM,
+  )
   if (minCol > maxCol || minRow > maxRow) return
+  const distanceSquared = distanceM * distanceM
   for (let row = minRow; row <= maxRow; row += 1) {
     const y = bounds.maxY - (row + 0.5) * CELL_M
     const base = row * cols
     for (let col = minCol; col <= maxCol; col += 1) {
       const x = bounds.minX + (col + 0.5) * CELL_M
-      if (distanceToGeometrySquared([x, y], geometry) <= distanceM * distanceM) mask[base + col] = 1
+      if ((x - px) ** 2 + (y - py) ** 2 <= distanceSquared) mask[base + col] = 1
+    }
+  }
+}
+
+function addLineStringDistanceToMask(mask, rows, cols, bounds, line, distanceM) {
+  for (let index = 1; index < line.length; index += 1) {
+    addSegmentDistanceToMask(mask, rows, cols, bounds, line[index - 1], line[index], distanceM)
+  }
+}
+
+function addSegmentDistanceToMask(mask, rows, cols, bounds, start, end, distanceM) {
+  const bbox = {
+    minX: Math.min(start[0], end[0]),
+    minY: Math.min(start[1], end[1]),
+    maxX: Math.max(start[0], end[0]),
+    maxY: Math.max(start[1], end[1]),
+  }
+  const { minCol, maxCol, minRow, maxRow } = scanWindowForBbox(rows, cols, bounds, bbox, distanceM)
+  if (minCol > maxCol || minRow > maxRow) return
+  const distanceSquared = distanceM * distanceM
+  for (let row = minRow; row <= maxRow; row += 1) {
+    const y = bounds.maxY - (row + 0.5) * CELL_M
+    const base = row * cols
+    for (let col = minCol; col <= maxCol; col += 1) {
+      const x = bounds.minX + (col + 0.5) * CELL_M
+      if (pointSegmentDistanceSquared([x, y], start, end) <= distanceSquared) mask[base + col] = 1
+    }
+  }
+}
+
+function addPolygonDistanceToMask(mask, rows, cols, bounds, rings, distanceM) {
+  addPolygonInteriorToMask(mask, rows, cols, bounds, rings)
+  if (distanceM <= 0) return
+  for (const ring of rings) addRingDistanceToMask(mask, rows, cols, bounds, ring, distanceM)
+}
+
+function addRingDistanceToMask(mask, rows, cols, bounds, ring, distanceM) {
+  for (let index = 0; index < ring.length; index += 1) {
+    const start = ring[index]
+    const end = ring[(index + 1) % ring.length]
+    addSegmentDistanceToMask(mask, rows, cols, bounds, start, end, distanceM)
+  }
+}
+
+function addPolygonInteriorToMask(mask, rows, cols, bounds, rings) {
+  const bbox = geometryBbox('Polygon', rings)
+  const { minRow, maxRow } = scanWindowForBbox(rows, cols, bounds, bbox, 0)
+  if (minRow > maxRow) return
+  for (let row = minRow; row <= maxRow; row += 1) {
+    const y = bounds.maxY - (row + 0.5) * CELL_M
+    const intersections = []
+    for (const ring of rings) {
+      for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
+        const [x1, y1] = ring[previous]
+        const [x2, y2] = ring[index]
+        if (y1 > y === y2 > y) continue
+        intersections.push(x1 + ((y - y1) * (x2 - x1)) / (y2 - y1))
+      }
+    }
+    if (intersections.length < 2) continue
+    intersections.sort((left, right) => left - right)
+    const base = row * cols
+    for (let index = 0; index < intersections.length - 1; index += 2) {
+      const startX = intersections[index]
+      const endX = intersections[index + 1]
+      const minCol = Math.max(0, Math.ceil((startX - bounds.minX) / CELL_M - 0.5))
+      const maxCol = Math.min(cols - 1, Math.floor((endX - bounds.minX) / CELL_M - 0.5))
+      for (let col = minCol; col <= maxCol; col += 1) mask[base + col] = 1
     }
   }
 }
@@ -947,6 +1129,30 @@ function addMaskScoreToGrid(grid, mask, score) {
   for (let index = 0; index < mask.length; index += 1) {
     if (mask[index]) grid[index] += score
   }
+}
+
+function addPackedMaskScoreToGrid(grid, packedMask, score) {
+  for (let byteIndex = 0; byteIndex < packedMask.length; byteIndex += 1) {
+    const byte = packedMask[byteIndex]
+    if (!byte) continue
+    const baseIndex = byteIndex * 8
+    for (let bit = 0; bit < 8; bit += 1) {
+      const cellIndex = baseIndex + bit
+      if (cellIndex >= grid.length) return
+      if (byte & (1 << bit)) grid[cellIndex] += score
+    }
+  }
+}
+
+function packedMaskHas(packedMask, index) {
+  return Boolean(packedMask[index >> 3] & (1 << (index & 7)))
+}
+
+function decodeBase64ToBytes(base64) {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return bytes
 }
 
 function rleEncode(values) {

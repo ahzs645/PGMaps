@@ -1,17 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 import { defaultWordingOptions } from './dev-acknowledgement/data'
 import { useAcknowledgementLookups } from './dev-acknowledgement/hooks/useAcknowledgementLookups'
-import { buildFallbackAcknowledgement as buildAcknowledgement, buildRegionalAcknowledgement, buildRelationshipAcknowledgement, peopleGroupName } from '@/lib/acknowledgement/engine'
+import { buildFallbackAcknowledgement as buildAcknowledgement, buildMultiPointAcknowledgement, buildRegionalAcknowledgement, buildRelationshipAcknowledgement, peopleGroupName } from '@/lib/acknowledgement/engine'
 import type { MatchType, SourceKey, SpeakerPerspective, WordingMode, WordingOptions } from './dev-acknowledgement/types'
 import type { OrgRecord } from './dev-acknowledgement/organizations'
+import { effectiveSelectedCandidateIds, nextDraftWording, selectedCandidateNames, toggleMatchTypeState, visibleAcknowledgementCandidates } from './dev-acknowledgement/state'
 import { AcknowledgementHeader } from './dev-acknowledgement/components/AcknowledgementHeader'
 import { CandidateNations } from './dev-acknowledgement/components/CandidateNations'
 import { DataProvenancePanel } from './dev-acknowledgement/components/DataProvenancePanel'
 import { LanguageReferences } from './dev-acknowledgement/components/LanguageReferences'
 import { MatchTypesPanel } from './dev-acknowledgement/components/MatchTypesPanel'
-import { MultiPointComposer } from './dev-acknowledgement/components/MultiPointComposer'
+import { MultiPointComposer, type MultiPointWordingContext } from './dev-acknowledgement/components/MultiPointComposer'
 import { OrganizationPreview } from './dev-acknowledgement/components/OrganizationPreview'
 import { OrganizationsSidebar } from './dev-acknowledgement/components/OrganizationsSidebar'
 import { SourceLayersPanel } from './dev-acknowledgement/components/SourceLayersPanel'
@@ -47,6 +48,8 @@ export default function DevAcknowledgement() {
   const [activeTab, setActiveTab] = useState<'mapNations' | 'wording' | 'organizations'>('mapNations')
   const [orgToLoad, setOrgToLoad] = useState<string | null>(null)
   const [orgPreset, setOrgPreset] = useState<string | null>(null)
+  const [multiPointContext, setMultiPointContext] = useState<MultiPointWordingContext | null>(null)
+  const previousGeneratedWording = useRef('')
   // The org currently loaded onto the map (null = free-form points). When set, the
   // speaker is unambiguously that organization, so we lock the voice to it and hide
   // the redundant Community/Individual/Organization picker.
@@ -87,17 +90,23 @@ export default function DevAcknowledgement() {
   const manualManifestSources = indigenousManifest?.manual ?? []
 
   const visibleCandidates = useMemo(
-    () => candidates.filter((candidate) => (
-      Object.keys(candidate.sources).some((source) => enabledSources[source as SourceKey])
-    )),
+    () => visibleAcknowledgementCandidates(candidates, enabledSources),
     [candidates, enabledSources],
   )
 
+  const effectiveSelectedIds = useMemo(
+    () => effectiveSelectedCandidateIds(visibleCandidates, selectedIds),
+    [selectedIds, visibleCandidates],
+  )
+
+  const selectedCandidates = useMemo(
+    () => visibleCandidates.filter((candidate) => effectiveSelectedIds.includes(candidate.id)),
+    [effectiveSelectedIds, visibleCandidates],
+  )
+
   const selectedNames = useMemo(
-    () => candidates
-      .filter((candidate) => selectedIds.includes(candidate.id))
-      .map((candidate) => candidate.preferredName),
-    [candidates, selectedIds],
+    () => selectedCandidateNames(visibleCandidates, effectiveSelectedIds),
+    [effectiveSelectedIds, visibleCandidates],
   )
 
   // People-group(s) each candidate Nation belongs to, drawn from the matched
@@ -120,44 +129,46 @@ export default function DevAcknowledgement() {
   // match. If the selection adds non-verified candidates (Native Land overlaps, etc.),
   // fall back to wording built from the full selected list so the extra Nations show.
   const allSelectedVerified = useMemo(() => {
-    const selected = candidates.filter((candidate) => selectedIds.includes(candidate.id))
-    return selected.length > 0 && selected.every((candidate) => Boolean(candidate.sources.verified))
-  }, [candidates, selectedIds])
+    return enabledSources.verified && selectedCandidates.length > 0 && selectedCandidates.every((candidate) => Boolean(candidate.sources.verified))
+  }, [enabledSources.verified, selectedCandidates])
 
-  const wording = useMemo(() => {
+  const generatedWording = useMemo(() => {
     if (scope === 'regional') {
       return buildRegionalAcknowledgement(wordingMode, { perspective, organizationName, regionName })
     }
+
+    if (multiPointContext) {
+      return buildMultiPointAcknowledgement(wordingMode, multiPointContext.summary, {
+        perspective,
+        organizationName,
+        regionName,
+        nationNames: multiPointContext.nationNames,
+        forceRegional: multiPointContext.selectedOrg?.framing === 'regional',
+        forceSpecific: Boolean(multiPointContext.selectedOrg && multiPointContext.nationNames.length > 0),
+      })
+    }
+
     return relationshipGraph && matchedRelationshipPlace && enabledSources.verified && allSelectedVerified
-      ? buildRelationshipAcknowledgement(wordingMode, relationshipGraph, matchedRelationshipPlace, selectedIds, { ...wordingOptions, perspective, organizationName })
+      ? buildRelationshipAcknowledgement(wordingMode, relationshipGraph, matchedRelationshipPlace, effectiveSelectedIds, { ...wordingOptions, perspective, organizationName })
       : buildAcknowledgement(wordingMode, selectedNames, { perspective, organizationName })
-  }, [allSelectedVerified, enabledSources.verified, matchedRelationshipPlace, organizationName, perspective, regionName, relationshipGraph, scope, selectedIds, selectedNames, wordingMode, wordingOptions])
+  }, [allSelectedVerified, effectiveSelectedIds, enabledSources.verified, matchedRelationshipPlace, multiPointContext, organizationName, perspective, regionName, relationshipGraph, scope, selectedNames, wordingMode, wordingOptions])
 
   useEffect(() => {
-    setCustomWording(wording)
-  }, [wording])
-
-  useEffect(() => {
-    if (candidates.length === 0) return
-    setSelectedIds((current) => {
-      const available = new Set(candidates.map((candidate) => candidate.id))
-      const kept = current.filter((id) => available.has(id))
-      if (kept.length > 0) return kept
-      const strong = candidates.find((candidate) => candidate.confidence === 'strong')
-      return [strong?.id ?? candidates[0].id]
+    setCustomWording((current) => {
+      const next = nextDraftWording(current, previousGeneratedWording.current, generatedWording)
+      previousGeneratedWording.current = generatedWording
+      return next
     })
-  }, [candidates])
+  }, [generatedWording])
 
   const toggleSource = (source: SourceKey) => {
     setEnabledSources((current) => ({ ...current, [source]: !current[source] }))
   }
 
   const toggleMatchType = (matchType: MatchType) => {
-    setEnabledMatchTypes((current) => {
-      const next = { ...current, [matchType]: !current[matchType] }
-      if (geocodeResult) void runSourceLookups(geocodeResult, next)
-      return next
-    })
+    const next = toggleMatchTypeState(enabledMatchTypes, matchType)
+    setEnabledMatchTypes(next)
+    if (geocodeResult) void runSourceLookups(geocodeResult, next)
   }
 
   const toggleWordingOption = (option: WordingToggle) => {
@@ -165,11 +176,14 @@ export default function DevAcknowledgement() {
   }
 
   const toggleCandidate = (candidateId: string) => {
-    setSelectedIds((current) => (
-      current.includes(candidateId)
-        ? current.filter((id) => id !== candidateId)
-        : [...current, candidateId]
-    ))
+    setSelectedIds((current) => {
+      const available = new Set(visibleCandidates.map((candidate) => candidate.id))
+      const currentVisible = current.filter((id) => available.has(id))
+      const base = currentVisible.length > 0 ? currentVisible : effectiveSelectedIds
+      return base.includes(candidateId)
+        ? base.filter((id) => id !== candidateId)
+        : [...base, candidateId]
+    })
   }
 
   const handleCopyWording = useCallback(async () => {
@@ -183,6 +197,11 @@ export default function DevAcknowledgement() {
       setCopied(false)
     }
   }, [customWording])
+
+  const resetCustomWording = useCallback(() => {
+    previousGeneratedWording.current = generatedWording
+    setCustomWording(generatedWording)
+  }, [generatedWording])
 
   return (
     <div className="min-h-full bg-stone-50 pt-12 text-slate-950 sm:pt-0">
@@ -223,6 +242,7 @@ export default function DevAcknowledgement() {
           orgToLoad={orgToLoad}
           onOrgLoaded={() => setOrgToLoad(null)}
           onOrgChange={handleOrgChange}
+          onWordingContextChange={setMultiPointContext}
         >
           {loadedOrg ? (
             // An org is loaded: the voice is unambiguously this organization, so
@@ -267,7 +287,7 @@ export default function DevAcknowledgement() {
 
           <CandidateNations
             candidates={visibleCandidates}
-            selectedIds={selectedIds}
+            selectedIds={effectiveSelectedIds}
             enabledSources={enabledSources}
             onToggle={toggleCandidate}
             peopleGroups={peopleGroupsByCandidate}
@@ -296,6 +316,8 @@ export default function DevAcknowledgement() {
             onToggleOption={toggleWordingOption}
             customWording={customWording}
             onCustomWordingChange={setCustomWording}
+            customWordingDirty={customWording.trim() !== generatedWording.trim()}
+            onResetCustomWording={resetCustomWording}
           />
           <aside className="space-y-4">
             <TemplatePrompts />

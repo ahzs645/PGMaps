@@ -561,6 +561,15 @@ export type MultiPointSummary = {
   suggestRegional: boolean
 }
 
+export type MultiPointAcknowledgementOptions = {
+  perspective?: SpeakerPerspective
+  organizationName?: string
+  regionName?: string
+  nationNames?: string[]
+  forceRegional?: boolean
+  forceSpecific?: boolean
+}
+
 /**
  * Fold a set of mapped points (each already resolved to its Nation names) into a
  * single relationship: the union of Nations, how spread out they are, and whether
@@ -599,6 +608,18 @@ export function summarizeMultiPoint(
     maxSpreadKm: spread,
     suggestRegional: nationNames.length > maxNations || spread > maxSpreadKm,
   }
+}
+
+export function buildMultiPointAcknowledgement(
+  mode: WordingMode,
+  summary: MultiPointSummary,
+  options: MultiPointAcknowledgementOptions = {},
+) {
+  const { nationNames = summary.nationNames, forceRegional, forceSpecific, ...wordingOptions } = options
+  if (forceRegional || (!forceSpecific && summary.suggestRegional)) {
+    return buildRegionalAcknowledgement(mode, wordingOptions)
+  }
+  return buildFallbackAcknowledgement(mode, nationNames, wordingOptions)
 }
 
 function nameMatches(a: string, b: string) {

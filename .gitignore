@@ -57,6 +57,9 @@ public/data/census/variables/
 # Generated BC Assessment data (built from scripts/build-bc-assessment.py)
 public/data/bc-assessment/
 
+# Walkability factor masks are generated but committed app-ready assets.
+!public/data/walkability/heatmap/factor_masks.json
+
 # Generated CANUE source extracts stay local; commit compressed app-ready outputs instead.
 public/data/canue/bc/annual/*.csv
 public/data/canue/bc/parquet-experiment/

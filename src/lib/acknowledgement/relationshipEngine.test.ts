@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildRegionalAcknowledgement,
+  buildMultiPointAcknowledgement,
   buildRelationshipAcknowledgement,
   compareNationSets,
   defaultWordingOptions,
@@ -351,6 +352,50 @@ describe('summarizeMultiPoint', () => {
   it('suggests regional when many distinct Nations are named', () => {
     const summary = summarizeMultiPoint([{ ...pg, nationNames: ['A', 'B', 'C', 'D', 'E'] }])
     expect(summary.suggestRegional).toBe(true)
+  })
+
+  it('builds deduped specific wording for nearby multi-point footprints', () => {
+    const summary = summarizeMultiPoint([
+      { ...pg, nationNames: ['Lheidli T’enneh First Nation'] },
+      { ...pg, nationNames: ['Lheidli T’enneh First Nation', 'Nazko First Nation'] },
+    ])
+
+    expect(buildMultiPointAcknowledgement('short', summary)).toBe(
+      'This place is on the traditional territories of Lheidli T’enneh First Nation and Nazko First Nation.',
+    )
+  })
+
+  it('builds regional wording for far-apart multi-point footprints', () => {
+    const summary = summarizeMultiPoint([
+      { ...pg, nationNames: ['Lheidli T’enneh First Nation'] },
+      { ...vancouver, nationNames: ['Musqueam'] },
+    ])
+
+    expect(buildMultiPointAcknowledgement('short', summary)).toBe(
+      'We acknowledge the traditional territories of First Nations across British Columbia.',
+    )
+  })
+
+  it('can force specific wording for organization-provided Nation lists', () => {
+    const summary = summarizeMultiPoint([
+      { ...pg, nationNames: ['Geometry Nation A'] },
+      { ...vancouver, nationNames: ['Geometry Nation B'] },
+    ])
+
+    expect(buildMultiPointAcknowledgement('short', summary, {
+      nationNames: ['Org Nation A', 'Org Nation B'],
+      forceSpecific: true,
+    })).toBe(
+      'This place is on the traditional territories of Org Nation A and Org Nation B.',
+    )
+  })
+
+  it('builds regional wording for many distinct Nations', () => {
+    const summary = summarizeMultiPoint([{ ...pg, nationNames: ['A', 'B', 'C', 'D', 'E'] }])
+
+    expect(buildMultiPointAcknowledgement('event', summary, { regionName: 'northern British Columbia' })).toBe(
+      'We are grateful to gather and work on the traditional territories of First Nations across northern British Columbia.',
+    )
   })
 })
 

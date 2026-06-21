@@ -4,7 +4,7 @@ import { ExternalLink, Plus, Trash2, X } from 'lucide-react'
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { cn } from '@/lib/utils'
 import { compareNationSets, summarizeMultiPoint } from '@/lib/acknowledgement/engine'
-import type { RelationshipGraph } from '@/lib/acknowledgement/engine'
+import type { MultiPointSummary, RelationshipGraph } from '@/lib/acknowledgement/engine'
 import { COMMUNITIES_DATA } from '../data'
 import { organizations, type OrgRecord } from '../organizations'
 import { fpccLanguageNations } from '../organizations/fpcc'
@@ -79,11 +79,21 @@ type MultiPointComposerProps = {
   /** Fires when the loaded organization changes (null = free-form points), so the
    *  parent can lock the voice to that org and hide the redundant voice picker. */
   onOrgChange?: (org: OrgRecord | null) => void
+  /** Exposes resolved multi-point context so generated wording can reflect all points, not only the active point. */
+  onWordingContextChange?: (context: MultiPointWordingContext | null) => void
   /** Active-point detail (wording preview, candidates, source panels) rendered beside the map. */
   children?: ReactNode
 }
 
-export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLoad, onOrgLoaded, onOrgChange, children }: MultiPointComposerProps) {
+export type MultiPointWordingContext = {
+  totalPointCount: number
+  resolvedPointCount: number
+  summary: MultiPointSummary
+  nationNames: string[]
+  selectedOrg: OrgRecord | null
+}
+
+export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLoad, onOrgLoaded, onOrgChange, onWordingContextChange, children }: MultiPointComposerProps) {
   const [points, setPoints] = useState<MappedPoint[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   // Single-point by default: a map click moves the active point. "Add point" arms
@@ -141,6 +151,7 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
         ? { ...point, name: undefined, expected: undefined, latitude, longitude, status: 'loading', nationNames: [], languages: undefined }
         : point
     )))
+    setSelectedOrgId('')
     resolve({ id: activeId, latitude, longitude, status: 'loading', nationNames: [] })
     onActivePoint?.(latitude, longitude)
   }, [addMode, activeId, addPoint, resolve, onActivePoint])
@@ -212,11 +223,31 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
     onOrgChange?.(organizations.find((org) => org.id === selectedOrgId) ?? null)
   }, [selectedOrgId, onOrgChange])
 
-  const resolved = points.filter((point) => point.status === 'done')
   const summary = useMemo(
-    () => summarizeMultiPoint(resolved.map((point) => ({ latitude: point.latitude, longitude: point.longitude, nationNames: point.nationNames }))),
-    [resolved],
+    () => summarizeMultiPoint(points
+      .filter((point) => point.status === 'done')
+      .map((point) => ({ latitude: point.latitude, longitude: point.longitude, nationNames: point.nationNames }))),
+    [points],
   )
+  const wordingContext = useMemo<MultiPointWordingContext | null>(() => {
+    const totalPointCount = points.length
+    const resolvedPointCount = summary.pointCount
+    if (selectedOrg) {
+      return {
+        totalPointCount,
+        resolvedPointCount,
+        summary,
+        nationNames: selectedOrg.acknowledges.length ? selectedOrg.acknowledges : summary.nationNames,
+        selectedOrg,
+      }
+    }
+    if (totalPointCount <= 1 || resolvedPointCount < totalPointCount) return null
+    return { totalPointCount, resolvedPointCount, summary, nationNames: summary.nationNames, selectedOrg: null }
+  }, [points.length, selectedOrg, summary])
+
+  useEffect(() => {
+    onWordingContextChange?.(wordingContext)
+  }, [onWordingContextChange, wordingContext])
 
   const orgComparison = selectedOrg && selectedOrg.acknowledges.length ? compareNationSets(selectedOrg.acknowledges, summary.nationNames) : null
 
