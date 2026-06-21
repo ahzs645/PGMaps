@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Crosshair, Info, Layers as LayersIcon, Maximize, Minus, Plus, RotateCcw } from 'lucide-react'
+import { Crosshair, Info, Layers as LayersIcon, Loader2, Maximize, Minus, Plus, RotateCcw } from 'lucide-react'
 import { useMap } from '@/components/ui/map'
 import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,7 @@ import {
 } from '../lib/i18n'
 import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
 import { REVEAL_CLUSTER_BOUNDS, REVEAL_CLUSTER_DEFAULTS } from '../lib/aqMapConstants'
+import { CANADA_CENTER, DEFAULT_ZOOM } from '../lib/urlState'
 
 export function ToggleButton({
   active,
@@ -451,6 +452,8 @@ export function MainLayerControl({
 
 export function MapUtilityControls({ onReset, locale }: { onReset: () => void; locale: AqmapLocale }) {
   const { map } = useMap()
+  const [waitingForLocation, setWaitingForLocation] = useState(false)
+  const geolocationAvailable = typeof navigator !== 'undefined' && 'geolocation' in navigator
 
   const zoomIn = () => {
     map?.zoomTo(map.getZoom() + 1, { duration: 300 })
@@ -461,23 +464,41 @@ export function MapUtilityControls({ onReset, locale }: { onReset: () => void; l
   }
 
   const locate = () => {
-    if (!navigator.geolocation || !map) return
-    navigator.geolocation.getCurrentPosition((position) => {
-      map.easeTo({
-        center: [position.coords.longitude, position.coords.latitude],
-        zoom: 15,
-        duration: 650,
-      })
+    if (!geolocationAvailable || !map) return
+    setWaitingForLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        map.easeTo({
+          center: [position.coords.longitude, position.coords.latitude],
+          zoom: 15,
+          duration: 650,
+        })
+        setWaitingForLocation(false)
+      },
+      () => {
+        setWaitingForLocation(false)
+      },
+    )
+  }
+
+  const reset = () => {
+    onReset()
+    map?.easeTo({
+      center: CANADA_CENTER,
+      zoom: DEFAULT_ZOOM,
+      bearing: 0,
+      pitch: 0,
+      duration: 450,
     })
   }
 
   const toggleFullscreen = () => {
     const container = map?.getContainer()
-    if (!container) return
+    if (!container || !document.fullscreenEnabled) return
     if (document.fullscreenElement) {
-      document.exitFullscreen()
+      void document.exitFullscreen()
     } else {
-      container.requestFullscreen()
+      void container.requestFullscreen()
     }
   }
 
@@ -489,13 +510,26 @@ export function MapUtilityControls({ onReset, locale }: { onReset: () => void; l
       <button type="button" aria-label="Zoom out" onClick={zoomOut} className="border-t border-border p-2 hover:bg-secondary">
         <Minus className="size-4" />
       </button>
-      <button type="button" title={translate('controls.zoomToLocation', locale)} onClick={locate} className="border-t border-border p-2 hover:bg-secondary">
-        <Crosshair className="size-4" />
+      <button
+        type="button"
+        aria-label={translate('controls.zoomToLocation', locale)}
+        title={translate('controls.zoomToLocation', locale)}
+        onClick={locate}
+        disabled={!geolocationAvailable || waitingForLocation}
+        className="border-t border-border p-2 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {waitingForLocation ? <Loader2 className="size-4 animate-spin" /> : <Crosshair className="size-4" />}
       </button>
-      <button type="button" title={translate('controls.resetView', locale)} onClick={onReset} className="border-t border-border p-2 hover:bg-secondary">
+      <button
+        type="button"
+        aria-label={translate('controls.resetView', locale)}
+        title={translate('controls.resetView', locale)}
+        onClick={reset}
+        className="border-t border-border p-2 hover:bg-secondary"
+      >
         <RotateCcw className="size-4" />
       </button>
-      <button type="button" aria-label="Toggle fullscreen" onClick={toggleFullscreen} className="border-t border-border p-2 hover:bg-secondary">
+      <button type="button" aria-label="Toggle fullscreen" onClick={toggleFullscreen} className="hidden border-t border-border p-2 hover:bg-secondary md:block">
         <Maximize className="size-4" />
       </button>
     </MapFloatingPanel>

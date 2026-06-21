@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -20,6 +20,7 @@ const KEEP_PROPERTIES = ['NAME', 'NOM', 'CLC', 'FEATURE_ID']
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(SCRIPT_DIR, '..')
 const OUTPUT_PATH = path.join(PROJECT_ROOT, 'public/data/aqmap/forecast-zones.geojson')
+const onlyIfMissing = process.argv.includes('--if-missing')
 
 const factor = 10 ** COORD_DECIMALS
 const roundValue = (value) => Math.round(value * factor) / factor
@@ -48,6 +49,21 @@ function trimFeature(feature) {
 }
 
 async function main() {
+  if (onlyIfMissing) {
+    try {
+      const existing = await stat(OUTPUT_PATH)
+      if (existing.size > 0) {
+        console.log(
+          `Forecast zones already exist at ${path.relative(PROJECT_ROOT, OUTPUT_PATH)} ` +
+            `(${(existing.size / 1e6).toFixed(2)} MB raw)`,
+        )
+        return
+      }
+    } catch {
+      // Missing file: build it below.
+    }
+  }
+
   console.log(`Fetching forecast zones from ${SOURCE_URL} ...`)
   const response = await fetch(SOURCE_URL)
   if (!response.ok) {
