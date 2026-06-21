@@ -1,6 +1,6 @@
 import { CloudFog, Flame, Map, Wind } from 'lucide-react'
 
-export type WmsLayerKey = 'surfaceWinds' | 'modelledPm25' | 'activeFires' | 'firePerimeters' | 'fireDanger' | 'forecastZones'
+export type WmsLayerKey = 'modelledPm25' | 'activeFires' | 'firePerimeters' | 'fireDanger' | 'forecastZones'
 
 export interface WmsLayerDefinition {
   key: WmsLayerKey
@@ -27,18 +27,6 @@ export interface WmsLayerDefinition {
 }
 
 export const WMS_LAYERS: WmsLayerDefinition[] = [
-  {
-    key: 'surfaceWinds',
-    label: 'Surface Winds',
-    icon: Wind,
-    tiles: [
-      'https://geo.weather.gc.ca/geomet?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=HRDPS.CONTINENTAL_UU&STYLES=WindBarbs_Sfc&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}',
-    ],
-    opacity: 0.6,
-    attribution: 'ECCC GeoMet',
-    legendUrl: 'https://aqmap.ca/aqmap/dev/icons/windbarbs_legend.jpg',
-    legendPosition: 'bottomleft',
-  },
   {
     key: 'modelledPm25',
     label: 'Modelled PM2.5',

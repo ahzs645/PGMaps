@@ -13,10 +13,10 @@ import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
 import { getAqhiPlusColor } from '../lib/aqhiScale'
 import { getClusterCircleColor, getClusterCircleRadius, getClusterStrokeColor } from '../lib/clusterColors'
 import {
-  ACTIVE_FIRES_VECTOR_URL,
   FIRE_DANGER_FILL_COLORS,
   FIRE_DANGER_VECTOR_URL,
   FIRE_PERIMETERS_VECTOR_URL,
+  getActiveFiresVectorUrl,
 } from '../lib/aqMapConstants'
 import type {
   ActiveFireFeatureProperties,
@@ -500,7 +500,7 @@ export function ActiveFiresVectorLayer({ visible }: { visible: boolean }) {
     if (!visible || data || error) return
     const controller = new AbortController()
 
-    fetch(ACTIVE_FIRES_VECTOR_URL, { signal: controller.signal })
+    fetch(getActiveFiresVectorUrl(), { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`Failed to load active fire hotspots: ${response.status}`)
         return response.json()

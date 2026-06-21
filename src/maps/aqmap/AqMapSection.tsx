@@ -39,6 +39,7 @@ import {
 import { exportAqmap, type ExportFormat } from './lib/exportMap'
 import {
   BASEMAP_STYLES,
+  FORECAST_ZONES_LOCAL_URL,
   FORECAST_ZONES_VECTOR_URL,
   REVEAL_CLUSTER_DEFAULTS,
   URL_UPDATE_DELAY_MS,
@@ -85,16 +86,21 @@ type ForecastZoneCollection = GeoJSON.FeatureCollection<
 let forecastZoneDataCache: ForecastZoneCollection | null = null
 let forecastZoneDataPromise: Promise<ForecastZoneCollection> | null = null
 
+async function fetchForecastZones(url: string): Promise<ForecastZoneCollection> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`Failed to load forecast zones: ${response.status}`)
+  return (await response.json()) as ForecastZoneCollection
+}
+
 function loadForecastZoneData(): Promise<ForecastZoneCollection> {
   if (forecastZoneDataCache) return Promise.resolve(forecastZoneDataCache)
 
-  forecastZoneDataPromise ??= fetch(FORECAST_ZONES_VECTOR_URL)
-    .then((response) => {
-      if (!response.ok) throw new Error(`Failed to load forecast zones: ${response.status}`)
-      return response.json()
-    })
+  // Prefer the slimmed same-origin snapshot; fall back to the live gov API only
+  // if it's missing (e.g. snapshot not built) so the layer still works.
+  forecastZoneDataPromise ??= fetchForecastZones(FORECAST_ZONES_LOCAL_URL)
+    .catch(() => fetchForecastZones(FORECAST_ZONES_VECTOR_URL))
     .then((payload) => {
-      forecastZoneDataCache = payload as ForecastZoneCollection
+      forecastZoneDataCache = payload
       return forecastZoneDataCache
     })
     .catch((error) => {
@@ -164,7 +170,6 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   )
   const [activeFiresMode, setActiveFiresMode] = useState<ActiveFiresRenderMode>(() => {
     const params = new URLSearchParams(window.location.search)
-    if (!import.meta.env.DEV) return 'raster'
     return params.get('activeFires') === 'raster' ? 'raster' : 'vector'
   })
   const [fireDangerMode, setFireDangerMode] = useState<FireDangerRenderMode>(() => {
@@ -246,11 +251,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   // On the main page everything renders as vector and the monitor icons are
   // locked to "reveal" mode — there are no raster/icon-mode toggles to flip.
   const effIconMode: AqMonitorIconMode = isMain ? 'revealed' : iconMode
-  const effActiveFiresMode: ActiveFiresRenderMode = !import.meta.env.DEV
-    ? 'raster'
-    : isMain
-      ? 'vector'
-      : activeFiresMode
+  const effActiveFiresMode: ActiveFiresRenderMode = isMain ? 'vector' : activeFiresMode
   const effFireDangerMode: FireDangerRenderMode = isMain ? 'raster' : fireDangerMode
   const effFirePerimetersMode: FirePerimetersRenderMode = isMain ? 'vector' : firePerimetersMode
   const effForecastZonesMode: ForecastZonesRenderMode = isMain ? 'vector' : forecastZonesMode

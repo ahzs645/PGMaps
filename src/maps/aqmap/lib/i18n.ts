@@ -123,7 +123,6 @@ const EN: StringMap = {
   'windBarbs.legend.50kt': '50 kt',
   'windBarbs.legend.note': 'Barbs show wind speed in knots and rotate with wind direction.',
 
-  'wms.surfaceWinds': 'Surface Winds',
   'wms.modelledPm25': 'Modelled PM2.5',
   'wms.activeFires': 'Active Fires',
   'wms.firePerimeters': 'Fire Perimeters',
@@ -285,7 +284,6 @@ const FR: StringMap = {
   'windBarbs.legend.50kt': '50 kt',
   'windBarbs.legend.note': 'Les barbules indiquent la vitesse en noeuds et pivotent selon la direction du vent.',
 
-  'wms.surfaceWinds': 'Vents de surface',
   'wms.modelledPm25': 'PM2,5 modélisé',
   'wms.activeFires': 'Feux actifs',
   'wms.firePerimeters': 'Périmètres des feux',

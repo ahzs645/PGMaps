@@ -178,6 +178,10 @@ export function MonitorScatterChart({
                     fill: 'hsl(var(--muted-foreground))',
                     fontSize: 10,
                     fontWeight: 600,
+                    // Center the rotated title on the axis; without this recharts
+                    // anchors it at 'start', so a long label grows off the top of
+                    // the (short) SVG and gets clipped.
+                    style: { textAnchor: 'middle' },
                   }}
                 />
                 <ReferenceLine

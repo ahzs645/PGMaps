@@ -19,7 +19,6 @@ import type { SmokeLayerKey } from '../lib/smokeLayers'
 const AQMAP_ORIGIN = 'https://aqmap.ca/aqmap'
 const GEOMET_ORIGIN = 'https://geo.weather.gc.ca/geomet'
 const GEOMET_PM25_STYLE = 'PM2.5_0to100ugm3_Dis'
-const CWFIF_WFS_ORIGIN = 'https://geoserver.cwfif.nrcan.gc.ca/geoserver/wfs'
 
 const DATA_TYPES = new Set<AqmapDataFormat>(['json', 'csv', 'tsv', 'geojson'])
 
@@ -212,34 +211,6 @@ async function handleGeometPm25Tile(res: ServerResponse, requestUrl: string) {
   }
 }
 
-async function handleActiveFiresRoute(res: ServerResponse) {
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const params = new URLSearchParams({
-    service: 'WFS',
-    version: '1.0.0',
-    request: 'GetFeature',
-    typeName: 'public:cwfif_national_activefires',
-    outputFormat: 'application/json',
-    srsName: 'EPSG:4326',
-    CQL_FILTER: `record_start >= ${cutoff}`,
-  })
-
-  try {
-    const response = await fetch(`${CWFIF_WFS_ORIGIN}?${params.toString()}`)
-    const buffer = Buffer.from(await response.arrayBuffer())
-    const contentType = response.headers.get('content-type') ?? 'application/geo+json; charset=utf-8'
-
-    if (!response.ok) {
-      sendResponse(res, response.status, buffer, contentType)
-      return
-    }
-
-    sendResponse(res, 200, buffer, contentType.includes('json') ? 'application/geo+json; charset=utf-8' : contentType)
-  } catch {
-    sendJsonError(res, 502, 'Unable to load active fires')
-  }
-}
-
 function parseDataRouteParts(parts: string[]) {
   if (!parts.length) return { type: 'json' as AqmapDataFormat }
 
@@ -370,11 +341,6 @@ export function aqmapApiPlugin(): Plugin {
 
         if (pathname === '/data/geomet/pm25') {
           await handleGeometPm25Tile(res, req.url ?? pathname)
-          return
-        }
-
-        if (pathname === '/data/fire/active/geojson') {
-          await handleActiveFiresRoute(res)
           return
         }
 

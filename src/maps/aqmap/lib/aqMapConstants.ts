@@ -31,8 +31,35 @@ export function clampRevealClusterMaxZoom(value: number): number {
 
 export const FIRE_DANGER_VECTOR_URL = 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=public:fdr_current_shp&outputFormat=application/json&srsName=EPSG:4326'
 export const FIRE_PERIMETERS_VECTOR_URL = 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=public:m3_polygons_current&outputFormat=application/json&srsName=EPSG:4326'
+// Forecast-zone boundaries are static admin geography (the gov endpoint carries
+// no live values — per-zone PM2.5 is computed locally from our monitors), so we
+// serve a slimmed same-origin snapshot built by `npm run aqmap:forecast-zones`
+// instead of pulling ~4.6 MB from the slow api.weather.gc.ca on every visit. The
+// remote URL stays as a runtime fallback if the snapshot is ever missing.
+export const FORECAST_ZONES_LOCAL_URL = '/data/aqmap/forecast-zones.geojson'
 export const FORECAST_ZONES_VECTOR_URL = 'https://api.weather.gc.ca/collections/public-standard-forecast-zones/items?f=json&limit=10000'
-export const ACTIVE_FIRES_VECTOR_URL = '/data/fire/active/geojson'
+
+const ACTIVE_FIRES_WFS_BASE = 'https://geoserver.cwfif.nrcan.gc.ca/geoserver/wfs'
+
+/**
+ * Active fire hotspots reported in the last 24 h, fetched straight from the
+ * CWFIF WFS. The endpoint sends `access-control-allow-origin: *`, so the browser
+ * can load it directly in production — mirroring how the fire-perimeter and
+ * fire-danger vector layers work (no dev-only proxy needed).
+ */
+export function getActiveFiresVectorUrl(): string {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const params = new URLSearchParams({
+    service: 'WFS',
+    version: '1.0.0',
+    request: 'GetFeature',
+    typeName: 'public:cwfif_national_activefires',
+    outputFormat: 'application/json',
+    srsName: 'EPSG:4326',
+    CQL_FILTER: `record_start >= ${cutoff}`,
+  })
+  return `${ACTIVE_FIRES_WFS_BASE}?${params.toString()}`
+}
 
 export const FIRE_DANGER_FILL_COLORS: Record<number, string> = {
   0: '#0000ff',
