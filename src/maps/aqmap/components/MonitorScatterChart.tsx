@@ -3,7 +3,7 @@ import { CartesianGrid, ReferenceLine, Scatter, ScatterChart, Tooltip, XAxis, YA
 import type { AbPoint, PaFemPoint } from '../lib/comparisonData'
 import { translate, type AqmapLocale } from '../lib/i18n'
 
-const CHART_MARGIN = { top: 6, right: 10, bottom: 28, left: 8 }
+const CHART_MARGIN = { top: 6, right: 8, bottom: 12, left: 0 }
 const VALID_COLOR = '#16a34a'
 const INVALID_COLOR = '#dc2626'
 const RAW_COLOR = '#f59e0b'
@@ -152,10 +152,12 @@ export function MonitorScatterChart({
                   tickFormatter={formatAxisTick}
                   axisLine={false}
                   tickLine={false}
+                  height={34}
+                  tickMargin={3}
                   label={{
                     value: xLabel,
                     position: 'insideBottom',
-                    offset: -6,
+                    offset: 0,
                     fill: 'hsl(var(--muted-foreground))',
                     fontSize: 10,
                     fontWeight: 600,
@@ -169,12 +171,12 @@ export function MonitorScatterChart({
                   tickFormatter={formatAxisTick}
                   axisLine={false}
                   tickLine={false}
-                  width={62}
+                  width={56}
                   label={{
                     value: yLabel,
                     angle: -90,
                     position: 'insideLeft',
-                    offset: 6,
+                    offset: 14,
                     fill: 'hsl(var(--muted-foreground))',
                     fontSize: 10,
                     fontWeight: 600,

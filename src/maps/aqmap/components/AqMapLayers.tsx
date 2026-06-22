@@ -271,34 +271,46 @@ function formatMean(value: number | null): string {
   return value === null ? '-' : value.toFixed(1)
 }
 
-function getForecastZonePm25(
-  zone: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
-  monitors: AirMonitor[],
-): number | null {
-  const zoneCode = String(zone.properties?.CLC ?? '').trim()
-  const zoneMonitors = zoneCode
-    ? monitors.filter((monitor) => monitor.forecastZoneCode === zoneCode)
-    : []
+function buildForecastZonePm25ByCode(monitors: AirMonitor[]): Map<string, number | null> {
+  const valuesByCode = new Map<string, number[]>()
 
-  return mean(
-    (zoneMonitors.length ? zoneMonitors : monitors.filter((monitor) => monitorInForecastZone(monitor, zone)))
-      .map((monitor) => getMonitorAqhiPm25(monitor)),
-  )
+  for (const monitor of monitors) {
+    const zoneCode = String(monitor.forecastZoneCode ?? '').trim()
+    if (!zoneCode) continue
+    const pm25 = getMonitorAqhiPm25(monitor)
+    if (pm25 === null) continue
+
+    const values = valuesByCode.get(zoneCode)
+    if (values) values.push(pm25)
+    else valuesByCode.set(zoneCode, [pm25])
+  }
+
+  const meansByCode = new Map<string, number | null>()
+  for (const [zoneCode, values] of valuesByCode) {
+    meansByCode.set(zoneCode, mean(values))
+  }
+  return meansByCode
 }
 
 function styleForecastZoneData(
   collection: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
   monitors: AirMonitor[],
-): GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties & { fillColor: string; pm25: number | null }> {
+): GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties & { fillColor: string; hasPm25: boolean; pm25: number | null }> {
+  const pm25ByCode = buildForecastZonePm25ByCode(monitors)
+
   return {
     ...collection,
     features: collection.features.map((feature) => {
-      const pm25 = getForecastZonePm25(feature, monitors)
+      const zoneCode = String(feature.properties?.CLC ?? '').trim()
+      const pm25 = zoneCode && pm25ByCode.has(zoneCode)
+        ? pm25ByCode.get(zoneCode) ?? null
+        : null
       return {
         ...feature,
         properties: {
           ...feature.properties,
           pm25,
+          hasPm25: pm25 !== null,
           fillColor: getAqhiPlusColor(pm25),
         },
       }
@@ -858,7 +870,9 @@ export function ForecastZonesVectorLayer({
             'case',
             ['boolean', ['feature-state', 'hover'], false],
             0.58,
+            ['boolean', ['get', 'hasPm25'], false],
             0.34,
+            0.22,
           ],
         },
       }, beforeMonitorLayerId)
@@ -870,8 +884,8 @@ export function ForecastZonesVectorLayer({
         type: 'line',
         source: sourceId,
         paint: {
-          'line-color': '#2563eb',
-          'line-opacity': 0.82,
+          'line-color': '#64748b',
+          'line-opacity': 0.9,
           'line-width': [
             'interpolate',
             ['linear'],

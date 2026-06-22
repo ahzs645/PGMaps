@@ -162,10 +162,19 @@ button, a, [role="button"] {
   background: #fff;
 }
 
+.aqmap-popup-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.aqmap-popup-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 /* Keep the close button clear of the AQHI accent bar at the very top. */
 .aqmap-popup > button[aria-label="Close popup"] {
   top: 0.75rem;
-  right: 0.5rem;
+  right: 0.75rem;
 }
 
 /* The timeseries chart surface is non-interactive — suppress its focus ring

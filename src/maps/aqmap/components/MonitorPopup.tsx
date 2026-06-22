@@ -104,7 +104,7 @@ export function MonitorPopup({
     >
       <div
         ref={contentRef}
-        className="max-h-[78vh] overflow-y-auto overscroll-contain text-[12px] leading-[1.35] text-gray-700"
+        className="aqmap-popup-scroll max-h-[78vh] overflow-y-auto overscroll-contain text-[12px] leading-[1.35] text-gray-700"
       >
         {/* AQHI-colored accent bar keyed to the monitor's current category */}
         <div className="sticky top-0 z-[1] h-1.5 w-full" style={{ backgroundColor: aqColor }} aria-hidden="true" />

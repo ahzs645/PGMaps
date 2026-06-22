@@ -4,7 +4,6 @@ import type { AirMonitor } from '@/maps/airquality'
 import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import { cn } from '@/lib/utils'
 import { buildAbPoints, buildPaFemPoints } from '../lib/comparisonData'
-import { getAqhiPlusColor } from '../lib/aqhiScale'
 import { translate, type AqmapLocale } from '../lib/i18n'
 import { fetchAqmapPlotSeries, type AqPlotPoint } from '../lib/plotData'
 import { MonitorPlotChart } from './MonitorPlotChart'
@@ -46,7 +45,6 @@ export function MonitorPlotPanel({
   const [plotSource, setPlotSource] = useState<'endpoint' | 'fallback'>('fallback')
   const [plotLoading, setPlotLoading] = useState(false)
   const pm25 = getMonitorAqhiPm25(monitor)
-  const aqColor = getAqhiPlusColor(pm25)
   const supportsComparison = monitor.network === 'PA' || monitor.network === 'EGG'
   const abPoints = useMemo(() => buildAbPoints(monitor, plotPoints), [monitor, plotPoints])
   const paFemPoints = useMemo(() => buildPaFemPoints(monitor, plotPoints), [monitor, plotPoints])
@@ -152,7 +150,6 @@ export function MonitorPlotPanel({
             <MonitorPlotChart
               points={plotPoints}
               locale={locale}
-              highlightColor={aqColor}
               currentValue={pm25 ?? undefined}
               height={170}
             />

@@ -598,21 +598,33 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
           </div>
         </div>
       </details>
-      <div data-aqmap-status-time="true" className="hidden min-w-0 flex-1 truncate rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md md:block">
-        <span>{translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}</span>
-        <span className="ml-2 text-muted-foreground">
-          ©{' '}
-          <a href="https://carto.com/about-carto/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
-            CARTO
-          </a>
-          , ©{' '}
-          <a href="http://www.openstreetmap.org/about/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
-            OpenStreetMap
-          </a>
-          {' '}
-          contributors
-        </span>
-      </div>
+      <details
+        data-aqmap-status-time="true"
+        className="group hidden min-w-0 rounded border border-border bg-background/95 text-[11px] text-foreground shadow-md md:block"
+      >
+        <summary
+          aria-label="Toggle map information"
+          title="Toggle map information"
+          className="flex size-[30px] cursor-pointer list-none items-center justify-center transition-colors hover:bg-secondary [&::-webkit-details-marker]:hidden"
+        >
+          <Info className="size-3.5 shrink-0" aria-hidden="true" />
+        </summary>
+        <div className="max-w-[calc(100vw-18rem)] border-t border-border/70 px-2 py-1 leading-snug">
+          <div>{translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}</div>
+          <div className="mt-0.5 text-muted-foreground">
+            ©{' '}
+            <a href="https://carto.com/about-carto/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
+              CARTO
+            </a>
+            , ©{' '}
+            <a href="http://www.openstreetmap.org/about/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">
+              OpenStreetMap
+            </a>
+            {' '}
+            contributors
+          </div>
+        </div>
+      </details>
       <div data-aqmap-scale-bar="true" className="shrink-0 rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md">
         <div className="h-1 border-x border-b border-foreground" style={{ width: scale.width }} />
         <div className="mt-0.5 text-center">{scale.label}</div>

@@ -12,6 +12,7 @@ import {
   type AqBasemap,
   type AqMonitorGroup,
   type AqNetworkSlug,
+  monitorKey,
 } from './lib/monitorPresentation'
 import { useAqmapSmokeLayers } from './lib/useAqmapSmokeLayers'
 import { type SmokeLayerKey } from './lib/smokeLayers'
@@ -82,9 +83,19 @@ type ForecastZoneCollection = GeoJSON.FeatureCollection<
   GeoJSON.Polygon | GeoJSON.MultiPolygon,
   ForecastZoneFeatureProperties
 >
+type ForecastZoneBounds = [minLng: number, minLat: number, maxLng: number, maxLat: number]
+type ForecastZoneAssignment = {
+  code: string | null
+  name: string | null
+}
+type IdleWindow = Window & {
+  requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+  cancelIdleCallback?: (handle: number) => void
+}
 
 let forecastZoneDataCache: ForecastZoneCollection | null = null
 let forecastZoneDataPromise: Promise<ForecastZoneCollection> | null = null
+const forecastZoneBoundsCache = new WeakMap<ForecastZoneFeature, ForecastZoneBounds>()
 
 async function fetchForecastZones(url: string): Promise<ForecastZoneCollection> {
   const response = await fetch(url)
@@ -129,8 +140,40 @@ function pointInPolygonCoordinates(lng: number, lat: number, rings: GeoJSON.Posi
   return !rings.slice(1).some((hole) => pointInRing(lng, lat, hole))
 }
 
+function computeForecastZoneBounds(zone: ForecastZoneFeature): ForecastZoneBounds {
+  const cached = forecastZoneBoundsCache.get(zone)
+  if (cached) return cached
+
+  let minLng = Infinity
+  let minLat = Infinity
+  let maxLng = -Infinity
+  let maxLat = -Infinity
+
+  const visit = (coordinates: GeoJSON.Position[] | GeoJSON.Position[][] | GeoJSON.Position[][][]) => {
+    for (const entry of coordinates) {
+      if (typeof entry[0] === 'number') {
+        const [lng, lat] = entry as GeoJSON.Position
+        minLng = Math.min(minLng, lng)
+        minLat = Math.min(minLat, lat)
+        maxLng = Math.max(maxLng, lng)
+        maxLat = Math.max(maxLat, lat)
+      } else {
+        visit(entry as GeoJSON.Position[] | GeoJSON.Position[][] | GeoJSON.Position[][][])
+      }
+    }
+  }
+
+  visit(zone.geometry.coordinates)
+  const bounds: ForecastZoneBounds = [minLng, minLat, maxLng, maxLat]
+  forecastZoneBoundsCache.set(zone, bounds)
+  return bounds
+}
+
 function pointInForecastZone(monitor: AirMonitor, zone: ForecastZoneFeature): boolean {
   const { longitude, latitude } = monitor
+  const [minLng, minLat, maxLng, maxLat] = computeForecastZoneBounds(zone)
+  if (longitude < minLng || longitude > maxLng || latitude < minLat || latitude > maxLat) return false
+
   const { geometry } = zone
   if (geometry.type === 'Polygon') {
     return pointInPolygonCoordinates(longitude, latitude, geometry.coordinates)
@@ -141,6 +184,25 @@ function pointInForecastZone(monitor: AirMonitor, zone: ForecastZoneFeature): bo
 function getForecastZoneName(properties: ForecastZoneFeatureProperties): string | null {
   const name = String(properties.NAME ?? properties.NOM ?? '').trim()
   return name || null
+}
+
+function buildForecastZoneAssignments(
+  monitors: AirMonitor[],
+  forecastZones: ForecastZoneCollection,
+): Map<string, ForecastZoneAssignment> {
+  const assignments = new Map<string, ForecastZoneAssignment>()
+
+  for (const monitor of monitors) {
+    const zone = forecastZones.features.find((feature) => pointInForecastZone(monitor, feature))
+    if (!zone) continue
+
+    assignments.set(monitorKey(monitor), {
+      code: String(zone.properties?.CLC ?? '').trim() || null,
+      name: getForecastZoneName(zone.properties),
+    })
+  }
+
+  return assignments
 }
 
 function splitHealthLine(line: string): { label: string; detail: string } {
@@ -233,21 +295,23 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     error: null,
   })
   const [forecastZoneData, setForecastZoneData] = useState<ForecastZoneCollection | null>(null)
+  const [forecastZoneAssignments, setForecastZoneAssignments] = useState<Map<string, ForecastZoneAssignment> | null>(null)
   const [forecastZoneError, setForecastZoneError] = useState<string | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const enrichedMonitors = useMemo<AirMonitor[]>(() => {
-    if (!forecastZoneData) return monitors
+    if (!forecastZoneAssignments) return monitors
     return monitors.map((monitor) => {
-      const zone = forecastZoneData.features.find((feature) => pointInForecastZone(monitor, feature))
-      if (!zone) return monitor
+      const assignment = forecastZoneAssignments.get(monitorKey(monitor))
+      if (!assignment) return monitor
+
       return {
         ...monitor,
-        forecastZoneCode: String(zone.properties?.CLC ?? '').trim() || null,
-        forecastZoneName: getForecastZoneName(zone.properties),
+        forecastZoneCode: assignment.code,
+        forecastZoneName: assignment.name,
       }
     })
-  }, [forecastZoneData, monitors])
+  }, [forecastZoneAssignments, monitors])
   // On the main page everything renders as vector and the monitor icons are
   // locked to "reveal" mode — there are no raster/icon-mode toggles to flip.
   const effIconMode: AqMonitorIconMode = isMain ? 'revealed' : iconMode
@@ -291,6 +355,67 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
       cancelled = true
     }
   }, [forecastZoneData, forecastZoneError, visibleWmsLayers])
+
+  useEffect(() => {
+    if (!forecastZoneData || monitors.length === 0) {
+      setForecastZoneAssignments(null)
+      return
+    }
+
+    let cancelled = false
+    let idleId: number | null = null
+    const idleWindow = window as IdleWindow
+
+    setForecastZoneAssignments(null)
+
+    const joinMonitorsToZones = () => {
+      const assignments = buildForecastZoneAssignments(monitors, forecastZoneData)
+      if (!cancelled) setForecastZoneAssignments(assignments)
+    }
+
+    if (idleWindow.requestIdleCallback) {
+      idleId = idleWindow.requestIdleCallback(joinMonitorsToZones, { timeout: 1000 })
+    } else {
+      idleId = window.setTimeout(joinMonitorsToZones, 0)
+    }
+
+    return () => {
+      cancelled = true
+      if (idleId !== null && idleWindow.cancelIdleCallback) idleWindow.cancelIdleCallback(idleId)
+      else if (idleId !== null) window.clearTimeout(idleId)
+    }
+  }, [forecastZoneData, monitors])
+
+  useEffect(() => {
+    if (forecastZoneData || forecastZoneError) return
+    let cancelled = false
+    let idleId: number | null = null
+    const idleWindow = window as IdleWindow
+
+    const preload = () => {
+      loadForecastZoneData()
+        .then((payload) => {
+          if (!cancelled) setForecastZoneData(payload)
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            console.warn('Forecast zone preload failed', err)
+          }
+        })
+    }
+
+    if (idleWindow.requestIdleCallback) {
+      idleId = idleWindow.requestIdleCallback(preload, { timeout: 3000 })
+    } else {
+      idleId = window.setTimeout(preload, 1200)
+    }
+
+    return () => {
+      cancelled = true
+      if (idleId !== null && idleWindow.cancelIdleCallback) idleWindow.cancelIdleCallback(idleId)
+      else if (idleId !== null) window.clearTimeout(idleId)
+    }
+  }, [forecastZoneData, forecastZoneError])
 
   useEffect(() => {
     // The main page is a fixed, shareable view — don't mirror its (locked) state to the URL.

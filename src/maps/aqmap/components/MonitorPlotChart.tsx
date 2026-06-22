@@ -14,7 +14,8 @@ const AQHI_BANDS: Array<{ from: number; to: number; color: string }> = [
 ]
 
 const AQHI_THRESHOLDS = [30, 60, 100]
-const CHART_MARGIN = { top: 10, right: 12, bottom: 14, left: 0 }
+const CHART_MARGIN = { top: 8, right: 10, bottom: 2, left: 0 }
+const SERIES_COLOR = '#0ea5e9'
 
 interface ChartPoint {
   time: number
@@ -90,13 +91,11 @@ function MonitorPlotTooltip({ active, payload }: { active?: boolean; payload?: A
 export function MonitorPlotChart({
   points,
   locale,
-  highlightColor,
   currentValue,
   height = 220,
 }: {
   points: AqPlotPoint[]
   locale: AqmapLocale
-  highlightColor?: string
   currentValue?: number
   height?: number
 }) {
@@ -133,7 +132,6 @@ export function MonitorPlotChart({
   const gradientId = `monitor-pm25-fill-${generatedId.replace(/:/g, '')}`
   const xMin = data[0].time
   const xMax = data[data.length - 1].time
-  const strokeColor = highlightColor ?? '#0ea5e9'
   const latestPoint = data[data.length - 1]
 
   useEffect(() => {
@@ -163,8 +161,8 @@ export function MonitorPlotChart({
         <AreaChart width={chartWidth} height={height} data={data} margin={CHART_MARGIN}>
           <defs>
             <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="5%" stopColor={strokeColor} stopOpacity={0.22} />
-              <stop offset="95%" stopColor={strokeColor} stopOpacity={0.04} />
+              <stop offset="5%" stopColor={SERIES_COLOR} stopOpacity={0.22} />
+              <stop offset="95%" stopColor={SERIES_COLOR} stopOpacity={0.04} />
             </linearGradient>
           </defs>
           {AQHI_BANDS.filter((band) => band.from < yMax).map((band) => (
@@ -194,7 +192,9 @@ export function MonitorPlotChart({
             tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
+            height={22}
             minTickGap={28}
+            tickMargin={4}
           />
           <YAxis
             domain={[0, yMax]}
@@ -209,18 +209,19 @@ export function MonitorPlotChart({
               fontSize: 10,
               fontWeight: 600,
               offset: 14,
+              style: { textAnchor: 'middle' },
             }}
             width={50}
           />
-          <Tooltip cursor={{ stroke: strokeColor, strokeOpacity: 0.25 }} content={<MonitorPlotTooltip />} />
+          <Tooltip cursor={{ stroke: SERIES_COLOR, strokeOpacity: 0.25 }} content={<MonitorPlotTooltip />} />
           <Area
             type="monotone"
             dataKey="pm25"
-            stroke={strokeColor}
+            stroke={SERIES_COLOR}
             strokeWidth={2.5}
             fill={`url(#${gradientId})`}
-            dot={{ r: 2.2, fill: strokeColor, strokeWidth: 0, opacity: latestPoint.synthetic ? 0.75 : 0.9 }}
-            activeDot={{ r: 4, fill: strokeColor, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+            dot={{ r: 2.2, fill: SERIES_COLOR, strokeWidth: 0, opacity: latestPoint.synthetic ? 0.75 : 0.9 }}
+            activeDot={{ r: 4, fill: SERIES_COLOR, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
             isAnimationActive={false}
           />
         </AreaChart>
