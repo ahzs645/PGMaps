@@ -80,3 +80,6 @@ data-sources/native-land/
 
 # Generated from the bcdatamapper Native Land snapshot for local app use.
 public/data/native-land/
+
+# Generated from the bcdatamapper ECCC forecast-zone snapshot for local app use.
+public/data/aqmap/

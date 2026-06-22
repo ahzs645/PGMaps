@@ -32,6 +32,7 @@ const pathMappings = [
   ['datascrapers/cell-coverage/output', 'cell-coverage'],
   ['datascrapers/healthyplan-pg/output', 'healthyplan-pg'],
   ['datascrapers/heat-shade/output', 'heat-shade'],
+  ['datascrapers/eccc/output/forecast-zones.geojson', 'aqmap/forecast-zones.geojson'],
   ['datascrapers/citypg/source/heat-shade/citypg_trees.geojson', 'heat-shade/citypg_trees.geojson'],
   ['datascrapers/citypg/source/heat-shade/citypg_park_open_spaces.geojson', 'heat-shade/citypg_park_open_spaces.geojson'],
   ['datascrapers/citypg/source/heat-shade/citypg_intact_forest.geojson', 'heat-shade/citypg_intact_forest.geojson'],
