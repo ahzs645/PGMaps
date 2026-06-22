@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDot, Clock3, Droplets, Handshake, MousePointerClick, Palette, ShieldAlert, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Droplets, Handshake, MousePointerClick, Palette, ShieldAlert, Wind } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -72,6 +72,14 @@ const devEntries: DevEntry[] = [
     color: 'bg-red-600',
     label: '/dev/wait',
     subpages: [{ label: 'Specialist', href: '/dev/wait/specialist' }],
+  },
+  {
+    title: 'MSP Facility Payments',
+    description: 'BC MSP Blue Book payees joined to hospital, clinic, and lab provider locations across BC.',
+    href: '/dev/health/msp',
+    icon: CircleDollarSign,
+    color: 'bg-rose-600',
+    label: '/dev/health/msp',
   },
   {
     title: 'Fallout Sites',

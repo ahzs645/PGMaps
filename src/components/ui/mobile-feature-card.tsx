@@ -32,6 +32,7 @@ export function MobileFeatureCard({
   initialVisibleHeight = MOBILE_FEATURE_CARD_COMPACT_HEIGHT,
   collapseOnMapInteraction = true,
   closeOnBlankMapClick = true,
+  showDockAction = true,
   onClose,
 }: {
   title: ReactNode
@@ -44,6 +45,7 @@ export function MobileFeatureCard({
   initialVisibleHeight?: number
   collapseOnMapInteraction?: boolean
   closeOnBlankMapClick?: boolean
+  showDockAction?: boolean
   onClose: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -51,12 +53,31 @@ export function MobileFeatureCard({
   const [expanded, setExpanded] = useState(initialVisibleHeight >= height)
   const [controlsInFront, setControlsInFront] = useState(false)
   const [controlsVisibleHeight, setControlsVisibleHeight] = useState<number | null>(null)
+  const [hasDockTarget, setHasDockTarget] = useState(false)
   const dragStartY = useRef<number | null>(null)
   const dragMovedRef = useRef(false)
   const lastGestureAtRef = useRef(0)
 
   const titleText = typeof title === 'string' ? title : undefined
   const subtitleText = typeof subtitle === 'string' ? subtitle : undefined
+  const canDockBehindControls = showDockAction && hasDockTarget
+
+  useEffect(() => {
+    const syncDockTarget = () => {
+      const sheet = document.querySelector<HTMLElement>('[data-map-mobile-sheet="true"]')
+      const wrapper = sheet?.closest<HTMLElement>('[data-map-sidebar-wrapper="true"]')
+      const target = wrapper ?? sheet
+      if (!target) {
+        setHasDockTarget(false)
+        return
+      }
+      setHasDockTarget(window.getComputedStyle(target).display !== 'none')
+    }
+
+    syncDockTarget()
+    window.addEventListener('resize', syncDockTarget)
+    return () => window.removeEventListener('resize', syncDockTarget)
+  }, [])
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_STACK_EVENT))
@@ -234,11 +255,12 @@ export function MobileFeatureCard({
   }, [handleDragEnd, handleDragMove, handleDragStart])
 
   const dockBehindControls = useCallback(() => {
+    if (!canDockBehindControls) return
     setCollapsed(false)
     setExpanded(false)
     setControlsVisibleHeight(null)
     window.dispatchEvent(new CustomEvent(MOBILE_FEATURE_CARD_DOCK_EVENT))
-  }, [])
+  }, [canDockBehindControls])
 
   const handleDockClick = useCallback(() => {
     if (dragMovedRef.current) {
@@ -321,30 +343,45 @@ export function MobileFeatureCard({
             }}
           >
             <div className="flex items-start justify-between gap-3">
-              <button
-                type="button"
-                className="group min-w-0 flex-1 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60"
-                onClick={handleDockClick}
-                aria-label="Dock selected feature behind map controls"
-              >
-                <div className="truncate text-base font-semibold leading-tight text-foreground">
-                  {title}
-                </div>
-                {subtitle ? (
-                  <div className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
-                    {subtitle}
+              {canDockBehindControls ? (
+                <button
+                  type="button"
+                  className="group min-w-0 flex-1 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60"
+                  onClick={handleDockClick}
+                  aria-label="Dock selected feature behind map controls"
+                >
+                  <div className="truncate text-base font-semibold leading-tight text-foreground">
+                    {title}
                   </div>
-                ) : null}
-              </button>
-              <button
-                type="button"
-                className="shrink-0 rounded-md p-2 hover:bg-muted"
-                aria-label="Dock selected feature behind map controls"
-                data-mobile-feature-card-action="true"
-                onClick={dockBehindControls}
-              >
-                <ChevronDown className="size-4" />
-              </button>
+                  {subtitle ? (
+                    <div className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
+                      {subtitle}
+                    </div>
+                  ) : null}
+                </button>
+              ) : (
+                <div className="min-w-0 flex-1 py-0.5 pr-1 text-left">
+                  <div className="truncate text-base font-semibold leading-tight text-foreground">
+                    {title}
+                  </div>
+                  {subtitle ? (
+                    <div className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
+                      {subtitle}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+              {canDockBehindControls ? (
+                <button
+                  type="button"
+                  className="shrink-0 rounded-md p-2 hover:bg-muted"
+                  aria-label="Dock selected feature behind map controls"
+                  data-mobile-feature-card-action="true"
+                  onClick={dockBehindControls}
+                >
+                  <ChevronDown className="size-4" />
+                </button>
+              ) : null}
               <button type="button" className="shrink-0 rounded-md p-2 hover:bg-muted" aria-label="Close feature card" data-mobile-feature-card-action="true" onClick={closeWithAnimation}>
                 <X className="size-4" />
               </button>

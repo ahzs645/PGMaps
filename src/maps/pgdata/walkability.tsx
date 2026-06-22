@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Calculator, Footprints, RotateCcw } from 'lucide-react'
+import { Calculator, ChevronDown, Footprints, RotateCcw } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMap } from '@/components/ui/map'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -279,6 +280,14 @@ export function useWalkabilityData(
       setSelectedHeatmapVariantId(nextVariantKey)
     }
   }
+  const setHeatmapOptions = (options: HeatmapOptionState) => {
+    const requested = normalizeHeatmapOptions(options)
+    const nextVariantKey = variantKeyForHeatmapOptions(requested)
+    setHeatmapOptionOverride(requested)
+    if (heatmapVariants.some((variant) => variant.key === nextVariantKey)) {
+      setSelectedHeatmapVariantId(nextVariantKey)
+    }
+  }
   const setHeatmapFactorWeight = (ref: string, value: number) => {
     const normalizedValue = Math.max(0, Math.min(2, Number.isFinite(value) ? value : 1))
     setHeatmapFactorWeights((current) => ({ ...current, [ref]: normalizedValue }))
@@ -466,6 +475,7 @@ export function useWalkabilityData(
     heatmapVariants,
     heatmapOptionState,
     setHeatmapOption,
+    setHeatmapOptions,
     heatmapFactorWeights,
     setHeatmapFactorWeight,
     resetHeatmapFactorWeights,
@@ -488,6 +498,329 @@ export function useWalkabilityData(
 
 export type WalkabilityState = ReturnType<typeof useWalkabilityData>
 
+const WALKABILITY_MODEL_PRESETS: Array<{
+  key: string
+  label: string
+  description: string
+  options: HeatmapOptionState
+  weights?: Partial<HeatmapFactorWeightState>
+}> = [
+  {
+    key: 'report',
+    label: 'Report fidelity',
+    description: 'Closest public-data reconstruction of the Pedestrian Network Study Mobility Index.',
+    options: HEATMAP_REPORT_FIDELITY_OPTIONS,
+  },
+  {
+    key: 'full',
+    label: 'Full source model',
+    description: 'Uses every available public and reconstructed factor without report-fidelity exclusions.',
+    options: normalizeHeatmapOptions({
+      dropGtfsHf: false,
+      narrowCivic: false,
+      narrowGrowth: false,
+      dropPopAge: false,
+      dropF0: false,
+      dropC0: false,
+      dropF8: false,
+      dropSuppPoi: false,
+      tightBuffer: false,
+    }),
+  },
+  {
+    key: 'access',
+    label: 'Access emphasis',
+    description: 'Prioritizes community destinations, services, parks, schools, and transit reach.',
+    options: HEATMAP_REPORT_FIDELITY_OPTIONS,
+    weights: Object.fromEntries(
+      WALKABILITY_FACTOR_GROUPS.map((factor) => [
+        factor.ref,
+        ['Community activities', 'Community facilities', 'Community services', 'Environment mobility'].includes(
+          factor.group,
+        )
+          ? 1.5
+          : 0.5,
+      ]),
+    ),
+  },
+  {
+    key: 'network',
+    label: 'Network emphasis',
+    description: 'Focuses on crossings, signals, transit corridors, and street-network association.',
+    options: normalizeHeatmapOptions({ ...HEATMAP_REPORT_FIDELITY_OPTIONS, dropF0: false }),
+    weights: Object.fromEntries(
+      WALKABILITY_FACTOR_GROUPS.map((factor) => [
+        factor.ref,
+        ['Environment mobility', 'Environment routes'].includes(factor.group) ? 1.6 : 0.45,
+      ]),
+    ),
+  },
+]
+
+function heatmapOptionsMatch(a: HeatmapOptionState, b: HeatmapOptionState) {
+  return HEATMAP_OPTIONS.every((option) => a[option.key] === b[option.key])
+}
+
+function heatmapWeightsMatch(
+  current: HeatmapFactorWeightState,
+  expected: Partial<HeatmapFactorWeightState> | undefined,
+) {
+  return WALKABILITY_FACTOR_GROUPS.every((factor) => {
+    const currentValue = Number(current[factor.ref] ?? 1)
+    const expectedValue = Number(expected?.[factor.ref] ?? 1)
+    return Math.abs(currentValue - expectedValue) < 0.001
+  })
+}
+
+function activeWalkabilityPreset(walkability: WalkabilityState) {
+  return (
+    WALKABILITY_MODEL_PRESETS.find(
+      (preset) =>
+        heatmapOptionsMatch(walkability.heatmapOptionState, preset.options) &&
+        heatmapWeightsMatch(walkability.heatmapFactorWeights, preset.weights),
+    ) ?? null
+  )
+}
+
+function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityState }) {
+  const [sourceRulesOpen, setSourceRulesOpen] = useState(false)
+  const [factorTermsOpen, setFactorTermsOpen] = useState(false)
+  const [showDisabledTerms, setShowDisabledTerms] = useState(false)
+  const activePreset = activeWalkabilityPreset(walkability)
+  const activeFactors = WALKABILITY_FACTOR_GROUPS.filter(
+    (factor) =>
+      !isFactorDroppedByOptions(factor.ref, walkability.heatmapOptionState) &&
+      (walkability.heatmapFactorWeights[factor.ref] ?? 1) > 0,
+  )
+  const totalInfluence = activeFactors.reduce(
+    (sum, factor) => sum + Math.abs(walkability.heatmapFactorWeights[factor.ref] ?? 1),
+    0,
+  )
+  const activeRuleCount = HEATMAP_OPTIONS.filter((option) => walkability.heatmapOptionState[option.key]).length
+  const visibleFactorTerms = WALKABILITY_FACTOR_GROUPS.filter(
+    (factor) => showDisabledTerms || !isFactorDroppedByOptions(factor.ref, walkability.heatmapOptionState),
+  )
+  const heatmapLogic = describeHeatmapLogic(walkability.heatmapOptionState)
+
+  const applyPreset = (preset: (typeof WALKABILITY_MODEL_PRESETS)[number]) => {
+    walkability.setHeatmapOptions(preset.options)
+    WALKABILITY_FACTOR_GROUPS.forEach((factor) => {
+      walkability.setHeatmapFactorWeight(factor.ref, preset.weights?.[factor.ref] ?? 1)
+    })
+  }
+
+  return (
+    <div className="space-y-3 text-xs">
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Model</div>
+            <div className="mt-0.5 text-sm font-semibold text-foreground">
+              {activePreset?.label ?? 'Custom walkability index'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => applyPreset(WALKABILITY_MODEL_PRESETS[0])}
+            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-input px-2 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            title="Reset to report fidelity model"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Reset
+          </button>
+        </div>
+        <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
+          {activePreset?.description ?? 'Custom factor weights and source rules are recalculated directly on the map.'}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
+          {WALKABILITY_MODEL_PRESETS.map((preset) => (
+            <button
+              key={preset.key}
+              type="button"
+              onClick={() => applyPreset(preset)}
+              className={cn(
+                'rounded-md border px-2 py-1.5 text-left transition-colors',
+                activePreset?.key === preset.key
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100'
+                  : 'border-input text-muted-foreground hover:text-foreground',
+              )}
+              title={preset.description}
+            >
+              <span className="block truncate font-medium">{preset.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Equation</div>
+            <div className="mt-0.5 break-words font-mono text-[11px] leading-5 text-foreground">
+              MI(cell) = SUM(weight_ref x term_ref)
+            </div>
+          </div>
+          <span className="shrink-0 rounded bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+            {activeFactors.length} terms
+          </span>
+        </div>
+        <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-muted">
+          {activeFactors.length === 0 ? (
+            <div className="h-full w-full bg-muted-foreground/20" />
+          ) : (
+            activeFactors.map((factor) => {
+              const value = Math.abs(walkability.heatmapFactorWeights[factor.ref] ?? 1)
+              return (
+                <div
+                  key={factor.ref}
+                  className="h-full bg-emerald-600"
+                  style={{ width: `${totalInfluence > 0 ? (value / totalInfluence) * 100 : 0}%` }}
+                  aria-hidden="true"
+                />
+              )
+            })
+          )}
+        </div>
+        <div className="mt-2 text-[10px] leading-4 text-muted-foreground">
+          Proximity terms use cumulative 400m / 250m / 100m buffers. Area and line terms use report points inside
+          source buffers.
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background">
+        <button
+          type="button"
+          onClick={() => setSourceRulesOpen((current) => !current)}
+          className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+          aria-expanded={sourceRulesOpen}
+        >
+          <span className="min-w-0">
+            <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Source Rules
+            </span>
+            <span className="block truncate text-[10px] text-muted-foreground">
+              {activeRuleCount} active; open to change included logic.
+            </span>
+          </span>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+              !sourceRulesOpen && '-rotate-90',
+            )}
+          />
+        </button>
+        {sourceRulesOpen && (
+          <div className="space-y-3 border-t border-border px-3 py-3">
+            <div className="flex flex-wrap gap-1.5">
+              {HEATMAP_OPTIONS.map((option) => {
+                const active = walkability.heatmapOptionState[option.key]
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => walkability.setHeatmapOption(option.key, !active)}
+                    aria-pressed={active}
+                    className={cn(
+                      'rounded-full border px-2 py-1 text-[10px] font-medium transition-colors',
+                      active
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100'
+                        : 'border-input text-muted-foreground hover:text-foreground',
+                    )}
+                    title={option.description}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="rounded border border-border bg-muted/30 px-2.5 py-2">
+              <div className="font-medium text-foreground">Active rule logic</div>
+              <ul className="mt-1.5 space-y-1 leading-4 text-muted-foreground">
+                {heatmapLogic.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-background">
+        <button
+          type="button"
+          onClick={() => setFactorTermsOpen((current) => !current)}
+          className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+          aria-expanded={factorTermsOpen}
+        >
+          <span className="min-w-0">
+            <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Factor Weights
+            </span>
+            <span className="block truncate text-[10px] text-muted-foreground">
+              {activeFactors.length} active terms; open to tune A0-G5.
+            </span>
+          </span>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+              !factorTermsOpen && '-rotate-90',
+            )}
+          />
+        </button>
+        {factorTermsOpen && (
+          <div className="border-t border-border px-3 py-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="text-[10px] leading-4 text-muted-foreground">
+                0 disables a factor; 1 is report weight; 2 doubles it.
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDisabledTerms((current) => !current)}
+                className="shrink-0 rounded-full border border-input px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {showDisabledTerms ? 'Hide off' : 'Show off'}
+              </button>
+            </div>
+            <div className="max-h-[24rem] space-y-1.5 overflow-y-auto pr-1">
+              {visibleFactorTerms.map((factor) => {
+                const dropped = isFactorDroppedByOptions(factor.ref, walkability.heatmapOptionState)
+                const value = walkability.heatmapFactorWeights[factor.ref] ?? 1
+                return (
+                  <div key={factor.ref} className="block rounded border border-border bg-background px-2 py-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="min-w-0">
+                        <span className="block font-medium leading-4 text-foreground">
+                          {factor.ref} · {factor.label}
+                        </span>
+                        <span className="block leading-4 text-muted-foreground">
+                          {factor.group} · {factor.method}
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                        {dropped ? 'off' : `${value.toFixed(2)}x`}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.25"
+                      disabled={dropped}
+                      value={value}
+                      onChange={(event) => walkability.setHeatmapFactorWeight(factor.ref, Number(event.target.value))}
+                      className="mt-1.5 h-2 w-full accent-emerald-600 disabled:opacity-40"
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function WalkabilitySidebar({
   walkability,
   showSelectedCommunity = true,
@@ -496,10 +829,6 @@ export function WalkabilitySidebar({
   showSelectedCommunity?: boolean
 }) {
   const selectedCommunity = walkability.selectedCommunity
-  const heatmapLogic = useMemo(
-    () => describeHeatmapLogic(walkability.heatmapOptionState),
-    [walkability.heatmapOptionState],
-  )
 
   return (
     <>
@@ -520,31 +849,24 @@ export function WalkabilitySidebar({
           </label>
 
           {walkability.displayMode === 'heatmap' && (
-            <div className="space-y-2">
-              <div>
-                <div className="text-xs font-medium text-foreground">Heat map options</div>
-                <div className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
-                  {walkability.selectedHeatmapVariant?.label ?? 'Citywide MI grid'}
+            <div className="rounded-lg border border-border bg-background p-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-foreground">Live heat-map model</div>
+                  <div className="mt-0.5 truncate text-[10px] leading-4 text-muted-foreground">
+                    {activeWalkabilityPreset(walkability)?.label ??
+                      walkability.selectedHeatmapVariant?.label ??
+                      'Custom source model'}
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                {HEATMAP_OPTIONS.map((option) => (
-                  <label
-                    key={option.key}
-                    className="flex items-start gap-2 rounded border border-border bg-background px-2 py-1.5 text-xs"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={walkability.heatmapOptionState[option.key]}
-                      onChange={(event) => walkability.setHeatmapOption(option.key, event.target.checked)}
-                      className="mt-0.5 h-3.5 w-3.5 rounded border-border accent-emerald-600"
-                    />
-                    <span className="min-w-0">
-                      <span className="block font-medium leading-4 text-foreground">{option.label}</span>
-                      <span className="block leading-4 text-muted-foreground">{option.description}</span>
-                    </span>
-                  </label>
-                ))}
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  {WALKABILITY_FACTOR_GROUPS.filter(
+                    (factor) =>
+                      !isFactorDroppedByOptions(factor.ref, walkability.heatmapOptionState) &&
+                      (walkability.heatmapFactorWeights[factor.ref] ?? 1) > 0,
+                  ).length}{' '}
+                  terms
+                </span>
               </div>
             </div>
           )}
@@ -621,80 +943,8 @@ export function WalkabilitySidebar({
 
       <SidebarSection title="Equation Builder" icon={Calculator} iconClassName="text-cyan-600">
         {walkability.displayMode === 'heatmap' ? (
-          <div className="space-y-3 text-xs">
-            <div className="rounded border border-border bg-background px-2.5 py-2">
-              <div className="break-words font-mono text-[11px] leading-5 text-foreground">
-                MI(cell) = SUM(weight_ref x term_ref)
-              </div>
-              <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                proximity term = 1[d &lt;= 400m] + 2[d &lt;= 250m] + 2[d &lt;= 100m]; association term = report points
-                inside the source buffer.
-              </div>
-              <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                Bands: 1 &lt;27.4, 2 &lt;45.7, 3 &lt;63.9, 4 &lt;82.2, 5 &gt;=82.2.
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <div className="font-medium text-foreground">Live factor weights</div>
-                <div className="text-[10px] leading-4 text-muted-foreground">
-                  0 disables a report factor; 1 is report weight; 2 doubles it.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={walkability.resetHeatmapFactorWeights}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:text-foreground"
-                title="Reset factor weights"
-                aria-label="Reset factor weights"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            <div className="max-h-[24rem] space-y-1.5 overflow-y-auto pr-1">
-              {WALKABILITY_FACTOR_GROUPS.map((factor) => {
-                const dropped = isFactorDroppedByOptions(factor.ref, walkability.heatmapOptionState)
-                const value = walkability.heatmapFactorWeights[factor.ref] ?? 1
-                return (
-                  <label key={factor.ref} className="block rounded border border-border bg-background px-2 py-1.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="min-w-0">
-                        <span className="block font-medium leading-4 text-foreground">
-                          {factor.ref} · {factor.label}
-                        </span>
-                        <span className="block leading-4 text-muted-foreground">
-                          {factor.group} · {factor.method}
-                        </span>
-                      </span>
-                      <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-foreground">
-                        {dropped ? 'off' : `${value.toFixed(2)}x`}
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.25"
-                      disabled={dropped}
-                      value={value}
-                      onChange={(event) => walkability.setHeatmapFactorWeight(factor.ref, Number(event.target.value))}
-                      className="mt-1.5 h-2 w-full accent-emerald-600 disabled:opacity-40"
-                    />
-                  </label>
-                )
-              })}
-            </div>
-
-            <div className="rounded border border-border bg-muted/30 px-2.5 py-2">
-              <div className="font-medium text-foreground">Active variant rules</div>
-              <ul className="mt-1.5 space-y-1 leading-4 text-muted-foreground">
-                {heatmapLogic.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
+          <div className="space-y-3">
+            <WalkabilityBuilderControls walkability={walkability} />
           </div>
         ) : (
           <div className="space-y-2 text-xs">

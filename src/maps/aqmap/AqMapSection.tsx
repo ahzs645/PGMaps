@@ -186,6 +186,34 @@ function getForecastZoneName(properties: ForecastZoneFeatureProperties): string 
   return name || null
 }
 
+function getForecastZoneMonitorGroup(monitor: AirMonitor): 'FEM' | 'PA' | 'EGG' | null {
+  if (monitor.network === 'FEM' || monitor.network === 'BC ENV') return 'FEM'
+  if (monitor.network === 'PA') return 'PA'
+  if (monitor.network === 'EGG') return 'EGG'
+  return null
+}
+
+function mean(values: Array<number | null | undefined>): number | null {
+  const numericValues = values.filter((value): value is number => Number.isFinite(value))
+  if (!numericValues.length) return null
+  return numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
+}
+
+function formatForecastZoneMean(value: number | null): string {
+  if (value === null) return '-'
+  return value.toFixed(1)
+}
+
+function getForecastZoneMonitors(zone: ForecastZoneFeature, monitors: AirMonitor[]): AirMonitor[] {
+  const zoneCode = String(zone.properties?.CLC ?? '').trim()
+  const monitorsByCode = zoneCode
+    ? monitors.filter((monitor) => monitor.forecastZoneCode === zoneCode)
+    : []
+  return monitorsByCode.length
+    ? monitorsByCode
+    : monitors.filter((monitor) => pointInForecastZone(monitor, zone))
+}
+
 function buildForecastZoneAssignments(
   monitors: AirMonitor[],
   forecastZones: ForecastZoneCollection,
@@ -289,6 +317,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     return params.get('windBarbs') === 'vector'
   })
   const [selectedMonitor, setSelectedMonitor] = useState<AirMonitor | null>(null)
+  const [selectedForecastZone, setSelectedForecastZone] = useState<ForecastZoneFeature | null>(null)
   const [hoveredMonitor, setHoveredMonitor] = useState<AirMonitor | null>(null)
   const [exportStatus, setExportStatus] = useState<{ format: ExportFormat | null; error: string | null }>({
     format: null,
@@ -569,6 +598,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   }, [])
 
   const handleMonitorClick = useCallback((monitor: AirMonitor) => {
+    setSelectedForecastZone(null)
     setSelectedMonitor((current) => (current?.id === monitor.id ? null : monitor))
   }, [])
 
@@ -582,9 +612,15 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     [isMobileViewport],
   )
 
-  const handleForecastZoneClick = useCallback(() => {
+  const handleForecastZoneClick = useCallback((zone: ForecastZoneFeature) => {
     setSelectedMonitor(null)
-  }, [])
+    if (!isMobileViewport || effectiveMobileFeatureDisplay !== 'card') {
+      setSelectedForecastZone(null)
+      return false
+    }
+    setSelectedForecastZone(zone)
+    return true
+  }, [effectiveMobileFeatureDisplay, isMobileViewport])
 
   const handleExport = useCallback(
     async (format: ExportFormat) => {
@@ -788,6 +824,13 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
               onClose={() => setSelectedMonitor(null)}
             />
           )}
+          {selectedForecastZone && isMobileViewport && effectiveMobileFeatureDisplay === 'card' && (
+            <MobileForecastZoneFeatureCard
+              zone={selectedForecastZone}
+              monitors={enrichedMonitors}
+              onClose={() => setSelectedForecastZone(null)}
+            />
+          )}
           {isMain ? (
             <MainLayerControl
               visibleNetworks={visibleNetworks}
@@ -852,6 +895,91 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
         </PgMap>
       </div>
     </MapSectionLayout>
+  )
+}
+
+function MobileForecastZoneFeatureCard({
+  zone,
+  monitors,
+  onClose,
+}: {
+  zone: ForecastZoneFeature
+  monitors: AirMonitor[]
+  onClose: () => void
+}) {
+  const zoneName = getForecastZoneName(zone.properties) ?? 'Forecast zone'
+  const columns = ['FEM', 'PA', 'EGG', 'ALL'] as const
+  const grouped = useMemo(() => {
+    const zoneMonitors = getForecastZoneMonitors(zone, monitors)
+    return {
+      FEM: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'FEM'),
+      PA: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'PA'),
+      EGG: zoneMonitors.filter((monitor) => getForecastZoneMonitorGroup(monitor) === 'EGG'),
+      ALL: zoneMonitors,
+    }
+  }, [monitors, zone])
+  const rows = [
+    {
+      label: '# of Monitors',
+      values: columns.map((column) => String(grouped[column].length)),
+    },
+    {
+      label: (
+        <>
+          1hr PM2.5 (&micro;g m<sup>-3</sup>)
+        </>
+      ),
+      values: columns.map((column) => formatForecastZoneMean(mean(grouped[column].map((monitor) => monitor.pm25OneHour)))),
+    },
+    {
+      label: (
+        <>
+          24hr PM2.5 (&micro;g m<sup>-3</sup>)
+        </>
+      ),
+      values: columns.map((column) => formatForecastZoneMean(mean(grouped[column].map((monitor) => monitor.pm25TwentyFourHour)))),
+    },
+  ]
+
+  return (
+    <MobileFeatureCard
+      title={`Forecast Zone: ${zoneName}`}
+      subtitle="Forecast zone"
+      cardKey={`forecast-zone:${String(zone.properties?.FEATURE_ID ?? zone.properties?.CLC ?? zoneName)}`}
+      onClose={onClose}
+    >
+      <div className="space-y-3 text-xs text-foreground">
+        <div className="overflow-x-auto rounded-md border border-border bg-background p-3">
+          <table className="w-full min-w-[18rem] border-collapse text-[11px]">
+            <thead>
+              <tr>
+                <th className="whitespace-nowrap py-1 pr-3 text-left font-medium text-muted-foreground" />
+                {columns.map((column) => (
+                  <th key={column} className="px-2 py-1 text-right font-semibold text-foreground">
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={String(row.label)} className="border-t border-border">
+                  <td className="whitespace-nowrap py-1 pr-3 text-muted-foreground">{row.label}</td>
+                  {row.values.map((value, index) => (
+                    <td
+                      key={`${String(row.label)}:${columns[index]}`}
+                      className="px-2 py-1 text-right font-medium tabular-nums text-foreground"
+                    >
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </MobileFeatureCard>
   )
 }
 

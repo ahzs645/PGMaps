@@ -837,7 +837,9 @@ export function ForecastZonesVectorLayer({
   visible: boolean
   data: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties> | null
   monitors: AirMonitor[]
-  onZoneClick?: () => void
+  onZoneClick?: (
+    zone: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ForecastZoneFeatureProperties>,
+  ) => boolean | void
 }) {
   const { map, isLoaded } = useMap()
   const sourceId = 'aqmap-forecast-zones-vector-source'
@@ -923,8 +925,8 @@ export function ForecastZonesVectorLayer({
       const featureId = String(feature.properties?.FEATURE_ID ?? '')
       const clc = String(feature.properties?.CLC ?? '')
       return styledData.features.find((candidate) => (
-        (featureId && candidate.properties?.FEATURE_ID === featureId)
-        || (clc && candidate.properties?.CLC === clc)
+        (featureId && String(candidate.properties?.FEATURE_ID ?? '') === featureId)
+        || (clc && String(candidate.properties?.CLC ?? '') === clc)
       )) ?? null
     }
 
@@ -978,8 +980,15 @@ export function ForecastZonesVectorLayer({
 
       const zone = getZoneFromEvent(event)
       if (!zone) return
+      event.preventDefault()
+      event.originalEvent?.preventDefault()
+      dispatchMobileMapFeatureClick()
       popup.remove()
-      onZoneClick?.()
+      const handled = onZoneClick?.(zone)
+      if (handled) {
+        clickPopup.remove()
+        return
+      }
       clickPopup
         .setLngLat(event.lngLat)
         .setHTML(formatForecastZoneSummaryPopup(zone, monitors))

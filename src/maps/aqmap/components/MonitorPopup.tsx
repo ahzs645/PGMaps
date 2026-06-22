@@ -104,23 +104,23 @@ export function MonitorPopup({
     >
       <div
         ref={contentRef}
-        className="aqmap-popup-scroll max-h-[78vh] overflow-y-auto overscroll-contain text-[12px] leading-[1.35] text-gray-700"
+        className="aqmap-popup-scroll max-h-[78vh] overflow-y-auto overscroll-contain text-[12px] leading-[1.35] text-foreground"
       >
         {/* AQHI-colored accent bar keyed to the monitor's current category */}
         <div className="sticky top-0 z-[1] h-1.5 w-full" style={{ backgroundColor: aqColor }} aria-hidden="true" />
 
         {/* Header */}
         <div className="px-3 pt-2.5 pr-7">
-          <div className="line-clamp-2 text-sm font-semibold leading-snug text-gray-900" title={monitor.name}>
+          <div className="line-clamp-2 text-sm font-semibold leading-snug text-foreground" title={monitor.name}>
             {monitor.name}
           </div>
-          <div className="mt-0.5 text-[11px] italic text-gray-500">
+          <div className="mt-0.5 text-[11px] italic text-muted-foreground">
             {monitorTypeLabel} {translate('popup.monitor', locale)}
           </div>
           {monitor.forecastZoneName && (
-            <div className="mt-1 text-[11px] text-gray-500">
+            <div className="mt-1 text-[11px] text-muted-foreground">
               {translate('popup.forecastZone', locale)}:{' '}
-              <span className="font-medium text-gray-700">{monitor.forecastZoneName}</span>
+              <span className="font-medium text-foreground">{monitor.forecastZoneName}</span>
             </div>
           )}
         </div>
@@ -128,26 +128,26 @@ export function MonitorPopup({
         {/* Status chip + observation timestamp */}
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3">
           <span
-            className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold text-gray-800"
+            className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold text-foreground"
             style={{ backgroundColor: hexToRgba(aqColor, 0.16) }}
           >
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: aqColor }} aria-hidden="true" />
             {categoryLabel}
-            <span className="font-normal text-gray-400">·</span>
+            <span className="font-normal text-muted-foreground">·</span>
             <span className="tabular-nums">
               {formatAqmapPm25Localized(pm25, locale)} {unit}
             </span>
           </span>
-          <span className="text-[11px] text-gray-500">
+          <span className="text-[11px] text-muted-foreground">
             {translate('popup.observedAsOf', locale)} {formatLocalizedDate(monitor.dateObserved, locale)}
           </span>
         </div>
 
-        <div className="mx-3 mt-2.5 border-t border-gray-200" />
+        <div className="mx-3 mt-2.5 border-t border-border" />
 
         {/* PM2.5 averages */}
         <div className="px-3 py-2">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             {translate('popup.readings', locale)}
           </div>
           <div className="space-y-1">
@@ -155,15 +155,15 @@ export function MonitorPopup({
               const labels = labelMap.get(row.key)
               return (
                 <div key={row.key} className="flex items-center justify-between gap-3" title={labels?.title}>
-                  <span className="text-gray-600">{labels?.label}</span>
-                  <span className="inline-flex items-center gap-1.5 font-medium tabular-nums text-gray-900">
+                  <span className="text-muted-foreground">{labels?.label}</span>
+                  <span className="inline-flex items-center gap-1.5 font-medium tabular-nums text-foreground">
                     <span
                       className="h-1.5 w-1.5 rounded-full"
                       style={{ backgroundColor: getAqhiPlusColor(row.value) }}
                       aria-hidden="true"
                     />
                     {formatAqmapPm25Localized(row.value, locale)}
-                    <span className="font-normal text-gray-400">{unit}</span>
+                    <span className="font-normal text-muted-foreground">{unit}</span>
                   </span>
                 </div>
               )
@@ -172,9 +172,9 @@ export function MonitorPopup({
         </div>
 
         {/* Health advice keyed to AQHI+ category */}
-        <div className="mx-3 mb-2 rounded-md border border-gray-200 bg-gray-50 p-2">
+        <div className="mx-3 mb-2 rounded-md border border-border bg-muted/40 p-2">
           <div
-            className="text-[11px] font-semibold leading-snug text-gray-900"
+            className="text-[11px] font-semibold leading-snug text-foreground"
             title={translate('popup.healthMessage', locale)}
           >
             {health.heading}
@@ -185,9 +185,9 @@ export function MonitorPopup({
               const Icon = isNoData ? AlertCircle : index === 0 ? Users : HeartPulse
               return (
                 <div key={line} className="flex items-start gap-1.5">
-                  <Icon className="mt-[2px] size-3 shrink-0 text-gray-400" aria-hidden="true" />
-                  <span className="text-gray-600">
-                    {label && <span className="font-medium text-gray-700">{label}: </span>}
+                  <Icon className="mt-[2px] size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-muted-foreground">
+                    {label && <span className="font-medium text-foreground">{label}: </span>}
                     {detail}
                   </span>
                 </div>
@@ -202,7 +202,6 @@ export function MonitorPopup({
             monitor={monitor}
             locale={locale}
             nearbyFem={nearbyFem}
-            panelClassName="border-gray-200 bg-gray-50"
             onPlotVisibilityChange={handlePlotVisibilityChange}
           />
         </div>
