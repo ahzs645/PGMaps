@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CircleDollarSign, FlaskConical, Hospital, MapPin, Search, Stethoscope, X } from 'lucide-react'
+import { Clock, FlaskConical, Hospital, MapPin, Stethoscope, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
+import { AppSelect } from '@/components/ui/select'
 import { Timeline } from '@/components/ui/timeline'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { FilterChipGroup, MapSidebarShell, SearchInput, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 
 const MSP_FACILITIES_URL = '/data/health/msp-facilities.geojson'
@@ -18,6 +20,8 @@ interface MspFacilityProperties {
   fiscalYearCount: number
   firstFiscalYear: string
   latestFiscalYear: string
+  firstFiscalStartYear: number
+  latestFiscalStartYear: number
   totalAmount: number
   maxAnnualAmount: number
   averageAnnualAmount: number
@@ -83,8 +87,8 @@ function DevHealthMsp() {
   const [selected, setSelected] = useState<MspFacility | null>(null)
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [showTimeline, setShowTimeline] = useState(false)
   const [timelineDate, setTimelineDate] = useState(() => new Date(2024, 0, 1))
-  const [timelineWindowSize, setTimelineWindowSize] = useState(-1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -123,10 +127,13 @@ function DevHealthMsp() {
   }, [facilities, metadata?.fiscalStartYearRange])
 
   const selectedFiscalStartYear = timelineDate.getFullYear()
-  const selectedFiscalYears = useMemo(
-    () => fiscalYearsForWindow(selectedFiscalStartYear, timelineWindowSize, fiscalYearRange.min),
-    [fiscalYearRange.min, selectedFiscalStartYear, timelineWindowSize],
-  )
+  const timelineYearOptions = useMemo(() => (
+    Array.from({ length: Math.max(0, fiscalYearRange.max - fiscalYearRange.min + 1) }, (_, index) => fiscalYearRange.min + index)
+  ), [fiscalYearRange.max, fiscalYearRange.min])
+  const selectedFiscalYears = useMemo(() => {
+    if (showTimeline) return new Set([selectedFiscalStartYear])
+    return fiscalYearsForWindow(fiscalYearRange.max, -1, fiscalYearRange.min)
+  }, [fiscalYearRange.max, fiscalYearRange.min, selectedFiscalStartYear, showTimeline])
 
   const baseFilteredFacilities = useMemo(() => {
     const term = query.trim().toLowerCase()
@@ -152,7 +159,7 @@ function DevHealthMsp() {
   )
 
   const timelineBucketCounts = useMemo(() => {
-    const counts = new Map<string, number>()
+    const counts = new globalThis.Map<string, number>()
     for (let year = fiscalYearRange.min; year <= fiscalYearRange.max; year += 1) counts.set(String(year), 0)
     for (const feature of baseFilteredFacilities) {
       for (const payment of feature.properties.annualPayments ?? []) {
@@ -164,7 +171,7 @@ function DevHealthMsp() {
 
   const stats = useMemo(() => {
     const visibleAmount = filteredFacilities.reduce((sum, feature) => sum + periodAmount(feature, selectedFiscalYears), 0)
-    const byType = facilities.reduce<Record<PayeeType, number>>((acc, feature) => {
+    const byType = filteredFacilities.reduce<Record<PayeeType, number>>((acc, feature) => {
       acc[feature.properties.payeeType] += 1
       return acc
     }, { hospital: 0, clinic: 0, diagnostic_facility: 0 })
@@ -173,78 +180,95 @@ function DevHealthMsp() {
       visible: filteredFacilities.length,
       visibleAmount,
     }
-  }, [facilities, filteredFacilities, selectedFiscalYears])
+  }, [filteredFacilities, selectedFiscalYears])
 
   const timelineStatsLabel = `${stats.visible} visible | ${formatCurrency(stats.visibleAmount)}`
-  const timelinePeriodLabel = timelineWindowLabel(selectedFiscalStartYear, timelineWindowSize, fiscalYearRange.min)
+  const timelinePeriodLabel = showTimeline
+    ? `Fiscal year ${selectedFiscalStartYear}/${selectedFiscalStartYear + 1}`
+    : timelineWindowLabel(fiscalYearRange.max, -1, fiscalYearRange.min)
 
   const sidebar = (
-    <aside className="flex h-full w-full min-w-0 flex-col bg-background/95 md:w-[380px] md:border-r md:shadow-xl">
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className="rounded-md border bg-muted p-2">
-            <CircleDollarSign className="size-4" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-base font-semibold leading-tight">MSP facility payments</h1>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              BC MSP Blue Book payees joined to BC provider locations.
-            </p>
-          </div>
-        </div>
-      </div>
+    <MapSidebarShell
+      className="h-full w-full min-w-0 border-0 shadow-none md:w-[380px] md:border-r md:shadow-xl"
+      title="MSP payments"
+      subtitle="Blue Book facility locations"
+      titleClassName="text-base"
+      scrollClassName="md:pr-1"
+    >
+      <SidebarSection
+        title="Timeline"
+        actions={(
+          <button
+            type="button"
+            onClick={() => setShowTimeline((current) => !current)}
+            className={cn(
+              'flex size-8 items-center justify-center rounded-lg transition-colors',
+              showTimeline ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground',
+            )}
+            aria-pressed={showTimeline}
+            title={showTimeline ? 'Hide timeline' : 'Show timeline'}
+          >
+            <Clock className="size-4" />
+          </button>
+        )}
+      >
+        {showTimeline ? (
+          <AppSelect
+            value={String(selectedFiscalStartYear)}
+            onValueChange={(value) => setTimelineDate(new Date(Number(value), 0, 1))}
+            options={timelineYearOptions.map((year) => ({ value: String(year), label: String(year) }))}
+            className="w-full"
+            triggerClassName="h-9 rounded-md text-sm"
+          />
+        ) : (
+          <p className="text-xs leading-5 text-muted-foreground">Showing cumulative mapped MSP payments.</p>
+        )}
+      </SidebarSection>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 md:pr-5">
-        <section className="grid grid-cols-2 gap-2">
-          <StatCard label="Mapped payees" value={String(metadata?.matchedFacilities ?? facilities.length)} />
-          <StatCard label="Unmatched" value={String(metadata?.unmatchedFacilities ?? '--')} />
-          <StatCard label="Mapped amount" value={formatCurrency(metadata?.matchedAmount ?? stats.visibleAmount)} />
-          <StatCard label="Coverage" value={formatPercent(metadata?.matchedAmountShare)} />
-        </section>
+      <SidebarSection>
+        <StatGrid
+          columns={2}
+          stats={[
+            { label: 'Mapped payees', value: String(metadata?.matchedFacilities ?? facilities.length) },
+            { label: 'Unmatched', value: String(metadata?.unmatchedFacilities ?? '--') },
+            { label: 'Mapped amount', value: formatCurrency(metadata?.matchedAmount ?? stats.visibleAmount) },
+            { label: 'Coverage', value: formatPercent(metadata?.matchedAmountShare) },
+          ]}
+        />
+      </SidebarSection>
 
-        <section className="space-y-2">
-          <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground" htmlFor="msp-search">
-            Search
-          </label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              id="msp-search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Facility, city, address"
-              className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none transition-colors focus:border-sky-500"
-            />
-          </div>
-        </section>
+      <SidebarSection title="Search">
+        <SearchInput
+          id="msp-search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Facility, city, address"
+        />
+      </SidebarSection>
 
-        <section className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Facility type</div>
-          <div className="grid grid-cols-2 gap-1">
-            {(['all', 'hospital', 'clinic', 'diagnostic_facility'] as TypeFilter[]).map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTypeFilter(id)}
-                aria-pressed={typeFilter === id}
-                className={cn(
-                  'rounded-md border px-2 py-1.5 text-xs font-medium transition-colors',
-                  typeFilter === id
-                    ? 'border-sky-500 bg-sky-500/10 text-sky-700'
-                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
-                )}
-              >
-                {id === 'all' ? 'All' : TYPE_META[id].label}
-              </button>
-            ))}
-          </div>
-        </section>
+      <SidebarSection title="Facility type">
+        <FilterChipGroup<TypeFilter>
+          layout="grid"
+          columns={2}
+          showDot={false}
+          items={[
+            { value: 'all', label: 'All', count: facilities.length },
+            { value: 'hospital', label: TYPE_META.hospital.label, count: stats.byType.hospital, color: '#ef4444' },
+            { value: 'clinic', label: TYPE_META.clinic.label, count: stats.byType.clinic, color: '#10b981' },
+            { value: 'diagnostic_facility', label: TYPE_META.diagnostic_facility.label, count: stats.byType.diagnostic_facility, color: '#0ea5e9' },
+          ]}
+          selectedValues={[typeFilter]}
+          onToggle={(value) => setTypeFilter(value)}
+          selectedClassName="border-sky-500 text-sky-700 dark:text-sky-300"
+          chipClassName="justify-center rounded-md py-1.5"
+        />
+      </SidebarSection>
 
-        <section className="space-y-2 border-t border-border pt-4">
-          <div className="flex items-center justify-between gap-3 pr-2 text-sm">
-            <h2 className="font-semibold">Visible facilities</h2>
-            <span className="shrink-0 rounded-md border bg-muted/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">{stats.visible}</span>
-          </div>
+      <SidebarSection
+        title="Visible facilities"
+        actions={<span className="rounded-md border bg-muted/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">{stats.visible}</span>}
+      >
+        <div className="space-y-2">
           <p className="text-xs leading-5 text-muted-foreground">{timelinePeriodLabel}</p>
           <div className="space-y-1.5">
             {filteredFacilities.slice(0, 80).map((feature) => (
@@ -257,9 +281,9 @@ function DevHealthMsp() {
               />
             ))}
           </div>
-        </section>
-      </div>
-    </aside>
+        </div>
+      </SidebarSection>
+    </MapSidebarShell>
   )
 
   return (
@@ -303,28 +327,20 @@ function DevHealthMsp() {
         </div>
         <MspMarkers facilities={filteredFacilities} selectedYears={selectedFiscalYears} selectedId={selected?.properties.id ?? null} onSelect={setSelected} />
         {selected && <SelectedPanel feature={selected} selectedYears={selectedFiscalYears} periodLabel={timelinePeriodLabel} onClose={() => setSelected(null)} />}
-        <Timeline
-          startDate={new Date(fiscalYearRange.min, 0, 1)}
-          endDate={new Date(fiscalYearRange.max, 0, 1)}
-          currentDate={timelineDate}
-          onDateChange={setTimelineDate}
-          bucketCounts={timelineBucketCounts}
-          bucketValueFormatter={formatCurrency}
-          bucketValueLabel="MSP payments"
-          granularity="year"
-          statsLabel={timelineStatsLabel}
-          windowMode={{
-            size: timelineWindowSize,
-            onSizeChange: setTimelineWindowSize,
-            anchor: 'end',
-            options: [
-              { value: 1, label: '1 yr' },
-              { value: 3, label: '3 yr' },
-              { value: 5, label: '5 yr' },
-              { value: -1, label: 'Cumul.' },
-            ],
-          }}
-        />
+        {showTimeline && timelineYearOptions.length > 1 && (
+          <Timeline
+            startDate={new Date(fiscalYearRange.min, 0, 1)}
+            endDate={new Date(fiscalYearRange.max, 0, 1)}
+            currentDate={timelineDate}
+            onDateChange={setTimelineDate}
+            bucketCounts={timelineBucketCounts}
+            bucketValueFormatter={formatCurrency}
+            bucketValueLabel="MSP payments"
+            granularity="year"
+            percentChangeMode={{ enabled: true, label: 'YoY' }}
+            statsLabel={timelineStatsLabel}
+          />
+        )}
       </Map>
     </MapSectionLayout>
   )
@@ -461,15 +477,6 @@ function FacilityListButton({
         </span>
       </span>
     </button>
-  )
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border bg-muted/30 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
-    </div>
   )
 }
 
