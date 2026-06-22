@@ -64,6 +64,7 @@ const PM25_WCS_BOUNDS = {
   east: -18.825681315,
   north: 80.210751469,
 }
+const PM25_LOCAL_EXAMPLE_URL = '/data/aqmap/modelled-pm25-example.geojson.gz'
 
 const PM25_VECTOR_COLORS = [
   { value: 0, color: '#21c5f4' },
@@ -209,6 +210,22 @@ function pm25GridToFeatures(grid: AsciiGrid, zoom: number): GeoJSON.FeatureColle
   }
 
   return { type: 'FeatureCollection', features }
+}
+
+async function fetchGzipJson<T>(url: string, signal: AbortSignal): Promise<T> {
+  const response = await fetch(url, { signal })
+  if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`)
+  const buffer = await response.arrayBuffer()
+  const bytes = new Uint8Array(buffer)
+  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
+
+  if (isGzip && typeof DecompressionStream !== 'undefined') {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
+    const text = await new Response(stream).text()
+    return JSON.parse(text) as T
+  }
+
+  return JSON.parse(new TextDecoder().decode(bytes)) as T
 }
 
 function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): string {
@@ -437,6 +454,7 @@ export function ModelledPm25VectorLayer({ visible }: { visible: boolean }) {
 
     let aborted = false
     let controller: AbortController | null = null
+    let loadedLocalExample = false
 
     if (!map.getSource(sourceId)) {
       map.addSource(sourceId, {
@@ -461,6 +479,23 @@ export function ModelledPm25VectorLayer({ visible }: { visible: boolean }) {
       if (!map) return
       controller?.abort()
       controller = new AbortController()
+
+      if (!import.meta.env.DEV) {
+        if (loadedLocalExample) return
+        loadedLocalExample = true
+
+        try {
+          const data = await fetchGzipJson<GeoJSON.FeatureCollection>(PM25_LOCAL_EXAMPLE_URL, controller.signal)
+          const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+          if (!aborted && source) source.setData(data)
+        } catch (error) {
+          if ((error as Error).name !== 'AbortError') {
+            console.error('Modelled PM2.5 local example failed', error)
+          }
+        }
+        return
+      }
+
       const url = buildPm25WcsGridUrl(map.getBounds())
       if (!url) return
 
