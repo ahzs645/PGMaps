@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Waves } from 'lucide-react'
 import { MapClusterLayer, MapPopup } from '@/components/ui/map'
-import { MapLineLayer } from '@/components/ui/map-layers'
+import { MapFillLayer } from '@/components/ui/map-layers'
 import { InlineAlert, LegendItem, MapGradientLegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 
@@ -70,7 +70,7 @@ interface FloodStationProperties {
 
 type FloodStationFeature = GeoJSON.Feature<GeoJSON.Point, FloodStationProperties>
 type FloodStationCollection = GeoJSON.FeatureCollection<GeoJSON.Point, FloodStationProperties>
-type FloodBasinCollection = GeoJSON.FeatureCollection<GeoJSON.LineString | GeoJSON.MultiLineString, Record<string, unknown>>
+type FloodBasinCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, Record<string, unknown>>
 
 const RFC_ARCGIS_ROOT = 'https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services'
 
@@ -80,7 +80,7 @@ const FLOOD_ENDPOINTS: Record<FloodPointMode, string> = {
   coffee: `${RFC_ARCGIS_ROOT}/coffee_MapHub_forecast/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json&resultRecordCount=2000`,
 }
 
-const FLOOD_BASINS_URL = `${RFC_ARCGIS_ROOT}/BC_Basins_GoogleMapPL/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson&resultRecordCount=1000`
+const FLOOD_BASINS_URL = `${RFC_ARCGIS_ROOT}/Snow_Basins_Indices_View/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson&resultRecordCount=1000`
 
 const FLOOD_MODE_OPTIONS: Array<{ value: FloodPointMode; label: string }> = [
   { value: 'current', label: 'Current return periods' },
@@ -90,8 +90,8 @@ const FLOOD_MODE_OPTIONS: Array<{ value: FloodPointMode; label: string }> = [
 
 const FLOOD_RISK_OPTIONS: Array<{ value: FloodRiskFilter; label: string }> = [
   { value: 'all', label: 'All stations' },
-  { value: '2y', label: '>= 2 year' },
-  { value: '5y', label: '>= 5 year' },
+  { value: '2y', label: '2-year or higher' },
+  { value: '5y', label: '5-year or higher' },
 ]
 
 function cleanText(value: unknown, fallback = 'Not reported'): string {
@@ -99,12 +99,14 @@ function cleanText(value: unknown, fallback = 'Not reported'): string {
   return value.replace(/^=/, '').trim() || fallback
 }
 
-function getReturnPeriodScore(value: string): number {
-  const normalized = value.toLowerCase()
-  if (normalized.includes('n/a') || normalized.includes('no data')) return -1
+export function getReturnPeriodScore(value: string): number {
+  const normalized = value.replace(/^=/, '').trim().toLowerCase()
+  if (!normalized || normalized.includes('n/a') || normalized.includes('no data') || normalized.includes('no rtp')) return -1
   if (normalized.includes('<1')) return 0
-  const match = normalized.match(/(\d+(?:\.\d+)?)\s*y/)
-  return match ? Number(match[1]) : 0
+  const rangeMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:-|to)\s*(\d+(?:\.\d+)?)\s*y?/)
+  if (rangeMatch) return Number(rangeMatch[1])
+  const singleMatch = normalized.match(/(\d+(?:\.\d+)?)\s*y/)
+  return singleMatch ? Number(singleMatch[1]) : 0
 }
 
 function formatArcGisDate(value: number | undefined): string {
@@ -206,8 +208,8 @@ function filterByRisk(feature: FloodStationFeature, riskFilter: FloodRiskFilter)
 
 const FLOOD_POINT_BUCKETS = [
   { id: 'normal', label: '< 2 year / normal', color: '#38bdf8', test: (score: number) => score >= 0 && score < 2 },
-  { id: 'twoyear', label: '>= 2 year', color: '#facc15', test: (score: number) => score >= 2 && score < 5 },
-  { id: 'fiveyear', label: '>= 5 year', color: '#f97316', test: (score: number) => score >= 5 && score < 10 },
+  { id: 'twoyear', label: '2-5 year', color: '#facc15', test: (score: number) => score >= 2 && score < 5 },
+  { id: 'fiveyear', label: '5-10 year', color: '#f97316', test: (score: number) => score >= 5 && score < 10 },
   { id: 'tenyear', label: '>= 10 year', color: '#dc2626', test: (score: number) => score >= 10 },
   { id: 'nodata', label: 'No data', color: '#94a3b8', test: (score: number) => score < 0 },
 ]
@@ -271,7 +273,7 @@ export function useFloodData(active: boolean) {
   const highRiskCount = useMemo(() => stations.filter((feature) => feature.properties.riskScore >= 2).length, [stations])
   const severeRiskCount = useMemo(() => stations.filter((feature) => feature.properties.riskScore >= 5).length, [stations])
   const basinNames = useMemo(() => basins.features
-    .map((feature) => String(feature.properties?.BASIN ?? feature.properties?.basin ?? ''))
+    .map((feature) => String(feature.properties?.basinName ?? feature.properties?.BASIN ?? feature.properties?.basin ?? ''))
     .filter(Boolean)
     .sort(), [basins])
 
@@ -346,8 +348,8 @@ export function FloodSidebar({ flood }: { flood: FloodState }) {
         stats={[
           { label: 'stations', value: flood.stations.length.toLocaleString() },
           { label: 'visible', value: flood.filteredStations.length.toLocaleString() },
-          { label: '>= 2 year', value: flood.highRiskCount.toLocaleString() },
-          { label: '>= 5 year', value: flood.severeRiskCount.toLocaleString() },
+          { label: '2-year or higher', value: flood.highRiskCount.toLocaleString() },
+          { label: '5-year or higher', value: flood.severeRiskCount.toLocaleString() },
         ]}
       />
       {flood.loading && <div className="text-xs text-muted-foreground">Loading BC RFC data...</div>}
@@ -366,7 +368,7 @@ export function FloodSidebar({ flood }: { flood: FloodState }) {
         </div>
       )}
       <div className="rounded-md border border-border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-        Historical warning bulletins can be mapped by matching named rivers and regions to existing BCFWA and drought basin boundaries. This first layer uses live RFC stations, forecasts, and RFC basin polygons.
+        Historical warning bulletins can be mapped by matching named rivers and regions to existing BCFWA and drought basin boundaries. This first layer uses live RFC stations, forecasts, and RFC snow-basin polygons.
       </div>
     </div>
   )
@@ -382,18 +384,20 @@ function FloodDetailRow({ label, value }: { label: string; value: string }) {
 }
 
 export function FloodLayer({ flood }: { flood: FloodState }) {
-  const basinLineColor = useMemo(() => ([
-    'match',
-    ['get', 'BASIN'],
-    'FRASER',
-    '#60a5fa',
-    'SKEENA',
+  const basinFillColor = useMemo(() => ([
+    'interpolate',
+    ['linear'],
+    ['coalesce', ['get', 'basinID'], 0],
+    1,
+    '#38bdf8',
+    8,
     '#22c55e',
-    'THOMPSON',
+    15,
     '#f59e0b',
-    'PEACE',
+    22,
     '#a78bfa',
-    '#94a3b8',
+    26,
+    '#64748b',
   ]), [])
 
   const pointCollections = useMemo(() => (
@@ -411,12 +415,14 @@ export function FloodLayer({ flood }: { flood: FloodState }) {
   return (
     <>
       {flood.showBasins && flood.basins.features.length > 0 && (
-        <MapLineLayer
+        <MapFillLayer
           data={flood.basins}
-          color={basinLineColor}
-          width={1.2}
-          opacity={0.55}
-          idProperty="BASIN"
+          fillColor={basinFillColor}
+          fillOpacity={0.14}
+          lineColor={basinFillColor}
+          lineOpacity={0.6}
+          lineWidth={0.8}
+          idProperty="OBJECTID_12"
           visible
         />
       )}
@@ -486,10 +492,10 @@ export function FloodLegend({ flood }: { flood: FloodState }) {
           }}
         />
       ))}
-      <LegendItem color="#60a5fa" label="RFC basin overlay" active={flood.showBasins} swatchShape="square" onClick={() => flood.setShowBasins((current) => !current)} />
+      <LegendItem color="#60a5fa" label="RFC snow-basin polygons" active={flood.showBasins} swatchShape="square" onClick={() => flood.setShowBasins((current) => !current)} />
       {flood.showBasins && (
         <div className="px-1">
-          <MapGradientLegendItem colors={['#60a5fa', '#22c55e', '#f59e0b', '#a78bfa']} minLabel="RFC" maxLabel="basins" />
+          <MapGradientLegendItem colors={['#38bdf8', '#22c55e', '#f59e0b', '#a78bfa']} minLabel="RFC" maxLabel="basins" />
         </div>
       )}
     </div>
@@ -504,7 +510,7 @@ export function FloodSourceNotes({ flood }: { flood: FloodState }) {
     <>
       <p>BC River Forecast Centre live ArcGIS layers{latest ? ` updated ${latest}` : ''}.</p>
       <p>Advisory history is available from BC RFC bulletins, but polygons are inferred from watershed or basin names rather than supplied as historical shapes.</p>
-      <p>Loaded {flood.stations.length.toLocaleString()} station records and {flood.basins.features.length.toLocaleString()} RFC basin polygons.</p>
+      <p>Loaded {flood.stations.length.toLocaleString()} station records and {flood.basins.features.length.toLocaleString()} RFC snow-basin polygons.</p>
     </>
   )
 }

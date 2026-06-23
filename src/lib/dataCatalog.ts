@@ -126,9 +126,9 @@ export const DATASETS = {
   },
   flood: {
     title: 'BC River Forecast Centre flood context',
-    description: 'Live streamflow return periods, CLEVER/COFFEE forecast station points, and RFC basin polygons for flood context.',
+    description: 'Live streamflow return periods, CLEVER/COFFEE forecast station points, and RFC snow-basin polygons for flood context.',
     source: 'BC River Forecast Centre',
-    coverage: 'British Columbia hydrometric stations and RFC basins',
+    coverage: 'British Columbia hydrometric stations and RFC snow basins',
     license: 'Open Government Licence - British Columbia / source-dependent hydrometric terms',
     formats: ['ArcGIS FeatureServer', 'GeoJSON'],
     apiUrl: 'https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services',

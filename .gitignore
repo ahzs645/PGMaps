@@ -83,3 +83,6 @@ public/data/native-land/
 
 # Generated from the bcdatamapper ECCC forecast-zone snapshot for local app use.
 public/data/aqmap/
+
+# Generated from the bcdatamapper network-availability snapshot for local app use.
+public/data/network-availability/

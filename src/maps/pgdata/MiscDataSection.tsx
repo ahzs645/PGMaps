@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
@@ -105,10 +105,6 @@ import {
 import { Timeline } from '@/components/ui/timeline'
 import { DroughtSection } from '@/maps/drought'
 import { CANUE_V2_ENABLED } from './canueV2'
-
-const NetworkAvailabilityDeckLayer = lazy(() =>
-  import('./NetworkAvailabilityDeckLayer').then((module) => ({ default: module.NetworkAvailabilityDeckLayer })),
-)
 
 interface HeatShadeManifestSource {
   id: string
@@ -423,7 +419,10 @@ export default function MiscDataSection() {
   const networkAvailabilityManifest = useJsonManifest<NetworkAvailabilityManifest>(
     activeTab === 'network' ? '/data/network-availability/manifest.json' : null,
   )
-  const networkAvailabilityLayer = useNetworkAvailabilityLayer(activeTab === 'network')
+  const networkAvailabilityLayer = useNetworkAvailabilityLayer(
+    activeTab === 'network',
+    networkAvailabilityManifest.data?.generatedAt,
+  )
   const evChargingManifest = useJsonManifest<EvChargingManifest>(
     activeTab === 'ev' ? '/data/ev-charging/manifest.json' : null,
   )
@@ -733,6 +732,9 @@ export default function MiscDataSection() {
       {activeTab === 'network' && (
         <p>Network availability inventory updated {formatDate(networkAvailabilityManifest.data?.generatedAt)}.</p>
       )}
+      {activeTab === 'network' && !networkAvailabilityLayer.data && !networkAvailabilityLayer.error && (
+        <p>Loading CRTC LTE/5G coverage snapshot...</p>
+      )}
       {activeTab === 'network' && networkAvailabilityLayer.error && <p>{networkAvailabilityLayer.error}</p>}
       {activeTab === 'ev' && <p>EV charging inventory updated {formatDate(evChargingManifest.data?.generatedAt)}.</p>}
       {activeTab === 'ev' && evChargingStations.error && <p>{evChargingStations.error}</p>}
@@ -1025,7 +1027,9 @@ export default function MiscDataSection() {
           />
         )}
 
-        {activeTab === 'network' && <NetworkAvailabilitySidebar manifest={networkAvailabilityManifest} />}
+        {activeTab === 'network' && (
+          <NetworkAvailabilitySidebar manifest={networkAvailabilityManifest} layer={networkAvailabilityLayer} />
+        )}
 
         {activeTab === 'ev' && (
           <EvChargingSidebar
@@ -1241,9 +1245,22 @@ export default function MiscDataSection() {
               )}
 
               {activeTab === 'network' && networkAvailabilityLayer.data && (
-                <Suspense fallback={null}>
-                  <NetworkAvailabilityDeckLayer data={networkAvailabilityLayer.data} />
-                </Suspense>
+                <MapFillLayer
+                  data={networkAvailabilityLayer.data}
+                  fillColor={[
+                    'match',
+                    ['get', 'technology'],
+                    '5G',
+                    '#0f766e',
+                    'LTE',
+                    '#2563eb',
+                    '#64748b',
+                  ]}
+                  fillOpacity={0.56}
+                  lineColor="#083344"
+                  lineOpacity={0.18}
+                  lineWidth={0.45}
+                />
               )}
 
               {activeTab === 'ev' && evStudyAreaFeatureCollection && (
@@ -1534,9 +1551,17 @@ export default function MiscDataSection() {
                 )}
                 {activeTab === 'network' && (
                   <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
-                    <LegendItem color="#0f766e" label="CRTC/NRCan vector coverage" active swatchShape="square" />
-                    <LegendItem color="#64748b" label="ISED site points" active />
-                    <LegendItem color="#f97316" label="Carrier raster-only caveat" active swatchShape="square" />
+                    <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-[10px]">
+                      <span className="truncate text-foreground">
+                        {networkAvailabilityLayer.data
+                          ? `${networkAvailabilityLayer.data.features.length.toLocaleString()} coverage features loaded`
+                          : networkAvailabilityLayer.error
+                            ? 'Coverage failed to load'
+                            : 'Loading coverage'}
+                      </span>
+                    </div>
+                    <LegendItem color="#0f766e" label="5G coverage" active swatchShape="square" />
+                    <LegendItem color="#2563eb" label="LTE coverage" active swatchShape="square" />
                   </div>
                 )}
                 {activeTab === 'ev' && (

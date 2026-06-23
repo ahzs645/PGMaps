@@ -13,14 +13,17 @@ type NetworkAvailabilityDeckLayerProps = {
   data: NetworkAvailabilityFeatureCollection
 }
 
+const NETWORK_DECK_ANCHOR_SOURCE_ID = 'network-availability-deck-anchor-source'
+const NETWORK_DECK_ANCHOR_LAYER_ID = 'network-availability-deck-anchor-layer'
+
 const NETWORK_FILL_COLORS: Record<string, [number, number, number]> = {
   '5G': [15, 118, 110],
   LTE: [37, 99, 235],
 }
 
 function networkFillColor(properties: NetworkAvailabilityProperties | null | undefined): [number, number, number] {
-  const speed = String(properties?.Speed ?? '')
-  return NETWORK_FILL_COLORS[speed] ?? [100, 116, 139]
+  const technology = String(properties?.technology ?? properties?.Speed ?? '')
+  return NETWORK_FILL_COLORS[technology] ?? [100, 116, 139]
 }
 
 function escapeHtml(value: unknown): string {
@@ -32,21 +35,73 @@ function escapeHtml(value: unknown): string {
     .replace(/'/g, '&#39;')
 }
 
+function formatNetworkYear(value: NetworkAvailabilityProperties['Year']): string | null {
+  if (value == null || value === '') return null
+
+  const numericValue = typeof value === 'number' ? value : Number(value)
+  if (Number.isFinite(numericValue)) {
+    if (numericValue >= 1000 && numericValue <= 3000) return String(Math.trunc(numericValue))
+    if (numericValue > 100_000_000_000) {
+      const date = new Date(numericValue)
+      if (!Number.isNaN(date.getTime())) return String(date.getUTCFullYear())
+    }
+  }
+
+  const parsedDate = new Date(String(value))
+  if (!Number.isNaN(parsedDate.getTime())) return String(parsedDate.getUTCFullYear())
+
+  return String(value)
+}
+
 function networkTooltipHtml(properties: NetworkAvailabilityProperties | null | undefined): string {
-  const speed = escapeHtml(properties?.Speed || 'Coverage')
-  const year = properties?.Year == null ? '' : `<div class="text-muted-foreground">Year ${escapeHtml(properties.Year)}</div>`
+  const technology = escapeHtml(properties?.technology || properties?.Speed || properties?.title || 'Coverage')
+  const year = formatNetworkYear(properties?.year ?? properties?.Year)
+  const yearLine = year ? `<div class="text-muted-foreground">Year ${escapeHtml(year)}</div>` : ''
 
   return `
     <div class="rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md">
       <div class="tooltip_title font-semibold text-foreground">Network availability</div>
-      <div class="text-muted-foreground">${speed}</div>
-      ${year}
+      <div class="text-muted-foreground">${technology}</div>
+      ${yearLine}
     </div>
   `
 }
 
 function getFirstSymbolLayerId(map: maplibregl.Map): string | undefined {
   return map.getStyle().layers?.find((layer) => layer.type === 'symbol')?.id
+}
+
+function ensureDeckAnchorLayer(map: maplibregl.Map): string {
+  if (!map.getSource(NETWORK_DECK_ANCHOR_SOURCE_ID)) {
+    map.addSource(NETWORK_DECK_ANCHOR_SOURCE_ID, {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+  }
+  if (!map.getLayer(NETWORK_DECK_ANCHOR_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: NETWORK_DECK_ANCHOR_LAYER_ID,
+        type: 'circle',
+        source: NETWORK_DECK_ANCHOR_SOURCE_ID,
+        paint: {
+          'circle-opacity': 0,
+          'circle-radius': 0,
+        },
+      },
+      getFirstSymbolLayerId(map),
+    )
+  }
+  return NETWORK_DECK_ANCHOR_LAYER_ID
+}
+
+function removeDeckAnchorLayer(map: maplibregl.Map): void {
+  try {
+    if (map.getLayer(NETWORK_DECK_ANCHOR_LAYER_ID)) map.removeLayer(NETWORK_DECK_ANCHOR_LAYER_ID)
+    if (map.getSource(NETWORK_DECK_ANCHOR_SOURCE_ID)) map.removeSource(NETWORK_DECK_ANCHOR_SOURCE_ID)
+  } catch {
+    // MapLibre can throw during style teardown.
+  }
 }
 
 export function NetworkAvailabilityDeckLayer({ data }: NetworkAvailabilityDeckLayerProps) {
@@ -97,6 +152,7 @@ export function NetworkAvailabilityDeckLayer({ data }: NetworkAvailabilityDeckLa
       } catch {
         // MapLibre can throw during style teardown.
       }
+      removeDeckAnchorLayer(map)
       overlayRef.current = null
     }
   }, [isLoaded, map])
@@ -104,13 +160,14 @@ export function NetworkAvailabilityDeckLayer({ data }: NetworkAvailabilityDeckLa
   useEffect(() => {
     const overlay = overlayRef.current
     if (!overlay || !map) return
+    const beforeId = ensureDeckAnchorLayer(map)
 
     overlay.setProps({
       layers: [
         new GeoJsonLayer<NetworkAvailabilityFeature>({
           id: 'network-availability-deck-polygons',
           data,
-          beforeId: getFirstSymbolLayerId(map),
+          beforeId,
           pickable: true,
           stroked: true,
           filled: true,

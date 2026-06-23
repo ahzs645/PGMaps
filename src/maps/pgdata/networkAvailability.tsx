@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { fetchGzipJson } from '../aqmap/lib/pm25Grid'
 import { formatDate, useJsonManifest } from './shared'
 import { formatFileSize, formatVectorStatus } from './miscDataUtils'
 
@@ -13,6 +14,11 @@ interface NetworkAvailabilityDataset {
   apiUrl?: string
   schemaUrl?: string
   notes?: string
+  years?: number[]
+  path?: string
+  featureCount?: number
+  rawBytes?: number
+  gzipBytes?: number
   http?: {
     ok?: boolean
     status?: number | null
@@ -35,6 +41,8 @@ export interface NetworkAvailabilityManifest {
   generatedAt: string
   title: string
   description: string
+  historicalCoverage?: string
+  cartovistaResources?: NetworkAvailabilityDataset[]
   recommendedUse?: string
   datasets: NetworkAvailabilityDataset[]
   carrierFindings: NetworkAvailabilityCarrierFinding[]
@@ -45,6 +53,12 @@ export type NetworkAvailabilityProperties = {
   OBJECTID?: string | number
   Year?: string | number
   Speed?: string
+  year?: string | number
+  technology?: string
+  title?: string
+  source?: string
+  sourceLayer?: string
+  category?: string
 }
 
 export type NetworkAvailabilityFeature = GeoJSON.Feature<
@@ -57,32 +71,37 @@ export type NetworkAvailabilityFeatureCollection = GeoJSON.FeatureCollection<
   NetworkAvailabilityProperties
 >
 
-const NRCAN_WIRELESS_GEOJSON_URL =
-  'https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/Wireless_Data_Network_Reseau_donnees_sans_fil/MapServer/0/query?where=1%3D1&outFields=OBJECTID%2CYear%2CSpeed&returnGeometry=true&outSR=4326&geometryPrecision=5&maxAllowableOffset=0.01&f=geojson'
+const CRTC_WIRELESS_COVERAGE_GEOJSON_URL = '/data/network-availability/crtc-wireless-coverage-current.geojson.gz'
 
-export function useNetworkAvailabilityLayer(enabled: boolean) {
+export function useNetworkAvailabilityLayer(enabled: boolean, version?: string | null) {
   const [data, setData] = useState<NetworkAvailabilityFeatureCollection | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!enabled) return
     const controller = new AbortController()
+    const url = version
+      ? `${CRTC_WIRELESS_COVERAGE_GEOJSON_URL}?v=${encodeURIComponent(version)}`
+      : CRTC_WIRELESS_COVERAGE_GEOJSON_URL
 
     async function load() {
       try {
         setError(null)
-        const response = await fetch(NRCAN_WIRELESS_GEOJSON_URL, { signal: controller.signal })
-        if (!response.ok) throw new Error(`Failed to fetch NRCan wireless layer: ${response.status}`)
-        const geojson = (await response.json()) as NetworkAvailabilityFeatureCollection
+        const geojson = await fetchGzipJson<NetworkAvailabilityFeatureCollection>(url, controller.signal)
         setData({
           ...geojson,
-          features: geojson.features.map((feature, index) => ({
-            ...feature,
-            properties: {
-              ...(feature.properties ?? {}),
-              id: feature.properties?.OBJECTID ?? index,
-            },
-          })),
+          features: geojson.features
+            .map((feature, index) => ({
+              ...feature,
+              properties: {
+                ...(feature.properties ?? {}),
+                id: feature.properties?.id ?? feature.properties?.OBJECTID ?? index,
+              },
+            }))
+            .sort((a, b) => {
+              const order = { LTE: 0, '5G': 1 } as Record<string, number>
+              return (order[String(a.properties?.technology ?? '')] ?? 2) - (order[String(b.properties?.technology ?? '')] ?? 2)
+            }),
         })
       } catch (err) {
         if ((err as Error).name === 'AbortError') return
@@ -92,18 +111,24 @@ export function useNetworkAvailabilityLayer(enabled: boolean) {
 
     void load()
     return () => controller.abort()
-  }, [enabled])
+  }, [enabled, version])
 
   return { data, error }
 }
 
 export function NetworkAvailabilitySidebar({
   manifest,
+  layer,
 }: {
   manifest: ReturnType<typeof useJsonManifest<NetworkAvailabilityManifest>>
+  layer: ReturnType<typeof useNetworkAvailabilityLayer>
 }) {
   const mapDatasets = manifest.data?.datasets.filter((dataset) => dataset.geometry !== 'table') ?? []
   const carrierFindings = manifest.data?.carrierFindings ?? []
+  const snapshotFeatures = layer.data?.features ?? []
+  const snapshotBytes = manifest.data?.cartovistaResources?.find(
+    (dataset) => dataset.path === 'crtc-wireless-coverage-current.geojson.gz',
+  )?.gzipBytes
 
   return (
     <div className="space-y-4 p-4">
@@ -111,6 +136,33 @@ export function NetworkAvailabilitySidebar({
         <div className="text-sm text-muted-foreground">Loading network availability manifest...</div>
       )}
       {manifest.error && <div className="text-sm text-red-500">{manifest.error}</div>}
+      <section className="rounded border border-border bg-card p-3">
+        <h2 className="mb-2 text-sm font-semibold text-foreground">Current Map Layer</h2>
+        {layer.error ? (
+          <p className="text-xs leading-relaxed text-red-500">{layer.error}</p>
+        ) : layer.data ? (
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <div className="text-muted-foreground">Status</div>
+              <div className="font-medium text-foreground">Loaded</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Features</div>
+              <div className="font-medium text-foreground">{snapshotFeatures.length.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Snapshot</div>
+              <div className="font-medium text-foreground">{formatFileSize(snapshotBytes)}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Year</div>
+              <div className="font-medium text-foreground">2024</div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs leading-relaxed text-muted-foreground">Loading CRTC LTE/5G coverage snapshot...</p>
+        )}
+      </section>
       {manifest.data?.recommendedUse && (
         <section className="rounded border border-border bg-muted/30 p-3">
           <h2 className="mb-1 text-sm font-semibold text-foreground">Recommended Source Strategy</h2>
