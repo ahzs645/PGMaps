@@ -1,4 +1,4 @@
-export type OverlayRenderMode = 'raster' | 'vector'
+export type OverlayRenderMode = 'raster' | 'vector' | 'deckgl'
 export type ActiveFiresRenderMode = OverlayRenderMode
 export type FireDangerRenderMode = OverlayRenderMode
 export type FirePerimetersRenderMode = OverlayRenderMode

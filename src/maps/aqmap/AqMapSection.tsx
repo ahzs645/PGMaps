@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { AlertCircle, HeartPulse, Users } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -57,6 +57,7 @@ import type {
   ForecastZonesRenderMode,
   MobileFeatureDisplay,
   ModelledSmokeRenderMode,
+  OverlayRenderMode,
 } from './lib/aqMapTypes'
 import { getAqhiPlusColor } from './lib/aqhiScale'
 import { FloatingLayerControl, MainLayerControl, MapStatusBar, MapUtilityControls } from './components/AqMapControls'
@@ -239,6 +240,16 @@ function splitHealthLine(line: string): { label: string; detail: string } {
   return { label: '', detail: line }
 }
 
+function parseOverlayMode(value: string | null, fallback: OverlayRenderMode): OverlayRenderMode {
+  return value === 'raster' || value === 'vector' || value === 'deckgl' ? value : fallback
+}
+
+// deck.gl is heavy and only used by the experimental "deck.gl" render modes on
+// the full /dev/aqmap page, so load it lazily — it never ships with /main.
+const AqMapDeckOverlay = lazy(() =>
+  import('./components/AqMapDeckLayers').then((module) => ({ default: module.AqMapDeckOverlay })),
+)
+
 export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 'main' } = {}) {
   const isMain = variant === 'main'
   const { resolvedTheme } = useTheme()
@@ -260,23 +271,23 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   )
   const [activeFiresMode, setActiveFiresMode] = useState<ActiveFiresRenderMode>(() => {
     const params = new URLSearchParams(window.location.search)
-    return params.get('activeFires') === 'raster' ? 'raster' : 'vector'
+    return parseOverlayMode(params.get('activeFires'), 'vector')
   })
   const [fireDangerMode, setFireDangerMode] = useState<FireDangerRenderMode>(() => {
     const params = new URLSearchParams(window.location.search)
-    return params.get('fireDanger') === 'vector' ? 'vector' : 'raster'
+    return parseOverlayMode(params.get('fireDanger'), 'raster')
   })
   const [firePerimetersMode, setFirePerimetersMode] = useState<FirePerimetersRenderMode>(() => {
     const params = new URLSearchParams(window.location.search)
-    return params.get('firePerimeters') === 'raster' ? 'raster' : 'vector'
+    return parseOverlayMode(params.get('firePerimeters'), 'vector')
   })
   const [forecastZonesMode, setForecastZonesMode] = useState<ForecastZonesRenderMode>(() => {
     const params = new URLSearchParams(window.location.search)
-    return params.get('forecastZones') === 'raster' ? 'raster' : 'vector'
+    return parseOverlayMode(params.get('forecastZones'), 'vector')
   })
   const [modelledSmokeMode, setModelledSmokeMode] = useState<ModelledSmokeRenderMode>(() => {
     const params = new URLSearchParams(window.location.search)
-    return params.get('modelledSmoke') === 'raster' ? 'raster' : 'vector'
+    return parseOverlayMode(params.get('modelledSmoke'), 'vector')
   })
   const [iconMode, setIconMode] = useState<AqMonitorIconMode>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -349,6 +360,34 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   const effFirePerimetersMode: FirePerimetersRenderMode = isMain ? 'vector' : firePerimetersMode
   const effForecastZonesMode: ForecastZonesRenderMode = isMain ? 'vector' : forecastZonesMode
   const effModelledSmokeMode: ModelledSmokeRenderMode = isMain ? 'raster' : modelledSmokeMode
+  // WMS overlays flipped to the experimental "deck.gl" render mode (tile-rendered
+  // via deck.gl). Fire danger has its own tiled vector deck.gl path.
+  const deckTileKeys = useMemo<WmsLayerKey[]>(() => {
+    const modes: Record<WmsLayerKey, OverlayRenderMode> = {
+      modelledPm25: effModelledSmokeMode,
+      activeFires: effActiveFiresMode,
+      firePerimeters: effFirePerimetersMode,
+      fireDanger: effFireDangerMode,
+      forecastZones: effForecastZonesMode,
+    }
+    // Fire danger has a dedicated tiled-vector deck.gl path. Other deck modes,
+    // including modelled PM2.5, re-render the exact same WMS tiles as raster mode.
+    return WMS_LAYERS.map((layer) => layer.key).filter(
+      (key) =>
+        key !== 'fireDanger' &&
+        visibleWmsLayers.has(key) &&
+        modes[key] === 'deckgl',
+    )
+  }, [
+    effActiveFiresMode,
+    effFireDangerMode,
+    effFirePerimetersMode,
+    effForecastZonesMode,
+    effModelledSmokeMode,
+    visibleWmsLayers,
+  ])
+  const fireDangerDeck = visibleWmsLayers.has('fireDanger') && effFireDangerMode === 'deckgl'
+  const deckActive = deckTileKeys.length > 0 || fireDangerDeck
   const latestDate = enrichedMonitors
     .map((monitor) => monitor.dateObserved)
     .filter((date): date is string => Boolean(date))
@@ -475,19 +514,19 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
       if (vectorWindBarbsVisible) next.set('windBarbs', 'vector')
       else next.delete('windBarbs')
 
-      if (fireDangerMode === 'vector') next.set('fireDanger', 'vector')
+      if (fireDangerMode !== 'raster') next.set('fireDanger', fireDangerMode)
       else next.delete('fireDanger')
 
-      if (activeFiresMode === 'raster') next.set('activeFires', 'raster')
+      if (activeFiresMode !== 'vector') next.set('activeFires', activeFiresMode)
       else next.delete('activeFires')
 
-      if (firePerimetersMode === 'raster') next.set('firePerimeters', 'raster')
+      if (firePerimetersMode !== 'vector') next.set('firePerimeters', firePerimetersMode)
       else next.delete('firePerimeters')
 
-      if (forecastZonesMode === 'raster') next.set('forecastZones', 'raster')
+      if (forecastZonesMode !== 'vector') next.set('forecastZones', forecastZonesMode)
       else next.delete('forecastZones')
 
-      if (modelledSmokeMode === 'raster') next.set('modelledSmoke', 'raster')
+      if (modelledSmokeMode !== 'vector') next.set('modelledSmoke', modelledSmokeMode)
       else next.delete('modelledSmoke')
 
       if (iconMode === 'revealed') next.set('icons', 'revealed')
@@ -790,6 +829,11 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             monitors={enrichedMonitors}
             onZoneClick={handleForecastZoneClick}
           />
+          {deckActive && (
+            <Suspense fallback={null}>
+              <AqMapDeckOverlay tileKeys={deckTileKeys} pm25Active={false} fireDangerActive={fireDangerDeck} />
+            </Suspense>
+          )}
           <WindCanvasLayer visible={windVisible} basemap={basemap} />
           <VectorWindBarbLayer visible={vectorWindBarbsVisible} basemap={basemap} />
           <AqMonitorLayer

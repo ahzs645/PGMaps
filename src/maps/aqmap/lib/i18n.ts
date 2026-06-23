@@ -131,6 +131,7 @@ const EN: StringMap = {
   'wms.tag': 'WMS',
   'overlay.raster': 'Raster',
   'overlay.vector': 'Vector',
+  'overlay.deckgl': 'deck.gl',
   'legend.activeFires.current': 'Active fire',
   'legend.activeFires.hotspot': 'Hot spot detection',
 
@@ -292,6 +293,7 @@ const FR: StringMap = {
   'wms.tag': 'WMS',
   'overlay.raster': 'Raster',
   'overlay.vector': 'Vecteur',
+  'overlay.deckgl': 'deck.gl',
   'legend.activeFires.current': 'Feu actif',
   'legend.activeFires.hotspot': 'Point chaud détecté',
 

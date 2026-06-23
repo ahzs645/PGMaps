@@ -54,7 +54,10 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void
 }) {
   return (
-    <div className="grid grid-cols-2 overflow-hidden rounded-md border border-border bg-background">
+    <div
+      className="grid overflow-hidden rounded-md border border-border bg-background"
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
       {options.map((option) => (
         <button
           key={option.value}
@@ -325,6 +328,7 @@ export function FloatingLayerControl({
                 options={[
                   { value: 'raster', label: translate('overlay.raster', locale) },
                   { value: 'vector', label: translate('overlay.vector', locale) },
+                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
                 ]}
               />
             )}
@@ -335,6 +339,7 @@ export function FloatingLayerControl({
                 options={[
                   { value: 'raster', label: translate('overlay.raster', locale) },
                   { value: 'vector', label: translate('overlay.vector', locale) },
+                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
                 ]}
               />
             )}
@@ -345,6 +350,7 @@ export function FloatingLayerControl({
                 options={[
                   { value: 'raster', label: translate('overlay.raster', locale) },
                   { value: 'vector', label: translate('overlay.vector', locale) },
+                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
                 ]}
               />
             )}
@@ -355,6 +361,7 @@ export function FloatingLayerControl({
                 options={[
                   { value: 'raster', label: translate('overlay.raster', locale) },
                   { value: 'vector', label: translate('overlay.vector', locale) },
+                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
                 ]}
               />
             )}
@@ -365,6 +372,7 @@ export function FloatingLayerControl({
                 options={[
                   { value: 'raster', label: translate('overlay.raster', locale) },
                   { value: 'vector', label: translate('overlay.vector', locale) },
+                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
                 ]}
               />
             )}

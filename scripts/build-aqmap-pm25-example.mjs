@@ -7,18 +7,26 @@ import { fileURLToPath } from 'node:url'
 const SOURCE_URL = 'https://geo.weather.gc.ca/geomet'
 const COVERAGE_ID = 'RAQDPS.SFC_PM2.5'
 const OUTPUT_NAME = 'modelled-pm25-example.geojson.gz'
+const GRID_OUTPUT_NAME = 'modelled-pm25-example.grid.json.gz'
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(SCRIPT_DIR, '..')
-const VENDOR_OUTPUT_PATH = path.join(PROJECT_ROOT, 'vendor/bcdatamapper/datascrapers/eccc/output', OUTPUT_NAME)
-const APP_OUTPUT_PATH = path.join(PROJECT_ROOT, 'public/data/aqmap', OUTPUT_NAME)
+const VENDOR_DIR = path.join(PROJECT_ROOT, 'vendor/bcdatamapper/datascrapers/eccc/output')
+const APP_DIR = path.join(PROJECT_ROOT, 'public/data/aqmap')
+// [vendor copy, app copy] for each emitted artifact.
+const OUTPUTS = [OUTPUT_NAME, GRID_OUTPUT_NAME].map((name) => ({
+  name,
+  vendor: path.join(VENDOR_DIR, name),
+  app: path.join(APP_DIR, name),
+}))
 const onlyIfMissing = process.argv.includes('--if-missing')
 const gzipAsync = promisify(gzip)
 
+// Canada-wide. North is capped at the RAQDPS coverage limit (~80.2°N).
 const EXAMPLE_BOUNDS = {
-  west: -140,
-  south: 47,
-  east: -110,
-  north: 62,
+  west: -141,
+  south: 41,
+  east: -52,
+  north: 80,
 }
 
 const PM25_VECTOR_COLORS = [
@@ -151,32 +159,68 @@ function gridToFeatures(grid) {
   }
 }
 
-async function copyExistingVendorOutput() {
-  const existing = await stat(VENDOR_OUTPUT_PATH)
-  if (existing.size <= 0) return false
-  await mkdir(path.dirname(APP_OUTPUT_PATH), { recursive: true })
-  await copyFile(VENDOR_OUTPUT_PATH, APP_OUTPUT_PATH)
-  console.log(`Copied ${path.relative(PROJECT_ROOT, VENDOR_OUTPUT_PATH)} -> ${path.relative(PROJECT_ROOT, APP_OUTPUT_PATH)}`)
-  return true
+// Compact numeric grid snapshot consumed by the deck.gl raster layer. Values are
+// stored RAW (as returned by WCS) so the client reuses the same scale factor
+// (×1e9 → µg/m³) as the live path; rounded to keep the gzip small.
+function gridToSnapshot(grid) {
+  const round = (value) => (Number.isFinite(value) ? Number(value.toExponential(4)) : value)
+  return {
+    source: 'ECCC GeoMet WCS RAQDPS.SFC_PM2.5',
+    bounds: EXAMPLE_BOUNDS,
+    generatedAt: new Date().toISOString(),
+    unit: 'raw (multiply by 1e9 for ug/m3)',
+    ncols: grid.ncols,
+    nrows: grid.nrows,
+    xllcorner: grid.xllcorner,
+    yllcorner: grid.yllcorner,
+    dx: grid.dx,
+    dy: grid.dy,
+    nodata: grid.nodata,
+    values: grid.values.map((row) => row.map(round)),
+  }
+}
+
+async function fileHasContent(filePath) {
+  try {
+    const info = await stat(filePath)
+    return info.size > 0
+  } catch {
+    return false
+  }
+}
+
+async function copyVendorOutputs() {
+  let copiedAll = true
+  for (const output of OUTPUTS) {
+    if (!(await fileHasContent(output.vendor))) {
+      copiedAll = false
+      continue
+    }
+    await mkdir(APP_DIR, { recursive: true })
+    await copyFile(output.vendor, output.app)
+    console.log(`Copied ${path.relative(PROJECT_ROOT, output.vendor)} -> ${path.relative(PROJECT_ROOT, output.app)}`)
+  }
+  return copiedAll
+}
+
+async function writeArtifact(output, body) {
+  const compressed = await gzipAsync(body, { level: 9 })
+  await mkdir(path.dirname(output.vendor), { recursive: true })
+  await mkdir(path.dirname(output.app), { recursive: true })
+  await writeFile(output.vendor, compressed)
+  await writeFile(output.app, compressed)
+  return compressed.length
 }
 
 async function main() {
   if (onlyIfMissing) {
-    try {
-      const existing = await stat(APP_OUTPUT_PATH)
-      if (existing.size > 0) {
-        console.log(`PM2.5 example already exists at ${path.relative(PROJECT_ROOT, APP_OUTPUT_PATH)}`)
-        return
-      }
-    } catch {
-      // Missing app file: copy the vendor snapshot or build it below.
+    const appReady = (await Promise.all(OUTPUTS.map((output) => fileHasContent(output.app)))).every(Boolean)
+    if (appReady) {
+      console.log('PM2.5 example artifacts already present in public/data/aqmap')
+      return
     }
-
-    try {
-      if (await copyExistingVendorOutput()) return
-    } catch {
-      // Missing vendor file: build it below.
-    }
+    if (await copyVendorOutputs()) return
+    // Otherwise fall through and rebuild from source.
   }
 
   const url = buildWcsUrl()
@@ -187,19 +231,21 @@ async function main() {
   }
 
   const grid = parseAsciiGrid(await response.text())
-  const output = gridToFeatures(grid)
-  const body = JSON.stringify(output)
-  const compressed = await gzipAsync(body, { level: 9 })
 
-  await mkdir(path.dirname(VENDOR_OUTPUT_PATH), { recursive: true })
-  await mkdir(path.dirname(APP_OUTPUT_PATH), { recursive: true })
-  await writeFile(VENDOR_OUTPUT_PATH, compressed)
-  await writeFile(APP_OUTPUT_PATH, compressed)
+  const geojson = gridToFeatures(grid)
+  const geojsonBody = JSON.stringify(geojson)
+  const geojsonGzip = await writeArtifact(OUTPUTS[0], geojsonBody)
+
+  const gridBody = JSON.stringify(gridToSnapshot(grid))
+  const gridGzip = await writeArtifact(OUTPUTS[1], gridBody)
 
   console.log(
-    `Wrote ${output.features.length} cells -> ${path.relative(PROJECT_ROOT, VENDOR_OUTPUT_PATH)} ` +
-      `and ${path.relative(PROJECT_ROOT, APP_OUTPUT_PATH)} ` +
-      `(${(body.length / 1e6).toFixed(2)} MB raw, ${(compressed.length / 1e6).toFixed(2)} MB gzip)`,
+    `Wrote ${geojson.features.length} cells -> ${OUTPUT_NAME} ` +
+      `(${(geojsonBody.length / 1e6).toFixed(2)} MB raw, ${(geojsonGzip / 1e6).toFixed(2)} MB gzip)`,
+  )
+  console.log(
+    `Wrote ${grid.ncols}x${grid.nrows} grid -> ${GRID_OUTPUT_NAME} ` +
+      `(${(gridBody.length / 1e6).toFixed(2)} MB raw, ${(gridGzip / 1e6).toFixed(2)} MB gzip)`,
   )
 }
 

@@ -8,16 +8,17 @@ import {
   translate,
   type AqmapLocale,
 } from '../lib/i18n'
+import { FIRE_DANGER_FILL_COLORS } from '../lib/aqMapConstants'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
 import { WMS_LAYERS, type WmsLayerDefinition, type WmsLayerKey } from '../lib/wmsLayers'
 import { WIND_LEGEND_COLORS } from './WindCanvasLayer'
 
 const FIRE_DANGER_LEGEND_BANDS = [
-  { label: 'Low', color: '#0000ff' },
-  { label: 'Moderate', color: '#00b050' },
-  { label: 'High', color: '#ffff00' },
-  { label: 'Very high', color: '#ff9900' },
-  { label: 'Extreme', color: '#ff0000' },
+  { label: 'Low', color: FIRE_DANGER_FILL_COLORS[0] },
+  { label: 'Moderate', color: FIRE_DANGER_FILL_COLORS[1] },
+  { label: 'High', color: FIRE_DANGER_FILL_COLORS[2] },
+  { label: 'Very high', color: FIRE_DANGER_FILL_COLORS[3] },
+  { label: 'Extreme', color: FIRE_DANGER_FILL_COLORS[4] },
 ] as const
 
 const MODELLED_PM25_LEGEND_STOPS = [
@@ -306,6 +307,10 @@ function WindBarbLegendIcon({ speed }: { speed: 5 | 10 | 50 }) {
 }
 
 function SmokeLegendContent({ layer, locale }: { layer: SmokeLayerDefinition; locale: AqmapLocale }) {
+  if (layer.key === 'modelledSmoke') {
+    return <ModelledSmokeStripLegend layer={layer} />
+  }
+
   return (
     <div className="space-y-1.5">
       {layer.legend.map((band) => (
@@ -315,25 +320,28 @@ function SmokeLegendContent({ layer, locale }: { layer: SmokeLayerDefinition; lo
             style={{ backgroundColor: band.color }}
             aria-hidden="true"
           />
-          <span className="text-muted-foreground">
-            {layer.key === 'modelledSmoke'
-              ? <ModelledSmokeLegendLabel label={band.label} />
-              : localizeSmokeDensity(band.label, locale)}
-          </span>
+          <span className="text-muted-foreground">{localizeSmokeDensity(band.label, locale)}</span>
         </div>
       ))}
     </div>
   )
 }
 
-function ModelledSmokeLegendLabel({ label }: { label: string }) {
-  const range = label.replace(/\s+ug m-3$/i, '')
+function ModelledSmokeStripLegend({ layer }: { layer: SmokeLayerDefinition }) {
   return (
-    <>
-      {range}
-      {' '}
-      µg m<sup>-3</sup>
-    </>
+    <div className="space-y-2">
+      <div className="text-[10px] text-muted-foreground">
+        PM2.5 µg m<sup>-3</sup>
+      </div>
+      <MapSteppedLegend
+        variant="strip"
+        bands={layer.legend.map((band) => ({
+          label: band.label.replace(/\s+ug m-3$/i, ''),
+          color: band.color,
+        }))}
+        labels={['5', '35', '100', '500+']}
+      />
+    </div>
   )
 }
 

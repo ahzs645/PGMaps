@@ -2,6 +2,8 @@ import { CloudFog, Flame, Map, Wind } from 'lucide-react'
 
 export type WmsLayerKey = 'modelledPm25' | 'activeFires' | 'firePerimeters' | 'fireDanger' | 'forecastZones'
 
+const FIRE_DANGER_WMS_CACHE_KEY = new Date().toISOString().slice(0, 10)
+
 export interface WmsLayerDefinition {
   key: WmsLayerKey
   label: string
@@ -14,9 +16,9 @@ export interface WmsLayerDefinition {
   /** Min source zoom (default 0). */
   minzoom?: number
   /**
-   * Max source zoom. Coarse model rasters (e.g. ~10 km RAQDPS PM2.5, daily fire
-   * danger) carry no extra detail past ~z7, so cap here and let MapLibre overzoom
-   * the top tiles instead of re-rendering 4x as many WMS GetMap tiles per level.
+   * Max source zoom. Coarse model rasters carry no extra detail past their native
+   * grid, so cap those and let MapLibre overzoom the top tiles instead of
+   * re-rendering 4x as many WMS GetMap tiles per level.
    */
   maxzoom?: number
   /** Raster resampling; 'nearest' keeps classified band edges crisp (default 'linear'). */
@@ -73,15 +75,15 @@ export const WMS_LAYERS: WmsLayerDefinition[] = [
     label: 'Fire Danger',
     icon: Flame,
     tiles: [
-      'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=public:fdr_current&STYLES=public:cffdrs_fdr&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}',
+      `https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=public:fdr_current_shp&STYLES=public:cffdrs_fdr_poly&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}&_=${FIRE_DANGER_WMS_CACHE_KEY}`,
     ],
     opacity: 0.6,
     attribution: 'Natural Resources Canada CWFIS',
-    // Daily, coarse fire-danger classes. Cap source zoom + overzoom to cut WMS
-    // GetMap volume, and keep the 5 danger classes crisp with nearest resampling.
-    maxzoom: 7,
+    // This WMS renders the classified vector polygon source, so keep requesting
+    // normal-resolution WMS tiles as users zoom. The WCS raster product is the
+    // coarse 2 km source, not this layer.
     resampling: 'nearest',
-    legendUrl: 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=public:fdr_current&STYLE=public:cffdrs_fdr&FORMAT=image/png',
+    legendUrl: 'https://cwfis.cfs.nrcan.gc.ca/geoserver/ows?SERVICE=WMS&REQUEST=GetLegendGraphic&VERSION=1.1.1&LAYER=public:fdr_current_shp&STYLE=public:cffdrs_fdr_poly&FORMAT=image/png',
     legendRenderer: 'structured',
     legendPosition: 'bottomright',
   },

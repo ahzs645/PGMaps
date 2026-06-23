@@ -62,11 +62,11 @@ export function getActiveFiresVectorUrl(): string {
 }
 
 export const FIRE_DANGER_FILL_COLORS: Record<number, string> = {
-  0: '#0000ff',
-  1: '#00b050',
-  2: '#ffff00',
-  3: '#ff9900',
-  4: '#ff0000',
+  0: '#0000FF',
+  1: '#00E000',
+  2: '#FFFF00',
+  3: '#E0A000',
+  4: '#FF0000',
 }
 
 // Representative AQHI+ colours per risk category (see lib/aqhiScale.ts).

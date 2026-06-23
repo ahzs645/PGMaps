@@ -6,6 +6,14 @@ import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import maplibregl from 'maplibre-gl'
 import type { SmokeLayerDefinition } from '../lib/smokeLayers'
 import type { WmsLayerDefinition } from '../lib/wmsLayers'
+import {
+  buildPm25WcsGridUrl,
+  fetchGzipJson,
+  parseAsciiGrid,
+  pm25Color,
+  PM25_LOCAL_EXAMPLE_URL,
+  type AsciiGrid,
+} from '../lib/pm25Grid'
 import type { AqMonitorGroup, AqNetworkSlug } from '../lib/monitorPresentation'
 import { getAqmapNetworkSlug, getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
@@ -47,39 +55,6 @@ interface AqMapFeatureProperties {
   online: boolean
 }
 
-type AsciiGrid = {
-  ncols: number
-  nrows: number
-  xllcorner: number
-  yllcorner: number
-  dx: number
-  dy: number
-  nodata: number | null
-  values: number[][]
-}
-
-const PM25_WCS_BOUNDS = {
-  west: -176.842409132,
-  south: 16.149189226,
-  east: -18.825681315,
-  north: 80.210751469,
-}
-const PM25_LOCAL_EXAMPLE_URL = '/data/aqmap/modelled-pm25-example.geojson.gz'
-
-const PM25_VECTOR_COLORS = [
-  { value: 0, color: '#21c5f4' },
-  { value: 10, color: '#1899c9' },
-  { value: 20, color: '#0d6796' },
-  { value: 30, color: '#fefc37' },
-  { value: 40, color: '#fecb2e' },
-  { value: 50, color: '#fd993f' },
-  { value: 60, color: '#fc6769' },
-  { value: 70, color: '#fe3b3b' },
-  { value: 80, color: '#fe0101' },
-  { value: 90, color: '#ca0713' },
-  { value: 100, color: '#650205' },
-] as const
-
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -87,80 +62,6 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
-}
-
-function buildPm25WcsGridUrl(bounds: maplibregl.LngLatBounds) {
-  const west = Math.max(PM25_WCS_BOUNDS.west, bounds.getWest())
-  const east = Math.min(PM25_WCS_BOUNDS.east, bounds.getEast())
-  const south = Math.max(PM25_WCS_BOUNDS.south, bounds.getSouth())
-  const north = Math.min(PM25_WCS_BOUNDS.north, bounds.getNorth())
-  if (west >= east || south >= north) return null
-
-  const params = new URLSearchParams({
-    SERVICE: 'WCS',
-    REQUEST: 'GetCoverage',
-    VERSION: '2.0.1',
-    COVERAGEID: 'RAQDPS.SFC_PM2.5',
-    FORMAT: 'image/x-aaigrid',
-  })
-  params.append('SUBSET', `long(${west.toFixed(6)},${east.toFixed(6)})`)
-  params.append('SUBSET', `lat(${south.toFixed(6)},${north.toFixed(6)})`)
-
-  return `https://geo.weather.gc.ca/geomet?${params.toString()}`
-}
-
-function extractAsciiGridPart(payload: string) {
-  const start = payload.search(/\bncols\s+/i)
-  if (start === -1) throw new Error('WCS response did not include an ASCII grid part.')
-
-  const rest = payload.slice(start)
-  const nextBoundary = rest.search(/\r?\n--wcs\b/i)
-  return (nextBoundary === -1 ? rest : rest.slice(0, nextBoundary)).trim()
-}
-
-function parseAsciiGrid(payload: string): AsciiGrid {
-  const lines = extractAsciiGridPart(payload)
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-  const header = new Map<string, number>()
-  let dataStartIndex = 0
-
-  for (const [index, line] of lines.entries()) {
-    const [rawKey, rawValue] = line.split(/\s+/, 2)
-    const key = rawKey.toLowerCase()
-    const value = Number(rawValue)
-    if (!Number.isFinite(value) || !['ncols', 'nrows', 'xllcorner', 'yllcorner', 'dx', 'dy', 'cellsize', 'nodata_value'].includes(key)) {
-      dataStartIndex = index
-      break
-    }
-    header.set(key, value)
-  }
-
-  const ncols = header.get('ncols')
-  const nrows = header.get('nrows')
-  const xllcorner = header.get('xllcorner')
-  const yllcorner = header.get('yllcorner')
-  const dx = header.get('dx') ?? header.get('cellsize')
-  const dy = header.get('dy') ?? header.get('cellsize')
-  if (ncols === undefined || nrows === undefined || xllcorner === undefined || yllcorner === undefined || dx === undefined || dy === undefined) {
-    throw new Error('WCS ASCII grid header is missing required fields.')
-  }
-
-  return {
-    ncols,
-    nrows,
-    xllcorner,
-    yllcorner,
-    dx,
-    dy,
-    nodata: header.get('nodata_value') ?? null,
-    values: lines.slice(dataStartIndex, dataStartIndex + nrows).map((line) => line.split(/\s+/).slice(0, ncols).map(Number)),
-  }
-}
-
-function pm25Color(value: number) {
-  return [...PM25_VECTOR_COLORS].reverse().find((stop) => value >= stop.value)?.color ?? PM25_VECTOR_COLORS[0].color
 }
 
 function pm25VectorStride(grid: AsciiGrid, zoom: number) {
@@ -210,22 +111,6 @@ function pm25GridToFeatures(grid: AsciiGrid, zoom: number): GeoJSON.FeatureColle
   }
 
   return { type: 'FeatureCollection', features }
-}
-
-async function fetchGzipJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal })
-  if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`)
-  const buffer = await response.arrayBuffer()
-  const bytes = new Uint8Array(buffer)
-  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
-
-  if (isGzip && typeof DecompressionStream !== 'undefined') {
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
-    const text = await new Response(stream).text()
-    return JSON.parse(text) as T
-  }
-
-  return JSON.parse(new TextDecoder().decode(bytes)) as T
 }
 
 function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): string {
@@ -496,7 +381,13 @@ export function ModelledPm25VectorLayer({ visible }: { visible: boolean }) {
         return
       }
 
-      const url = buildPm25WcsGridUrl(map.getBounds())
+      const bounds = map.getBounds()
+      const url = buildPm25WcsGridUrl({
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+      })
       if (!url) return
 
       try {
