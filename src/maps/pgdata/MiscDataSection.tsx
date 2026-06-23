@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
@@ -17,6 +17,7 @@ import {
   useStudyAreaRegions,
   type BoundarySource,
   type RegionLevel,
+  type StudyAreaRegion,
 } from '@/lib/studyArea'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, ToggleChip } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
@@ -30,9 +31,11 @@ import {
 } from './networkAvailability'
 import {
   EvChargingSidebar,
+  type EvChargingBoundarySummary,
   type EvChargingFeature,
   type EvChargingFeatureCollection,
   type EvChargingManifest,
+  type EvChargingSummaryStats,
 } from './evCharging'
 import { CanueGraphDrawer, MobileCanueBoundaryFeatureCard } from './CanueGraphDrawer'
 import { CanueSidebar } from './CanueSidebar'
@@ -45,7 +48,6 @@ import {
   getCanueV2VariableLabel,
   getCanueVariableLabel,
   renderCanueDisplayLabel,
-  type BoundaryFeatureCollection,
   type MiscLayerId,
 } from './canueCore'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -104,6 +106,10 @@ import { Timeline } from '@/components/ui/timeline'
 import { DroughtSection } from '@/maps/drought'
 import { CANUE_V2_ENABLED } from './canueV2'
 
+const NetworkAvailabilityDeckLayer = lazy(() =>
+  import('./NetworkAvailabilityDeckLayer').then((module) => ({ default: module.NetworkAvailabilityDeckLayer })),
+)
+
 interface HeatShadeManifestSource {
   id: string
   name: string
@@ -161,6 +167,131 @@ function MobileEvStationFeatureCard({ station, onClose }: { station: EvChargingF
   )
 }
 
+function EvChargingLegend({
+  showPoints,
+  showHeatmap,
+  showBoundaries,
+}: {
+  showPoints: boolean
+  showHeatmap: boolean
+  showBoundaries: boolean
+}) {
+  return (
+    <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
+      {showPoints && (
+        <div className="space-y-1">
+          <LegendItem color="#0ea5e9" label="Stations and small clusters" active />
+          <LegendItem color="#22c55e" label="25-124 station clusters" active />
+          <LegendItem color="#f97316" label="125+ station clusters" active />
+        </div>
+      )}
+      {showHeatmap && (
+        <div className="space-y-1 border-t border-border pt-2 first:border-t-0 first:pt-0">
+          <div className="px-1 text-[10px] font-medium text-foreground">Station density</div>
+          <MapGradientLegendItem
+            className="px-1"
+            colors={['#67e8f9', '#22c55e', '#fde047', '#f97316']}
+            minLabel="Low"
+            maxLabel="High"
+          />
+        </div>
+      )}
+      {showBoundaries && (
+        <div className="space-y-1 border-t border-border pt-2 first:border-t-0 first:pt-0">
+          <div className="px-1 text-[10px] font-medium text-foreground">Regional station density</div>
+          <MapGradientLegendItem
+            className="px-1"
+            colors={['#e0f2fe', '#38bdf8', '#0369a1']}
+            minLabel="Low"
+            maxLabel="High"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+type EvBoundaryFeatureProperties = EvChargingBoundarySummary &
+  Record<string, unknown> & {
+    code: string
+    name: string
+    metricValue: number
+  }
+
+type EvBoundaryFeatureCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  EvBoundaryFeatureProperties
+>
+
+function getEvPortCount(value: number | null | undefined): number {
+  return Number.isFinite(value) ? Number(value) : 0
+}
+
+function summarizeEvChargingFeatures(
+  features: EvChargingFeature[],
+  totalStationCount: number,
+  areaKm2: number | null,
+): EvChargingSummaryStats {
+  const networkCounts = new Map<string, number>()
+  let level2Ports = 0
+  let dcFastPorts = 0
+  let level2StationCount = 0
+  let dcFastStationCount = 0
+
+  for (const feature of features) {
+    const level2 = getEvPortCount(feature.properties?.level2)
+    const dcFast = getEvPortCount(feature.properties?.dcFast)
+    level2Ports += level2
+    dcFastPorts += dcFast
+    if (level2 > 0) level2StationCount += 1
+    if (dcFast > 0) dcFastStationCount += 1
+
+    const network = feature.properties?.network?.trim() || 'Unknown'
+    networkCounts.set(network, (networkCounts.get(network) ?? 0) + 1)
+  }
+
+  let topNetwork = 'n/a'
+  let topNetworkCount = 0
+  for (const [network, count] of networkCounts) {
+    if (count > topNetworkCount) {
+      topNetwork = network
+      topNetworkCount = count
+    }
+  }
+
+  const totalPorts = level2Ports + dcFastPorts
+  return {
+    stationCount: features.length,
+    stationSharePercent: totalStationCount > 0 ? (features.length / totalStationCount) * 100 : 0,
+    level2Ports,
+    dcFastPorts,
+    totalPorts,
+    level2StationCount,
+    dcFastStationCount,
+    dcFastPortPercent: totalPorts > 0 ? (dcFastPorts / totalPorts) * 100 : 0,
+    densityPer1000Km2: areaKm2 && areaKm2 > 0 ? (features.length / areaKm2) * 1000 : null,
+    areaKm2,
+    topNetwork,
+    topNetworkCount,
+  }
+}
+
+function getEvStationsInRegion(features: EvChargingFeature[], region: StudyAreaRegion): EvChargingFeature[] {
+  return features.filter((feature) => {
+    const [longitude, latitude] = feature.geometry.coordinates
+    if (
+      longitude < region.bounds[0] ||
+      longitude > region.bounds[2] ||
+      latitude < region.bounds[1] ||
+      latitude > region.bounds[3]
+    ) {
+      return false
+    }
+
+    return booleanPointInPolygon(point([longitude, latitude]), region.feature)
+  })
+}
+
 export default function MiscDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
@@ -189,6 +320,7 @@ export default function MiscDataSection() {
     () => (searchParams.get('evLevel') as RegionLevel | null) || 'healthAuthority',
   )
   const [selectedEvStation, setSelectedEvStation] = useState<EvChargingFeature | null>(null)
+  const [selectedEvBoundaryId, setSelectedEvBoundaryId] = useState<string | null>(null)
   const {
     canueBoundaryLevel,
     setCanueBoundaryLevel,
@@ -472,21 +604,10 @@ export default function MiscDataSection() {
     () => (evShowBoundaries ? evStudyAreaRegions : []),
     [evShowBoundaries, evStudyAreaRegions],
   )
-  const evStudyAreaFeatureCollection = useMemo<BoundaryFeatureCollection | null>(() => {
-    if (activeEvStudyAreaRegions.length === 0) return null
-    return {
-      type: 'FeatureCollection',
-      features: activeEvStudyAreaRegions.map((region) => ({
-        ...region.feature,
-        properties: {
-          ...(region.feature.properties ?? {}),
-          id: region.code,
-          code: region.code,
-          name: region.name,
-        },
-      })),
-    }
-  }, [activeEvStudyAreaRegions])
+  const allEvStationFeatures = useMemo(
+    () => (evChargingStations.data?.features ?? []) as EvChargingFeature[],
+    [evChargingStations.data?.features],
+  )
   const evStudyAreaBounds = useMemo<[number, number, number, number] | null>(() => {
     if (activeEvStudyAreaRegions.length === 0) return null
     return activeEvStudyAreaRegions.reduce<[number, number, number, number]>(
@@ -500,12 +621,11 @@ export default function MiscDataSection() {
     )
   }, [activeEvStudyAreaRegions])
   const filteredEvStations = useMemo<EvChargingFeatureCollection>(() => {
-    const features = (evChargingStations.data?.features ?? []) as EvChargingFeature[]
     if (activeEvStudyAreaRegions.length === 0 || !evStudyAreaBounds) {
-      return { type: 'FeatureCollection', features }
+      return { type: 'FeatureCollection', features: allEvStationFeatures }
     }
 
-    const filtered = features.filter((feature) => {
+    const filtered = allEvStationFeatures.filter((feature) => {
       const [longitude, latitude] = feature.geometry.coordinates
       if (
         longitude < evStudyAreaBounds[0] ||
@@ -528,20 +648,76 @@ export default function MiscDataSection() {
     })
 
     return { type: 'FeatureCollection', features: filtered }
-  }, [activeEvStudyAreaRegions, evChargingStations.data?.features, evStudyAreaBounds])
+  }, [activeEvStudyAreaRegions, allEvStationFeatures, evStudyAreaBounds])
+  const evCurrentScopeAreaKm2 = useMemo(
+    () =>
+      activeEvStudyAreaRegions.length > 0
+        ? activeEvStudyAreaRegions.reduce((sum, region) => sum + region.areaKm2, 0)
+        : null,
+    [activeEvStudyAreaRegions],
+  )
+  const evSummaryStats = useMemo(
+    () => summarizeEvChargingFeatures(filteredEvStations.features, allEvStationFeatures.length, evCurrentScopeAreaKm2),
+    [allEvStationFeatures.length, evCurrentScopeAreaKm2, filteredEvStations.features],
+  )
+  const evStudyAreaFeatureCollection = useMemo<EvBoundaryFeatureCollection | null>(() => {
+    if (activeEvStudyAreaRegions.length === 0) return null
+    return {
+      type: 'FeatureCollection',
+      features: activeEvStudyAreaRegions.map((region) => {
+        const stations = getEvStationsInRegion(allEvStationFeatures, region)
+        const summary = summarizeEvChargingFeatures(stations, allEvStationFeatures.length, region.areaKm2)
+        const boundaryId = region.code
+        const boundaryName = region.name
+        const properties: EvBoundaryFeatureProperties = {
+          ...(region.feature.properties ?? {}),
+          ...summary,
+          id: boundaryId,
+          code: boundaryId,
+          name: boundaryName,
+          boundaryId,
+          boundaryName,
+          metricValue: summary.densityPer1000Km2 ?? 0,
+        }
+
+        return {
+          ...region.feature,
+          id: boundaryId,
+          properties,
+        }
+      }),
+    }
+  }, [activeEvStudyAreaRegions, allEvStationFeatures])
+  const evBoundaryMaxDensity = useMemo(
+    () =>
+      Math.max(1, ...(evStudyAreaFeatureCollection?.features ?? []).map((feature) => feature.properties.metricValue)),
+    [evStudyAreaFeatureCollection],
+  )
+  const selectedEvBoundary = useMemo(
+    () =>
+      selectedEvBoundaryId && evStudyAreaFeatureCollection
+        ? (evStudyAreaFeatureCollection.features.find(
+            (feature) => feature.properties.boundaryId === selectedEvBoundaryId,
+          )?.properties ?? null)
+        : null,
+    [evStudyAreaFeatureCollection, selectedEvBoundaryId],
+  )
   const handleEvBoundarySourceChange = useCallback((source: BoundarySource) => {
     setEvShowBoundaries(true)
     setEvBoundarySource(source)
     setEvRegionLevel((current) => (isValidLevelForSource(source, current) ? current : getDefaultLevelForSource(source)))
+    setSelectedEvBoundaryId(null)
   }, [])
 
   const handleEvBoundaryLevelChange = useCallback((level: RegionLevel) => {
     setEvShowBoundaries(true)
     setEvRegionLevel(level)
+    setSelectedEvBoundaryId(null)
   }, [])
 
   const handleEvClearBoundaries = useCallback(() => {
     setEvShowBoundaries(false)
+    setSelectedEvBoundaryId(null)
   }, [])
 
   const toggleLayer = (layer: MiscLayerId) => {
@@ -639,6 +815,7 @@ export default function MiscDataSection() {
               : activeTab === 'bcer'
                 ? bcer.loading
                 : false
+  const showLegendPanel = activeTab !== 'ev' || evShowPoints || evShowHeatmap || evShowBoundaries
 
   const sidebar = (
     <div className="z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
@@ -853,7 +1030,8 @@ export default function MiscDataSection() {
         {activeTab === 'ev' && (
           <EvChargingSidebar
             manifest={evChargingManifest}
-            stationCount={filteredEvStations.features.length}
+            summaryStats={evSummaryStats}
+            selectedBoundary={selectedEvBoundary}
             boundariesVisible={evShowBoundaries}
             boundarySource={evBoundarySource}
             selectedRegionLevel={evRegionLevel}
@@ -862,6 +1040,7 @@ export default function MiscDataSection() {
             boundaryError={evShowBoundaries ? evBoundaryError : null}
             onBoundarySourceChange={handleEvBoundarySourceChange}
             onClearBoundaries={handleEvClearBoundaries}
+            onClearSelectedBoundary={() => setSelectedEvBoundaryId(null)}
             onRegionLevelChange={handleEvBoundaryLevelChange}
           />
         )}
@@ -1062,26 +1241,34 @@ export default function MiscDataSection() {
               )}
 
               {activeTab === 'network' && networkAvailabilityLayer.data && (
-                <MapFillLayer
-                  data={networkAvailabilityLayer.data}
-                  fillColor={['match', ['get', 'Speed'], '5G', '#0f766e', 'LTE', '#2563eb', '#64748b']}
-                  fillOpacity={0.46}
-                  lineColor="#083344"
-                  lineWidth={0.5}
-                  lineOpacity={0.38}
-                  idProperty="id"
-                />
+                <Suspense fallback={null}>
+                  <NetworkAvailabilityDeckLayer data={networkAvailabilityLayer.data} />
+                </Suspense>
               )}
 
               {activeTab === 'ev' && evStudyAreaFeatureCollection && (
                 <MapFillLayer
                   data={evStudyAreaFeatureCollection}
-                  fillColor="#0ea5e9"
-                  fillOpacity={0.08}
+                  fillColor={[
+                    'interpolate',
+                    ['linear'],
+                    ['coalesce', ['to-number', ['get', 'metricValue']], 0],
+                    0,
+                    '#e0f2fe',
+                    evBoundaryMaxDensity * 0.5,
+                    '#38bdf8',
+                    evBoundaryMaxDensity,
+                    '#0369a1',
+                  ]}
+                  fillOpacity={0.24}
                   lineColor="#0284c7"
                   lineWidth={1}
                   lineOpacity={0.7}
-                  idProperty="code"
+                  idProperty="boundaryId"
+                  selectedId={selectedEvBoundaryId}
+                  selectionColor="#0f172a"
+                  selectionWidth={2}
+                  onFeatureClick={(id) => setSelectedEvBoundaryId(selectedEvBoundaryId === id ? null : id)}
                 />
               )}
 
@@ -1167,9 +1354,7 @@ export default function MiscDataSection() {
               {activeTab === 'flood' && <FloodLayer flood={flood} />}
               {activeTab === 'bcer' && <BcerLayer bcer={bcer} isMobile={isMobileViewport} />}
 
-              {activeTab === 'bcer' && isMobileViewport && bcer.selectedWell && (
-                <MobileBcerFeatureCard bcer={bcer} />
-              )}
+              {activeTab === 'bcer' && isMobileViewport && bcer.selectedWell && <MobileBcerFeatureCard bcer={bcer} />}
 
               {activeTab === 'icbc' && <IcbcLayer icbc={icbc} />}
 
@@ -1286,82 +1471,89 @@ export default function MiscDataSection() {
               />
             )}
 
-            <MapLegendPanel
-              title={MISC_LEGEND_TITLES[activeTab]}
-              icon={<Layers className="h-3.5 w-3.5" />}
-              collapsible
-              collapsed={!showMobileLegend}
-              onCollapsedChange={(collapsed) => setShowMobileLegend(!collapsed)}
-              contentClassName="space-y-1"
-              elevated={
-                (activeTab === 'wars' && wars.timelineEnabled) ||
-                (activeTab === 'icbc' && icbc.timelineEnabled) ||
-                (activeTab === 'water' && water.timelineEnabled) ||
-                (activeTab === 'canue' && canueTimelineActive)
-              }
-              width="sm"
-              className={cn('w-[min(16.5rem,calc(100vw-2rem))] md:w-auto')}
-            >
-              {activeTab === 'heatShade' && (
-                <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
-                  {MISC_LAYERS.map((layer) => (
-                    <LegendItem
-                      key={layer.id}
-                      color={layer.color}
-                      label={layer.label}
-                      active={activeLayers.includes(layer.id)}
-                      swatchShape={layer.id === 'forests' ? 'square' : 'circle'}
-                      onClick={() => toggleLayer(layer.id)}
-                    />
-                  ))}
-                </div>
-              )}
-              {activeTab === 'canue' && (
-                <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
-                  <div>
-                    <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-[10px]">
-                      <span className="truncate text-foreground">
-                        {selectedCanueV2Selection
-                          ? renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection))
-                          : selectedCanueFile
-                            ? renderCanueDisplayLabel(
-                                getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? ''),
-                              )
-                            : 'CANUE boundary layer'}
-                      </span>
-                      {activeCanueBoundaryData.loading && (
-                        <span className="shrink-0 text-muted-foreground">Loading</span>
-                      )}
-                    </div>
-                    <MapGradientLegendItem
-                      className="mt-1 px-1"
-                      colors={['#67e8f9', '#fde047', '#ef4444']}
-                      minLabel={formatNullableNumber(activeCanueBoundaryData.minValue ?? selectedCanueV2Selection?.min)}
-                      maxLabel={formatNullableNumber(activeCanueBoundaryData.maxValue ?? selectedCanueV2Selection?.max)}
-                    />
+            {showLegendPanel && (
+              <MapLegendPanel
+                title={activeTab === 'ev' ? 'EV Map Layers' : MISC_LEGEND_TITLES[activeTab]}
+                icon={<Layers className="h-3.5 w-3.5" />}
+                collapsible
+                collapsed={!showMobileLegend}
+                onCollapsedChange={(collapsed) => setShowMobileLegend(!collapsed)}
+                contentClassName="space-y-1"
+                elevated={
+                  (activeTab === 'wars' && wars.timelineEnabled) ||
+                  (activeTab === 'icbc' && icbc.timelineEnabled) ||
+                  (activeTab === 'water' && water.timelineEnabled) ||
+                  (activeTab === 'canue' && canueTimelineActive)
+                }
+                width="sm"
+                className={cn('w-[min(16.5rem,calc(100vw-2rem))] md:w-auto')}
+              >
+                {activeTab === 'heatShade' && (
+                  <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
+                    {MISC_LAYERS.map((layer) => (
+                      <LegendItem
+                        key={layer.id}
+                        color={layer.color}
+                        label={layer.label}
+                        active={activeLayers.includes(layer.id)}
+                        swatchShape={layer.id === 'forests' ? 'square' : 'circle'}
+                        onClick={() => toggleLayer(layer.id)}
+                      />
+                    ))}
                   </div>
-                </div>
-              )}
-              {activeTab === 'network' && (
-                <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
-                  <LegendItem color="#0f766e" label="CRTC/NRCan vector coverage" active swatchShape="square" />
-                  <LegendItem color="#64748b" label="ISED site points" active />
-                  <LegendItem color="#f97316" label="Carrier raster-only caveat" active swatchShape="square" />
-                </div>
-              )}
-              {activeTab === 'ev' && (
-                <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
-                  <LegendItem color="#22c55e" label="EV charging station density" active />
-                  <LegendItem color="#0ea5e9" label="Station and port CSV exports" active swatchShape="square" />
-                </div>
-              )}
-              {activeTab === 'icbc' && <IcbcLegend icbc={icbc} />}
-              {activeTab === 'wars' && <WarsLegend wars={wars} />}
-              {activeTab === 'walkability' && <WalkabilityLegend walkability={walkability} />}
-              {activeTab === 'water' && <WaterLegend water={water} />}
-              {activeTab === 'flood' && <FloodLegend flood={flood} />}
-              {activeTab === 'bcer' && <BcerLegend bcer={bcer} />}
-            </MapLegendPanel>
+                )}
+                {activeTab === 'canue' && (
+                  <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-[10px]">
+                        <span className="truncate text-foreground">
+                          {selectedCanueV2Selection
+                            ? renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection))
+                            : selectedCanueFile
+                              ? renderCanueDisplayLabel(
+                                  getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? ''),
+                                )
+                              : 'CANUE boundary layer'}
+                        </span>
+                        {activeCanueBoundaryData.loading && (
+                          <span className="shrink-0 text-muted-foreground">Loading</span>
+                        )}
+                      </div>
+                      <MapGradientLegendItem
+                        className="mt-1 px-1"
+                        colors={['#67e8f9', '#fde047', '#ef4444']}
+                        minLabel={formatNullableNumber(
+                          activeCanueBoundaryData.minValue ?? selectedCanueV2Selection?.min,
+                        )}
+                        maxLabel={formatNullableNumber(
+                          activeCanueBoundaryData.maxValue ?? selectedCanueV2Selection?.max,
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+                {activeTab === 'network' && (
+                  <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
+                    <LegendItem color="#0f766e" label="CRTC/NRCan vector coverage" active swatchShape="square" />
+                    <LegendItem color="#64748b" label="ISED site points" active />
+                    <LegendItem color="#f97316" label="Carrier raster-only caveat" active swatchShape="square" />
+                  </div>
+                )}
+                {activeTab === 'ev' && (
+                  <EvChargingLegend
+                    showPoints={evShowPoints}
+                    showHeatmap={evShowHeatmap}
+                    showBoundaries={evShowBoundaries}
+                  />
+                )}
+                {activeTab === 'icbc' && <IcbcLegend icbc={icbc} />}
+                {activeTab === 'wars' && <WarsLegend wars={wars} />}
+                {activeTab === 'walkability' && <WalkabilityLegend walkability={walkability} />}
+                {activeTab === 'water' && <WaterLegend water={water} />}
+                {activeTab === 'flood' && <FloodLegend flood={flood} />}
+                {activeTab === 'bcer' && <BcerLegend bcer={bcer} />}
+              </MapLegendPanel>
+            )}
           </div>
         </MapSectionLayout>
       </div>

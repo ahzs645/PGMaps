@@ -201,6 +201,11 @@ export function AqMapDeckOverlay({
     }
   }, [pm25NativeVector])
 
+  function removeDeckHoverPopups() {
+    fireDangerTooltipRef.current?.remove()
+    pm25TooltipRef.current?.remove()
+  }
+
   // Create / destroy the single deck overlay.
   useEffect(() => {
     if (!isLoaded || !map) return
@@ -208,7 +213,27 @@ export function AqMapDeckOverlay({
     map.addControl(overlay as unknown as maplibregl.IControl)
     overlayRef.current = overlay
     rebuildRef.current()
+
+    const canvas = map.getCanvas()
+    const handleDocumentPointerMove = (event: PointerEvent) => {
+      if (event.target instanceof Node && canvas.contains(event.target)) return
+      removeDeckHoverPopups()
+    }
+    const handleVisibilityChange = () => {
+      if (document.hidden) removeDeckHoverPopups()
+    }
+
+    canvas.addEventListener('mouseleave', removeDeckHoverPopups)
+    document.addEventListener('pointermove', handleDocumentPointerMove, true)
+    window.addEventListener('blur', removeDeckHoverPopups)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
+      canvas.removeEventListener('mouseleave', removeDeckHoverPopups)
+      document.removeEventListener('pointermove', handleDocumentPointerMove, true)
+      window.removeEventListener('blur', removeDeckHoverPopups)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      removeDeckHoverPopups()
       try {
         map.removeControl(overlay as unknown as maplibregl.IControl)
       } catch {
@@ -264,8 +289,7 @@ export function AqMapDeckOverlay({
   useEffect(() => {
     suppressHoverPopupsRef.current = suppressHoverPopups
     if (suppressHoverPopups) {
-      fireDangerTooltipRef.current?.remove()
-      pm25TooltipRef.current?.remove()
+      removeDeckHoverPopups()
     }
   }, [suppressHoverPopups])
 

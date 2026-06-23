@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Calculator, ChevronDown, Footprints, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MapFillLayer } from '@/components/ui/map-layers'
-import { useMap } from '@/components/ui/map'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import {
   InlineAlert,
@@ -188,6 +187,10 @@ const WALKABILITY_SCORE_FIELD_BY_VARIANT: Record<string, keyof WalkabilityProper
   safetyAdjusted: 'safetyAdjustedScore',
   supplementedLocal: 'supplementedLocalScore',
 }
+
+const WalkabilityDeckHeatmapLayer = lazy(() =>
+  import('./WalkabilityDeckHeatmapLayer').then((module) => ({ default: module.WalkabilityDeckHeatmapLayer })),
+)
 
 export function useWalkabilityData(
   active: boolean,
@@ -1045,79 +1048,30 @@ export function WalkabilityLayer({ walkability }: { walkability: WalkabilityStat
 }
 
 function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityState }) {
-  const { map, isLoaded } = useMap()
-  const uid = useId().replace(/:/g, '')
-  const sourceId = `walkability-grid-src-${uid}`
-  const layerId = `walkability-grid-layer-${uid}`
   const grid = walkability.gridHeatmap.data
   const variantKey = walkability.selectedHeatmapVariant?.key ?? grid?.defaultVariant
   const liveGrid =
     walkability.liveHeatmap.status === 'ready' && walkability.liveHeatmap.requestKey === walkability.heatmapOptionKey
       ? walkability.liveHeatmap.grid
       : null
+  const rows = liveGrid?.rows ?? grid?.rows
+  const cols = liveGrid?.cols ?? grid?.cols
+  const imageCoordinates = liveGrid?.imageCoordinates ?? grid?.imageCoordinates
+  const rle = liveGrid?.rle ?? (variantKey && grid?.grids[variantKey])
 
-  useEffect(() => {
-    const rows = liveGrid?.rows ?? grid?.rows
-    const cols = liveGrid?.cols ?? grid?.cols
-    const imageCoordinates = liveGrid?.imageCoordinates ?? grid?.imageCoordinates
-    const rle = liveGrid?.rle ?? (variantKey && grid?.grids[variantKey])
-    if (!isLoaded || !map || !rows || !cols || !imageCoordinates || !rle) return
+  if (!rows || !cols || !imageCoordinates || !rle) return null
 
-    const canvas = document.createElement('canvas')
-    canvas.width = cols
-    canvas.height = rows
-    const context = canvas.getContext('2d')
-    if (!context) return
-
-    const image = context.createImageData(cols, rows)
-    const colors: Record<number, [number, number, number, number]> = {
-      1: [79, 154, 214, 217],
-      2: [158, 201, 156, 217],
-      3: [245, 228, 81, 217],
-      4: [232, 156, 74, 217],
-      5: [211, 59, 59, 217],
-    }
-    let pixel = 0
-    for (const [value, count] of rle) {
-      const color = colors[value] ?? [0, 0, 0, 0]
-      for (let index = 0; index < count; index += 1) {
-        const offset = pixel * 4
-        image.data[offset] = color[0]
-        image.data[offset + 1] = color[1]
-        image.data[offset + 2] = color[2]
-        image.data[offset + 3] = color[3]
-        pixel += 1
-      }
-    }
-    context.putImageData(image, 0, 0)
-    const url = canvas.toDataURL('image/png')
-
-    map.addSource(sourceId, {
-      type: 'image',
-      url,
-      coordinates: imageCoordinates,
-    })
-    map.addLayer({
-      id: layerId,
-      type: 'raster',
-      source: sourceId,
-      paint: {
-        'raster-opacity': 0.78,
-        'raster-resampling': 'nearest',
-      },
-    })
-
-    return () => {
-      try {
-        if (map.getLayer(layerId)) map.removeLayer(layerId)
-        if (map.getSource(sourceId)) map.removeSource(sourceId)
-      } catch {
-        // Map may already be destroyed during unmount.
-      }
-    }
-  }, [grid, isLoaded, layerId, liveGrid, map, sourceId, variantKey])
-
-  return null
+  return (
+    <Suspense fallback={null}>
+      <WalkabilityDeckHeatmapLayer
+        rows={rows}
+        cols={cols}
+        imageCoordinates={imageCoordinates}
+        rle={rle}
+        layerKey={liveGrid ? walkability.heatmapOptionKey : (variantKey ?? 'walkability-grid')}
+      />
+    </Suspense>
+  )
 }
 
 export function WalkabilityLegend({ walkability }: { walkability: WalkabilityState }) {
@@ -1131,11 +1085,6 @@ export function WalkabilityLegend({ walkability }: { walkability: WalkabilitySta
     ]
     return (
       <div className="w-full space-y-2 text-xs text-muted-foreground md:w-64">
-        <div className="break-words font-medium leading-4 text-foreground">
-          {walkability.liveHeatmap.status === 'ready'
-            ? 'Live recalculated grid'
-            : (walkability.selectedHeatmapVariant?.label ?? 'Citywide MI grid')}
-        </div>
         <MapSteppedLegend bands={bands} />
       </div>
     )

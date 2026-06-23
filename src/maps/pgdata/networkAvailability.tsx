@@ -40,7 +40,22 @@ export interface NetworkAvailabilityManifest {
   carrierFindings: NetworkAvailabilityCarrierFinding[]
 }
 
-export type NetworkAvailabilityFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+export type NetworkAvailabilityProperties = {
+  id?: string | number
+  OBJECTID?: string | number
+  Year?: string | number
+  Speed?: string
+}
+
+export type NetworkAvailabilityFeature = GeoJSON.Feature<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  NetworkAvailabilityProperties
+>
+
+export type NetworkAvailabilityFeatureCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  NetworkAvailabilityProperties
+>
 
 const NRCAN_WIRELESS_GEOJSON_URL =
   'https://maps-cartes.services.geo.ca/server_serveur/rest/services/NRCan/Wireless_Data_Network_Reseau_donnees_sans_fil/MapServer/0/query?where=1%3D1&outFields=OBJECTID%2CYear%2CSpeed&returnGeometry=true&outSR=4326&geometryPrecision=5&maxAllowableOffset=0.01&f=geojson'

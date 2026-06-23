@@ -34,8 +34,6 @@ export interface EvChargingManifest {
   resources: EvChargingResource[]
 }
 
-export type EvChargingFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point>
-
 export type EvChargingFeature = GeoJSON.Feature<
   GeoJSON.Point,
   {
@@ -51,9 +49,107 @@ export type EvChargingFeature = GeoJSON.Feature<
   }
 >
 
+export type EvChargingFeatureCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Point,
+  EvChargingFeature['properties']
+>
+
+export interface EvChargingSummaryStats {
+  stationCount: number
+  stationSharePercent: number
+  level2Ports: number
+  dcFastPorts: number
+  totalPorts: number
+  level2StationCount: number
+  dcFastStationCount: number
+  dcFastPortPercent: number
+  densityPer1000Km2: number | null
+  areaKm2: number | null
+  topNetwork: string
+  topNetworkCount: number
+}
+
+export interface EvChargingBoundarySummary extends EvChargingSummaryStats {
+  boundaryId: string
+  boundaryName: string
+}
+
+function formatPercent(value: number): string {
+  if (!Number.isFinite(value)) return '0%'
+  return `${value.toLocaleString(undefined, { maximumFractionDigits: value < 10 ? 1 : 0 })}%`
+}
+
+function formatDensity(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return 'n/a'
+  return value.toLocaleString(undefined, { maximumFractionDigits: value < 10 ? 1 : 0 })
+}
+
+function EvSummaryCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-border bg-card p-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-sm font-semibold text-foreground">{value}</div>
+    </div>
+  )
+}
+
+function EvSummarySection({
+  title,
+  stats,
+  onClear,
+}: {
+  title: string
+  stats: EvChargingSummaryStats | EvChargingBoundarySummary
+  onClear?: () => void
+}) {
+  const subtitle =
+    'boundaryName' in stats
+      ? stats.boundaryName
+      : `${stats.stationCount.toLocaleString()} stations in the current map scope`
+
+  return (
+    <section className="rounded border border-border bg-muted/30 p-3">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
+        </div>
+        {onClear && (
+          <button
+            type="button"
+            className="shrink-0 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            onClick={onClear}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <EvSummaryCard label="Stations" value={stats.stationCount.toLocaleString()} />
+        <EvSummaryCard label="Ports" value={stats.totalPorts.toLocaleString()} />
+        <EvSummaryCard label="DC fast mix" value={formatPercent(stats.dcFastPortPercent)} />
+        <EvSummaryCard label="Stations / 1K km²" value={formatDensity(stats.densityPer1000Km2)} />
+      </div>
+      <div className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+        <span className="text-muted-foreground">Level 2 ports</span>
+        <span className="text-right font-medium text-foreground">{stats.level2Ports.toLocaleString()}</span>
+        <span className="text-muted-foreground">DC fast ports</span>
+        <span className="text-right font-medium text-foreground">{stats.dcFastPorts.toLocaleString()}</span>
+        <span className="text-muted-foreground">Station share</span>
+        <span className="text-right font-medium text-foreground">{formatPercent(stats.stationSharePercent)}</span>
+        <span className="text-muted-foreground">Top network</span>
+        <span className="truncate text-right font-medium text-foreground">
+          {stats.topNetworkCount > 0 ? `${stats.topNetwork} (${stats.topNetworkCount.toLocaleString()})` : 'n/a'}
+        </span>
+      </div>
+    </section>
+  )
+}
+
 export function EvChargingSidebar({
   manifest,
-  stationCount,
+  summaryStats,
+  selectedBoundary,
   boundariesVisible,
   boundarySource,
   selectedRegionLevel,
@@ -62,10 +158,12 @@ export function EvChargingSidebar({
   boundaryError,
   onBoundarySourceChange,
   onClearBoundaries,
+  onClearSelectedBoundary,
   onRegionLevelChange,
 }: {
   manifest: ReturnType<typeof useJsonManifest<EvChargingManifest>>
-  stationCount: number
+  summaryStats: EvChargingSummaryStats
+  selectedBoundary: EvChargingBoundarySummary | null
   boundariesVisible: boolean
   boundarySource: BoundarySource
   selectedRegionLevel: RegionLevel
@@ -74,6 +172,7 @@ export function EvChargingSidebar({
   boundaryError: string | null
   onBoundarySourceChange: (source: BoundarySource) => void
   onClearBoundaries: () => void
+  onClearSelectedBoundary: () => void
   onRegionLevelChange: (level: RegionLevel) => void
 }) {
   const resources = manifest.data?.resources ?? []
@@ -84,11 +183,10 @@ export function EvChargingSidebar({
         <div className="text-sm text-muted-foreground">Loading EV charging manifest...</div>
       )}
       {manifest.error && <div className="text-sm text-red-500">{manifest.error}</div>}
-      <section className="rounded border border-border bg-muted/30 p-3">
-        <div className="text-xs text-muted-foreground">
-          {stationCount.toLocaleString()} stations in current study area.
-        </div>
-      </section>
+      <EvSummarySection title="Current scope" stats={summaryStats} />
+      {selectedBoundary && (
+        <EvSummarySection title="Selected region" stats={selectedBoundary} onClear={onClearSelectedBoundary} />
+      )}
       <StudyAreaSelector<BoundarySource, RegionLevel>
         source={boundariesVisible ? boundarySource : undefined}
         sourceOptions={ALL_BOUNDARY_SOURCE_OPTIONS}
@@ -103,12 +201,6 @@ export function EvChargingSidebar({
         <section className="rounded border border-border bg-card p-3 text-xs">
           {boundaryLoading && <p className="text-muted-foreground">Loading boundaries...</p>}
           {boundaryError && <p className="text-red-600 dark:text-red-400">{boundaryError}</p>}
-        </section>
-      )}
-      {manifest.data?.recommendedUse && (
-        <section className="rounded border border-border bg-muted/30 p-3">
-          <h2 className="mb-1 text-sm font-semibold text-foreground">Recommended Use</h2>
-          <p className="text-xs leading-relaxed text-muted-foreground">{manifest.data.recommendedUse}</p>
         </section>
       )}
       {manifest.data?.counts && (
