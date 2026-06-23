@@ -3,7 +3,7 @@ import { isFemMonitor } from '@/maps/airquality/lib/monitorPopup'
 
 export type AqMonitorGroup = 'agency' | 'lcm' | 'other'
 export type AqNetworkSlug = 'agency' | 'purpleair' | 'aqegg' | 'other'
-export type AqBasemap = 'light' | 'dark'
+export type AqBasemap = 'light' | 'topographic' | 'dark'
 
 /** Observation-data networks shown (and individually toggleable) on the simplified /dev/aqmap/main page. */
 export const AQ_OBSERVATION_NETWORKS = ['agency', 'purpleair', 'aqegg'] as const

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { MapImageLegend, MapLegendPanel, MapLegendSection, MapSteppedLegend } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { AQHI_LEVELS, AQHI_NO_DATA_COLOR } from '../lib/aqhiScale'
@@ -8,32 +9,15 @@ import {
   translate,
   type AqmapLocale,
 } from '../lib/i18n'
-import { FIRE_DANGER_FILL_COLORS } from '../lib/aqMapConstants'
+import { FIRE_DANGER_LEGEND_BANDS } from '../lib/fireDangerGrid'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
+import { WIND_BARB_ICON_DEFINITIONS } from '../lib/windBarbIcons'
 import { WMS_LAYERS, type WmsLayerDefinition, type WmsLayerKey } from '../lib/wmsLayers'
 import { WIND_LEGEND_COLORS } from './WindCanvasLayer'
 
-const FIRE_DANGER_LEGEND_BANDS = [
-  { label: 'Low', color: FIRE_DANGER_FILL_COLORS[0] },
-  { label: 'Moderate', color: FIRE_DANGER_FILL_COLORS[1] },
-  { label: 'High', color: FIRE_DANGER_FILL_COLORS[2] },
-  { label: 'Very high', color: FIRE_DANGER_FILL_COLORS[3] },
-  { label: 'Extreme', color: FIRE_DANGER_FILL_COLORS[4] },
-] as const
+export type FireDangerLegendVariant = 'compact' | 'full' | 'tilted' | 'rows'
 
-const MODELLED_PM25_LEGEND_STOPS = [
-  { value: 0, color: '#21c5f4' },
-  { value: 10, color: '#1899c9' },
-  { value: 20, color: '#0d6796' },
-  { value: 30, color: '#fefc37' },
-  { value: 40, color: '#fecb2e' },
-  { value: 50, color: '#fd993f' },
-  { value: 60, color: '#fc6769' },
-  { value: 70, color: '#fe3b3b' },
-  { value: 80, color: '#fe0101' },
-  { value: 90, color: '#ca0713' },
-  { value: 100, color: '#650205' },
-] as const
+export const DEFAULT_FIRE_DANGER_LEGEND_VARIANT: FireDangerLegendVariant = 'compact'
 
 export function AqMonitorLegend({
   visibleWmsLayers,
@@ -41,6 +25,7 @@ export function AqMonitorLegend({
   smokeLayers,
   windVisible,
   vectorWindBarbsVisible,
+  fireDangerLegendVariant = DEFAULT_FIRE_DANGER_LEGEND_VARIANT,
   locale,
 }: {
   visibleWmsLayers: Set<WmsLayerKey>
@@ -48,9 +33,15 @@ export function AqMonitorLegend({
   smokeLayers: SmokeLayerDefinition[]
   windVisible: boolean
   vectorWindBarbsVisible: boolean
+  fireDangerLegendVariant?: FireDangerLegendVariant
   locale: AqmapLocale
 }) {
-  const visibleWms = WMS_LAYERS.filter((layer) => layer.key !== 'forecastZones' && visibleWmsLayers.has(layer.key) && (layer.legendUrl || layer.key === 'activeFires'))
+  const visibleWms = WMS_LAYERS.filter((layer) =>
+    layer.key !== 'forecastZones'
+    && layer.key !== 'modelledPm25'
+    && visibleWmsLayers.has(layer.key)
+    && (layer.legendUrl || layer.key === 'activeFires')
+  )
   const visibleSmoke = smokeLayers.filter((layer) => visibleSmokeLayers.has(layer.key))
   return (
     <MapLegendPanel
@@ -61,19 +52,7 @@ export function AqMonitorLegend({
       contentClassName="max-h-[calc(min(22rem,calc(100vh-8rem))-3rem)] space-y-3 overflow-y-auto pr-1"
     >
       <MapLegendSection>
-        <div className="space-y-2">
-          <div className="text-[10px] text-muted-foreground">
-            AQHI+ · PM2.5 {translate('aqhi.unit', locale)}
-          </div>
-          <MapSteppedLegend
-            variant="strip"
-            bands={AQHI_LEVELS.map((level) => ({
-              label: level.level === '+' ? '100+' : String(level.min),
-              color: level.color,
-            }))}
-            labels={['0', '30', '60', '100+']}
-          />
-        </div>
+        <Pm25AqhiLegend locale={locale} />
       </MapLegendSection>
 
       <MapLegendSection title={translate('sidebar.iconLegend', locale)} className="border-t border-border pt-3">
@@ -97,7 +76,12 @@ export function AqMonitorLegend({
 
       {visibleWms.map((layer) => (
         <MapLegendSection key={layer.key} title={localizeWmsLabel(layer.key, locale)} className="border-t border-border pt-3">
-          <WmsLegendContent layer={layer} label={localizeWmsLabel(layer.key, locale)} locale={locale} />
+          <WmsLegendContent
+            layer={layer}
+            label={localizeWmsLabel(layer.key, locale)}
+            fireDangerLegendVariant={fireDangerLegendVariant}
+            locale={locale}
+          />
         </MapLegendSection>
       ))}
 
@@ -146,11 +130,13 @@ export function WmsLegend({
   label,
   locale,
   className,
+  fireDangerLegendVariant = DEFAULT_FIRE_DANGER_LEGEND_VARIANT,
 }: {
   layer: WmsLayerDefinition
   label: string
   locale: AqmapLocale
   className?: string
+  fireDangerLegendVariant?: FireDangerLegendVariant
 }) {
   if (layer.key === 'activeFires') {
     return <ActiveFiresLegend label={label} locale={locale} className={className} />
@@ -160,7 +146,7 @@ export function WmsLegend({
     return (
       <div className={cn('rounded-md border border-border bg-secondary/30 p-3 text-xs', className)}>
         <div className="mb-2 font-medium text-foreground">{label}</div>
-        <StructuredWmsLegendContent layer={layer} />
+        <StructuredWmsLegendContent layer={layer} fireDangerLegendVariant={fireDangerLegendVariant} locale={locale} />
       </div>
     )
   }
@@ -187,10 +173,12 @@ export function WmsLegend({
 function WmsLegendContent({
   layer,
   label,
+  fireDangerLegendVariant = DEFAULT_FIRE_DANGER_LEGEND_VARIANT,
   locale,
 }: {
   layer: WmsLayerDefinition
   label: string
+  fireDangerLegendVariant?: FireDangerLegendVariant
   locale: AqmapLocale
 }) {
   if (layer.key === 'activeFires') {
@@ -198,7 +186,7 @@ function WmsLegendContent({
   }
 
   if (layer.legendRenderer === 'structured') {
-    return <StructuredWmsLegendContent layer={layer} />
+    return <StructuredWmsLegendContent layer={layer} fireDangerLegendVariant={fireDangerLegendVariant} locale={locale} />
   }
 
   if (layer.legendUrl) {
@@ -208,12 +196,32 @@ function WmsLegendContent({
   return <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
 }
 
-function StructuredWmsLegendContent({ layer }: { layer: WmsLayerDefinition }) {
+function StructuredWmsLegendContent({
+  layer,
+  fireDangerLegendVariant = DEFAULT_FIRE_DANGER_LEGEND_VARIANT,
+  locale,
+}: {
+  layer: WmsLayerDefinition
+  fireDangerLegendVariant?: FireDangerLegendVariant
+  locale: AqmapLocale
+}) {
   if (layer.key === 'modelledPm25') {
-    return <ModelledPm25GradientLegend />
+    return <Pm25AqhiLegend locale={locale} />
   }
 
   if (layer.key === 'fireDanger') {
+    return <FireDangerLegendContent variant={fireDangerLegendVariant} />
+  }
+
+  if (layer.legendUrl) {
+    return <img src={layer.legendUrl} alt={`${layer.label} legend`} className="max-w-full rounded bg-white object-contain" style={{ maxHeight: 96 }} />
+  }
+
+  return <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
+}
+
+function FireDangerLegendContent({ variant = 'compact' }: { variant?: FireDangerLegendVariant }) {
+  if (variant === 'rows') {
     return (
       <div className="space-y-1.5">
         {FIRE_DANGER_LEGEND_BANDS.map((band) => (
@@ -230,28 +238,127 @@ function StructuredWmsLegendContent({ layer }: { layer: WmsLayerDefinition }) {
     )
   }
 
-  if (layer.legendUrl) {
-    return <img src={layer.legendUrl} alt={`${layer.label} legend`} className="max-w-full rounded bg-white object-contain" style={{ maxHeight: 96 }} />
+  if (variant === 'full') {
+    return (
+      <MapSteppedLegend
+        variant="strip"
+        bands={FIRE_DANGER_LEGEND_BANDS}
+        labels={FIRE_DANGER_LEGEND_BANDS.map((band) => band.label)}
+      />
+    )
   }
 
-  return <div className="h-8 rounded bg-gradient-to-r from-emerald-400 via-amber-300 to-red-600" />
+  if (variant === 'tilted') {
+    return <FireDangerTiltedStripLegend />
+  }
+
+  return <FireDangerCompactStripLegend />
 }
 
-function ModelledPm25GradientLegend() {
-  const gradient = `linear-gradient(to right, ${MODELLED_PM25_LEGEND_STOPS.map((stop) => stop.color).join(', ')})`
+function FireDangerCompactStripLegend() {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const activeIndex = hoveredIndex ?? selectedIndex
+  const activeBand = activeIndex === null ? null : FIRE_DANGER_LEGEND_BANDS[activeIndex]
+
   return (
-    <div className="space-y-1.5">
-      <div className="h-3 rounded border border-black/10" style={{ backgroundImage: gradient }} />
-      <div className="flex justify-between text-[10px] text-muted-foreground">
-        <span>0</span>
-        <span>25</span>
-        <span>50</span>
-        <span>75</span>
-        <span>100+</span>
+    <div className="space-y-1">
+      <div
+        className="grid overflow-hidden rounded-sm border border-border"
+        style={{ gridTemplateColumns: `repeat(${FIRE_DANGER_LEGEND_BANDS.length}, minmax(0, 1fr))` }}
+      >
+        {FIRE_DANGER_LEGEND_BANDS.map((band, index) => (
+          <button
+            key={band.label}
+            type="button"
+            title={`Fire Danger: ${band.label}`}
+            aria-label={`Fire Danger: ${band.label}`}
+            aria-pressed={selectedIndex === index}
+            className="block h-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+            style={{ backgroundColor: band.color }}
+            onMouseEnter={() => setHoveredIndex(index)}
+            onMouseLeave={() => setHoveredIndex(null)}
+            onFocus={() => setHoveredIndex(index)}
+            onBlur={() => setHoveredIndex(null)}
+            onClick={() => setSelectedIndex((current) => (current === index ? null : index))}
+          />
+        ))}
       </div>
+      <div className="grid grid-cols-3 gap-1 text-[9px] text-muted-foreground sm:text-[10px]">
+        <span>Low</span>
+        <span className="text-center">High</span>
+        <span className="text-right">Extreme</span>
+      </div>
+      <div className="min-h-4 text-[10px] font-medium text-foreground" aria-live="polite">
+        {activeBand ? `Fire Danger: ${activeBand.label}` : null}
+      </div>
+    </div>
+  )
+}
+
+function FireDangerTiltedStripLegend() {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const activeIndex = hoveredIndex ?? selectedIndex
+  const activeBand = activeIndex === null ? null : FIRE_DANGER_LEGEND_BANDS[activeIndex]
+
+  return (
+    <div className="space-y-1">
+      <div
+        className="grid overflow-hidden rounded-sm border border-border"
+        style={{ gridTemplateColumns: `repeat(${FIRE_DANGER_LEGEND_BANDS.length}, minmax(0, 1fr))` }}
+      >
+        {FIRE_DANGER_LEGEND_BANDS.map((band, index) => (
+          <button
+            key={band.label}
+            type="button"
+            title={`Fire Danger: ${band.label}`}
+            aria-label={`Fire Danger: ${band.label}`}
+            aria-pressed={selectedIndex === index}
+            className="block h-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+            style={{ backgroundColor: band.color }}
+            onMouseEnter={() => setHoveredIndex(index)}
+            onMouseLeave={() => setHoveredIndex(null)}
+            onFocus={() => setHoveredIndex(index)}
+            onBlur={() => setHoveredIndex(null)}
+            onClick={() => setSelectedIndex((current) => (current === index ? null : index))}
+          />
+        ))}
+      </div>
+      <div className="relative mt-1 min-h-14 overflow-visible text-[9px] leading-none text-muted-foreground sm:text-[10px]">
+        {FIRE_DANGER_LEGEND_BANDS.map((band, index) => (
+          <span
+            key={band.label}
+            className="absolute top-0"
+            style={{ left: `${((index + 0.5) / FIRE_DANGER_LEGEND_BANDS.length) * 100}%` }}
+          >
+            <span className="block -translate-x-full origin-top-right -rotate-45 whitespace-nowrap text-right">
+              {band.label}
+            </span>
+          </span>
+        ))}
+      </div>
+      <div className="min-h-4 text-[10px] font-medium text-foreground" aria-live="polite">
+        {activeBand ? `Fire Danger: ${activeBand.label}` : null}
+      </div>
+    </div>
+  )
+}
+
+function Pm25AqhiLegend({ locale }: { locale: AqmapLocale }) {
+  return (
+    <div className="space-y-2">
       <div className="text-[10px] text-muted-foreground">
-        PM2.5 µg m<sup>-3</sup>
+        AQHI+ · PM2.5 {translate('aqhi.unit', locale)}
       </div>
+      <MapSteppedLegend
+        variant="strip"
+        bands={AQHI_LEVELS.map((level) => ({
+          label: level.level === '+' ? '100+' : String(level.min),
+          color: level.color,
+        }))}
+        labels={['0', '30', '60', '100+']}
+      />
     </div>
   )
 }
@@ -272,37 +379,18 @@ function WindLegendContent({ locale }: { locale: AqmapLocale }) {
 }
 
 function VectorWindBarbLegendContent({ locale }: { locale: AqmapLocale }) {
-  const items = [
-    { speed: 5, label: translate('windBarbs.legend.5kt', locale) },
-    { speed: 10, label: translate('windBarbs.legend.10kt', locale) },
-    { speed: 50, label: translate('windBarbs.legend.50kt', locale) },
-  ] as const
-
   return (
     <div className="space-y-1.5">
-      {items.map((item) => (
-        <div key={item.speed} className="flex items-center gap-2 text-xs text-muted-foreground">
-          <WindBarbLegendIcon speed={item.speed} />
-          <span>{item.label}</span>
+      {WIND_BARB_ICON_DEFINITIONS.map((item) => (
+        <div key={item.key} className="flex items-center gap-2 text-xs text-muted-foreground">
+          <img src={item.src} alt="" className="h-5 w-10 shrink-0 object-contain" aria-hidden="true" />
+          <span>{translate(item.labelKey, locale)}</span>
         </div>
       ))}
       <div className="text-[10px] leading-3 text-muted-foreground">
         {translate('windBarbs.legend.note', locale)}
       </div>
     </div>
-  )
-}
-
-function WindBarbLegendIcon({ speed }: { speed: 5 | 10 | 50 }) {
-  return (
-    <svg className="h-6 w-12 shrink-0" viewBox="0 0 48 24" aria-hidden="true">
-      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
-        <path d="M8 18 36 6" />
-        {speed === 5 && <path d="M34 7 38 14" />}
-        {speed === 10 && <path d="M34 7 40 17" />}
-        {speed === 50 && <path d="M34 7 42 11 38 16" fill="currentColor" stroke="none" />}
-      </g>
-    </svg>
   )
 }
 

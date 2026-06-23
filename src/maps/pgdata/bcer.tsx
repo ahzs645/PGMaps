@@ -346,11 +346,6 @@ export function BcerSidebar({ bcer }: { bcer: BcerState }) {
           </div>
         </div>
       )}
-      <div className="rounded-md border border-border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-        Surface coordinates and production summaries from the British Columbia Energy Regulator, assembled by George
-        Macauley and served as static gzipped JSON. Gas production values are 3-year and 5-year totals as published in
-        the BCER workbook export.
-      </div>
     </div>
   )
 }
@@ -513,6 +508,7 @@ export function BcerSourceNotes({ bcer }: { bcer: BcerState }) {
         {bcer.dashboard ? ` of ${bcer.dashboard.totalWells.toLocaleString()} total` : ''}.
       </p>
       <p>Served as statically exported gzipped JSON and decompressed in the browser.</p>
+      <p>Gas production values are 3-year and 5-year totals as published in the BCER workbook export.</p>
     </>
   )
 }

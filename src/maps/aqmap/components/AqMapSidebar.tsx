@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
-import { Download, Globe, Layers, MapPin, RadioTower, RefreshCw, Waves, Wind } from 'lucide-react'
+import { Bug, Download, Globe, Layers, MapPin, RadioTower, RefreshCw, Waves, Wind } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import type { AirMonitor } from '@/maps/airquality'
+import type { AqMapDebugInfo } from '../AqMapSection'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
 import {
@@ -21,7 +22,7 @@ import type { ExportFormat } from '../lib/exportMap'
 import { EXPORT_OPTIONS } from '../lib/aqMapConstants'
 import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
 import { RevealClusterControls, SegmentedControl, ToggleButton } from './AqMapControls'
-import { WmsLegend } from './AqMapLegends'
+import { WmsLegend, type FireDangerLegendVariant } from './AqMapLegends'
 
 export function AqMapSidebar({
   monitors,
@@ -48,6 +49,8 @@ export function AqMapSidebar({
   onActiveFiresModeChange,
   fireDangerMode,
   onFireDangerModeChange,
+  fireDangerLegendVariant,
+  onFireDangerLegendVariantChange,
   firePerimetersMode,
   onFirePerimetersModeChange,
   forecastZonesMode,
@@ -58,6 +61,9 @@ export function AqMapSidebar({
   onToggleWind,
   vectorWindBarbsVisible,
   onToggleVectorWindBarbs,
+  debugVisible,
+  onDebugVisibleChange,
+  debugInfo,
   locale,
   onLocaleChange,
   onExport,
@@ -88,6 +94,8 @@ export function AqMapSidebar({
   onActiveFiresModeChange: (mode: ActiveFiresRenderMode) => void
   fireDangerMode: FireDangerRenderMode
   onFireDangerModeChange: (mode: FireDangerRenderMode) => void
+  fireDangerLegendVariant: FireDangerLegendVariant
+  onFireDangerLegendVariantChange: (variant: FireDangerLegendVariant) => void
   firePerimetersMode: FirePerimetersRenderMode
   onFirePerimetersModeChange: (mode: FirePerimetersRenderMode) => void
   forecastZonesMode: ForecastZonesRenderMode
@@ -98,6 +106,9 @@ export function AqMapSidebar({
   onToggleWind: () => void
   vectorWindBarbsVisible: boolean
   onToggleVectorWindBarbs: () => void
+  debugVisible: boolean
+  onDebugVisibleChange: (visible: boolean) => void
+  debugInfo: AqMapDebugInfo
   locale: AqmapLocale
   onLocaleChange: (locale: AqmapLocale) => void
   onExport: (format: ExportFormat) => void
@@ -182,6 +193,36 @@ export function AqMapSidebar({
 
         <section>
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Bug className="size-3.5" />
+            {translate('sidebar.debug', locale)}
+          </div>
+          <ToggleButton active={debugVisible} onClick={() => onDebugVisibleChange(!debugVisible)}>
+            <span>{translate('debug.showMapState', locale)}</span>
+            <span className="text-xs font-medium">{debugVisible ? translate('debug.on', locale) : translate('debug.off', locale)}</span>
+          </ToggleButton>
+          {debugVisible && (
+            <div className="mt-2 space-y-2 rounded-md border border-border bg-secondary/30 p-3 text-xs">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                <DebugValue label={translate('debug.zoom', locale)} value={debugInfo.zoom.toFixed(2)} />
+                <DebugValue label={translate('debug.layers', locale)} value={String(debugInfo.mapLayerCount)} />
+                <DebugValue label={translate('debug.lng', locale)} value={debugInfo.center[0].toFixed(4)} />
+                <DebugValue label={translate('debug.sources', locale)} value={String(debugInfo.mapSourceCount)} />
+                <DebugValue label={translate('debug.lat', locale)} value={debugInfo.center[1].toFixed(4)} />
+                <DebugValue label={translate('debug.selected', locale)} value={debugInfo.selectedFeature} />
+              </div>
+              <DebugList label={translate('debug.renderModes', locale)} values={Object.entries(debugInfo.renderModes).map(([key, value]) => `${key}:${value}`)} />
+              <DebugList label={translate('debug.wms', locale)} values={debugInfo.visibleWmsLayers} />
+              <DebugList label={translate('debug.smoke', locale)} values={debugInfo.visibleSmokeLayers} />
+              <DebugList
+                label={translate('debug.deck', locale)}
+                values={[...debugInfo.deckTileKeys, ...(debugInfo.fireDangerDeck ? ['fireDanger:deckgl'] : [])]}
+              />
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <MapPin className="size-3.5" />
             {translate('sidebar.monitorLayers', locale)}
           </div>
@@ -246,7 +287,12 @@ export function AqMapSidebar({
                 const label = localizeWmsLabel(layer.key, locale)
                 return (
                   <div key={layer.key}>
-                    <WmsLegend layer={layer} label={label} locale={locale} />
+                    <WmsLegend
+                      layer={layer}
+                      label={label}
+                      locale={locale}
+                      fireDangerLegendVariant={fireDangerLegendVariant}
+                    />
                   </div>
                 )
               })}
@@ -311,14 +357,31 @@ export function AqMapSidebar({
                     </span>
                   </ToggleButton>
                   {layer.key === 'fireDanger' && visibleWmsLayers.has('fireDanger') && (
-                    <SegmentedControl
-                      value={fireDangerMode}
-                      onChange={onFireDangerModeChange}
-                      options={[
-                        { value: 'raster', label: translate('overlay.raster', locale) },
-                        { value: 'vector', label: translate('overlay.vector', locale) },
-                      ]}
-                    />
+                    <div className="space-y-2">
+                      <SegmentedControl
+                        value={fireDangerMode}
+                        onChange={onFireDangerModeChange}
+                        options={[
+                          { value: 'raster', label: translate('overlay.raster', locale) },
+                          { value: 'vector', label: translate('overlay.vector', locale) },
+                        ]}
+                      />
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Legend
+                        </div>
+                        <SegmentedControl
+                          value={fireDangerLegendVariant}
+                          onChange={onFireDangerLegendVariantChange}
+                          options={[
+                            { value: 'compact', label: '3 labels' },
+                            { value: 'full', label: 'All' },
+                            { value: 'tilted', label: 'Tilt' },
+                            { value: 'rows', label: 'Rows' },
+                          ]}
+                        />
+                      </div>
+                    </div>
                   )}
                   {layer.key === 'activeFires' && visibleWmsLayers.has('activeFires') && (
                     <SegmentedControl
@@ -406,5 +469,24 @@ export function AqMapSidebar({
 
       </div>
     </aside>
+  )
+}
+
+function DebugValue({ label, value }: { label: string; value: string }) {
+  return (
+    <>
+      <div className="text-muted-foreground">{label}</div>
+      <div className="truncate text-right font-medium text-foreground" title={value}>{value}</div>
+    </>
+  )
+}
+
+function DebugList({ label, values }: { label: string; values: string[] }) {
+  const text = values.length > 0 ? values.join(', ') : 'none'
+  return (
+    <div>
+      <div className="mb-0.5 text-muted-foreground">{label}</div>
+      <div className="break-words font-medium text-foreground">{text}</div>
+    </div>
   )
 }

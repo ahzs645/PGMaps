@@ -46,6 +46,11 @@ const SMOKE_IDS: Record<SmokeLayerKey, string> = SMOKE_LAYERS.reduce((acc, layer
 const BASEMAP_IDS: Record<AqBasemap, string> = {
   light: 'B1',
   dark: 'B2',
+  topographic: 'B3',
+}
+
+function parseBasemap(value: string | null): AqBasemap {
+  return value === 'dark' || value === 'topographic' ? value : 'light'
 }
 
 function parseNumber(value: string | null, fallback: number): number {
@@ -99,7 +104,7 @@ export function serializeSet<T extends string>(set: Set<T>): string {
 
 function parseQueryState(searchParams: URLSearchParams): AqUrlState {
   return {
-    basemap: searchParams.get('basemap') === 'dark' ? 'dark' : 'light',
+    basemap: parseBasemap(searchParams.get('basemap')),
     visibleGroups: parseGroups(searchParams.get('groups')),
     visibleWmsLayers: parseWmsLayers(searchParams.get('wms')),
     visibleSmokeLayers: parseSmokeLayers(searchParams.get('smoke')),
@@ -146,7 +151,12 @@ export function parseAqmapHash(hash: string, searchParams: URLSearchParams): AqU
   )
 
   return {
-    basemap: basePart === BASEMAP_IDS.dark ? 'dark' : 'light',
+    basemap:
+      basePart === BASEMAP_IDS.dark
+        ? 'dark'
+        : basePart === BASEMAP_IDS.topographic
+          ? 'topographic'
+          : 'light',
     visibleGroups: visibleGroups.size > 0 ? visibleGroups : fallback.visibleGroups,
     visibleWmsLayers,
     visibleSmokeLayers,

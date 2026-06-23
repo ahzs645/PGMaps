@@ -89,6 +89,10 @@ export const BASEMAP_STYLES: Record<AqBasemap, { light: string; dark: string }> 
     light: MAP_STYLES.light,
     dark: MAP_STYLES.light,
   },
+  topographic: {
+    light: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+    dark: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+  },
   dark: {
     light: MAP_STYLES.dark,
     dark: MAP_STYLES.dark,

@@ -1,25 +1,33 @@
 import { useMemo } from 'react'
+import type MapLibreGL from 'maplibre-gl'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY } from '@/components/ui/mobile-feature-card'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { WATER_POINT_CATEGORIES, WATER_POINT_COLORS } from './constants'
+import { WATER_HAZARD_DOT_COLORS, WATER_POINT_COLORS } from './constants'
 import { getWaterPointCategory, hexToRgba } from './utils'
 import { MobileWaterFacilityFeatureCard, WaterFacilityPopupCard } from './WaterFacilityCards'
-import type { WaterFacilityFeatureProperties } from './types'
+import type { WaterFacilityFeatureProperties, WaterPointCategory } from './types'
 import type { WaterState } from './useWaterData'
+
+function getLayerPointCategory(water: WaterState): WaterPointCategory {
+  if (water.layerMode === 'samples') return 'samples'
+  if (water.layerMode === 'notices') return 'notice'
+  return 'facility'
+}
 
 export function WaterLayer({ water }: { water: WaterState }) {
   const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const activePointCategory = getLayerPointCategory(water)
   const pointCollections = useMemo(() => (
-    WATER_POINT_CATEGORIES
+    [activePointCategory]
       .filter((category) => water.visiblePointCategories.includes(category))
       .map((category) => {
         const features = water.facilityPointData.features.filter((feature) => feature.properties.category === category)
         return [category, { type: 'FeatureCollection' as const, features }] as const
       })
       .filter(([, collection]) => collection.features.length > 0)
-  ), [water.facilityPointData, water.visiblePointCategories])
+  ), [activePointCategory, water.facilityPointData, water.visiblePointCategories])
 
   const boundaryFillColor = useMemo(() => ([
     'interpolate',
@@ -75,6 +83,9 @@ export function WaterLayer({ water }: { water: WaterState }) {
       )}
       {water.showPoints && pointCollections.map(([category, collection]) => {
         const color = WATER_POINT_COLORS[category]
+        const pointColor: string | MapLibreGL.ExpressionSpecification = category === 'facility'
+          ? ['coalesce', ['get', 'pointColor'], color]
+          : color
         const clusterColors: [string, string, string] = [
           hexToRgba(color, 0.65),
           hexToRgba(color, 0.8),
@@ -85,7 +96,7 @@ export function WaterLayer({ water }: { water: WaterState }) {
           <MapClusterLayer<WaterFacilityFeatureProperties>
             key={category}
             data={collection}
-            pointColor={color}
+            pointColor={pointColor}
             clusterColors={clusterColors}
             clusterThresholds={[40, 150]}
             onPointClick={(feature) => {
@@ -105,7 +116,11 @@ export function WaterLayer({ water }: { water: WaterState }) {
             <MarkerContent>
               <div
                 className="h-5 w-5 rounded-full border-2 border-white shadow-lg ring-2 ring-sky-500 ring-offset-2"
-                style={{ backgroundColor: WATER_POINT_COLORS[getWaterPointCategory(water.selectedFacility, water.layerMode)] }}
+                style={{
+                  backgroundColor: water.layerMode === 'facilities'
+                    ? WATER_HAZARD_DOT_COLORS[water.selectedFacility.hazardRating || 'Unknown'] ?? WATER_HAZARD_DOT_COLORS.Unknown
+                    : WATER_POINT_COLORS[getWaterPointCategory(water.layerMode)],
+                }}
               />
             </MarkerContent>
           </MapMarker>

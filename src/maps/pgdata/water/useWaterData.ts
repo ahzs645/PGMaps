@@ -6,8 +6,10 @@ import {
   WATER_BOUNDARY_CONFIG,
   WATER_CENSUS_LEVEL_OPTIONS,
   WATER_HEALTH_LEVEL_OPTIONS,
+  WATER_HAZARD_DOT_COLORS,
   WATER_NR_ADMIN_LEVEL_OPTIONS,
   WATER_POINT_CATEGORIES,
+  WATER_POINT_COLORS,
   WATER_REGIONAL_DISTRICT_LEVEL_OPTIONS,
   WATER_ROOT,
   WATER_WATERSHED_LEVEL_OPTIONS,
@@ -52,7 +54,7 @@ export function useWaterData(active: boolean) {
   const [boundarySource, setBoundarySource] = useState<WaterBoundarySource>('bcHealth')
   const [boundaryLevel, setBoundaryLevel] = useState<WaterBoundaryLevel>('chsa')
   const [showBoundaries, setShowBoundaries] = useState(true)
-  const [boundaryMetric, setBoundaryMetric] = useState<WaterBoundaryMetric>('avgSamplesPerFacility')
+  const [boundaryMetric, setBoundaryMetric] = useState<WaterBoundaryMetric>('facilities')
   const [selectedBoundaryId, setSelectedBoundaryId] = useState<string | null>(null)
   const [layerMode, setLayerMode] = useState<WaterLayerMode>('facilities')
   const [selectedHazardRatings, setSelectedHazardRatings] = useState<string[] | null>(null)
@@ -65,6 +67,7 @@ export function useWaterData(active: boolean) {
   const [selectedFacilityId, setSelectedFacilityIdState] = useState<string | null>(null)
   const [showSelectedFacilityReport, setShowSelectedFacilityReport] = useState(false)
   const setSelectedFacilityId = useCallback((facilityId: string | null) => {
+    if (facilityId) setSelectedBoundaryId(null)
     setSelectedFacilityIdState(facilityId)
     if (!facilityId) setShowSelectedFacilityReport(false)
   }, [])
@@ -481,6 +484,10 @@ export function useWaterData(active: boolean) {
           id: facility.id,
           name: facility.name,
           category,
+          hazardRating: facility.hazardRating || 'Unknown',
+          pointColor: category === 'facility'
+            ? WATER_HAZARD_DOT_COLORS[facility.hazardRating || 'Unknown'] ?? WATER_HAZARD_DOT_COLORS.Unknown
+            : WATER_POINT_COLORS[category],
         },
       }))
     }),

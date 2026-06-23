@@ -5,7 +5,7 @@ import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { cn } from '@/lib/utils'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
-import { AQ_OBSERVATION_NETWORKS, type AqMonitorGroup, type AqNetworkSlug } from '../lib/monitorPresentation'
+import { AQ_OBSERVATION_NETWORKS, type AqBasemap, type AqMonitorGroup, type AqNetworkSlug } from '../lib/monitorPresentation'
 import {
   formatGroupLabel,
   formatLocalizedDate,
@@ -18,6 +18,7 @@ import {
 import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
 import { REVEAL_CLUSTER_BOUNDS, REVEAL_CLUSTER_DEFAULTS } from '../lib/aqMapConstants'
 import { CANADA_CENTER, DEFAULT_ZOOM } from '../lib/urlState'
+import type { FireDangerLegendVariant } from './AqMapLegends'
 
 export function ToggleButton({
   active,
@@ -214,6 +215,8 @@ export function FloatingLayerControl({
   onActiveFiresModeChange,
   fireDangerMode,
   onFireDangerModeChange,
+  fireDangerLegendVariant,
+  onFireDangerLegendVariantChange,
   firePerimetersMode,
   onFirePerimetersModeChange,
   forecastZonesMode,
@@ -247,6 +250,8 @@ export function FloatingLayerControl({
   onActiveFiresModeChange: (mode: ActiveFiresRenderMode) => void
   fireDangerMode: FireDangerRenderMode
   onFireDangerModeChange: (mode: FireDangerRenderMode) => void
+  fireDangerLegendVariant: FireDangerLegendVariant
+  onFireDangerLegendVariantChange: (variant: FireDangerLegendVariant) => void
   firePerimetersMode: FirePerimetersRenderMode
   onFirePerimetersModeChange: (mode: FirePerimetersRenderMode) => void
   forecastZonesMode: ForecastZonesRenderMode
@@ -322,15 +327,30 @@ export function FloatingLayerControl({
               <span>{localizeWmsLabel(layer.key, locale)}</span>
             </label>
             {layer.key === 'fireDanger' && visibleWmsLayers.has('fireDanger') && (
-              <SegmentedControl
-                value={fireDangerMode}
-                onChange={onFireDangerModeChange}
-                options={[
-                  { value: 'raster', label: translate('overlay.raster', locale) },
-                  { value: 'vector', label: translate('overlay.vector', locale) },
-                  { value: 'deckgl', label: translate('overlay.deckgl', locale) },
-                ]}
-              />
+              <div className="space-y-1">
+                <SegmentedControl
+                  value={fireDangerMode}
+                  onChange={onFireDangerModeChange}
+                  options={[
+                    { value: 'raster', label: translate('overlay.raster', locale) },
+                    { value: 'vector', label: translate('overlay.vector', locale) },
+                    { value: 'deckgl', label: translate('overlay.deckgl', locale) },
+                  ]}
+                />
+                <div className="pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Legend
+                </div>
+                <SegmentedControl
+                  value={fireDangerLegendVariant}
+                  onChange={onFireDangerLegendVariantChange}
+                  options={[
+                    { value: 'compact', label: '3 labels' },
+                    { value: 'full', label: 'All' },
+                    { value: 'tilted', label: 'Tilt' },
+                    { value: 'rows', label: 'Rows' },
+                  ]}
+                />
+              </div>
             )}
             {layer.key === 'activeFires' && visibleWmsLayers.has('activeFires') && (
               <SegmentedControl
@@ -391,10 +411,10 @@ export function FloatingLayerControl({
  * raster/vector segmented control (fire and forecast overlays render as vector here).
  */
 export function MainLayerControl({
+  basemap,
+  onBasemapChange,
   visibleNetworks,
   onToggleNetwork,
-  windVisible,
-  onToggleWind,
   visibleWmsLayers,
   onToggleWmsLayer,
   visibleSmokeLayers,
@@ -402,10 +422,10 @@ export function MainLayerControl({
   smokeLayers,
   locale,
 }: {
+  basemap: AqBasemap
+  onBasemapChange: (basemap: AqBasemap) => void
   visibleNetworks: Set<AqNetworkSlug>
   onToggleNetwork: (network: AqNetworkSlug) => void
-  windVisible: boolean
-  onToggleWind: () => void
   visibleWmsLayers: Set<WmsLayerKey>
   onToggleWmsLayer: (layer: WmsLayerKey) => void
   visibleSmokeLayers: Set<SmokeLayerKey>
@@ -413,6 +433,10 @@ export function MainLayerControl({
   smokeLayers: SmokeLayerDefinition[]
   locale: AqmapLocale
 }) {
+  const wmsLayerByKey = new Map(WMS_LAYERS.map((layer) => [layer.key, layer]))
+  const smokeLayerByKey = new Map(smokeLayers.map((layer) => [layer.key, layer]))
+  const sourceLinks = getAqmapSourceLinks()
+
   return (
     <MapFloatingPanel position="top-right" className="group top-[calc(env(safe-area-inset-top)+3.75rem)] md:top-3">
       <button
@@ -424,38 +448,176 @@ export function MainLayerControl({
       >
         <LayersIcon className="size-4" />
       </button>
-      <div className="pointer-events-none absolute right-0 top-0 hidden w-max min-w-40 max-w-[calc(100vw-1.5rem)] rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur group-hover:pointer-events-auto group-hover:block group-focus-within:pointer-events-auto group-focus-within:block">
-        <div className="font-semibold text-foreground">{translate('controls.layers', locale)}</div>
-        <div className="mt-1 max-h-72 space-y-1 overflow-y-auto">
-          <div className="pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {translate('sidebar.observationData', locale)}
+      <div className="pointer-events-none absolute right-0 top-0 hidden w-max min-w-44 max-w-[calc(100vw-1.5rem)] rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur group-hover:pointer-events-auto group-hover:block group-focus-within:pointer-events-auto group-focus-within:block">
+        <div className="max-h-[min(30rem,calc(100vh-6rem))] space-y-3 overflow-y-auto pr-1">
+          <div>
+            <LayerControlHeading>{translate('sidebar.basemap', locale)}</LayerControlHeading>
+            <div className="mt-1 space-y-1">
+              {(['light', 'topographic', 'dark'] as AqBasemap[]).map((option) => (
+                <label key={option} className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+                  <input
+                    type="radio"
+                    name="aqmap-basemap"
+                    checked={basemap === option}
+                    onChange={() => onBasemapChange(option)}
+                  />
+                  <span>{translate(`sidebar.basemap.${option}`, locale)}</span>
+                </label>
+              ))}
+            </div>
           </div>
-          {AQ_OBSERVATION_NETWORKS.map((network) => (
-            <label key={network} className="flex items-center gap-2 text-muted-foreground">
-              <input type="checkbox" checked={visibleNetworks.has(network)} onChange={() => onToggleNetwork(network)} />
-              <span>{formatNetworkLabel(network, locale)}</span>
-            </label>
-          ))}
-          <label className="flex items-center gap-2 text-muted-foreground">
-            <input type="checkbox" checked={windVisible} onChange={onToggleWind} />
-            <span>{translate('sidebar.wind', locale)}</span>
-          </label>
-          {smokeLayers.map((layer) => (
-            <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
-              <input type="checkbox" checked={visibleSmokeLayers.has(layer.key)} onChange={() => onToggleSmokeLayer(layer.key)} />
-              <span>{localizeSmokeLabel(layer.key, locale)}</span>
-            </label>
-          ))}
-          {WMS_LAYERS.map((layer) => (
-            <label key={layer.key} className="flex items-center gap-2 text-muted-foreground">
-              <input type="checkbox" checked={visibleWmsLayers.has(layer.key)} onChange={() => onToggleWmsLayer(layer.key)} />
-              <span>{localizeWmsLabel(layer.key, locale)}</span>
-            </label>
-          ))}
+
+          <div>
+            <LayerControlHeading>{translate('controls.layers', locale)}</LayerControlHeading>
+            <div className="mt-1 space-y-3">
+              <div className="space-y-1">
+                <LayerControlSubheading>{translate('sidebar.observationData', locale)}</LayerControlSubheading>
+                {AQ_OBSERVATION_NETWORKS.map((network) => (
+                  <SourceToggle
+                    key={network}
+                    checked={visibleNetworks.has(network)}
+                    label={formatNetworkLabel(network, locale)}
+                    sourceUrl={sourceLinks[network]}
+                    onChange={() => onToggleNetwork(network)}
+                  />
+                ))}
+                <SourceToggle
+                  checked={visibleWmsLayers.has('forecastZones')}
+                  label={localizeWmsLabel('forecastZones', locale)}
+                  sourceUrl={sourceLinks.forecastZones}
+                  onChange={() => onToggleWmsLayer('forecastZones')}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <LayerControlSubheading>{translate('sidebar.modelEstimates', locale)}</LayerControlSubheading>
+                {wmsLayerByKey.has('surfaceWinds') && (
+                  <SourceToggle
+                    checked={visibleWmsLayers.has('surfaceWinds')}
+                    label={translate('layer.surfaceWind', locale)}
+                    sourceUrl={sourceLinks.surfaceWinds}
+                    onChange={() => onToggleWmsLayer('surfaceWinds')}
+                  />
+                )}
+                {wmsLayerByKey.has('modelledPm25') && (
+                  <SourceToggle
+                    checked={visibleWmsLayers.has('modelledPm25')}
+                    label={translate('layer.surfacePm25', locale)}
+                    sourceUrl={sourceLinks.modelledPm25}
+                    onChange={() => onToggleWmsLayer('modelledPm25')}
+                  />
+                )}
+                {smokeLayerByKey.has('modelledSmoke') && (
+                  <SourceToggle
+                    checked={visibleSmokeLayers.has('modelledSmoke')}
+                    label={translate('layer.surfaceSmoke', locale)}
+                    sourceUrl={sourceLinks.modelledSmoke}
+                    onChange={() => onToggleSmokeLayer('modelledSmoke')}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <LayerControlSubheading>{translate('sidebar.satelliteData', locale)}</LayerControlSubheading>
+                {wmsLayerByKey.has('activeFires') && (
+                  <SourceToggle
+                    checked={visibleWmsLayers.has('activeFires')}
+                    label={localizeWmsLabel('activeFires', locale)}
+                    sourceUrl={sourceLinks.activeFires}
+                    onChange={() => onToggleWmsLayer('activeFires')}
+                  />
+                )}
+                {wmsLayerByKey.has('firePerimeters') && (
+                  <SourceToggle
+                    checked={visibleWmsLayers.has('firePerimeters')}
+                    label={localizeWmsLabel('firePerimeters', locale)}
+                    sourceUrl={sourceLinks.firePerimeters}
+                    onChange={() => onToggleWmsLayer('firePerimeters')}
+                  />
+                )}
+                {wmsLayerByKey.has('fireDanger') && (
+                  <SourceToggle
+                    checked={visibleWmsLayers.has('fireDanger')}
+                    label={localizeWmsLabel('fireDanger', locale)}
+                    sourceUrl={sourceLinks.fireDanger}
+                    onChange={() => onToggleWmsLayer('fireDanger')}
+                  />
+                )}
+                {smokeLayerByKey.has('visibleSmoke') && (
+                  <SourceToggle
+                    checked={visibleSmokeLayers.has('visibleSmoke')}
+                    label={localizeSmokeLabel('visibleSmoke', locale)}
+                    sourceUrl={sourceLinks.visibleSmoke}
+                    onChange={() => onToggleSmokeLayer('visibleSmoke')}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </MapFloatingPanel>
   )
+}
+
+function LayerControlHeading({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
+      {children}
+    </div>
+  )
+}
+
+function LayerControlSubheading({ children }: { children: ReactNode }) {
+  return (
+    <div className="pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      {children}
+    </div>
+  )
+}
+
+function SourceToggle({
+  checked,
+  label,
+  sourceUrl,
+  onChange,
+}: {
+  checked: boolean
+  label: string
+  sourceUrl: string
+  onChange: () => void
+}) {
+  return (
+    <div className="flex items-center gap-2 text-muted-foreground">
+      <input type="checkbox" checked={checked} onChange={onChange} aria-label={label} />
+      <a
+        href={sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="min-w-0 truncate underline-offset-2 hover:text-foreground hover:underline"
+        title={label}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {label}
+      </a>
+    </div>
+  )
+}
+
+function getAqmapSourceLinks() {
+  return {
+    agency: 'https://fire.airnow.gov/',
+    purpleair: 'https://www2.purpleair.com/',
+    aqegg: 'https://airqualityegg.com/',
+    forecastZones: 'https://weather.gc.ca/?layers=alert',
+    surfaceWinds: 'https://open.canada.ca/data/en/dataset/5b401fa0-6c29-57f0-b3d5-749f301d829d',
+    modelledPm25: 'https://weather.gc.ca/firework/index_e.html',
+    modelledSmoke: 'https://eer.cmc.ec.gc.ca/mandats/AutoSim/Fire/',
+    activeFires: 'https://cwfis.cfs.nrcan.gc.ca/datamart/metadata/activefires',
+    firePerimeters: 'https://cwfis.cfs.nrcan.gc.ca/datamart/metadata/fm3buffered',
+    fireDanger: 'https://cwfis.cfs.nrcan.gc.ca/datamart/metadata/fdr',
+    visibleSmoke: 'https://www.ospo.noaa.gov/Products/land/hms.html#maps',
+  } satisfies Record<Exclude<AqNetworkSlug, 'other'> | WmsLayerKey | SmokeLayerKey, string>
 }
 
 export function MapUtilityControls({ onReset, locale }: { onReset: () => void; locale: AqmapLocale }) {

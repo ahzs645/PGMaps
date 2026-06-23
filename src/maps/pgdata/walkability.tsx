@@ -848,29 +848,6 @@ export function WalkabilitySidebar({
             />
           </label>
 
-          {walkability.displayMode === 'heatmap' && (
-            <div className="rounded-lg border border-border bg-background p-2.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-foreground">Live heat-map model</div>
-                  <div className="mt-0.5 truncate text-[10px] leading-4 text-muted-foreground">
-                    {activeWalkabilityPreset(walkability)?.label ??
-                      walkability.selectedHeatmapVariant?.label ??
-                      'Custom source model'}
-                  </div>
-                </div>
-                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                  {WALKABILITY_FACTOR_GROUPS.filter(
-                    (factor) =>
-                      !isFactorDroppedByOptions(factor.ref, walkability.heatmapOptionState) &&
-                      (walkability.heatmapFactorWeights[factor.ref] ?? 1) > 0,
-                  ).length}{' '}
-                  terms
-                </span>
-              </div>
-            </div>
-          )}
-
           {walkability.displayMode === 'community' && (
             <label className="block text-xs font-medium text-foreground">
               Variant
@@ -915,12 +892,12 @@ export function WalkabilitySidebar({
             />
           )}
 
-          <InlineAlert>
-            {walkability.displayMode === 'heatmap'
-              ? 'Citywide binned Mobility Index grid recalculated in a browser Web Worker from projected JSTS source layers. The prebuilt grid remains visible while live scoring runs.'
-              : (walkability.selectedVariant?.description ??
-                'Community walkability is recalculated from web-source layers.')}
-          </InlineAlert>
+          {walkability.displayMode === 'community' && (
+            <InlineAlert>
+              {walkability.selectedVariant?.description ??
+                'Community walkability is recalculated from web-source layers.'}
+            </InlineAlert>
+          )}
           {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'loading' && (
             <div className="text-xs text-muted-foreground">
               {walkability.liveHeatmap.progress || 'Live heat map recalculating'}
@@ -1050,6 +1027,12 @@ export function WalkabilitySourceNotes({ walkability }: { walkability: Walkabili
             : `prebuilt fallback updated ${formatDate(walkability.gridHeatmap.data?.generatedAt)}`}
           .
         </p>
+      )}
+      {walkability.displayMode === 'heatmap' && (
+        <div className="rounded-md border p-2 text-xs leading-5 border-border bg-muted/20 text-muted-foreground">
+          Citywide binned Mobility Index grid recalculated in a browser Web Worker from projected JSTS source layers.
+          The prebuilt grid remains visible while live scoring runs.
+        </div>
       )}
       <p>{walkability.manifest.data?.sourcePolicy ?? 'Web-source-only community scores from public map layers.'}</p>
       {walkability.displayMode === 'heatmap' &&

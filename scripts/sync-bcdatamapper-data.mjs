@@ -1,4 +1,5 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -115,6 +116,24 @@ for (const [sourceRelative, targetRelative] of contentMappings) {
 
 for (const [sourceRelative, targetRelative] of pathMappings) {
   copyPath(sourceRelative, targetRelative)
+}
+
+const staleAqmapExperimentPaths = [
+  'modelled-pm25-example.geojson.gz',
+  'modelled-pm25-example.grid.json.gz',
+  'modelled-pm25-wms-stitch-vector.geojson.gz',
+  'modelled-pm25-vector-tiles',
+]
+for (const stalePath of staleAqmapExperimentPaths) {
+  rmSync(join(target, 'aqmap', stalePath), { recursive: true, force: true })
+}
+
+const pm25RasterArchive = join(target, 'aqmap', 'modelled-pm25-raster-tiles.tar.gz')
+const pm25RasterTiles = join(target, 'aqmap', 'modelled-pm25-raster-tiles')
+if (existsSync(pm25RasterArchive)) {
+  rmSync(pm25RasterTiles, { recursive: true, force: true })
+  mkdirSync(pm25RasterTiles, { recursive: true })
+  execFileSync('tar', ['-xzf', pm25RasterArchive, '-C', pm25RasterTiles], { stdio: 'inherit' })
 }
 
 console.log(`[data] assembled bcdatamapper scraper outputs -> ${relative(root, target)}`)

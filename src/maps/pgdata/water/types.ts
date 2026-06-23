@@ -119,6 +119,8 @@ export type WaterFacilityFeatureProperties = Record<string, unknown> & {
   id: string
   name: string
   category: WaterPointCategory
+  hazardRating: string
+  pointColor: string
 }
 
 export type WaterBoundaryAggregateProperties = Record<string, unknown> & {

@@ -9,7 +9,7 @@
     "prebuild": "npm --prefix vendor/json-url run build && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run aqmap:forecast-zones -- --if-missing",
     "build": "tsc -b && vite build && node scripts/write-spa-fallback.mjs",
     "aqmap:forecast-zones": "node scripts/build-aqmap-forecast-zones.mjs",
-    "aqmap:pm25-example": "node scripts/build-aqmap-pm25-example.mjs",
+    "aqmap:pm25-snapshot": "npm --prefix vendor/bcdatamapper run eccc:pm25-snapshot",
     "aqmap:fire-danger-vector": "node scripts/build-aqmap-fire-danger-vector.mjs",
     "data:sync-from-bcdatamapper": "node scripts/sync-bcdatamapper-data.mjs",
     "data:sync-from-bcdatamapper:clean": "node scripts/sync-bcdatamapper-data.mjs --clean",

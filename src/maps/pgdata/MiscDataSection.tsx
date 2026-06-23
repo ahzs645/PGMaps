@@ -5,6 +5,7 @@ import { point } from '@turf/helpers'
 import { Layers, Satellite, Trees } from 'lucide-react'
 import { Map as PgMap, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
+import { handleHorizontalWheelScroll } from '@/components/ui/horizontal-scroll'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -879,7 +880,10 @@ export default function MiscDataSection() {
   )
 
   const tabsBar = (
-    <div className="hidden min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-2 py-1 backdrop-blur [scrollbar-width:none] md:block md:px-4 md:py-2 [&::-webkit-scrollbar]:hidden">
+    <div
+      className="hidden min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-2 py-1 backdrop-blur [scrollbar-width:none] md:block md:px-4 md:py-2 [&::-webkit-scrollbar]:hidden"
+      onWheel={handleHorizontalWheelScroll}
+    >
       <div className="flex w-max rounded-md border border-border bg-muted/40 p-0.5 md:rounded-lg md:p-1">
         {MISC_TABS.map(({ id, label, icon: Icon }) => (
           <button

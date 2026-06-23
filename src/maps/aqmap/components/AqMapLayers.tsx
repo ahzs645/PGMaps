@@ -7,12 +7,8 @@ import maplibregl from 'maplibre-gl'
 import type { SmokeLayerDefinition } from '../lib/smokeLayers'
 import type { WmsLayerDefinition } from '../lib/wmsLayers'
 import {
-  buildPm25WcsGridUrl,
   fetchGzipJson,
-  parseAsciiGrid,
-  pm25Color,
-  PM25_LOCAL_EXAMPLE_URL,
-  type AsciiGrid,
+  PM25_NATIVE_VECTOR_URL,
 } from '../lib/pm25Grid'
 import type { AqMonitorGroup, AqNetworkSlug } from '../lib/monitorPresentation'
 import { getAqmapNetworkSlug, getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
@@ -62,55 +58,6 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
-}
-
-function pm25VectorStride(grid: AsciiGrid, zoom: number) {
-  if (zoom < 4) return Math.max(4, Math.ceil(Math.sqrt((grid.ncols * grid.nrows) / 12000)))
-  if (zoom < 5.5) return Math.max(3, Math.ceil(Math.sqrt((grid.ncols * grid.nrows) / 16000)))
-  if (zoom < 7) return Math.max(2, Math.ceil(Math.sqrt((grid.ncols * grid.nrows) / 22000)))
-  if (zoom < 8.5) return 2
-  return 1
-}
-
-function pm25GridToFeatures(grid: AsciiGrid, zoom: number): GeoJSON.FeatureCollection {
-  const stride = pm25VectorStride(grid, zoom)
-  const features: GeoJSON.Feature[] = []
-
-  for (let row = 0; row < grid.nrows; row += stride) {
-    for (let col = 0; col < grid.ncols; col += stride) {
-      const rawValue = grid.values[row]?.[col]
-      if (!Number.isFinite(rawValue)) continue
-      if (grid.nodata !== null && rawValue === grid.nodata) continue
-
-      const pm25 = rawValue * 1_000_000_000
-      if (!Number.isFinite(pm25) || pm25 < 0.25) continue
-
-      const west = grid.xllcorner + col * grid.dx
-      const east = grid.xllcorner + Math.min(col + stride, grid.ncols) * grid.dx
-      const north = grid.yllcorner + (grid.nrows - row) * grid.dy
-      const south = grid.yllcorner + Math.max(grid.nrows - row - stride, 0) * grid.dy
-
-      features.push({
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[
-            [west, south],
-            [east, south],
-            [east, north],
-            [west, north],
-            [west, south],
-          ]],
-        },
-        properties: {
-          pm25: Number(pm25.toFixed(2)),
-          fill: pm25Color(pm25),
-        },
-      })
-    }
-  }
-
-  return { type: 'FeatureCollection', features }
 }
 
 function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): string {
@@ -339,8 +286,6 @@ export function ModelledPm25VectorLayer({ visible }: { visible: boolean }) {
 
     let aborted = false
     let controller: AbortController | null = null
-    let loadedLocalExample = false
-
     if (!map.getSource(sourceId)) {
       map.addSource(sourceId, {
         type: 'geojson',
@@ -365,55 +310,22 @@ export function ModelledPm25VectorLayer({ visible }: { visible: boolean }) {
       controller?.abort()
       controller = new AbortController()
 
-      if (!import.meta.env.DEV) {
-        if (loadedLocalExample) return
-        loadedLocalExample = true
-
-        try {
-          const data = await fetchGzipJson<GeoJSON.FeatureCollection>(PM25_LOCAL_EXAMPLE_URL, controller.signal)
-          const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
-          if (!aborted && source) source.setData(data)
-        } catch (error) {
-          if ((error as Error).name !== 'AbortError') {
-            console.error('Modelled PM2.5 local example failed', error)
-          }
-        }
-        return
-      }
-
-      const bounds = map.getBounds()
-      const url = buildPm25WcsGridUrl({
-        west: bounds.getWest(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        north: bounds.getNorth(),
-      })
-      if (!url) return
-
       try {
-        const response = await fetch(url, { signal: controller.signal })
-        if (!response.ok) return
-        const grid = parseAsciiGrid(await response.text())
+        const data = await fetchGzipJson<GeoJSON.FeatureCollection>(PM25_NATIVE_VECTOR_URL, controller.signal)
         const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
-        if (!aborted && source) {
-          source.setData(pm25GridToFeatures(grid, map.getZoom()))
-        }
+        if (!aborted && source) source.setData(data)
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
-          console.error('Modelled PM2.5 vector WCS failed', error)
+          console.error('Modelled PM2.5 local vector snapshot failed', error)
         }
       }
     }
 
     updateGrid()
-    map.on('moveend', updateGrid)
-    map.on('zoomend', updateGrid)
 
     return () => {
       aborted = true
       controller?.abort()
-      map.off('moveend', updateGrid)
-      map.off('zoomend', updateGrid)
       try {
         if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
         if (map.getSource(sourceId)) map.removeSource(sourceId)

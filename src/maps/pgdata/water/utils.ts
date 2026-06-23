@@ -209,10 +209,37 @@ export function sameFacility(sample: WaterSampleRow | WaterNoticeRow, facility: 
   return Boolean(sample.facilityName && sample.facilityName.toLowerCase() === facility.name.toLowerCase())
 }
 
-export function getWaterPointCategory(facility: WaterFacility, layerMode: WaterLayerMode): WaterPointCategory {
-  if (facility.activeNotices > 0) return 'notice'
+export function getWaterPointCategory(layerMode: WaterLayerMode): WaterPointCategory {
+  if (layerMode === 'notices') return 'notice'
   if (layerMode === 'samples') return 'samples'
   return 'facility'
+}
+
+function cleanSampleLocationText(value: string): string {
+  return value
+    .replace(/\bPG\s*Pulp\s*Mill\b/gi, 'PG Pulp Mill')
+    .replace(/\bPG\s*Pulpmill\b/gi, 'PG Pulp Mill')
+    .replace(/\bPulpmill\b/gi, 'Pulp Mill')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*/g, ', ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+export function parseSampleLocation(value: unknown): { raw: string; samplePoint: string; context: string } | null {
+  if (value == null) return null
+  const raw = cleanSampleLocationText(String(value))
+  if (!raw) return null
+  const parts = raw
+    .split(',')
+    .map((part) => cleanSampleLocationText(part))
+    .filter(Boolean)
+  if (parts.length === 0) return null
+  return {
+    raw,
+    samplePoint: parts[0],
+    context: parts.slice(1).join(', '),
+  }
 }
 
 export function hexToRgba(hex: string, alpha: number): string {

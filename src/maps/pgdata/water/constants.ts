@@ -25,6 +25,15 @@ export const WATER_POINT_COLORS: Record<WaterPointCategory, string> = {
 
 export const WATER_POINT_CATEGORIES: WaterPointCategory[] = ['facility', 'samples', 'notice']
 
+export const WATER_HAZARD_DOT_COLORS: Record<string, string> = {
+  Low: '#22c55e',
+  Moderate: '#f59e0b',
+  High: '#dc2626',
+  Unknown: '#6b7280',
+  'Boil Water Notice': '#dc2626',
+  'Water Quality Advisory': '#f97316',
+}
+
 export const WATER_BOUNDARY_METRIC_OPTIONS: Array<{ value: WaterBoundaryMetric; label: string }> = [
   { value: 'avgSamplesPerFacility', label: 'Avg sample rows / facility' },
   { value: 'sampleRows', label: 'Sample rows' },

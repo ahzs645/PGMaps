@@ -5,6 +5,8 @@ import { useEffect, useId, useRef } from "react";
 
 import { dispatchMobileMapFeatureClick, useMap } from "./map-context";
 
+type MapPaintColor = string | MapLibreGL.ExpressionSpecification;
+
 type MapRouteProps = {
   /** Optional unique identifier for the route layer */
   id?: string;
@@ -166,8 +168,8 @@ type MapClusterLayerProps<
   circleOpacity?: number;
   /** Stroke width in pixels around cluster and point circles (default: 0) */
   circleStrokeWidth?: number;
-  /** Color for unclustered individual points (default: "#3b82f6") */
-  pointColor?: string;
+  /** Color for unclustered individual points, or a MapLibre paint expression (default: "#3b82f6") */
+  pointColor?: MapPaintColor;
   /** Callback when an unclustered point is clicked */
   onPointClick?: (
     feature: GeoJSON.Feature<GeoJSON.Point, P>,

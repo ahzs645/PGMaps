@@ -22,8 +22,9 @@ into any automated build or scheduled job.
 - Runtime: `loadForecastZoneData()` in `src/maps/aqmap/AqMapSection.tsx` loads the
   same-origin snapshot first and falls back to the live API
   (`FORECAST_ZONES_VECTOR_URL`) only if the snapshot is missing.
-- The generator is **not** part of `predev` / `prebuild`; the committed file is used
-  as-is until someone re-runs the script.
+- `prebuild` runs `npm run aqmap:forecast-zones -- --if-missing`, so normal builds
+  verify that a local snapshot exists. They do not automatically refresh an existing
+  snapshot.
 
 ## The Gap
 
@@ -34,14 +35,17 @@ into any automated build or scheduled job.
 - **Silent fallback.** If the snapshot is ever deleted from the deploy, the app
   silently reverts to the slow live API. That is correct for resilience but hides the
   regression (the original performance problem) with no signal.
-- **Pattern is not generalized.** Other AQ map overlays still depend on live
-  government endpoints at runtime with no snapshot or fallback:
+- **Pattern is only partly generalized.** Other AQ map overlays use a mix of live
+  government endpoints and committed snapshots:
   - Active Fires — direct browser fetch of the CWFIF WFS
     (`geoserver.cwfif.nrcan.gc.ca`), built by `getActiveFiresVectorUrl()`. This is
     *intentionally* live (fires change hourly), but it has no caching layer and no
     fallback if the WFS is down or removes CORS.
-  - Fire Perimeters, Fire Danger — direct WFS fetches to `cwfis.cfs.nrcan.gc.ca`.
-  - Modelled PM2.5 — live WCS/WMS to `geo.weather.gc.ca`.
+  - Fire Perimeters — direct WFS/WMS fetches to `cwfis.cfs.nrcan.gc.ca`.
+  - Fire Danger — raster mode uses live WMS from the CWFIS polygon source; deck.gl
+    mode uses committed vector tiles built from the matching CWFIS WFS source.
+  - Modelled PM2.5 — raster mode uses committed WMS PNG snapshot tiles; deck.gl and
+    vector modes use the paired native RAQDPS GRIB2-derived vector snapshot.
 
 ## Source Notes (for any future refresh)
 
@@ -64,9 +68,9 @@ into any automated build or scheduled job.
    build and can break builds when upstream is down.
 3. **Staleness signal.** Stamp the snapshot with a generated-at date and log/warn when
    the live fallback path is taken, so a missing or old snapshot is visible.
-4. **Generalize the snapshot pattern** to the other static-ish overlays if their load
-   time or upstream reliability becomes a problem (forecast zones is the only one that
-   is both heavy and effectively static — the fire/PM2.5 layers are genuinely live).
+4. **Generalize the snapshot pattern** to the remaining static-ish overlays if their
+   load time or upstream reliability becomes a problem. See
+   `docs/aqmap-eccc-snapshots.md` for the fire danger and PM2.5 snapshot contracts.
 
 ## Related Files
 
