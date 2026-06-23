@@ -417,6 +417,8 @@ export function MainLayerControl({
   onToggleNetwork,
   visibleWmsLayers,
   onToggleWmsLayer,
+  surfaceWindVisible,
+  onToggleSurfaceWind,
   visibleSmokeLayers,
   onToggleSmokeLayer,
   smokeLayers,
@@ -428,6 +430,8 @@ export function MainLayerControl({
   onToggleNetwork: (network: AqNetworkSlug) => void
   visibleWmsLayers: Set<WmsLayerKey>
   onToggleWmsLayer: (layer: WmsLayerKey) => void
+  surfaceWindVisible: boolean
+  onToggleSurfaceWind: () => void
   visibleSmokeLayers: Set<SmokeLayerKey>
   onToggleSmokeLayer: (layer: SmokeLayerKey) => void
   smokeLayers: SmokeLayerDefinition[]
@@ -453,17 +457,15 @@ export function MainLayerControl({
           <div>
             <LayerControlHeading>{translate('sidebar.basemap', locale)}</LayerControlHeading>
             <div className="mt-1 space-y-1">
-              {(['light', 'topographic', 'dark'] as AqBasemap[]).map((option) => (
-                <label key={option} className="flex cursor-pointer items-center gap-2 text-muted-foreground">
-                  <input
-                    type="radio"
-                    name="aqmap-basemap"
-                    checked={basemap === option}
-                    onChange={() => onBasemapChange(option)}
-                  />
-                  <span>{translate(`sidebar.basemap.${option}`, locale)}</span>
-                </label>
-              ))}
+              <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+                <input
+                  type="checkbox"
+                  name="aqmap-basemap"
+                  checked={basemap === 'topographic'}
+                  onChange={() => onBasemapChange(basemap === 'topographic' ? 'light' : 'topographic')}
+                />
+                <span>{translate('sidebar.basemap.topographic', locale)}</span>
+              </label>
             </div>
           </div>
 
@@ -493,10 +495,10 @@ export function MainLayerControl({
                 <LayerControlSubheading>{translate('sidebar.modelEstimates', locale)}</LayerControlSubheading>
                 {wmsLayerByKey.has('surfaceWinds') && (
                   <SourceToggle
-                    checked={visibleWmsLayers.has('surfaceWinds')}
+                    checked={surfaceWindVisible}
                     label={translate('layer.surfaceWind', locale)}
                     sourceUrl={sourceLinks.surfaceWinds}
-                    onChange={() => onToggleWmsLayer('surfaceWinds')}
+                    onChange={onToggleSurfaceWind}
                   />
                 )}
                 {wmsLayerByKey.has('modelledPm25') && (
@@ -795,9 +797,9 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
           </div>
         </div>
       </details>
-      <div data-aqmap-scale-bar="true" className="shrink-0 rounded border border-border bg-background/95 px-2 py-1 text-[11px] text-foreground shadow-md">
+      <div data-aqmap-scale-bar="true" className="flex h-8 shrink-0 flex-col justify-center rounded border border-border bg-background/95 px-2 text-[11px] leading-none text-foreground shadow-md">
         <div className="h-1 border-x border-b border-foreground" style={{ width: scale.width }} />
-        <div className="mt-0.5 text-center">{scale.label}</div>
+        <div className="mt-1 text-center">{scale.label}</div>
       </div>
     </MapFloatingPanel>
   )

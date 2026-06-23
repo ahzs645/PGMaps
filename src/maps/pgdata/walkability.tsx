@@ -592,10 +592,6 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
       !isFactorDroppedByOptions(factor.ref, walkability.heatmapOptionState) &&
       (walkability.heatmapFactorWeights[factor.ref] ?? 1) > 0,
   )
-  const totalInfluence = activeFactors.reduce(
-    (sum, factor) => sum + Math.abs(walkability.heatmapFactorWeights[factor.ref] ?? 1),
-    0,
-  )
   const activeRuleCount = HEATMAP_OPTIONS.filter((option) => walkability.heatmapOptionState[option.key]).length
   const visibleFactorTerms = WALKABILITY_FACTOR_GROUPS.filter(
     (factor) => showDisabledTerms || !isFactorDroppedByOptions(factor.ref, walkability.heatmapOptionState),
@@ -653,7 +649,7 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
       </div>
 
       <div className="rounded-lg border border-border bg-background p-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Equation</div>
             <div className="mt-0.5 break-words font-mono text-[11px] leading-5 text-foreground">
@@ -661,25 +657,8 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
             </div>
           </div>
           <span className="shrink-0 rounded bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-            {activeFactors.length} terms
+            {activeFactors.length} active terms
           </span>
-        </div>
-        <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-muted">
-          {activeFactors.length === 0 ? (
-            <div className="h-full w-full bg-muted-foreground/20" />
-          ) : (
-            activeFactors.map((factor) => {
-              const value = Math.abs(walkability.heatmapFactorWeights[factor.ref] ?? 1)
-              return (
-                <div
-                  key={factor.ref}
-                  className="h-full bg-emerald-600"
-                  style={{ width: `${totalInfluence > 0 ? (value / totalInfluence) * 100 : 0}%` }}
-                  aria-hidden="true"
-                />
-              )
-            })
-          )}
         </div>
         <div className="mt-2 text-[10px] leading-4 text-muted-foreground">
           Proximity terms use cumulative 400m / 250m / 100m buffers. Area and line terms use report points inside
@@ -902,9 +881,6 @@ export function WalkabilitySidebar({
             <div className="text-xs text-muted-foreground">
               {walkability.liveHeatmap.progress || 'Live heat map recalculating'}
             </div>
-          )}
-          {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'ready' && (
-            <div className="text-xs text-emerald-600 dark:text-emerald-400">Live browser-calculated grid active.</div>
           )}
           {walkability.displayMode === 'heatmap' && walkability.liveHeatmap.status === 'error' && (
             <InlineAlert tone="error">{walkability.liveHeatmap.error}</InlineAlert>

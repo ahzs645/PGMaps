@@ -846,8 +846,8 @@ export function MapLegendPanel({
         'absolute right-3 rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur md:right-6 md:rounded-xl md:p-4',
         MAP_OVERLAY_Z.legend,
         elevated
-          ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,0px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,0px)_+_1.5rem)]'
-          : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-6',
+          ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,0px)_+_var(--map-timeline-height,0px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,0px)_+_1.5rem)]'
+          : 'bottom-[calc(var(--map-mobile-sheet-visible-height,0px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-6',
         width === 'sm' && 'w-[min(14rem,calc(100vw-2rem))] md:w-56',
         width === 'md' && 'w-[min(18rem,calc(100vw-2rem))] md:w-auto',
         width === 'lg' && 'w-[min(22rem,calc(100vw-2rem))] md:w-88',

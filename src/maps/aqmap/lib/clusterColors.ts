@@ -45,22 +45,25 @@ export function getClusterCountTextColor(scheme: AqClusterColorScheme): string |
   return scheme === 'slate' ? SLATE_TEXT : CLASSIC_TEXT
 }
 
-// Keep the bubble size proportional to the cluster spacing so big clusters
-// can't grow wider than the gap between clusters (the cause of overlap). The
-// floors keep 2–3 digit counts legible even at a small clusterRadius.
-//
-// tightPacking caps the largest bubble at exactly clusterRadius/2 so two
-// adjacent clusters only touch (near-zero overlap), with lower text floors —
-// the trade-off is cramped 3-digit counts.
+// Keep the drawn bubble size proportional to the cluster spacing, while using
+// the same count breaks as the slate color ramp. This lets darker/higher-count
+// clusters stay visually larger without making the whole cluster field dominate
+// the map at continental zooms.
 export function getClusterCircleRadius(clusterRadius: number, tightPacking = false): ExpressionSpecification {
   if (tightPacking) {
-    const base = Math.max(9, Math.round(clusterRadius * 0.32))
-    const mid = Math.max(10, Math.round(clusterRadius * 0.4))
-    const large = Math.max(12, Math.round(clusterRadius * 0.5))
-    return ['step', ['get', 'point_count'], base, 40, mid, 150, large]
+    const xs = Math.max(8, Math.round(clusterRadius * 0.22))
+    const sm = Math.max(9, Math.round(clusterRadius * 0.26))
+    const md = Math.max(10, Math.round(clusterRadius * 0.3))
+    const lg = Math.max(12, Math.round(clusterRadius * 0.34))
+    const xl = Math.max(14, Math.round(clusterRadius * 0.39))
+    const xxl = Math.max(16, Math.round(clusterRadius * 0.44))
+    return ['step', ['get', 'point_count'], xs, 10, sm, 25, md, 50, lg, 100, xl, 250, xxl]
   }
-  const base = Math.max(10, Math.round(clusterRadius * 0.4))
-  const mid = Math.max(13, Math.round(clusterRadius * 0.48))
-  const large = Math.max(15, Math.round(clusterRadius * 0.56))
-  return ['step', ['get', 'point_count'], base, 40, mid, 150, large]
+  const xs = Math.max(9, Math.round(clusterRadius * 0.26))
+  const sm = Math.max(10, Math.round(clusterRadius * 0.3))
+  const md = Math.max(12, Math.round(clusterRadius * 0.34))
+  const lg = Math.max(14, Math.round(clusterRadius * 0.39))
+  const xl = Math.max(16, Math.round(clusterRadius * 0.44))
+  const xxl = Math.max(18, Math.round(clusterRadius * 0.49))
+  return ['step', ['get', 'point_count'], xs, 10, sm, 25, md, 50, lg, 100, xl, 250, xxl]
 }

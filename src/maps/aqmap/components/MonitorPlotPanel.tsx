@@ -7,7 +7,7 @@ import { buildAbPoints, buildPaFemPoints } from '../lib/comparisonData'
 import { translate, type AqmapLocale } from '../lib/i18n'
 import { fetchAqmapPlotSeries, type AqPlotPoint } from '../lib/plotData'
 import { MonitorPlotChart } from './MonitorPlotChart'
-import { MonitorScatterChart } from './MonitorScatterChart'
+import { MonitorScatterChart, MonitorScatterLegend } from './MonitorScatterChart'
 
 export interface NearbyFem {
   monitor: AirMonitor
@@ -140,11 +140,15 @@ export function MonitorPlotPanel({
                   ? translate('plot.ab.title', locale)
                   : translate('plot.fem.title', locale)}
             </span>
-            <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {plotSource === 'endpoint'
-                ? translate('popup.plotSource.endpoint', locale)
-                : translate('popup.plotSource.fallback', locale)}
-            </span>
+            {plotMode === 'ts' ? (
+              <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {plotSource === 'endpoint'
+                  ? translate('popup.plotSource.endpoint', locale)
+                  : translate('popup.plotSource.fallback', locale)}
+              </span>
+            ) : (
+              <MonitorScatterLegend mode={plotMode} locale={locale} />
+            )}
           </div>
           {plotMode === 'ts' && (
             <MonitorPlotChart

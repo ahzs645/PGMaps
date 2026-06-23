@@ -176,14 +176,17 @@ function pm25TooltipBody(properties: Pm25DeckProperties | null | undefined): str
 export function AqMapDeckOverlay({
   tileKeys,
   fireDangerActive,
+  suppressHoverPopups = false,
 }: {
   tileKeys: WmsLayerKey[]
   fireDangerActive: boolean
+  suppressHoverPopups?: boolean
 }) {
   const { map, isLoaded } = useMap()
   const overlayRef = useRef<MapboxOverlay | null>(null)
   const fireDangerTooltipRef = useRef<maplibregl.Popup | null>(null)
   const pm25TooltipRef = useRef<maplibregl.Popup | null>(null)
+  const suppressHoverPopupsRef = useRef(suppressHoverPopups)
   const [pm25NativeVector, setPm25NativeVector] = useState<Pm25DeckFeatureCollection | null>(null)
   const rebuildRef = useRef<() => void>(() => {})
   const tileKey = [...tileKeys].sort().join(',')
@@ -257,6 +260,14 @@ export function AqMapDeckOverlay({
       if (pm25TooltipRef.current === popup) pm25TooltipRef.current = null
     }
   }, [isLoaded, map, pm25DeckActive])
+
+  useEffect(() => {
+    suppressHoverPopupsRef.current = suppressHoverPopups
+    if (suppressHoverPopups) {
+      fireDangerTooltipRef.current?.remove()
+      pm25TooltipRef.current?.remove()
+    }
+  }, [suppressHoverPopups])
 
   useEffect(() => {
     if (!pm25DeckActive) {
@@ -352,7 +363,7 @@ export function AqMapDeckOverlay({
             onHover: (info: { object?: { properties?: Pm25DeckProperties } | null; coordinate?: [number, number] }) => {
               const popup = pm25TooltipRef.current
               if (!popup || !map) return
-              if (!info.object || !info.coordinate) {
+              if (suppressHoverPopupsRef.current || !info.object || !info.coordinate) {
                 popup.remove()
                 return
               }
@@ -370,7 +381,7 @@ export function AqMapDeckOverlay({
         const handleFireDangerHover = (info: { object?: { properties?: FireDangerDeckProperties } | null; coordinate?: [number, number] }) => {
           const popup = fireDangerTooltipRef.current
           if (!popup || !map) return
-          if (!info.object || !info.coordinate) {
+          if (suppressHoverPopupsRef.current || !info.object || !info.coordinate) {
             popup.remove()
             return
           }
@@ -418,7 +429,7 @@ export function AqMapDeckOverlay({
 
     rebuildRef.current = rebuild
     rebuild()
-  }, [map, tileKey, fireDangerActive, tileConfigs, pm25OrderedVector])
+  }, [map, tileKey, fireDangerActive, suppressHoverPopups, tileConfigs, pm25OrderedVector])
 
   return null
 }

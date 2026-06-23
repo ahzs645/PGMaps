@@ -115,8 +115,8 @@ export function CanueGraphDrawer({
       className={cn(
         'absolute inset-x-3 z-20 mx-auto max-h-[50vh] max-w-5xl overflow-hidden rounded-lg border border-border bg-background/95 shadow-2xl backdrop-blur md:max-h-[22rem]',
         elevated
-          ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-timeline-height,0px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,0px)_+_1.5rem)]'
-          : 'bottom-[calc(var(--map-mobile-sheet-visible-height,72px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-6',
+          ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,0px)_+_var(--map-timeline-height,0px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,0px)_+_1.5rem)]'
+          : 'bottom-[calc(var(--map-mobile-sheet-visible-height,0px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-6',
       )}
     >
       <div className="flex items-start justify-between gap-3 border-b border-border px-3 py-2.5 md:px-4">

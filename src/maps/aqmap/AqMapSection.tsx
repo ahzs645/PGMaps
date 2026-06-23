@@ -272,6 +272,14 @@ function parseFireDangerLegendVariant(value: string | null): FireDangerLegendVar
     : DEFAULT_FIRE_DANGER_LEGEND_VARIANT
 }
 
+function parseMainNetworks(value: string | null): Set<AqNetworkSlug> {
+  const allowed = new Set<AqNetworkSlug>(AQ_OBSERVATION_NETWORKS)
+  const parsed = (value ?? '')
+    .split(',')
+    .filter((item): item is AqNetworkSlug => allowed.has(item as AqNetworkSlug))
+  return new Set(parsed.length > 0 ? parsed : AQ_OBSERVATION_NETWORKS)
+}
+
 // deck.gl is heavy and only used by deck.gl render modes, so load it lazily.
 const AqMapDeckOverlay = lazy(() =>
   import('./components/AqMapDeckLayers').then((module) => ({ default: module.AqMapDeckOverlay })),
@@ -291,15 +299,11 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   const [visibleGroups, setVisibleGroups] = useState<Set<AqMonitorGroup>>(() => initialUrlState.visibleGroups)
   // Main page (/dev/aqmap/main) toggles individual observation networks
   // (FEM/PA/EGG) rather than the agency/lcm/other groups. All three start on.
-  const [visibleNetworks, setVisibleNetworks] = useState<Set<AqNetworkSlug>>(() => new Set(AQ_OBSERVATION_NETWORKS))
-  const [visibleWmsLayers, setVisibleWmsLayers] = useState<Set<WmsLayerKey>>(() => {
-    if (!isMain) return initialUrlState.visibleWmsLayers
-    return new Set<WmsLayerKey>([
-      'modelledPm25',
-      'fireDanger',
-      ...initialUrlState.visibleWmsLayers,
-    ])
+  const [visibleNetworks, setVisibleNetworks] = useState<Set<AqNetworkSlug>>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return parseMainNetworks(params.get('networks'))
   })
+  const [visibleWmsLayers, setVisibleWmsLayers] = useState<Set<WmsLayerKey>>(() => initialUrlState.visibleWmsLayers)
   const [visibleSmokeLayers, setVisibleSmokeLayers] = useState<Set<SmokeLayerKey>>(
     () => initialUrlState.visibleSmokeLayers,
   )
@@ -354,14 +358,17 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     return params.get('feature') === 'popup' ? 'popup' : 'card'
   })
   const effectiveMobileFeatureDisplay: MobileFeatureDisplay = isMain ? 'card' : mobileFeatureDisplay
-  const [mainBasemap, setMainBasemap] = useState<AqBasemap>(() => initialUrlState.basemap)
-  const basemap: AqBasemap = isMain ? mainBasemap : resolvedTheme === 'dark' ? 'dark' : 'light'
+  const [mainBasemapOverride, setMainBasemapOverride] = useState<AqBasemap | null>(() =>
+    initialUrlState.basemap === 'topographic' ? 'topographic' : null,
+  )
+  const themeBasemap: AqBasemap = resolvedTheme === 'dark' ? 'dark' : 'light'
+  const basemap: AqBasemap = isMain ? mainBasemapOverride ?? themeBasemap : themeBasemap
   const windBasemapTone = basemap === 'dark' ? 'dark' : 'light'
   const [mapView, setMapView] = useState(() => initialUrlState.mapView)
   const [locale, setLocale] = useState<AqmapLocale>(() => initialUrlState.locale)
   const [windVisible, setWindVisible] = useState(() => {
     const params = new URLSearchParams(window.location.search)
-    return params.get('wind') === '1'
+    return params.get('wind') === '1' || (isMain && initialUrlState.visibleWmsLayers.has('surfaceWinds'))
   })
   const [vectorWindBarbsVisible, setVectorWindBarbsVisible] = useState(() => {
     const params = new URLSearchParams(window.location.search)
@@ -533,18 +540,24 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   }, [forecastZoneData, forecastZoneError])
 
   useEffect(() => {
-    // The main page is a fixed, shareable view — don't mirror its (locked) state to the URL.
-    if (isMain) return
     const timeout = window.setTimeout(() => {
       const next = new URLSearchParams(window.location.search)
       const groups = serializeSet(visibleGroups)
       const wms = serializeSet(visibleWmsLayers)
       const smoke = serializeSet(visibleSmokeLayers)
+      const networks = serializeSet(visibleNetworks)
 
       next.delete('basemap')
 
       if (groups === 'agency,lcm') next.delete('groups')
       else next.set('groups', groups)
+
+      if (isMain) {
+        if (networks === serializeSet(new Set(AQ_OBSERVATION_NETWORKS))) next.delete('networks')
+        else next.set('networks', networks)
+      } else {
+        next.delete('networks')
+      }
 
       if (wms) next.set('wms', wms)
       else next.delete('wms')
@@ -615,7 +628,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
 
       const nextSearch = next.toString()
       const nextHash = serializeAqmapHash({
-        basemap: 'light',
+        basemap: isMain ? mainBasemapOverride ?? 'light' : 'light',
         visibleGroups,
         visibleWmsLayers,
         visibleSmokeLayers,
@@ -643,12 +656,14 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     iconMode,
     isMain,
     locale,
+    mainBasemapOverride,
     mapView,
     mobileFeatureDisplay,
     modelledSmokeMode,
     tightClusters,
     vectorWindBarbsVisible,
     visibleGroups,
+    visibleNetworks,
     visibleSmokeLayers,
     visibleWmsLayers,
     windVisible,
@@ -909,6 +924,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
               definition={layer}
               visible={
                 visibleWmsLayers.has(layer.key) &&
+                (layer.key !== 'surfaceWinds' || !isMain) &&
                 (layer.key !== 'activeFires' || effActiveFiresMode === 'raster') &&
                 (layer.key !== 'fireDanger' || effFireDangerMode === 'raster') &&
                 (layer.key !== 'firePerimeters' || effFirePerimetersMode === 'raster') &&
@@ -933,7 +949,11 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
           />
           {deckActive && (
             <Suspense fallback={null}>
-              <AqMapDeckOverlay tileKeys={deckTileKeys} fireDangerActive={fireDangerDeck} />
+              <AqMapDeckOverlay
+                tileKeys={deckTileKeys}
+                fireDangerActive={fireDangerDeck}
+                suppressHoverPopups={Boolean(hoveredMonitor || selectedMonitor || selectedMonitorWithZone)}
+              />
             </Suspense>
           )}
           <WindCanvasLayer visible={windVisible} basemap={windBasemapTone} />
@@ -980,11 +1000,15 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
           {isMain ? (
             <MainLayerControl
               basemap={basemap}
-              onBasemapChange={setMainBasemap}
+              onBasemapChange={(nextBasemap) =>
+                setMainBasemapOverride(nextBasemap === 'topographic' ? 'topographic' : null)
+              }
               visibleNetworks={visibleNetworks}
               onToggleNetwork={toggleNetwork}
               visibleWmsLayers={visibleWmsLayers}
               onToggleWmsLayer={toggleWmsLayer}
+              surfaceWindVisible={windVisible}
+              onToggleSurfaceWind={toggleWind}
               visibleSmokeLayers={visibleSmokeLayers}
               onToggleSmokeLayer={toggleSmokeLayer}
               smokeLayers={smokeLayers}

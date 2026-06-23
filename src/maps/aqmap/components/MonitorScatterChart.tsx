@@ -8,7 +8,6 @@ const VALID_COLOR = '#16a34a'
 const INVALID_COLOR = '#dc2626'
 const RAW_COLOR = '#f59e0b'
 const CORRECTED_COLOR = '#16a34a'
-const CHART_CHROME_HEIGHT = 22
 
 function niceMax(value: number): number {
   const padded = Math.max(value * 1.1, 10)
@@ -46,6 +45,29 @@ function ScatterTooltip({
       <div className="text-gray-600">
         {yLabel}: <b className="text-gray-900">{point.y.toFixed(1)}</b> {unit}
       </div>
+    </div>
+  )
+}
+
+export function MonitorScatterLegend({ mode, locale }: { mode: 'xy' | 'xy_cor'; locale: AqmapLocale }) {
+  const items = mode === 'xy'
+    ? [
+        { name: translate('plot.ab.valid', locale), color: VALID_COLOR },
+        { name: translate('plot.ab.invalid', locale), color: INVALID_COLOR },
+      ]
+    : [
+        { name: translate('plot.fem.raw', locale), color: RAW_COLOR },
+        { name: translate('plot.fem.corrected', locale), color: CORRECTED_COLOR },
+      ]
+
+  return (
+    <div className="flex h-[22px] shrink-0 items-center justify-end gap-3 text-[10px] leading-none text-muted-foreground">
+      {items.map((entry) => (
+        <span key={entry.name} className="inline-flex items-center gap-1 whitespace-nowrap">
+          <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} aria-hidden="true" />
+          {entry.name}
+        </span>
+      ))}
     </div>
   )
 }
@@ -116,7 +138,7 @@ export function MonitorScatterChart({
     }
   }, [mode, abPoints, paFemPoints, locale])
   const hasData = series.some((entry) => entry.data.length > 0)
-  const chartHeight = Math.max(140, height - CHART_CHROME_HEIGHT)
+  const chartHeight = Math.max(140, height)
 
   return (
     <div
@@ -132,88 +154,78 @@ export function MonitorScatterChart({
         </div>
       ) : (
         chartWidth > 0 && (
-          <div className="flex h-full min-h-0 flex-col">
-            <div className="flex h-[22px] shrink-0 items-center justify-end gap-3 border-b border-border/60 px-2.5 text-[10px] leading-none text-muted-foreground">
+          <div className="h-full min-h-0">
+            <ScatterChart width={chartWidth} height={chartHeight} margin={CHART_MARGIN}>
+              <CartesianGrid stroke="rgb(15 23 42 / 0.08)" />
+              <XAxis
+                type="number"
+                dataKey="x"
+                domain={[0, axisMax]}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                tickFormatter={formatAxisTick}
+                axisLine={false}
+                tickLine={false}
+                height={34}
+                tickMargin={3}
+                label={{
+                  value: xLabel,
+                  position: 'insideBottom',
+                  offset: 0,
+                  fill: 'hsl(var(--muted-foreground))',
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
+              />
+              <YAxis
+                type="number"
+                dataKey="y"
+                domain={[0, axisMax]}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                tickFormatter={formatAxisTick}
+                axisLine={false}
+                tickLine={false}
+                width={56}
+                label={{
+                  value: yLabel,
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: 14,
+                  fill: 'hsl(var(--muted-foreground))',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  // Center the rotated title on the axis; without this recharts
+                  // anchors it at 'start', so a long label grows off the top of
+                  // the (short) SVG and gets clipped.
+                  style: { textAnchor: 'middle' },
+                }}
+              />
+              <ReferenceLine
+                segment={[
+                  { x: 0, y: 0 },
+                  { x: axisMax, y: axisMax },
+                ]}
+                stroke="#6b7280"
+                strokeDasharray="5 4"
+                strokeOpacity={0.7}
+                ifOverflow="hidden"
+              />
+              <Tooltip
+                cursor={{ strokeDasharray: '3 3', stroke: '#9ca3af' }}
+                content={<ScatterTooltip locale={locale} xLabel={xLabel} yLabel={yLabel} />}
+              />
               {series.map((entry) => (
-                <span key={entry.name} className="inline-flex items-center gap-1 whitespace-nowrap">
-                  <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} aria-hidden="true" />
-                  {entry.name}
-                </span>
+                <Scatter
+                  key={entry.name}
+                  name={entry.name}
+                  data={entry.data}
+                  fill={entry.color}
+                  fillOpacity={0.7}
+                  line={false}
+                  shape="circle"
+                  isAnimationActive={false}
+                />
               ))}
-            </div>
-            <div className="min-h-0 flex-1">
-              <ScatterChart width={chartWidth} height={chartHeight} margin={CHART_MARGIN}>
-                <CartesianGrid stroke="rgb(15 23 42 / 0.08)" />
-                <XAxis
-                  type="number"
-                  dataKey="x"
-                  domain={[0, axisMax]}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                  tickFormatter={formatAxisTick}
-                  axisLine={false}
-                  tickLine={false}
-                  height={34}
-                  tickMargin={3}
-                  label={{
-                    value: xLabel,
-                    position: 'insideBottom',
-                    offset: 0,
-                    fill: 'hsl(var(--muted-foreground))',
-                    fontSize: 10,
-                    fontWeight: 600,
-                  }}
-                />
-                <YAxis
-                  type="number"
-                  dataKey="y"
-                  domain={[0, axisMax]}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                  tickFormatter={formatAxisTick}
-                  axisLine={false}
-                  tickLine={false}
-                  width={56}
-                  label={{
-                    value: yLabel,
-                    angle: -90,
-                    position: 'insideLeft',
-                    offset: 14,
-                    fill: 'hsl(var(--muted-foreground))',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    // Center the rotated title on the axis; without this recharts
-                    // anchors it at 'start', so a long label grows off the top of
-                    // the (short) SVG and gets clipped.
-                    style: { textAnchor: 'middle' },
-                  }}
-                />
-                <ReferenceLine
-                  segment={[
-                    { x: 0, y: 0 },
-                    { x: axisMax, y: axisMax },
-                  ]}
-                  stroke="#6b7280"
-                  strokeDasharray="5 4"
-                  strokeOpacity={0.7}
-                  ifOverflow="hidden"
-                />
-                <Tooltip
-                  cursor={{ strokeDasharray: '3 3', stroke: '#9ca3af' }}
-                  content={<ScatterTooltip locale={locale} xLabel={xLabel} yLabel={yLabel} />}
-                />
-                {series.map((entry) => (
-                  <Scatter
-                    key={entry.name}
-                    name={entry.name}
-                    data={entry.data}
-                    fill={entry.color}
-                    fillOpacity={0.7}
-                    line={false}
-                    shape="circle"
-                    isAnimationActive={false}
-                  />
-                ))}
-              </ScatterChart>
-            </div>
+            </ScatterChart>
           </div>
         )
       )}
