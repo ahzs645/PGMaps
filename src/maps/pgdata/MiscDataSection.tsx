@@ -26,6 +26,7 @@ import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
 import {
   NetworkAvailabilitySidebar,
+  networkAvailabilityTooltipHtml,
   useNetworkAvailabilityLayer,
   type NetworkAvailabilityManifest,
 } from './networkAvailability'
@@ -1260,6 +1261,7 @@ export default function MiscDataSection() {
                   lineColor="#083344"
                   lineOpacity={0.18}
                   lineWidth={0.45}
+                  hoverHtml={networkAvailabilityTooltipHtml}
                 />
               )}
 

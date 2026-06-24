@@ -73,6 +73,37 @@ export type NetworkAvailabilityFeatureCollection = GeoJSON.FeatureCollection<
 
 const CRTC_WIRELESS_COVERAGE_GEOJSON_URL = '/data/network-availability/crtc-wireless-coverage-current.geojson.gz'
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case '&':
+        return '&amp;'
+      case '<':
+        return '&lt;'
+      case '>':
+        return '&gt;'
+      case '"':
+        return '&quot;'
+      case "'":
+        return '&#39;'
+      default:
+        return char
+    }
+  })
+}
+
+export function networkAvailabilityTooltipHtml(properties: Record<string, unknown>): string {
+  const technology = String(properties.technology ?? properties.title ?? 'Network coverage')
+  const year = String(properties.year ?? properties.Year ?? '2024')
+  return `
+    <div class="min-w-36 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
+      <div class="font-semibold">Network availability</div>
+      <div class="mt-1 text-muted-foreground">${escapeHtml(technology)} coverage</div>
+      <div class="text-muted-foreground">Year ${escapeHtml(year)}</div>
+    </div>
+  `
+}
+
 export function useNetworkAvailabilityLayer(enabled: boolean, version?: string | null) {
   const [data, setData] = useState<NetworkAvailabilityFeatureCollection | null>(null)
   const [error, setError] = useState<string | null>(null)

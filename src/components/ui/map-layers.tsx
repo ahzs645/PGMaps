@@ -64,6 +64,8 @@ type MapFillLayerProps = {
   visible?: boolean
   /** Callback when a feature is clicked — receives the feature's idProperty value as a string */
   onFeatureClick?: (id: string) => void
+  /** Optional HTML tooltip for hoverable feature properties. Return null to hide. */
+  hoverHtml?: (properties: Record<string, unknown>) => string | null
 }
 
 function MapFillLayer({
@@ -81,6 +83,7 @@ function MapFillLayer({
   selectionFillOpacity = 0.5,
   visible = true,
   onFeatureClick,
+  hoverHtml,
 }: MapFillLayerProps) {
   const { map, isLoaded } = useMap()
   const uid = useId().replace(/:/g, '')
@@ -91,8 +94,11 @@ function MapFillLayer({
 
   const onClickRef = useRef(onFeatureClick)
   onClickRef.current = onFeatureClick
+  const hoverHtmlRef = useRef(hoverHtml)
+  hoverHtmlRef.current = hoverHtml
   const idPropRef = useRef(idProperty)
   idPropRef.current = idProperty
+  const tooltipRef = useRef<MapLibreGLRuntime.Popup | null>(null)
 
   // Mount: create source + layers
   useEffect(() => {
@@ -168,19 +174,69 @@ function MapFillLayer({
       map.getCanvas().style.cursor = 'pointer'
     }
 
+    const removeTooltip = () => {
+      tooltipRef.current?.remove()
+    }
+
+    const handleMouseMove = (event: unknown) => {
+      const formatter = hoverHtmlRef.current
+      if (!formatter) return
+      const e = event as {
+        features?: Array<{ properties?: Record<string, unknown> }>
+        lngLat?: MapLibreGL.LngLatLike
+      }
+      const properties = e.features?.[0]?.properties
+      const html = properties ? formatter(properties) : null
+      if (!html || !e.lngLat) {
+        removeTooltip()
+        return
+      }
+      if (!tooltipRef.current) {
+        tooltipRef.current = new MapLibreGLRuntime.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          className: 'mapcn-tooltip pointer-events-none',
+          offset: 12,
+        })
+      }
+      tooltipRef.current.setLngLat(e.lngLat).setHTML(html).addTo(map)
+    }
+
     const handleMouseLeave = () => {
       map.getCanvas().style.cursor = ''
+      removeTooltip()
+    }
+
+    const canvas = map.getCanvas()
+    const handleDocumentPointerMove = (event: PointerEvent) => {
+      if (event.target instanceof Node && canvas.contains(event.target)) return
+      removeTooltip()
+    }
+    const handleVisibilityChange = () => {
+      if (document.hidden) removeTooltip()
     }
 
     map.on('click', fillLayerId, handleClick as never)
     map.on('mouseenter', fillLayerId, handleMouseEnter)
+    map.on('mousemove', fillLayerId, handleMouseMove as never)
     map.on('mouseleave', fillLayerId, handleMouseLeave)
+    canvas.addEventListener('mouseleave', removeTooltip)
+    document.addEventListener('pointermove', handleDocumentPointerMove, true)
+    window.addEventListener('blur', removeTooltip)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       try {
         map.off('click', fillLayerId, handleClick as never)
         map.off('mouseenter', fillLayerId, handleMouseEnter)
+        map.off('mousemove', fillLayerId, handleMouseMove as never)
         map.off('mouseleave', fillLayerId, handleMouseLeave)
+        canvas.removeEventListener('mouseleave', removeTooltip)
+        document.removeEventListener('pointermove', handleDocumentPointerMove, true)
+        window.removeEventListener('blur', removeTooltip)
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        removeTooltip()
+        tooltipRef.current = null
 
         if (!map.getStyle()) return
         if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
