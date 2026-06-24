@@ -3,6 +3,7 @@ import type {
   BoundaryLevel,
   BoundarySource,
   CensusBoundaryLevel,
+  CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,
   MineralTenureBoundaryLevel,
@@ -14,48 +15,55 @@ import type {
   WalkabilityCommunityBoundaryLevel,
   WatershedBoundaryLevel,
 } from '@/maps/airquality/types'
+import type { StudyAreaLevelOption, StudyAreaSourceOption } from './types'
 
-export interface BoundarySourceOption {
-  value: BoundarySource
-  label: string
-  description: string
-}
+export type BoundarySourceOption = StudyAreaSourceOption<BoundarySource>
 
-export interface BoundaryLevelOption<T extends RegionLevel = RegionLevel> {
-  value: T
-  label: string
-}
+export type StudyAreaLevelWithDb = RegionLevel | 'db'
+export type BoundaryLevelOption<T extends string = RegionLevel> = StudyAreaLevelOption<T>
 
 export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
   {
-    value: 'bcHealth',
-    label: 'Health boundaries',
-    description: 'Health Authority -> CHSA hierarchy',
-  },
-  {
-    value: 'regionalDistrict',
-    label: 'Regional district',
-    description: 'Large local-government region - Fraser-Fort George, Cariboo RD, Bulkley-Nechako RD',
-  },
-  {
-    value: 'census',
-    label: 'Census boundaries',
-    description: 'PG census tract -> dissemination area',
+    value: 'cityCommunity',
+    label: 'Community polygons',
+    description: 'CityPG community / neighbourhood boundaries',
+    group: 'Local',
   },
   {
     value: 'cityPG',
     label: 'School catchments',
     description: 'Elementary and secondary catchments',
+    group: 'Local',
+  },
+  {
+    value: 'bcHealth',
+    label: 'Health boundaries',
+    description: 'Health Authority -> CHSA hierarchy',
+    group: 'Administrative',
+  },
+  {
+    value: 'regionalDistrict',
+    label: 'Regional district',
+    description: 'Large local-government region - Fraser-Fort George, Cariboo RD, Bulkley-Nechako RD',
+    group: 'Administrative',
+  },
+  {
+    value: 'census',
+    label: 'Census boundaries',
+    description: 'PG census tract -> dissemination area',
+    group: 'Administrative',
   },
   {
     value: 'watershed',
     label: 'Watershed boundaries',
     description: 'BC Freshwater Atlas hierarchy',
+    group: 'Natural / resource',
   },
   {
     value: 'nrAdmin',
     label: 'Natural Resource admin',
     description: 'BC NR Areas, Regions, and Districts',
+    group: 'Natural / resource',
   },
   // crownTenure / rangeTenure / mineralTenure are intentionally hidden from
   // the sidebar: at PG-region scale they return 6k-8k polygons each (~7MB
@@ -65,58 +73,93 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
   // exists. To bring one back, add its entry here.
 ]
 
+export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
+  healthAuthority: 'Health Authority',
+  hsda: 'HSDA',
+  lha: 'LHA',
+  chsa: 'CHSA',
+  regionalDistrict: 'Regional District',
+  cd: 'Census Division',
+  csd: 'Census Subdivision',
+  ct: 'Census Tract',
+  da: 'Dissemination Area',
+  db: 'Dissemination Block',
+  communityPolygon: 'Community polygons',
+  elementarySchoolCatchment: 'Elementary School Catchment',
+  secondarySchoolCatchment: 'Secondary School Catchment',
+  majorWatershed: 'Major River Basin',
+  watershedGroup: 'Watershed Group',
+  assessmentWatershed: 'Assessment Watershed',
+  nrArea: 'NR Area',
+  nrRegion: 'NR Region',
+  nrDistrict: 'NR District',
+  ungulateWinterRange: 'Ungulate Winter Range',
+  crownTenure: 'Crown Tenure',
+  rangeTenurePolygon: 'Range Tenure',
+  rangePasture: 'Range Pasture',
+  mineralTenure: 'Mineral / Placer / Coal Tenure',
+  walkabilityCommunity: 'PG Community',
+}
+
+export function getStudyAreaLevelLabel(level: string): string {
+  return STUDY_AREA_LEVEL_LABELS[level as StudyAreaLevelWithDb] ?? level
+}
+
+export function createStudyAreaLevelOptions<TLevel extends string>(
+  levels: readonly TLevel[],
+): Array<StudyAreaLevelOption<TLevel>> {
+  return levels.map((value) => ({
+    value,
+    label: getStudyAreaLevelLabel(value),
+  }))
+}
+
 export const HEALTH_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<BoundaryLevel>[] = [
-  { value: 'healthAuthority', label: 'Health Authority' },
-  { value: 'hsda', label: 'HSDA' },
-  { value: 'lha', label: 'LHA' },
-  { value: 'chsa', label: 'CHSA' },
+  ...createStudyAreaLevelOptions(['healthAuthority', 'hsda', 'lha', 'chsa'] as const),
 ]
 
 export const REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<RegionalDistrictBoundaryLevel>[] = [
-  { value: 'regionalDistrict', label: 'Regional District' },
+  ...createStudyAreaLevelOptions(['regionalDistrict'] as const),
 ]
 
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CensusBoundaryLevel>[] = [
-  { value: 'ct', label: 'Census Tract' },
-  { value: 'da', label: 'Dissemination Area' },
+  ...createStudyAreaLevelOptions(['ct', 'da'] as const),
+]
+
+export const COMMUNITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CommunityBoundaryLevel>[] = [
+  ...createStudyAreaLevelOptions(['communityPolygon'] as const),
 ]
 
 export const CITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CityBoundaryLevel>[] = [
-  { value: 'elementarySchoolCatchment', label: 'Elementary School Catchment' },
-  { value: 'secondarySchoolCatchment', label: 'Secondary School Catchment' },
+  ...createStudyAreaLevelOptions(['elementarySchoolCatchment', 'secondarySchoolCatchment'] as const),
 ]
 
 export const WATERSHED_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<WatershedBoundaryLevel>[] = [
-  { value: 'majorWatershed', label: 'Major River Basin' },
-  { value: 'watershedGroup', label: 'Watershed Group' },
-  { value: 'assessmentWatershed', label: 'Assessment Watershed' },
+  ...createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
 ]
 
 export const NR_ADMIN_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<NrAdminBoundaryLevel>[] = [
-  { value: 'nrArea', label: 'NR Area' },
-  { value: 'nrRegion', label: 'NR Region' },
-  { value: 'nrDistrict', label: 'NR District' },
+  ...createStudyAreaLevelOptions(['nrArea', 'nrRegion', 'nrDistrict'] as const),
 ]
 
 export const UWR_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<UwrBoundaryLevel>[] = [
-  { value: 'ungulateWinterRange', label: 'Ungulate Winter Range' },
+  ...createStudyAreaLevelOptions(['ungulateWinterRange'] as const),
 ]
 
 export const CROWN_TENURE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CrownTenureBoundaryLevel>[] = [
-  { value: 'crownTenure', label: 'Crown Tenure' },
+  ...createStudyAreaLevelOptions(['crownTenure'] as const),
 ]
 
 export const RANGE_TENURE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<RangeTenureBoundaryLevel>[] = [
-  { value: 'rangeTenurePolygon', label: 'Range Tenure' },
-  { value: 'rangePasture', label: 'Range Pasture' },
+  ...createStudyAreaLevelOptions(['rangeTenurePolygon', 'rangePasture'] as const),
 ]
 
 export const MINERAL_TENURE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<MineralTenureBoundaryLevel>[] = [
-  { value: 'mineralTenure', label: 'Mineral / Placer / Coal Tenure' },
+  ...createStudyAreaLevelOptions(['mineralTenure'] as const),
 ]
 
 export const WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<WalkabilityCommunityBoundaryLevel>[] = [
-  { value: 'walkabilityCommunity', label: 'PG Community' },
+  ...createStudyAreaLevelOptions(['walkabilityCommunity'] as const),
 ]
 
 export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelOption[] {
@@ -127,6 +170,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS
     case 'census':
       return CENSUS_BOUNDARY_LEVEL_OPTIONS
+    case 'cityCommunity':
+      return COMMUNITY_BOUNDARY_LEVEL_OPTIONS
     case 'cityPG':
       return CITY_BOUNDARY_LEVEL_OPTIONS
     case 'watershed':

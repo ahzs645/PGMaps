@@ -1,5 +1,10 @@
-import type { StudyAreaLevelOption, StudyAreaSourceOption } from '@/components/StudyAreaSelector'
-import { BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
+import {
+  BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS,
+  createStudyAreaLevelOptions,
+  getStudyAreaLevelLabel,
+  type StudyAreaLevelOption,
+  type StudyAreaSourceOption,
+} from '@/lib/studyArea'
 import type { BoundaryLevelConfig, CanueBoundaryLevel, CanueBoundarySource, MiscLayerId } from './types'
 
 export const MISC_LAYERS: Array<{ id: MiscLayerId; label: string; color: string }> = [
@@ -33,39 +38,27 @@ export const CANUE_BOUNDARY_SOURCE_OPTIONS: Array<StudyAreaSourceOption<string>>
 )
 
 export const CANUE_HEALTH_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
-  { value: 'healthAuthority', label: 'Health Authority' },
-  { value: 'hsda', label: 'Health Service Delivery Area' },
-  { value: 'lha', label: 'Local Health Area' },
-  { value: 'chsa', label: 'Community Health Service Area' },
+  ...createStudyAreaLevelOptions(['healthAuthority', 'hsda', 'lha', 'chsa'] as const),
 ]
 
 export const CANUE_CENSUS_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
-  { value: 'cd', label: 'Census Division' },
-  { value: 'csd', label: 'Census Subdivision' },
-  { value: 'ct', label: 'Census Tract' },
-  { value: 'da', label: 'Dissemination Area' },
-  { value: 'db', label: 'Dissemination Block' },
+  ...createStudyAreaLevelOptions(['cd', 'csd', 'ct', 'da', 'db'] as const),
 ]
 
 export const CANUE_CITY_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
-  { value: 'elementarySchoolCatchment', label: 'Elementary School Catchment' },
-  { value: 'secondarySchoolCatchment', label: 'Secondary School Catchment' },
+  ...createStudyAreaLevelOptions(['elementarySchoolCatchment', 'secondarySchoolCatchment'] as const),
 ]
 
 export const CANUE_REGIONAL_DISTRICT_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
-  { value: 'regionalDistrict', label: 'Regional District' },
+  ...createStudyAreaLevelOptions(['regionalDistrict'] as const),
 ]
 
 export const CANUE_WATERSHED_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
-  { value: 'majorWatershed', label: 'Major Watershed' },
-  { value: 'watershedGroup', label: 'Watershed Group' },
-  { value: 'assessmentWatershed', label: 'Assessment Watershed' },
+  ...createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
 ]
 
 export const CANUE_NR_ADMIN_LEVEL_OPTIONS: Array<StudyAreaLevelOption<CanueBoundaryLevel>> = [
-  { value: 'nrArea', label: 'NR Area' },
-  { value: 'nrRegion', label: 'NR Region' },
-  { value: 'nrDistrict', label: 'NR District' },
+  ...createStudyAreaLevelOptions(['nrArea', 'nrRegion', 'nrDistrict'] as const),
 ]
 
 export const CANUE_BOUNDARY_LEVEL_TO_SOURCE: Record<CanueBoundaryLevel, CanueBoundarySource> = {
@@ -94,109 +87,109 @@ export const CANUE_BOUNDARY_CONFIG: Record<CanueBoundaryLevel, BoundaryLevelConf
     path: '/data/boundaries/BCMoH/simplified/health_authorities.json',
     idField: 'HLTH_AUTHORITY_CODE',
     nameField: 'HLTH_AUTHORITY_NAME',
-    label: 'Health Authority',
+    label: getStudyAreaLevelLabel('healthAuthority'),
   },
   hsda: {
     path: '/data/boundaries/BCMoH/simplified/health_service_delivery_areas.json',
     idField: 'HLTH_SERVICE_DLVR_AREA_CODE',
     nameField: 'HLTH_SERVICE_DLVR_AREA_NAME',
-    label: 'Health Service Delivery Area',
+    label: getStudyAreaLevelLabel('hsda'),
   },
   lha: {
     path: '/data/boundaries/BCMoH/simplified/local_health_areas.json',
     idField: 'LOCAL_HLTH_AREA_CODE',
     nameField: 'LOCAL_HLTH_AREA_NAME',
-    label: 'Local Health Area',
+    label: getStudyAreaLevelLabel('lha'),
   },
   chsa: {
     path: '/data/boundaries/BCMoH/simplified/community_health_service_areas.json',
     idField: 'CMNTY_HLTH_SERV_AREA_CODE',
     nameField: 'CMNTY_HLTH_SERV_AREA_NAME',
-    label: 'Community Health Service Area',
+    label: getStudyAreaLevelLabel('chsa'),
   },
   regionalDistrict: {
     path: '/data/boundaries/BC/regional_districts.geojson',
     idField: 'LGL_ADMIN_AREA_ID',
     nameField: 'ADMIN_AREA_NAME',
-    label: 'Regional District',
+    label: getStudyAreaLevelLabel('regionalDistrict'),
   },
   cd: {
     path: '/data/census/prince_george_cd.geo.json',
     idField: 'id',
     nameField: 'name',
-    label: 'Census Division',
+    label: getStudyAreaLevelLabel('cd'),
   },
   csd: {
     path: '/data/census/prince_george_csd.geo.json',
     idField: 'id',
     nameField: 'name',
-    label: 'Census Subdivision',
+    label: getStudyAreaLevelLabel('csd'),
   },
   ct: {
     path: '/data/census/prince_george_ct.geo.json',
     idField: 'id',
     nameField: 'name',
-    label: 'Census Tract',
+    label: getStudyAreaLevelLabel('ct'),
   },
   da: {
     path: '/data/census/prince_george_da.geo.json',
     idField: 'id',
     nameField: 'name',
-    label: 'Dissemination Area',
+    label: getStudyAreaLevelLabel('da'),
   },
   db: {
     path: '/data/census/prince_george_db.geo.json',
     idField: 'id',
     nameField: 'name',
-    label: 'Dissemination Block',
+    label: getStudyAreaLevelLabel('db'),
   },
   elementarySchoolCatchment: {
     path: '/data/boundaries/CityPG/elementary_school_catchments.geojson',
     idField: 'OBJECTID',
     nameField: 'SchoolName',
-    label: 'Elementary School Catchment',
+    label: getStudyAreaLevelLabel('elementarySchoolCatchment'),
   },
   secondarySchoolCatchment: {
     path: '/data/boundaries/CityPG/secondary_school_catchments.geojson',
     idField: 'OBJECTID',
     nameField: 'SchoolNam',
-    label: 'Secondary School Catchment',
+    label: getStudyAreaLevelLabel('secondarySchoolCatchment'),
   },
   majorWatershed: {
     path: '/data/boundaries/BCFWA/major_watersheds_province_simplified.geojson',
     idField: 'boundaryCode',
     nameField: 'boundaryName',
-    label: 'Major Watershed',
+    label: getStudyAreaLevelLabel('majorWatershed'),
   },
   watershedGroup: {
     path: '/data/boundaries/BCFWA/watershed_groups_province_simplified.geojson',
     idField: 'boundaryCode',
     nameField: 'boundaryName',
-    label: 'Watershed Group',
+    label: getStudyAreaLevelLabel('watershedGroup'),
   },
   assessmentWatershed: {
     path: '/data/boundaries/BCFWA/assessment_watersheds.geojson',
     idField: 'boundaryCode',
     nameField: 'boundaryName',
-    label: 'Assessment Watershed',
+    label: getStudyAreaLevelLabel('assessmentWatershed'),
   },
   nrArea: {
     path: '/data/boundaries/BCNR/nr_areas.geojson',
     idField: 'boundaryCode',
     nameField: 'boundaryName',
-    label: 'Natural Resource Area',
+    label: getStudyAreaLevelLabel('nrArea'),
   },
   nrRegion: {
     path: '/data/boundaries/BCNR/nr_regions.geojson',
     idField: 'boundaryCode',
     nameField: 'boundaryName',
-    label: 'Natural Resource Region',
+    label: getStudyAreaLevelLabel('nrRegion'),
   },
   nrDistrict: {
     path: '/data/boundaries/BCNR/nr_districts.geojson',
     idField: 'boundaryCode',
     nameField: 'boundaryName',
-    label: 'Natural Resource District',
+    label: getStudyAreaLevelLabel('nrDistrict'),
   },
 }
 

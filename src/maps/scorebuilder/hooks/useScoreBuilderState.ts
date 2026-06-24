@@ -4,6 +4,7 @@ import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   CITY_BOUNDARY_LEVEL_OPTIONS,
+  COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
   NR_ADMIN_BOUNDARY_LEVEL_OPTIONS,
   REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
@@ -282,13 +283,15 @@ export function useScoreBuilderState() {
           ? REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS
           : state.boundarySource === 'cityPG'
             ? CITY_BOUNDARY_LEVEL_OPTIONS
-            : state.boundarySource === 'watershed'
-              ? WATERSHED_BOUNDARY_LEVEL_OPTIONS
-              : state.boundarySource === 'nrAdmin'
-                ? NR_ADMIN_BOUNDARY_LEVEL_OPTIONS
-                : state.boundarySource === 'walkabilityCommunity'
-                  ? WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS
-                  : CENSUS_BOUNDARY_LEVEL_OPTIONS
+            : state.boundarySource === 'cityCommunity'
+              ? COMMUNITY_BOUNDARY_LEVEL_OPTIONS
+              : state.boundarySource === 'watershed'
+                ? WATERSHED_BOUNDARY_LEVEL_OPTIONS
+                : state.boundarySource === 'nrAdmin'
+                  ? NR_ADMIN_BOUNDARY_LEVEL_OPTIONS
+                  : state.boundarySource === 'walkabilityCommunity'
+                    ? WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS
+                    : CENSUS_BOUNDARY_LEVEL_OPTIONS
     return options.map((option) => ({ value: option.value, label: option.label }))
   }, [state.boundarySource])
 
@@ -409,6 +412,7 @@ export function useScoreBuilderState() {
       boundarySource: state.boundarySource,
       healthBoundaryLevel: state.healthBoundaryLevel,
       censusBoundaryLevel: state.censusBoundaryLevel,
+      communityBoundaryLevel: state.communityBoundaryLevel,
       regionalDistrictBoundaryLevel: state.regionalDistrictBoundaryLevel,
       cityBoundaryLevel: state.cityBoundaryLevel,
       watershedBoundaryLevel: state.watershedBoundaryLevel,

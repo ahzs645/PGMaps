@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Droplets, Handshake, MousePointerClick, Palette, ShieldAlert, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Droplets, Handshake, MousePointerClick, Palette, RadioTower, ShieldAlert, Wind } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -80,6 +80,14 @@ const devEntries: DevEntry[] = [
     icon: CircleDollarSign,
     color: 'bg-rose-600',
     label: '/dev/health/msp',
+  },
+  {
+    title: 'Network Coverage',
+    description: 'deck.gl comparison map for local TELUS MVT snapshots and Bell polygonized PNG coverage layers.',
+    href: '/dev/networks',
+    icon: RadioTower,
+    color: 'bg-blue-600',
+    label: '/dev/networks',
   },
   {
     title: 'Fallout Sites',

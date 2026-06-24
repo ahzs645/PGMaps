@@ -58,6 +58,8 @@ function getComparisonUniverseLabel(source: RegionMetricRow['region']['source'],
   const sourceLabel =
     source === 'bcHealth'
       ? 'BC health regions'
+      : source === 'cityCommunity'
+        ? 'CityPG community polygons'
       : source === 'cityPG'
         ? 'CityPG school catchments'
         : source === 'watershed'

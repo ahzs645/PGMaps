@@ -13,6 +13,7 @@ import type {
   BoundaryRegionRecord,
   BoundarySource,
   CensusBoundaryLevel,
+  CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,
   MineralTenureBoundaryLevel,
@@ -44,6 +45,9 @@ const CENSUS_FILE_BY_LEVEL: Record<CensusBoundaryLevel, string> = {
 const CITY_FILE_BY_LEVEL: Record<CityBoundaryLevel, string> = {
   elementarySchoolCatchment: '/data/boundaries/CityPG/elementary_school_catchments.geojson',
   secondarySchoolCatchment: '/data/boundaries/CityPG/secondary_school_catchments.geojson',
+}
+const COMMUNITY_FILE_BY_LEVEL: Record<CommunityBoundaryLevel, string> = {
+  communityPolygon: '/data/citypg/community_boundaries.geojson',
 }
 const REGIONAL_DISTRICT_FILE_BY_LEVEL: Record<RegionalDistrictBoundaryLevel, string> = {
   regionalDistrict: '/data/boundaries/BC/regional_districts.geojson',
@@ -82,6 +86,7 @@ const WALKABILITY_COMMUNITY_FILE_BY_LEVEL: Record<WalkabilityCommunityBoundaryLe
 const HEALTH_LEVEL_SET = new Set<BoundaryLevel>(['healthAuthority', 'hsda', 'lha', 'chsa'])
 const REGIONAL_DISTRICT_LEVEL_SET = new Set<RegionalDistrictBoundaryLevel>(['regionalDistrict'])
 const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'ct', 'da'])
+const COMMUNITY_LEVEL_SET = new Set<CommunityBoundaryLevel>(['communityPolygon'])
 const CITY_LEVEL_SET = new Set<CityBoundaryLevel>(['elementarySchoolCatchment', 'secondarySchoolCatchment'])
 const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
   'majorWatershed',
@@ -124,6 +129,10 @@ function isHealthBoundaryLevel(level: RegionLevel): level is BoundaryLevel {
 
 function isCensusBoundaryLevel(level: RegionLevel): level is CensusBoundaryLevel {
   return CENSUS_LEVEL_SET.has(level as CensusBoundaryLevel)
+}
+
+function isCommunityBoundaryLevel(level: RegionLevel): level is CommunityBoundaryLevel {
+  return COMMUNITY_LEVEL_SET.has(level as CommunityBoundaryLevel)
 }
 
 function isRegionalDistrictBoundaryLevel(level: RegionLevel): level is RegionalDistrictBoundaryLevel {
@@ -341,6 +350,45 @@ async function loadCityRegions(level: CityBoundaryLevel): Promise<StudyAreaRegio
   return sortedRegions
 }
 
+async function loadCommunityRegions(level: CommunityBoundaryLevel): Promise<StudyAreaRegion[]> {
+  const cacheKey = `cityCommunity:${level}`
+  const cached = boundaryRegionCache.get(cacheKey)
+  if (cached) return cached
+
+  const geometry = await fetchJson<BoundaryFeatureCollection>(COMMUNITY_FILE_BY_LEVEL[level])
+
+  const regions = geometry.features
+    .map<StudyAreaRegion | null>((rawFeature) => {
+      const feature = toPolygonFeature(rawFeature)
+      if (!feature) return null
+
+      const properties = (feature.properties ?? {}) as Record<string, unknown>
+      const objectId = String(properties.OBJECTID ?? rawFeature.id ?? '').trim()
+      const displayName = String(properties.CommunityName ?? objectId).trim() || objectId
+      if (!objectId && !displayName) return null
+
+      const code = objectId || displayName
+      const areaKm2 = area(feature) / 1_000_000
+      const bounds = bbox(feature) as [number, number, number, number]
+
+      return {
+        id: `cityCommunity:${level}:${code}`,
+        code,
+        name: displayName,
+        source: 'cityCommunity',
+        level,
+        feature,
+        bounds,
+        areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+      } satisfies StudyAreaRegion
+    })
+    .filter((region): region is StudyAreaRegion => region !== null)
+
+  const sortedRegions = sortRegions(regions)
+  boundaryRegionCache.set(cacheKey, sortedRegions)
+  return sortedRegions
+}
+
 async function loadRegionalDistrictRegions(level: RegionalDistrictBoundaryLevel): Promise<StudyAreaRegion[]> {
   const cacheKey = `regionalDistrict:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
@@ -500,6 +548,13 @@ export async function loadStudyAreaRegions(
       throw new Error(`Invalid City of Prince George boundary level: ${level}`)
     }
     return loadCityRegions(level)
+  }
+
+  if (source === 'cityCommunity') {
+    if (!isCommunityBoundaryLevel(level)) {
+      throw new Error(`Invalid City of Prince George community boundary level: ${level}`)
+    }
+    return loadCommunityRegions(level)
   }
 
   if (source === 'regionalDistrict') {

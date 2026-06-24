@@ -795,7 +795,7 @@ export default function MiscDataSection() {
       : activeTab === 'bcer'
         ? BCER_ZOOM
         : activeTab === 'ev' && evShowBoundaries
-          ? evBoundarySource === 'census' || evBoundarySource === 'cityPG'
+          ? evBoundarySource === 'census' || evBoundarySource === 'cityCommunity' || evBoundarySource === 'cityPG'
             ? 9.2
             : 4.6
           : 9.4

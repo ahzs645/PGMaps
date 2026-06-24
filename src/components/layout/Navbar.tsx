@@ -213,9 +213,6 @@ export function Navbar() {
       >
         <div className="flex min-w-0 items-center gap-2.5 xl:gap-6">
           <Link to="/" className="hidden shrink-0 items-center gap-2 md:flex">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Map className="h-4 w-4 text-primary-foreground md:h-5 md:w-5" />
-            </div>
             <span className="text-base font-semibold md:text-lg">PGMaps</span>
           </Link>
 
@@ -267,7 +264,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-1">
-          <GlobalSearch className={cn('pointer-events-auto h-11 w-11 rounded-md md:h-9 md:w-9 md:border-input md:bg-background/80 md:text-muted-foreground md:shadow-none md:backdrop-blur-none md:hover:bg-accent md:hover:text-foreground', mobileGlassButtonClass)} />
+          <GlobalSearch className={cn('pointer-events-auto h-11 w-11 rounded-md md:h-10 md:w-10 md:border-input md:bg-background/80 md:text-muted-foreground md:shadow-none md:backdrop-blur-none md:hover:bg-accent md:hover:text-foreground', mobileGlassButtonClass)} />
           <div id="dataset-info-toolbar-slot" className="contents" />
           <Button
             variant="ghost"

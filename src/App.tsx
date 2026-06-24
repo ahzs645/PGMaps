@@ -24,6 +24,7 @@ const DevWaitSpecialist = lazy(() => import('@/pages/DevWaitSpecialist'))
 const DevFallout = lazy(() => import('@/pages/DevFallout'))
 const DevAcknowledgement = lazy(() => import('@/pages/DevAcknowledgement'))
 const DevHealthMsp = lazy(() => import('@/pages/DevHealthMsp'))
+const DevNetworks = lazy(() => import('@/pages/DevNetworks'))
 const AqMapSection = lazy(() => import('@/maps/aqmap').then(m => ({ default: m.AqMapSection })))
 
 function RouteLoadingFallback() {
@@ -73,6 +74,7 @@ function App() {
           <Route path="/dev/fallout" element={<DevFallout />} />
           <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
           <Route path="/dev/health/msp" element={<DevHealthMsp />} />
+          <Route path="/dev/networks" element={<DevNetworks />} />
           <Route path="/dev/aqmap" element={<AqMapSection />} />
           <Route path="/dev/aqmap/main" element={<AqMapSection variant="main" />} />
         </Routes>

@@ -3,6 +3,7 @@ import type {
   BoundarySource,
   CensusBoundaryLevel,
   CityBoundaryLevel,
+  CommunityBoundaryLevel,
   NrAdminBoundaryLevel,
   RegionalDistrictBoundaryLevel,
   RegionLevel,
@@ -35,6 +36,7 @@ import {
   parseBoundarySource,
   parseCensusBoundaryLevel,
   parseCityBoundaryLevel,
+  parseCommunityBoundaryLevel,
   parseCustomMetricRecipes,
   parseCustomMetricWeights,
   parseDataSources,
@@ -71,6 +73,7 @@ export interface ScoreBuilderControlState {
   boundarySource: BoundarySource
   healthBoundaryLevel: BoundaryLevel
   censusBoundaryLevel: CensusBoundaryLevel
+  communityBoundaryLevel: CommunityBoundaryLevel
   cityBoundaryLevel: CityBoundaryLevel
   regionalDistrictBoundaryLevel: RegionalDistrictBoundaryLevel
   watershedBoundaryLevel: WatershedBoundaryLevel
@@ -141,6 +144,7 @@ export type ScoreBuilderAction =
 
 export function getSelectedRegionLevel(state: ScoreBuilderControlState): RegionLevel {
   if (state.boundarySource === 'walkabilityCommunity') return 'walkabilityCommunity'
+  if (state.boundarySource === 'cityCommunity') return state.communityBoundaryLevel
   return state.boundarySource === 'bcHealth'
     ? state.healthBoundaryLevel
     : state.boundarySource === 'regionalDistrict'
@@ -192,6 +196,8 @@ function applyExampleToState(
     next.regionalDistrictBoundaryLevel = parseRegionalDistrictBoundaryLevel(example.boundaryLevel)
   } else if (example.boundarySource === 'census') {
     next.censusBoundaryLevel = example.boundaryLevel as CensusBoundaryLevel
+  } else if (example.boundarySource === 'cityCommunity') {
+    next.communityBoundaryLevel = parseCommunityBoundaryLevel(example.boundaryLevel)
   } else if (example.boundarySource === 'cityPG') {
     next.cityBoundaryLevel = example.boundaryLevel as CityBoundaryLevel
   } else {
@@ -236,6 +242,8 @@ function applyPresetToState(
       next.regionalDistrictBoundaryLevel = parseRegionalDistrictBoundaryLevel(preset.recommendedBoundaryLevel)
     } else if (preset.recommendedBoundarySource === 'census') {
       next.censusBoundaryLevel = parseCensusBoundaryLevel(preset.recommendedBoundaryLevel)
+    } else if (preset.recommendedBoundarySource === 'cityCommunity') {
+      next.communityBoundaryLevel = parseCommunityBoundaryLevel(preset.recommendedBoundaryLevel)
     } else if (preset.recommendedBoundarySource === 'cityPG') {
       next.cityBoundaryLevel = parseCityBoundaryLevel(preset.recommendedBoundaryLevel)
     } else if (preset.recommendedBoundarySource === 'watershed') {
@@ -289,6 +297,9 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       }
       if (state.boundarySource === 'census') {
         return { ...state, censusBoundaryLevel: parseCensusBoundaryLevel(action.level) }
+      }
+      if (state.boundarySource === 'cityCommunity') {
+        return { ...state, communityBoundaryLevel: parseCommunityBoundaryLevel(action.level) }
       }
       if (state.boundarySource === 'cityPG') {
         return { ...state, cityBoundaryLevel: parseCityBoundaryLevel(action.level) }
@@ -391,6 +402,7 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
         boundarySource: parseBoundarySource(share.boundarySource),
         healthBoundaryLevel: parseHealthBoundaryLevel(share.healthBoundaryLevel),
         censusBoundaryLevel: parseCensusBoundaryLevel(share.censusBoundaryLevel),
+        communityBoundaryLevel: parseCommunityBoundaryLevel(share.communityBoundaryLevel ?? null),
         cityBoundaryLevel: parseCityBoundaryLevel(share.cityBoundaryLevel ?? null),
         regionalDistrictBoundaryLevel: parseRegionalDistrictBoundaryLevel(share.regionalDistrictBoundaryLevel ?? null),
         watershedBoundaryLevel: parseWatershedBoundaryLevel(share.watershedBoundaryLevel ?? null),
@@ -652,6 +664,7 @@ export function createInitialScoreBuilderState(searchParams: URLSearchParams): S
     boundarySource: parseBoundarySource(searchParams.get('src')),
     healthBoundaryLevel: parseHealthBoundaryLevel(searchParams.get('level')),
     censusBoundaryLevel: parseCensusBoundaryLevel(searchParams.get('level')),
+    communityBoundaryLevel: parseCommunityBoundaryLevel(searchParams.get('level')),
     cityBoundaryLevel: parseCityBoundaryLevel(searchParams.get('level')),
     regionalDistrictBoundaryLevel: parseRegionalDistrictBoundaryLevel(searchParams.get('level')),
     watershedBoundaryLevel: parseWatershedBoundaryLevel(searchParams.get('level')),

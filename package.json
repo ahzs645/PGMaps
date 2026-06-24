@@ -51,6 +51,8 @@
     "healthyplan-pg:sync": "npm --prefix vendor/bcdatamapper run healthyplan-pg:sync --",
     "healthyplan-pg:sync:education": "npm --prefix vendor/bcdatamapper run healthyplan-pg:sync:education --",
     "healthyplan-pg:sync:citypg-business": "npm --prefix vendor/bcdatamapper run healthyplan-pg:sync:citypg-business --",
+    "health:statcan-odhf": "npm --prefix vendor/bcdatamapper run health:statcan-odhf --",
+    "health:place-registry": "npm --prefix vendor/bcdatamapper run health:place-registry --",
     "health:msp-facilities": "node scripts/build-msp-health-facilities.mjs",
     "walkability:build": "npm --prefix vendor/bcdatamapper run walkability:build --",
     "walkability:import-supplements": "npm --prefix vendor/bcdatamapper run walkability:import-supplements --",

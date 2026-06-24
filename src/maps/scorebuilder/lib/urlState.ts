@@ -3,6 +3,7 @@ import type {
   BoundarySource,
   CensusBoundaryLevel,
   CityBoundaryLevel,
+  CommunityBoundaryLevel,
   NrAdminBoundaryLevel,
   RegionalDistrictBoundaryLevel,
   WatershedBoundaryLevel,
@@ -10,6 +11,7 @@ import type {
 import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   CITY_BOUNDARY_LEVEL_OPTIONS,
+  COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
   NR_ADMIN_BOUNDARY_LEVEL_OPTIONS,
   REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
@@ -44,6 +46,9 @@ export const CENSUS_BOUNDARY_LEVEL_VALUES = new Set<CensusBoundaryLevel>(
   CENSUS_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
 const CITY_BOUNDARY_LEVEL_VALUES = new Set<CityBoundaryLevel>(CITY_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value))
+const COMMUNITY_BOUNDARY_LEVEL_VALUES = new Set<CommunityBoundaryLevel>(
+  COMMUNITY_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
 const REGIONAL_DISTRICT_BOUNDARY_LEVEL_VALUES = new Set<RegionalDistrictBoundaryLevel>(
   REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
@@ -58,6 +63,7 @@ export function parseBoundarySource(value: string | null): BoundarySource {
   return value === 'bcHealth' ||
     value === 'regionalDistrict' ||
     value === 'census' ||
+    value === 'cityCommunity' ||
     value === 'cityPG' ||
     value === 'watershed' ||
     value === 'nrAdmin'
@@ -71,6 +77,12 @@ export function parseHealthBoundaryLevel(value: string | null): BoundaryLevel {
 
 export function parseCensusBoundaryLevel(value: string | null): CensusBoundaryLevel {
   return CENSUS_BOUNDARY_LEVEL_VALUES.has(value as CensusBoundaryLevel) ? (value as CensusBoundaryLevel) : 'ct'
+}
+
+export function parseCommunityBoundaryLevel(value: string | null): CommunityBoundaryLevel {
+  return COMMUNITY_BOUNDARY_LEVEL_VALUES.has(value as CommunityBoundaryLevel)
+    ? (value as CommunityBoundaryLevel)
+    : 'communityPolygon'
 }
 
 export function parseCityBoundaryLevel(value: string | null): CityBoundaryLevel {

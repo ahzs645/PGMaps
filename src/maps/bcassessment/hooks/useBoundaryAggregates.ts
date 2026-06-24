@@ -1,21 +1,6 @@
 import { useMemo } from 'react'
-import type { Property, PropertyCategory, BoundaryLevel, BoundaryAggregate, AssessmentBoundaryLevel } from '../types'
-
-const BOUNDARY_LABEL: Record<AssessmentBoundaryLevel, string> = {
-  healthAuthority: 'Health Authority',
-  hsda: 'HSDA',
-  lha: 'LHA',
-  chsa: 'CHSA',
-  regionalDistrict: 'Regional District',
-  ct: 'Census Tract',
-  da: 'Dissemination Area',
-  db: 'Dissemination Block',
-  elementarySchoolCatchment: 'Elementary School Catchment',
-  secondarySchoolCatchment: 'Secondary School Catchment',
-  majorWatershed: 'Major Watershed',
-  watershedGroup: 'Watershed Group',
-  assessmentWatershed: 'Assessment Watershed',
-}
+import { getStudyAreaLevelLabel } from '@/lib/studyArea'
+import type { Property, PropertyCategory, BoundaryLevel, BoundaryAggregate } from '../types'
 
 /**
  * Groups filtered properties by their census boundary ID and computes
@@ -42,7 +27,7 @@ export function useBoundaryAggregates(
       list.push(prop)
     }
 
-    const label = BOUNDARY_LABEL[boundaryLevel]
+    const label = getStudyAreaLevelLabel(boundaryLevel)
 
     for (const [bid, props] of groups) {
       const count = props.length

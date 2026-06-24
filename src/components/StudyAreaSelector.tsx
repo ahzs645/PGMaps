@@ -1,109 +1,7 @@
 import type { ReactNode } from 'react'
+import type { StudyAreaLevelOption, StudyAreaSourceOption } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
-
-export interface StudyAreaSourceOption<TSource extends string = string> {
-  value: TSource
-  label: string
-  description: string
-  disabled?: boolean
-  disabledReason?: string
-}
-
-export interface StudyAreaLevelOption<TLevel extends string = string> {
-  value: TLevel
-  label: string
-}
-
-export type StudyAreaScope = 'pg' | 'province' | 'mixed'
-
-export type CanonicalStudyAreaSource =
-  | 'bcHealth'
-  | 'regionalDistrict'
-  | 'census'
-  | 'cityPG'
-  | 'watershed'
-  | 'nrAdmin'
-  | 'uwr'
-  | 'crownTenure'
-  | 'rangeTenure'
-  | 'mineralTenure'
-
-const CANONICAL_SOURCE_DEFS: Record<
-  CanonicalStudyAreaSource,
-  { label: string; description: string; provincial: boolean }
-> = {
-  bcHealth: {
-    label: 'Health boundaries',
-    description: 'Health Authority -> CHSA hierarchy',
-    provincial: true,
-  },
-  regionalDistrict: {
-    label: 'Regional district',
-    description: 'Large local-government region',
-    provincial: true,
-  },
-  census: {
-    label: 'Census boundaries',
-    description: 'PG census tract -> dissemination area',
-    provincial: false,
-  },
-  cityPG: {
-    label: 'School catchments',
-    description: 'Elementary and secondary catchments',
-    provincial: false,
-  },
-  watershed: {
-    label: 'Watershed boundaries',
-    description: 'BC Freshwater Atlas hierarchy',
-    provincial: true,
-  },
-  nrAdmin: {
-    label: 'Natural Resource admin',
-    description: 'BC NR Areas, Regions, and Districts',
-    provincial: true,
-  },
-  uwr: {
-    label: 'Ungulate Winter Range',
-    description: 'Approved UWR legal orders',
-    provincial: true,
-  },
-  crownTenure: {
-    label: 'Crown tenures',
-    description: 'TANTALIS current Crown Land tenures',
-    provincial: true,
-  },
-  rangeTenure: {
-    label: 'Range tenures + pastures',
-    description: 'Active range tenures and management pastures',
-    provincial: true,
-  },
-  mineralTenure: {
-    label: 'Mineral / placer / coal tenures',
-    description: 'Active mineral, placer, and coal tenures',
-    provincial: true,
-  },
-}
-
-// PG-only data has no meaningful breakdown across provincial health-region
-// hierarchies (CHSA/LHA/HSDA all collapse to ~one polygon at city scale), so we
-// surface them as disabled rather than hide them.
-export function getStudyAreaSources(
-  scope: StudyAreaScope,
-  sources: CanonicalStudyAreaSource[] = ['bcHealth', 'census', 'cityPG', 'watershed'],
-): Array<StudyAreaSourceOption<CanonicalStudyAreaSource>> {
-  return sources.map((value) => {
-    const def = CANONICAL_SOURCE_DEFS[value]
-    const disabled = scope === 'pg' && def.provincial
-    return {
-      value,
-      label: def.label,
-      description: def.description,
-      disabled,
-      disabledReason: disabled ? 'Provincial layer — not meaningful for PG-only data' : undefined,
-    }
-  })
-}
 
 interface StudyAreaSelectorProps<TSource extends string = string, TLevel extends string = string> {
   source?: TSource
@@ -149,6 +47,50 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
   const hasSourceList = Boolean(sourceOptions && sourceOptions.length > 0)
   const showInlineLevelLabel = hasSourceList && showLevelSelect
   const showInlineRow = showInlineLevelLabel || hasAuxiliaryControls
+  const sourceGroups = sourceOptions?.reduce<Array<{ label: string | null; options: Array<StudyAreaSourceOption<TSource>> }>>(
+    (groups, option) => {
+      const label = option.group ?? null
+      const group = groups.find((item) => item.label === label)
+      if (group) {
+        group.options.push(option)
+      } else {
+        groups.push({ label, options: [option] })
+      }
+      return groups
+    },
+    [],
+  ) ?? []
+  const showSourceGroupLabels = sourceGroups.some((group) => group.label)
+  const renderSourceButton = (option: StudyAreaSourceOption<TSource>) => {
+    const selected = source === option.value
+    return (
+      <button
+        key={option.value}
+        type="button"
+        data-score-builder-boundary-source={dataPrefix === 'score-builder' ? option.value : undefined}
+        disabled={option.disabled}
+        title={option.disabled ? option.disabledReason : undefined}
+        onClick={() => {
+          if (option.disabled) return
+          if (selected && onSelectedSourceClick) {
+            onSelectedSourceClick()
+            return
+          }
+          onSourceChange?.(option.value)
+        }}
+        className={cn(
+          'w-full rounded-md border px-3 py-2 text-left transition-colors',
+          selected
+            ? 'border-cyan-500/70 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/35 dark:text-cyan-100'
+            : 'border-input bg-background text-muted-foreground hover:text-foreground',
+          option.disabled && 'cursor-not-allowed opacity-50 hover:text-muted-foreground'
+        )}
+      >
+        <div className="text-xs font-medium">{option.label}</div>
+        <div className="text-[10px] text-muted-foreground">{option.description}</div>
+      </button>
+    )
+  }
 
   return (
     <section
@@ -159,37 +101,17 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
         {hasSourceList ? title : levelLabel}
       </h3>
       {hasSourceList && sourceOptions && (
-        <div className="space-y-1.5">
-          {sourceOptions.map((option) => {
-            const selected = source === option.value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                data-score-builder-boundary-source={dataPrefix === 'score-builder' ? option.value : undefined}
-                disabled={option.disabled}
-                title={option.disabled ? option.disabledReason : undefined}
-                onClick={() => {
-                  if (option.disabled) return
-                  if (selected && onSelectedSourceClick) {
-                    onSelectedSourceClick()
-                    return
-                  }
-                  onSourceChange?.(option.value)
-                }}
-                className={cn(
-                  'w-full rounded-md border px-3 py-2 text-left transition-colors',
-                  selected
-                    ? 'border-cyan-500/70 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/35 dark:text-cyan-100'
-                    : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                  option.disabled && 'cursor-not-allowed opacity-50 hover:text-muted-foreground'
-                )}
-              >
-                <div className="text-xs font-medium">{option.label}</div>
-                <div className="text-[10px] text-muted-foreground">{option.description}</div>
-              </button>
-            )
-          })}
+        <div className="space-y-2">
+          {sourceGroups.map((group, index) => (
+            <div key={group.label ?? `ungrouped-${index}`} className="space-y-1.5">
+              {showSourceGroupLabels && group.label && (
+                <div className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+                  {group.label}
+                </div>
+              )}
+              {group.options.map(renderSourceButton)}
+            </div>
+          ))}
         </div>
       )}
       {showInlineRow && (

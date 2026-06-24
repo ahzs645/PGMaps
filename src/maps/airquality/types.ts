@@ -60,6 +60,7 @@ export type BoundarySource =
   | 'bcHealth'
   | 'regionalDistrict'
   | 'census'
+  | 'cityCommunity'
   | 'cityPG'
   | 'watershed'
   | 'nrAdmin'
@@ -71,6 +72,7 @@ export type BoundarySource =
 export type BoundaryLevel = 'healthAuthority' | 'hsda' | 'lha' | 'chsa'
 export type RegionalDistrictBoundaryLevel = 'regionalDistrict'
 export type CensusBoundaryLevel = 'cd' | 'csd' | 'ct' | 'da'
+export type CommunityBoundaryLevel = 'communityPolygon'
 export type CityBoundaryLevel = 'elementarySchoolCatchment' | 'secondarySchoolCatchment'
 export type WatershedBoundaryLevel = 'majorWatershed' | 'watershedGroup' | 'assessmentWatershed'
 export type NrAdminBoundaryLevel = 'nrArea' | 'nrRegion' | 'nrDistrict'
@@ -83,6 +85,7 @@ export type RegionLevel =
   | BoundaryLevel
   | RegionalDistrictBoundaryLevel
   | CensusBoundaryLevel
+  | CommunityBoundaryLevel
   | CityBoundaryLevel
   | WatershedBoundaryLevel
   | NrAdminBoundaryLevel

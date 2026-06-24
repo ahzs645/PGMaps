@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Clock } from 'lucide-react'
-import { StudyAreaSelector, type StudyAreaSourceOption } from '@/components/StudyAreaSelector'
+import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
 import {
   FilterChipGroup,
@@ -10,7 +10,12 @@ import {
   SidebarSection,
   StatGrid,
 } from '@/components/ui/map-panels'
-import { BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
+import {
+  BOUNDARY_SOURCE_OPTIONS,
+  createStudyAreaLevelOptions,
+  type StudyAreaLevelOption,
+  type StudyAreaSourceOption,
+} from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, CATEGORY_LABELS, getCategoryColor, COLOR_METRICS, formatCurrency } from '../constants'
@@ -24,28 +29,23 @@ import type {
   BoundaryAggregate,
 } from '../types'
 
-const BOUNDARY_LABELS: Record<AssessmentBoundaryLevel, string> = {
-  healthAuthority: 'Health Authority',
-  hsda: 'HSDA',
-  lha: 'LHA',
-  chsa: 'CHSA',
-  regionalDistrict: 'Regional District',
-  ct: 'Census Tracts',
-  da: 'Dissemination Areas',
-  db: 'Dissemination Blocks',
-  elementarySchoolCatchment: 'Elementary Catchments',
-  secondarySchoolCatchment: 'Secondary Catchments',
-  majorWatershed: 'Major River Basins',
-  watershedGroup: 'Watershed Groups',
-  assessmentWatershed: 'Assessment Watersheds',
-}
-
 const BOUNDARY_OPTIONS: { value: BoundaryLevel; label: string }[] = [
   { value: 'none', label: 'None' },
-  ...Object.entries(BOUNDARY_LABELS).map(([value, label]) => ({
-    value: value as AssessmentBoundaryLevel,
-    label,
-  })),
+  ...createStudyAreaLevelOptions<AssessmentBoundaryLevel>([
+    'healthAuthority',
+    'hsda',
+    'lha',
+    'chsa',
+    'regionalDistrict',
+    'ct',
+    'da',
+    'db',
+    'elementarySchoolCatchment',
+    'secondarySchoolCatchment',
+    'majorWatershed',
+    'watershedGroup',
+    'assessmentWatershed',
+  ]),
 ]
 
 interface BcAssessmentSidebarProps {
@@ -76,7 +76,13 @@ interface BcAssessmentSidebarProps {
   onTimelineYearChange: (year: number) => void
 }
 
-const ASSESSMENT_BOUNDARY_SOURCES = new Set<AssessmentBoundarySource>(['bcHealth', 'census', 'cityPG', 'watershed'])
+const ASSESSMENT_BOUNDARY_SOURCES = new Set<AssessmentBoundarySource>([
+  'bcHealth',
+  'regionalDistrict',
+  'census',
+  'cityPG',
+  'watershed',
+])
 
 function isAssessmentBoundarySource(value: string): value is AssessmentBoundarySource {
   return ASSESSMENT_BOUNDARY_SOURCES.has(value as AssessmentBoundarySource)
@@ -101,29 +107,13 @@ const REGION_SOURCE_OPTIONS: Array<StudyAreaSourceOption<AssessmentBoundarySourc
 
 const REGION_LEVEL_OPTIONS: Record<
   AssessmentBoundarySource,
-  Array<{ value: AssessmentBoundaryLevel; label: string }>
+  Array<StudyAreaLevelOption<AssessmentBoundaryLevel>>
 > = {
-  bcHealth: [
-    { value: 'chsa', label: 'CHSA' },
-    { value: 'lha', label: 'LHA' },
-    { value: 'hsda', label: 'HSDA' },
-    { value: 'healthAuthority', label: 'Health Authority' },
-  ],
-  regionalDistrict: [{ value: 'regionalDistrict', label: 'Regional District' }],
-  census: [
-    { value: 'ct', label: 'Census Tracts' },
-    { value: 'da', label: 'Dissemination Areas' },
-    { value: 'db', label: 'Dissemination Blocks' },
-  ],
-  cityPG: [
-    { value: 'elementarySchoolCatchment', label: 'Elementary Catchments' },
-    { value: 'secondarySchoolCatchment', label: 'Secondary Catchments' },
-  ],
-  watershed: [
-    { value: 'majorWatershed', label: 'Major River Basins' },
-    { value: 'watershedGroup', label: 'Watershed Groups' },
-    { value: 'assessmentWatershed', label: 'Assessment Watersheds' },
-  ],
+  bcHealth: createStudyAreaLevelOptions(['chsa', 'lha', 'hsda', 'healthAuthority'] as const),
+  regionalDistrict: createStudyAreaLevelOptions(['regionalDistrict'] as const),
+  census: createStudyAreaLevelOptions(['ct', 'da', 'db'] as const),
+  cityPG: createStudyAreaLevelOptions(['elementarySchoolCatchment', 'secondarySchoolCatchment'] as const),
+  watershed: createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
 }
 
 export function formatNumber(n: number): string {

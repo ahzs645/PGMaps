@@ -213,6 +213,8 @@ function getComparisonUniverseLabel(source: ScoreBuilderRegion['source'], level:
       ? 'BC health regions'
       : source === 'regionalDistrict'
         ? 'BC regional districts'
+      : source === 'cityCommunity'
+        ? 'CityPG community polygons'
       : source === 'cityPG'
         ? 'CityPG school catchments'
         : source === 'watershed'

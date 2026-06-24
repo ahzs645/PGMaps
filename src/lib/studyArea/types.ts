@@ -4,6 +4,7 @@ export type {
   BoundaryRegionRecord,
   BoundarySource,
   CensusBoundaryLevel,
+  CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,
   MineralTenureBoundaryLevel,
@@ -21,6 +22,20 @@ import type {
   BoundarySource,
   RegionLevel,
 } from '@/maps/airquality/types'
+
+export interface StudyAreaSourceOption<TSource extends string = string> {
+  value: TSource
+  label: string
+  description: string
+  group?: string
+  disabled?: boolean
+  disabledReason?: string
+}
+
+export interface StudyAreaLevelOption<TLevel extends string = string> {
+  value: TLevel
+  label: string
+}
 
 export interface StudyAreaRegion {
   id: string

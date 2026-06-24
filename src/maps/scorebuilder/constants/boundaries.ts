@@ -1,5 +1,6 @@
 export {
   BOUNDARY_SOURCE_OPTIONS,
+  COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
@@ -32,5 +33,6 @@ export const SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     value: 'walkabilityCommunity',
     label: 'PG Community (walkability)',
     description: '31 Prince George community areas with precomputed walkability variants',
+    group: 'Local',
   },
 ]

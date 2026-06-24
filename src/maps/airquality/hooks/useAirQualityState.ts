@@ -12,6 +12,7 @@ import {
   getDefaultLevelForSource,
   getLevelOptionsForSource,
   isValidLevelForSource,
+  STUDY_AREA_LEVEL_LABELS,
   useStudyAreaRegions,
 } from '@/lib/studyArea'
 import type { StudyAreaRegion } from '@/lib/studyArea'
@@ -26,31 +27,7 @@ import type {
   SelectedBoundaryRegion,
 } from '../types'
 
-export const REGION_LEVEL_LABELS: Record<RegionLevel, string> = {
-  healthAuthority: 'Health Authority',
-  hsda: 'Health Service Delivery Area',
-  lha: 'Local Health Area',
-  chsa: 'Community Health Service Area',
-  regionalDistrict: 'Regional District',
-  cd: 'Census Division',
-  csd: 'Census Subdivision',
-  ct: 'Census Tract',
-  da: 'Dissemination Area',
-  elementarySchoolCatchment: 'Elementary School Catchment',
-  secondarySchoolCatchment: 'Secondary School Catchment',
-  majorWatershed: 'Major River Basin',
-  watershedGroup: 'Watershed Group',
-  assessmentWatershed: 'Assessment Watershed',
-  nrArea: 'NR Area',
-  nrRegion: 'NR Region',
-  nrDistrict: 'NR District',
-  ungulateWinterRange: 'Ungulate Winter Range',
-  crownTenure: 'Crown Tenure',
-  rangeTenurePolygon: 'Range Tenure',
-  rangePasture: 'Range Pasture',
-  mineralTenure: 'Mineral / Placer / Coal Tenure',
-  walkabilityCommunity: 'PG Community',
-}
+export const REGION_LEVEL_LABELS: Record<RegionLevel, string> = STUDY_AREA_LEVEL_LABELS
 
 /** Study-area boundary picker selection; null means boundaries are hidden. */
 export interface StudyAreaSelection {
@@ -131,6 +108,7 @@ const BOUNDARY_SOURCES = [
   'bcHealth',
   'regionalDistrict',
   'census',
+  'cityCommunity',
   'cityPG',
   'watershed',
   'nrAdmin',

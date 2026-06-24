@@ -17,7 +17,7 @@ export function presetAppliesToBoundary(preset: ScorePreset, boundarySource: Bou
 
   const sources = getScoreDataSourcesForWeights(preset.weights)
   if (boundarySource === 'bcHealth') return sources.length === 1 && sources[0] === 'airQuality'
-  if (boundarySource === 'cityPG') {
+  if (boundarySource === 'cityPG' || boundarySource === 'cityCommunity') {
     const sourceSet = new Set(sources)
     const cityFriendlySources = new Set<ScoreDataSource>([
       'airQuality',

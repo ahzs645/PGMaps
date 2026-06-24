@@ -1,5 +1,10 @@
-import type { StudyAreaLevelOption, StudyAreaSourceOption } from '@/components/StudyAreaSelector'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
+import {
+  BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS,
+  createStudyAreaLevelOptions,
+  type StudyAreaLevelOption,
+  type StudyAreaSourceOption,
+} from '@/lib/studyArea'
 import type {
   BoundaryLevelConfig,
   WaterBoundaryLevel,
@@ -77,61 +82,48 @@ export const WATER_MONTH_INDEX: Record<string, number> = {
   december: 11,
 }
 
-export const WATER_SOURCE_OPTIONS: Array<StudyAreaSourceOption<WaterBoundarySource>> = [
-  {
-    value: 'bcHealth',
-    label: 'Health boundaries',
-    description: 'Health Authority -> CHSA hierarchy',
-  },
-  {
-    value: 'regionalDistrict',
-    label: 'Regional district',
-    description: 'Large local-government region - Fraser-Fort George, Cariboo RD, Bulkley-Nechako RD',
-  },
-  {
-    value: 'census',
-    label: 'Census boundaries',
-    description: 'PG census tract -> dissemination area',
-  },
-  {
-    value: 'watershed',
-    label: 'Watershed boundaries',
-    description: 'BC Freshwater Atlas hierarchy',
-  },
-  {
-    value: 'nrAdmin',
-    label: 'Natural Resource admin',
-    description: 'BC NR Areas, Regions, and Districts',
-  },
-]
+const WATER_SUPPORTED_BOUNDARY_SOURCES = new Set<WaterBoundarySource>([
+  'bcHealth',
+  'regionalDistrict',
+  'census',
+  'watershed',
+  'nrAdmin',
+])
+
+function isWaterBoundarySource(value: string): value is WaterBoundarySource {
+  return WATER_SUPPORTED_BOUNDARY_SOURCES.has(value as WaterBoundarySource)
+}
+
+export const WATER_SOURCE_OPTIONS: Array<StudyAreaSourceOption<WaterBoundarySource>> = ALL_BOUNDARY_SOURCE_OPTIONS
+  .flatMap((option): Array<StudyAreaSourceOption<WaterBoundarySource>> => {
+    if (!isWaterBoundarySource(option.value)) return []
+    return [
+      {
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      },
+    ]
+  })
 
 export const WATER_HEALTH_LEVEL_OPTIONS: Array<StudyAreaLevelOption<WaterBoundaryLevel>> = [
-  { value: 'healthAuthority', label: 'Health Authority' },
-  { value: 'hsda', label: 'Health Service Delivery Area' },
-  { value: 'lha', label: 'Local Health Area' },
-  { value: 'chsa', label: 'Community Health Service Area' },
+  ...createStudyAreaLevelOptions(['healthAuthority', 'hsda', 'lha', 'chsa'] as const),
 ]
 
 export const WATER_CENSUS_LEVEL_OPTIONS: Array<StudyAreaLevelOption<WaterBoundaryLevel>> = [
-  { value: 'cd', label: 'Census Division' },
-  { value: 'ct', label: 'Census Tract' },
-  { value: 'da', label: 'Dissemination Area' },
+  ...createStudyAreaLevelOptions(['cd', 'csd', 'ct', 'da'] as const),
 ]
 
 export const WATER_REGIONAL_DISTRICT_LEVEL_OPTIONS: Array<StudyAreaLevelOption<WaterBoundaryLevel>> = [
-  { value: 'regionalDistrict', label: 'Regional District' },
+  ...createStudyAreaLevelOptions(['regionalDistrict'] as const),
 ]
 
 export const WATER_WATERSHED_LEVEL_OPTIONS: Array<StudyAreaLevelOption<WaterBoundaryLevel>> = [
-  { value: 'majorWatershed', label: 'Major Watershed' },
-  { value: 'watershedGroup', label: 'Watershed Group' },
-  { value: 'assessmentWatershed', label: 'Assessment Watershed' },
+  ...createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
 ]
 
 export const WATER_NR_ADMIN_LEVEL_OPTIONS: Array<StudyAreaLevelOption<WaterBoundaryLevel>> = [
-  { value: 'nrArea', label: 'NR Area' },
-  { value: 'nrRegion', label: 'NR Region' },
-  { value: 'nrDistrict', label: 'NR District' },
+  ...createStudyAreaLevelOptions(['nrArea', 'nrRegion', 'nrDistrict'] as const),
 ]
 
 export const WATER_BOUNDARY_CONFIG: Record<WaterBoundaryLevel, BoundaryLevelConfig> = {
