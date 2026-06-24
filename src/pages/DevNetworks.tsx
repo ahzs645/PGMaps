@@ -112,7 +112,7 @@ const BELL_LAYERS: NetworkLayerDefinition[] = [
 ]
 
 const ROGERS_LAYERS: NetworkLayerDefinition[] = [
-  { id: '4g5g', label: 'Rogers 5G/5G+', color: [218, 41, 28, 145] },
+  { id: '4g5g-only', label: 'Rogers 5G/5G+ only', color: [218, 41, 28, 145] },
   { id: '4g', label: 'Rogers 4G LTE', color: [252, 128, 118, 130] },
   { id: '3g', label: 'Rogers HSPA+', color: [252, 128, 118, 105] },
   { id: 'ltem', label: 'Rogers LTE-M', color: [0, 160, 183, 140] },
@@ -122,9 +122,9 @@ const ROGERS_LAYERS: NetworkLayerDefinition[] = [
 
 const DEFAULT_TELUS_VISIBLE = new Set(['telus-lte', 'telus-5g'])
 const DEFAULT_BELL_VISIBLE = new Set(['lte'])
-const DEFAULT_ROGERS_VISIBLE = new Set(['4g5g'])
+const DEFAULT_ROGERS_VISIBLE = new Set(['4g5g-only'])
 const BELL_RASTER_MIN_ZOOM = 4
-const BELL_RASTER_MAX_ZOOM = 8
+const BELL_RASTER_MAX_ZOOM = 10
 const ROGERS_RASTER_MIN_ZOOM = 3
 const ROGERS_RASTER_MAX_ZOOM = 8
 
