@@ -51,14 +51,47 @@ coverage
 playwright-report
 test-results
 
-# Generated census variable data (built from scripts/build-census-variables.py)
-public/data/census/variables/
-
-# Generated BC Assessment data (built from scripts/build-bc-assessment.py)
+# Generated from bcdatamapper data sync for local app use.
+public/data/acknowledgement/
+public/data/ascent/
+public/data/ascent-sites.json
+public/data/aqmap/
+public/data/bc/
 public/data/bc-assessment/
-
-# Walkability factor masks are generated but committed app-ready assets.
+public/data/bc-wait-specialists.json
+public/data/boundaries/
+public/data/cell-coverage/
+public/data/census/
+public/data/citypg/
+public/data/drought/
+public/data/epa/
+public/data/erstat-hospitals.json
+public/data/ev-charging/
+public/data/fallout/
+public/data/flood/
+public/data/fpcc/
+public/data/geocoding/
+public/data/grids/
+public/data/healthyplan-pg/
+public/data/heat-shade/
+public/data/icbc/
+public/data/indicators/
+public/data/manifest.json
+public/data/monitors.csv
+public/data/monitors/
+public/data/network-availability/
+public/data/restaurant-classifications.json
+public/data/restaurant-location-overrides.json
+public/data/restaurants.json
+public/data/satellite/
+public/data/spartan.csv
+public/data/transit/
+public/data/walkability/**
+!public/data/walkability/heatmap/
+public/data/walkability/heatmap/**
 !public/data/walkability/heatmap/factor_masks.json
+public/data/wars/
+public/data/water/
 
 # Generated CANUE source extracts stay local; commit compressed app-ready outputs instead.
 public/data/canue/bc/annual/*.csv
@@ -81,8 +114,10 @@ data-sources/native-land/
 # Generated from the bcdatamapper Native Land snapshot for local app use.
 public/data/native-land/
 
-# Generated from the bcdatamapper ECCC forecast-zone snapshot for local app use.
-public/data/aqmap/
-
-# Generated from the bcdatamapper network-availability snapshot for local app use.
-public/data/network-availability/
+# Generated from bcdatamapper healthdata sources for local app use.
+public/data/health/health-place-registry.csv
+public/data/health/health-place-registry.geojson
+public/data/health/health-place-sites.csv
+public/data/health/health-place-sites.geojson
+public/data/health/statcan-odhf-bc.csv
+public/data/health/statcan-odhf-bc.geojson

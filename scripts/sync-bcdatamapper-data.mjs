@@ -19,6 +19,12 @@ const pathMappings = [
   ['datascrapers/manual/output/indicators', 'indicators'],
   ['data-sources/healthdata/bc_wait_times/output/bc-wait-specialists.json', 'bc-wait-specialists.json'],
   ['data-sources/healthdata/erstat/output/erstat-hospitals.json', 'erstat-hospitals.json'],
+  ['data-sources/healthdata/health_place_registry/health_place_registry.csv', 'health/health-place-registry.csv'],
+  ['data-sources/healthdata/health_place_registry/health_place_registry.geojson', 'health/health-place-registry.geojson'],
+  ['data-sources/healthdata/health_place_registry/health_place_sites.csv', 'health/health-place-sites.csv'],
+  ['data-sources/healthdata/health_place_registry/health_place_sites.geojson', 'health/health-place-sites.geojson'],
+  ['data-sources/healthdata/statcan_odhf/output/statcan-odhf-bc.csv', 'health/statcan-odhf-bc.csv'],
+  ['data-sources/healthdata/statcan_odhf/output/statcan-odhf-bc.geojson', 'health/statcan-odhf-bc.geojson'],
   ['datascrapers/fallout/output', 'fallout'],
   ['datascrapers/citypg/output', 'citypg'],
   ['datascrapers/citypg/output-boundaries/CityPG', 'boundaries/CityPG'],
@@ -69,6 +75,13 @@ const pathMappings = [
   ['datascrapers/native-land/snapshot', 'native-land'],
 ]
 
+const skippedSourcePaths = new Set([
+  // The walkability snapshot can contain an older childcare supplement. The
+  // authoritative BC childcare scraper output is copied to the same public path
+  // later in pathMappings.
+  'datascrapers/walkability/output/supplemental/bc_childcare_locations.geojson',
+])
+
 if (process.env.PGMAPS_SKIP_VENDOR_DATA_SYNC === '1') {
   console.log('[data] skipped bcdatamapper data sync')
   process.exit(0)
@@ -92,6 +105,7 @@ function copyPath(sourceRelative, targetRelative) {
     recursive: true,
     force: true,
     errorOnExist: false,
+    filter: (sourcePath) => !skippedSourcePaths.has(relative(vendorRoot, sourcePath)),
   })
 }
 
