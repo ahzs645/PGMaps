@@ -362,14 +362,19 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     const params = new URLSearchParams(window.location.search)
     return params.get('ringCenter') === 'transparent' ? 'transparent' : 'white'
   })
+  const [ringShadow, setRingShadow] = useState<boolean>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('ringShadow') !== '0'
+  })
   const ringStyle = useMemo<AqRingStyle>(
-    () => ({ shape: ringShape, showNumber: ringNumber, center: ringCenter }),
-    [ringShape, ringNumber, ringCenter],
+    () => ({ shape: ringShape, showNumber: ringNumber, center: ringCenter, showShadow: ringShadow }),
+    [ringShape, ringNumber, ringCenter, ringShadow],
   )
   const handleRingStyleChange = useCallback((style: AqRingStyle) => {
     setRingShape(style.shape)
     setRingNumber(style.showNumber)
     setRingCenter(style.center)
+    setRingShadow(style.showShadow)
   }, [])
   const [clusterRadius, setClusterRadius] = useState<number>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -642,6 +647,9 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
       if (iconMode === 'ring' && !ringNumber) next.set('ringNumber', '0')
       else next.delete('ringNumber')
 
+      if (iconMode === 'ring' && !ringShadow) next.set('ringShadow', '0')
+      else next.delete('ringShadow')
+
       // Transparent centre only applies to a donut (a pie has no hole).
       if (iconMode === 'ring' && ringShape === 'donut' && ringCenter === 'transparent')
         next.set('ringCenter', 'transparent')
@@ -712,6 +720,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     ringShape,
     ringNumber,
     ringCenter,
+    ringShadow,
     tightClusters,
     vectorWindBarbsVisible,
     visibleGroups,

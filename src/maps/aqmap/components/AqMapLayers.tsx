@@ -1024,9 +1024,10 @@ function createRingDonutElement(props: Record<string, unknown>, style: AqRingSty
     segments.push(ringDonutSegment(start, end, r, r0, RING_BAND_COLORS[band]))
     placed += count
   })
+  const shadow = style.showShadow ? 'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));' : ''
   const parts: string[] = [
     `<svg width="${w}" height="${w}" viewBox="0 0 ${w} ${w}" text-anchor="middle" ` +
-      `style="display:block;font:700 ${fontSize}px system-ui,sans-serif;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));">`,
+      `style="display:block;font:700 ${fontSize}px system-ui,sans-serif;${shadow}">`,
   ]
   // White backing disc so the chart reads cleanly on any basemap (light/dark);
   // skipped for a transparent-centre donut so the hole truly shows the map.

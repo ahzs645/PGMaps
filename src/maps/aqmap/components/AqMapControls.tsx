@@ -233,6 +233,17 @@ export function RingStyleControls({
           ]}
         />
       </div>
+      <div className="space-y-1">
+        <div className="text-[11px] text-muted-foreground">{translate('ring.shadow', locale)}</div>
+        <SegmentedControl
+          value={ringStyle.showShadow ? 'on' : 'off'}
+          onChange={(value: 'on' | 'off') => onRingStyleChange({ ...ringStyle, showShadow: value === 'on' })}
+          options={[
+            { value: 'on', label: translate('ring.shadow.on', locale) },
+            { value: 'off', label: translate('ring.shadow.off', locale) },
+          ]}
+        />
+      </div>
       {ringStyle.shape === 'donut' && (
         <div className="space-y-1">
           <div className="text-[11px] text-muted-foreground">{translate('ring.center', locale)}</div>

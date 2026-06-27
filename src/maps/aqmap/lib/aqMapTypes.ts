@@ -19,13 +19,16 @@ export type AqRingStyle = {
   showNumber: boolean
   /** Donut hole fill: solid white, or transparent so the basemap shows through. */
   center: AqRingCenter
+  /** Whether the marker carries a drop shadow to lift it off the basemap. */
+  showShadow: boolean
 }
 
-/** Default ring style — matches the original donut (white hole + count). */
+/** Default ring style — matches the original donut (white hole + count + shadow). */
 export const DEFAULT_RING_STYLE: AqRingStyle = {
   shape: 'donut',
   showNumber: true,
   center: 'white',
+  showShadow: true,
 }
 
 export type FireDangerFeatureProperties = {
