@@ -4,6 +4,7 @@ import { dispatchMobileMapFeatureClick } from '@/components/ui/map-context'
 import type { AirMonitor } from '@/maps/airquality'
 import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import maplibregl from 'maplibre-gl'
+import type { ExpressionSpecification } from 'maplibre-gl'
 import type { SmokeLayerDefinition } from '../lib/smokeLayers'
 import type { WmsLayerDefinition } from '../lib/wmsLayers'
 import {
@@ -14,7 +15,7 @@ import type { AqMonitorGroup, AqNetworkSlug } from '../lib/monitorPresentation'
 import { getAqmapNetworkSlug, getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
-import { getAqhiPlusColor } from '../lib/aqhiScale'
+import { AQHI_LEVELS, AQHI_NO_DATA_COLOR, getAqhiLevel, getAqhiPlusColor } from '../lib/aqhiScale'
 import { getClusterCircleColor, getClusterCircleRadius, getClusterStrokeColor } from '../lib/clusterColors'
 import {
   FIRE_DANGER_FILL_COLORS,
@@ -49,6 +50,8 @@ interface AqMapFeatureProperties {
   iconSize: number
   zIndex: number
   online: boolean
+  /** AQHI+ band index (0–10 levels, or the no-data band) for ring-mode clustering. */
+  bandIndex: number
 }
 
 function escapeHtml(value: string): string {
@@ -925,6 +928,97 @@ function loadMapImage(map: maplibregl.Map, id: string, src: string): Promise<voi
   })
 }
 
+// ---------------------------------------------------------------------------
+// Ring (pie-donut) monitor mode
+//
+// A cluster of monitors renders as an ArcGIS-style donut: one contiguous arc
+// per AQHI+ colour band, sized by how many of the cluster's sensors currently
+// read in that band, so the outer ring shows the colour split of 100% of the
+// sensors beneath it. The arcs connect directly into a single smooth ring (no
+// gaps or dividers), the hollow centre carries the total count, and individual
+// (unclustered) monitors show as small solid AQHI-coloured dots, mirroring the
+// legend's category symbols.
+// ---------------------------------------------------------------------------
+
+/** AQHI+ colours per band: the eleven levels, then the no-data band. */
+const RING_BAND_COLORS: readonly string[] = [...AQHI_LEVELS.map((level) => level.color), AQHI_NO_DATA_COLOR]
+const RING_NO_DATA_BAND = AQHI_LEVELS.length
+
+/** Map a PM2.5 reading to its ring band index (no-data band when missing). */
+function getRingBandIndex(pm25: number | null): number {
+  const level = getAqhiLevel(pm25)
+  if (!level) return RING_NO_DATA_BAND
+  const index = AQHI_LEVELS.indexOf(level)
+  return index >= 0 ? index : RING_NO_DATA_BAND
+}
+
+/** Per-band sensor tallies aggregated onto each MapLibre cluster feature. */
+function buildRingClusterProperties(): Record<string, ExpressionSpecification> {
+  const props: Record<string, ExpressionSpecification> = {}
+  RING_BAND_COLORS.forEach((_, index) => {
+    props[`band${index}`] = ['+', ['case', ['==', ['get', 'bandIndex'], index], 1, 0]]
+  })
+  return props
+}
+
+/** SVG path for one donut wedge spanning [start, end] (fractions of the circle). */
+function ringDonutSegment(start: number, end: number, r: number, r0: number, color: string): string {
+  if (end - start >= 1) end -= 0.0001
+  const a0 = 2 * Math.PI * (start - 0.25)
+  const a1 = 2 * Math.PI * (end - 0.25)
+  const x0 = Math.cos(a0)
+  const y0 = Math.sin(a0)
+  const x1 = Math.cos(a1)
+  const y1 = Math.sin(a1)
+  const largeArc = end - start > 0.5 ? 1 : 0
+  // Stroke matches the fill so neighbouring band arcs seal together into one
+  // continuous ring with no hairline seam showing the backing through.
+  return (
+    `<path d="M ${r + r0 * x0} ${r + r0 * y0} L ${r + r * x0} ${r + r * y0} ` +
+    `A ${r} ${r} 0 ${largeArc} 1 ${r + r * x1} ${r + r * y1} ` +
+    `L ${r + r0 * x1} ${r + r0 * y1} A ${r0} ${r0} 0 ${largeArc} 0 ${r + r0 * x0} ${r + r0 * y0}" ` +
+    `fill="${color}" stroke="${color}" stroke-width="0.75" stroke-linejoin="round"/>`
+  )
+}
+
+/** Build the donut marker element for a cluster from its aggregated band counts. */
+function createRingDonutElement(props: Record<string, unknown>): HTMLDivElement {
+  const counts = RING_BAND_COLORS.map((_, index) => Number(props[`band${index}`]) || 0)
+  const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
+  const r = total >= 250 ? 28 : total >= 100 ? 25 : total >= 50 ? 22 : total >= 25 ? 19 : total >= 10 ? 16 : 14
+  const r0 = Math.round(r * 0.62)
+  const w = r * 2
+  const fontSize = total >= 100 ? 13 : total >= 10 ? 12 : 11
+  // One contiguous arc per colour band, sized by its share of the sensors, so
+  // the whole ring connects into a single smooth donut.
+  const n = Math.max(total, 1)
+  const segments: string[] = []
+  let placed = 0
+  counts.forEach((count, band) => {
+    if (count <= 0) return
+    const start = placed / n
+    const end = (placed + count) / n
+    segments.push(ringDonutSegment(start, end, r, r0, RING_BAND_COLORS[band]))
+    placed += count
+  })
+  const svg = [
+    `<svg width="${w}" height="${w}" viewBox="0 0 ${w} ${w}" text-anchor="middle" ` +
+      `style="display:block;font:700 ${fontSize}px system-ui,sans-serif;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));">`,
+    // White backing disc so the donut reads cleanly on any basemap (light/dark).
+    `<circle cx="${r}" cy="${r}" r="${r}" fill="#ffffff"/>`,
+    segments.join(''),
+    `<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>`,
+    `<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a">${total}</text>`,
+    '</svg>',
+  ].join('')
+  const element = document.createElement('div')
+  element.innerHTML = svg
+  element.style.cursor = 'pointer'
+  element.style.width = `${w}px`
+  element.style.height = `${w}px`
+  return element
+}
+
 export function AqMonitorLayer({
   monitors,
   visibleGroups,
@@ -991,6 +1085,7 @@ export function AqMonitorLayer({
               iconSize: icon.size,
               zIndex: getAqmapMarkerSortKey(monitor),
               online: pm25 !== null,
+              bandIndex: getRingBandIndex(pm25),
             },
             geometry: {
               type: 'Point',
@@ -1003,6 +1098,8 @@ export function AqMonitorLayer({
 
   useEffect(() => {
     if (!isLoaded || !map) return
+    // Ring mode is rendered by its own effect (HTML donut markers + dot layer).
+    if (iconMode === 'ring') return
     const currentMap = map
     let cancelled = false
     const pointLayers = iconMode === 'revealed' ? [revealedLayerId] : [onlineLayerId, offlineLayerId]
@@ -1163,10 +1260,146 @@ export function AqMonitorLayer({
   }, [clusterLayerId, clusterColorScheme, clusterMaxZoom, clusterRadius, tightClusters, features, iconMode, isLoaded, map, monitors, offlineLayerId, onMonitorClick, onMonitorHover, onlineLayerId, revealedLayerId, sourceId])
 
   useEffect(() => {
-    if (!isLoaded || !map) return
+    // Ring mode recreates its clustered source on data change, so skip the
+    // generic setData path to avoid fighting over the same source.
+    if (!isLoaded || !map || iconMode === 'ring') return
     const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
     source?.setData(features)
-  }, [features, isLoaded, map, sourceId])
+  }, [features, iconMode, isLoaded, map, sourceId])
+
+  // Ring (pie-donut) mode: clusters become HTML donut markers, while individual
+  // (unclustered) monitors render with the standard AQMap marker icons (value +
+  // per-network shape) — the same symbol layer the 'aqmap' mode uses.
+  useEffect(() => {
+    if (!isLoaded || !map || iconMode !== 'ring') return
+    const currentMap = map
+    let cancelled = false
+    const pointLayerId = 'aqmap-monitor-ring-point'
+    const markers: Record<string, maplibregl.Marker> = {}
+    let markersOnScreen: Record<string, maplibregl.Marker> = {}
+
+    const handlePointClick = (event: maplibregl.MapMouseEvent) => {
+      const rendered = currentMap.queryRenderedFeatures(event.point, { layers: [pointLayerId] })
+      const key = String(rendered[0]?.properties?.key ?? '')
+      const monitor = monitors.find((item) => monitorKey(item) === key)
+      if (monitor) {
+        event.preventDefault()
+        event.originalEvent?.preventDefault()
+        dispatchMobileMapFeatureClick()
+        onMonitorClick(monitor)
+      }
+    }
+    const handlePointMove = (event: maplibregl.MapMouseEvent) => {
+      currentMap.getCanvas().style.cursor = 'pointer'
+      const rendered = currentMap.queryRenderedFeatures(event.point, { layers: [pointLayerId] })
+      const key = String(rendered[0]?.properties?.key ?? '')
+      onMonitorHover(monitors.find((item) => monitorKey(item) === key) ?? null)
+    }
+    const handlePointLeave = () => {
+      currentMap.getCanvas().style.cursor = ''
+      onMonitorHover(null)
+    }
+
+    const updateMarkers = () => {
+      const newMarkers: Record<string, maplibregl.Marker> = {}
+      const sourceFeatures = currentMap.querySourceFeatures(sourceId)
+      for (const feature of sourceFeatures) {
+        const props = feature.properties as Record<string, unknown> | null
+        if (!props || !props.cluster) continue
+        const id = `cluster-${props.cluster_id}`
+        let marker = markers[id]
+        if (!marker) {
+          const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
+          const clusterId = props.cluster_id as number
+          const element = createRingDonutElement(props)
+          element.addEventListener('click', (domEvent) => {
+            domEvent.stopPropagation()
+            const source = currentMap.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+            if (!source) return
+            dispatchMobileMapFeatureClick()
+            void source.getClusterExpansionZoom(clusterId).then((zoom) => {
+              currentMap.easeTo({ center: coordinates, zoom, duration: 450 })
+            })
+          })
+          marker = markers[id] = new maplibregl.Marker({ element }).setLngLat(coordinates)
+        }
+        newMarkers[id] = marker
+        if (!markersOnScreen[id]) marker.addTo(currentMap)
+      }
+      for (const id of Object.keys(markersOnScreen)) {
+        if (!newMarkers[id]) markersOnScreen[id].remove()
+      }
+      markersOnScreen = newMarkers
+    }
+
+    const handleRender = () => {
+      if (cancelled || !currentMap.isSourceLoaded(sourceId)) return
+      updateMarkers()
+    }
+
+    async function setup() {
+      // Load the same per-monitor marker icons the AQMap mode uses for points.
+      const iconMap = new Map(monitors.map((monitor) => {
+        const icon = getAqmapMarkerIcon(monitor)
+        return [icon.id, icon]
+      }))
+      await Promise.all(Array.from(iconMap.values()).map((icon) => loadMapImage(currentMap, icon.id, icon.src)))
+      if (cancelled) return
+
+      if (!currentMap.getSource(sourceId)) {
+        currentMap.addSource(sourceId, {
+          type: 'geojson',
+          data: features,
+          cluster: true,
+          clusterMaxZoom,
+          clusterRadius,
+          clusterProperties: buildRingClusterProperties(),
+        })
+      }
+
+      if (!currentMap.getLayer(pointLayerId)) {
+        currentMap.addLayer({
+          id: pointLayerId,
+          type: 'symbol',
+          source: sourceId,
+          filter: ['!', ['has', 'point_count']],
+          layout: {
+            'icon-image': ['get', 'iconId'],
+            'icon-size': 1,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
+            'symbol-sort-key': ['get', 'zIndex'],
+          },
+        })
+      }
+
+      currentMap.on('render', handleRender)
+      currentMap.on('click', pointLayerId, handlePointClick)
+      currentMap.on('mousemove', pointLayerId, handlePointMove)
+      currentMap.on('mouseleave', pointLayerId, handlePointLeave)
+      if (currentMap.isSourceLoaded(sourceId)) updateMarkers()
+    }
+
+    void setup()
+
+    return () => {
+      cancelled = true
+      currentMap.off('render', handleRender)
+      currentMap.off('click', pointLayerId, handlePointClick)
+      currentMap.off('mousemove', pointLayerId, handlePointMove)
+      currentMap.off('mouseleave', pointLayerId, handlePointLeave)
+      Object.values(markersOnScreen).forEach((marker) => marker.remove())
+      Object.values(markers).forEach((marker) => marker.remove())
+      markersOnScreen = {}
+      try {
+        currentMap.getCanvas().style.cursor = ''
+        if (currentMap.getLayer(pointLayerId)) currentMap.removeLayer(pointLayerId)
+        if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId)
+      } catch {
+        // MapLibre can throw during style teardown.
+      }
+    }
+  }, [clusterMaxZoom, clusterRadius, features, iconMode, isLoaded, map, monitors, onMonitorClick, onMonitorHover, sourceId])
 
   return null
 }

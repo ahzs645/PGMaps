@@ -291,6 +291,7 @@ export function FloatingLayerControl({
             options={[
               { value: 'aqmap', label: translate('icons.aqmap', locale) },
               { value: 'revealed', label: translate('icons.revealed', locale) },
+              { value: 'ring', label: translate('icons.ring', locale) },
             ]}
           />
           {iconMode === 'revealed' && (

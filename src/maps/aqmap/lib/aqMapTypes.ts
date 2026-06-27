@@ -4,7 +4,7 @@ export type FireDangerRenderMode = OverlayRenderMode
 export type FirePerimetersRenderMode = OverlayRenderMode
 export type ForecastZonesRenderMode = OverlayRenderMode
 export type ModelledSmokeRenderMode = OverlayRenderMode
-export type AqMonitorIconMode = 'aqmap' | 'revealed'
+export type AqMonitorIconMode = 'aqmap' | 'revealed' | 'ring'
 export type MobileFeatureDisplay = 'card' | 'popup'
 export type AqClusterColorScheme = 'classic' | 'slate'
 

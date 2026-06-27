@@ -77,6 +77,7 @@ function App() {
           <Route path="/dev/networks" element={<DevNetworks />} />
           <Route path="/dev/aqmap" element={<AqMapSection />} />
           <Route path="/dev/aqmap/main" element={<AqMapSection variant="main" />} />
+          <Route path="/dev/aqmap/ring" element={<AqMapSection variant="ring" />} />
         </Routes>
       </Suspense>
       </ErrorBoundary>

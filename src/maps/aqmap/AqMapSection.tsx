@@ -285,8 +285,9 @@ const AqMapDeckOverlay = lazy(() =>
   import('./components/AqMapDeckLayers').then((module) => ({ default: module.AqMapDeckOverlay })),
 )
 
-export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 'main' } = {}) {
+export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 'main' | 'ring' } = {}) {
   const isMain = variant === 'main'
+  const isRing = variant === 'ring'
   const { resolvedTheme } = useTheme()
   const { monitors, loading, error } = useAirQualityData({ aqmapCompatible: true })
   const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
@@ -333,7 +334,10 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   })
   const [iconMode, setIconMode] = useState<AqMonitorIconMode>(() => {
     const params = new URLSearchParams(window.location.search)
-    return params.get('icons') === 'revealed' ? 'revealed' : 'aqmap'
+    const icons = params.get('icons')
+    if (icons === 'revealed') return 'revealed'
+    if (icons === 'ring') return 'ring'
+    return isRing ? 'ring' : 'aqmap'
   })
   const [clusterRadius, setClusterRadius] = useState<number>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -596,6 +600,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
       else next.delete('modelledSmoke')
 
       if (iconMode === 'revealed') next.set('icons', 'revealed')
+      else if (iconMode === 'ring') next.set('icons', 'ring')
       else next.delete('icons')
 
       if (iconMode === 'revealed' && clusterRadius !== REVEAL_CLUSTER_DEFAULTS.radius)
