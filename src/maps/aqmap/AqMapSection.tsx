@@ -285,6 +285,12 @@ const AqMapDeckOverlay = lazy(() =>
   import('./components/AqMapDeckLayers').then((module) => ({ default: module.AqMapDeckOverlay })),
 )
 
+// Which monitor icon style the simplified /dev/aqmap/main view locks to. All
+// three modes stay available everywhere; flip this constant to choose the one
+// the main view uses: 'ring' (pie-donut clusters), 'revealed' (grey reveal
+// clusters) or 'aqmap' (always-on coloured markers).
+const MAIN_VIEW_ICON_MODE: AqMonitorIconMode = 'ring'
+
 export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 'main' | 'ring' } = {}) {
   const isMain = variant === 'main'
   const isRing = variant === 'ring'
@@ -407,9 +413,10 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
       }
     })
   }, [forecastZoneAssignments, monitors])
-  // On the main page the monitor icons are locked to "reveal" mode and the key
-  // AQ overlays use the deck.gl snapshot paths.
-  const effIconMode: AqMonitorIconMode = isMain ? 'revealed' : iconMode
+  // On the main page the monitor icons are locked to MAIN_VIEW_ICON_MODE and the
+  // key AQ overlays use the deck.gl snapshot paths. The dedicated /ring route
+  // forces ring mode; everywhere else the icon-mode toggle drives it.
+  const effIconMode: AqMonitorIconMode = isMain ? MAIN_VIEW_ICON_MODE : iconMode
   const effActiveFiresMode: ActiveFiresRenderMode = isMain ? 'vector' : activeFiresMode
   const effFireDangerMode: FireDangerRenderMode = isMain ? 'deckgl' : fireDangerMode
   const effFirePerimetersMode: FirePerimetersRenderMode = isMain ? 'vector' : firePerimetersMode
