@@ -988,8 +988,21 @@ function ringDonutSegment(start: number, end: number, r: number, r0: number, col
   return `<path d="${d}" fill="${color}" stroke="${color}" stroke-width="0.75" stroke-linejoin="round"/>`
 }
 
+/** Count text colours: dark slate for light backings, near-white for dark ones. */
+const RING_COUNT_DARK = '#0f172a'
+const RING_COUNT_LIGHT = '#f8fafc'
+
+/** Perceived luminance test (ITU-R BT.601); true for light colours. */
+function isLightHex(hex: string): boolean {
+  const value = hex.replace('#', '')
+  const r = parseInt(value.slice(0, 2), 16)
+  const g = parseInt(value.slice(2, 4), 16)
+  const b = parseInt(value.slice(4, 6), 16)
+  return (r * 299 + g * 587 + b * 114) / 1000 > 140
+}
+
 /** Build the ring marker element for a cluster from its aggregated band counts. */
-function createRingDonutElement(props: Record<string, unknown>, style: AqRingStyle): HTMLDivElement {
+function createRingDonutElement(props: Record<string, unknown>, style: AqRingStyle, darkBasemap: boolean): HTMLDivElement {
   const counts = RING_BAND_COLORS.map((_, index) => Number(props[`band${index}`]) || 0)
   const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
   const r = total >= 250 ? 28 : total >= 100 ? 25 : total >= 50 ? 22 : total >= 25 ? 19 : total >= 10 ? 16 : 14
@@ -1022,7 +1035,24 @@ function createRingDonutElement(props: Record<string, unknown>, style: AqRingSty
   // Solid white hole only for a white-centre donut (pie has none; transparent skips it).
   if (!isPie && !transparentCenter) parts.push(`<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>`)
   if (style.showNumber) {
-    parts.push(`<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a">${total}</text>`)
+    // Keep the count legible against whatever sits behind it: the white hole
+    // (always dark text), the basemap through a transparent hole (follow its
+    // tone), or the dominant wedge colour on a pie.
+    let countColor = RING_COUNT_DARK
+    if (isPie) {
+      let topBand = 0
+      let topCount = -1
+      counts.forEach((count, band) => {
+        if (count > topCount) {
+          topCount = count
+          topBand = band
+        }
+      })
+      countColor = isLightHex(RING_BAND_COLORS[topBand]) ? RING_COUNT_DARK : RING_COUNT_LIGHT
+    } else if (transparentCenter) {
+      countColor = darkBasemap ? RING_COUNT_LIGHT : RING_COUNT_DARK
+    }
+    parts.push(`<text x="${r}" y="${r}" dominant-baseline="central" fill="${countColor}">${total}</text>`)
   }
   parts.push('</svg>')
   const element = document.createElement('div')
@@ -1039,6 +1069,7 @@ export function AqMonitorLayer({
   visibleNetworks,
   iconMode,
   ringStyle,
+  darkBasemap,
   clusterColorScheme,
   clusterRadius,
   clusterMaxZoom,
@@ -1057,6 +1088,8 @@ export function AqMonitorLayer({
   iconMode: AqMonitorIconMode
   /** Ring-mode cluster appearance (shape / centre count / hole fill). */
   ringStyle: AqRingStyle
+  /** Dark basemap in use — drives the adaptive count colour over a transparent hole. */
+  darkBasemap: boolean
   clusterColorScheme: AqClusterColorScheme
   clusterRadius: number
   clusterMaxZoom: number
@@ -1328,7 +1361,7 @@ export function AqMonitorLayer({
         if (!marker) {
           const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
           const clusterId = props.cluster_id as number
-          const element = createRingDonutElement(props, ringStyle)
+          const element = createRingDonutElement(props, ringStyle, darkBasemap)
           element.addEventListener('click', (domEvent) => {
             domEvent.stopPropagation()
             const source = currentMap.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
@@ -1416,7 +1449,7 @@ export function AqMonitorLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [clusterMaxZoom, clusterRadius, features, iconMode, isLoaded, map, monitors, onMonitorClick, onMonitorHover, ringStyle, sourceId])
+  }, [clusterMaxZoom, clusterRadius, darkBasemap, features, iconMode, isLoaded, map, monitors, onMonitorClick, onMonitorHover, ringStyle, sourceId])
 
   return null
 }

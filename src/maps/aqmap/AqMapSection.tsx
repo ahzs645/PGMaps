@@ -1019,6 +1019,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             visibleNetworks={isMain ? visibleNetworks : undefined}
             iconMode={effIconMode}
             ringStyle={ringStyle}
+            darkBasemap={basemap === 'dark'}
             clusterColorScheme={clusterColorScheme}
             clusterRadius={clusterRadius}
             clusterMaxZoom={clusterMaxZoom}
