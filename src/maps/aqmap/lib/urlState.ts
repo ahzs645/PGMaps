@@ -2,16 +2,29 @@ import { WMS_LAYERS, type WmsLayerKey } from './wmsLayers'
 import { SMOKE_LAYERS, type SmokeLayerKey } from './smokeLayers'
 import type { AqBasemap, AqMonitorGroup } from './monitorPresentation'
 import type { AqmapLocale } from './i18n'
+import {
+  isMapViewValid,
+  parseMapViewHash,
+  parseNumberField,
+  parseZoomField,
+  serializeMapViewHash,
+  type MapViewState,
+  type MapViewUrlOptions,
+} from '@/components/ui/map-url-state'
 
 export const CANADA_CENTER: [number, number] = [-96, 56]
 export const MIN_ZOOM = 2
 export const MAX_ZOOM = 16
 export const DEFAULT_ZOOM = 3.1
 
-export interface AqMapView {
-  center: [number, number]
-  zoom: number
+/** Shared compact-hash format config (zoom 2dp, lng/lat 4dp, zoom clamp 2-16). */
+const AQ_VIEW_OPTIONS: MapViewUrlOptions = {
+  defaultView: { center: CANADA_CENTER, zoom: DEFAULT_ZOOM },
+  minZoom: MIN_ZOOM,
+  maxZoom: MAX_ZOOM,
 }
+
+export type AqMapView = MapViewState
 
 export interface AqUrlState {
   basemap: AqBasemap
@@ -53,25 +66,12 @@ function parseBasemap(value: string | null): AqBasemap {
   return value === 'dark' || value === 'topographic' ? value : 'light'
 }
 
-function parseNumber(value: string | null, fallback: number): number {
-  if (value === null || value.trim() === '') return fallback
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric : fallback
-}
-
 function parseZoom(value: string | null): number {
-  const numeric = parseNumber(value, DEFAULT_ZOOM)
-  return numeric >= MIN_ZOOM && numeric <= MAX_ZOOM ? numeric : DEFAULT_ZOOM
+  return parseZoomField(value, AQ_VIEW_OPTIONS)
 }
 
 export function isValidMapView(view: AqMapView): boolean {
-  const [lng, lat] = view.center
-  return Number.isFinite(lng)
-    && Number.isFinite(lat)
-    && lat >= -85
-    && lat <= 85
-    && view.zoom >= MIN_ZOOM
-    && view.zoom <= MAX_ZOOM
+  return isMapViewValid(view, AQ_VIEW_OPTIONS)
 }
 
 function parseGroups(value: string | null): Set<AqMonitorGroup> {
@@ -111,8 +111,8 @@ function parseQueryState(searchParams: URLSearchParams): AqUrlState {
     selectedTimestamp: searchParams.get('time') ?? '',
     mapView: {
       center: [
-        parseNumber(searchParams.get('lng'), CANADA_CENTER[0]),
-        parseNumber(searchParams.get('lat'), CANADA_CENTER[1]),
+        parseNumberField(searchParams.get('lng'), CANADA_CENTER[0]),
+        parseNumberField(searchParams.get('lat'), CANADA_CENTER[1]),
       ],
       zoom: parseZoom(searchParams.get('z')),
     },
@@ -122,13 +122,10 @@ function parseQueryState(searchParams: URLSearchParams): AqUrlState {
 
 export function parseAqmapHash(hash: string, searchParams: URLSearchParams): AqUrlState {
   const fallback = parseQueryState(searchParams)
-  if (!hash.startsWith('#/')) return fallback
+  const parsed = parseMapViewHash(hash, AQ_VIEW_OPTIONS)
+  if (!parsed) return fallback
 
-  const parts = hash.slice(2).split('/').filter(Boolean)
-  const zoom = parseZoom(parts[0] ?? null)
-  const lat = parseNumber(parts[1] ?? null, CANADA_CENTER[1])
-  const lng = parseNumber(parts[2] ?? null, CANADA_CENTER[0])
-  const layerParts = parts.slice(3)
+  const { view, codes: layerParts } = parsed
   const basePart = layerParts.find((part) => part.startsWith('B'))
   const groupIdEntries = Object.entries(GROUP_IDS) as Array<[AqMonitorGroup, string]>
   const wmsIdEntries = Object.entries(WMS_IDS) as Array<[WmsLayerKey, string]>
@@ -161,24 +158,18 @@ export function parseAqmapHash(hash: string, searchParams: URLSearchParams): AqU
     visibleWmsLayers,
     visibleSmokeLayers,
     selectedTimestamp: fallback.selectedTimestamp,
-    mapView: { center: [lng, lat], zoom },
+    mapView: view,
     locale: fallback.locale,
   }
 }
 
 export function serializeAqmapHash(state: AqUrlState): string {
-  const layerIds = [
+  const codes = [
     BASEMAP_IDS[state.basemap],
     ...Array.from(state.visibleGroups).map((group) => GROUP_IDS[group]),
     ...Array.from(state.visibleWmsLayers).map((layer) => WMS_IDS[layer]),
     ...Array.from(state.visibleSmokeLayers).map((layer) => SMOKE_IDS[layer]),
-  ].filter(Boolean)
+  ]
 
-  return [
-    '#',
-    state.mapView.zoom.toFixed(2),
-    state.mapView.center[1].toFixed(4),
-    state.mapView.center[0].toFixed(4),
-    ...layerIds,
-  ].join('/')
+  return serializeMapViewHash(state.mapView, codes, AQ_VIEW_OPTIONS)
 }

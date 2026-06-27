@@ -20,8 +20,8 @@ import {
 } from '../lib/i18n'
 import type { ExportFormat } from '../lib/exportMap'
 import { EXPORT_OPTIONS } from '../lib/aqMapConstants'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
-import { RevealClusterControls, SegmentedControl, ToggleButton } from './AqMapControls'
+import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, AqRingStyle, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, MobileFeatureDisplay, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
+import { RevealClusterControls, RingStyleControls, SegmentedControl, ToggleButton } from './AqMapControls'
 import { WmsLegend, type FireDangerLegendVariant } from './AqMapLegends'
 
 export function AqMapSidebar({
@@ -31,6 +31,8 @@ export function AqMapSidebar({
   onToggleGroup,
   iconMode,
   onIconModeChange,
+  ringStyle,
+  onRingStyleChange,
   clusterColorScheme,
   onClusterColorSchemeChange,
   clusterRadius,
@@ -76,6 +78,8 @@ export function AqMapSidebar({
   onToggleGroup: (group: AqMonitorGroup) => void
   iconMode: AqMonitorIconMode
   onIconModeChange: (mode: AqMonitorIconMode) => void
+  ringStyle: AqRingStyle
+  onRingStyleChange: (style: AqRingStyle) => void
   clusterColorScheme: AqClusterColorScheme
   onClusterColorSchemeChange: (scheme: AqClusterColorScheme) => void
   clusterRadius: number
@@ -262,6 +266,11 @@ export function AqMapSidebar({
                 onTightClustersChange={onTightClustersChange}
                 locale={locale}
               />
+            </div>
+          )}
+          {iconMode === 'ring' && (
+            <div className="mt-2">
+              <RingStyleControls ringStyle={ringStyle} onRingStyleChange={onRingStyleChange} locale={locale} />
             </div>
           )}
         </section>

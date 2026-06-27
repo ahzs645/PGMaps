@@ -51,6 +51,9 @@ import type {
   ActiveFiresRenderMode,
   AqClusterColorScheme,
   AqMonitorIconMode,
+  AqRingCenter,
+  AqRingShape,
+  AqRingStyle,
   FireDangerRenderMode,
   FirePerimetersRenderMode,
   ForecastZoneFeatureProperties,
@@ -345,6 +348,29 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     if (icons === 'ring') return 'ring'
     return isRing ? 'ring' : 'aqmap'
   })
+  // Ring (pie-donut) cluster sub-type knobs: shape, centre count and hole fill,
+  // all independent. Defaults reproduce the original donut (white hole + count).
+  const [ringShape, setRingShape] = useState<AqRingShape>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('ringShape') === 'pie' ? 'pie' : 'donut'
+  })
+  const [ringNumber, setRingNumber] = useState<boolean>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('ringNumber') !== '0'
+  })
+  const [ringCenter, setRingCenter] = useState<AqRingCenter>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('ringCenter') === 'transparent' ? 'transparent' : 'white'
+  })
+  const ringStyle = useMemo<AqRingStyle>(
+    () => ({ shape: ringShape, showNumber: ringNumber, center: ringCenter }),
+    [ringShape, ringNumber, ringCenter],
+  )
+  const handleRingStyleChange = useCallback((style: AqRingStyle) => {
+    setRingShape(style.shape)
+    setRingNumber(style.showNumber)
+    setRingCenter(style.center)
+  }, [])
   const [clusterRadius, setClusterRadius] = useState<number>(() => {
     const params = new URLSearchParams(window.location.search)
     const raw = params.get('clusterRadius')
@@ -610,6 +636,17 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
       else if (iconMode === 'ring') next.set('icons', 'ring')
       else next.delete('icons')
 
+      if (iconMode === 'ring' && ringShape === 'pie') next.set('ringShape', 'pie')
+      else next.delete('ringShape')
+
+      if (iconMode === 'ring' && !ringNumber) next.set('ringNumber', '0')
+      else next.delete('ringNumber')
+
+      // Transparent centre only applies to a donut (a pie has no hole).
+      if (iconMode === 'ring' && ringShape === 'donut' && ringCenter === 'transparent')
+        next.set('ringCenter', 'transparent')
+      else next.delete('ringCenter')
+
       if (iconMode === 'revealed' && clusterRadius !== REVEAL_CLUSTER_DEFAULTS.radius)
         next.set('clusterRadius', String(clusterRadius))
       else next.delete('clusterRadius')
@@ -672,6 +709,9 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     mapView,
     mobileFeatureDisplay,
     modelledSmokeMode,
+    ringShape,
+    ringNumber,
+    ringCenter,
     tightClusters,
     vectorWindBarbsVisible,
     visibleGroups,
@@ -841,6 +881,8 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
       onToggleGroup={toggleGroup}
       iconMode={iconMode}
       onIconModeChange={setIconMode}
+      ringStyle={ringStyle}
+      onRingStyleChange={handleRingStyleChange}
       clusterColorScheme={clusterColorScheme}
       onClusterColorSchemeChange={setClusterColorScheme}
       clusterRadius={clusterRadius}
@@ -976,6 +1018,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             visibleGroups={visibleGroups}
             visibleNetworks={isMain ? visibleNetworks : undefined}
             iconMode={effIconMode}
+            ringStyle={ringStyle}
             clusterColorScheme={clusterColorScheme}
             clusterRadius={clusterRadius}
             clusterMaxZoom={clusterMaxZoom}
@@ -1033,6 +1076,8 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
                 onToggleGroup={toggleGroup}
                 iconMode={iconMode}
                 onIconModeChange={setIconMode}
+                ringStyle={ringStyle}
+                onRingStyleChange={handleRingStyleChange}
                 clusterColorScheme={clusterColorScheme}
                 onClusterColorSchemeChange={setClusterColorScheme}
                 clusterRadius={clusterRadius}

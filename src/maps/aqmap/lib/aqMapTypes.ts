@@ -8,6 +8,26 @@ export type AqMonitorIconMode = 'aqmap' | 'revealed' | 'ring'
 export type MobileFeatureDisplay = 'card' | 'popup'
 export type AqClusterColorScheme = 'classic' | 'slate'
 
+// Sub-type knobs for the ring (pie-donut) cluster marker. The three toggles are
+// independent so any combination can be explored on /dev/aqmap/ring.
+export type AqRingShape = 'donut' | 'pie'
+export type AqRingCenter = 'white' | 'transparent'
+export type AqRingStyle = {
+  /** Donut leaves a hollow centre; pie fills the wedges all the way in. */
+  shape: AqRingShape
+  /** Whether the cluster's total sensor count is drawn in the centre. */
+  showNumber: boolean
+  /** Donut hole fill: solid white, or transparent so the basemap shows through. */
+  center: AqRingCenter
+}
+
+/** Default ring style — matches the original donut (white hole + count). */
+export const DEFAULT_RING_STYLE: AqRingStyle = {
+  shape: 'donut',
+  showNumber: true,
+  center: 'white',
+}
+
 export type FireDangerFeatureProperties = {
   GRIDCODE?: number
 }

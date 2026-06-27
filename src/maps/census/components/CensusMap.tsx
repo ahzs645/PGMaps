@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Map as PgMap, MapControls, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
+import { useMapViewUrlState } from '@/components/ui/map-url-state'
 import { MAP_STYLES, PG_CENTER, getChoroplethColor } from '@/components/ui/map-styles'
 import type { CensusBounds, CensusMetricKey, CensusUnit } from '../types'
 
@@ -27,6 +28,14 @@ export function CensusMap({
 }: CensusMapProps) {
   const mapRef = useRef<MapRef>(null)
   const lastBoundsKeyRef = useRef<string | null>(null)
+
+  // Persist the map view (center/zoom) in the URL so it's bookmarkable. Reads
+  // the initial view once; writes moves back via react-router setSearchParams.
+  const { initialView, hasUrlView, onViewportChange } = useMapViewUrlState({
+    defaultView: { center: PG_CENTER, zoom: ZOOM },
+  })
+  // A URL-restored view should survive the initial fit-to-extent.
+  const skipInitialAutoFitRef = useRef(hasUrlView)
 
   // When variable data is available, use it for coloring; otherwise fall back to built-in metrics
   const useVariable = variableValuesByGeoUid != null && variableValuesByGeoUid.size > 0
@@ -86,6 +95,14 @@ export function CensusMap({
     if (!bounds || !boundsKey || !mapRef.current) return
     if (lastBoundsKeyRef.current === boundsKey) return
 
+    // Honour a bookmarked view on first load instead of fitting the full extent;
+    // record the key so later level/bounds changes still auto-fit.
+    if (skipInitialAutoFitRef.current) {
+      skipInitialAutoFitRef.current = false
+      lastBoundsKeyRef.current = boundsKey
+      return
+    }
+
     mapRef.current.fitBounds(
       [
         [bounds.minLng, bounds.minLat],
@@ -144,10 +161,11 @@ export function CensusMap({
     <div className="h-full w-full">
       <PgMap
         ref={mapRef}
-        center={PG_CENTER}
-        zoom={ZOOM}
+        center={initialView.center}
+        zoom={initialView.zoom}
         styles={MAP_STYLES}
         loading={loading}
+        onViewportChange={onViewportChange}
       >
         <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
         <MapFillLayer

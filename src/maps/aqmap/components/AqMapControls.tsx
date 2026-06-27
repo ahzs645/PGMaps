@@ -15,7 +15,7 @@ import {
   translate,
   type AqmapLocale,
 } from '../lib/i18n'
-import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
+import type { ActiveFiresRenderMode, AqClusterColorScheme, AqMonitorIconMode, AqRingCenter, AqRingShape, AqRingStyle, FireDangerRenderMode, FirePerimetersRenderMode, ForecastZonesRenderMode, ModelledSmokeRenderMode } from '../lib/aqMapTypes'
 import { REVEAL_CLUSTER_BOUNDS, REVEAL_CLUSTER_DEFAULTS } from '../lib/aqMapConstants'
 import { CANADA_CENTER, DEFAULT_ZOOM } from '../lib/urlState'
 import type { FireDangerLegendVariant } from './AqMapLegends'
@@ -194,11 +194,69 @@ export function RevealClusterControls({
   )
 }
 
+/**
+ * Sub-type toggles for the ring (pie-donut) cluster marker. Shape, centre count
+ * and hole fill are independent; the centre-fill row only applies to a donut
+ * (a pie has no hole), so it's hidden when the pie shape is selected.
+ */
+export function RingStyleControls({
+  ringStyle,
+  onRingStyleChange,
+  locale,
+}: {
+  ringStyle: AqRingStyle
+  onRingStyleChange: (style: AqRingStyle) => void
+  locale: AqmapLocale
+}) {
+  return (
+    <div className="space-y-2 rounded-md border border-border bg-secondary/30 p-2">
+      <div className="text-[11px] font-medium text-foreground">{translate('ring.style', locale)}</div>
+      <div className="space-y-1">
+        <div className="text-[11px] text-muted-foreground">{translate('ring.shape', locale)}</div>
+        <SegmentedControl
+          value={ringStyle.shape}
+          onChange={(shape: AqRingShape) => onRingStyleChange({ ...ringStyle, shape })}
+          options={[
+            { value: 'donut', label: translate('ring.shape.donut', locale) },
+            { value: 'pie', label: translate('ring.shape.pie', locale) },
+          ]}
+        />
+      </div>
+      <div className="space-y-1">
+        <div className="text-[11px] text-muted-foreground">{translate('ring.number', locale)}</div>
+        <SegmentedControl
+          value={ringStyle.showNumber ? 'on' : 'off'}
+          onChange={(value: 'on' | 'off') => onRingStyleChange({ ...ringStyle, showNumber: value === 'on' })}
+          options={[
+            { value: 'on', label: translate('ring.number.on', locale) },
+            { value: 'off', label: translate('ring.number.off', locale) },
+          ]}
+        />
+      </div>
+      {ringStyle.shape === 'donut' && (
+        <div className="space-y-1">
+          <div className="text-[11px] text-muted-foreground">{translate('ring.center', locale)}</div>
+          <SegmentedControl
+            value={ringStyle.center}
+            onChange={(center: AqRingCenter) => onRingStyleChange({ ...ringStyle, center })}
+            options={[
+              { value: 'white', label: translate('ring.center.white', locale) },
+              { value: 'transparent', label: translate('ring.center.transparent', locale) },
+            ]}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function FloatingLayerControl({
   visibleGroups,
   onToggleGroup,
   iconMode,
   onIconModeChange,
+  ringStyle,
+  onRingStyleChange,
   clusterColorScheme,
   onClusterColorSchemeChange,
   clusterRadius,
@@ -234,6 +292,8 @@ export function FloatingLayerControl({
   onToggleGroup: (group: AqMonitorGroup) => void
   iconMode: AqMonitorIconMode
   onIconModeChange: (mode: AqMonitorIconMode) => void
+  ringStyle: AqRingStyle
+  onRingStyleChange: (style: AqRingStyle) => void
   clusterColorScheme: AqClusterColorScheme
   onClusterColorSchemeChange: (scheme: AqClusterColorScheme) => void
   clusterRadius: number
@@ -306,6 +366,9 @@ export function FloatingLayerControl({
               onTightClustersChange={onTightClustersChange}
               locale={locale}
             />
+          )}
+          {iconMode === 'ring' && (
+            <RingStyleControls ringStyle={ringStyle} onRingStyleChange={onRingStyleChange} locale={locale} />
           )}
         </div>
         {smokeLayers.map((layer) => (

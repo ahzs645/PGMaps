@@ -27,6 +27,7 @@ import type {
   ActiveFireFeatureProperties,
   AqClusterColorScheme,
   AqMonitorIconMode,
+  AqRingStyle,
   FireDangerFeatureProperties,
   FirePerimeterFeatureProperties,
   ForecastZoneFeatureProperties,
@@ -961,7 +962,11 @@ function buildRingClusterProperties(): Record<string, ExpressionSpecification> {
   return props
 }
 
-/** SVG path for one donut wedge spanning [start, end] (fractions of the circle). */
+/**
+ * SVG path for one wedge spanning [start, end] (fractions of the circle). A
+ * donut wedge (r0 > 0) bridges the inner and outer arcs; a pie wedge (r0 <= 0)
+ * sweeps straight from the centre point.
+ */
 function ringDonutSegment(start: number, end: number, r: number, r0: number, color: string): string {
   if (end - start >= 1) end -= 0.0001
   const a0 = 2 * Math.PI * (start - 0.25)
@@ -972,25 +977,30 @@ function ringDonutSegment(start: number, end: number, r: number, r0: number, col
   const y1 = Math.sin(a1)
   const largeArc = end - start > 0.5 ? 1 : 0
   // Stroke matches the fill so neighbouring band arcs seal together into one
-  // continuous ring with no hairline seam showing the backing through.
-  return (
-    `<path d="M ${r + r0 * x0} ${r + r0 * y0} L ${r + r * x0} ${r + r * y0} ` +
-    `A ${r} ${r} 0 ${largeArc} 1 ${r + r * x1} ${r + r * y1} ` +
-    `L ${r + r0 * x1} ${r + r0 * y1} A ${r0} ${r0} 0 ${largeArc} 0 ${r + r0 * x0} ${r + r0 * y0}" ` +
-    `fill="${color}" stroke="${color}" stroke-width="0.75" stroke-linejoin="round"/>`
-  )
+  // continuous shape with no hairline seam showing the backing through.
+  const d =
+    r0 <= 0
+      ? `M ${r} ${r} L ${r + r * x0} ${r + r * y0} ` +
+        `A ${r} ${r} 0 ${largeArc} 1 ${r + r * x1} ${r + r * y1} Z`
+      : `M ${r + r0 * x0} ${r + r0 * y0} L ${r + r * x0} ${r + r * y0} ` +
+        `A ${r} ${r} 0 ${largeArc} 1 ${r + r * x1} ${r + r * y1} ` +
+        `L ${r + r0 * x1} ${r + r0 * y1} A ${r0} ${r0} 0 ${largeArc} 0 ${r + r0 * x0} ${r + r0 * y0}`
+  return `<path d="${d}" fill="${color}" stroke="${color}" stroke-width="0.75" stroke-linejoin="round"/>`
 }
 
-/** Build the donut marker element for a cluster from its aggregated band counts. */
-function createRingDonutElement(props: Record<string, unknown>): HTMLDivElement {
+/** Build the ring marker element for a cluster from its aggregated band counts. */
+function createRingDonutElement(props: Record<string, unknown>, style: AqRingStyle): HTMLDivElement {
   const counts = RING_BAND_COLORS.map((_, index) => Number(props[`band${index}`]) || 0)
   const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
   const r = total >= 250 ? 28 : total >= 100 ? 25 : total >= 50 ? 22 : total >= 25 ? 19 : total >= 10 ? 16 : 14
-  const r0 = Math.round(r * 0.62)
+  const isPie = style.shape === 'pie'
+  // A transparent centre only applies to a donut; a pie has no hole to see through.
+  const transparentCenter = !isPie && style.center === 'transparent'
+  const r0 = isPie ? 0 : Math.round(r * 0.62)
   const w = r * 2
   const fontSize = total >= 100 ? 13 : total >= 10 ? 12 : 11
   // One contiguous arc per colour band, sized by its share of the sensors, so
-  // the whole ring connects into a single smooth donut.
+  // the whole ring connects into a single smooth shape.
   const n = Math.max(total, 1)
   const segments: string[] = []
   let placed = 0
@@ -1001,18 +1011,22 @@ function createRingDonutElement(props: Record<string, unknown>): HTMLDivElement 
     segments.push(ringDonutSegment(start, end, r, r0, RING_BAND_COLORS[band]))
     placed += count
   })
-  const svg = [
+  const parts: string[] = [
     `<svg width="${w}" height="${w}" viewBox="0 0 ${w} ${w}" text-anchor="middle" ` +
       `style="display:block;font:700 ${fontSize}px system-ui,sans-serif;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));">`,
-    // White backing disc so the donut reads cleanly on any basemap (light/dark).
-    `<circle cx="${r}" cy="${r}" r="${r}" fill="#ffffff"/>`,
-    segments.join(''),
-    `<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>`,
-    `<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a">${total}</text>`,
-    '</svg>',
-  ].join('')
+  ]
+  // White backing disc so the chart reads cleanly on any basemap (light/dark);
+  // skipped for a transparent-centre donut so the hole truly shows the map.
+  if (!transparentCenter) parts.push(`<circle cx="${r}" cy="${r}" r="${r}" fill="#ffffff"/>`)
+  parts.push(segments.join(''))
+  // Solid white hole only for a white-centre donut (pie has none; transparent skips it).
+  if (!isPie && !transparentCenter) parts.push(`<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>`)
+  if (style.showNumber) {
+    parts.push(`<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a">${total}</text>`)
+  }
+  parts.push('</svg>')
   const element = document.createElement('div')
-  element.innerHTML = svg
+  element.innerHTML = parts.join('')
   element.style.cursor = 'pointer'
   element.style.width = `${w}px`
   element.style.height = `${w}px`
@@ -1024,6 +1038,7 @@ export function AqMonitorLayer({
   visibleGroups,
   visibleNetworks,
   iconMode,
+  ringStyle,
   clusterColorScheme,
   clusterRadius,
   clusterMaxZoom,
@@ -1040,6 +1055,8 @@ export function AqMonitorLayer({
    */
   visibleNetworks?: Set<AqNetworkSlug>
   iconMode: AqMonitorIconMode
+  /** Ring-mode cluster appearance (shape / centre count / hole fill). */
+  ringStyle: AqRingStyle
   clusterColorScheme: AqClusterColorScheme
   clusterRadius: number
   clusterMaxZoom: number
@@ -1311,7 +1328,7 @@ export function AqMonitorLayer({
         if (!marker) {
           const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
           const clusterId = props.cluster_id as number
-          const element = createRingDonutElement(props)
+          const element = createRingDonutElement(props, ringStyle)
           element.addEventListener('click', (domEvent) => {
             domEvent.stopPropagation()
             const source = currentMap.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
@@ -1399,7 +1416,7 @@ export function AqMonitorLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [clusterMaxZoom, clusterRadius, features, iconMode, isLoaded, map, monitors, onMonitorClick, onMonitorHover, sourceId])
+  }, [clusterMaxZoom, clusterRadius, features, iconMode, isLoaded, map, monitors, onMonitorClick, onMonitorHover, ringStyle, sourceId])
 
   return null
 }
