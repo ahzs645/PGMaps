@@ -83,6 +83,18 @@ export const DATASETS = {
     apiUrl: 'https://www2.gov.bc.ca/gov/content/transportation/transportation-infrastructure/engineering-standards-guidelines/environmental-management/wildlife-management/wildlife-accident-reporting-system',
     fields: ['accidentDate', 'year', 'nearestTown', 'species', 'quantity', 'longitude', 'latitude'],
   },
+  openLitterMap: {
+    title: 'OpenLitterMap litter records',
+    description:
+      'Dedicated to the memory of Frank Ogiamien. OpenLitterMap public map points clipped to the Prince George community-boundary union, preserving observed dates, categories, objects, materials, pickup state, contributor/team metadata, and a prebuilt hex aggregate.',
+    source: 'OpenLitterMap',
+    coverage: 'Prince George municipal community-boundary union',
+    license: 'OpenLitterMap public map data; verify current reuse terms before redistribution',
+    formats: ['GeoJSON', 'JSON manifest'],
+    downloadUrl: '/data/open-litter-map/manifest.json',
+    apiUrl: 'https://openlittermap.com/api/points',
+    fields: ['sourceId', 'datetime', 'categoryNames', 'objectNames', 'materialNames', 'litterCount', 'pickedUp', 'team'],
+  },
   heatShade: {
     title: 'Heat and shade proxy layers',
     description: 'Tree, forest, facility, and remote-sensing metadata used as shade, heat, and cooling-access proxies.',

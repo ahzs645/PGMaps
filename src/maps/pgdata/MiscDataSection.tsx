@@ -83,6 +83,16 @@ import {
   useWarsData,
 } from './wars'
 import {
+  OPEN_LITTER_TIMELINE_WINDOW_OPTIONS,
+  MobileOpenLitterMapFeatureCard,
+  OpenLitterMapLayer,
+  OpenLitterMapLayerControls,
+  OpenLitterMapLegend,
+  OpenLitterMapSidebar,
+  OpenLitterMapSourceNotes,
+  useOpenLitterMapData,
+} from './openLitterMap'
+import {
   WATER_TIMELINE_WINDOW_OPTIONS,
   WaterLayer,
   WaterLayerControls,
@@ -447,6 +457,13 @@ export default function MiscDataSection() {
     searchParams.get('warsPoints'),
     searchParams.get('warsHeatmap'),
   )
+  const openLitterMap = useOpenLitterMapData(
+    activeTab === 'openLitterMap',
+    searchParams.get('litterCategory'),
+    searchParams.get('litterPoints'),
+    searchParams.get('litterHeatmap'),
+    searchParams.get('litterHexes'),
+  )
   const walkability = useWalkabilityData(
     activeTab === 'walkability',
     searchParams.get('walkability') || WALKABILITY_DEFAULT_VARIANT,
@@ -508,6 +525,17 @@ export default function MiscDataSection() {
     else params.delete('warsPoints')
     if (activeTab === 'wars' && wars.showHeatmap) params.set('warsHeatmap', '1')
     else params.delete('warsHeatmap')
+    if (activeTab === 'openLitterMap' && openLitterMap.selectedCategory !== 'all') {
+      params.set('litterCategory', openLitterMap.selectedCategory)
+    } else {
+      params.delete('litterCategory')
+    }
+    if (activeTab === 'openLitterMap' && !openLitterMap.showPoints) params.set('litterPoints', '0')
+    else params.delete('litterPoints')
+    if (activeTab === 'openLitterMap' && openLitterMap.showHeatmap) params.set('litterHeatmap', '1')
+    else params.delete('litterHeatmap')
+    if (activeTab === 'openLitterMap' && openLitterMap.showHexes) params.set('litterHexes', '1')
+    else params.delete('litterHexes')
     if (activeTab === 'walkability' && walkability.selectedVariantId !== WALKABILITY_DEFAULT_VARIANT)
       params.set('walkability', walkability.selectedVariantId)
     else params.delete('walkability')
@@ -562,6 +590,10 @@ export default function MiscDataSection() {
     wars.showHeatmap,
     wars.showPoints,
     wars.selectedSpecies,
+    openLitterMap.selectedCategory,
+    openLitterMap.showHeatmap,
+    openLitterMap.showHexes,
+    openLitterMap.showPoints,
     walkability.displayMode,
     walkability.selectedHeatmapVariantId,
     walkability.selectedVariantId,
@@ -741,6 +773,7 @@ export default function MiscDataSection() {
       {activeTab === 'ev' && evChargingStations.error && <p>{evChargingStations.error}</p>}
       {activeTab === 'icbc' && <IcbcSourceNotes icbc={icbc} />}
       {activeTab === 'wars' && <WarsSourceNotes wars={wars} />}
+      {activeTab === 'openLitterMap' && <OpenLitterMapSourceNotes litter={openLitterMap} />}
       {activeTab === 'walkability' && <WalkabilitySourceNotes walkability={walkability} />}
       {activeTab === 'water' && <WaterSourceNotes water={water} />}
       {activeTab === 'flood' && <FloodSourceNotes flood={flood} />}
@@ -761,17 +794,19 @@ export default function MiscDataSection() {
             ? 'ICBC'
             : activeTab === 'wars'
               ? 'WARS'
-              : activeTab === 'walkability'
-                ? 'Walkability'
-                : activeTab === 'water'
-                  ? 'Water'
-                  : activeTab === 'flood'
-                    ? 'Flood'
-                    : activeTab === 'drought'
-                      ? 'Drought'
-                      : activeTab === 'bcer'
-                        ? 'BCER'
-                        : 'Heat & Shade'
+              : activeTab === 'openLitterMap'
+                ? 'OpenLitterMap'
+                : activeTab === 'walkability'
+                  ? 'Walkability'
+                  : activeTab === 'water'
+                    ? 'Water'
+                    : activeTab === 'flood'
+                      ? 'Flood'
+                      : activeTab === 'drought'
+                        ? 'Drought'
+                        : activeTab === 'bcer'
+                          ? 'BCER'
+                          : 'Heat & Shade'
   const heatShadeSources = heatShadeManifest.data?.sources ?? []
   const landsatSource = heatShadeSources.find((source) => source.id.includes('landsat'))
   const evMapCenter = useMemo<[number, number]>(
@@ -815,6 +850,8 @@ export default function MiscDataSection() {
             ? (!evChargingStations.data && !evChargingStations.error) || (evShowBoundaries && evBoundaryLoading)
             : activeTab === 'flood'
               ? flood.loading
+              : activeTab === 'openLitterMap'
+                ? !openLitterMap.points.data && !openLitterMap.points.error
               : activeTab === 'bcer'
                 ? bcer.loading
                 : false
@@ -836,6 +873,7 @@ export default function MiscDataSection() {
         )}
         {activeTab === 'icbc' && <IcbcLayerControls icbc={icbc} />}
         {activeTab === 'wars' && <WarsLayerControls wars={wars} />}
+        {activeTab === 'openLitterMap' && <OpenLitterMapLayerControls litter={openLitterMap} />}
         {activeTab === 'water' && <WaterLayerControls water={water} />}
         {activeTab === 'flood' && <FloodLayerControls flood={flood} />}
         {activeTab === 'bcer' && <BcerLayerControls bcer={bcer} />}
@@ -853,15 +891,17 @@ export default function MiscDataSection() {
                   ? DATASETS.icbc
                   : activeTab === 'wars'
                     ? DATASETS.wars
-                    : activeTab === 'walkability'
-                      ? DATASETS.walkability
-                      : activeTab === 'water'
-                        ? DATASETS.water
-                        : activeTab === 'flood'
-                          ? DATASETS.flood
-                          : activeTab === 'bcer'
-                            ? DATASETS.bcer
-                            : DATASETS.canue),
+                    : activeTab === 'openLitterMap'
+                      ? DATASETS.openLitterMap
+                      : activeTab === 'walkability'
+                        ? DATASETS.walkability
+                        : activeTab === 'water'
+                          ? DATASETS.water
+                          : activeTab === 'flood'
+                            ? DATASETS.flood
+                            : activeTab === 'bcer'
+                              ? DATASETS.bcer
+                              : DATASETS.canue),
           updated:
             activeTab === 'heatShade'
               ? heatShadeManifest.data?.generatedAt
@@ -873,15 +913,17 @@ export default function MiscDataSection() {
                     ? icbc.manifest.data?.generatedAt
                     : activeTab === 'wars'
                       ? wars.manifest.data?.generatedAt
-                      : activeTab === 'walkability'
-                        ? walkability.manifest.data?.generatedAt
-                        : activeTab === 'water'
-                          ? water.manifest.data?.generatedAt
-                          : activeTab === 'flood'
-                            ? undefined
-                            : activeTab === 'bcer'
-                              ? bcer.meta?.importTimestamp
-                              : canueManifest.data?.generatedAt,
+                      : activeTab === 'openLitterMap'
+                        ? openLitterMap.manifest.data?.generatedAt
+                        : activeTab === 'walkability'
+                          ? walkability.manifest.data?.generatedAt
+                          : activeTab === 'water'
+                            ? water.manifest.data?.generatedAt
+                            : activeTab === 'flood'
+                              ? undefined
+                              : activeTab === 'bcer'
+                                ? bcer.meta?.importTimestamp
+                                : canueManifest.data?.generatedAt,
         }}
         sourceNotes={sourceNotes}
       />
@@ -1054,6 +1096,8 @@ export default function MiscDataSection() {
 
         {activeTab === 'wars' && <WarsSidebar wars={wars} />}
 
+        {activeTab === 'openLitterMap' && <OpenLitterMapSidebar litter={openLitterMap} />}
+
         {activeTab === 'walkability' && <WalkabilitySidebar walkability={walkability} />}
 
         {activeTab === 'water' && <WaterSidebar water={water} />}
@@ -1122,15 +1166,17 @@ export default function MiscDataSection() {
                         ? 'ICBC'
                         : activeTab === 'wars'
                           ? 'WARS'
-                          : activeTab === 'walkability'
-                            ? 'Walkability'
-                            : activeTab === 'water'
-                              ? 'Water'
-                              : activeTab === 'flood'
-                                ? 'Flood'
-                                : activeTab === 'bcer'
-                                  ? 'BCER'
-                                  : 'Heat/shade'}
+                          : activeTab === 'openLitterMap'
+                            ? 'OpenLitterMap'
+                            : activeTab === 'walkability'
+                              ? 'Walkability'
+                              : activeTab === 'water'
+                                ? 'Water'
+                                : activeTab === 'flood'
+                                  ? 'Flood'
+                                  : activeTab === 'bcer'
+                                    ? 'BCER'
+                                    : 'Heat/shade'}
               </div>
               <div className="truncate text-[11px] text-muted-foreground">
                 {activeTab === 'canue'
@@ -1142,7 +1188,9 @@ export default function MiscDataSection() {
                       : activeTab === 'icbc'
                         ? `${icbc.selectedDataset?.title || 'Crash locations'} | ${icbc.crashFeatures.length.toLocaleString()} mapped`
                         : activeTab === 'wars'
-                          ? `${wars.selectedSpecies === 'all' ? 'All species' : wars.selectedSpecies} | ${wars.filteredFeatures.length.toLocaleString()} records`
+                        ? `${wars.selectedSpecies === 'all' ? 'All species' : wars.selectedSpecies} | ${wars.filteredFeatures.length.toLocaleString()} records`
+                        : activeTab === 'openLitterMap'
+                          ? `${openLitterMap.selectedCategory === 'all' ? 'All categories' : openLitterMap.selectedCategory} | ${openLitterMap.filteredFeatures.length.toLocaleString()} records`
                           : activeTab === 'walkability'
                             ? walkability.displayMode === 'heatmap'
                               ? `${walkability.selectedHeatmapVariant?.label || 'Citywide MI grid'}`
@@ -1162,6 +1210,8 @@ export default function MiscDataSection() {
               <IcbcSidebar icbc={icbc} showSelectedLocation={false} />
             ) : activeTab === 'wars' ? (
               <WarsSidebar wars={wars} showSelectedRecord={false} />
+            ) : activeTab === 'openLitterMap' ? (
+              <OpenLitterMapSidebar litter={openLitterMap} showSelectedRecord={false} />
             ) : activeTab === 'walkability' ? (
               <WalkabilitySidebar walkability={walkability} showSelectedCommunity={false} />
             ) : undefined
@@ -1383,6 +1433,12 @@ export default function MiscDataSection() {
 
               {activeTab === 'wars' && isMobileViewport && wars.selectedCrash && <MobileWarsFeatureCard wars={wars} />}
 
+              {activeTab === 'openLitterMap' && <OpenLitterMapLayer litter={openLitterMap} />}
+
+              {activeTab === 'openLitterMap' && isMobileViewport && openLitterMap.selectedFeature && (
+                <MobileOpenLitterMapFeatureCard litter={openLitterMap} />
+              )}
+
               {activeTab === 'walkability' && isMobileViewport && walkability.selectedCommunity && (
                 <MobileWalkabilityFeatureCard walkability={walkability} />
               )}
@@ -1405,6 +1461,25 @@ export default function MiscDataSection() {
                   onSizeChange: wars.setTimelineWindowSize,
                   options: WARS_TIMELINE_WINDOW_OPTIONS,
                 }}
+              />
+            )}
+
+            {activeTab === 'openLitterMap' && openLitterMap.timelineEnabled && openLitterMap.timelineDate && (
+              <Timeline
+                startDate={openLitterMap.dateRange.start}
+                endDate={openLitterMap.dateRange.end}
+                currentDate={openLitterMap.timelineDate}
+                onDateChange={openLitterMap.setTimelineDate}
+                onClose={openLitterMap.handleTimelineDisable}
+                bucketCounts={openLitterMap.bucketCounts}
+                compactBars
+                overflowBuckets
+                windowMode={{
+                  size: openLitterMap.timelineWindowSize,
+                  onSizeChange: openLitterMap.setTimelineWindowSize,
+                  options: OPEN_LITTER_TIMELINE_WINDOW_OPTIONS,
+                }}
+                statsLabel={`${openLitterMap.filteredFeatures.length.toLocaleString()} records`}
               />
             )}
 
@@ -1500,6 +1575,7 @@ export default function MiscDataSection() {
                 contentClassName="space-y-1"
                 elevated={
                   (activeTab === 'wars' && wars.timelineEnabled) ||
+                  (activeTab === 'openLitterMap' && openLitterMap.timelineEnabled) ||
                   (activeTab === 'icbc' && icbc.timelineEnabled) ||
                   (activeTab === 'water' && water.timelineEnabled) ||
                   (activeTab === 'canue' && canueTimelineActive)
@@ -1575,6 +1651,7 @@ export default function MiscDataSection() {
                 )}
                 {activeTab === 'icbc' && <IcbcLegend icbc={icbc} />}
                 {activeTab === 'wars' && <WarsLegend wars={wars} />}
+                {activeTab === 'openLitterMap' && <OpenLitterMapLegend litter={openLitterMap} />}
                 {activeTab === 'walkability' && <WalkabilityLegend walkability={walkability} />}
                 {activeTab === 'water' && <WaterLegend water={water} />}
                 {activeTab === 'flood' && <FloodLegend flood={flood} />}

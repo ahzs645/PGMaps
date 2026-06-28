@@ -36,6 +36,7 @@ const pathMappings = [
   ['datascrapers/bc/wars/output', 'wars'],
   ['datascrapers/ev-charging/output', 'ev-charging'],
   ['datascrapers/network-availability/output', 'network-availability'],
+  ['datascrapers/open-litter-map/output', 'open-litter-map'],
   ['datascrapers/cell-coverage/output', 'cell-coverage'],
   ['datascrapers/healthyplan-pg/output', 'healthyplan-pg'],
   ['datascrapers/heat-shade/output', 'heat-shade'],
@@ -140,6 +141,15 @@ const staleAqmapExperimentPaths = [
 ]
 for (const stalePath of staleAqmapExperimentPaths) {
   rmSync(join(target, 'aqmap', stalePath), { recursive: true, force: true })
+}
+
+const staleOpenLitterMapPaths = [
+  'open_litter_map_pg.geojson',
+  'open_litter_map_pg_hex.geojson',
+  'open_litter_map_pg_hex.geojson.gz',
+]
+for (const stalePath of staleOpenLitterMapPaths) {
+  rmSync(join(target, 'open-litter-map', stalePath), { recursive: true, force: true })
 }
 
 const pm25RasterArchive = join(target, 'aqmap', 'modelled-pm25-raster-tiles.tar.gz')

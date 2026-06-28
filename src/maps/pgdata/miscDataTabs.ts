@@ -1,5 +1,5 @@
 import type { ElementType } from 'react'
-import { Database, Droplets, Flame, Footprints, PawPrint, RadioTower, ShieldAlert, Trees, Waves, Zap } from 'lucide-react'
+import { Database, Droplets, Flame, Footprints, PawPrint, RadioTower, ShieldAlert, Trash2, Trees, Waves, Zap } from 'lucide-react'
 
 export type MiscDataTab =
   | 'heatShade'
@@ -8,6 +8,7 @@ export type MiscDataTab =
   | 'ev'
   | 'icbc'
   | 'wars'
+  | 'openLitterMap'
   | 'walkability'
   | 'water'
   | 'flood'
@@ -21,6 +22,7 @@ export const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementTyp
   { id: 'ev', label: 'EV Chargers', icon: Zap },
   { id: 'icbc', label: 'ICBC', icon: ShieldAlert },
   { id: 'wars', label: 'WARS', icon: PawPrint },
+  { id: 'openLitterMap', label: 'Litter', icon: Trash2 },
   { id: 'walkability', label: 'Walkability', icon: Footprints },
   { id: 'water', label: 'Water', icon: Droplets },
   { id: 'flood', label: 'Flood', icon: Waves },
@@ -35,6 +37,7 @@ export const MISC_LEGEND_TITLES: Record<MiscDataTab, string> = {
   ev: 'EV Chargers',
   icbc: 'ICBC Layer',
   wars: 'WARS Layer',
+  openLitterMap: 'OpenLitterMap',
   walkability: 'Walkability Layer',
   water: 'Water Layer',
   flood: 'Flood Layer',

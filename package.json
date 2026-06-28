@@ -37,6 +37,7 @@
     "cell-coverage:sync": "npm --prefix vendor/bcdatamapper run cell-coverage:sync --",
     "ev-charging:sync": "npm --prefix vendor/bcdatamapper run ev-charging:sync --",
     "network-availability:sync": "npm --prefix vendor/bcdatamapper run network-availability:sync --",
+    "open-litter-map:sync": "npm --prefix vendor/bcdatamapper run open-litter-map:sync --",
     "native-land:probe": "npm --prefix vendor/bcdatamapper run native-land:probe --",
     "native-land:geojson": "npm --prefix vendor/bcdatamapper run native-land:geojson --",
     "native-land:copy": "npm --prefix vendor/bcdatamapper run native-land:copy --",
