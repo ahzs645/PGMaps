@@ -293,6 +293,12 @@ const AqMapDeckOverlay = lazy(() =>
 // the main view uses: 'ring' (pie-donut clusters), 'revealed' (grey reveal
 // clusters) or 'aqmap' (always-on coloured markers).
 const MAIN_VIEW_ICON_MODE: AqMonitorIconMode = 'ring'
+const MAIN_VIEW_RING_STYLE: AqRingStyle = {
+  shape: 'donut',
+  showNumber: false,
+  center: 'transparent',
+  showShadow: false,
+}
 
 export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 'main' | 'ring' } = {}) {
   const isMain = variant === 'main'
@@ -448,6 +454,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   // key AQ overlays use the deck.gl snapshot paths. The dedicated /ring route
   // forces ring mode; everywhere else the icon-mode toggle drives it.
   const effIconMode: AqMonitorIconMode = isMain ? MAIN_VIEW_ICON_MODE : iconMode
+  const effRingStyle: AqRingStyle = isMain ? MAIN_VIEW_RING_STYLE : ringStyle
   const effActiveFiresMode: ActiveFiresRenderMode = isMain ? 'vector' : activeFiresMode
   const effFireDangerMode: FireDangerRenderMode = isMain ? 'deckgl' : fireDangerMode
   const effFirePerimetersMode: FirePerimetersRenderMode = isMain ? 'vector' : firePerimetersMode
@@ -1027,7 +1034,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             visibleGroups={visibleGroups}
             visibleNetworks={isMain ? visibleNetworks : undefined}
             iconMode={effIconMode}
-            ringStyle={ringStyle}
+            ringStyle={effRingStyle}
             darkBasemap={basemap === 'dark'}
             clusterColorScheme={clusterColorScheme}
             clusterRadius={clusterRadius}
