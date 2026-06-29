@@ -4,6 +4,7 @@ import type {
   CensusBoundaryLevel,
   CityBoundaryLevel,
   CommunityBoundaryLevel,
+  DrainageBoundaryLevel,
   FireZoneBoundaryLevel,
   MunicipalityBoundaryLevel,
   NrAdminBoundaryLevel,
@@ -42,6 +43,7 @@ import {
   parseCustomMetricRecipes,
   parseCustomMetricWeights,
   parseDataSources,
+  parseDrainageBoundaryLevel,
   parseFireZoneBoundaryLevel,
   parseHealthBoundaryLevel,
   parseMapColorScale,
@@ -82,6 +84,7 @@ export interface ScoreBuilderControlState {
   regionalDistrictBoundaryLevel: RegionalDistrictBoundaryLevel
   municipalityBoundaryLevel: MunicipalityBoundaryLevel
   watershedBoundaryLevel: WatershedBoundaryLevel
+  drainageBoundaryLevel: DrainageBoundaryLevel
   fireZoneBoundaryLevel: FireZoneBoundaryLevel
   nrAdminBoundaryLevel: NrAdminBoundaryLevel
   weights: ScoreMetricWeightMap
@@ -165,7 +168,9 @@ export function getSelectedRegionLevel(state: ScoreBuilderControlState): RegionL
               ? state.nrAdminBoundaryLevel
               : state.boundarySource === 'bcWildfire'
                 ? state.fireZoneBoundaryLevel
-                : state.watershedBoundaryLevel
+                : state.boundarySource === 'bcDrainage'
+                  ? state.drainageBoundaryLevel
+                  : state.watershedBoundaryLevel
 }
 
 export function canUseWalkabilitySourceSurface(state: ScoreBuilderControlState): boolean {
@@ -214,6 +219,8 @@ function applyExampleToState(
     next.cityBoundaryLevel = example.boundaryLevel as CityBoundaryLevel
   } else if (example.boundarySource === 'bcWildfire') {
     next.fireZoneBoundaryLevel = parseFireZoneBoundaryLevel(example.boundaryLevel)
+  } else if (example.boundarySource === 'bcDrainage') {
+    next.drainageBoundaryLevel = parseDrainageBoundaryLevel(example.boundaryLevel)
   } else {
     next.watershedBoundaryLevel = parseWatershedBoundaryLevel(example.boundaryLevel)
   }
@@ -266,6 +273,8 @@ function applyPresetToState(
       next.watershedBoundaryLevel = parseWatershedBoundaryLevel(preset.recommendedBoundaryLevel)
     } else if (preset.recommendedBoundarySource === 'bcWildfire') {
       next.fireZoneBoundaryLevel = parseFireZoneBoundaryLevel(preset.recommendedBoundaryLevel)
+    } else if (preset.recommendedBoundarySource === 'bcDrainage') {
+      next.drainageBoundaryLevel = parseDrainageBoundaryLevel(preset.recommendedBoundaryLevel)
     }
   }
   const neededSources = getScoreDataSourcesForWeights(preset.weights)
@@ -330,6 +339,9 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       }
       if (state.boundarySource === 'bcWildfire') {
         return { ...state, fireZoneBoundaryLevel: parseFireZoneBoundaryLevel(action.level) }
+      }
+      if (state.boundarySource === 'bcDrainage') {
+        return { ...state, drainageBoundaryLevel: parseDrainageBoundaryLevel(action.level) }
       }
       return { ...state, watershedBoundaryLevel: parseWatershedBoundaryLevel(action.level) }
     }
@@ -431,6 +443,7 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
         regionalDistrictBoundaryLevel: parseRegionalDistrictBoundaryLevel(share.regionalDistrictBoundaryLevel ?? null),
         municipalityBoundaryLevel: parseMunicipalityBoundaryLevel(share.municipalityBoundaryLevel ?? null),
         watershedBoundaryLevel: parseWatershedBoundaryLevel(share.watershedBoundaryLevel ?? null),
+        drainageBoundaryLevel: parseDrainageBoundaryLevel(share.drainageBoundaryLevel ?? null),
         fireZoneBoundaryLevel: parseFireZoneBoundaryLevel(share.fireZoneBoundaryLevel ?? null),
         enabledDataSources: [...share.enabledDataSources],
         selectedNetworks: [...share.selectedNetworks],
@@ -695,6 +708,7 @@ export function createInitialScoreBuilderState(searchParams: URLSearchParams): S
     regionalDistrictBoundaryLevel: parseRegionalDistrictBoundaryLevel(searchParams.get('level')),
     municipalityBoundaryLevel: parseMunicipalityBoundaryLevel(searchParams.get('level')),
     watershedBoundaryLevel: parseWatershedBoundaryLevel(searchParams.get('level')),
+    drainageBoundaryLevel: parseDrainageBoundaryLevel(searchParams.get('level')),
     fireZoneBoundaryLevel: parseFireZoneBoundaryLevel(searchParams.get('level')),
     nrAdminBoundaryLevel: parseNrAdminBoundaryLevel(searchParams.get('level')),
     weights,

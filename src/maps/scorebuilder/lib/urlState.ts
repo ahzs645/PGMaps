@@ -4,6 +4,7 @@ import type {
   CensusBoundaryLevel,
   CityBoundaryLevel,
   CommunityBoundaryLevel,
+  DrainageBoundaryLevel,
   FireZoneBoundaryLevel,
   MunicipalityBoundaryLevel,
   NrAdminBoundaryLevel,
@@ -14,6 +15,7 @@ import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   CITY_BOUNDARY_LEVEL_OPTIONS,
   COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
+  DRAINAGE_BOUNDARY_LEVEL_OPTIONS,
   FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
   MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS,
@@ -59,6 +61,9 @@ const REGIONAL_DISTRICT_BOUNDARY_LEVEL_VALUES = new Set<RegionalDistrictBoundary
 const WATERSHED_BOUNDARY_LEVEL_VALUES = new Set<WatershedBoundaryLevel>(
   WATERSHED_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
+const DRAINAGE_BOUNDARY_LEVEL_VALUES = new Set<DrainageBoundaryLevel>(
+  DRAINAGE_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
 const FIRE_ZONE_BOUNDARY_LEVEL_VALUES = new Set<FireZoneBoundaryLevel>(
   FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
@@ -77,6 +82,7 @@ export function parseBoundarySource(value: string | null): BoundarySource {
     value === 'cityCommunity' ||
     value === 'cityPG' ||
     value === 'watershed' ||
+    value === 'bcDrainage' ||
     value === 'bcWildfire' ||
     value === 'nrAdmin'
     ? value
@@ -113,6 +119,12 @@ export function parseWatershedBoundaryLevel(value: string | null): WatershedBoun
   return WATERSHED_BOUNDARY_LEVEL_VALUES.has(value as WatershedBoundaryLevel)
     ? (value as WatershedBoundaryLevel)
     : 'watershedGroup'
+}
+
+export function parseDrainageBoundaryLevel(value: string | null): DrainageBoundaryLevel {
+  return DRAINAGE_BOUNDARY_LEVEL_VALUES.has(value as DrainageBoundaryLevel)
+    ? (value as DrainageBoundaryLevel)
+    : 'oceanDrainageArea'
 }
 
 export function parseFireZoneBoundaryLevel(value: string | null): FireZoneBoundaryLevel {

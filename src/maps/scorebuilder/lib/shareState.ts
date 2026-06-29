@@ -5,6 +5,7 @@ import type {
   BoundaryLevel,
   CityBoundaryLevel,
   CommunityBoundaryLevel,
+  DrainageBoundaryLevel,
   FireZoneBoundaryLevel,
   MunicipalityBoundaryLevel,
   RegionalDistrictBoundaryLevel,
@@ -24,6 +25,7 @@ export interface ScoreBuilderShareState {
   municipalityBoundaryLevel?: MunicipalityBoundaryLevel
   cityBoundaryLevel?: CityBoundaryLevel
   watershedBoundaryLevel?: WatershedBoundaryLevel
+  drainageBoundaryLevel?: DrainageBoundaryLevel
   fireZoneBoundaryLevel?: FireZoneBoundaryLevel
   enabledDataSources: ScoreDataSource[]
   selectedNetworks: string[]

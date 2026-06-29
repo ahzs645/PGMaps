@@ -22,6 +22,7 @@
     "transit:gtfs:sync": "npm --prefix vendor/bcdatamapper run transit:gtfs:sync --",
     "watersheds:sync": "npm --prefix vendor/bcdatamapper run watersheds:sync --",
     "watersheds:dev": "npm --prefix vendor/bcdatamapper run watersheds:dev --",
+    "drainage-basins:sync": "npm --prefix vendor/bcdatamapper run drainage-basins:sync --",
     "municipalities:sync": "npm --prefix vendor/bcdatamapper run municipalities:sync --",
     "nr-admin:sync": "npm --prefix vendor/bcdatamapper run nr-admin:sync --",
     "uwr:sync": "npm --prefix vendor/bcdatamapper run uwr:sync --",

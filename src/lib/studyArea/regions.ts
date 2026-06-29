@@ -17,6 +17,7 @@ import type {
   CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,
+  DrainageBoundaryLevel,
   FireZoneBoundaryLevel,
   MineralTenureBoundaryLevel,
   MunicipalityBoundaryLevel,
@@ -68,6 +69,10 @@ const WATERSHED_FILE_BY_LEVEL: Record<WatershedBoundaryLevel, string> = {
   watershedGroup: '/data/boundaries/BCFWA/watershed_groups_province_simplified.geojson',
   assessmentWatershed: '/data/boundaries/BCFWA/assessment_watersheds.geojson',
 }
+const DRAINAGE_FILE_BY_LEVEL: Record<DrainageBoundaryLevel, string> = {
+  oceanDrainageArea: '/data/boundaries/BCDrainage/drainage_basins.geojson',
+  drainageRegion: '/data/boundaries/BCDrainage/drainage_basins.geojson',
+}
 const FIRE_ZONE_FILE_BY_LEVEL: Record<FireZoneBoundaryLevel, string> = {
   fireCentre: '/data/boundaries/BCWildfire/fire_zones.geojson',
   fireZone: '/data/boundaries/BCWildfire/fire_zones.geojson',
@@ -105,6 +110,7 @@ const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
   'watershedGroup',
   'assessmentWatershed',
 ])
+const DRAINAGE_LEVEL_SET = new Set<DrainageBoundaryLevel>(['oceanDrainageArea', 'drainageRegion'])
 const FIRE_ZONE_LEVEL_SET = new Set<FireZoneBoundaryLevel>(['fireCentre', 'fireZone'])
 const NR_ADMIN_LEVEL_SET = new Set<NrAdminBoundaryLevel>(['nrArea', 'nrRegion', 'nrDistrict'])
 const UWR_LEVEL_SET = new Set<UwrBoundaryLevel>(['ungulateWinterRange'])
@@ -162,6 +168,10 @@ function isCityBoundaryLevel(level: RegionLevel): level is CityBoundaryLevel {
 
 function isWatershedBoundaryLevel(level: RegionLevel): level is WatershedBoundaryLevel {
   return WATERSHED_LEVEL_SET.has(level as WatershedBoundaryLevel)
+}
+
+function isDrainageBoundaryLevel(level: RegionLevel): level is DrainageBoundaryLevel {
+  return DRAINAGE_LEVEL_SET.has(level as DrainageBoundaryLevel)
 }
 
 function isFireZoneBoundaryLevel(level: RegionLevel): level is FireZoneBoundaryLevel {
@@ -565,6 +575,101 @@ async function loadStandardBoundaryRegions(
   return sortedRegions
 }
 
+function mapDrainageRegionFeatureToRegion(rawFeature: RawBoundaryFeature): StudyAreaRegion | null {
+  const feature = toPolygonFeature(rawFeature)
+  if (!feature) return null
+
+  const properties = (feature.properties ?? {}) as Record<string, unknown>
+  const code = String(properties.boundaryCode ?? properties.DR_Code ?? properties.FID ?? '').trim()
+  if (!code) return null
+
+  const displayName = String(properties.boundaryName ?? properties.DR_Name ?? code).trim() || code
+  const areaKm2 = area(feature) / 1_000_000
+  const bounds = bbox(feature) as [number, number, number, number]
+
+  return {
+    id: `bcDrainage:drainageRegion:${code}`,
+    code,
+    name: displayName,
+    source: 'bcDrainage',
+    level: 'drainageRegion',
+    feature,
+    bounds,
+    areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+  } satisfies StudyAreaRegion
+}
+
+function mergeOceanDrainageAreaFeatures(regions: StudyAreaRegion[]): StudyAreaRegion[] {
+  const byOceanDrainageArea = new Map<string, StudyAreaRegion[]>()
+  regions.forEach((region) => {
+    const areaName = String(region.feature.properties?.ODA_Name ?? '').trim()
+    if (!areaName) return
+    byOceanDrainageArea.set(areaName, [...(byOceanDrainageArea.get(areaName) ?? []), region])
+  })
+
+  return [...byOceanDrainageArea.entries()]
+    .map<StudyAreaRegion | null>(([areaName, areaRegions]) => {
+      const firstProperties = areaRegions[0]?.feature.properties ?? {}
+      const areaCode = String(firstProperties.ODA_Code ?? areaName).trim() || areaName
+      const mergedFeature = areaRegions
+        .map((region) => region.feature)
+        .reduce<BoundaryFeature | null>((merged, feature) => {
+          if (!merged) return feature as BoundaryFeature
+          return union(merged as never, feature as never) as BoundaryFeature | null
+        }, null)
+
+      if (!mergedFeature) return null
+
+      const feature: BoundaryFeature = {
+        type: 'Feature',
+        id: areaCode,
+        geometry: mergedFeature.geometry,
+        properties: {
+          boundaryCode: areaCode,
+          boundaryName: areaName,
+          ODA_Code: areaCode,
+          ODA_Name: areaName,
+          drainageRegionCount: areaRegions.length,
+          drainageRegionCodes: areaRegions.map((region) => region.code).join(','),
+          drainageRegionNames: areaRegions.map((region) => region.name).join(','),
+        },
+      }
+      const areaKm2 = area(feature) / 1_000_000
+      const bounds = bbox(feature) as [number, number, number, number]
+
+      return {
+        id: `bcDrainage:oceanDrainageArea:${areaCode}`,
+        code: areaCode,
+        name: areaName,
+        source: 'bcDrainage',
+        level: 'oceanDrainageArea',
+        feature,
+        bounds,
+        areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+      } satisfies StudyAreaRegion
+    })
+    .filter((region): region is StudyAreaRegion => region !== null)
+}
+
+async function loadBcDrainageRegions(level: DrainageBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
+  const cacheKey = `bcDrainage:${level}`
+  const cached = boundaryRegionCache.get(cacheKey)
+  if (cached) return cached
+
+  const geometry = await fetchJson<BoundaryFeatureCollection>(DRAINAGE_FILE_BY_LEVEL[level], signal)
+  const drainageRegions = geometry.features
+    .map<StudyAreaRegion | null>((rawFeature) => mapDrainageRegionFeatureToRegion(rawFeature))
+    .filter((region): region is StudyAreaRegion => region !== null)
+
+  const regions = level === 'oceanDrainageArea'
+    ? mergeOceanDrainageAreaFeatures(drainageRegions)
+    : drainageRegions
+
+  const sortedRegions = sortRegions(regions)
+  boundaryRegionCache.set(cacheKey, sortedRegions)
+  return sortedRegions
+}
+
 function mapBcWildfireZoneFeatureToRegion(rawFeature: RawBoundaryFeature): StudyAreaRegion | null {
   const feature = toPolygonFeature(rawFeature)
   if (!feature) return null
@@ -728,6 +833,13 @@ export async function loadStudyAreaRegions(
       throw new Error(`Invalid Natural Resource admin level: ${level}`)
     }
     return loadStandardBoundaryRegions(source, level, NR_ADMIN_FILE_BY_LEVEL[level], signal)
+  }
+
+  if (source === 'bcDrainage') {
+    if (!isDrainageBoundaryLevel(level)) {
+      throw new Error(`Invalid BC drainage boundary level: ${level}`)
+    }
+    return loadBcDrainageRegions(level, signal)
   }
 
   if (source === 'bcWildfire') {

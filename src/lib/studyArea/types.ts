@@ -7,6 +7,7 @@ export type {
   CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,
+  DrainageBoundaryLevel,
   FireZoneBoundaryLevel,
   MineralTenureBoundaryLevel,
   MunicipalityBoundaryLevel,

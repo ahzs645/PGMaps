@@ -117,6 +117,7 @@ const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
   bcMunicipality: { fill: '#ec4899', line: '#be185d' },
   census: { fill: '#ef4444', line: '#b91c1c' },
   watershed: { fill: '#22c55e', line: '#15803d' },
+  bcDrainage: { fill: '#0891b2', line: '#155e75' },
   bcWildfire: { fill: '#dc2626', line: '#991b1b' },
   nrAdmin: { fill: '#64748b', line: '#334155' },
   uwr: { fill: '#84cc16', line: '#4d7c0f' },

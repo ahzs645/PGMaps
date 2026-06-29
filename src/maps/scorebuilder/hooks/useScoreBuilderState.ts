@@ -395,6 +395,7 @@ export function useScoreBuilderState() {
       municipalityBoundaryLevel: state.municipalityBoundaryLevel,
       cityBoundaryLevel: state.cityBoundaryLevel,
       watershedBoundaryLevel: state.watershedBoundaryLevel,
+      drainageBoundaryLevel: state.drainageBoundaryLevel,
       fireZoneBoundaryLevel: state.fireZoneBoundaryLevel,
       enabledDataSources: state.enabledDataSources,
       selectedNetworks: state.selectedNetworks,

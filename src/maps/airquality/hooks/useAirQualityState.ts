@@ -112,6 +112,7 @@ const BOUNDARY_SOURCES = [
   'cityCommunity',
   'cityPG',
   'watershed',
+  'bcDrainage',
   'bcWildfire',
   'nrAdmin',
   'uwr',

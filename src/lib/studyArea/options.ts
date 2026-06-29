@@ -6,6 +6,7 @@ import type {
   CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,
+  DrainageBoundaryLevel,
   FireZoneBoundaryLevel,
   MineralTenureBoundaryLevel,
   MunicipalityBoundaryLevel,
@@ -68,6 +69,12 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     group: 'Natural / resource',
   },
   {
+    value: 'bcDrainage',
+    label: 'BC drainage basins',
+    description: 'BC drainage basin and ocean-drainage-area boundaries',
+    group: 'Natural / resource',
+  },
+  {
     value: 'bcWildfire',
     label: 'BC fire zones',
     description: 'BC Wildfire Service fire-zone boundaries',
@@ -106,6 +113,8 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   majorWatershed: 'Major River Basin',
   watershedGroup: 'Watershed Group',
   assessmentWatershed: 'Assessment Watershed',
+  oceanDrainageArea: 'Ocean Drainage Area',
+  drainageRegion: 'Drainage Region',
   fireCentre: 'Fire Centre',
   fireZone: 'Fire Zone',
   nrArea: 'NR Area',
@@ -160,6 +169,10 @@ export const WATERSHED_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<WatershedBoun
   ...createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
 ]
 
+export const DRAINAGE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<DrainageBoundaryLevel>[] = [
+  ...createStudyAreaLevelOptions(['oceanDrainageArea', 'drainageRegion'] as const),
+]
+
 export const FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<FireZoneBoundaryLevel>[] = [
   ...createStudyAreaLevelOptions(['fireCentre', 'fireZone'] as const),
 ]
@@ -204,6 +217,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return CITY_BOUNDARY_LEVEL_OPTIONS
     case 'watershed':
       return WATERSHED_BOUNDARY_LEVEL_OPTIONS
+    case 'bcDrainage':
+      return DRAINAGE_BOUNDARY_LEVEL_OPTIONS
     case 'bcWildfire':
       return FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS
     case 'nrAdmin':
