@@ -952,6 +952,11 @@ function DevBoundaries() {
                           <span>{region.code}</span>
                           <span>{formatArea(region.areaKm2)}</span>
                         </div>
+                        {region.level === BC_DA_SIMPLIFIED_LEVEL && censusParentSummary(region.feature.properties ?? {}) && (
+                          <div className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">
+                            {censusParentSummary(region.feature.properties ?? {})}
+                          </div>
+                        )}
                       </button>
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <span className="rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">
@@ -1093,7 +1098,7 @@ function DevBoundaries() {
                       <span className="text-muted-foreground">{row.label}</span>
                       <span className="text-right font-medium text-foreground">
                         {String(row.name ?? row.code)}
-                        {row.code && row.name && <span className="ml-1 text-muted-foreground">({String(row.code)})</span>}
+                        {Boolean(row.code && row.name) && <span className="ml-1 text-muted-foreground">({String(row.code)})</span>}
                       </span>
                     </div>
                   ))}
