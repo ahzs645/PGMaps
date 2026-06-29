@@ -34,6 +34,24 @@ export interface ScoreBuilderMetricRowsOptions {
   walkabilityMiByRegion?: Map<string, { mean: number; cellCount: number }>
 }
 
+function readNumericProperty(properties: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    const value = Number(properties[key])
+    if (Number.isFinite(value)) return value
+  }
+  return null
+}
+
+function readDirectCensusPopulation(region: ScoreBuilderRegion): number | null {
+  if (region.source !== 'census') return null
+  return readNumericProperty((region.feature.properties ?? {}) as Record<string, unknown>, [
+    'population',
+    'Population',
+    'Population ',
+    'v_CA21_1: Population, 2021',
+  ])
+}
+
 /**
  * Aggregates every point-record collection into one metric row per region
  * (raw metric values plus data-coverage counts), then derives the per-metric
@@ -173,6 +191,10 @@ export function useScoreBuilderMetricRows({
       }
       const networks = new Set<string>()
       const parameters = new Set<string>()
+      const directCensusPopulation = readDirectCensusPopulation(region)
+      if (directCensusPopulation != null) {
+        counts.populationSum = Math.max(0, directCensusPopulation)
+      }
 
       // Air quality
       monitorPointRecords.forEach(({ monitor, feature }) => {
@@ -219,10 +241,12 @@ export function useScoreBuilderMetricRows({
       })
 
       // Census
-      censusPointRecords.forEach((rec) => {
-        if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
-        counts.populationSum += rec.population
-      })
+      if (directCensusPopulation == null) {
+        censusPointRecords.forEach((rec) => {
+          if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
+          counts.populationSum += rec.population
+        })
+      }
 
       // BC Assessment
       propertyPointRecords.forEach((rec) => {

@@ -47,6 +47,8 @@
     "cimd:sync": "npm --prefix vendor/bcdatamapper run cimd:sync --",
     "census:sync": "npm --prefix vendor/bcdatamapper run census:sync --",
     "census:bc-da-simplified": "npm --prefix vendor/bcdatamapper run census:bc-da-simplified --",
+    "census:bc-db-crosswalk": "npm --prefix vendor/bcdatamapper run census:bc-db-crosswalk --",
+    "census:bc-db-chunks": "npm --prefix vendor/bcdatamapper run census:bc-db-chunks --",
     "census:variables": "npm --prefix vendor/bcdatamapper run census:variables --",
     "bc-assessment:build": "npm --prefix vendor/bcdatamapper run bc-assessment:build --",
     "bc-assessment:refresh": "npm --prefix vendor/bcdatamapper run bc-assessment:refresh --",

@@ -23,13 +23,13 @@ export const DATASETS = {
   },
   census: {
     title: '2021 census variables',
-    description: 'Census geography and variable extracts across census subdivision, tract, dissemination area, and block levels.',
-    source: 'Statistics Canada 2021 Census',
+    description: 'Census geography and variable extracts across census subdivision, tract, dissemination area, and block levels, with a DB-to-CHSA health-boundary crosswalk for BC DB records.',
+    source: 'Statistics Canada 2021 Census, BCCDC db21 package, BC Ministry of Health DB-CHSA crosswalk',
     coverage: 'BC census geographies; Prince George dissemination blocks',
     license: 'Statistics Canada open licence',
     formats: ['JSON', 'GeoJSON'],
     downloadUrl: '/data/census/variables/catalog.json',
-    fields: ['GeoUID', 'name', 'population', 'areaSqKm', 'variable_id', 'value'],
+    fields: ['GeoUID', 'name', 'population', 'areaSqKm', 'variable_id', 'value', 'chsaCode', 'lhaCode', 'hsdaCode', 'healthAuthorityCode'],
   },
   parks: {
     title: 'Parks, trails, and CityPG open layers',

@@ -2,8 +2,10 @@ import area from '@turf/area'
 import bbox from '@turf/bbox'
 import difference from '@turf/difference'
 import intersect from '@turf/intersect'
+import createWebShareEngine from '@firstform/json-url/web-share'
 import { ArrowDown, ArrowUp, Check, ChevronsUpDown, EyeOff, Focus, GripVertical, Layers, Loader2, RotateCcw, Search, SquareStack, X } from 'lucide-react'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Map, MapControls, MapPopup, useMap } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -13,6 +15,7 @@ import {
   getDefaultLevelForSource,
   getLevelOptionsForSource,
   getStudyAreaLevelLabel,
+  isValidLevelForSource,
   loadStudyAreaRegions,
   type BoundarySource,
   type RegionLevel,
@@ -133,14 +136,44 @@ interface PolygonFocus {
   scope: string
 }
 
+interface BoundariesShareState {
+  version: 1
+  activeSources: BoundarySource[]
+  sourceLevels: Partial<Record<BoundarySource, RegionLevel>>
+  sourceOpacities?: Partial<Record<BoundarySource, number>>
+  enabledCensusParentLevels?: CensusParentLevel[]
+  selectedPolygonFocuses?: PolygonFocus[]
+  isolatedPolygonFocuses?: PolygonFocus[]
+  hiddenPolygonFocuses?: PolygonFocus[]
+  selectedId?: string | null
+  selectedParentId?: string | null
+  query?: string
+}
+
 interface PolygonClickMeta {
   shiftKey: boolean
 }
 
 const BC_CENTER: [number, number] = [-124.4, 53.9]
-const BC_DA_SIMPLIFIED_LEVEL: RegionLevel = 'da'
+const BC_DA_SIMPLIFIED_LEVEL = 'da' satisfies RegionLevel
+const BC_DB_CHUNKED_LEVEL = 'db' satisfies RegionLevel
+type ChunkedCensusLevel = typeof BC_DA_SIMPLIFIED_LEVEL | typeof BC_DB_CHUNKED_LEVEL
 const BC_DA_CHUNK_BASE_PATH = '/data/census/bc-da-simplified'
 const BC_DA_CHUNK_MANIFEST_PATH = `${BC_DA_CHUNK_BASE_PATH}/manifest.json`
+const BC_DB_CHUNK_BASE_PATH = (
+  (import.meta.env.VITE_BC_DB_CHUNK_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '/data/census/bc-db-chunks'
+)
+const BC_DB_CHUNK_MANIFEST_PATH = `${BC_DB_CHUNK_BASE_PATH}/manifest.json`
+const CENSUS_CHUNK_CONFIG: Record<ChunkedCensusLevel, { basePath: string; manifestPath: string }> = {
+  da: {
+    basePath: BC_DA_CHUNK_BASE_PATH,
+    manifestPath: BC_DA_CHUNK_MANIFEST_PATH,
+  },
+  db: {
+    basePath: BC_DB_CHUNK_BASE_PATH,
+    manifestPath: BC_DB_CHUNK_MANIFEST_PATH,
+  },
+}
 const EMPTY_REGIONS: StudyAreaRegion[] = []
 const EMPTY_POLYGON_FOCUSES: PolygonFocus[] = []
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> = {
@@ -161,6 +194,14 @@ const DEFAULT_SOURCE_LEVELS = BOUNDARY_SOURCE_OPTIONS.reduce<Record<BoundarySour
   return acc
 }, {} as Record<BoundarySource, RegionLevel>)
 
+const BOUNDARY_SOURCE_VALUE_SET = new Set<string>(BOUNDARY_SOURCE_OPTIONS.map((option) => option.value))
+
+const boundariesShareEngine = createWebShareEngine<BoundariesShareState>({
+  codecs: ['raw', 'lz'],
+  maxLength: 12000,
+  skipUnsupportedCodecs: true,
+})
+
 const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
   cityCommunity: { fill: '#14b8a6', line: '#0f766e' },
   cityPG: { fill: '#f59e0b', line: '#b45309' },
@@ -179,6 +220,14 @@ const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
   walkabilityCommunity: { fill: '#06b6d4', line: '#0e7490' },
 }
 
+function encodeBoundariesShareState(state: BoundariesShareState): Promise<string> {
+  return boundariesShareEngine.compress(state)
+}
+
+function decodeBoundariesShareState(token: string): Promise<BoundariesShareState> {
+  return boundariesShareEngine.decompress(token, { deURI: true })
+}
+
 function cacheKey(source: BoundarySource, level: RegionLevel) {
   return `${source}:${level}`
 }
@@ -187,12 +236,21 @@ function isBcDaSimplifiedLayer(layer: ActiveLayer) {
   return layer.source === 'census' && layer.level === BC_DA_SIMPLIFIED_LEVEL
 }
 
+function isChunkedCensusLevel(level: RegionLevel): level is ChunkedCensusLevel {
+  return level === BC_DA_SIMPLIFIED_LEVEL || level === BC_DB_CHUNKED_LEVEL
+}
+
+function isChunkedCensusLayer(layer: ActiveLayer): layer is ActiveLayer & { level: ChunkedCensusLevel } {
+  return layer.source === 'census' && isChunkedCensusLevel(layer.level)
+}
+
 function bboxesIntersect(a: BoundaryBbox, b: BoundaryBbox) {
   return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1]
 }
 
-function chunkUrl(path: string) {
-  return path.startsWith('/') ? path : `${BC_DA_CHUNK_BASE_PATH}/${path}`
+function chunkUrl(level: ChunkedCensusLevel, path: string) {
+  if (path.startsWith('/') || /^(https?:)?\/\//.test(path)) return path
+  return `${CENSUS_CHUNK_CONFIG[level].basePath}/${path}`
 }
 
 function getBcDaManifestLevels(manifest: BcDaChunkManifest | null): BcDaChunkLevel[] {
@@ -214,7 +272,10 @@ function getBcDaManifestLevels(manifest: BcDaChunkManifest | null): BcDaChunkLev
 
 function chooseBcDaLevel(manifest: BcDaChunkManifest | null, zoom: number): BcDaChunkLevel | null {
   const levels = getBcDaManifestLevels(manifest)
-  return levels.find((level) => zoom >= level.minZoom && zoom < level.maxZoom) ?? levels[levels.length - 1] ?? null
+  if (levels.length === 0) return null
+  const matched = levels.find((level) => zoom >= level.minZoom && zoom < level.maxZoom)
+  if (matched) return matched
+  return zoom < levels[0].minZoom ? null : levels[levels.length - 1]
 }
 
 function formatArea(value: number) {
@@ -251,6 +312,15 @@ function regionSearchText(region: StudyAreaRegion) {
     properties.parentCsdName,
     properties.parentCtId,
     properties.parentCtName,
+    properties.parentDaId,
+    properties.parentChsaId,
+    properties.parentChsaName,
+    properties.parentLhaId,
+    properties.parentLhaName,
+    properties.parentHsdaId,
+    properties.parentHsdaName,
+    properties.parentHealthAuthorityId,
+    properties.parentHealthAuthorityName,
     properties.CDUID,
     properties.CDNAME,
     properties.CSDUID,
@@ -276,6 +346,31 @@ function censusParentRows(properties: Record<string, unknown>) {
       label: 'Census tract',
       code: properties.parentCtId ?? properties.CTUID,
       name: properties.parentCtName ?? properties.CTNAME,
+    },
+    {
+      label: 'Dissemination area',
+      code: properties.parentDaId ?? properties.DAUID,
+      name: properties.parentDaName ?? properties.DANAME,
+    },
+    {
+      label: 'CHSA',
+      code: properties.parentChsaId,
+      name: properties.parentChsaName,
+    },
+    {
+      label: 'Local Health Area',
+      code: properties.parentLhaId,
+      name: properties.parentLhaName,
+    },
+    {
+      label: 'HSDA',
+      code: properties.parentHsdaId,
+      name: properties.parentHsdaName,
+    },
+    {
+      label: 'Health Authority',
+      code: properties.parentHealthAuthorityId,
+      name: properties.parentHealthAuthorityName,
     },
   ].filter((row) => row.code || row.name)
 }
@@ -343,6 +438,33 @@ function samePolygonFocus(a: PolygonFocus, b: PolygonFocus) {
 
 function uniquePolygonFocuses(focuses: PolygonFocus[]) {
   return focuses.filter((focus, index) => focuses.findIndex((candidate) => samePolygonFocus(candidate, focus)) === index)
+}
+
+function isBoundarySource(value: unknown): value is BoundarySource {
+  return typeof value === 'string' && BOUNDARY_SOURCE_VALUE_SET.has(value)
+}
+
+function isCensusParentLevel(value: unknown): value is CensusParentLevel {
+  return value === 'cd' || value === 'csd' || value === 'ct'
+}
+
+function isPolygonFocus(value: unknown): value is PolygonFocus {
+  if (!value || typeof value !== 'object') return false
+  const focus = value as Partial<PolygonFocus>
+  return typeof focus.id === 'string' && typeof focus.scope === 'string'
+}
+
+function normalizePolygonFocuses(value: unknown): PolygonFocus[] {
+  return Array.isArray(value) ? uniquePolygonFocuses(value.filter(isPolygonFocus)) : []
+}
+
+function normalizeOpacity(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return Math.min(0.65, Math.max(0.04, value))
+}
+
+function polygonFocusScopes(focuses: PolygonFocus[]) {
+  return new Set(focuses.map((focus) => focus.scope))
 }
 
 function filterRegionsForPolygonFocus(
@@ -548,20 +670,40 @@ function buildSurfaceDifference(a: StudyAreaRegion, b: StudyAreaRegion): Surface
   }
 }
 
-function FitToRegions({ regions, selectedRegion }: { regions: StudyAreaRegion[]; selectedRegion: StudyAreaRegion | null }) {
+function FitToRegions({
+  regions,
+  selectedRegion,
+  fitSelectedRegion,
+  fitLayerRegions,
+}: {
+  regions: StudyAreaRegion[]
+  selectedRegion: StudyAreaRegion | null
+  fitSelectedRegion: boolean
+  fitLayerRegions: boolean
+}) {
   const { map, isLoaded } = useMap()
 
   useEffect(() => {
-    if (!isLoaded || !map) return
-    const target = selectedRegion?.feature ?? (regions.length > 0 ? featureCollection(regions) : null)
-    if (!target) return
+    if (!isLoaded || !map || !fitLayerRegions) return
+    if (regions.length === 0) return
+    const bounds = bbox(featureCollection(regions) as never) as [number, number, number, number]
+    map.fitBounds(bounds, {
+      padding: 48,
+      duration: 650,
+      maxZoom: 7,
+    })
+  }, [fitLayerRegions, isLoaded, map, regions])
+
+  useEffect(() => {
+    if (!isLoaded || !map || !selectedRegion || !fitSelectedRegion) return
+    const target = selectedRegion.feature
     const bounds = bbox(target as never) as [number, number, number, number]
     map.fitBounds(bounds, {
-      padding: selectedRegion ? 96 : 48,
+      padding: 96,
       duration: 650,
-      maxZoom: selectedRegion ? 11 : 7,
+      maxZoom: 11,
     })
-  }, [isLoaded, map, regions, selectedRegion])
+  }, [fitSelectedRegion, isLoaded, map, selectedRegion])
 
   return null
 }
@@ -598,6 +740,11 @@ function TrackMapBounds({
 }
 
 function DevBoundaries() {
+  const [searchParams] = useSearchParams()
+  const initialShareTokenValue = searchParams.get('s')
+  const initialShareToken = useRef(initialShareTokenValue)
+  const lastEncodedShareToken = useRef<string | null>(initialShareTokenValue)
+  const [shareStateReady, setShareStateReady] = useState(() => !initialShareTokenValue)
   const [showSidebar, setShowSidebar] = useState(true)
   const [activeSources, setActiveSources] = useState<BoundarySource[]>(['cityCommunity'])
   const [sourceLevels, setSourceLevels] = useState<Record<BoundarySource, RegionLevel>>(() => DEFAULT_SOURCE_LEVELS)
@@ -605,17 +752,18 @@ function DevBoundaries() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null)
   const [selectedPolygonFocuses, setSelectedPolygonFocuses] = useState<PolygonFocus[]>([])
+  const [fitSelectedRegion, setFitSelectedRegion] = useState(true)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [isolatedPolygonFocuses, setIsolatedPolygonFocuses] = useState<PolygonFocus[]>([])
   const [hiddenPolygonFocuses, setHiddenPolygonFocuses] = useState<PolygonFocus[]>([])
   const [cache, setCache] = useState<Record<string, BoundaryCacheEntry>>({})
   const [mapBounds, setMapBounds] = useState<BoundaryBbox | null>(null)
   const [mapZoom, setMapZoom] = useState(5.2)
-  const [bcDaManifest, setBcDaManifest] = useState<BcDaChunkManifest | null>(null)
-  const [bcDaChunks, setBcDaChunks] = useState<Record<string, StudyAreaRegion[]>>({})
-  const [bcDaError, setBcDaError] = useState<string | null>(null)
-  const [bcDaLoadingChunkIds, setBcDaLoadingChunkIds] = useState<string[]>([])
-  const bcDaRequestedChunkIds = useRef(new Set<string>())
+  const [censusChunkManifests, setCensusChunkManifests] = useState<Partial<Record<ChunkedCensusLevel, BcDaChunkManifest>>>({})
+  const [censusChunkRegionsByKey, setCensusChunkRegionsByKey] = useState<Record<string, StudyAreaRegion[]>>({})
+  const [censusChunkErrors, setCensusChunkErrors] = useState<Partial<Record<ChunkedCensusLevel, string>>>({})
+  const [censusLoadingChunkIds, setCensusLoadingChunkIds] = useState<string[]>([])
+  const censusRequestedChunkIds = useRef(new Set<string>())
   const [enabledCensusParentLevels, setEnabledCensusParentLevels] = useState<CensusParentLevel[]>([])
   const [parentBoundaryCache, setParentBoundaryCache] = useState<Partial<Record<CensusParentLevel, ParentBoundaryCacheEntry>>>({})
   const [surfaceDifferenceMode, setSurfaceDifferenceMode] = useState(false)
@@ -627,6 +775,69 @@ function DevBoundaries() {
   ))
   const [draggedSource, setDraggedSource] = useState<BoundarySource | null>(null)
 
+  useEffect(() => {
+    const token = initialShareToken.current
+    if (!token) return
+
+    let cancelled = false
+    decodeBoundariesShareState(token)
+      .then((shareState) => {
+        if (cancelled || shareState.version !== 1) return
+
+        const nextActiveSources: BoundarySource[] = Array.isArray(shareState.activeSources)
+          ? (shareState.activeSources as unknown[]).filter(isBoundarySource)
+          : []
+        const activeSourceSet = new Set<BoundarySource>()
+        const normalizedActiveSources = nextActiveSources.filter((source) => {
+          if (activeSourceSet.has(source)) return false
+          activeSourceSet.add(source)
+          return true
+        })
+        const nextSources: BoundarySource[] = normalizedActiveSources.length > 0 ? normalizedActiveSources : ['cityCommunity']
+        const nextLevels = { ...DEFAULT_SOURCE_LEVELS }
+
+        nextSources.forEach((source) => {
+          const level = shareState.sourceLevels?.[source]
+          nextLevels[source] = level && isValidLevelForSource(source, level) ? level : getDefaultLevelForSource(source)
+        })
+
+        setActiveSources(nextSources)
+        setSourceLevels(nextLevels)
+        setSourceOpacities((current) => {
+          const next = { ...current }
+          nextSources.forEach((source) => {
+            const opacity = normalizeOpacity(shareState.sourceOpacities?.[source])
+            if (opacity != null) next[source] = opacity
+          })
+          return next
+        })
+        setEnabledCensusParentLevels(
+          Array.isArray(shareState.enabledCensusParentLevels)
+            ? CENSUS_PARENT_LEVEL_ORDER.filter((level) => shareState.enabledCensusParentLevels?.some((value) => isCensusParentLevel(value) && value === level))
+            : [],
+        )
+        setSelectedPolygonFocuses(normalizePolygonFocuses(shareState.selectedPolygonFocuses))
+        setIsolatedPolygonFocuses(normalizePolygonFocuses(shareState.isolatedPolygonFocuses))
+        setHiddenPolygonFocuses(normalizePolygonFocuses(shareState.hiddenPolygonFocuses))
+        setSelectedId(typeof shareState.selectedId === 'string' ? shareState.selectedId : null)
+        setSelectedParentId(typeof shareState.selectedParentId === 'string' ? shareState.selectedParentId : null)
+        setQuery(typeof shareState.query === 'string' ? shareState.query : '')
+        setFitSelectedRegion(false)
+        setCompareIds([])
+        setSurfaceDifferenceMode(false)
+      })
+      .catch(() => {
+        // Bad shared URLs should not block the page from loading with defaults.
+      })
+      .finally(() => {
+        if (!cancelled) setShareStateReady(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const activeLayers = useMemo<ActiveLayer[]>(() => (
     activeSources.map((source) => {
       const level = sourceLevels[source] ?? getDefaultLevelForSource(source)
@@ -634,12 +845,21 @@ function DevBoundaries() {
     })
   ), [activeSources, sourceLevels])
 
+  const activeCensusChunkLevel = useMemo<ChunkedCensusLevel | null>(() => (
+    activeLayers.find(isChunkedCensusLayer)?.level ?? null
+  ), [activeLayers])
+  const activeCensusChunkManifest = activeCensusChunkLevel ? censusChunkManifests[activeCensusChunkLevel] ?? null : null
+  const activeCensusChunkError = activeCensusChunkLevel ? censusChunkErrors[activeCensusChunkLevel] ?? null : null
+  const activeCensusChunkDetailLevel = useMemo(
+    () => chooseBcDaLevel(activeCensusChunkManifest, mapZoom),
+    [activeCensusChunkManifest, mapZoom],
+  )
   const bcDaActive = activeLayers.some(isBcDaSimplifiedLayer)
-  const bcDaLevel = useMemo(() => chooseBcDaLevel(bcDaManifest, mapZoom), [bcDaManifest, mapZoom])
+  const bcDaManifest = censusChunkManifests.da ?? null
   const parentBoundaryOptions = useMemo(() => bcDaManifest?.parentBoundaries ?? [], [bcDaManifest])
 
   useEffect(() => {
-    const layersToLoad = activeLayers.filter((layer) => !isBcDaSimplifiedLayer(layer) && !cache[layer.key])
+    const layersToLoad = activeLayers.filter((layer) => !isChunkedCensusLayer(layer) && !cache[layer.key])
     if (layersToLoad.length === 0) return
 
     queueMicrotask(() => {
@@ -676,47 +896,52 @@ function DevBoundaries() {
   }, [activeLayers, cache])
 
   useEffect(() => {
-    if (!bcDaActive || bcDaManifest || bcDaError) return
+    if (!activeCensusChunkLevel) return
+    if (censusChunkManifests[activeCensusChunkLevel] || censusChunkErrors[activeCensusChunkLevel]) return
 
     const controller = new AbortController()
-    fetch(BC_DA_CHUNK_MANIFEST_PATH, { signal: controller.signal })
+    const { manifestPath } = CENSUS_CHUNK_CONFIG[activeCensusChunkLevel]
+    fetch(manifestPath, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`Failed to fetch ${BC_DA_CHUNK_MANIFEST_PATH}: ${response.status}`)
+          throw new Error(`Failed to fetch ${manifestPath}: ${response.status}`)
         }
         return response.json() as Promise<BcDaChunkManifest>
       })
       .then((manifest) => {
-        setBcDaManifest(manifest)
-        setBcDaError(null)
+        setCensusChunkManifests((current) => ({ ...current, [activeCensusChunkLevel]: manifest }))
+        setCensusChunkErrors((current) => ({ ...current, [activeCensusChunkLevel]: undefined }))
       })
       .catch((err) => {
         if ((err as Error).name === 'AbortError') return
-        setBcDaError((err as Error).message || 'Unable to load BC DA chunk manifest.')
+        setCensusChunkErrors((current) => ({
+          ...current,
+          [activeCensusChunkLevel]: (err as Error).message || 'Unable to load census chunk manifest.',
+        }))
       })
 
     return () => controller.abort()
-  }, [bcDaActive, bcDaError, bcDaManifest])
+  }, [activeCensusChunkLevel, censusChunkErrors, censusChunkManifests])
 
   useEffect(() => {
-    if (!bcDaActive || !bcDaLevel || !mapBounds) return
+    if (!activeCensusChunkLevel || !activeCensusChunkDetailLevel || !mapBounds) return
 
-    const chunksToLoad = bcDaLevel.chunks
+    const chunksToLoad = activeCensusChunkDetailLevel.chunks
       .filter((chunk) => bboxesIntersect(chunk.bbox, mapBounds))
       .filter((chunk) => {
-        const key = `${bcDaLevel.id}:${chunk.id}`
-        return !bcDaChunks[key] && !bcDaRequestedChunkIds.current.has(key)
+        const key = `${activeCensusChunkLevel}:${activeCensusChunkDetailLevel.id}:${chunk.id}`
+        return !censusChunkRegionsByKey[key] && !censusRequestedChunkIds.current.has(key)
       })
 
     if (chunksToLoad.length === 0) return
 
-    const chunkKeys = chunksToLoad.map((chunk) => `${bcDaLevel.id}:${chunk.id}`)
-    chunkKeys.forEach((key) => bcDaRequestedChunkIds.current.add(key))
-    setBcDaLoadingChunkIds((current) => Array.from(new Set([...current, ...chunkKeys])))
+    const chunkKeys = chunksToLoad.map((chunk) => `${activeCensusChunkLevel}:${activeCensusChunkDetailLevel.id}:${chunk.id}`)
+    chunkKeys.forEach((key) => censusRequestedChunkIds.current.add(key))
+    setCensusLoadingChunkIds((current) => Array.from(new Set([...current, ...chunkKeys])))
 
     chunksToLoad.forEach((chunk) => {
-      const chunkKey = `${bcDaLevel.id}:${chunk.id}`
-      fetch(chunkUrl(chunk.path))
+      const chunkKey = `${activeCensusChunkLevel}:${activeCensusChunkDetailLevel.id}:${chunk.id}`
+      fetch(chunkUrl(activeCensusChunkLevel, chunk.path))
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch ${chunk.path}: ${response.status}`)
@@ -729,17 +954,20 @@ function DevBoundaries() {
             .filter((region): region is StudyAreaRegion => region !== null)
             .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
 
-          setBcDaChunks((current) => ({ ...current, [chunkKey]: regions }))
+          setCensusChunkRegionsByKey((current) => ({ ...current, [chunkKey]: regions }))
         })
         .catch((err) => {
-          bcDaRequestedChunkIds.current.delete(chunkKey)
-          setBcDaError((err as Error).message || `Unable to load ${chunk.path}.`)
+          censusRequestedChunkIds.current.delete(chunkKey)
+          setCensusChunkErrors((current) => ({
+            ...current,
+            [activeCensusChunkLevel]: (err as Error).message || `Unable to load ${chunk.path}.`,
+          }))
         })
         .finally(() => {
-          setBcDaLoadingChunkIds((current) => current.filter((id) => id !== chunkKey))
+          setCensusLoadingChunkIds((current) => current.filter((id) => id !== chunkKey))
         })
     })
-  }, [bcDaActive, bcDaChunks, bcDaLevel, mapBounds])
+  }, [activeCensusChunkDetailLevel, activeCensusChunkLevel, censusChunkRegionsByKey, mapBounds])
 
   useEffect(() => {
     if (!bcDaActive || !bcDaManifest) return
@@ -757,7 +985,7 @@ function DevBoundaries() {
         ...current,
         [level]: { state: 'loading', data: EMPTY_COLLECTION },
       }))
-      fetch(chunkUrl(parent.path))
+      fetch(chunkUrl(BC_DA_SIMPLIFIED_LEVEL, parent.path))
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch ${parent.path}: ${response.status}`)
@@ -783,25 +1011,25 @@ function DevBoundaries() {
     })
   }, [bcDaActive, bcDaManifest, enabledCensusParentLevels, parentBoundaryCache, parentBoundaryOptions])
 
-  const bcDaRegions = useMemo(() => (
-    Object.entries(bcDaChunks)
-      .filter(([key]) => key.startsWith(`${bcDaLevel?.id ?? ''}:`))
+  const censusChunkRegions = useMemo(() => (
+    Object.entries(censusChunkRegionsByKey)
+      .filter(([key]) => key.startsWith(`${activeCensusChunkLevel ?? ''}:${activeCensusChunkDetailLevel?.id ?? ''}:`))
       .flatMap(([, regions]) => regions)
       .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
-  ), [bcDaChunks, bcDaLevel?.id])
+  ), [activeCensusChunkDetailLevel?.id, activeCensusChunkLevel, censusChunkRegionsByKey])
 
   const activeLayerViews = useMemo<ActiveLayerView[]>(() => {
     const term = query.trim().toLowerCase()
     return activeLayers.map((layer) => {
-      const chunkedLayer = isBcDaSimplifiedLayer(layer)
+      const chunkedLayer = isChunkedCensusLayer(layer)
       const entry = chunkedLayer
         ? {
-            regions: bcDaRegions,
-            state: bcDaError ? 'error' : 'ready',
-            error: bcDaError ?? undefined,
+            regions: censusChunkRegions,
+            state: activeCensusChunkError ? 'error' : 'ready',
+            error: activeCensusChunkError ?? undefined,
           } satisfies BoundaryCacheEntry
         : cache[layer.key]
-      const regions = chunkedLayer ? bcDaRegions : entry?.regions ?? EMPTY_REGIONS
+      const regions = chunkedLayer ? censusChunkRegions : entry?.regions ?? EMPTY_REGIONS
       const filteredRegions = term
         ? regions.filter((region) => regionSearchText(region).includes(term))
         : regions
@@ -816,12 +1044,21 @@ function DevBoundaries() {
         regions,
         filteredRegions,
         loading: chunkedLayer
-          ? regions.length === 0 && !bcDaError && (!bcDaManifest || bcDaLoadingChunkIds.length > 0)
+          ? !activeCensusChunkError && (!activeCensusChunkManifest || censusLoadingChunkIds.length > 0)
           : !entry || entry.state === 'loading',
         error: entry?.state === 'error' ? entry.error : undefined,
       }
     })
-  }, [activeLayers, bcDaError, bcDaLoadingChunkIds.length, bcDaManifest, bcDaRegions, cache, query, sourceOpacities])
+  }, [
+    activeCensusChunkError,
+    activeCensusChunkManifest,
+    activeLayers,
+    cache,
+    censusChunkRegions,
+    censusLoadingChunkIds.length,
+    query,
+    sourceOpacities,
+  ])
 
   const enabledParentBoundaryViews = useMemo<ParentBoundaryView[]>(() => (
     enabledCensusParentLevels
@@ -843,7 +1080,6 @@ function DevBoundaries() {
   const hideBcDaChunksForParents = bcDaActive && enabledCensusParentLevels.length > 0
 
   const allRegions = useMemo(() => activeLayerViews.flatMap((layer) => layer.regions), [activeLayerViews])
-  const allFilteredRegions = useMemo(() => activeLayerViews.flatMap((layer) => layer.filteredRegions), [activeLayerViews])
   const selectedRegion = allRegions.find((region) => region.id === selectedId) ?? null
   const selectedRegionLayerScope = activeLayerViews.find((layer) => selectedRegion && layer.regions.some((region) => region.id === selectedRegion.id))?.key ?? null
   const selectedRegionLayerFocuses = selectedRegionLayerScope
@@ -858,6 +1094,15 @@ function DevBoundaries() {
     [allRegions, compareIds],
   )
   const polygonFocusActive = Boolean(isolatedPolygonFocuses.length > 0 || hiddenPolygonFocuses.length > 0)
+  const visibleLayerRegionsByKey = useMemo(() => (
+    activeLayerViews.reduce<Record<string, StudyAreaRegion[]>>((regionsByKey, layer) => {
+      regionsByKey[layer.key] = filterRegionsForPolygonFocus(layer.filteredRegions, layer.key, isolatedPolygonFocuses, hiddenPolygonFocuses)
+      return regionsByKey
+    }, {})
+  ), [activeLayerViews, hiddenPolygonFocuses, isolatedPolygonFocuses])
+  const allMapVisibleRegions = useMemo(() => (
+    activeLayerViews.flatMap((layer) => visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions)
+  ), [activeLayerViews, visibleLayerRegionsByKey])
   const surfaceDifference = useMemo(() => (
     compareRegions.length === 2 ? buildSurfaceDifference(compareRegions[0], compareRegions[1]) : null
   ), [compareRegions])
@@ -865,14 +1110,71 @@ function DevBoundaries() {
   const activeErrors = activeLayerViews.filter((layer) => layer.error)
   const topLayerKey = activeLayerViews[activeLayerViews.length - 1]?.key ?? null
   const activeRange = useMemo(() => levelRange(allRegions), [allRegions])
-  const visibleRange = useMemo(() => levelRange(allFilteredRegions), [allFilteredRegions])
+  const visibleRange = useMemo(() => levelRange(allMapVisibleRegions), [allMapVisibleRegions])
   const fitRegions = useMemo(
-    () => allFilteredRegions.filter((region) => region.level !== BC_DA_SIMPLIFIED_LEVEL),
-    [allFilteredRegions],
+    () => allMapVisibleRegions.filter((region) => !(region.source === 'census' && isChunkedCensusLevel(region.level))),
+    [allMapVisibleRegions],
   )
   const activeSubtitle = activeLayerViews.length === 1
     ? `${activeLayerViews[0].label} - ${activeLayerViews[0].optionLabel}`
-    : `${activeLayerViews.length} study areas - ${allFilteredRegions.length.toLocaleString()} visible boundaries`
+    : `${activeLayerViews.length} study areas - ${allMapVisibleRegions.length.toLocaleString()} visible boundaries`
+
+  const boundariesShareState = useMemo<BoundariesShareState>(() => {
+    const sharedSourceLevels = activeSources.reduce<Partial<Record<BoundarySource, RegionLevel>>>((levels, source) => {
+      levels[source] = sourceLevels[source] ?? getDefaultLevelForSource(source)
+      return levels
+    }, {})
+    const sharedSourceOpacities = activeSources.reduce<Partial<Record<BoundarySource, number>>>((opacities, source) => {
+      opacities[source] = sourceOpacities[source] ?? 0.22
+      return opacities
+    }, {})
+
+    return {
+      version: 1,
+      activeSources,
+      sourceLevels: sharedSourceLevels,
+      sourceOpacities: sharedSourceOpacities,
+      enabledCensusParentLevels,
+      selectedPolygonFocuses,
+      isolatedPolygonFocuses,
+      hiddenPolygonFocuses,
+      selectedId,
+      selectedParentId,
+      query: query.trim() ? query : undefined,
+    }
+  }, [
+    activeSources,
+    enabledCensusParentLevels,
+    hiddenPolygonFocuses,
+    isolatedPolygonFocuses,
+    query,
+    selectedId,
+    selectedParentId,
+    selectedPolygonFocuses,
+    sourceLevels,
+    sourceOpacities,
+  ])
+
+  useEffect(() => {
+    if (!shareStateReady) return
+
+    let cancelled = false
+    encodeBoundariesShareState(boundariesShareState)
+      .then((token) => {
+        if (cancelled || token === lastEncodedShareToken.current) return
+        const url = new URL(window.location.href)
+        url.searchParams.set('s', token)
+        window.history.replaceState(null, '', url)
+        lastEncodedShareToken.current = token
+      })
+      .catch(() => {
+        // URL sync is best-effort; interaction should keep working if encoding fails.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [boundariesShareState, shareStateReady])
 
   const sourceGroups = useMemo(() => (
     BOUNDARY_SOURCE_OPTIONS.reduce<Record<string, typeof BOUNDARY_SOURCE_OPTIONS>>((groups, option) => {
@@ -883,7 +1185,25 @@ function DevBoundaries() {
     }, {})
   ), [])
 
+  const clearPolygonFocusForScopes = useCallback((scopes: Set<string>) => {
+    setSelectedPolygonFocuses((current) => current.filter((focus) => !scopes.has(focus.scope)))
+    setIsolatedPolygonFocuses((current) => current.filter((focus) => !scopes.has(focus.scope)))
+    setHiddenPolygonFocuses((current) => current.filter((focus) => !scopes.has(focus.scope)))
+    setFitSelectedRegion(true)
+    if (selectedRegionLayerScope && scopes.has(selectedRegionLayerScope)) {
+      setSelectedId(null)
+    }
+    if (selectedParentBoundary && scopes.has(selectedParentBoundary.scope)) {
+      setSelectedParentId(null)
+    }
+  }, [selectedParentBoundary, selectedRegionLayerScope])
+
   const toggleSource = useCallback((nextSource: BoundarySource) => {
+    const removingSource = activeSources.includes(nextSource) && activeSources.length > 1
+    if (removingSource) {
+      const removedScope = cacheKey(nextSource, sourceLevels[nextSource] ?? getDefaultLevelForSource(nextSource))
+      clearPolygonFocusForScopes(new Set([removedScope]))
+    }
     setActiveSources((current) => {
       if (current.includes(nextSource)) {
         if (current.length === 1) return current
@@ -891,11 +1211,8 @@ function DevBoundaries() {
       }
       return [...current, nextSource]
     })
-    setSelectedId(null)
-    setSelectedParentId(null)
-    setSelectedPolygonFocuses([])
     setCompareIds([])
-  }, [])
+  }, [activeSources, clearPolygonFocusForScopes, sourceLevels])
 
   const moveSource = useCallback((source: BoundarySource, direction: -1 | 1) => {
     setActiveSources((current) => {
@@ -923,15 +1240,19 @@ function DevBoundaries() {
   }, [])
 
   const handleVariantChange = useCallback((source: BoundarySource, nextLevel: RegionLevel) => {
+    const currentLevel = sourceLevels[source] ?? getDefaultLevelForSource(source)
+    if (currentLevel === nextLevel) return
+    const scopesToClear = new Set([cacheKey(source, currentLevel)])
+    if (source === 'census') {
+      enabledCensusParentLevels.forEach((level) => scopesToClear.add(`census-parent:${level}`))
+    }
     setSourceLevels((current) => ({ ...current, [source]: nextLevel }))
     if (source === 'census' && nextLevel !== BC_DA_SIMPLIFIED_LEVEL) {
       setEnabledCensusParentLevels([])
     }
-    setSelectedId(null)
-    setSelectedParentId(null)
-    setSelectedPolygonFocuses([])
+    clearPolygonFocusForScopes(scopesToClear)
     setCompareIds([])
-  }, [])
+  }, [clearPolygonFocusForScopes, enabledCensusParentLevels, sourceLevels])
 
   const handleOpacityChange = useCallback((source: BoundarySource, value: number) => {
     setSourceOpacities((current) => ({ ...current, [source]: value }))
@@ -945,12 +1266,14 @@ function DevBoundaries() {
 
   const handleFeatureClick = useCallback((id: string, scope: string, event: PolygonClickMeta) => {
     selectPolygonFocus({ id, scope }, event.shiftKey)
+    setFitSelectedRegion(!event.shiftKey)
     setSelectedId(id)
     setSelectedParentId(null)
   }, [selectPolygonFocus])
 
   const handleParentFeatureClick = useCallback((id: string, scope: string, event: PolygonClickMeta) => {
     selectPolygonFocus({ id, scope }, event.shiftKey)
+    setFitSelectedRegion(false)
     setSelectedParentId(id)
     setSelectedId(null)
   }, [selectPolygonFocus])
@@ -969,12 +1292,19 @@ function DevBoundaries() {
   }, [])
 
   const isolatePolygon = useCallback((focuses: PolygonFocus[]) => {
-    setIsolatedPolygonFocuses(uniquePolygonFocuses(focuses))
-    setHiddenPolygonFocuses([])
+    const targets = uniquePolygonFocuses(focuses)
+    const targetScopes = polygonFocusScopes(targets)
+    setFitSelectedRegion(false)
+    setIsolatedPolygonFocuses((current) => uniquePolygonFocuses([
+      ...current.filter((focus) => !targetScopes.has(focus.scope)),
+      ...targets,
+    ]))
+    setHiddenPolygonFocuses((current) => current.filter((focus) => !targetScopes.has(focus.scope)))
   }, [])
 
   const hidePolygon = useCallback((focuses: PolygonFocus[]) => {
     const targets = uniquePolygonFocuses(focuses)
+    setFitSelectedRegion(false)
     setIsolatedPolygonFocuses((current) => current.filter((focus) => !targets.some((target) => samePolygonFocus(target, focus))))
     setHiddenPolygonFocuses((current) => (
       uniquePolygonFocuses([...current, ...targets])
@@ -985,6 +1315,7 @@ function DevBoundaries() {
   }, [])
 
   const clearPolygonFocus = useCallback(() => {
+    setFitSelectedRegion(false)
     setIsolatedPolygonFocuses([])
     setHiddenPolygonFocuses([])
   }, [])
@@ -1128,11 +1459,24 @@ function DevBoundaries() {
                 <div className="grid gap-1.5">
                   {options.map((option) => {
                     const entry = cache[cacheKey(source, option.value)]
-                    const chunkedOption = source === 'census' && option.value === BC_DA_SIMPLIFIED_LEVEL
-                    const optionRegions = chunkedOption ? bcDaRegions : entry?.regions ?? EMPTY_REGIONS
+                    const optionChunkedLevel =
+                      source === 'census' && isChunkedCensusLevel(option.value)
+                        ? option.value
+                        : null
+                    const optionIsActiveChunked = optionChunkedLevel != null && activeCensusChunkLevel === optionChunkedLevel
+                    const optionManifest = optionChunkedLevel ? censusChunkManifests[optionChunkedLevel] ?? null : null
+                    const optionDetailLevel = optionIsActiveChunked
+                      ? activeCensusChunkDetailLevel
+                      : chooseBcDaLevel(optionManifest, mapZoom)
+                    const optionRegions = optionIsActiveChunked ? censusChunkRegions : entry?.regions ?? EMPTY_REGIONS
                     const range = levelRange(optionRegions)
-                    const chunkCount = bcDaLevel ? Object.keys(bcDaChunks).filter((key) => key.startsWith(`${bcDaLevel.id}:`)).length : 0
-                    const totalChunkCount = bcDaLevel?.chunks.length ?? 0
+                    const chunkCount = optionChunkedLevel && optionDetailLevel
+                      ? Object.keys(censusChunkRegionsByKey).filter((key) => key.startsWith(`${optionChunkedLevel}:${optionDetailLevel.id}:`)).length
+                      : 0
+                    const totalChunkCount = optionDetailLevel?.chunks.length ?? 0
+                    const minimumZoom = optionManifest
+                      ? Math.min(...getBcDaManifestLevels(optionManifest).map((level) => level.minZoom))
+                      : null
                     return (
                       <button
                         key={option.value}
@@ -1148,19 +1492,23 @@ function DevBoundaries() {
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-xs font-medium">{option.label}</span>
                           <span className="text-[10px] text-muted-foreground">
-                            {chunkedOption
-                              ? (bcDaManifest ? `${formatNumber(optionRegions.length)} / ${formatNumber(bcDaManifest.features)} loaded` : 'Not loaded')
+                            {optionChunkedLevel
+                              ? optionManifest
+                                ? optionDetailLevel
+                                  ? `${formatNumber(optionRegions.length)} / ${formatNumber(optionManifest.features)} loaded`
+                                  : `Zoom to ${minimumZoom ?? '--'}+`
+                                : 'Not loaded'
                               : (entry ? `${formatNumber(entry.regions.length)} areas` : 'Not loaded')}
                           </span>
                         </div>
                         <div className="mt-1 text-[10px] text-muted-foreground">
-                          {chunkedOption && bcDaLevel
-                            ? `Detail: ${bcDaLevel.label} · Chunks: ${formatNumber(chunkCount)} / ${formatNumber(totalChunkCount)} · ${formatGzipMiB(bcDaLevel.gzipBytes) ?? '--'} total`
+                          {optionChunkedLevel && optionDetailLevel
+                            ? `Detail: ${optionDetailLevel.label} · Chunks: ${formatNumber(chunkCount)} / ${formatNumber(totalChunkCount)} · ${formatGzipMiB(optionDetailLevel.gzipBytes) ?? '--'} total`
                             : `Area range: ${entry && entry.regions.length > 0 ? `${formatArea(range.min)} - ${formatArea(range.max)}` : '--'}`}
-                          {chunkedOption && optionRegions.length > 0 && (
+                          {optionChunkedLevel && optionRegions.length > 0 && (
                             <> · Area range: {formatArea(range.min)} - {formatArea(range.max)}</>
                           )}
-                          {chunkedOption && selectedLevel === option.value && enabledCensusParentLevels.length > 0 && (
+                          {option.value === BC_DA_SIMPLIFIED_LEVEL && selectedLevel === option.value && enabledCensusParentLevels.length > 0 && (
                             <> · DA hidden by parent outline</>
                           )}
                         </div>
@@ -1179,7 +1527,7 @@ function DevBoundaries() {
           columns={2}
           stats={[
             { label: 'Study areas', value: formatNumber(activeLayerViews.length) },
-            { label: 'Visible boundaries', value: activeLoading ? '...' : formatNumber(allFilteredRegions.length) },
+            { label: 'Visible boundaries', value: activeLoading ? '...' : formatNumber(allMapVisibleRegions.length) },
             { label: 'Total area', value: activeLoading ? '...' : formatArea(visibleRange.total || activeRange.total) },
             { label: 'Largest', value: activeLoading ? '...' : formatArea(visibleRange.max || activeRange.max) },
           ]}
@@ -1191,7 +1539,7 @@ function DevBoundaries() {
               <span className="shrink-0 font-medium text-foreground">
                 {layer.loading
                   ? 'Loading'
-                  : `${formatNumber(layer.filteredRegions.length)} ${layer.optionLabel}${isBcDaSimplifiedLayer(layer) && bcDaLoadingChunkIds.length > 0 ? ` · ${bcDaLoadingChunkIds.length} loading` : ''}`}
+                  : `${formatNumber(visibleLayerRegionsByKey[layer.key]?.length ?? layer.filteredRegions.length)} / ${formatNumber(layer.filteredRegions.length)} ${layer.optionLabel}${isChunkedCensusLayer(layer) && censusLoadingChunkIds.length > 0 ? ` · ${censusLoadingChunkIds.length} loading` : ''}`}
               </span>
             </div>
           ))}
@@ -1217,8 +1565,8 @@ function DevBoundaries() {
             {activeLoading
               ? 'Loading boundaries'
               : polygonFocusActive
-                ? `${isolatedPolygonFocuses.length > 0 ? `Showing ${isolatedPolygonFocuses.length.toLocaleString()} selected in ${isolatedPolygonFocuses.length === 1 ? 'its layer' : 'their layers'}` : `${hiddenPolygonFocuses.length.toLocaleString()} hidden polygon${hiddenPolygonFocuses.length === 1 ? '' : 's'}`}`
-                : `${allFilteredRegions.length.toLocaleString()} visible boundaries`}
+                ? `${allMapVisibleRegions.length.toLocaleString()} visible after filters`
+                : `${allMapVisibleRegions.length.toLocaleString()} visible boundaries`}
           </span>
           {(compareIds.length > 0 || polygonFocusActive) && (
             <button
@@ -1246,7 +1594,10 @@ function DevBoundaries() {
             {activeLayerViews.map((layer) => (
               <div key={layer.key}>
                 <div className="sticky top-[33px] z-10 border-b border-border bg-muted/80 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur">
-                  {layer.label} · {layer.optionLabel} · {layer.filteredRegions.length.toLocaleString()}
+                  {layer.label} · {layer.optionLabel} · {(visibleLayerRegionsByKey[layer.key]?.length ?? layer.filteredRegions.length).toLocaleString()}
+                  {polygonFocusActive && (visibleLayerRegionsByKey[layer.key]?.length ?? layer.filteredRegions.length) !== layer.filteredRegions.length && (
+                    <span className="text-muted-foreground"> / {layer.filteredRegions.length.toLocaleString()}</span>
+                  )}
                 </div>
                 {layer.filteredRegions.slice(0, 120).map((region) => {
                   const comparing = compareIds.includes(region.id)
@@ -1261,6 +1612,7 @@ function DevBoundaries() {
                       <button
                         type="button"
                         onClick={(event) => {
+                          setFitSelectedRegion(!event.shiftKey)
                           setSelectedId(region.id)
                           setSelectedParentId(null)
                           selectPolygonFocus({ id: region.id, scope: layer.key }, event.shiftKey)
@@ -1275,7 +1627,7 @@ function DevBoundaries() {
                           <span>{region.code}</span>
                           <span>{formatArea(region.areaKm2)}</span>
                         </div>
-                        {region.level === BC_DA_SIMPLIFIED_LEVEL && censusParentSummary(region.feature.properties ?? {}) && (
+                        {region.source === 'census' && censusParentSummary(region.feature.properties ?? {}) && (
                           <div className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">
                             {censusParentSummary(region.feature.properties ?? {})}
                           </div>
@@ -1333,9 +1685,14 @@ function DevBoundaries() {
       >
         <MapControls position="top-right" mobilePosition="bottom-right" />
         <TrackMapBounds onBoundsChange={setMapBounds} onZoomChange={setMapZoom} />
-        <FitToRegions regions={fitRegions} selectedRegion={selectedRegion} />
+        <FitToRegions
+          regions={fitRegions}
+          selectedRegion={selectedRegion}
+          fitSelectedRegion={fitSelectedRegion}
+          fitLayerRegions={!polygonFocusActive}
+        />
         {activeLayerViews.map((layer) => {
-          const focusedRegions = filterRegionsForPolygonFocus(layer.filteredRegions, layer.key, isolatedPolygonFocuses, hiddenPolygonFocuses)
+          const focusedRegions = visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions
           const layerHiddenForParentOutlines = hideBcDaChunksForParents && isBcDaSimplifiedLayer(layer)
           const layerVisible = !layerHiddenForParentOutlines || isolatedPolygonFocuses.some((focus) => focus.scope === layer.key)
           return (
@@ -1446,8 +1803,10 @@ function DevBoundaries() {
         )}
         {selectedRegion && (
           <MapPopup
+            key={`region:${selectedRegion.id}`}
             longitude={(selectedRegion.bounds[0] + selectedRegion.bounds[2]) / 2}
             latitude={(selectedRegion.bounds[1] + selectedRegion.bounds[3]) / 2}
+            closeOnClick={false}
             onClose={() => {
               setSelectedId(null)
             }}
@@ -1455,7 +1814,7 @@ function DevBoundaries() {
             <div className="min-w-56 text-sm">
               <div className="font-semibold text-foreground">{selectedRegion.name}</div>
               <div className="mt-1 text-xs text-muted-foreground">{selectedRegion.code}</div>
-              {selectedRegion.level === BC_DA_SIMPLIFIED_LEVEL && censusParentRows(selectedRegion.feature.properties ?? {}).length > 0 && (
+              {selectedRegion.source === 'census' && censusParentRows(selectedRegion.feature.properties ?? {}).length > 0 && (
                 <div className="mt-3 space-y-1.5 rounded border bg-muted/30 p-2 text-xs">
                   {censusParentRows(selectedRegion.feature.properties ?? {}).map((row) => (
                     <div key={row.label} className="flex items-start justify-between gap-3">
@@ -1506,8 +1865,10 @@ function DevBoundaries() {
         )}
         {selectedParentBoundary && (
           <MapPopup
+            key={`parent:${selectedParentBoundary.id}`}
             longitude={(selectedParentBoundary.bounds[0] + selectedParentBoundary.bounds[2]) / 2}
             latitude={(selectedParentBoundary.bounds[1] + selectedParentBoundary.bounds[3]) / 2}
+            closeOnClick={false}
             onClose={() => {
               setSelectedParentId(null)
             }}
@@ -1603,7 +1964,10 @@ function DevBoundaries() {
               <button
                 key={region.id}
                 type="button"
-                onClick={() => setSelectedId(region.id)}
+                onClick={() => {
+                  setFitSelectedRegion(true)
+                  setSelectedId(region.id)
+                }}
                 className="rounded-md border bg-background p-3 text-left transition-colors hover:bg-accent"
               >
                 <div className="line-clamp-1 text-sm font-medium text-foreground">{region.name}</div>
