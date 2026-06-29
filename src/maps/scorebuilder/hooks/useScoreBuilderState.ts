@@ -1,15 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
+import { getLevelOptionsForSource } from '@/lib/studyArea'
 import {
-  CENSUS_BOUNDARY_LEVEL_OPTIONS,
-  CITY_BOUNDARY_LEVEL_OPTIONS,
-  COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
-  HEALTH_BOUNDARY_LEVEL_OPTIONS,
-  NR_ADMIN_BOUNDARY_LEVEL_OPTIONS,
-  REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
-  WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
-  WATERSHED_BOUNDARY_LEVEL_OPTIONS,
   SCORE_METRICS,
   SCORE_PRESETS,
   encodeWeightsToParams,
@@ -276,22 +269,7 @@ export function useScoreBuilderState() {
   const enabledSourceSet = useMemo(() => new Set(state.enabledDataSources), [state.enabledDataSources])
 
   const boundaryLevelOptions = useMemo<Array<{ value: RegionLevel; label: string }>>(() => {
-    const options =
-      state.boundarySource === 'bcHealth'
-        ? HEALTH_BOUNDARY_LEVEL_OPTIONS
-        : state.boundarySource === 'regionalDistrict'
-          ? REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS
-          : state.boundarySource === 'cityPG'
-            ? CITY_BOUNDARY_LEVEL_OPTIONS
-            : state.boundarySource === 'cityCommunity'
-              ? COMMUNITY_BOUNDARY_LEVEL_OPTIONS
-              : state.boundarySource === 'watershed'
-                ? WATERSHED_BOUNDARY_LEVEL_OPTIONS
-                : state.boundarySource === 'nrAdmin'
-                  ? NR_ADMIN_BOUNDARY_LEVEL_OPTIONS
-                  : state.boundarySource === 'walkabilityCommunity'
-                    ? WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS
-                    : CENSUS_BOUNDARY_LEVEL_OPTIONS
+    const options = getLevelOptionsForSource(state.boundarySource)
     return options.map((option) => ({ value: option.value, label: option.label }))
   }, [state.boundarySource])
 
@@ -414,8 +392,10 @@ export function useScoreBuilderState() {
       censusBoundaryLevel: state.censusBoundaryLevel,
       communityBoundaryLevel: state.communityBoundaryLevel,
       regionalDistrictBoundaryLevel: state.regionalDistrictBoundaryLevel,
+      municipalityBoundaryLevel: state.municipalityBoundaryLevel,
       cityBoundaryLevel: state.cityBoundaryLevel,
       watershedBoundaryLevel: state.watershedBoundaryLevel,
+      fireZoneBoundaryLevel: state.fireZoneBoundaryLevel,
       enabledDataSources: state.enabledDataSources,
       selectedNetworks: state.selectedNetworks,
       weights: state.weights,

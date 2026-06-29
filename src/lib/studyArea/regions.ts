@@ -1,5 +1,6 @@
 import area from '@turf/area'
 import bbox from '@turf/bbox'
+import union from '@turf/union'
 import { useEffect, useState } from 'react'
 import {
   BOUNDARY_CODE_PROPERTY_BY_LEVEL,
@@ -16,7 +17,9 @@ import type {
   CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,
+  FireZoneBoundaryLevel,
   MineralTenureBoundaryLevel,
+  MunicipalityBoundaryLevel,
   NrAdminBoundaryLevel,
   RangeTenureBoundaryLevel,
   RegionLevel,
@@ -41,6 +44,7 @@ const CENSUS_FILE_BY_LEVEL: Record<CensusBoundaryLevel, string> = {
   csd: '/data/census/prince_george_csd.geo.json',
   ct: '/data/census/prince_george_ct.geo.json',
   da: '/data/census/prince_george_da.geo.json',
+  bcDaSimplified: '/data/census/bc-da-simplified/manifest.json',
 }
 const CITY_FILE_BY_LEVEL: Record<CityBoundaryLevel, string> = {
   elementarySchoolCatchment: '/data/boundaries/CityPG/elementary_school_catchments.geojson',
@@ -52,6 +56,9 @@ const COMMUNITY_FILE_BY_LEVEL: Record<CommunityBoundaryLevel, string> = {
 const REGIONAL_DISTRICT_FILE_BY_LEVEL: Record<RegionalDistrictBoundaryLevel, string> = {
   regionalDistrict: '/data/boundaries/BC/regional_districts.geojson',
 }
+const MUNICIPALITY_FILE_BY_LEVEL: Record<MunicipalityBoundaryLevel, string> = {
+  municipality: '/data/boundaries/BC/municipalities.geojson',
+}
 const CITY_NAME_PROPERTY_BY_LEVEL: Record<CityBoundaryLevel, string> = {
   elementarySchoolCatchment: 'SchoolName',
   secondarySchoolCatchment: 'SchoolNam',
@@ -60,6 +67,10 @@ const WATERSHED_FILE_BY_LEVEL: Record<WatershedBoundaryLevel, string> = {
   majorWatershed: '/data/boundaries/BCFWA/major_watersheds_province_simplified.geojson',
   watershedGroup: '/data/boundaries/BCFWA/watershed_groups_province_simplified.geojson',
   assessmentWatershed: '/data/boundaries/BCFWA/assessment_watersheds.geojson',
+}
+const FIRE_ZONE_FILE_BY_LEVEL: Record<FireZoneBoundaryLevel, string> = {
+  fireCentre: '/data/boundaries/BCWildfire/fire_zones.geojson',
+  fireZone: '/data/boundaries/BCWildfire/fire_zones.geojson',
 }
 const NR_ADMIN_FILE_BY_LEVEL: Record<NrAdminBoundaryLevel, string> = {
   nrArea: '/data/boundaries/BCNR/nr_areas.geojson',
@@ -85,7 +96,8 @@ const WALKABILITY_COMMUNITY_FILE_BY_LEVEL: Record<WalkabilityCommunityBoundaryLe
 
 const HEALTH_LEVEL_SET = new Set<BoundaryLevel>(['healthAuthority', 'hsda', 'lha', 'chsa'])
 const REGIONAL_DISTRICT_LEVEL_SET = new Set<RegionalDistrictBoundaryLevel>(['regionalDistrict'])
-const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'ct', 'da'])
+const MUNICIPALITY_LEVEL_SET = new Set<MunicipalityBoundaryLevel>(['municipality'])
+const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'ct', 'da', 'bcDaSimplified'])
 const COMMUNITY_LEVEL_SET = new Set<CommunityBoundaryLevel>(['communityPolygon'])
 const CITY_LEVEL_SET = new Set<CityBoundaryLevel>(['elementarySchoolCatchment', 'secondarySchoolCatchment'])
 const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
@@ -93,6 +105,7 @@ const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
   'watershedGroup',
   'assessmentWatershed',
 ])
+const FIRE_ZONE_LEVEL_SET = new Set<FireZoneBoundaryLevel>(['fireCentre', 'fireZone'])
 const NR_ADMIN_LEVEL_SET = new Set<NrAdminBoundaryLevel>(['nrArea', 'nrRegion', 'nrDistrict'])
 const UWR_LEVEL_SET = new Set<UwrBoundaryLevel>(['ungulateWinterRange'])
 const CROWN_TENURE_LEVEL_SET = new Set<CrownTenureBoundaryLevel>(['crownTenure'])
@@ -139,12 +152,20 @@ function isRegionalDistrictBoundaryLevel(level: RegionLevel): level is RegionalD
   return REGIONAL_DISTRICT_LEVEL_SET.has(level as RegionalDistrictBoundaryLevel)
 }
 
+function isMunicipalityBoundaryLevel(level: RegionLevel): level is MunicipalityBoundaryLevel {
+  return MUNICIPALITY_LEVEL_SET.has(level as MunicipalityBoundaryLevel)
+}
+
 function isCityBoundaryLevel(level: RegionLevel): level is CityBoundaryLevel {
   return CITY_LEVEL_SET.has(level as CityBoundaryLevel)
 }
 
 function isWatershedBoundaryLevel(level: RegionLevel): level is WatershedBoundaryLevel {
   return WATERSHED_LEVEL_SET.has(level as WatershedBoundaryLevel)
+}
+
+function isFireZoneBoundaryLevel(level: RegionLevel): level is FireZoneBoundaryLevel {
+  return FIRE_ZONE_LEVEL_SET.has(level as FireZoneBoundaryLevel)
 }
 
 function isNrAdminBoundaryLevel(level: RegionLevel): level is NrAdminBoundaryLevel {
@@ -276,6 +297,42 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
   const cacheKey = `census:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
+
+  if (level === 'bcDaSimplified') {
+    const manifest = await fetchJson<{ chunks: Array<{ path: string }> }>(CENSUS_FILE_BY_LEVEL[level], signal)
+    const collections = await Promise.all(
+      manifest.chunks.map((chunk) => fetchJson<BoundaryFeatureCollection>(`/data/census/bc-da-simplified/${chunk.path}`, signal)),
+    )
+    const sortedRegions = sortRegions(collections.flatMap((collection) => (
+      collection.features
+        .map<StudyAreaRegion | null>((rawFeature) => {
+          const feature = toPolygonFeature(rawFeature)
+          if (!feature) return null
+
+          const properties = (feature.properties ?? {}) as Record<string, unknown>
+          const code = String(properties.boundaryCode ?? properties.DAUID ?? properties.id ?? '').trim()
+          if (!code) return null
+
+          const displayName = String(properties.boundaryName ?? properties.name ?? `DA ${code}`).trim() || `DA ${code}`
+          const areaKm2 = area(feature) / 1_000_000
+          const bounds = bbox(feature) as [number, number, number, number]
+
+          return {
+            id: `census:${level}:${code}`,
+            code,
+            name: displayName,
+            source: 'census',
+            level,
+            feature,
+            bounds,
+            areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+          } satisfies StudyAreaRegion
+        })
+        .filter((region): region is StudyAreaRegion => region !== null)
+    )))
+    boundaryRegionCache.set(cacheKey, sortedRegions)
+    return sortedRegions
+  }
 
   const geometry = await fetchJson<BoundaryFeatureCollection>(CENSUS_FILE_BY_LEVEL[level], signal)
 
@@ -508,6 +565,98 @@ async function loadStandardBoundaryRegions(
   return sortedRegions
 }
 
+function mapBcWildfireZoneFeatureToRegion(rawFeature: RawBoundaryFeature): StudyAreaRegion | null {
+  const feature = toPolygonFeature(rawFeature)
+  if (!feature) return null
+
+  const properties = (feature.properties ?? {}) as Record<string, unknown>
+  const code = String(properties.boundaryCode ?? properties.FIRE_ZONE_CODE ?? properties.OBJECTID ?? '').trim()
+  if (!code) return null
+
+  const displayName = String(properties.boundaryName ?? properties.FIRE_ZONE ?? code).trim() || code
+  const areaKm2 = area(feature) / 1_000_000
+  const bounds = bbox(feature) as [number, number, number, number]
+
+  return {
+    id: `bcWildfire:fireZone:${code}`,
+    code,
+    name: displayName,
+    source: 'bcWildfire',
+    level: 'fireZone',
+    feature,
+    bounds,
+    areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+  } satisfies StudyAreaRegion
+}
+
+function mergeFireCentreFeatures(regions: StudyAreaRegion[]): StudyAreaRegion[] {
+  const byCentre = new Map<string, StudyAreaRegion[]>()
+  regions.forEach((region) => {
+    const centre = String(region.feature.properties?.FIRE_CENTRE ?? '').trim()
+    if (!centre) return
+    byCentre.set(centre, [...(byCentre.get(centre) ?? []), region])
+  })
+
+  return [...byCentre.entries()]
+    .map<StudyAreaRegion | null>(([centre, centreRegions]) => {
+      const mergedFeature = centreRegions
+        .map((region) => region.feature)
+        .reduce<BoundaryFeature | null>((merged, feature) => {
+          if (!merged) return feature as BoundaryFeature
+          return union(merged as never, feature as never) as BoundaryFeature | null
+        }, null)
+
+      if (!mergedFeature) return null
+
+      const feature: BoundaryFeature = {
+        type: 'Feature',
+        id: centre,
+        geometry: mergedFeature.geometry,
+        properties: {
+          boundaryCode: centre,
+          boundaryName: centre,
+          FIRE_CENTRE: centre,
+          fireZoneCount: centreRegions.length,
+          fireZoneCodes: centreRegions.map((region) => region.code).join(','),
+          fireZoneNames: centreRegions.map((region) => region.name).join(','),
+        },
+      }
+      const areaKm2 = area(feature) / 1_000_000
+      const bounds = bbox(feature) as [number, number, number, number]
+
+      return {
+        id: `bcWildfire:fireCentre:${centre}`,
+        code: centre,
+        name: centre,
+        source: 'bcWildfire',
+        level: 'fireCentre',
+        feature,
+        bounds,
+        areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+      } satisfies StudyAreaRegion
+    })
+    .filter((region): region is StudyAreaRegion => region !== null)
+}
+
+async function loadBcWildfireRegions(level: FireZoneBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
+  const cacheKey = `bcWildfire:${level}`
+  const cached = boundaryRegionCache.get(cacheKey)
+  if (cached) return cached
+
+  const geometry = await fetchJson<BoundaryFeatureCollection>(FIRE_ZONE_FILE_BY_LEVEL[level], signal)
+  const zoneRegions = geometry.features
+    .map<StudyAreaRegion | null>((rawFeature) => mapBcWildfireZoneFeatureToRegion(rawFeature))
+    .filter((region): region is StudyAreaRegion => region !== null)
+
+  const regions = level === 'fireCentre'
+    ? mergeFireCentreFeatures(zoneRegions)
+    : zoneRegions
+
+  const sortedRegions = sortRegions(regions)
+  boundaryRegionCache.set(cacheKey, sortedRegions)
+  return sortedRegions
+}
+
 async function loadWalkabilityCommunityRegions(
   level: WalkabilityCommunityBoundaryLevel,
   signal?: AbortSignal,
@@ -567,11 +716,25 @@ export async function loadStudyAreaRegions(
     return loadRegionalDistrictRegions(level, signal)
   }
 
+  if (source === 'bcMunicipality') {
+    if (!isMunicipalityBoundaryLevel(level)) {
+      throw new Error(`Invalid BC municipality boundary level: ${level}`)
+    }
+    return loadStandardBoundaryRegions(source, level, MUNICIPALITY_FILE_BY_LEVEL[level], signal)
+  }
+
   if (source === 'nrAdmin') {
     if (!isNrAdminBoundaryLevel(level)) {
       throw new Error(`Invalid Natural Resource admin level: ${level}`)
     }
     return loadStandardBoundaryRegions(source, level, NR_ADMIN_FILE_BY_LEVEL[level], signal)
+  }
+
+  if (source === 'bcWildfire') {
+    if (!isFireZoneBoundaryLevel(level)) {
+      throw new Error(`Invalid BC wildfire boundary level: ${level}`)
+    }
+    return loadBcWildfireRegions(level, signal)
   }
 
   if (source === 'uwr') {

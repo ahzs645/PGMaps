@@ -3,7 +3,7 @@ import bbox from '@turf/bbox'
 import difference from '@turf/difference'
 import intersect from '@turf/intersect'
 import { ArrowDown, ArrowUp, Check, ChevronsUpDown, GripVertical, Layers, Loader2, Search, SquareStack, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Map, MapControls, MapPopup, useMap } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -57,7 +57,47 @@ interface SurfaceDifference {
   bShare: number
 }
 
+type BoundaryBbox = [number, number, number, number]
+
+interface BcDaChunkManifest {
+  generatedAt: string
+  tolerance: number
+  features: number
+  rawBytes: number
+  gzipBytes: number
+  levels?: BcDaChunkLevel[]
+  chunks: Array<{
+    id: string
+    path: string
+    bbox: BoundaryBbox
+    featureCount: number
+    rawBytes: number
+    gzipBytes: number
+  }>
+}
+
+interface BcDaChunkLevel {
+  id: string
+  label: string
+  tolerance: number
+  minZoom: number
+  maxZoom: number
+  features: number
+  coordinateCount: number
+  rawBytes: number
+  gzipBytes: number
+  chunks: BcDaChunkManifest['chunks']
+}
+
+interface BcDaChunkFeatureCollection {
+  type: 'FeatureCollection'
+  features: GeoJSON.Feature<GeoJSON.Geometry | null, Record<string, unknown>>[]
+}
+
 const BC_CENTER: [number, number] = [-124.4, 53.9]
+const BC_DA_SIMPLIFIED_LEVEL: RegionLevel = 'bcDaSimplified'
+const BC_DA_CHUNK_BASE_PATH = '/data/census/bc-da-simplified'
+const BC_DA_CHUNK_MANIFEST_PATH = `${BC_DA_CHUNK_BASE_PATH}/manifest.json`
 const EMPTY_REGIONS: StudyAreaRegion[] = []
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> = {
   type: 'FeatureCollection',
@@ -74,8 +114,10 @@ const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
   cityPG: { fill: '#f59e0b', line: '#b45309' },
   bcHealth: { fill: '#0ea5e9', line: '#0369a1' },
   regionalDistrict: { fill: '#8b5cf6', line: '#6d28d9' },
+  bcMunicipality: { fill: '#ec4899', line: '#be185d' },
   census: { fill: '#ef4444', line: '#b91c1c' },
   watershed: { fill: '#22c55e', line: '#15803d' },
+  bcWildfire: { fill: '#dc2626', line: '#991b1b' },
   nrAdmin: { fill: '#64748b', line: '#334155' },
   uwr: { fill: '#84cc16', line: '#4d7c0f' },
   crownTenure: { fill: '#a855f7', line: '#7e22ce' },
@@ -86,6 +128,40 @@ const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
 
 function cacheKey(source: BoundarySource, level: RegionLevel) {
   return `${source}:${level}`
+}
+
+function isBcDaSimplifiedLayer(layer: ActiveLayer) {
+  return layer.source === 'census' && layer.level === BC_DA_SIMPLIFIED_LEVEL
+}
+
+function bboxesIntersect(a: BoundaryBbox, b: BoundaryBbox) {
+  return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1]
+}
+
+function chunkUrl(path: string) {
+  return path.startsWith('/') ? path : `${BC_DA_CHUNK_BASE_PATH}/${path}`
+}
+
+function getBcDaManifestLevels(manifest: BcDaChunkManifest | null): BcDaChunkLevel[] {
+  if (!manifest) return []
+  if (manifest.levels?.length) return manifest.levels
+  return [{
+    id: 'medium',
+    label: 'Medium',
+    tolerance: manifest.tolerance,
+    minZoom: 0,
+    maxZoom: 24,
+    features: manifest.features,
+    coordinateCount: 0,
+    rawBytes: manifest.rawBytes,
+    gzipBytes: manifest.gzipBytes,
+    chunks: manifest.chunks,
+  }]
+}
+
+function chooseBcDaLevel(manifest: BcDaChunkManifest | null, zoom: number): BcDaChunkLevel | null {
+  const levels = getBcDaManifestLevels(manifest)
+  return levels.find((level) => zoom >= level.minZoom && zoom < level.maxZoom) ?? levels[levels.length - 1] ?? null
 }
 
 function formatArea(value: number) {
@@ -173,6 +249,34 @@ function featureAreaKm2(feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.Multi
   return Number.isFinite(squareMeters) && squareMeters > 0 ? squareMeters / 1_000_000 : 0
 }
 
+function mapBcDaChunkFeatureToRegion(
+  rawFeature: GeoJSON.Feature<GeoJSON.Geometry | null, Record<string, unknown>>,
+): StudyAreaRegion | null {
+  if (!rawFeature.geometry || (rawFeature.geometry.type !== 'Polygon' && rawFeature.geometry.type !== 'MultiPolygon')) {
+    return null
+  }
+
+  const feature = rawFeature as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, Record<string, unknown>>
+  const properties = feature.properties ?? {}
+  const code = String(properties.boundaryCode ?? properties.DAUID ?? properties.id ?? '').trim()
+  if (!code) return null
+
+  const displayName = String(properties.boundaryName ?? properties.name ?? `DA ${code}`).trim() || `DA ${code}`
+  const areaKm2 = Number(properties.areaKm2 ?? area(feature) / 1_000_000)
+  const bounds = bbox(feature) as BoundaryBbox
+
+  return {
+    id: `census:${BC_DA_SIMPLIFIED_LEVEL}:${code}`,
+    code,
+    name: displayName,
+    source: 'census',
+    level: BC_DA_SIMPLIFIED_LEVEL,
+    feature,
+    bounds,
+    areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+  } satisfies StudyAreaRegion
+}
+
 function buildSurfaceDifference(a: StudyAreaRegion, b: StudyAreaRegion): SurfaceDifference {
   try {
     const overlap = polygonFeature(
@@ -230,6 +334,37 @@ function FitToRegions({ regions, selectedRegion }: { regions: StudyAreaRegion[];
   return null
 }
 
+function TrackMapBounds({
+  onBoundsChange,
+  onZoomChange,
+}: {
+  onBoundsChange: (bounds: BoundaryBbox) => void
+  onZoomChange: (zoom: number) => void
+}) {
+  const { map, isLoaded } = useMap()
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+
+    const updateBounds = () => {
+      const bounds = map.getBounds()
+      onBoundsChange([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()])
+      onZoomChange(map.getZoom())
+    }
+
+    updateBounds()
+    map.on('moveend', updateBounds)
+    map.on('zoomend', updateBounds)
+
+    return () => {
+      map.off('moveend', updateBounds)
+      map.off('zoomend', updateBounds)
+    }
+  }, [isLoaded, map, onBoundsChange, onZoomChange])
+
+  return null
+}
+
 function DevBoundaries() {
   const [showSidebar, setShowSidebar] = useState(true)
   const [activeSources, setActiveSources] = useState<BoundarySource[]>(['cityCommunity'])
@@ -238,6 +373,13 @@ function DevBoundaries() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [cache, setCache] = useState<Record<string, BoundaryCacheEntry>>({})
+  const [mapBounds, setMapBounds] = useState<BoundaryBbox | null>(null)
+  const [mapZoom, setMapZoom] = useState(5.2)
+  const [bcDaManifest, setBcDaManifest] = useState<BcDaChunkManifest | null>(null)
+  const [bcDaChunks, setBcDaChunks] = useState<Record<string, StudyAreaRegion[]>>({})
+  const [bcDaError, setBcDaError] = useState<string | null>(null)
+  const [bcDaLoadingChunkIds, setBcDaLoadingChunkIds] = useState<string[]>([])
+  const bcDaRequestedChunkIds = useRef(new Set<string>())
   const [surfaceDifferenceMode, setSurfaceDifferenceMode] = useState(false)
   const [sourceOpacities, setSourceOpacities] = useState<Record<BoundarySource, number>>(() => (
     BOUNDARY_SOURCE_OPTIONS.reduce<Record<BoundarySource, number>>((acc, option) => {
@@ -254,18 +396,23 @@ function DevBoundaries() {
     })
   ), [activeSources, sourceLevels])
 
+  const bcDaActive = activeLayers.some(isBcDaSimplifiedLayer)
+  const bcDaLevel = useMemo(() => chooseBcDaLevel(bcDaManifest, mapZoom), [bcDaManifest, mapZoom])
+
   useEffect(() => {
-    const layersToLoad = activeLayers.filter((layer) => !cache[layer.key])
+    const layersToLoad = activeLayers.filter((layer) => !isBcDaSimplifiedLayer(layer) && !cache[layer.key])
     if (layersToLoad.length === 0) return
 
-    setCache((current) => {
-      const next = { ...current }
-      layersToLoad.forEach((layer) => {
-        if (!next[layer.key]) {
-          next[layer.key] = { regions: [], state: 'loading' }
-        }
+    queueMicrotask(() => {
+      setCache((current) => {
+        const next = { ...current }
+        layersToLoad.forEach((layer) => {
+          if (!next[layer.key]) {
+            next[layer.key] = { regions: [], state: 'loading' }
+          }
+        })
+        return next
       })
-      return next
     })
 
     layersToLoad.forEach((layer) => {
@@ -289,11 +436,91 @@ function DevBoundaries() {
     })
   }, [activeLayers, cache])
 
+  useEffect(() => {
+    if (!bcDaActive || bcDaManifest || bcDaError) return
+
+    const controller = new AbortController()
+    fetch(BC_DA_CHUNK_MANIFEST_PATH, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${BC_DA_CHUNK_MANIFEST_PATH}: ${response.status}`)
+        }
+        return response.json() as Promise<BcDaChunkManifest>
+      })
+      .then((manifest) => {
+        setBcDaManifest(manifest)
+        setBcDaError(null)
+      })
+      .catch((err) => {
+        if ((err as Error).name === 'AbortError') return
+        setBcDaError((err as Error).message || 'Unable to load BC DA chunk manifest.')
+      })
+
+    return () => controller.abort()
+  }, [bcDaActive, bcDaError, bcDaManifest])
+
+  useEffect(() => {
+    if (!bcDaActive || !bcDaLevel || !mapBounds) return
+
+    const chunksToLoad = bcDaLevel.chunks
+      .filter((chunk) => bboxesIntersect(chunk.bbox, mapBounds))
+      .filter((chunk) => {
+        const key = `${bcDaLevel.id}:${chunk.id}`
+        return !bcDaChunks[key] && !bcDaRequestedChunkIds.current.has(key)
+      })
+
+    if (chunksToLoad.length === 0) return
+
+    const chunkKeys = chunksToLoad.map((chunk) => `${bcDaLevel.id}:${chunk.id}`)
+    chunkKeys.forEach((key) => bcDaRequestedChunkIds.current.add(key))
+    setBcDaLoadingChunkIds((current) => Array.from(new Set([...current, ...chunkKeys])))
+
+    chunksToLoad.forEach((chunk) => {
+      const chunkKey = `${bcDaLevel.id}:${chunk.id}`
+      fetch(chunkUrl(chunk.path))
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${chunk.path}: ${response.status}`)
+          }
+          return response.json() as Promise<BcDaChunkFeatureCollection>
+        })
+        .then((collection) => {
+          const regions = collection.features
+            .map((feature) => mapBcDaChunkFeatureToRegion(feature))
+            .filter((region): region is StudyAreaRegion => region !== null)
+            .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
+
+          setBcDaChunks((current) => ({ ...current, [chunkKey]: regions }))
+        })
+        .catch((err) => {
+          bcDaRequestedChunkIds.current.delete(chunkKey)
+          setBcDaError((err as Error).message || `Unable to load ${chunk.path}.`)
+        })
+        .finally(() => {
+          setBcDaLoadingChunkIds((current) => current.filter((id) => id !== chunkKey))
+        })
+    })
+  }, [bcDaActive, bcDaChunks, bcDaLevel, mapBounds])
+
+  const bcDaRegions = useMemo(() => (
+    Object.entries(bcDaChunks)
+      .filter(([key]) => key.startsWith(`${bcDaLevel?.id ?? ''}:`))
+      .flatMap(([, regions]) => regions)
+      .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
+  ), [bcDaChunks, bcDaLevel?.id])
+
   const activeLayerViews = useMemo<ActiveLayerView[]>(() => {
     const term = query.trim().toLowerCase()
     return activeLayers.map((layer) => {
-      const entry = cache[layer.key]
-      const regions = entry?.regions ?? EMPTY_REGIONS
+      const chunkedLayer = isBcDaSimplifiedLayer(layer)
+      const entry = chunkedLayer
+        ? {
+            regions: bcDaRegions,
+            state: bcDaError ? 'error' : 'ready',
+            error: bcDaError ?? undefined,
+          } satisfies BoundaryCacheEntry
+        : cache[layer.key]
+      const regions = chunkedLayer ? bcDaRegions : entry?.regions ?? EMPTY_REGIONS
       const filteredRegions = term
         ? regions.filter((region) => (
             region.name.toLowerCase().includes(term) ||
@@ -312,11 +539,13 @@ function DevBoundaries() {
         entry,
         regions,
         filteredRegions,
-        loading: !entry || entry.state === 'loading',
+        loading: chunkedLayer
+          ? regions.length === 0 && !bcDaError && (!bcDaManifest || bcDaLoadingChunkIds.length > 0)
+          : !entry || entry.state === 'loading',
         error: entry?.state === 'error' ? entry.error : undefined,
       }
     })
-  }, [activeLayers, cache, query, sourceOpacities])
+  }, [activeLayers, bcDaError, bcDaLoadingChunkIds.length, bcDaManifest, bcDaRegions, cache, query, sourceOpacities])
 
   const allRegions = useMemo(() => activeLayerViews.flatMap((layer) => layer.regions), [activeLayerViews])
   const allFilteredRegions = useMemo(() => activeLayerViews.flatMap((layer) => layer.filteredRegions), [activeLayerViews])
@@ -333,6 +562,10 @@ function DevBoundaries() {
   const topLayerKey = activeLayerViews[activeLayerViews.length - 1]?.key ?? null
   const activeRange = useMemo(() => levelRange(allRegions), [allRegions])
   const visibleRange = useMemo(() => levelRange(allFilteredRegions), [allFilteredRegions])
+  const fitRegions = useMemo(
+    () => allFilteredRegions.filter((region) => region.level !== BC_DA_SIMPLIFIED_LEVEL),
+    [allFilteredRegions],
+  )
   const activeSubtitle = activeLayerViews.length === 1
     ? `${activeLayerViews[0].label} - ${activeLayerViews[0].optionLabel}`
     : `${activeLayerViews.length} study areas - ${allFilteredRegions.length.toLocaleString()} visible boundaries`
@@ -549,7 +782,11 @@ function DevBoundaries() {
                 <div className="grid gap-1.5">
                   {options.map((option) => {
                     const entry = cache[cacheKey(source, option.value)]
-                    const range = levelRange(entry?.regions ?? EMPTY_REGIONS)
+                    const chunkedOption = source === 'census' && option.value === BC_DA_SIMPLIFIED_LEVEL
+                    const optionRegions = chunkedOption ? bcDaRegions : entry?.regions ?? EMPTY_REGIONS
+                    const range = levelRange(optionRegions)
+                    const chunkCount = bcDaLevel ? Object.keys(bcDaChunks).filter((key) => key.startsWith(`${bcDaLevel.id}:`)).length : 0
+                    const totalChunkCount = bcDaLevel?.chunks.length ?? 0
                     return (
                       <button
                         key={option.value}
@@ -565,11 +802,18 @@ function DevBoundaries() {
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-xs font-medium">{option.label}</span>
                           <span className="text-[10px] text-muted-foreground">
-                            {entry ? `${formatNumber(entry.regions.length)} areas` : 'Not loaded'}
+                            {chunkedOption
+                              ? (bcDaManifest ? `${formatNumber(optionRegions.length)} / ${formatNumber(bcDaManifest.features)} loaded` : 'Not loaded')
+                              : (entry ? `${formatNumber(entry.regions.length)} areas` : 'Not loaded')}
                           </span>
                         </div>
                         <div className="mt-1 text-[10px] text-muted-foreground">
-                          Area range: {entry && entry.regions.length > 0 ? `${formatArea(range.min)} - ${formatArea(range.max)}` : '--'}
+                          {chunkedOption && bcDaLevel
+                            ? `Detail: ${bcDaLevel.label} · Chunks: ${formatNumber(chunkCount)} / ${formatNumber(totalChunkCount)} · ${formatNumber(Math.round(bcDaLevel.gzipBytes / 1024 / 1024))} MiB gzip total`
+                            : `Area range: ${entry && entry.regions.length > 0 ? `${formatArea(range.min)} - ${formatArea(range.max)}` : '--'}`}
+                          {chunkedOption && optionRegions.length > 0 && (
+                            <> · Area range: {formatArea(range.min)} - {formatArea(range.max)}</>
+                          )}
                         </div>
                       </button>
                     )
@@ -596,7 +840,9 @@ function DevBoundaries() {
             <div key={layer.key} className="flex items-center justify-between gap-3">
               <span className="min-w-0 truncate">{layer.label}</span>
               <span className="shrink-0 font-medium text-foreground">
-                {layer.loading ? 'Loading' : `${formatNumber(layer.filteredRegions.length)} ${layer.optionLabel}`}
+                {layer.loading
+                  ? 'Loading'
+                  : `${formatNumber(layer.filteredRegions.length)} ${layer.optionLabel}${isBcDaSimplifiedLayer(layer) && bcDaLoadingChunkIds.length > 0 ? ` · ${bcDaLoadingChunkIds.length} loading` : ''}`}
               </span>
             </div>
           ))}
@@ -705,10 +951,11 @@ function DevBoundaries() {
         title: 'Boundaries',
         subtitle: activeSubtitle,
       }}
-    >
+      >
       <Map center={BC_CENTER} zoom={5.2} loading={activeLoading}>
         <MapControls position="top-right" mobilePosition="bottom-right" />
-        <FitToRegions regions={allFilteredRegions} selectedRegion={selectedRegion} />
+        <TrackMapBounds onBoundsChange={setMapBounds} onZoomChange={setMapZoom} />
+        <FitToRegions regions={fitRegions} selectedRegion={selectedRegion} />
         {activeLayerViews.map((layer) => (
           <MapFillLayer
             key={`${activeSources.join('|')}:${layer.key}`}

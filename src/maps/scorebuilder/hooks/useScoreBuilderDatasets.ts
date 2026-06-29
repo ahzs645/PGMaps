@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { useAirQualityData, type BoundarySource, type CensusBoundaryLevel, type RegionLevel } from '@/maps/airquality'
+import { useAirQualityData, type BoundarySource, type RegionLevel } from '@/maps/airquality'
 import { useCensusData } from '@/maps/census/hooks/useCensusData'
-import type { CensusCategoryData } from '@/maps/census/types'
+import type { CensusCategoryData, CensusHierarchyLevel } from '@/maps/census/types'
 import { useRestaurantData } from '@/maps/foodmap/hooks/useRestaurantData'
 import { useParksData } from '@/maps/parks/hooks/useParksData'
 import { useBcAssessmentData } from '@/maps/bcassessment/hooks/useBcAssessmentData'
@@ -10,12 +10,13 @@ import { useJsonManifest } from '@/maps/pgdata/shared'
 import { censusVariableDataPath, getCensusRecipeCategories } from '../lib/censusComposer'
 import { profileFeatureCollection, type DatasetProfile } from '../lib/datasetCatalog'
 import type { MetricRecipe, MetricRecipeSource } from '../lib/metricRecipes'
-import { CENSUS_BOUNDARY_LEVEL_VALUES } from '../lib/urlState'
 import type { ScoreDataSource } from '../types'
 import { useCimdData } from './useCimdData'
 import { useHeatShadeData } from './useHeatShadeData'
 import { useScoreBuilderRegions } from './useScoreBuilderRegions'
 import { useTransitData } from './useTransitData'
+
+const CENSUS_VARIABLE_LEVEL_VALUES = new Set<CensusHierarchyLevel>(['cd', 'csd', 'ct', 'da', 'db'])
 
 export interface ScoreBuilderDatasetsOptions {
   enabledSourceSet: ReadonlySet<ScoreDataSource>
@@ -127,8 +128,8 @@ export function useScoreBuilderDatasets({
   )
 
   // Census variable tables are only fetched when a custom census recipe needs them.
-  const censusVariableLevel = CENSUS_BOUNDARY_LEVEL_VALUES.has(selectedRegionLevel as CensusBoundaryLevel)
-    ? (selectedRegionLevel as CensusBoundaryLevel)
+  const censusVariableLevel = CENSUS_VARIABLE_LEVEL_VALUES.has(selectedRegionLevel as CensusHierarchyLevel)
+    ? (selectedRegionLevel as CensusHierarchyLevel)
     : 'da'
   const customCensusCategories = useMemo(
     () => getCensusRecipeCategories(customMetricRecipes),

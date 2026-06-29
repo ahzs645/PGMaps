@@ -4,6 +4,8 @@ import type {
   CensusBoundaryLevel,
   CityBoundaryLevel,
   CommunityBoundaryLevel,
+  FireZoneBoundaryLevel,
+  MunicipalityBoundaryLevel,
   NrAdminBoundaryLevel,
   RegionalDistrictBoundaryLevel,
   RegionLevel,
@@ -40,10 +42,12 @@ import {
   parseCustomMetricRecipes,
   parseCustomMetricWeights,
   parseDataSources,
+  parseFireZoneBoundaryLevel,
   parseHealthBoundaryLevel,
   parseMapColorScale,
   parseMapSurface,
   parseMissingDataMethod,
+  parseMunicipalityBoundaryLevel,
   parseNormalizationMethod,
   parseNrAdminBoundaryLevel,
   parsePaletteOverride,
@@ -76,7 +80,9 @@ export interface ScoreBuilderControlState {
   communityBoundaryLevel: CommunityBoundaryLevel
   cityBoundaryLevel: CityBoundaryLevel
   regionalDistrictBoundaryLevel: RegionalDistrictBoundaryLevel
+  municipalityBoundaryLevel: MunicipalityBoundaryLevel
   watershedBoundaryLevel: WatershedBoundaryLevel
+  fireZoneBoundaryLevel: FireZoneBoundaryLevel
   nrAdminBoundaryLevel: NrAdminBoundaryLevel
   weights: ScoreMetricWeightMap
   enabledDataSources: ScoreDataSource[]
@@ -149,13 +155,17 @@ export function getSelectedRegionLevel(state: ScoreBuilderControlState): RegionL
     ? state.healthBoundaryLevel
     : state.boundarySource === 'regionalDistrict'
       ? state.regionalDistrictBoundaryLevel
-      : state.boundarySource === 'census'
-        ? state.censusBoundaryLevel
-        : state.boundarySource === 'cityPG'
-          ? state.cityBoundaryLevel
-          : state.boundarySource === 'nrAdmin'
-            ? state.nrAdminBoundaryLevel
-            : state.watershedBoundaryLevel
+      : state.boundarySource === 'bcMunicipality'
+        ? state.municipalityBoundaryLevel
+        : state.boundarySource === 'census'
+          ? state.censusBoundaryLevel
+          : state.boundarySource === 'cityPG'
+            ? state.cityBoundaryLevel
+            : state.boundarySource === 'nrAdmin'
+              ? state.nrAdminBoundaryLevel
+              : state.boundarySource === 'bcWildfire'
+                ? state.fireZoneBoundaryLevel
+                : state.watershedBoundaryLevel
 }
 
 export function canUseWalkabilitySourceSurface(state: ScoreBuilderControlState): boolean {
@@ -194,12 +204,16 @@ function applyExampleToState(
     next.healthBoundaryLevel = example.boundaryLevel as BoundaryLevel
   } else if (example.boundarySource === 'regionalDistrict') {
     next.regionalDistrictBoundaryLevel = parseRegionalDistrictBoundaryLevel(example.boundaryLevel)
+  } else if (example.boundarySource === 'bcMunicipality') {
+    next.municipalityBoundaryLevel = parseMunicipalityBoundaryLevel(example.boundaryLevel)
   } else if (example.boundarySource === 'census') {
     next.censusBoundaryLevel = example.boundaryLevel as CensusBoundaryLevel
   } else if (example.boundarySource === 'cityCommunity') {
     next.communityBoundaryLevel = parseCommunityBoundaryLevel(example.boundaryLevel)
   } else if (example.boundarySource === 'cityPG') {
     next.cityBoundaryLevel = example.boundaryLevel as CityBoundaryLevel
+  } else if (example.boundarySource === 'bcWildfire') {
+    next.fireZoneBoundaryLevel = parseFireZoneBoundaryLevel(example.boundaryLevel)
   } else {
     next.watershedBoundaryLevel = parseWatershedBoundaryLevel(example.boundaryLevel)
   }
@@ -240,6 +254,8 @@ function applyPresetToState(
       next.healthBoundaryLevel = parseHealthBoundaryLevel(preset.recommendedBoundaryLevel)
     } else if (preset.recommendedBoundarySource === 'regionalDistrict') {
       next.regionalDistrictBoundaryLevel = parseRegionalDistrictBoundaryLevel(preset.recommendedBoundaryLevel)
+    } else if (preset.recommendedBoundarySource === 'bcMunicipality') {
+      next.municipalityBoundaryLevel = parseMunicipalityBoundaryLevel(preset.recommendedBoundaryLevel)
     } else if (preset.recommendedBoundarySource === 'census') {
       next.censusBoundaryLevel = parseCensusBoundaryLevel(preset.recommendedBoundaryLevel)
     } else if (preset.recommendedBoundarySource === 'cityCommunity') {
@@ -248,6 +264,8 @@ function applyPresetToState(
       next.cityBoundaryLevel = parseCityBoundaryLevel(preset.recommendedBoundaryLevel)
     } else if (preset.recommendedBoundarySource === 'watershed') {
       next.watershedBoundaryLevel = parseWatershedBoundaryLevel(preset.recommendedBoundaryLevel)
+    } else if (preset.recommendedBoundarySource === 'bcWildfire') {
+      next.fireZoneBoundaryLevel = parseFireZoneBoundaryLevel(preset.recommendedBoundaryLevel)
     }
   }
   const neededSources = getScoreDataSourcesForWeights(preset.weights)
@@ -295,6 +313,9 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       if (state.boundarySource === 'regionalDistrict') {
         return { ...state, regionalDistrictBoundaryLevel: parseRegionalDistrictBoundaryLevel(action.level) }
       }
+      if (state.boundarySource === 'bcMunicipality') {
+        return { ...state, municipalityBoundaryLevel: parseMunicipalityBoundaryLevel(action.level) }
+      }
       if (state.boundarySource === 'census') {
         return { ...state, censusBoundaryLevel: parseCensusBoundaryLevel(action.level) }
       }
@@ -306,6 +327,9 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       }
       if (state.boundarySource === 'nrAdmin') {
         return { ...state, nrAdminBoundaryLevel: parseNrAdminBoundaryLevel(action.level) }
+      }
+      if (state.boundarySource === 'bcWildfire') {
+        return { ...state, fireZoneBoundaryLevel: parseFireZoneBoundaryLevel(action.level) }
       }
       return { ...state, watershedBoundaryLevel: parseWatershedBoundaryLevel(action.level) }
     }
@@ -405,7 +429,9 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
         communityBoundaryLevel: parseCommunityBoundaryLevel(share.communityBoundaryLevel ?? null),
         cityBoundaryLevel: parseCityBoundaryLevel(share.cityBoundaryLevel ?? null),
         regionalDistrictBoundaryLevel: parseRegionalDistrictBoundaryLevel(share.regionalDistrictBoundaryLevel ?? null),
+        municipalityBoundaryLevel: parseMunicipalityBoundaryLevel(share.municipalityBoundaryLevel ?? null),
         watershedBoundaryLevel: parseWatershedBoundaryLevel(share.watershedBoundaryLevel ?? null),
+        fireZoneBoundaryLevel: parseFireZoneBoundaryLevel(share.fireZoneBoundaryLevel ?? null),
         enabledDataSources: [...share.enabledDataSources],
         selectedNetworks: [...share.selectedNetworks],
         pendingNetworkSelectAll: false,
@@ -667,7 +693,9 @@ export function createInitialScoreBuilderState(searchParams: URLSearchParams): S
     communityBoundaryLevel: parseCommunityBoundaryLevel(searchParams.get('level')),
     cityBoundaryLevel: parseCityBoundaryLevel(searchParams.get('level')),
     regionalDistrictBoundaryLevel: parseRegionalDistrictBoundaryLevel(searchParams.get('level')),
+    municipalityBoundaryLevel: parseMunicipalityBoundaryLevel(searchParams.get('level')),
     watershedBoundaryLevel: parseWatershedBoundaryLevel(searchParams.get('level')),
+    fireZoneBoundaryLevel: parseFireZoneBoundaryLevel(searchParams.get('level')),
     nrAdminBoundaryLevel: parseNrAdminBoundaryLevel(searchParams.get('level')),
     weights,
     enabledDataSources,

@@ -107,10 +107,12 @@ const OBSERVATION_LAYERS = ['rawPA', 'correctedPA', 'rawEGG', 'correctedEGG', 'a
 const BOUNDARY_SOURCES = [
   'bcHealth',
   'regionalDistrict',
+  'bcMunicipality',
   'census',
   'cityCommunity',
   'cityPG',
   'watershed',
+  'bcWildfire',
   'nrAdmin',
   'uwr',
   'crownTenure',

@@ -6,7 +6,9 @@ import type {
   CommunityBoundaryLevel,
   CityBoundaryLevel,
   CrownTenureBoundaryLevel,
+  FireZoneBoundaryLevel,
   MineralTenureBoundaryLevel,
+  MunicipalityBoundaryLevel,
   NrAdminBoundaryLevel,
   RangeTenureBoundaryLevel,
   RegionLevel,
@@ -48,6 +50,12 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     group: 'Administrative',
   },
   {
+    value: 'bcMunicipality',
+    label: 'Municipalities',
+    description: 'Legally defined BC municipality boundaries',
+    group: 'Administrative',
+  },
+  {
     value: 'census',
     label: 'Census boundaries',
     description: 'PG census tract -> dissemination area',
@@ -57,6 +65,12 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     value: 'watershed',
     label: 'Watershed boundaries',
     description: 'BC Freshwater Atlas hierarchy',
+    group: 'Natural / resource',
+  },
+  {
+    value: 'bcWildfire',
+    label: 'BC fire zones',
+    description: 'BC Wildfire Service fire-zone boundaries',
     group: 'Natural / resource',
   },
   {
@@ -79,10 +93,12 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   lha: 'LHA',
   chsa: 'CHSA',
   regionalDistrict: 'Regional District',
+  municipality: 'Municipality',
   cd: 'Census Division',
   csd: 'Census Subdivision',
   ct: 'Census Tract',
   da: 'Dissemination Area',
+  bcDaSimplified: 'BC DA chunks',
   db: 'Dissemination Block',
   communityPolygon: 'Community polygons',
   elementarySchoolCatchment: 'Elementary School Catchment',
@@ -90,6 +106,8 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   majorWatershed: 'Major River Basin',
   watershedGroup: 'Watershed Group',
   assessmentWatershed: 'Assessment Watershed',
+  fireCentre: 'Fire Centre',
+  fireZone: 'Fire Zone',
   nrArea: 'NR Area',
   nrRegion: 'NR Region',
   nrDistrict: 'NR District',
@@ -122,8 +140,12 @@ export const REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<Regio
   ...createStudyAreaLevelOptions(['regionalDistrict'] as const),
 ]
 
+export const MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<MunicipalityBoundaryLevel>[] = [
+  ...createStudyAreaLevelOptions(['municipality'] as const),
+]
+
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CensusBoundaryLevel>[] = [
-  ...createStudyAreaLevelOptions(['ct', 'da'] as const),
+  ...createStudyAreaLevelOptions(['ct', 'da', 'bcDaSimplified'] as const),
 ]
 
 export const COMMUNITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CommunityBoundaryLevel>[] = [
@@ -136,6 +158,10 @@ export const CITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CityBoundaryLevel>
 
 export const WATERSHED_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<WatershedBoundaryLevel>[] = [
   ...createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
+]
+
+export const FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<FireZoneBoundaryLevel>[] = [
+  ...createStudyAreaLevelOptions(['fireCentre', 'fireZone'] as const),
 ]
 
 export const NR_ADMIN_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<NrAdminBoundaryLevel>[] = [
@@ -168,6 +194,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return HEALTH_BOUNDARY_LEVEL_OPTIONS
     case 'regionalDistrict':
       return REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS
+    case 'bcMunicipality':
+      return MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS
     case 'census':
       return CENSUS_BOUNDARY_LEVEL_OPTIONS
     case 'cityCommunity':
@@ -176,6 +204,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return CITY_BOUNDARY_LEVEL_OPTIONS
     case 'watershed':
       return WATERSHED_BOUNDARY_LEVEL_OPTIONS
+    case 'bcWildfire':
+      return FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS
     case 'nrAdmin':
       return NR_ADMIN_BOUNDARY_LEVEL_OPTIONS
     case 'uwr':

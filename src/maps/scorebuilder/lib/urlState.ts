@@ -4,6 +4,8 @@ import type {
   CensusBoundaryLevel,
   CityBoundaryLevel,
   CommunityBoundaryLevel,
+  FireZoneBoundaryLevel,
+  MunicipalityBoundaryLevel,
   NrAdminBoundaryLevel,
   RegionalDistrictBoundaryLevel,
   WatershedBoundaryLevel,
@@ -12,7 +14,9 @@ import {
   CENSUS_BOUNDARY_LEVEL_OPTIONS,
   CITY_BOUNDARY_LEVEL_OPTIONS,
   COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
+  FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
+  MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS,
   NR_ADMIN_BOUNDARY_LEVEL_OPTIONS,
   REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
   WATERSHED_BOUNDARY_LEVEL_OPTIONS,
@@ -55,6 +59,12 @@ const REGIONAL_DISTRICT_BOUNDARY_LEVEL_VALUES = new Set<RegionalDistrictBoundary
 const WATERSHED_BOUNDARY_LEVEL_VALUES = new Set<WatershedBoundaryLevel>(
   WATERSHED_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
+const FIRE_ZONE_BOUNDARY_LEVEL_VALUES = new Set<FireZoneBoundaryLevel>(
+  FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
+const MUNICIPALITY_BOUNDARY_LEVEL_VALUES = new Set<MunicipalityBoundaryLevel>(
+  MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
 const NR_ADMIN_BOUNDARY_LEVEL_VALUES = new Set<NrAdminBoundaryLevel>(
   NR_ADMIN_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
@@ -62,10 +72,12 @@ const NR_ADMIN_BOUNDARY_LEVEL_VALUES = new Set<NrAdminBoundaryLevel>(
 export function parseBoundarySource(value: string | null): BoundarySource {
   return value === 'bcHealth' ||
     value === 'regionalDistrict' ||
+    value === 'bcMunicipality' ||
     value === 'census' ||
     value === 'cityCommunity' ||
     value === 'cityPG' ||
     value === 'watershed' ||
+    value === 'bcWildfire' ||
     value === 'nrAdmin'
     ? value
     : 'census'
@@ -101,6 +113,16 @@ export function parseWatershedBoundaryLevel(value: string | null): WatershedBoun
   return WATERSHED_BOUNDARY_LEVEL_VALUES.has(value as WatershedBoundaryLevel)
     ? (value as WatershedBoundaryLevel)
     : 'watershedGroup'
+}
+
+export function parseFireZoneBoundaryLevel(value: string | null): FireZoneBoundaryLevel {
+  return FIRE_ZONE_BOUNDARY_LEVEL_VALUES.has(value as FireZoneBoundaryLevel) ? (value as FireZoneBoundaryLevel) : 'fireCentre'
+}
+
+export function parseMunicipalityBoundaryLevel(value: string | null): MunicipalityBoundaryLevel {
+  return MUNICIPALITY_BOUNDARY_LEVEL_VALUES.has(value as MunicipalityBoundaryLevel)
+    ? (value as MunicipalityBoundaryLevel)
+    : 'municipality'
 }
 
 export function parseNrAdminBoundaryLevel(value: string | null): NrAdminBoundaryLevel {

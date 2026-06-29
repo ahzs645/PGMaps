@@ -59,10 +59,12 @@ export type AirQualityBoundaryColorMetric =
 export type BoundarySource =
   | 'bcHealth'
   | 'regionalDistrict'
+  | 'bcMunicipality'
   | 'census'
   | 'cityCommunity'
   | 'cityPG'
   | 'watershed'
+  | 'bcWildfire'
   | 'nrAdmin'
   | 'uwr'
   | 'crownTenure'
@@ -71,10 +73,12 @@ export type BoundarySource =
   | 'walkabilityCommunity'
 export type BoundaryLevel = 'healthAuthority' | 'hsda' | 'lha' | 'chsa'
 export type RegionalDistrictBoundaryLevel = 'regionalDistrict'
-export type CensusBoundaryLevel = 'cd' | 'csd' | 'ct' | 'da'
+export type MunicipalityBoundaryLevel = 'municipality'
+export type CensusBoundaryLevel = 'cd' | 'csd' | 'ct' | 'da' | 'bcDaSimplified'
 export type CommunityBoundaryLevel = 'communityPolygon'
 export type CityBoundaryLevel = 'elementarySchoolCatchment' | 'secondarySchoolCatchment'
 export type WatershedBoundaryLevel = 'majorWatershed' | 'watershedGroup' | 'assessmentWatershed'
+export type FireZoneBoundaryLevel = 'fireCentre' | 'fireZone'
 export type NrAdminBoundaryLevel = 'nrArea' | 'nrRegion' | 'nrDistrict'
 export type UwrBoundaryLevel = 'ungulateWinterRange'
 export type CrownTenureBoundaryLevel = 'crownTenure'
@@ -84,10 +88,12 @@ export type WalkabilityCommunityBoundaryLevel = 'walkabilityCommunity'
 export type RegionLevel =
   | BoundaryLevel
   | RegionalDistrictBoundaryLevel
+  | MunicipalityBoundaryLevel
   | CensusBoundaryLevel
   | CommunityBoundaryLevel
   | CityBoundaryLevel
   | WatershedBoundaryLevel
+  | FireZoneBoundaryLevel
   | NrAdminBoundaryLevel
   | UwrBoundaryLevel
   | CrownTenureBoundaryLevel

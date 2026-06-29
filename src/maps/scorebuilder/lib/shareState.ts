@@ -5,6 +5,8 @@ import type {
   BoundaryLevel,
   CityBoundaryLevel,
   CommunityBoundaryLevel,
+  FireZoneBoundaryLevel,
+  MunicipalityBoundaryLevel,
   RegionalDistrictBoundaryLevel,
   WatershedBoundaryLevel,
 } from '@/maps/airquality'
@@ -19,8 +21,10 @@ export interface ScoreBuilderShareState {
   censusBoundaryLevel: CensusBoundaryLevel
   communityBoundaryLevel?: CommunityBoundaryLevel
   regionalDistrictBoundaryLevel?: RegionalDistrictBoundaryLevel
+  municipalityBoundaryLevel?: MunicipalityBoundaryLevel
   cityBoundaryLevel?: CityBoundaryLevel
   watershedBoundaryLevel?: WatershedBoundaryLevel
+  fireZoneBoundaryLevel?: FireZoneBoundaryLevel
   enabledDataSources: ScoreDataSource[]
   selectedNetworks: string[]
   weights: Partial<ScoreMetricWeightMap>
