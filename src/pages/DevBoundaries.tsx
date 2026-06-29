@@ -3,7 +3,7 @@ import bbox from '@turf/bbox'
 import difference from '@turf/difference'
 import intersect from '@turf/intersect'
 import { ArrowDown, ArrowUp, Check, ChevronsUpDown, EyeOff, Focus, GripVertical, Layers, Loader2, RotateCcw, Search, SquareStack, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Map, MapControls, MapPopup, useMap } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -113,6 +113,7 @@ interface ParentBoundaryCacheEntry {
 
 interface SelectedParentBoundary {
   id: string
+  scope: string
   name: string
   code: string
   label: string
@@ -127,21 +128,33 @@ interface ParentBoundaryView {
   style: { fill: string; line: string; width: number }
 }
 
+interface PolygonFocus {
+  id: string
+  scope: string
+}
+
+interface PolygonClickMeta {
+  shiftKey: boolean
+}
+
 const BC_CENTER: [number, number] = [-124.4, 53.9]
 const BC_DA_SIMPLIFIED_LEVEL: RegionLevel = 'bcDaSimplified'
 const BC_DA_CHUNK_BASE_PATH = '/data/census/bc-da-simplified'
 const BC_DA_CHUNK_MANIFEST_PATH = `${BC_DA_CHUNK_BASE_PATH}/manifest.json`
 const EMPTY_REGIONS: StudyAreaRegion[] = []
+const EMPTY_POLYGON_FOCUSES: PolygonFocus[] = []
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> = {
   type: 'FeatureCollection',
   features: [],
 }
 
-const CENSUS_PARENT_LEVEL_LABELS: Record<CensusParentLevel, string> = {
-  cd: 'CD',
-  csd: 'CSD',
-  ct: 'CT',
+const CENSUS_PARENT_LEVEL_NAMES: Record<CensusParentLevel, string> = {
+  cd: 'Census Division',
+  csd: 'Census Subdivision',
+  ct: 'Census Tract',
 }
+
+const CENSUS_PARENT_LEVEL_ORDER: CensusParentLevel[] = ['cd', 'csd', 'ct']
 
 const CENSUS_PARENT_LAYER_STYLES: Record<CensusParentLevel, { fill: string; line: string; width: number }> = {
   cd: { fill: '#f59e0b', line: '#92400e', width: 2.2 },
@@ -219,6 +232,12 @@ function formatArea(value: number) {
 
 function formatNumber(value: number) {
   return value.toLocaleString()
+}
+
+function formatGzipMiB(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return null
+  const mib = bytes / 1024 / 1024
+  return `${mib >= 10 ? Math.round(mib).toLocaleString() : mib.toLocaleString(undefined, { maximumFractionDigits: 1 })} MiB gzip`
 }
 
 function sourceLabel(source: BoundarySource) {
@@ -324,25 +343,43 @@ function polygonFeatureId(feature: GeoJSON.Feature<GeoJSON.Geometry | null>): st
   return id == null ? null : String(id)
 }
 
-function filterRegionsForPolygonFocus(regions: StudyAreaRegion[], isolatedId: string | null, hiddenIds: Set<string>) {
-  if (!isolatedId && hiddenIds.size === 0) return regions
+function samePolygonFocus(a: PolygonFocus, b: PolygonFocus) {
+  return a.id === b.id && a.scope === b.scope
+}
+
+function uniquePolygonFocuses(focuses: PolygonFocus[]) {
+  return focuses.filter((focus, index) => focuses.findIndex((candidate) => samePolygonFocus(candidate, focus)) === index)
+}
+
+function filterRegionsForPolygonFocus(
+  regions: StudyAreaRegion[],
+  scope: string,
+  isolatedFocuses: PolygonFocus[],
+  hiddenFocuses: PolygonFocus[],
+) {
+  const isolatedIds = new Set(isolatedFocuses.filter((focus) => focus.scope === scope).map((focus) => focus.id))
+  const hiddenIds = new Set(hiddenFocuses.filter((focus) => focus.scope === scope).map((focus) => focus.id))
+  if (isolatedIds.size === 0 && hiddenIds.size === 0) return regions
   return regions.filter((region) => {
-    if (isolatedId) return region.id === isolatedId
+    if (isolatedIds.size > 0) return isolatedIds.has(region.id)
     return !hiddenIds.has(region.id)
   })
 }
 
 function filterFeatureCollectionForPolygonFocus(
   collection: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>,
-  isolatedId: string | null,
-  hiddenIds: Set<string>,
+  scope: string,
+  isolatedFocuses: PolygonFocus[],
+  hiddenFocuses: PolygonFocus[],
 ): GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> {
-  if (!isolatedId && hiddenIds.size === 0) return collection
+  const isolatedIds = new Set(isolatedFocuses.filter((focus) => focus.scope === scope).map((focus) => focus.id))
+  const hiddenIds = new Set(hiddenFocuses.filter((focus) => focus.scope === scope).map((focus) => focus.id))
+  if (isolatedIds.size === 0 && hiddenIds.size === 0) return collection
 
   const features = collection.features.filter((feature) => {
     const id = polygonFeatureId(feature)
-    if (!id) return !isolatedId
-    if (isolatedId) return id === isolatedId
+    if (!id) return isolatedIds.size === 0
+    if (isolatedIds.size > 0) return isolatedIds.has(id)
     return !hiddenIds.has(id)
   })
 
@@ -351,34 +388,41 @@ function filterFeatureCollectionForPolygonFocus(
 
 function PolygonFocusControls({
   polygonId,
+  polygonScope,
+  targetFocuses,
   focusActive,
   onIsolate,
   onHide,
   onClear,
 }: {
   polygonId: string
+  polygonScope: string
+  targetFocuses: PolygonFocus[]
   focusActive: boolean
-  onIsolate: (id: string) => void
-  onHide: (id: string) => void
+  onIsolate: (focuses: PolygonFocus[]) => void
+  onHide: (focuses: PolygonFocus[]) => void
   onClear: () => void
 }) {
+  const focus = { id: polygonId, scope: polygonScope }
+  const targets = targetFocuses.some((target) => samePolygonFocus(target, focus)) ? targetFocuses : [focus]
+  const multiple = targets.length > 1
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       <button
         type="button"
-        onClick={() => onIsolate(polygonId)}
+        onClick={() => onIsolate(targets)}
         className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
       >
         <Focus className="size-3.5" />
-        Show only
+        {multiple ? `Show ${targets.length} selected` : 'Show only'}
       </button>
       <button
         type="button"
-        onClick={() => onHide(polygonId)}
+        onClick={() => onHide(targets)}
         className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
       >
         <EyeOff className="size-3.5" />
-        Hide
+        {multiple ? `Hide ${targets.length} selected` : 'Hide'}
       </button>
       {focusActive && (
         <button
@@ -431,6 +475,7 @@ function findSelectedParentBoundary(views: ParentBoundaryView[], selectedParentI
     const areaKm2 = Number(properties.areaKm2 ?? area(feature as never) / 1_000_000)
     return {
       id: selectedParentId,
+      scope: `census-parent:${view.level}`,
       name,
       code,
       label: view.parent.label,
@@ -565,9 +610,10 @@ function DevBoundaries() {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null)
+  const [selectedPolygonFocuses, setSelectedPolygonFocuses] = useState<PolygonFocus[]>([])
   const [compareIds, setCompareIds] = useState<string[]>([])
-  const [isolatedPolygonId, setIsolatedPolygonId] = useState<string | null>(null)
-  const [hiddenPolygonIds, setHiddenPolygonIds] = useState<string[]>([])
+  const [isolatedPolygonFocuses, setIsolatedPolygonFocuses] = useState<PolygonFocus[]>([])
+  const [hiddenPolygonFocuses, setHiddenPolygonFocuses] = useState<PolygonFocus[]>([])
   const [cache, setCache] = useState<Record<string, BoundaryCacheEntry>>({})
   const [mapBounds, setMapBounds] = useState<BoundaryBbox | null>(null)
   const [mapZoom, setMapZoom] = useState(5.2)
@@ -785,6 +831,8 @@ function DevBoundaries() {
 
   const enabledParentBoundaryViews = useMemo<ParentBoundaryView[]>(() => (
     enabledCensusParentLevels
+      .slice()
+      .sort((a, b) => CENSUS_PARENT_LEVEL_ORDER.indexOf(a) - CENSUS_PARENT_LEVEL_ORDER.indexOf(b))
       .map((level) => {
         const parent = parentBoundaryOptions.find((option) => option.level === level)
         const entry = parentBoundaryCache[level]
@@ -798,18 +846,24 @@ function DevBoundaries() {
       })
       .filter((view): view is ParentBoundaryView => Boolean(view))
   ), [enabledCensusParentLevels, parentBoundaryCache, parentBoundaryOptions])
-  const hideBcDaChunksForParents = enabledCensusParentLevels.length > 0
+  const hideBcDaChunksForParents = bcDaActive && enabledCensusParentLevels.length > 0
 
   const allRegions = useMemo(() => activeLayerViews.flatMap((layer) => layer.regions), [activeLayerViews])
   const allFilteredRegions = useMemo(() => activeLayerViews.flatMap((layer) => layer.filteredRegions), [activeLayerViews])
   const selectedRegion = allRegions.find((region) => region.id === selectedId) ?? null
+  const selectedRegionLayerScope = activeLayerViews.find((layer) => selectedRegion && layer.regions.some((region) => region.id === selectedRegion.id))?.key ?? null
+  const selectedRegionLayerFocuses = selectedRegionLayerScope
+    ? selectedPolygonFocuses.filter((focus) => focus.scope === selectedRegionLayerScope)
+    : EMPTY_POLYGON_FOCUSES
   const selectedParentBoundary = findSelectedParentBoundary(enabledParentBoundaryViews, selectedParentId)
+  const selectedParentBoundaryFocuses = selectedParentBoundary
+    ? selectedPolygonFocuses.filter((focus) => focus.scope === selectedParentBoundary.scope)
+    : EMPTY_POLYGON_FOCUSES
   const compareRegions = useMemo(
     () => compareIds.map((id) => allRegions.find((region) => region.id === id)).filter((region): region is StudyAreaRegion => Boolean(region)),
     [allRegions, compareIds],
   )
-  const hiddenPolygonIdSet = useMemo(() => new Set(hiddenPolygonIds), [hiddenPolygonIds])
-  const polygonFocusActive = Boolean(isolatedPolygonId || hiddenPolygonIds.length > 0)
+  const polygonFocusActive = Boolean(isolatedPolygonFocuses.length > 0 || hiddenPolygonFocuses.length > 0)
   const surfaceDifference = useMemo(() => (
     compareRegions.length === 2 ? buildSurfaceDifference(compareRegions[0], compareRegions[1]) : null
   ), [compareRegions])
@@ -845,6 +899,7 @@ function DevBoundaries() {
     })
     setSelectedId(null)
     setSelectedParentId(null)
+    setSelectedPolygonFocuses([])
     setCompareIds([])
   }, [])
 
@@ -875,8 +930,12 @@ function DevBoundaries() {
 
   const handleVariantChange = useCallback((source: BoundarySource, nextLevel: RegionLevel) => {
     setSourceLevels((current) => ({ ...current, [source]: nextLevel }))
+    if (source === 'census' && nextLevel !== BC_DA_SIMPLIFIED_LEVEL) {
+      setEnabledCensusParentLevels([])
+    }
     setSelectedId(null)
     setSelectedParentId(null)
+    setSelectedPolygonFocuses([])
     setCompareIds([])
   }, [])
 
@@ -884,15 +943,23 @@ function DevBoundaries() {
     setSourceOpacities((current) => ({ ...current, [source]: value }))
   }, [])
 
-  const handleFeatureClick = useCallback((id: string) => {
-    setSelectedId(id)
-    setSelectedParentId(null)
+  const selectPolygonFocus = useCallback((focus: PolygonFocus, additive: boolean) => {
+    setSelectedPolygonFocuses((current) => (
+      additive ? uniquePolygonFocuses([...current, focus]) : [focus]
+    ))
   }, [])
 
-  const handleParentFeatureClick = useCallback((id: string) => {
+  const handleFeatureClick = useCallback((id: string, scope: string, event: PolygonClickMeta) => {
+    selectPolygonFocus({ id, scope }, event.shiftKey)
+    setSelectedId(id)
+    setSelectedParentId(null)
+  }, [selectPolygonFocus])
+
+  const handleParentFeatureClick = useCallback((id: string, scope: string, event: PolygonClickMeta) => {
+    selectPolygonFocus({ id, scope }, event.shiftKey)
     setSelectedParentId(id)
     setSelectedId(null)
-  }, [])
+  }, [selectPolygonFocus])
 
   const toggleCompare = useCallback((id: string) => {
     setCompareIds((current) => (
@@ -907,29 +974,37 @@ function DevBoundaries() {
     setSurfaceDifferenceMode(false)
   }, [])
 
-  const isolatePolygon = useCallback((id: string) => {
-    setIsolatedPolygonId(id)
-    setHiddenPolygonIds([])
+  const isolatePolygon = useCallback((focuses: PolygonFocus[]) => {
+    setIsolatedPolygonFocuses(uniquePolygonFocuses(focuses))
+    setHiddenPolygonFocuses([])
   }, [])
 
-  const hidePolygon = useCallback((id: string) => {
-    setIsolatedPolygonId((current) => (current === id ? null : current))
-    setHiddenPolygonIds((current) => (current.includes(id) ? current : [...current, id]))
-    setSelectedId((current) => (current === id ? null : current))
-    setSelectedParentId((current) => (current === id ? null : current))
+  const hidePolygon = useCallback((focuses: PolygonFocus[]) => {
+    const targets = uniquePolygonFocuses(focuses)
+    setIsolatedPolygonFocuses((current) => current.filter((focus) => !targets.some((target) => samePolygonFocus(target, focus))))
+    setHiddenPolygonFocuses((current) => (
+      uniquePolygonFocuses([...current, ...targets])
+    ))
+    setSelectedPolygonFocuses((current) => current.filter((focus) => !targets.some((target) => samePolygonFocus(target, focus))))
+    setSelectedId((current) => (targets.some((focus) => focus.id === current) ? null : current))
+    setSelectedParentId((current) => (targets.some((focus) => focus.id === current) ? null : current))
   }, [])
 
   const clearPolygonFocus = useCallback(() => {
-    setIsolatedPolygonId(null)
-    setHiddenPolygonIds([])
+    setIsolatedPolygonFocuses([])
+    setHiddenPolygonFocuses([])
   }, [])
 
   const toggleCensusParentLevel = useCallback((level: CensusParentLevel) => {
+    setSourceLevels((current) => ({ ...current, census: BC_DA_SIMPLIFIED_LEVEL }))
     setEnabledCensusParentLevels((current) => (
       current.includes(level)
         ? current.filter((value) => value !== level)
         : [...current, level]
     ))
+    setSelectedId(null)
+    setSelectedParentId(null)
+    setCompareIds([])
   }, [])
 
   const sidebar = (
@@ -980,7 +1055,15 @@ function DevBoundaries() {
         <div className="space-y-3">
           {activeSources.map((source, index) => {
             const selectedLevel = sourceLevels[source] ?? getDefaultLevelForSource(source)
-            const options = getLevelOptionsForSource(source)
+            const baseOptions = getLevelOptionsForSource(source)
+            const options = source === 'census'
+              ? [
+                  ...baseOptions,
+                  ...(baseOptions.some((option) => option.value === BC_DA_SIMPLIFIED_LEVEL)
+                    ? []
+                    : [{ value: BC_DA_SIMPLIFIED_LEVEL, label: getStudyAreaLevelLabel(BC_DA_SIMPLIFIED_LEVEL) }]),
+                ]
+              : baseOptions
             const opacity = sourceOpacities[source] ?? 0.22
             return (
               <div
@@ -1076,77 +1159,6 @@ function DevBoundaries() {
                     const range = levelRange(optionRegions)
                     const chunkCount = bcDaLevel ? Object.keys(bcDaChunks).filter((key) => key.startsWith(`${bcDaLevel.id}:`)).length : 0
                     const totalChunkCount = bcDaLevel?.chunks.length ?? 0
-                    if (chunkedOption) {
-                      return (
-                        <div
-                          key={option.value}
-                          className={cn(
-                            'rounded-md border text-left transition-colors',
-                            selectedLevel === option.value
-                              ? 'border-primary bg-primary/10'
-                              : 'border-border bg-background hover:bg-accent',
-                          )}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleVariantChange(source, option.value)}
-                            className="w-full px-2.5 py-2 text-left"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-xs font-medium">{option.label}</span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {bcDaManifest ? `${formatNumber(optionRegions.length)} / ${formatNumber(bcDaManifest.features)} loaded` : 'Not loaded'}
-                              </span>
-                            </div>
-                            <div className="mt-1 text-[10px] text-muted-foreground">
-                              {bcDaLevel
-                                ? `Detail: ${bcDaLevel.label} · Chunks: ${formatNumber(chunkCount)} / ${formatNumber(totalChunkCount)} · ${formatNumber(Math.round(bcDaLevel.gzipBytes / 1024 / 1024))} MiB gzip total`
-                                : '--'}
-                              {optionRegions.length > 0 && (
-                                <> · Area range: {formatArea(range.min)} - {formatArea(range.max)}</>
-                              )}
-                            </div>
-                          </button>
-                          {selectedLevel === option.value && parentBoundaryOptions.length > 0 && (
-                            <div className="border-t border-border/70 px-2.5 py-2">
-                              <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-                                <span>Parent outlines</span>
-                                <span>{enabledCensusParentLevels.length > 0 ? `${enabledCensusParentLevels.length} on` : 'Off'}</span>
-                              </div>
-                              <div className="grid grid-cols-3 gap-1.5">
-                                {parentBoundaryOptions.map((parent) => {
-                                  const enabled = enabledCensusParentLevels.includes(parent.level)
-                                  const loading = parentBoundaryCache[parent.level]?.state === 'loading'
-                                  const errored = parentBoundaryCache[parent.level]?.state === 'error'
-                                  return (
-                                    <button
-                                      key={parent.level}
-                                      type="button"
-                                      onClick={() => toggleCensusParentLevel(parent.level)}
-                                      className={cn(
-                                        'h-8 rounded border px-2 text-[10px] font-medium transition-colors',
-                                        enabled
-                                          ? 'border-primary bg-primary text-primary-foreground'
-                                          : 'border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground',
-                                        errored && 'border-destructive text-destructive',
-                                      )}
-                                      title={`${parent.label} · ${formatNumber(parent.features)} boundaries`}
-                                    >
-                                      {loading ? '...' : CENSUS_PARENT_LEVEL_LABELS[parent.level]}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                              {enabledCensusParentLevels.length > 0 && (
-                                <div className="mt-1.5 text-[10px] text-muted-foreground">
-                                  DA geometry hidden while parent outlines are active.
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    }
                     return (
                       <button
                         key={option.value}
@@ -1169,15 +1181,74 @@ function DevBoundaries() {
                         </div>
                         <div className="mt-1 text-[10px] text-muted-foreground">
                           {chunkedOption && bcDaLevel
-                            ? `Detail: ${bcDaLevel.label} · Chunks: ${formatNumber(chunkCount)} / ${formatNumber(totalChunkCount)} · ${formatNumber(Math.round(bcDaLevel.gzipBytes / 1024 / 1024))} MiB gzip total`
+                            ? `Detail: ${bcDaLevel.label} · Chunks: ${formatNumber(chunkCount)} / ${formatNumber(totalChunkCount)} · ${formatGzipMiB(bcDaLevel.gzipBytes) ?? '--'} total`
                             : `Area range: ${entry && entry.regions.length > 0 ? `${formatArea(range.min)} - ${formatArea(range.max)}` : '--'}`}
                           {chunkedOption && optionRegions.length > 0 && (
                             <> · Area range: {formatArea(range.min)} - {formatArea(range.max)}</>
+                          )}
+                          {chunkedOption && selectedLevel === option.value && enabledCensusParentLevels.length > 0 && (
+                            <> · DA hidden by parent outline</>
                           )}
                         </div>
                       </button>
                     )
                   })}
+                  {source === 'census' && (
+                    <>
+                      <div className="px-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+                        BC-wide parent outlines
+                      </div>
+                      {CENSUS_PARENT_LEVEL_ORDER.map((level) => {
+                        const parent = parentBoundaryOptions.find((option) => option.level === level)
+                        const enabled = enabledCensusParentLevels.includes(level)
+                        const loading = parentBoundaryCache[level]?.state === 'loading'
+                        const errored = parentBoundaryCache[level]?.state === 'error'
+                        const status = loading
+                          ? 'Loading'
+                          : errored
+                            ? 'Error'
+                            : enabled
+                              ? 'On'
+                              : parent
+                                ? `${formatNumber(parent.features)} boundaries`
+                                : 'Available'
+                        const detail = [
+                          'Parent outline',
+                          parent ? formatGzipMiB(parent.gzipBytes) : 'Loads with BC DA chunks',
+                          enabled ? 'DA chunks hidden' : null,
+                        ].filter(Boolean).join(' · ')
+
+                        return (
+                          <button
+                            key={`parent-${level}`}
+                            type="button"
+                            onClick={() => toggleCensusParentLevel(level)}
+                            className={cn(
+                              'rounded-md border px-2.5 py-2 text-left transition-colors',
+                              enabled
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border bg-background hover:bg-accent',
+                              errored && 'border-destructive/70 bg-destructive/10',
+                            )}
+                            title={`${parent?.label ?? CENSUS_PARENT_LEVEL_NAMES[level]} · ${parent ? `${formatNumber(parent.features)} boundaries` : 'loads from BC DA chunks'}`}
+                            aria-pressed={enabled}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-xs font-medium">
+                                {parent?.label ?? CENSUS_PARENT_LEVEL_NAMES[level]} outline
+                              </span>
+                              <span className={cn('text-[10px] text-muted-foreground', errored && 'text-destructive')}>
+                                {status}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-[10px] text-muted-foreground">
+                              {detail}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </>
+                  )}
                 </div>
               </div>
             )
@@ -1228,7 +1299,7 @@ function DevBoundaries() {
             {activeLoading
               ? 'Loading boundaries'
               : polygonFocusActive
-                ? `${isolatedPolygonId ? 'Showing one polygon' : `${hiddenPolygonIds.length.toLocaleString()} hidden polygon${hiddenPolygonIds.length === 1 ? '' : 's'}`}`
+                ? `${isolatedPolygonFocuses.length > 0 ? `Showing ${isolatedPolygonFocuses.length.toLocaleString()} selected in ${isolatedPolygonFocuses.length === 1 ? 'its layer' : 'their layers'}` : `${hiddenPolygonFocuses.length.toLocaleString()} hidden polygon${hiddenPolygonFocuses.length === 1 ? '' : 's'}`}`
                 : `${allFilteredRegions.length.toLocaleString()} visible boundaries`}
           </span>
           {(compareIds.length > 0 || polygonFocusActive) && (
@@ -1271,9 +1342,10 @@ function DevBoundaries() {
                     >
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(event) => {
                           setSelectedId(region.id)
                           setSelectedParentId(null)
+                          selectPolygonFocus({ id: region.id, scope: layer.key }, event.shiftKey)
                         }}
                         className="w-full text-left"
                       >
@@ -1338,61 +1410,65 @@ function DevBoundaries() {
         <MapControls position="top-right" mobilePosition="bottom-right" />
         <TrackMapBounds onBoundsChange={setMapBounds} onZoomChange={setMapZoom} />
         <FitToRegions regions={fitRegions} selectedRegion={selectedRegion} />
-        {bcDaActive && enabledParentBoundaryViews.map((view) => (
-          <MapFillLayer
-            key={`census-parent:${view.level}`}
-            data={filterFeatureCollectionForPolygonFocus(view.data, isolatedPolygonId, hiddenPolygonIdSet)}
-            fillColor={view.style.fill}
-            fillOpacity={0.035}
-            lineColor={view.style.line}
-            lineOpacity={0.95}
-            lineWidth={view.style.width}
-            idProperty="boundaryId"
-            selectedId={selectedParentId}
-            selectionColor="#f97316"
-            selectionWidth={3.2}
-            onFeatureClick={handleParentFeatureClick}
-            hoverHtml={(properties) => (
-              `<div class="min-w-44 max-w-72 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
-                <div class="font-semibold leading-5">${escapeHtml(String(properties.boundaryName ?? properties.name ?? ''))}</div>
-                <div class="mt-1 text-muted-foreground">${escapeHtml(String(properties.boundaryCode ?? properties.code ?? ''))}</div>
-                <div class="mt-2 font-semibold">${escapeHtml(formatArea(Number(properties.areaKm2 ?? 0)))}</div>
-              </div>`
-            )}
-          />
-        ))}
         {activeLayerViews.map((layer) => {
-          const focusedRegions = filterRegionsForPolygonFocus(layer.filteredRegions, isolatedPolygonId, hiddenPolygonIdSet)
+          const focusedRegions = filterRegionsForPolygonFocus(layer.filteredRegions, layer.key, isolatedPolygonFocuses, hiddenPolygonFocuses)
           const layerHiddenForParentOutlines = hideBcDaChunksForParents && isBcDaSimplifiedLayer(layer)
-          const layerVisible = !layerHiddenForParentOutlines || Boolean(isolatedPolygonId)
+          const layerVisible = !layerHiddenForParentOutlines || isolatedPolygonFocuses.some((focus) => focus.scope === layer.key)
           return (
-            <MapFillLayer
-              key={`${activeSources.join('|')}:${layer.key}`}
-              data={focusedRegions.length > 0 ? featureCollection(focusedRegions) : EMPTY_COLLECTION}
-              fillColor={layer.colors.fill}
-              fillOpacity={layer.opacity}
-              lineColor={layer.colors.line}
-              lineOpacity={0.86}
-              lineWidth={activeLayerViews.length > 1 ? 1.1 : 0.9}
-              idProperty="boundaryId"
-              selectedId={selectedId}
-              selectionColor="#f97316"
-              selectionWidth={3}
-              visible={layerVisible}
-              onFeatureClick={handleFeatureClick}
-              hoverHtml={layer.key === topLayerKey && layerVisible
-                ? (properties) => {
-                    const parents = censusParentSummary(properties)
-                    return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
-                      <div class="font-semibold leading-5">${escapeHtml(String(properties.boundaryName ?? ''))}</div>
-                      <div class="mt-1 text-muted-foreground">${escapeHtml(sourceLabel(String(properties.boundarySource ?? layer.source) as BoundarySource))} &middot; ${escapeHtml(getStudyAreaLevelLabel(String(properties.boundaryLevel ?? '')))}</div>
-                      <div class="mt-1 text-muted-foreground">${escapeHtml(String(properties.boundaryCode ?? ''))}</div>
-                      ${parents ? `<div class="mt-2 text-muted-foreground">${escapeHtml(parents)}</div>` : ''}
-                      <div class="mt-2 font-semibold">${escapeHtml(formatArea(Number(properties.areaKm2 ?? 0)))}</div>
-                    </div>`
-                  }
-                : undefined}
-            />
+            <Fragment key={`${activeSources.join('|')}:${layer.key}`}>
+              <MapFillLayer
+                data={focusedRegions.length > 0 ? featureCollection(focusedRegions) : EMPTY_COLLECTION}
+                fillColor={layer.colors.fill}
+                fillOpacity={layer.opacity}
+                lineColor={layer.colors.line}
+                lineOpacity={0.86}
+                lineWidth={activeLayerViews.length > 1 ? 1.1 : 0.9}
+                idProperty="boundaryId"
+                selectedIds={selectedPolygonFocuses.filter((focus) => focus.scope === layer.key).map((focus) => focus.id)}
+                selectionColor="#f97316"
+                selectionWidth={3}
+                visible={layerVisible}
+                onFeatureClick={(id, event) => handleFeatureClick(id, layer.key, event)}
+                hoverHtml={layer.key === topLayerKey && layerVisible
+                  ? (properties) => {
+                      const parents = censusParentSummary(properties)
+                      return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
+                        <div class="font-semibold leading-5">${escapeHtml(String(properties.boundaryName ?? ''))}</div>
+                        <div class="mt-1 text-muted-foreground">${escapeHtml(sourceLabel(String(properties.boundarySource ?? layer.source) as BoundarySource))} &middot; ${escapeHtml(getStudyAreaLevelLabel(String(properties.boundaryLevel ?? '')))}</div>
+                        <div class="mt-1 text-muted-foreground">${escapeHtml(String(properties.boundaryCode ?? ''))}</div>
+                        ${parents ? `<div class="mt-2 text-muted-foreground">${escapeHtml(parents)}</div>` : ''}
+                        <div class="mt-2 font-semibold">${escapeHtml(formatArea(Number(properties.areaKm2 ?? 0)))}</div>
+                      </div>`
+                    }
+                  : undefined}
+              />
+              {isBcDaSimplifiedLayer(layer) && enabledParentBoundaryViews.map((view) => {
+                const parentScope = `census-parent:${view.level}`
+                return (
+                  <MapFillLayer
+                    key={parentScope}
+                    data={filterFeatureCollectionForPolygonFocus(view.data, parentScope, isolatedPolygonFocuses, hiddenPolygonFocuses)}
+                    fillColor={view.style.fill}
+                    fillOpacity={0.035}
+                    lineColor={view.style.line}
+                    lineOpacity={0.95}
+                    lineWidth={view.style.width}
+                    idProperty="boundaryId"
+                    selectedIds={selectedPolygonFocuses.filter((focus) => focus.scope === parentScope).map((focus) => focus.id)}
+                    selectionColor="#f97316"
+                    selectionWidth={3.2}
+                    onFeatureClick={(id, event) => handleParentFeatureClick(id, parentScope, event)}
+                    hoverHtml={(properties) => (
+                      `<div class="min-w-44 max-w-72 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
+                        <div class="font-semibold leading-5">${escapeHtml(String(properties.boundaryName ?? properties.name ?? ''))}</div>
+                        <div class="mt-1 text-muted-foreground">${escapeHtml(String(properties.boundaryCode ?? properties.code ?? ''))}</div>
+                        <div class="mt-2 font-semibold">${escapeHtml(formatArea(Number(properties.areaKm2 ?? 0)))}</div>
+                      </div>`
+                    )}
+                  />
+                )
+              })}
+            </Fragment>
           )
         })}
         {surfaceDifferenceMode && surfaceDifference && (
@@ -1448,7 +1524,12 @@ function DevBoundaries() {
           <MapPopup
             longitude={(selectedRegion.bounds[0] + selectedRegion.bounds[2]) / 2}
             latitude={(selectedRegion.bounds[1] + selectedRegion.bounds[3]) / 2}
-            onClose={() => setSelectedId(null)}
+            onClose={() => {
+              setSelectedId(null)
+              if (selectedRegionLayerScope) {
+                setSelectedPolygonFocuses((current) => current.filter((focus) => focus.scope !== selectedRegionLayerScope))
+              }
+            }}
           >
             <div className="min-w-56 text-sm">
               <div className="font-semibold text-foreground">{selectedRegion.name}</div>
@@ -1488,13 +1569,17 @@ function DevBoundaries() {
                 <ChevronsUpDown className="size-3.5" />
                 {compareIds.includes(selectedRegion.id) ? 'Remove from compare' : 'Add to compare'}
               </button>
-              <PolygonFocusControls
-                polygonId={selectedRegion.id}
-                focusActive={polygonFocusActive}
-                onIsolate={isolatePolygon}
-                onHide={hidePolygon}
-                onClear={clearPolygonFocus}
-              />
+              {selectedRegionLayerScope && (
+                <PolygonFocusControls
+                  polygonId={selectedRegion.id}
+                  polygonScope={selectedRegionLayerScope}
+                  targetFocuses={selectedRegionLayerFocuses}
+                  focusActive={polygonFocusActive}
+                  onIsolate={isolatePolygon}
+                  onHide={hidePolygon}
+                  onClear={clearPolygonFocus}
+                />
+              )}
             </div>
           </MapPopup>
         )}
@@ -1502,7 +1587,10 @@ function DevBoundaries() {
           <MapPopup
             longitude={(selectedParentBoundary.bounds[0] + selectedParentBoundary.bounds[2]) / 2}
             latitude={(selectedParentBoundary.bounds[1] + selectedParentBoundary.bounds[3]) / 2}
-            onClose={() => setSelectedParentId(null)}
+            onClose={() => {
+              setSelectedParentId(null)
+              setSelectedPolygonFocuses((current) => current.filter((focus) => focus.scope !== selectedParentBoundary.scope))
+            }}
           >
             <div className="min-w-56 text-sm">
               <div className="font-semibold text-foreground">{selectedParentBoundary.name}</div>
@@ -1519,6 +1607,8 @@ function DevBoundaries() {
               </div>
               <PolygonFocusControls
                 polygonId={selectedParentBoundary.id}
+                polygonScope={selectedParentBoundary.scope}
+                targetFocuses={selectedParentBoundaryFocuses}
                 focusActive={polygonFocusActive}
                 onIsolate={isolatePolygon}
                 onHide={hidePolygon}

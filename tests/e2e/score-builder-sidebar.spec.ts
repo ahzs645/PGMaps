@@ -11,6 +11,8 @@ import type { ScoreDataSource } from '../../src/maps/scorebuilder/types'
 
 const boundaryMatrix = {
   census: [
+    { level: 'cd', label: 'Census Division', count: 1 },
+    { level: 'csd', label: 'Census Subdivision', count: 1 },
     { level: 'ct', label: 'Census Tract', count: 23 },
     { level: 'da', label: 'Dissemination Area', count: 135 },
   ],
@@ -188,7 +190,7 @@ test.describe('Score Builder desktop interface', () => {
 
     await page.locator('[data-score-builder-tab="regions"]').click()
     await expect(regionStats).toContainText('23 of 23 regions', { timeout: 20_000 })
-    await expectLevelOptions(page, ['Census Tract', 'Dissemination Area'])
+    await expectLevelOptions(page, ['Census Division', 'Census Subdivision', 'Census Tract', 'Dissemination Area'])
 
     await selectLevel(page, 'Dissemination Area')
     await expect(levelTrigger).toContainText('Dissemination Area')

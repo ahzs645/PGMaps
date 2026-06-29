@@ -52,6 +52,8 @@ type MapFillLayerProps = {
   idProperty?: string
   /** Currently selected feature ID — drives the selection highlight */
   selectedId?: string | number | null
+  /** Multiple selected feature IDs — combined with selectedId for the selection highlight */
+  selectedIds?: Array<string | number>
   /** Selection highlight color (default: SELECTION_COLOR) */
   selectionColor?: string
   /** Selection highlight line width (default: SELECTION_WIDTH) */
@@ -63,7 +65,7 @@ type MapFillLayerProps = {
   /** Whether the layer is visible (default: true) */
   visible?: boolean
   /** Callback when a feature is clicked — receives the feature's idProperty value as a string */
-  onFeatureClick?: (id: string) => void
+  onFeatureClick?: (id: string, event: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean }) => void
   /** Optional HTML tooltip for hoverable feature properties. Return null to hide. */
   hoverHtml?: (properties: Record<string, unknown>) => string | null
 }
@@ -77,6 +79,7 @@ function MapFillLayer({
   lineOpacity = 0.45,
   idProperty = 'id',
   selectedId = null,
+  selectedIds = [],
   selectionColor = SELECTION_COLOR,
   selectionWidth = SELECTION_WIDTH,
   selectionStyle = 'line',
@@ -166,7 +169,13 @@ function MapFillLayer({
         e.preventDefault?.()
         e.originalEvent?.preventDefault()
         dispatchMobileMapFeatureClick()
-        onClickRef.current?.(String(id))
+        const originalEvent = e.originalEvent
+        onClickRef.current?.(String(id), {
+          shiftKey: originalEvent instanceof MouseEvent ? originalEvent.shiftKey : false,
+          altKey: originalEvent instanceof MouseEvent ? originalEvent.altKey : false,
+          ctrlKey: originalEvent instanceof MouseEvent ? originalEvent.ctrlKey : false,
+          metaKey: originalEvent instanceof MouseEvent ? originalEvent.metaKey : false,
+        })
       }
     }
 
@@ -283,8 +292,14 @@ function MapFillLayer({
   // Update selection filter
   useEffect(() => {
     if (!isLoaded || !map || !map.getLayer(selectedLayerId)) return
-    map.setFilter(selectedLayerId, ['==', ['get', idProperty], selectedId ?? ''] as never)
-  }, [isLoaded, map, selectedLayerId, selectedId, idProperty])
+    const selectedValues = Array.from(new Set([selectedId, ...selectedIds].filter((id) => id != null)))
+    map.setFilter(
+      selectedLayerId,
+      selectedValues.length > 0
+        ? ['in', ['get', idProperty], ['literal', selectedValues]] as never
+        : ['==', ['get', idProperty], ''] as never,
+    )
+  }, [isLoaded, map, selectedLayerId, selectedId, selectedIds, idProperty])
 
   return null
 }

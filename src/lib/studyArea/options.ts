@@ -59,7 +59,7 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
   {
     value: 'census',
     label: 'Census boundaries',
-    description: 'PG census tract -> dissemination area',
+    description: 'PG census division -> dissemination area',
     group: 'Administrative',
   },
   {
@@ -105,7 +105,7 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   csd: 'Census Subdivision',
   ct: 'Census Tract',
   da: 'Dissemination Area',
-  bcDaSimplified: 'BC DA chunks',
+  bcDaSimplified: 'BC-wide DA chunks',
   db: 'Dissemination Block',
   communityPolygon: 'Community polygons',
   elementarySchoolCatchment: 'Elementary School Catchment',
@@ -154,7 +154,7 @@ export const MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<Municipali
 ]
 
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CensusBoundaryLevel>[] = [
-  ...createStudyAreaLevelOptions(['ct', 'da', 'bcDaSimplified'] as const),
+  ...createStudyAreaLevelOptions(['cd', 'csd', 'ct', 'da'] as const),
 ]
 
 export const COMMUNITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CommunityBoundaryLevel>[] = [
@@ -237,6 +237,7 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
 }
 
 export function getDefaultLevelForSource(source: BoundarySource): RegionLevel {
+  if (source === 'census') return 'ct'
   return getLevelOptionsForSource(source)[0].value
 }
 
