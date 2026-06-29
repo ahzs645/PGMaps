@@ -58,6 +58,7 @@ interface SurfaceDifference {
 }
 
 type BoundaryBbox = [number, number, number, number]
+type CensusParentLevel = 'cd' | 'csd' | 'ct'
 
 interface BcDaChunkManifest {
   generatedAt: string
@@ -66,6 +67,7 @@ interface BcDaChunkManifest {
   rawBytes: number
   gzipBytes: number
   levels?: BcDaChunkLevel[]
+  parentBoundaries?: BcDaParentBoundary[]
   chunks: Array<{
     id: string
     path: string
@@ -74,6 +76,15 @@ interface BcDaChunkManifest {
     rawBytes: number
     gzipBytes: number
   }>
+}
+
+interface BcDaParentBoundary {
+  level: CensusParentLevel
+  label: string
+  path: string
+  features: number
+  rawBytes: number
+  gzipBytes: number
 }
 
 interface BcDaChunkLevel {
@@ -94,6 +105,12 @@ interface BcDaChunkFeatureCollection {
   features: GeoJSON.Feature<GeoJSON.Geometry | null, Record<string, unknown>>[]
 }
 
+interface ParentBoundaryCacheEntry {
+  state: LoadState
+  data: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+  error?: string
+}
+
 const BC_CENTER: [number, number] = [-124.4, 53.9]
 const BC_DA_SIMPLIFIED_LEVEL: RegionLevel = 'bcDaSimplified'
 const BC_DA_CHUNK_BASE_PATH = '/data/census/bc-da-simplified'
@@ -102,6 +119,18 @@ const EMPTY_REGIONS: StudyAreaRegion[] = []
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> = {
   type: 'FeatureCollection',
   features: [],
+}
+
+const CENSUS_PARENT_LEVEL_LABELS: Record<CensusParentLevel, string> = {
+  cd: 'CD',
+  csd: 'CSD',
+  ct: 'CT',
+}
+
+const CENSUS_PARENT_LAYER_STYLES: Record<CensusParentLevel, { fill: string; line: string; width: number }> = {
+  cd: { fill: '#f59e0b', line: '#92400e', width: 2.2 },
+  csd: { fill: '#38bdf8', line: '#0369a1', width: 1.6 },
+  ct: { fill: '#a78bfa', line: '#6d28d9', width: 1.2 },
 }
 
 const DEFAULT_SOURCE_LEVELS = BOUNDARY_SOURCE_OPTIONS.reduce<Record<BoundarySource, RegionLevel>>((acc, option) => {
