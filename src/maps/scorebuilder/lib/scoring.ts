@@ -219,7 +219,9 @@ function getComparisonUniverseLabel(source: ScoreBuilderRegion['source'], level:
         ? 'CityPG school catchments'
         : source === 'watershed'
           ? 'BC Freshwater Atlas watershed boundaries'
-          : 'Prince George census regions'
+          : source === 'census'
+            ? level === 'db' ? 'Prince George dissemination blocks' : 'BC census regions'
+            : 'selected boundary regions'
   return `Scores are relative to ${sourceLabel} at the currently loaded ${level} boundary level; filters do not redefine percentiles.`
 }
 

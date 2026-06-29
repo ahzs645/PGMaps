@@ -25,7 +25,7 @@ export const DATASETS = {
     title: '2021 census variables',
     description: 'Census geography and variable extracts across census subdivision, tract, dissemination area, and block levels.',
     source: 'Statistics Canada 2021 Census',
-    coverage: 'Prince George census geographies',
+    coverage: 'BC census geographies; Prince George dissemination blocks',
     license: 'Statistics Canada open licence',
     formats: ['JSON', 'GeoJSON'],
     downloadUrl: '/data/census/variables/catalog.json',

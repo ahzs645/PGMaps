@@ -102,6 +102,8 @@ function MapFillLayer({
   const idPropRef = useRef(idProperty)
   idPropRef.current = idProperty
   const tooltipRef = useRef<MapLibreGLRuntime.Popup | null>(null)
+  const boxZoomWasEnabledRef = useRef(false)
+  const doubleClickZoomWasEnabledRef = useRef(false)
 
   // Mount: create source + layers
   useEffect(() => {
@@ -161,7 +163,12 @@ function MapFillLayer({
     const handleClick = (event: unknown) => {
       const e = event as {
         features?: Array<{ properties?: Record<string, unknown> }>
-        originalEvent?: Event
+        originalEvent?: Event & {
+          shiftKey?: boolean
+          altKey?: boolean
+          ctrlKey?: boolean
+          metaKey?: boolean
+        }
         preventDefault?: () => void
       }
       const id = e.features?.[0]?.properties?.[idPropRef.current]
@@ -171,16 +178,20 @@ function MapFillLayer({
         dispatchMobileMapFeatureClick()
         const originalEvent = e.originalEvent
         onClickRef.current?.(String(id), {
-          shiftKey: originalEvent instanceof MouseEvent ? originalEvent.shiftKey : false,
-          altKey: originalEvent instanceof MouseEvent ? originalEvent.altKey : false,
-          ctrlKey: originalEvent instanceof MouseEvent ? originalEvent.ctrlKey : false,
-          metaKey: originalEvent instanceof MouseEvent ? originalEvent.metaKey : false,
+          shiftKey: originalEvent?.shiftKey === true,
+          altKey: originalEvent?.altKey === true,
+          ctrlKey: originalEvent?.ctrlKey === true,
+          metaKey: originalEvent?.metaKey === true,
         })
       }
     }
 
     const handleMouseEnter = () => {
       map.getCanvas().style.cursor = 'pointer'
+      boxZoomWasEnabledRef.current = map.boxZoom.isEnabled()
+      if (boxZoomWasEnabledRef.current) map.boxZoom.disable()
+      doubleClickZoomWasEnabledRef.current = map.doubleClickZoom.isEnabled()
+      if (doubleClickZoomWasEnabledRef.current) map.doubleClickZoom.disable()
     }
 
     const removeTooltip = () => {
@@ -213,6 +224,14 @@ function MapFillLayer({
 
     const handleMouseLeave = () => {
       map.getCanvas().style.cursor = ''
+      if (boxZoomWasEnabledRef.current) {
+        map.boxZoom.enable()
+        boxZoomWasEnabledRef.current = false
+      }
+      if (doubleClickZoomWasEnabledRef.current) {
+        map.doubleClickZoom.enable()
+        doubleClickZoomWasEnabledRef.current = false
+      }
       removeTooltip()
     }
 
@@ -244,6 +263,14 @@ function MapFillLayer({
         document.removeEventListener('pointermove', handleDocumentPointerMove, true)
         window.removeEventListener('blur', removeTooltip)
         document.removeEventListener('visibilitychange', handleVisibilityChange)
+        if (boxZoomWasEnabledRef.current) {
+          map.boxZoom.enable()
+          boxZoomWasEnabledRef.current = false
+        }
+        if (doubleClickZoomWasEnabledRef.current) {
+          map.doubleClickZoom.enable()
+          doubleClickZoomWasEnabledRef.current = false
+        }
         removeTooltip()
         tooltipRef.current = null
 

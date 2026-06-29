@@ -138,7 +138,7 @@ interface PolygonClickMeta {
 }
 
 const BC_CENTER: [number, number] = [-124.4, 53.9]
-const BC_DA_SIMPLIFIED_LEVEL: RegionLevel = 'bcDaSimplified'
+const BC_DA_SIMPLIFIED_LEVEL: RegionLevel = 'da'
 const BC_DA_CHUNK_BASE_PATH = '/data/census/bc-da-simplified'
 const BC_DA_CHUNK_MANIFEST_PATH = `${BC_DA_CHUNK_BASE_PATH}/manifest.json`
 const EMPTY_REGIONS: StudyAreaRegion[] = []
@@ -146,12 +146,6 @@ const EMPTY_POLYGON_FOCUSES: PolygonFocus[] = []
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> = {
   type: 'FeatureCollection',
   features: [],
-}
-
-const CENSUS_PARENT_LEVEL_NAMES: Record<CensusParentLevel, string> = {
-  cd: 'Census Division',
-  csd: 'Census Subdivision',
-  ct: 'Census Tract',
 }
 
 const CENSUS_PARENT_LEVEL_ORDER: CensusParentLevel[] = ['cd', 'csd', 'ct']
@@ -995,18 +989,6 @@ function DevBoundaries() {
     setHiddenPolygonFocuses([])
   }, [])
 
-  const toggleCensusParentLevel = useCallback((level: CensusParentLevel) => {
-    setSourceLevels((current) => ({ ...current, census: BC_DA_SIMPLIFIED_LEVEL }))
-    setEnabledCensusParentLevels((current) => (
-      current.includes(level)
-        ? current.filter((value) => value !== level)
-        : [...current, level]
-    ))
-    setSelectedId(null)
-    setSelectedParentId(null)
-    setCompareIds([])
-  }, [])
-
   const sidebar = (
     <MapSidebarShell
       className="h-full w-full min-w-0 border-0 shadow-none md:w-[410px] md:border-r md:shadow-xl"
@@ -1055,15 +1037,7 @@ function DevBoundaries() {
         <div className="space-y-3">
           {activeSources.map((source, index) => {
             const selectedLevel = sourceLevels[source] ?? getDefaultLevelForSource(source)
-            const baseOptions = getLevelOptionsForSource(source)
-            const options = source === 'census'
-              ? [
-                  ...baseOptions,
-                  ...(baseOptions.some((option) => option.value === BC_DA_SIMPLIFIED_LEVEL)
-                    ? []
-                    : [{ value: BC_DA_SIMPLIFIED_LEVEL, label: getStudyAreaLevelLabel(BC_DA_SIMPLIFIED_LEVEL) }]),
-                ]
-              : baseOptions
+            const options = getLevelOptionsForSource(source)
             const opacity = sourceOpacities[source] ?? 0.22
             return (
               <div
@@ -1193,62 +1167,6 @@ function DevBoundaries() {
                       </button>
                     )
                   })}
-                  {source === 'census' && (
-                    <>
-                      <div className="px-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-                        BC-wide parent outlines
-                      </div>
-                      {CENSUS_PARENT_LEVEL_ORDER.map((level) => {
-                        const parent = parentBoundaryOptions.find((option) => option.level === level)
-                        const enabled = enabledCensusParentLevels.includes(level)
-                        const loading = parentBoundaryCache[level]?.state === 'loading'
-                        const errored = parentBoundaryCache[level]?.state === 'error'
-                        const status = loading
-                          ? 'Loading'
-                          : errored
-                            ? 'Error'
-                            : enabled
-                              ? 'On'
-                              : parent
-                                ? `${formatNumber(parent.features)} boundaries`
-                                : 'Available'
-                        const detail = [
-                          'Parent outline',
-                          parent ? formatGzipMiB(parent.gzipBytes) : 'Loads with BC DA chunks',
-                          enabled ? 'DA chunks hidden' : null,
-                        ].filter(Boolean).join(' · ')
-
-                        return (
-                          <button
-                            key={`parent-${level}`}
-                            type="button"
-                            onClick={() => toggleCensusParentLevel(level)}
-                            className={cn(
-                              'rounded-md border px-2.5 py-2 text-left transition-colors',
-                              enabled
-                                ? 'border-primary bg-primary/10'
-                                : 'border-border bg-background hover:bg-accent',
-                              errored && 'border-destructive/70 bg-destructive/10',
-                            )}
-                            title={`${parent?.label ?? CENSUS_PARENT_LEVEL_NAMES[level]} · ${parent ? `${formatNumber(parent.features)} boundaries` : 'loads from BC DA chunks'}`}
-                            aria-pressed={enabled}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-xs font-medium">
-                                {parent?.label ?? CENSUS_PARENT_LEVEL_NAMES[level]} outline
-                              </span>
-                              <span className={cn('text-[10px] text-muted-foreground', errored && 'text-destructive')}>
-                                {status}
-                              </span>
-                            </div>
-                            <div className="mt-1 text-[10px] text-muted-foreground">
-                              {detail}
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </>
-                  )}
                 </div>
               </div>
             )
@@ -1406,7 +1324,13 @@ function DevBoundaries() {
         subtitle: activeSubtitle,
       }}
       >
-      <Map center={BC_CENTER} zoom={5.2} loading={activeLoading}>
+      <Map
+        center={BC_CENTER}
+        zoom={5.2}
+        loading={activeLoading}
+        boxZoom={false}
+        doubleClickZoom={false}
+      >
         <MapControls position="top-right" mobilePosition="bottom-right" />
         <TrackMapBounds onBoundsChange={setMapBounds} onZoomChange={setMapZoom} />
         <FitToRegions regions={fitRegions} selectedRegion={selectedRegion} />
@@ -1526,9 +1450,6 @@ function DevBoundaries() {
             latitude={(selectedRegion.bounds[1] + selectedRegion.bounds[3]) / 2}
             onClose={() => {
               setSelectedId(null)
-              if (selectedRegionLayerScope) {
-                setSelectedPolygonFocuses((current) => current.filter((focus) => focus.scope !== selectedRegionLayerScope))
-              }
             }}
           >
             <div className="min-w-56 text-sm">
@@ -1589,7 +1510,6 @@ function DevBoundaries() {
             latitude={(selectedParentBoundary.bounds[1] + selectedParentBoundary.bounds[3]) / 2}
             onClose={() => {
               setSelectedParentId(null)
-              setSelectedPolygonFocuses((current) => current.filter((focus) => focus.scope !== selectedParentBoundary.scope))
             }}
           >
             <div className="min-w-56 text-sm">

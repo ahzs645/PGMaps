@@ -41,10 +41,11 @@ interface BoundaryFeatureCollection {
 
 const BOUNDARY_INDEX_PATH = '/data/boundaries/BCMoH/index.json'
 const CENSUS_FILE_BY_LEVEL: Record<CensusBoundaryLevel, string> = {
-  cd: '/data/census/prince_george_cd.geo.json',
-  csd: '/data/census/prince_george_csd.geo.json',
-  ct: '/data/census/prince_george_ct.geo.json',
-  da: '/data/census/prince_george_da.geo.json',
+  cd: '/data/census/bc-da-simplified/parents/cd.geojson',
+  csd: '/data/census/bc-da-simplified/parents/csd.geojson',
+  ct: '/data/census/bc-da-simplified/parents/ct.geojson',
+  da: '/data/census/bc-da-simplified/manifest.json',
+  db: '/data/census/prince_george_db.geo.json',
   bcDaSimplified: '/data/census/bc-da-simplified/manifest.json',
 }
 const CITY_FILE_BY_LEVEL: Record<CityBoundaryLevel, string> = {
@@ -102,7 +103,7 @@ const WALKABILITY_COMMUNITY_FILE_BY_LEVEL: Record<WalkabilityCommunityBoundaryLe
 const HEALTH_LEVEL_SET = new Set<BoundaryLevel>(['healthAuthority', 'hsda', 'lha', 'chsa'])
 const REGIONAL_DISTRICT_LEVEL_SET = new Set<RegionalDistrictBoundaryLevel>(['regionalDistrict'])
 const MUNICIPALITY_LEVEL_SET = new Set<MunicipalityBoundaryLevel>(['municipality'])
-const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'ct', 'da', 'bcDaSimplified'])
+const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'ct', 'da', 'db', 'bcDaSimplified'])
 const COMMUNITY_LEVEL_SET = new Set<CommunityBoundaryLevel>(['communityPolygon'])
 const CITY_LEVEL_SET = new Set<CityBoundaryLevel>(['elementarySchoolCatchment', 'secondarySchoolCatchment'])
 const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
@@ -308,10 +309,14 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  if (level === 'bcDaSimplified') {
-    const manifest = await fetchJson<{ chunks: Array<{ path: string }> }>(CENSUS_FILE_BY_LEVEL[level], signal)
+  if (level === 'da' || level === 'bcDaSimplified') {
+    const manifest = await fetchJson<{
+      chunks: Array<{ path: string }>
+      levels?: Array<{ id: string; chunks: Array<{ path: string }> }>
+    }>(CENSUS_FILE_BY_LEVEL[level], signal)
+    const chunks = manifest.levels?.find((entry) => entry.id === 'overview')?.chunks ?? manifest.chunks
     const collections = await Promise.all(
-      manifest.chunks.map((chunk) => fetchJson<BoundaryFeatureCollection>(`/data/census/bc-da-simplified/${chunk.path}`, signal)),
+      chunks.map((chunk) => fetchJson<BoundaryFeatureCollection>(`/data/census/bc-da-simplified/${chunk.path}`, signal)),
     )
     const sortedRegions = sortRegions(collections.flatMap((collection) => (
       collection.features
@@ -352,11 +357,11 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
       if (!feature) return null
 
       const properties = (feature.properties ?? {}) as Record<string, unknown>
-      const code = String(properties.id ?? properties.code ?? '').trim()
+      const code = String(properties.boundaryCode ?? properties.id ?? properties.code ?? '').trim()
       if (!code) return null
 
-      const displayName = String(properties.name ?? code).trim() || code
-      const areaKm2 = area(feature) / 1_000_000
+      const displayName = String(properties.boundaryName ?? properties.name ?? code).trim() || code
+      const areaKm2 = Number(properties.areaKm2 ?? properties.areaSqKm ?? area(feature) / 1_000_000)
       const bounds = bbox(feature) as [number, number, number, number]
 
       return {

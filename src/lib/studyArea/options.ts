@@ -59,7 +59,7 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
   {
     value: 'census',
     label: 'Census boundaries',
-    description: 'PG census division -> dissemination area',
+    description: 'BC census hierarchy, PG dissemination blocks',
     group: 'Administrative',
   },
   {
@@ -154,7 +154,7 @@ export const MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<Municipali
 ]
 
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CensusBoundaryLevel>[] = [
-  ...createStudyAreaLevelOptions(['cd', 'csd', 'ct', 'da'] as const),
+  ...createStudyAreaLevelOptions(['cd', 'csd', 'ct', 'da', 'db'] as const),
 ]
 
 export const COMMUNITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CommunityBoundaryLevel>[] = [

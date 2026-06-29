@@ -11,10 +11,11 @@ import type { ScoreDataSource } from '../../src/maps/scorebuilder/types'
 
 const boundaryMatrix = {
   census: [
-    { level: 'cd', label: 'Census Division', count: 1 },
-    { level: 'csd', label: 'Census Subdivision', count: 1 },
-    { level: 'ct', label: 'Census Tract', count: 23 },
-    { level: 'da', label: 'Dissemination Area', count: 135 },
+    { level: 'cd', label: 'Census Division', count: 29 },
+    { level: 'csd', label: 'Census Subdivision', count: 751 },
+    { level: 'ct', label: 'Census Tract', count: 844 },
+    { level: 'da', label: 'Dissemination Area', count: 7848 },
+    { level: 'db', label: 'Dissemination Block', count: 1011 },
   ],
   bcHealth: [
     { level: 'healthAuthority', label: 'Health Authority', count: 5 },
@@ -189,14 +190,14 @@ test.describe('Score Builder desktop interface', () => {
     const errorMessage = page.getByText('Unable to build scores')
 
     await page.locator('[data-score-builder-tab="regions"]').click()
-    await expect(regionStats).toContainText('23 of 23 regions', { timeout: 20_000 })
-    await expectLevelOptions(page, ['Census Division', 'Census Subdivision', 'Census Tract', 'Dissemination Area'])
+    await expect(regionStats).toContainText('844 of 844 regions', { timeout: 20_000 })
+    await expectLevelOptions(page, ['Census Division', 'Census Subdivision', 'Census Tract', 'Dissemination Area', 'Dissemination Block'])
 
     await selectLevel(page, 'Dissemination Area')
     await expect(levelTrigger).toContainText('Dissemination Area')
     await expect(loadingMessage).toBeHidden({ timeout: 30_000 })
     await expect(errorMessage).toHaveCount(0)
-    await expect(regionStats).toContainText('135 of 135 regions')
+    await expect(regionStats).toContainText('7,848 of 7,848 regions')
 
     await page.locator('[data-score-builder-boundary-source="bcHealth"]').click()
     await expectLevelOptions(page, ['Health Authority', 'HSDA', 'LHA', 'CHSA'])
@@ -224,7 +225,8 @@ test.describe('Score Builder desktop interface', () => {
         await expect(levelTrigger).toContainText(entry.label)
         await expect(loadingMessage).toBeHidden({ timeout: 30_000 })
         await expect(errorMessage).toHaveCount(0)
-        await expect(regionStats).toContainText(`${entry.count} of ${entry.count} regions`, { timeout: 30_000 })
+        const formattedCount = entry.count.toLocaleString()
+        await expect(regionStats).toContainText(`${formattedCount} of ${formattedCount} regions`, { timeout: 30_000 })
         await expect(page).toHaveURL(new RegExp(`src=${source}.*level=${entry.level}`))
       }
     }
