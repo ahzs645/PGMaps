@@ -610,6 +610,7 @@ function findSelectedParentBoundary(views: ParentBoundaryView[], selectedParentI
 
 function mapBcDaChunkFeatureToRegion(
   rawFeature: GeoJSON.Feature<GeoJSON.Geometry | null, Record<string, unknown>>,
+  level: ChunkedCensusLevel,
 ): StudyAreaRegion | null {
   if (!rawFeature.geometry || (rawFeature.geometry.type !== 'Polygon' && rawFeature.geometry.type !== 'MultiPolygon')) {
     return null
@@ -620,16 +621,17 @@ function mapBcDaChunkFeatureToRegion(
   const code = String(properties.boundaryCode ?? properties.DAUID ?? properties.id ?? '').trim()
   if (!code) return null
 
-  const displayName = String(properties.boundaryName ?? properties.name ?? `DA ${code}`).trim() || `DA ${code}`
-  const areaKm2 = Number(properties.areaKm2 ?? area(feature) / 1_000_000)
+  const fallbackPrefix = level === BC_DB_CHUNKED_LEVEL ? 'DB' : 'DA'
+  const displayName = String(properties.boundaryName ?? properties.name ?? `${fallbackPrefix} ${code}`).trim() || `${fallbackPrefix} ${code}`
+  const areaKm2 = Number(properties.areaKm2 ?? properties.areaSqKm ?? area(feature) / 1_000_000)
   const bounds = bbox(feature) as BoundaryBbox
 
   return {
-    id: `census:${BC_DA_SIMPLIFIED_LEVEL}:${code}`,
+    id: `census:${level}:${code}`,
     code,
     name: displayName,
     source: 'census',
-    level: BC_DA_SIMPLIFIED_LEVEL,
+    level,
     feature,
     bounds,
     areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
@@ -869,6 +871,16 @@ function DevBoundaries() {
     () => chooseBcDaLevel(activeCensusChunkManifest, mapZoom),
     [activeCensusChunkManifest, mapZoom],
   )
+  const activeCensusChunkMinimumZoom = useMemo(() => {
+    const levels = getBcDaManifestLevels(activeCensusChunkManifest)
+    if (levels.length === 0) return null
+    return Math.min(...levels.map((level) => level.minZoom))
+  }, [activeCensusChunkManifest])
+  const chunkedCensusZoomHint = activeCensusChunkLevel
+    && activeCensusChunkMinimumZoom !== null
+    && mapZoom < activeCensusChunkMinimumZoom
+    ? `${getStudyAreaLevelLabel(activeCensusChunkLevel)} boundaries appear at z${activeCensusChunkMinimumZoom}+`
+    : null
   const activeVisibleCensusChunks = useMemo(() => {
     if (!activeCensusChunkDetailLevel || !mapBounds) return []
     return activeCensusChunkDetailLevel.chunks.filter((chunk) => bboxesIntersect(chunk.bbox, mapBounds))
@@ -971,7 +983,7 @@ function DevBoundaries() {
         })
         .then((collection) => {
           const regions = collection.features
-            .map((feature) => mapBcDaChunkFeatureToRegion(feature))
+            .map((feature) => mapBcDaChunkFeatureToRegion(feature, activeCensusChunkLevel))
             .filter((region): region is StudyAreaRegion => region !== null)
             .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
 
@@ -1705,6 +1717,11 @@ function DevBoundaries() {
         doubleClickZoom={false}
       >
         <MapControls position="top-right" mobilePosition="bottom-right" />
+        {chunkedCensusZoomHint && (
+          <div className="pointer-events-none absolute left-1/2 top-4 z-20 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md border border-border bg-background/95 px-3 py-2 text-center text-xs font-medium text-foreground shadow-sm">
+            {chunkedCensusZoomHint}
+          </div>
+        )}
         <TrackMapBounds onBoundsChange={setMapBounds} onZoomChange={setMapZoom} />
         <FitToRegions
           regions={fitRegions}
