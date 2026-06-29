@@ -291,6 +291,7 @@ function DevHealthMsp() {
       sidebar={sidebar}
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((value) => !value)}
+      desktopSidebarWidth={380}
       mobileInitialSheetState="half"
       selectedFeatureMobilePeek={selected ? {
         title: selected.properties.payeeName,

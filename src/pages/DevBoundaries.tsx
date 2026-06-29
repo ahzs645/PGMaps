@@ -180,6 +180,54 @@ function sourceLabel(source: BoundarySource) {
   return BOUNDARY_SOURCE_OPTIONS.find((option) => option.value === source)?.label ?? source
 }
 
+function regionSearchText(region: StudyAreaRegion) {
+  const properties = region.feature.properties ?? {}
+  return [
+    region.name,
+    region.code,
+    sourceLabel(region.source),
+    getStudyAreaLevelLabel(region.level),
+    properties.parentCdId,
+    properties.parentCdName,
+    properties.parentCsdId,
+    properties.parentCsdName,
+    properties.parentCtId,
+    properties.parentCtName,
+    properties.CDUID,
+    properties.CDNAME,
+    properties.CSDUID,
+    properties.CSDNAME,
+    properties.CTUID,
+    properties.CTNAME,
+  ].filter((value) => value != null).join(' ').toLowerCase()
+}
+
+function censusParentRows(properties: Record<string, unknown>) {
+  return [
+    {
+      label: 'Census division',
+      code: properties.parentCdId ?? properties.CDUID,
+      name: properties.parentCdName ?? properties.CDNAME,
+    },
+    {
+      label: 'Subdivision',
+      code: properties.parentCsdId ?? properties.CSDUID,
+      name: properties.parentCsdName ?? properties.CSDNAME,
+    },
+    {
+      label: 'Census tract',
+      code: properties.parentCtId ?? properties.CTUID,
+      name: properties.parentCtName ?? properties.CTNAME,
+    },
+  ].filter((row) => row.code || row.name)
+}
+
+function censusParentSummary(properties: Record<string, unknown>) {
+  const rows = censusParentRows(properties)
+  if (rows.length === 0) return null
+  return rows.map((row) => `${row.label}: ${row.name ?? row.code}${row.code && row.name ? ` (${row.code})` : ''}`).join(' · ')
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => {
     switch (char) {
@@ -523,12 +571,7 @@ function DevBoundaries() {
         : cache[layer.key]
       const regions = chunkedLayer ? bcDaRegions : entry?.regions ?? EMPTY_REGIONS
       const filteredRegions = term
-        ? regions.filter((region) => (
-            region.name.toLowerCase().includes(term) ||
-            region.code.toLowerCase().includes(term) ||
-            sourceLabel(region.source).toLowerCase().includes(term) ||
-            getStudyAreaLevelLabel(region.level).toLowerCase().includes(term)
-          ))
+        ? regions.filter((region) => regionSearchText(region).includes(term))
         : regions
 
       return {
@@ -972,14 +1015,16 @@ function DevBoundaries() {
             selectionWidth={3}
             onFeatureClick={handleFeatureClick}
             hoverHtml={layer.key === topLayerKey
-              ? (properties) => (
-                  `<div class="min-w-48 max-w-72 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
+              ? (properties) => {
+                  const parents = censusParentSummary(properties)
+                  return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
                     <div class="font-semibold leading-5">${escapeHtml(String(properties.boundaryName ?? ''))}</div>
                     <div class="mt-1 text-muted-foreground">${escapeHtml(sourceLabel(String(properties.boundarySource ?? layer.source) as BoundarySource))} &middot; ${escapeHtml(getStudyAreaLevelLabel(String(properties.boundaryLevel ?? '')))}</div>
                     <div class="mt-1 text-muted-foreground">${escapeHtml(String(properties.boundaryCode ?? ''))}</div>
+                    ${parents ? `<div class="mt-2 text-muted-foreground">${escapeHtml(parents)}</div>` : ''}
                     <div class="mt-2 font-semibold">${escapeHtml(formatArea(Number(properties.areaKm2 ?? 0)))}</div>
                   </div>`
-                )
+                }
               : undefined}
           />
         ))}
@@ -1041,6 +1086,19 @@ function DevBoundaries() {
             <div className="min-w-56 text-sm">
               <div className="font-semibold text-foreground">{selectedRegion.name}</div>
               <div className="mt-1 text-xs text-muted-foreground">{selectedRegion.code}</div>
+              {selectedRegion.level === BC_DA_SIMPLIFIED_LEVEL && censusParentRows(selectedRegion.feature.properties ?? {}).length > 0 && (
+                <div className="mt-3 space-y-1.5 rounded border bg-muted/30 p-2 text-xs">
+                  {censusParentRows(selectedRegion.feature.properties ?? {}).map((row) => (
+                    <div key={row.label} className="flex items-start justify-between gap-3">
+                      <span className="text-muted-foreground">{row.label}</span>
+                      <span className="text-right font-medium text-foreground">
+                        {String(row.name ?? row.code)}
+                        {row.code && row.name && <span className="ml-1 text-muted-foreground">({String(row.code)})</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded border bg-muted/30 p-2">
                   <div className="text-[10px] text-muted-foreground">Study area</div>

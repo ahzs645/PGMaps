@@ -33,6 +33,7 @@ jobs:
       - run: npm run census:variables
       - run: npm run bc-assessment:build
       - run: npm run indigenous:copy
+      - run: npm run health:msp-facilities
       - run: npm run build
         env:
           PGMAPS_SKIP_VENDOR_DATA_SYNC: '1'

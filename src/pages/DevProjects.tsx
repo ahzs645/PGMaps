@@ -12,7 +12,7 @@ import {
   FolderKanban,
   FolderOpen,
   Layers,
-  Map,
+  Map as MapIcon,
   PanelRight,
   Search,
   Settings2,
@@ -24,14 +24,61 @@ import {
   DESKTOP_SIDEBAR_MIN_WIDTH,
   MapSectionLayout,
 } from '@/components/layout/MapSectionLayout'
+import { Map as PgMap, MapControls } from '@/components/ui/map'
+import { MapFillLayer, MapRasterLayer } from '@/components/ui/map-layers'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { MAP_STYLES } from '@/components/ui/map-styles'
 import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
+import healthAuthorityBoundaries from '../../public/data/boundaries/BCMoH/simplified/health_authorities.json'
 
 type ProjectKind = 'raster-story' | 'index-preset' | 'research-pack'
 type ControllerTab = 'layers' | 'project'
 type CatalogFilter = 'all' | ProjectKind
+type MapBounds = [number, number, number, number]
+type GeoCoordinate = [number, number]
+type GeoRing = GeoCoordinate[]
+type GeoPolygon = GeoRing[]
+
+type BoundaryGeometry =
+  | {
+      type: 'Polygon'
+      coordinates: GeoPolygon
+    }
+  | {
+      type: 'MultiPolygon'
+      coordinates: GeoPolygon[]
+    }
+
+type BoundaryFeature = {
+  type: 'Feature'
+  properties: Record<string, number | string | null>
+  geometry: BoundaryGeometry
+}
+
+type BoundaryFeatureCollection = {
+  type: 'FeatureCollection'
+  features: BoundaryFeature[]
+}
+
+type PortalRasterLayer = {
+  id: string
+  layerName: string
+  mapPath?: string
+  bounds: MapBounds
+}
+
+type PortalContextWmsLayer = {
+  id: string
+  layerName: string
+  mapPath: string
+  opacity: number
+  legendColor: string
+  legendLabel: string
+  legendShape?: 'circle' | 'square' | 'line' | 'dashed-line'
+}
 
 type ProjectLayer = {
   id: string
@@ -66,6 +113,8 @@ type ProjectDefinition = {
   accent: string
   iconTone: string
   rasterBackground: string
+  mapBounds?: MapBounds
+  portalRasterLayers?: PortalRasterLayer[]
   catalogMetrics: Array<{ label: string; value: string }>
   layers: ProjectLayer[]
   legend: Array<{ label: string; color: string }>
@@ -74,6 +123,105 @@ type ProjectDefinition = {
   rankedAreas: Array<{ label: string; value: string; tone: string }>
   files: Array<{ label: string; detail: string }>
 }
+
+const NECHAKO_PORTAL_WMS_ENDPOINT = 'https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/'
+const NECHAKO_PORTAL_WMS_MAP = '/var/www/qgis_maps/northern_health/northern_health.qgz'
+const NECHAKO_WATERBODIES_WMS_MAP = '/var/www/qgis_maps/waterbodies/waterbodies.qgs'
+const NORTHERN_HEALTH_BOUNDS: MapBounds = [-139.000001, 51.916666, -118.25, 60]
+const NORTHERN_HEALTH_CENTER: [number, number] = [-128.6, 56.2]
+const PROJECT_MAP_STYLES = {
+  light: MAP_STYLES.light,
+  dark: MAP_STYLES.light,
+}
+const HEALTH_AUTHORITY_BOUNDARY_COLLECTION = healthAuthorityBoundaries as unknown as BoundaryFeatureCollection
+const NORTHERN_HEALTH_BOUNDARY = HEALTH_AUTHORITY_BOUNDARY_COLLECTION.features.find((feature) => {
+  return feature.properties.HLTH_AUTHORITY_NAME === 'Northern'
+})
+const NORTHERN_HEALTH_FEATURE_COLLECTION: GeoJSON.FeatureCollection<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  GeoJSON.GeoJsonProperties
+> = {
+  type: 'FeatureCollection',
+  features: NORTHERN_HEALTH_BOUNDARY
+    ? [
+        {
+          type: 'Feature',
+          geometry: NORTHERN_HEALTH_BOUNDARY.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon,
+          properties: {
+            id: 'northern-health',
+            name: 'Northern Health',
+            source: 'BC Ministry of Health',
+          },
+        },
+      ]
+    : [],
+}
+
+const ECHOSCREEN_CONTEXT_WMS_LAYERS: PortalContextWmsLayer[] = [
+  {
+    id: 'fraser-nechako',
+    layerName: 'Fraser Watershed',
+    mapPath: NECHAKO_WATERBODIES_WMS_MAP,
+    opacity: 0.8,
+    legendColor: '#2563eb',
+    legendLabel: 'Fraser watershed',
+    legendShape: 'line',
+  },
+  {
+    id: 'fraser-nechako',
+    layerName: 'Nechako Watershed',
+    mapPath: NECHAKO_WATERBODIES_WMS_MAP,
+    opacity: 0.82,
+    legendColor: '#0891b2',
+    legendLabel: 'Nechako watershed',
+    legendShape: 'line',
+  },
+  {
+    id: 'rivers',
+    layerName: 'Lake',
+    mapPath: NECHAKO_WATERBODIES_WMS_MAP,
+    opacity: 0.85,
+    legendColor: '#7dd3fc',
+    legendLabel: 'Lakes',
+    legendShape: 'square',
+  },
+  {
+    id: 'rivers',
+    layerName: 'River',
+    mapPath: NECHAKO_WATERBODIES_WMS_MAP,
+    opacity: 0.85,
+    legendColor: '#0284c7',
+    legendLabel: 'Rivers',
+    legendShape: 'line',
+  },
+  {
+    id: 'rivers',
+    layerName: 'Stream (order 5 and up)',
+    mapPath: NECHAKO_WATERBODIES_WMS_MAP,
+    opacity: 0.72,
+    legendColor: '#38bdf8',
+    legendLabel: 'Major streams',
+    legendShape: 'line',
+  },
+  {
+    id: 'hospitals',
+    layerName: 'Hospitals',
+    mapPath: NECHAKO_PORTAL_WMS_MAP,
+    opacity: 1,
+    legendColor: '#111827',
+    legendLabel: 'Hospitals',
+    legendShape: 'circle',
+  },
+  {
+    id: 'watershed-labels',
+    layerName: 'Watershed Labels',
+    mapPath: NECHAKO_WATERBODIES_WMS_MAP,
+    opacity: 0.95,
+    legendColor: '#64748b',
+    legendLabel: 'Watershed labels',
+    legendShape: 'dashed-line',
+  },
+]
 
 const PROJECTS: ProjectDefinition[] = [
   {
@@ -91,15 +239,33 @@ const PROJECTS: ProjectDefinition[] = [
     summary:
       'Climate and health exchange map with watershed context, health facilities, future heat rasters, and precipitation-change layers.',
     sourceNote:
-      'Climate variables use CMIP6 CanDCS-U6 SSP585 rasters from ClimateData.ca. This project behaves like a story package, not a weighted index.',
+      'Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. Northern Health is drawn from the local BC Ministry of Health boundary data.',
     accent: 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/35 dark:text-cyan-100',
     iconTone: 'bg-cyan-600',
     rasterBackground:
       'radial-gradient(circle at 66% 24%, rgba(220, 38, 38, 0.82) 0 8%, rgba(249, 115, 22, 0.68) 13%, transparent 25%), radial-gradient(circle at 42% 58%, rgba(245, 158, 11, 0.62) 0 12%, rgba(234, 88, 12, 0.42) 20%, transparent 33%), radial-gradient(circle at 74% 72%, rgba(185, 28, 28, 0.65) 0 9%, transparent 23%), linear-gradient(135deg, rgba(21, 128, 61, 0.18), rgba(14, 116, 144, 0.16))',
+    mapBounds: NORTHERN_HEALTH_BOUNDS,
+    portalRasterLayers: [
+      {
+        id: 'hot-days-past',
+        layerName: 'Days >30C (1971-2000) NH (source: ClimateData.ca)',
+        bounds: NORTHERN_HEALTH_BOUNDS,
+      },
+      {
+        id: 'hot-days-future',
+        layerName: 'Days >30C (2071-2100) NH (source: ClimateData.ca)',
+        bounds: NORTHERN_HEALTH_BOUNDS,
+      },
+      {
+        id: 'precip-change',
+        layerName: 'Change in winter precip (between 1971-2000 and 2071-2100) (source: ClimateData.ca)',
+        bounds: NORTHERN_HEALTH_BOUNDS,
+      },
+    ],
     catalogMetrics: [
       { label: 'Scenes', value: '4' },
       { label: 'Layers', value: '9' },
-      { label: 'Raster', value: 'SSP585' },
+      { label: 'Raster', value: 'Portal WMS' },
     ],
     layers: [
       { id: 'topo', label: 'ESRI Topo', type: 'base', checked: true, locked: true },
@@ -108,9 +274,9 @@ const PROJECTS: ProjectDefinition[] = [
       { id: 'northern-health', label: 'Northern Health', type: 'boundary', checked: true },
       { id: 'rivers', label: 'River and lake network', type: 'line', checked: true },
       { id: 'fraser-nechako', label: 'Fraser and Nechako watersheds', type: 'boundary', checked: true },
-      { id: 'hot-days-past', label: 'Days >30C, 1971-2000', type: 'raster', checked: false },
-      { id: 'hot-days-future', label: 'Days >30C, 2071-2100', type: 'raster', checked: true },
-      { id: 'precip-change', label: 'Seasonal precipitation change', type: 'raster', checked: false },
+      { id: 'hot-days-past', label: 'Days >30C NH, 1971-2000', type: 'raster', checked: false },
+      { id: 'hot-days-future', label: 'Days >30C NH, 2071-2100', type: 'raster', checked: true },
+      { id: 'precip-change', label: 'Winter precip change', type: 'raster', checked: false },
     ],
     legend: [
       { label: 'Low projected heat', color: '#fef3c7' },
@@ -168,8 +334,8 @@ const PROJECTS: ProjectDefinition[] = [
     ],
     files: [
       { label: 'Project package', detail: 'Layers, style, scenes, and notes' },
-      { label: 'Climate rasters', detail: 'Past and future hot-day surfaces' },
-      { label: 'Description', detail: 'Event context and source note' },
+      { label: 'Nechako portal WMS', detail: 'ClimateData.ca raster layers' },
+      { label: 'BCMoH boundary', detail: 'Local Northern Health multipolygon' },
     ],
   },
   {
@@ -453,12 +619,43 @@ const TAB_LABELS: Record<ControllerTab, string> = {
   project: 'Project',
 }
 
+function buildPortalWmsTileUrl(layerName: string, mapPath = NECHAKO_PORTAL_WMS_MAP) {
+  return [
+    `${NECHAKO_PORTAL_WMS_ENDPOINT}?MAP=${encodeURIComponent(mapPath)}`,
+    'SERVICE=WMS',
+    'VERSION=1.1.1',
+    'REQUEST=GetMap',
+    `LAYERS=${encodeURIComponent(layerName)}`,
+    'STYLES=',
+    'FORMAT=image/png',
+    'TRANSPARENT=TRUE',
+    'SRS=EPSG:3857',
+    'WIDTH=256',
+    'HEIGHT=256',
+    'BBOX={bbox-epsg-3857}',
+  ].join('&')
+}
+
+function buildPortalWmsLegendUrl(layerName: string, mapPath = NECHAKO_PORTAL_WMS_MAP) {
+  const params = new URLSearchParams({
+    MAP: mapPath,
+    SERVICE: 'WMS',
+    VERSION: '1.1.1',
+    REQUEST: 'GetLegendGraphic',
+    LAYER: layerName,
+    FORMAT: 'image/png',
+    STYLE: 'default',
+  })
+
+  return `${NECHAKO_PORTAL_WMS_ENDPOINT}?${params.toString()}`
+}
+
 function defaultVisibleLayerIds(project: ProjectDefinition) {
   return new Set(project.layers.filter((layer) => layer.checked).map((layer) => layer.id))
 }
 
 function layerIcon(layer: ProjectLayer) {
-  if (layer.type === 'raster') return <Map className="h-3.5 w-3.5" />
+  if (layer.type === 'raster') return <MapIcon className="h-3.5 w-3.5" />
   if (layer.type === 'boundary') return <PanelRight className="h-3.5 w-3.5" />
   if (layer.type === 'point') return <FolderOpen className="h-3.5 w-3.5" />
   if (layer.type === 'line') return <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -527,6 +724,17 @@ function ProjectMapPreview({
   rasterOpacity: number
   className?: string
 }) {
+  if (project.portalRasterLayers) {
+    return (
+      <ProjectPortalMapPreview
+        project={project}
+        visibleLayerIds={visibleLayerIds}
+        rasterOpacity={rasterOpacity}
+        className={className}
+      />
+    )
+  }
+
   const showRaster =
     visibleLayerIds.has('hot-days-future') ||
     visibleLayerIds.has('hot-days-past') ||
@@ -609,32 +817,167 @@ function ProjectMapPreview({
           ))}
         </>
       )}
+
+      <ProjectMapLegend project={project} visibleLayerIds={visibleLayerIds} />
     </div>
   )
 }
 
-function ProjectMapLegend({ project }: { project: ProjectDefinition }) {
+function ProjectPortalMapPreview({
+  project,
+  visibleLayerIds,
+  rasterOpacity,
+  className,
+}: {
+  project: ProjectDefinition
+  visibleLayerIds: Set<string>
+  rasterOpacity: number
+  className?: string
+}) {
+  const mapBounds = project.mapBounds ?? NORTHERN_HEALTH_BOUNDS
+  const activePortalRasterLayers =
+    project.portalRasterLayers?.filter((layer) => visibleLayerIds.has(layer.id)) ?? []
+  const activeContextLayers = ECHOSCREEN_CONTEXT_WMS_LAYERS.filter((layer) => visibleLayerIds.has(layer.id))
+  const activeRasterLayer = activePortalRasterLayers[activePortalRasterLayers.length - 1] ?? null
+  const showNorthernHealthBoundary =
+    visibleLayerIds.has('northern-health') && NORTHERN_HEALTH_FEATURE_COLLECTION.features.length > 0
+
   return (
-    <div className="absolute bottom-4 right-4 z-20 w-56 overflow-hidden rounded-lg border bg-background/92 shadow-sm backdrop-blur">
-      <div
-        className="h-2"
-        style={{ background: `linear-gradient(90deg, ${project.legend.map((item) => item.color).join(', ')})` }}
-      />
-      <div className="p-3">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Legend</div>
-          <div className="text-[11px] font-medium text-muted-foreground">{KIND_LABELS[project.kind]}</div>
-        </div>
-        <div className="space-y-1.5">
-          {project.legend.map((item) => (
-            <div key={item.label} className="flex items-center gap-2 text-xs text-foreground">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-sm border" style={{ backgroundColor: item.color }} />
-              <span className="truncate">{item.label}</span>
+    <div
+      className={cn(
+        'relative min-h-[420px] overflow-hidden rounded-lg border bg-slate-100 shadow-sm dark:bg-slate-950 lg:min-h-[calc(100vh-12rem)]',
+        className,
+      )}
+    >
+      <PgMap
+        className="h-full w-full"
+        center={NORTHERN_HEALTH_CENTER}
+        zoom={4.35}
+        minZoom={3}
+        maxZoom={11}
+        maxBounds={[
+          [mapBounds[0] - 2, mapBounds[1] - 2],
+          [mapBounds[2] + 2, mapBounds[3] + 2],
+        ]}
+        styles={PROJECT_MAP_STYLES}
+        showStyleLoadingOverlay={false}
+      >
+        <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
+
+        {activePortalRasterLayers.map((layer) => (
+          <MapRasterLayer
+            key={layer.id}
+            tiles={[buildPortalWmsTileUrl(layer.layerName, layer.mapPath)]}
+            opacity={rasterOpacity / 100}
+            tileSize={256}
+            minZoom={3}
+            maxZoom={11}
+            attribution="Nechako Watershed Portal, ClimateData.ca"
+          />
+        ))}
+
+        {activeContextLayers.map((layer) => (
+          <MapRasterLayer
+            key={`${layer.id}-${layer.layerName}`}
+            tiles={[buildPortalWmsTileUrl(layer.layerName, layer.mapPath)]}
+            opacity={layer.opacity}
+            tileSize={256}
+            minZoom={3}
+            maxZoom={12}
+            attribution="Nechako Watershed Portal"
+          />
+        ))}
+
+        {showNorthernHealthBoundary && (
+          <MapFillLayer
+            data={NORTHERN_HEALTH_FEATURE_COLLECTION}
+            fillColor="#06b6d4"
+            fillOpacity={0.07}
+            lineColor="#0f172a"
+            lineWidth={1.5}
+            lineOpacity={0.68}
+          />
+        )}
+
+        <ProjectMapLegend
+          project={project}
+          visibleLayerIds={visibleLayerIds}
+          activePortalRasterLayer={activeRasterLayer}
+          contextLayers={activeContextLayers}
+        />
+      </PgMap>
+    </div>
+  )
+}
+
+function ProjectMapLegend({
+  project,
+  visibleLayerIds,
+  activePortalRasterLayer = null,
+  contextLayers = [],
+}: {
+  project: ProjectDefinition
+  visibleLayerIds: Set<string>
+  activePortalRasterLayer?: PortalRasterLayer | null
+  contextLayers?: PortalContextWmsLayer[]
+}) {
+  const activeRasterLabel = activePortalRasterLayer
+    ? (project.layers.find((layer) => layer.id === activePortalRasterLayer.id)?.label ?? activePortalRasterLayer.layerName)
+    : null
+  const showLocalNorthernHealth =
+    project.slug === 'echoscreen-climate-health' && visibleLayerIds.has('northern-health')
+  const fallbackLegendColors = project.legend.map((item) => item.color)
+
+  return (
+    <MapLegendPanel title="Legend" width="sm" collapsible className="max-h-[min(28rem,calc(100%-2rem))] overflow-auto">
+      <div className="space-y-3">
+        {activePortalRasterLayer ? (
+          <div>
+            <div className="mb-1 text-xs font-semibold text-foreground">{activeRasterLabel}</div>
+            <img
+              src={buildPortalWmsLegendUrl(activePortalRasterLayer.layerName, activePortalRasterLayer.mapPath)}
+              alt={`${activeRasterLabel} legend`}
+              className="max-h-24 w-full rounded border bg-white object-contain p-1"
+            />
+            <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
+              Portal WMS raster, ClimateData.ca source layer.
             </div>
+          </div>
+        ) : (
+          <div>
+            <div className="mb-1 text-xs font-semibold text-foreground">{KIND_LABELS[project.kind]}</div>
+            <MapGradientLegendItem
+              colors={fallbackLegendColors}
+              minLabel={project.legend[0]?.label ?? 'Lower'}
+              maxLabel={project.legend[project.legend.length - 1]?.label ?? 'Higher'}
+            />
+          </div>
+        )}
+
+        <div className="space-y-1 border-t pt-2 text-[11px]">
+          {showLocalNorthernHealth && (
+            <LegendItem
+              color="#0f172a"
+              label="Northern Health"
+              value="local BCMoH"
+              swatchShape="line"
+            />
+          )}
+          {contextLayers.map((layer) => (
+            <LegendItem
+              key={`${layer.id}-${layer.layerName}`}
+              color={layer.legendColor}
+              label={layer.legendLabel}
+              active={visibleLayerIds.has(layer.id)}
+              swatchShape={layer.legendShape}
+            />
           ))}
+          {!showLocalNorthernHealth && contextLayers.length === 0 && (
+            <div className="text-[10px] leading-snug text-muted-foreground">Toggle layers to update the map stack.</div>
+          )}
         </div>
       </div>
-    </div>
+    </MapLegendPanel>
   )
 }
 
@@ -933,6 +1276,12 @@ function ProjectCatalogPage({
                       <div>
                         <span className="font-medium text-foreground">Lab:</span> {getLabUrl(project)}
                       </div>
+                      {project.portalRasterLayers && (
+                        <div>
+                          <span className="font-medium text-foreground">Raster:</span> Nechako WMS (
+                          {project.portalRasterLayers.length})
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1126,8 +1475,6 @@ function LoadedProjectWorkspace({
             rasterOpacity={rasterOpacity}
             className="h-full min-h-0 rounded-none border-0 shadow-none lg:min-h-0"
           />
-
-          <ProjectMapLegend project={project} />
         </div>
       </MapSectionLayout>
     </div>
