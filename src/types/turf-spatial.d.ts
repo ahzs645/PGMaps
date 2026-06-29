@@ -17,6 +17,15 @@ declare module '@turf/intersect' {
   ): Feature<Polygon | MultiPolygon, GeoJsonProperties> | null
 }
 
+declare module '@turf/difference' {
+  import type { Feature, GeoJsonProperties, MultiPolygon, Polygon } from 'geojson'
+
+  export default function difference(
+    poly1: Feature<Polygon | MultiPolygon, GeoJsonProperties>,
+    poly2: Feature<Polygon | MultiPolygon, GeoJsonProperties>,
+  ): Feature<Polygon | MultiPolygon, GeoJsonProperties> | null
+}
+
 declare module '@turf/union' {
   import type { Feature, GeoJsonProperties, MultiPolygon, Polygon } from 'geojson'
 

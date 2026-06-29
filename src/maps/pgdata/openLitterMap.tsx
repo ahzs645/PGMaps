@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
+import { MapClusterLayer, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import {
@@ -231,6 +231,44 @@ function getPrimaryCategory(feature: OpenLitterPointFeature): string {
   return feature.properties.categoryNames?.[0] || 'Unknown'
 }
 
+function hexSizeForZoom(zoom: number, baseSizeM: number): number {
+  if (zoom < 10) return Math.max(baseSizeM * 2.4, 800)
+  if (zoom < 11) return Math.max(baseSizeM * 1.8, 650)
+  if (zoom < 12) return Math.max(baseSizeM * 1.35, 475)
+  if (zoom < 13) return baseSizeM
+  if (zoom < 14) return Math.max(baseSizeM * 0.65, 225)
+  if (zoom < 15) return Math.max(baseSizeM * 0.34, 120)
+  if (zoom < 16) return Math.max(baseSizeM * 0.22, 75)
+  if (zoom < 17) return Math.max(baseSizeM * 0.16, 55)
+  return Math.max(baseSizeM * 0.12, 40)
+}
+
+function hexOpacityForZoom(zoom: number): number {
+  if (zoom < 11) return 0.84
+  if (zoom < 12.5) return 0.66
+  if (zoom < 13.5) return 0.5
+  if (zoom < 14.5) return 0.32
+  return 0.16
+}
+
+function hexLineOpacityForZoom(zoom: number): number {
+  if (zoom < 12.5) return 0.46
+  if (zoom < 14) return 0.3
+  return 0.16
+}
+
+function hexScaleMax(hexes: OpenLitterHexCollection | null): number {
+  const counts = (hexes?.features ?? [])
+    .map((feature) => feature.properties.litterCount)
+    .filter((count) => count > 0)
+    .sort((a, b) => a - b)
+
+  if (counts.length === 0) return 10
+
+  const percentileIndex = Math.min(counts.length - 1, Math.floor(counts.length * 0.9))
+  return Math.max(10, counts[percentileIndex])
+}
+
 function buildClientHexAggregate(
   features: OpenLitterPointFeature[],
   bounds: [number, number, number, number],
@@ -248,24 +286,50 @@ function buildClientHexAggregate(
   const dy = 1.5 * radius
   const hexes: Array<{
     id: string
+    row: number
+    col: number
     geometry: GeoJSON.Polygon
     points: OpenLitterPointFeature[]
   }> = []
+  const hexByGrid = new Map<string, (typeof hexes)[number]>()
 
   for (let y = minY - radius, row = 0; y <= maxY + radius; y += dy, row += 1) {
     const offset = row % 2 === 0 ? 0 : dx / 2
     for (let x = minX - dx, col = 0; x <= maxX + dx; x += dx, col += 1) {
-      hexes.push({
+      const hex = {
         id: `hex-${row}-${col}`,
+        row,
+        col,
         geometry: clientHexPolygon(x + offset, y, radius, metersPerLng, metersPerLat),
         points: [],
-      })
+      }
+      hexes.push(hex)
+      hexByGrid.set(`${row}:${col}`, hex)
     }
   }
 
   for (const feature of features) {
     const [lng, lat] = feature.geometry.coordinates
-    const hex = hexes.find((candidate) => pointInRing(lng, lat, candidate.geometry.coordinates[0]))
+    const projectedX = lng * metersPerLng
+    const projectedY = lat * metersPerLat
+    const approximateRow = Math.round((projectedY - (minY - radius)) / dy)
+    let hex: (typeof hexes)[number] | undefined
+
+    for (let rowDelta = -2; rowDelta <= 2 && !hex; rowDelta += 1) {
+      const row = approximateRow + rowDelta
+      const offset = row % 2 === 0 ? 0 : dx / 2
+      const rowStartX = minX - dx + offset
+      const approximateCol = Math.round((projectedX - rowStartX) / dx)
+
+      for (let colDelta = -2; colDelta <= 2; colDelta += 1) {
+        const candidate = hexByGrid.get(`${row}:${approximateCol + colDelta}`)
+        if (candidate && pointInRing(lng, lat, candidate.geometry.coordinates[0])) {
+          hex = candidate
+          break
+        }
+      }
+    }
+
     hex?.points.push(feature)
   }
 
@@ -471,11 +535,6 @@ export function useOpenLitterMapData(
     [filteredFeatures],
   )
 
-  const filteredHexes = useMemo<OpenLitterHexCollection | null>(() => {
-    if (!showHexes || !manifest.data?.bbox || filteredFeatures.length === 0) return null
-    return buildClientHexAggregate(filteredFeatures, manifest.data.bbox, manifest.data.hexSizeM || 350)
-  }, [filteredFeatures, manifest.data?.bbox, manifest.data?.hexSizeM, showHexes])
-
   const selectedFeature = useMemo(() => {
     if (!selectedId) return null
     return filteredFeatures.find((feature) => getFeatureKey(feature) === selectedId) ?? null
@@ -494,10 +553,9 @@ export function useOpenLitterMapData(
   return {
     manifest,
     points,
-    hexes: { data: filteredHexes, error: null as string | null },
+    hexes: { data: null as OpenLitterHexCollection | null, error: null as string | null },
     features,
     filteredFeatures,
-    filteredHexes,
     heatmapData,
     selectedCategory,
     setSelectedCategory,
@@ -657,6 +715,19 @@ export function OpenLitterMapSourceNotes({ litter }: { litter: OpenLitterMapStat
 }
 
 export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
+  const { map, isLoaded } = useMap()
+  const [hexZoom, setHexZoom] = useState(9.4)
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    const updateZoom = () => setHexZoom(map.getZoom())
+    updateZoom()
+    map.on('zoomend', updateZoom)
+    return () => {
+      map.off('zoomend', updateZoom)
+    }
+  }, [isLoaded, map])
+
   const collectionsByCategory = useMemo(() => {
     const grouped = new Map<string, GeoJSON.FeatureCollection<GeoJSON.Point, OpenLitterPointProperties>>()
 
@@ -678,31 +749,40 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
     return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
   }, [litter.filteredFeatures])
 
-  const maxHexLitter = useMemo(
-    () => Math.max(1, ...(litter.filteredHexes?.features ?? []).map((feature) => feature.properties.litterCount)),
-    [litter.filteredHexes],
+  const dynamicHexSizeM = useMemo(
+    () => hexSizeForZoom(hexZoom, litter.manifest.data?.hexSizeM || 350),
+    [hexZoom, litter.manifest.data?.hexSizeM],
   )
+
+  const filteredHexes = useMemo<OpenLitterHexCollection | null>(() => {
+    if (!litter.showHexes || !litter.manifest.data?.bbox || litter.filteredFeatures.length === 0) return null
+    return buildClientHexAggregate(litter.filteredFeatures, litter.manifest.data.bbox, dynamicHexSizeM)
+  }, [dynamicHexSizeM, litter.filteredFeatures, litter.manifest.data?.bbox, litter.showHexes])
+
+  const maxHexLitter = useMemo(() => hexScaleMax(filteredHexes), [filteredHexes])
+  const hexOpacity = hexOpacityForZoom(hexZoom)
+  const hexLineOpacity = hexLineOpacityForZoom(hexZoom)
 
   return (
     <>
-      {litter.showHexes && litter.filteredHexes && litter.filteredHexes.features.length > 0 && (
+      {litter.showHexes && filteredHexes && filteredHexes.features.length > 0 && (
         <MapFillLayer
-          data={litter.filteredHexes}
+          data={filteredHexes}
           fillColor={[
             'interpolate',
             ['linear'],
             ['coalesce', ['to-number', ['get', 'litterCount']], 0],
             0,
-            '#fef2f2',
-            maxHexLitter * 0.5,
+            '#fef3c7',
+            maxHexLitter * 0.35,
             '#fb923c',
             maxHexLitter,
-            '#b91c1c',
+            '#dc2626',
           ]}
-          fillOpacity={0.44}
+          fillOpacity={hexOpacity}
           lineColor="#991b1b"
           lineWidth={0.45}
-          lineOpacity={0.38}
+          lineOpacity={hexLineOpacity}
           idProperty="id"
         />
       )}
@@ -744,6 +824,8 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
               data={collection}
               pointColor={color}
               clusterColors={[hexToRgba(color, 0.65), hexToRgba(color, 0.82), color]}
+              clusterMaxZoom={12}
+              clusterRadius={42}
               clusterThresholds={[50, 250]}
               onPointClick={(feature) => {
                 const featureKey = feature.properties?.featureKey

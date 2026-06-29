@@ -103,8 +103,8 @@ const WALKABILITY_COMMUNITY_LEVEL_SET = new Set<WalkabilityCommunityBoundaryLeve
 let boundaryIndexCache: BoundaryIndex | null = null
 const boundaryRegionCache = new Map<string, StudyAreaRegion[]>()
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetch(path)
+async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(path, { signal })
   if (!response.ok) {
     throw new Error(`Failed to fetch ${path}: ${response.status}`)
   }
@@ -218,20 +218,20 @@ function toPolygonFeature(feature: RawBoundaryFeature): BoundaryFeature | null {
   }
 }
 
-async function loadBoundaryIndex(): Promise<BoundaryIndex> {
+async function loadBoundaryIndex(signal?: AbortSignal): Promise<BoundaryIndex> {
   if (boundaryIndexCache) return boundaryIndexCache
-  boundaryIndexCache = await fetchJson<BoundaryIndex>(BOUNDARY_INDEX_PATH)
+  boundaryIndexCache = await fetchJson<BoundaryIndex>(BOUNDARY_INDEX_PATH, signal)
   return boundaryIndexCache
 }
 
-async function loadHealthRegions(level: BoundaryLevel): Promise<StudyAreaRegion[]> {
+async function loadHealthRegions(level: BoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
   const cacheKey = `bcHealth:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
   const [index, geometry] = await Promise.all([
-    loadBoundaryIndex(),
-    fetchJson<BoundaryFeatureCollection>(`/data/boundaries/BCMoH/${BOUNDARY_FILE_BY_LEVEL[level]}`),
+    loadBoundaryIndex(signal),
+    fetchJson<BoundaryFeatureCollection>(`/data/boundaries/BCMoH/${BOUNDARY_FILE_BY_LEVEL[level]}`, signal),
   ])
 
   const records = index[BOUNDARY_INDEX_KEY_BY_LEVEL[level]] ?? []
@@ -272,12 +272,12 @@ async function loadHealthRegions(level: BoundaryLevel): Promise<StudyAreaRegion[
   return sortedRegions
 }
 
-async function loadCensusRegions(level: CensusBoundaryLevel): Promise<StudyAreaRegion[]> {
+async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
   const cacheKey = `census:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(CENSUS_FILE_BY_LEVEL[level])
+  const geometry = await fetchJson<BoundaryFeatureCollection>(CENSUS_FILE_BY_LEVEL[level], signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {
@@ -310,12 +310,12 @@ async function loadCensusRegions(level: CensusBoundaryLevel): Promise<StudyAreaR
   return sortedRegions
 }
 
-async function loadCityRegions(level: CityBoundaryLevel): Promise<StudyAreaRegion[]> {
+async function loadCityRegions(level: CityBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
   const cacheKey = `cityPG:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(CITY_FILE_BY_LEVEL[level])
+  const geometry = await fetchJson<BoundaryFeatureCollection>(CITY_FILE_BY_LEVEL[level], signal)
   const nameKey = CITY_NAME_PROPERTY_BY_LEVEL[level]
 
   const regions = geometry.features
@@ -350,12 +350,12 @@ async function loadCityRegions(level: CityBoundaryLevel): Promise<StudyAreaRegio
   return sortedRegions
 }
 
-async function loadCommunityRegions(level: CommunityBoundaryLevel): Promise<StudyAreaRegion[]> {
+async function loadCommunityRegions(level: CommunityBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
   const cacheKey = `cityCommunity:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(COMMUNITY_FILE_BY_LEVEL[level])
+  const geometry = await fetchJson<BoundaryFeatureCollection>(COMMUNITY_FILE_BY_LEVEL[level], signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {
@@ -389,12 +389,12 @@ async function loadCommunityRegions(level: CommunityBoundaryLevel): Promise<Stud
   return sortedRegions
 }
 
-async function loadRegionalDistrictRegions(level: RegionalDistrictBoundaryLevel): Promise<StudyAreaRegion[]> {
+async function loadRegionalDistrictRegions(level: RegionalDistrictBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
   const cacheKey = `regionalDistrict:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(REGIONAL_DISTRICT_FILE_BY_LEVEL[level])
+  const geometry = await fetchJson<BoundaryFeatureCollection>(REGIONAL_DISTRICT_FILE_BY_LEVEL[level], signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {
@@ -427,12 +427,12 @@ async function loadRegionalDistrictRegions(level: RegionalDistrictBoundaryLevel)
   return sortedRegions
 }
 
-async function loadWatershedRegions(level: WatershedBoundaryLevel): Promise<StudyAreaRegion[]> {
+async function loadWatershedRegions(level: WatershedBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
   const cacheKey = `watershed:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(WATERSHED_FILE_BY_LEVEL[level])
+  const geometry = await fetchJson<BoundaryFeatureCollection>(WATERSHED_FILE_BY_LEVEL[level], signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {
@@ -469,12 +469,13 @@ async function loadStandardBoundaryRegions(
   source: BoundarySource,
   level: RegionLevel,
   filePath: string,
+  signal?: AbortSignal,
 ): Promise<StudyAreaRegion[]> {
   const cacheKey = `${source}:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(filePath)
+  const geometry = await fetchJson<BoundaryFeatureCollection>(filePath, signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {
@@ -509,12 +510,13 @@ async function loadStandardBoundaryRegions(
 
 async function loadWalkabilityCommunityRegions(
   level: WalkabilityCommunityBoundaryLevel,
+  signal?: AbortSignal,
 ): Promise<StudyAreaRegion[]> {
   const cacheKey = `walkabilityCommunity:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(WALKABILITY_COMMUNITY_FILE_BY_LEVEL[level])
+  const geometry = await fetchJson<BoundaryFeatureCollection>(WALKABILITY_COMMUNITY_FILE_BY_LEVEL[level], signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => mapWalkabilityCommunityFeatureToRegion(rawFeature, level))
@@ -528,88 +530,89 @@ async function loadWalkabilityCommunityRegions(
 export async function loadStudyAreaRegions(
   source: BoundarySource,
   level: RegionLevel,
+  signal?: AbortSignal,
 ): Promise<StudyAreaRegion[]> {
   if (source === 'bcHealth') {
     if (!isHealthBoundaryLevel(level)) {
       throw new Error(`Invalid health boundary level: ${level}`)
     }
-    return loadHealthRegions(level)
+    return loadHealthRegions(level, signal)
   }
 
   if (source === 'census') {
     if (!isCensusBoundaryLevel(level)) {
       throw new Error(`Invalid census boundary level: ${level}`)
     }
-    return loadCensusRegions(level)
+    return loadCensusRegions(level, signal)
   }
 
   if (source === 'cityPG') {
     if (!isCityBoundaryLevel(level)) {
       throw new Error(`Invalid City of Prince George boundary level: ${level}`)
     }
-    return loadCityRegions(level)
+    return loadCityRegions(level, signal)
   }
 
   if (source === 'cityCommunity') {
     if (!isCommunityBoundaryLevel(level)) {
       throw new Error(`Invalid City of Prince George community boundary level: ${level}`)
     }
-    return loadCommunityRegions(level)
+    return loadCommunityRegions(level, signal)
   }
 
   if (source === 'regionalDistrict') {
     if (!isRegionalDistrictBoundaryLevel(level)) {
       throw new Error(`Invalid regional district boundary level: ${level}`)
     }
-    return loadRegionalDistrictRegions(level)
+    return loadRegionalDistrictRegions(level, signal)
   }
 
   if (source === 'nrAdmin') {
     if (!isNrAdminBoundaryLevel(level)) {
       throw new Error(`Invalid Natural Resource admin level: ${level}`)
     }
-    return loadStandardBoundaryRegions(source, level, NR_ADMIN_FILE_BY_LEVEL[level])
+    return loadStandardBoundaryRegions(source, level, NR_ADMIN_FILE_BY_LEVEL[level], signal)
   }
 
   if (source === 'uwr') {
     if (!isUwrBoundaryLevel(level)) {
       throw new Error(`Invalid Ungulate Winter Range level: ${level}`)
     }
-    return loadStandardBoundaryRegions(source, level, UWR_FILE_BY_LEVEL[level])
+    return loadStandardBoundaryRegions(source, level, UWR_FILE_BY_LEVEL[level], signal)
   }
 
   if (source === 'crownTenure') {
     if (!isCrownTenureBoundaryLevel(level)) {
       throw new Error(`Invalid Crown tenure level: ${level}`)
     }
-    return loadStandardBoundaryRegions(source, level, CROWN_TENURE_FILE_BY_LEVEL[level])
+    return loadStandardBoundaryRegions(source, level, CROWN_TENURE_FILE_BY_LEVEL[level], signal)
   }
 
   if (source === 'rangeTenure') {
     if (!isRangeTenureBoundaryLevel(level)) {
       throw new Error(`Invalid range tenure level: ${level}`)
     }
-    return loadStandardBoundaryRegions(source, level, RANGE_TENURE_FILE_BY_LEVEL[level])
+    return loadStandardBoundaryRegions(source, level, RANGE_TENURE_FILE_BY_LEVEL[level], signal)
   }
 
   if (source === 'mineralTenure') {
     if (!isMineralTenureBoundaryLevel(level)) {
       throw new Error(`Invalid mineral tenure level: ${level}`)
     }
-    return loadStandardBoundaryRegions(source, level, MINERAL_TENURE_FILE_BY_LEVEL[level])
+    return loadStandardBoundaryRegions(source, level, MINERAL_TENURE_FILE_BY_LEVEL[level], signal)
   }
 
   if (source === 'walkabilityCommunity') {
     if (!isWalkabilityCommunityBoundaryLevel(level)) {
       throw new Error(`Invalid walkability community level: ${level}`)
     }
-    return loadWalkabilityCommunityRegions(level)
+    return loadWalkabilityCommunityRegions(level, signal)
   }
 
   if (!isWatershedBoundaryLevel(level)) {
     throw new Error(`Invalid Freshwater Atlas watershed level: ${level}`)
   }
-  return loadWatershedRegions(level)
+  return loadWatershedRegions(level, signal)
 }
 
 export function getWatershedLevelSourceNote(level: WatershedBoundaryLevel): string {
@@ -635,21 +638,27 @@ export function useStudyAreaRegions(source: BoundarySource, level: RegionLevel) 
 
   useEffect(() => {
     const controller = new AbortController()
+    let timedOut = false
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, 30_000)
 
     async function load() {
       setLoading(true)
       setError(null)
 
       try {
-        const next = await loadStudyAreaRegions(source, level)
+        const next = await loadStudyAreaRegions(source, level, controller.signal)
         if (!controller.signal.aborted) {
           setRegions(next)
         }
       } catch (err) {
-        if (controller.signal.aborted) return
-        setError((err as Error).message || 'Unable to load boundary geometry')
+        if (controller.signal.aborted && !timedOut) return
+        setError(timedOut ? 'Timed out loading boundary geometry' : (err as Error).message || 'Unable to load boundary geometry')
       } finally {
-        if (!controller.signal.aborted) {
+        window.clearTimeout(timeoutId)
+        if (!controller.signal.aborted || timedOut) {
           setLoading(false)
         }
       }
@@ -658,6 +667,7 @@ export function useStudyAreaRegions(source: BoundarySource, level: RegionLevel) 
     void load()
 
     return () => {
+      window.clearTimeout(timeoutId)
       controller.abort()
     }
   }, [source, level])

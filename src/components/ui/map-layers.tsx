@@ -40,8 +40,8 @@ type MapFillLayerProps = {
   data: GeoJSON.FeatureCollection
   /** Fill color — static string or MapLibre expression (e.g. ['get', 'color']) */
   fillColor: string | StyleExpression
-  /** Fill opacity (default: 0.72) */
-  fillOpacity?: number
+  /** Fill opacity (default: 0.72) — number or MapLibre expression */
+  fillOpacity?: number | StyleExpression
   /** Border line color — static string or MapLibre expression (default: '#0f172a') */
   lineColor?: string | StyleExpression
   /** Border line width (default: 0.7) */
@@ -115,7 +115,7 @@ function MapFillLayer({
       source: sourceId,
       paint: {
         'fill-color': fillColor as never,
-        'fill-opacity': fillOpacity,
+        'fill-opacity': fillOpacity as never,
       },
     })
 
@@ -271,7 +271,7 @@ function MapFillLayer({
     if (!isLoaded || !map) return
     if (map.getLayer(fillLayerId)) {
       map.setPaintProperty(fillLayerId, 'fill-color', fillColor as never)
-      map.setPaintProperty(fillLayerId, 'fill-opacity', fillOpacity)
+      map.setPaintProperty(fillLayerId, 'fill-opacity', fillOpacity as never)
     }
     if (map.getLayer(lineLayerId)) {
       map.setPaintProperty(lineLayerId, 'line-color', lineColor as never)

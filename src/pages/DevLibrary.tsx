@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Droplets, Handshake, MousePointerClick, Palette, RadioTower, ShieldAlert, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Droplets, Handshake, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Wind } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -39,6 +39,14 @@ const devEntries: DevEntry[] = [
     icon: Droplets,
     color: 'bg-cyan-600',
     label: '/dev/watersheds',
+  },
+  {
+    title: 'Boundaries',
+    description: 'Study-area comparison page for community, school, health, regional, census, watershed, and NR boundaries.',
+    href: '/dev/boundaries',
+    icon: MapPinned,
+    color: 'bg-teal-600',
+    label: '/dev/boundaries',
   },
   {
     title: 'Design Lab',
