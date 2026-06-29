@@ -255,7 +255,12 @@ function chunkUrl(level: ChunkedCensusLevel, path: string) {
 
 function getBcDaManifestLevels(manifest: BcDaChunkManifest | null): BcDaChunkLevel[] {
   if (!manifest) return []
-  if (manifest.levels?.length) return manifest.levels
+  if (manifest.levels?.length) {
+    return manifest.levels.map((level) => ({
+      ...level,
+      chunks: level.chunks ?? manifest.chunks,
+    }))
+  }
   return [{
     id: 'medium',
     label: 'Medium',
@@ -682,10 +687,20 @@ function FitToRegions({
   fitLayerRegions: boolean
 }) {
   const { map, isLoaded } = useMap()
+  const fittedLayerRegionsKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!isLoaded || !map || !fitLayerRegions) return
+    if (!fitLayerRegions) {
+      fittedLayerRegionsKeyRef.current = null
+      return
+    }
+    if (!isLoaded || !map) return
     if (regions.length === 0) return
+
+    const layerRegionsKey = regions.map((region) => `${region.source}:${region.level}:${region.id}`).join('|')
+    if (fittedLayerRegionsKeyRef.current === layerRegionsKey) return
+    fittedLayerRegionsKeyRef.current = layerRegionsKey
+
     const bounds = bbox(featureCollection(regions) as never) as [number, number, number, number]
     map.fitBounds(bounds, {
       padding: 48,
@@ -854,6 +869,14 @@ function DevBoundaries() {
     () => chooseBcDaLevel(activeCensusChunkManifest, mapZoom),
     [activeCensusChunkManifest, mapZoom],
   )
+  const activeVisibleCensusChunks = useMemo(() => {
+    if (!activeCensusChunkDetailLevel || !mapBounds) return []
+    return activeCensusChunkDetailLevel.chunks.filter((chunk) => bboxesIntersect(chunk.bbox, mapBounds))
+  }, [activeCensusChunkDetailLevel, mapBounds])
+  const activeVisibleCensusChunkKeys = useMemo(() => {
+    if (!activeCensusChunkLevel || !activeCensusChunkDetailLevel) return new Set<string>()
+    return new Set(activeVisibleCensusChunks.map((chunk) => `${activeCensusChunkLevel}:${activeCensusChunkDetailLevel.id}:${chunk.id}`))
+  }, [activeCensusChunkDetailLevel, activeCensusChunkLevel, activeVisibleCensusChunks])
   const bcDaActive = activeLayers.some(isBcDaSimplifiedLayer)
   const bcDaManifest = censusChunkManifests.da ?? null
   const parentBoundaryOptions = useMemo(() => bcDaManifest?.parentBoundaries ?? [], [bcDaManifest])
@@ -924,11 +947,9 @@ function DevBoundaries() {
   }, [activeCensusChunkLevel, censusChunkErrors, censusChunkManifests])
 
   useEffect(() => {
-    if (!activeCensusChunkLevel || !activeCensusChunkDetailLevel || !mapBounds) return
+    if (!activeCensusChunkLevel || !activeCensusChunkDetailLevel || activeVisibleCensusChunks.length === 0) return
 
-    const chunksToLoad = activeCensusChunkDetailLevel.chunks
-      .filter((chunk) => bboxesIntersect(chunk.bbox, mapBounds))
-      .filter((chunk) => {
+    const chunksToLoad = activeVisibleCensusChunks.filter((chunk) => {
         const key = `${activeCensusChunkLevel}:${activeCensusChunkDetailLevel.id}:${chunk.id}`
         return !censusChunkRegionsByKey[key] && !censusRequestedChunkIds.current.has(key)
       })
@@ -967,7 +988,7 @@ function DevBoundaries() {
           setCensusLoadingChunkIds((current) => current.filter((id) => id !== chunkKey))
         })
     })
-  }, [activeCensusChunkDetailLevel, activeCensusChunkLevel, censusChunkRegionsByKey, mapBounds])
+  }, [activeCensusChunkDetailLevel, activeCensusChunkLevel, activeVisibleCensusChunks, censusChunkRegionsByKey])
 
   useEffect(() => {
     if (!bcDaActive || !bcDaManifest) return
@@ -1013,10 +1034,10 @@ function DevBoundaries() {
 
   const censusChunkRegions = useMemo(() => (
     Object.entries(censusChunkRegionsByKey)
-      .filter(([key]) => key.startsWith(`${activeCensusChunkLevel ?? ''}:${activeCensusChunkDetailLevel?.id ?? ''}:`))
+      .filter(([key]) => activeVisibleCensusChunkKeys.has(key))
       .flatMap(([, regions]) => regions)
       .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
-  ), [activeCensusChunkDetailLevel?.id, activeCensusChunkLevel, censusChunkRegionsByKey])
+  ), [activeVisibleCensusChunkKeys, censusChunkRegionsByKey])
 
   const activeLayerViews = useMemo<ActiveLayerView[]>(() => {
     const term = query.trim().toLowerCase()
@@ -1695,22 +1716,31 @@ function DevBoundaries() {
           const focusedRegions = visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions
           const layerHiddenForParentOutlines = hideBcDaChunksForParents && isBcDaSimplifiedLayer(layer)
           const layerVisible = !layerHiddenForParentOutlines || isolatedPolygonFocuses.some((focus) => focus.scope === layer.key)
+          const denseDbLayer = layer.source === 'census' && layer.level === BC_DB_CHUNKED_LEVEL
+          const fillOpacity = denseDbLayer
+            ? ['interpolate', ['linear'], ['zoom'], 9, 0.055, 11, Math.min(layer.opacity, 0.11), 13, Math.min(layer.opacity, 0.16)]
+            : layer.opacity
+          const lineWidth = denseDbLayer
+            ? ['interpolate', ['linear'], ['zoom'], 9, 0.18, 11, 0.35, 13, 0.7]
+            : activeLayerViews.length > 1 ? 1.1 : 0.9
+          const lineOpacity = denseDbLayer ? 0.62 : 0.86
+          const hoverEnabled = layer.key === topLayerKey && layerVisible && (!denseDbLayer || focusedRegions.length <= 2500)
           return (
             <Fragment key={`${activeSources.join('|')}:${layer.key}`}>
               <MapFillLayer
                 data={focusedRegions.length > 0 ? featureCollection(focusedRegions) : EMPTY_COLLECTION}
                 fillColor={layer.colors.fill}
-                fillOpacity={layer.opacity}
+                fillOpacity={fillOpacity}
                 lineColor={layer.colors.line}
-                lineOpacity={0.86}
-                lineWidth={activeLayerViews.length > 1 ? 1.1 : 0.9}
+                lineOpacity={lineOpacity}
+                lineWidth={lineWidth}
                 idProperty="boundaryId"
                 selectedIds={selectedPolygonFocuses.filter((focus) => focus.scope === layer.key).map((focus) => focus.id)}
                 selectionColor="#f97316"
                 selectionWidth={3}
                 visible={layerVisible}
                 onFeatureClick={(id, event) => handleFeatureClick(id, layer.key, event)}
-                hoverHtml={layer.key === topLayerKey && layerVisible
+                hoverHtml={hoverEnabled
                   ? (properties) => {
                       const parents = censusParentSummary(properties)
                       return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">

@@ -8,9 +8,11 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  ExternalLink,
   FileText,
   FolderKanban,
   FolderOpen,
+  Image,
   Layers,
   Map as MapIcon,
   PanelRight,
@@ -110,6 +112,16 @@ type ProjectDefinition = {
   status: string
   summary: string
   sourceNote: string
+  details?: string[]
+  image?: {
+    src: string
+    alt: string
+    caption: string
+  }
+  links?: Array<{
+    label: string
+    href: string
+  }>
   accent: string
   iconTone: string
   rasterBackground: string
@@ -240,6 +252,26 @@ const PROJECTS: ProjectDefinition[] = [
       'Climate and health exchange map with watershed context, health facilities, future heat rasters, and precipitation-change layers.',
     sourceNote:
       'Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. Northern Health is drawn from the local BC Ministry of Health boundary data.',
+    details: [
+      'Created for the NH - UNBC Climate & Health Knowledge Exchange Event on April 12, 2024.',
+      'The project gives Northern Health staff and UNBC researchers a shared map package for climate-health discussion, northern BC expertise, resources, and collaboration opportunities.',
+      'Climate variables use CMIP6 CanDCS-U6 data under SSP585 from ClimateData.ca, with the Northern Health boundary and watershed context kept visible while the raster story changes.',
+    ],
+    image: {
+      src: '/media/dev-projects/echoscreen-climate-health-event.png',
+      alt: 'Northern Health and UNBC climate and health knowledge exchange event poster',
+      caption: 'Reference event poster from the source project panel.',
+    },
+    links: [
+      {
+        label: 'NH - UNBC event page',
+        href: 'https://www.leaph.org/events/nh---unbc-climate-health-knowledge-exchange-event',
+      },
+      {
+        label: 'Nechako Watershed Portal',
+        href: 'https://nechakowatershed-portal.ca/',
+      },
+    ],
     accent: 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/35 dark:text-cyan-100',
     iconTone: 'bg-cyan-600',
     rasterBackground:
@@ -354,6 +386,16 @@ const PROJECTS: ProjectDefinition[] = [
       'A guided version of the heat relief recipe for finding dense areas with weaker tree, forest, and cooling-facility signals.',
     sourceNote:
       'This opens directly in Index Lab as the heat and shade quick preset. The project wrapper adds narrative scenes, ranked areas, and source notes.',
+    details: [
+      'A guided project shell for the heat relief preset, keeping the recommended score surface and top-ranked areas visible before anyone edits weights.',
+      'The map scenes separate the final priority score from shade, cooling access, and method handoff so the project reads like a small briefing rather than a raw index builder.',
+    ],
+    links: [
+      {
+        label: 'Open heat preset',
+        href: '/score-builder?quick=heatShade',
+      },
+    ],
     accent:
       'border-amber-500 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100',
     iconTone: 'bg-amber-600',
@@ -442,6 +484,16 @@ const PROJECTS: ProjectDefinition[] = [
       'A project view for park access gaps, trail context, and neighbourhood-scale equity checks before editing the score in the lab.',
     sourceNote:
       'The project wrapper can present access scenes and ranked gaps while the lab keeps the transparent equation and export workflow.',
+    details: [
+      'A project view for explaining where park access gaps appear and which neighbourhood-scale assets are part of the access story.',
+      'Scenes move from the access gap score to parks, trails, walksheds, and the editable Index Lab recipe.',
+    ],
+    links: [
+      {
+        label: 'Open parks preset',
+        href: '/score-builder?quick=parks',
+      },
+    ],
     accent:
       'border-emerald-500 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/35 dark:text-emerald-100',
     iconTone: 'bg-emerald-600',
@@ -529,6 +581,16 @@ const PROJECTS: ProjectDefinition[] = [
       'A guided project pack for route access, neighbourhood context, and a transit equity index that can be customized in Index Lab.',
     sourceNote:
       'This combines GTFS-derived route context with census and access metrics. The story stays light; the full weighting model lives in Index Lab.',
+    details: [
+      'A research pack for reviewing transit access against population context and a transparent equity scoring recipe.',
+      'The story mode can keep route and stop context visible while the lab remains available for weighting changes and boundary-level experiments.',
+    ],
+    links: [
+      {
+        label: 'Open transit preset',
+        href: '/score-builder?quick=transit',
+      },
+    ],
     accent: 'border-blue-500 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950/35 dark:text-blue-100',
     iconTone: 'bg-blue-600',
     rasterBackground:
@@ -666,53 +728,6 @@ function getLabUrl(project: ProjectDefinition) {
   return `/score-builder?quick=${project.labQuick}`
 }
 
-function ProjectCatalogCard({
-  project,
-  active,
-  onOpen,
-}: {
-  project: ProjectDefinition
-  active: boolean
-  onOpen: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        'w-full rounded-lg border bg-background p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/40',
-        active && 'border-primary bg-primary/5',
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white', project.iconTone)}
-        >
-          <FolderKanban className="h-4 w-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-foreground">{project.title}</div>
-              <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">{project.eyebrow}</div>
-            </div>
-            {active && <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />}
-          </div>
-          <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{project.summary}</p>
-          <div className="mt-3 grid grid-cols-3 gap-1.5">
-            {project.catalogMetrics.map((metric) => (
-              <div key={metric.label} className="rounded-md border bg-muted/30 px-2 py-1">
-                <div className="truncate text-[10px] text-muted-foreground">{metric.label}</div>
-                <div className="truncate text-xs font-semibold text-foreground">{metric.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </button>
-  )
-}
-
 function ProjectMapPreview({
   project,
   visibleLayerIds,
@@ -835,8 +850,7 @@ function ProjectPortalMapPreview({
   className?: string
 }) {
   const mapBounds = project.mapBounds ?? NORTHERN_HEALTH_BOUNDS
-  const activePortalRasterLayers =
-    project.portalRasterLayers?.filter((layer) => visibleLayerIds.has(layer.id)) ?? []
+  const activePortalRasterLayers = project.portalRasterLayers?.filter((layer) => visibleLayerIds.has(layer.id)) ?? []
   const activeContextLayers = ECHOSCREEN_CONTEXT_WMS_LAYERS.filter((layer) => visibleLayerIds.has(layer.id))
   const activeRasterLayer = activePortalRasterLayers[activePortalRasterLayers.length - 1] ?? null
   const showNorthernHealthBoundary =
@@ -922,10 +936,10 @@ function ProjectMapLegend({
   contextLayers?: PortalContextWmsLayer[]
 }) {
   const activeRasterLabel = activePortalRasterLayer
-    ? (project.layers.find((layer) => layer.id === activePortalRasterLayer.id)?.label ?? activePortalRasterLayer.layerName)
+    ? (project.layers.find((layer) => layer.id === activePortalRasterLayer.id)?.label ??
+      activePortalRasterLayer.layerName)
     : null
-  const showLocalNorthernHealth =
-    project.slug === 'echoscreen-climate-health' && visibleLayerIds.has('northern-health')
+  const showLocalNorthernHealth = project.slug === 'echoscreen-climate-health' && visibleLayerIds.has('northern-health')
   const fallbackLegendColors = project.legend.map((item) => item.color)
 
   return (
@@ -956,12 +970,7 @@ function ProjectMapLegend({
 
         <div className="space-y-1 border-t pt-2 text-[11px]">
           {showLocalNorthernHealth && (
-            <LegendItem
-              color="#0f172a"
-              label="Northern Health"
-              value="local BCMoH"
-              swatchShape="line"
-            />
+            <LegendItem color="#0f172a" label="Northern Health" value="local BCMoH" swatchShape="line" />
           )}
           {contextLayers.map((layer) => (
             <LegendItem
@@ -1180,6 +1189,8 @@ function ProjectCatalogPage({
   filter,
   onFilterChange,
   filteredProjects,
+  selectedProject,
+  onSelectProject,
   onOpenProject,
 }: {
   query: string
@@ -1187,140 +1198,336 @@ function ProjectCatalogPage({
   filter: CatalogFilter
   onFilterChange: (value: CatalogFilter) => void
   filteredProjects: ProjectDefinition[]
+  selectedProject: ProjectDefinition | null
+  onSelectProject: (slug: string) => void
   onOpenProject: (slug: string) => void
 }) {
   return (
-    <div className="min-h-full bg-muted/30 p-4 text-foreground sm:p-6">
-      <div className="mx-auto flex max-w-7xl flex-col gap-5">
-        <header className="flex flex-col gap-4 rounded-lg border bg-background p-5 shadow-sm lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1 text-sm font-semibold text-muted-foreground">
-              <FolderKanban className="h-4 w-4" />
-              Project catalog
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Preset Projects</h1>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-              Browse project packages, see the resources they call, and enter a focused map workspace when you are
-              ready to use one.
-            </p>
-          </div>
-
-          <div className="grid gap-2 sm:min-w-[22rem] sm:grid-cols-[minmax(0,1fr)_10rem]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(event) => onQueryChange(event.target.value)}
-                placeholder="Search projects"
-                className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/25"
-              />
-            </div>
-            <AppSelect
-              value={filter}
-              onValueChange={(value) => onFilterChange(value as CatalogFilter)}
-              options={FILTER_OPTIONS}
-              triggerAriaLabel="Filter projects"
-            />
-          </div>
-        </header>
-
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {filteredProjects.map((project) => (
-            <div key={project.slug} className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-sm">
-              <ProjectCatalogCard project={project} active={false} onOpen={() => onOpenProject(project.slug)} />
-              <Button type="button" size="sm" onClick={() => onOpenProject(project.slug)} className="w-full">
-                Enter Project
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </section>
-
-        <section className="rounded-lg border bg-background shadow-sm">
-          <div className="border-b p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Layers className="h-4 w-4" />
-              Resources and Calls
-            </div>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              This is the catalog-level view: what each project opens, which layers and scenes it uses, and where it
-              hands off.
-            </p>
-          </div>
-
-          <div className="divide-y">
-            {filteredProjects.map((project) => (
-              <div key={project.slug} className="grid gap-4 p-4 lg:grid-cols-[18rem_minmax(0,1fr)_14rem]">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-foreground">{project.title}</div>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    <span className={cn('rounded-md border px-2 py-0.5 text-[11px] font-semibold', project.accent)}>
-                      {KIND_LABELS[project.kind]}
-                    </span>
-                    <span className="rounded-md border bg-muted/30 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                      {project.status}
-                    </span>
-                  </div>
+    <div className="h-[calc(100vh-4rem)] min-h-[720px] bg-muted/30 p-4 text-foreground sm:p-5">
+      <div className="mx-auto grid h-full max-w-[98rem] gap-4 lg:grid-cols-[minmax(40rem,1.35fr)_minmax(24rem,0.85fr)]">
+        <section className="flex min-h-0 flex-col rounded-lg border bg-background shadow-sm">
+          <header className="border-b p-4">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div className="min-w-0">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                  <FolderKanban className="h-3.5 w-3.5" />
+                  Project catalog
                 </div>
-
-                <div className="grid gap-2 md:grid-cols-2">
-                  <div className="rounded-md border bg-muted/20 p-3">
-                    <div className="mb-1 flex items-center gap-2 text-xs font-semibold text-foreground">
-                      <Settings2 className="h-3.5 w-3.5" />
-                      Calls
-                    </div>
-                    <div className="space-y-1 text-xs text-muted-foreground">
-                      <div>
-                        <span className="font-medium text-foreground">Preset:</span> {project.presetKey}
-                      </div>
-                      <div>
-                        <span className="font-medium text-foreground">Lab:</span> {getLabUrl(project)}
-                      </div>
-                      {project.portalRasterLayers && (
-                        <div>
-                          <span className="font-medium text-foreground">Raster:</span> Nechako WMS (
-                          {project.portalRasterLayers.length})
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="rounded-md border bg-muted/20 p-3">
-                    <div className="mb-1 flex items-center gap-2 text-xs font-semibold text-foreground">
-                      <FileText className="h-3.5 w-3.5" />
-                      Resources
-                    </div>
-                    <div className="text-xs leading-5 text-muted-foreground">
-                      {project.layers.length} layers, {project.scenes.length} scenes, {project.files.length} files
-                    </div>
-                    <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                      {project.layers.slice(0, 3).map((layer) => layer.label).join(', ')}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center lg:justify-end">
-                  <Button type="button" variant="outline" size="sm" onClick={() => onOpenProject(project.slug)}>
-                    Enter
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </div>
+                <h1 className="text-2xl font-bold tracking-tight">Preset Projects</h1>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Select a project to inspect its story, resources, calls, and visual context before entering the map.
+                </p>
               </div>
-            ))}
+
+              <div className="grid gap-2 sm:min-w-[24rem] sm:grid-cols-[minmax(0,1fr)_10rem]">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <input
+                    value={query}
+                    onChange={(event) => onQueryChange(event.target.value)}
+                    placeholder="Search projects"
+                    className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/25"
+                  />
+                </div>
+                <AppSelect
+                  value={filter}
+                  onValueChange={(value) => onFilterChange(value as CatalogFilter)}
+                  options={FILTER_OPTIONS}
+                  triggerAriaLabel="Filter projects"
+                />
+              </div>
+            </div>
+          </header>
+
+          <div className="min-h-0 flex-1 overflow-auto">
+            <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left">
+              <thead className="sticky top-0 z-10 bg-background text-[11px] uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))]">
+                <tr>
+                  <th className="w-[38%] px-4 py-3 font-semibold">Project</th>
+                  <th className="w-[16%] px-3 py-3 font-semibold">State</th>
+                  <th className="w-[18%] px-3 py-3 font-semibold">Resources</th>
+                  <th className="w-[18%] px-3 py-3 font-semibold">Calls</th>
+                  <th className="w-[10%] px-4 py-3 text-right font-semibold">Open</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredProjects.map((project) => {
+                  const active = selectedProject?.slug === project.slug
+                  return (
+                    <tr
+                      key={project.slug}
+                      className={cn('align-top transition-colors', active ? 'bg-primary/5' : 'hover:bg-muted/30')}
+                    >
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => onSelectProject(project.slug)}
+                          className="flex w-full min-w-0 items-start gap-3 text-left"
+                        >
+                          <span
+                            className={cn(
+                              'flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white',
+                              project.iconTone,
+                            )}
+                          >
+                            <FolderKanban className="h-4 w-4" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span className="truncate text-sm font-semibold text-foreground">{project.title}</span>
+                              {active && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                            </span>
+                            <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                              {project.summary}
+                            </span>
+                          </span>
+                        </button>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="space-y-1.5">
+                          <span
+                            className={cn(
+                              'inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold',
+                              project.accent,
+                            )}
+                          >
+                            {KIND_LABELS[project.kind]}
+                          </span>
+                          <div className="text-xs text-muted-foreground">{project.status}</div>
+                          <div className="text-xs text-muted-foreground">{project.updated}</div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-xs leading-5 text-muted-foreground">
+                        <div>
+                          <span className="font-medium text-foreground">{project.layers.length}</span> layers
+                        </div>
+                        <div>
+                          <span className="font-medium text-foreground">{project.scenes.length}</span> scenes
+                        </div>
+                        <div>
+                          <span className="font-medium text-foreground">{project.files.length}</span> files
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-xs leading-5 text-muted-foreground">
+                        <div className="truncate">
+                          <span className="font-medium text-foreground">Preset:</span> {project.presetKey}
+                        </div>
+                        <div className="truncate">
+                          <span className="font-medium text-foreground">Lab:</span> {getLabUrl(project)}
+                        </div>
+                        {project.portalRasterLayers && (
+                          <div className="truncate">
+                            <span className="font-medium text-foreground">Raster:</span> Nechako WMS
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          type="button"
+                          variant={active ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => onOpenProject(project.slug)}
+                        >
+                          Enter
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+
+            {filteredProjects.length === 0 && (
+              <div className="p-8 text-center text-sm text-muted-foreground">No projects match the current search.</div>
+            )}
           </div>
         </section>
+
+        {selectedProject ? (
+          <ProjectCatalogPreview project={selectedProject} onOpenProject={() => onOpenProject(selectedProject.slug)} />
+        ) : (
+          <aside className="flex min-h-0 items-center justify-center rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground shadow-sm">
+            Select a project to preview its details.
+          </aside>
+        )}
       </div>
     </div>
   )
 }
 
-function LoadedProjectWorkspace({
-  project,
-  onBack,
-}: {
-  project: ProjectDefinition
-  onBack: () => void
-}) {
+function ProjectCatalogPreview({ project, onOpenProject }: { project: ProjectDefinition; onOpenProject: () => void }) {
+  const previewVisibleLayerIds = useMemo(() => defaultVisibleLayerIds(project), [project])
+  const detailParagraphs = project.details ?? [project.summary, project.sourceNote]
+
+  return (
+    <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background shadow-sm">
+      <div className="border-b p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className={cn('rounded-md border px-2 py-0.5 text-[11px] font-semibold', project.accent)}>
+                {KIND_LABELS[project.kind]}
+              </span>
+              <span className="rounded-md border bg-muted/30 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                {project.status}
+              </span>
+            </div>
+            <h2 className="text-lg font-bold leading-tight text-foreground">{project.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{project.summary}</p>
+          </div>
+          <div
+            className={cn(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white',
+              project.iconTone,
+            )}
+          >
+            <FolderKanban className="h-5 w-5" />
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <Button type="button" size="sm" onClick={onOpenProject}>
+            Enter Project
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to={getLabUrl(project)}>
+              <Settings2 className="h-4 w-4" />
+              Open in Index Lab
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-auto">
+        <section className="p-4">
+          <ProjectMapPreview
+            project={project}
+            visibleLayerIds={previewVisibleLayerIds}
+            rasterOpacity={82}
+            className="h-[18rem] min-h-[18rem] rounded-md lg:min-h-[18rem]"
+          />
+        </section>
+
+        {project.image && (
+          <section className="border-t p-4">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Image className="h-4 w-4" />
+              Reference Image
+            </div>
+            <figure className="overflow-hidden rounded-md border bg-muted/20">
+              <img src={project.image.src} alt={project.image.alt} className="max-h-[28rem] w-full object-contain" />
+              <figcaption className="border-t px-3 py-2 text-xs leading-5 text-muted-foreground">
+                {project.image.caption}
+              </figcaption>
+            </figure>
+          </section>
+        )}
+
+        <section className="border-t p-4">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <BookOpen className="h-4 w-4" />
+            About
+          </div>
+          <div className="space-y-2 text-sm leading-6 text-muted-foreground">
+            {detailParagraphs.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+        </section>
+
+        <section className="border-t p-4">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {[
+              ['Owner', project.owner],
+              ['Region', project.region],
+              ['Updated', project.updated],
+              ['Preset', project.presetKey],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-md border bg-muted/20 px-3 py-2">
+                <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+                <div className="mt-0.5 truncate text-sm font-semibold text-foreground">{value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="border-t p-4">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Layers className="h-4 w-4" />
+            Resources and Calls
+          </div>
+          <div className="space-y-3">
+            <div>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Layer Stack
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {project.layers.map((layer) => (
+                  <span
+                    key={layer.id}
+                    className="rounded-md border bg-muted/20 px-2 py-1 text-[11px] text-muted-foreground"
+                  >
+                    {layer.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              {project.catalogMetrics.map((metric) => (
+                <div key={metric.label} className="rounded-md border bg-muted/20 px-3 py-2">
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {metric.label}
+                  </div>
+                  <div className="mt-0.5 text-sm font-semibold text-foreground">{metric.value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Files</div>
+              <div className="space-y-2">
+                {project.files.map((file) => (
+                  <div key={file.label} className="flex items-start gap-2 rounded-md border bg-muted/20 px-3 py-2">
+                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-foreground">{file.label}</div>
+                      <div className="text-xs leading-5 text-muted-foreground">{file.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {project.links && project.links.length > 0 && (
+              <div>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Links</div>
+                <div className="space-y-2">
+                  {project.links.map((link) => (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target={link.href.startsWith('http') ? '_blank' : undefined}
+                      rel={link.href.startsWith('http') ? 'noreferrer' : undefined}
+                      className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
+                    >
+                      <span className="truncate">{link.label}</span>
+                      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </aside>
+  )
+}
+
+function LoadedProjectWorkspace({ project, onBack }: { project: ProjectDefinition; onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<ControllerTab>('project')
   const [activeSceneIndex, setActiveSceneIndex] = useState(0)
   const [rasterOpacity, setRasterOpacity] = useState(82)
@@ -1363,7 +1570,12 @@ function LoadedProjectWorkspace({
         </button>
 
         <div className="flex items-start gap-3">
-          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white', project.iconTone)}>
+          <div
+            className={cn(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white',
+              project.iconTone,
+            )}
+          >
             <FolderKanban className="h-5 w-5" />
           </div>
           <div className="min-w-0">
@@ -1487,6 +1699,7 @@ export default function DevProjects() {
   const selectedProject = PROJECTS.find((project) => project.slug === projectSlug) ?? null
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<CatalogFilter>('all')
+  const [previewProjectSlug, setPreviewProjectSlug] = useState(PROJECTS[0]?.slug ?? '')
 
   const filteredProjects = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -1496,6 +1709,8 @@ export default function DevProjects() {
       return `${project.title} ${project.summary} ${project.presetKey}`.toLowerCase().includes(normalizedQuery)
     })
   }, [filter, query])
+  const selectedPreviewProject =
+    filteredProjects.find((project) => project.slug === previewProjectSlug) ?? filteredProjects[0] ?? null
 
   function openProject(slug: string) {
     const next = new URLSearchParams(searchParams)
@@ -1520,6 +1735,8 @@ export default function DevProjects() {
       filter={filter}
       onFilterChange={setFilter}
       filteredProjects={filteredProjects}
+      selectedProject={selectedPreviewProject}
+      onSelectProject={setPreviewProjectSlug}
       onOpenProject={openProject}
     />
   )

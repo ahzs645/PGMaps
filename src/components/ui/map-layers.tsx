@@ -44,8 +44,8 @@ type MapFillLayerProps = {
   fillOpacity?: number | StyleExpression
   /** Border line color — static string or MapLibre expression (default: '#0f172a') */
   lineColor?: string | StyleExpression
-  /** Border line width (default: 0.7) */
-  lineWidth?: number
+  /** Border line width (default: 0.7) — number or MapLibre expression */
+  lineWidth?: number | StyleExpression
   /** Border line opacity (default: 0.45) */
   lineOpacity?: number
   /** Feature property used for identification and selection (default: 'id') */
@@ -130,7 +130,7 @@ function MapFillLayer({
       source: sourceId,
       paint: {
         'line-color': lineColor as never,
-        'line-width': lineWidth,
+        'line-width': lineWidth as never,
         'line-opacity': lineOpacity,
       },
     })
@@ -311,7 +311,7 @@ function MapFillLayer({
     }
     if (map.getLayer(lineLayerId)) {
       map.setPaintProperty(lineLayerId, 'line-color', lineColor as never)
-      map.setPaintProperty(lineLayerId, 'line-width', lineWidth)
+      map.setPaintProperty(lineLayerId, 'line-width', lineWidth as never)
       map.setPaintProperty(lineLayerId, 'line-opacity', lineOpacity)
     }
   }, [fillColor, fillOpacity, fillLayerId, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map])
