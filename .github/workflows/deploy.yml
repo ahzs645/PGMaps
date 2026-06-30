@@ -37,6 +37,7 @@ jobs:
       - run: npm run build
         env:
           PGMAPS_SKIP_VENDOR_DATA_SYNC: '1'
+          VITE_BC_DB_CHUNK_BASE_URL: https://data.map.ahmad.sh/census/bc-db-chunks
 
       - name: Copy index.html to 404.html for SPA routing
         run: cp dist/index.html dist/404.html

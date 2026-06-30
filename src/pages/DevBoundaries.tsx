@@ -160,8 +160,11 @@ const BC_DB_CHUNKED_LEVEL = 'db' satisfies RegionLevel
 type ChunkedCensusLevel = typeof BC_DA_SIMPLIFIED_LEVEL | typeof BC_DB_CHUNKED_LEVEL
 const BC_DA_CHUNK_BASE_PATH = '/data/census/bc-da-simplified'
 const BC_DA_CHUNK_MANIFEST_PATH = `${BC_DA_CHUNK_BASE_PATH}/manifest.json`
+const BC_DB_DEFAULT_CHUNK_BASE_PATH = import.meta.env.PROD
+  ? 'https://data.map.ahmad.sh/census/bc-db-chunks'
+  : '/data/census/bc-db-chunks'
 const BC_DB_CHUNK_BASE_PATH = (
-  (import.meta.env.VITE_BC_DB_CHUNK_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '/data/census/bc-db-chunks'
+  (import.meta.env.VITE_BC_DB_CHUNK_BASE_URL as string | undefined)?.replace(/\/+$/, '') || BC_DB_DEFAULT_CHUNK_BASE_PATH
 )
 const BC_DB_CHUNK_MANIFEST_PATH = `${BC_DB_CHUNK_BASE_PATH}/manifest.json`
 const CENSUS_CHUNK_CONFIG: Record<ChunkedCensusLevel, { basePath: string; manifestPath: string }> = {
