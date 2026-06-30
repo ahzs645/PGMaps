@@ -813,7 +813,7 @@ function DevBoundaries() {
           activeSourceSet.add(source)
           return true
         })
-        const nextSources: BoundarySource[] = normalizedActiveSources.length > 0 ? normalizedActiveSources : ['cityCommunity']
+        const nextSources: BoundarySource[] = normalizedActiveSources
         const nextLevels = { ...DEFAULT_SOURCE_LEVELS }
 
         nextSources.forEach((source) => {
@@ -1151,9 +1151,11 @@ function DevBoundaries() {
     () => allMapVisibleRegions.filter((region) => !(region.source === 'census' && isChunkedCensusLevel(region.level))),
     [allMapVisibleRegions],
   )
-  const activeSubtitle = activeLayerViews.length === 1
-    ? `${activeLayerViews[0].label} - ${activeLayerViews[0].optionLabel}`
-    : `${activeLayerViews.length} study areas - ${allMapVisibleRegions.length.toLocaleString()} visible boundaries`
+  const activeSubtitle = activeLayerViews.length === 0
+    ? 'No study areas selected'
+    : activeLayerViews.length === 1
+      ? `${activeLayerViews[0].label} - ${activeLayerViews[0].optionLabel}`
+      : `${activeLayerViews.length} study areas - ${allMapVisibleRegions.length.toLocaleString()} visible boundaries`
 
   const boundariesShareState = useMemo<BoundariesShareState>(() => {
     const sharedSourceLevels = activeSources.reduce<Partial<Record<BoundarySource, RegionLevel>>>((levels, source) => {
@@ -1235,14 +1237,13 @@ function DevBoundaries() {
   }, [selectedParentBoundary, selectedRegionLayerScope])
 
   const toggleSource = useCallback((nextSource: BoundarySource) => {
-    const removingSource = activeSources.includes(nextSource) && activeSources.length > 1
+    const removingSource = activeSources.includes(nextSource)
     if (removingSource) {
       const removedScope = cacheKey(nextSource, sourceLevels[nextSource] ?? getDefaultLevelForSource(nextSource))
       clearPolygonFocusForScopes(new Set([removedScope]))
     }
     setActiveSources((current) => {
       if (current.includes(nextSource)) {
-        if (current.length === 1) return current
         return current.filter((source) => source !== nextSource)
       }
       return [...current, nextSource]
@@ -1402,6 +1403,11 @@ function DevBoundaries() {
 
       <SidebarSection title="Hierarchy / variant" icon={SquareStack}>
         <div className="space-y-3">
+          {activeSources.length === 0 && (
+            <div className="rounded-md border border-dashed bg-muted/20 p-3 text-xs text-muted-foreground">
+              No study areas selected.
+            </div>
+          )}
           {activeSources.map((source, index) => {
             const selectedLevel = sourceLevels[source] ?? getDefaultLevelForSource(source)
             const options = getLevelOptionsForSource(source)
@@ -1569,6 +1575,9 @@ function DevBoundaries() {
           ]}
         />
         <div className="mt-3 space-y-2 rounded-md border bg-muted/25 p-3 text-xs text-muted-foreground">
+          {activeLayerViews.length === 0 && (
+            <div>No boundary layers selected.</div>
+          )}
           {activeLayerViews.map((layer) => (
             <div key={layer.key} className="flex items-center justify-between gap-3">
               <span className="min-w-0 truncate">{layer.label}</span>

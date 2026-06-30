@@ -39,9 +39,6 @@ const pathMappings = [
   ['datascrapers/open-litter-map/output', 'open-litter-map'],
   ['datascrapers/cell-coverage/output', 'cell-coverage'],
   ['datascrapers/healthyplan-pg/output', 'healthyplan-pg'],
-  ['datascrapers/environmental-burden/output/bc-enviro-screen', 'environmental-burden/bc-enviro-screen'],
-  ['datascrapers/health/phsa-community-health/output', 'health/phsa-community-health'],
-  ['datascrapers/health/bccdc-chronic-disease-tableau/output', 'health/bccdc-chronic-disease-tableau'],
   ['datascrapers/heat-shade/output', 'heat-shade'],
   ['datascrapers/eccc/output', 'aqmap'],
   ['datascrapers/citypg/source/heat-shade/citypg_trees.geojson', 'heat-shade/citypg_trees.geojson'],
@@ -77,6 +74,12 @@ const pathMappings = [
   ['datascrapers/fpcc/output/community-geo.geojson', 'fpcc/community-geo.geojson'],
   ['datascrapers/fpcc/output/placename-geo.geojson', 'fpcc/placename-geo.geojson'],
   ['datascrapers/native-land/snapshot', 'native-land'],
+]
+
+const optionalPathMappings = [
+  ['datascrapers/environmental-burden/output/bc-enviro-screen', 'environmental-burden/bc-enviro-screen'],
+  ['datascrapers/health/phsa-community-health/output', 'health/phsa-community-health'],
+  ['datascrapers/health/bccdc-chronic-disease-tableau/output', 'health/bccdc-chronic-disease-tableau'],
 ]
 
 const skippedSourcePaths = new Set([
@@ -133,6 +136,14 @@ for (const [sourceRelative, targetRelative] of contentMappings) {
 }
 
 for (const [sourceRelative, targetRelative] of pathMappings) {
+  copyPath(sourceRelative, targetRelative)
+}
+
+for (const [sourceRelative, targetRelative] of optionalPathMappings) {
+  if (!existsSync(join(vendorRoot, sourceRelative))) {
+    console.warn(`[data] Skipping optional ${sourceRelative}`)
+    continue
+  }
   copyPath(sourceRelative, targetRelative)
 }
 
