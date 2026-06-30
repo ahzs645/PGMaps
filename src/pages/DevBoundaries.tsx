@@ -2,12 +2,13 @@ import area from '@turf/area'
 import bbox from '@turf/bbox'
 import difference from '@turf/difference'
 import intersect from '@turf/intersect'
+import union from '@turf/union'
 import createWebShareEngine from '@firstform/json-url/web-share'
-import { ArrowDown, ArrowUp, Check, ChevronsUpDown, EyeOff, Focus, GripVertical, Layers, Loader2, RotateCcw, Search, SquareStack, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ChevronUp, ChevronsUpDown, EyeOff, Focus, GitCompareArrows, GripVertical, Layers, Loader2, RotateCcw, Search, SquareStack, X } from 'lucide-react'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Map, MapControls, MapPopup, useMap } from '@/components/ui/map'
-import { MapFillLayer } from '@/components/ui/map-layers'
+import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MapSidebarShell, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import {
@@ -49,6 +50,21 @@ interface ActiveLayerView extends ActiveLayer {
   error?: string
 }
 
+interface SelectedPmtilesFeature {
+  id: string
+  scope: string
+  lngLat: { lng: number; lat: number }
+  properties: Record<string, unknown>
+}
+
+interface SelectedFocusCard {
+  focus: PolygonFocus
+  title: string
+  subtitle: string
+  areaLabel?: string
+  onOpen: () => void
+}
+
 interface SurfaceDifference {
   overlap: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
   onlyA: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
@@ -58,6 +74,13 @@ interface SurfaceDifference {
   onlyBKm2: number
   aShare: number
   bShare: number
+}
+
+interface DiffSurface {
+  id: string
+  name: string
+  feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+  areaKm2: number
 }
 
 type BoundaryBbox = [number, number, number, number]
@@ -167,6 +190,10 @@ const BC_DB_CHUNK_BASE_PATH = (
   (import.meta.env.VITE_BC_DB_CHUNK_BASE_URL as string | undefined)?.replace(/\/+$/, '') || BC_DB_DEFAULT_CHUNK_BASE_PATH
 )
 const BC_DB_CHUNK_MANIFEST_PATH = `${BC_DB_CHUNK_BASE_PATH}/manifest.json`
+const BC_DB_PMTILES_URL = import.meta.env.PROD
+  ? 'https://data.map.ahmad.sh/census/bc-db.pmtiles'
+  : '/data/census/bc-db.pmtiles'
+const BC_DB_PMTILES_SOURCE_LAYER = 'bc_db'
 const CENSUS_CHUNK_CONFIG: Record<ChunkedCensusLevel, { basePath: string; manifestPath: string }> = {
   da: {
     basePath: BC_DA_CHUNK_BASE_PATH,
@@ -183,6 +210,7 @@ const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.Mult
   type: 'FeatureCollection',
   features: [],
 }
+const MAX_LAYER_DIFF_FEATURES = 500
 
 const CENSUS_PARENT_LEVEL_ORDER: CensusParentLevel[] = ['cd', 'csd', 'ct']
 
@@ -247,6 +275,33 @@ function isChunkedCensusLayer(layer: ActiveLayer): layer is ActiveLayer & { leve
   return layer.source === 'census' && isChunkedCensusLevel(layer.level)
 }
 
+function isDbPmtilesLayer(layer: ActiveLayer) {
+  return layer.source === 'census' && layer.level === BC_DB_CHUNKED_LEVEL
+}
+
+function layerVisibleCount(layer: ActiveLayerView, visibleLayerRegionsByKey: Record<string, StudyAreaRegion[]>) {
+  return visibleLayerRegionsByKey[layer.key]?.length ?? layer.filteredRegions.length
+}
+
+function layerSummaryText(layer: ActiveLayerView, visibleLayerRegionsByKey: Record<string, StudyAreaRegion[]>, loadingChunkCount: number) {
+  if (layer.loading) return 'Loading'
+  if (isDbPmtilesLayer(layer)) return 'PMTiles on map'
+  return `${formatNumber(layerVisibleCount(layer, visibleLayerRegionsByKey))} / ${formatNumber(layer.filteredRegions.length)} ${layer.optionLabel}${isChunkedCensusLayer(layer) && loadingChunkCount > 0 ? ` · ${loadingChunkCount} loading` : ''}`
+}
+
+function pmtilesFeatureName(properties: Record<string, unknown>) {
+  return String(properties.name ?? (properties.id ? `DB ${properties.id}` : 'Dissemination Block'))
+}
+
+function pmtilesFeatureCode(properties: Record<string, unknown>) {
+  return String(properties.id ?? properties.code ?? '')
+}
+
+function pmtilesFeatureAreaKm2(properties: Record<string, unknown>) {
+  const areaValue = Number(properties.areaKm2 ?? properties.areaSqKm)
+  return Number.isFinite(areaValue) ? areaValue : 0
+}
+
 function bboxesIntersect(a: BoundaryBbox, b: BoundaryBbox) {
   return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1]
 }
@@ -254,6 +309,10 @@ function bboxesIntersect(a: BoundaryBbox, b: BoundaryBbox) {
 function chunkUrl(level: ChunkedCensusLevel, path: string) {
   if (path.startsWith('/') || /^(https?:)?\/\//.test(path)) return path
   return `${CENSUS_CHUNK_CONFIG[level].basePath}/${path}`
+}
+
+function censusChunkCacheKey(level: ChunkedCensusLevel, detailId: string, chunkId: string) {
+  return `${level}:${detailId}:${chunkId}`
 }
 
 function getBcDaManifestLevels(manifest: BcDaChunkManifest | null): BcDaChunkLevel[] {
@@ -283,7 +342,7 @@ function chooseBcDaLevel(manifest: BcDaChunkManifest | null, zoom: number): BcDa
   if (levels.length === 0) return null
   const matched = levels.find((level) => zoom >= level.minZoom && zoom < level.maxZoom)
   if (matched) return matched
-  return zoom < levels[0].minZoom ? null : levels[levels.length - 1]
+  return zoom < levels[0].minZoom ? levels[0] : levels[levels.length - 1]
 }
 
 function formatArea(value: number) {
@@ -444,6 +503,10 @@ function samePolygonFocus(a: PolygonFocus, b: PolygonFocus) {
   return a.id === b.id && a.scope === b.scope
 }
 
+function polygonFocusKey(focus: PolygonFocus) {
+  return `${focus.scope}:${focus.id}`
+}
+
 function uniquePolygonFocuses(focuses: PolygonFocus[]) {
   return focuses.filter((focus, index) => focuses.findIndex((candidate) => samePolygonFocus(candidate, focus)) === index)
 }
@@ -568,6 +631,40 @@ function singleFeatureCollection(
   return feature ? { type: 'FeatureCollection', features: [feature] } : EMPTY_COLLECTION
 }
 
+function diffSurfaceFromLayer(layer: ActiveLayerView, regions: StudyAreaRegion[]): DiffSurface | null {
+  const polygonRegions = regions.filter((region) => (
+    region.feature.geometry.type === 'Polygon' || region.feature.geometry.type === 'MultiPolygon'
+  ))
+  if (polygonRegions.length === 0 || polygonRegions.length > MAX_LAYER_DIFF_FEATURES) return null
+
+  try {
+    const dissolved = polygonRegions.reduce<GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null>((current, region) => {
+      const feature = region.feature
+      if (!current) return feature
+      return union(current as never, feature as never) as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon> | null
+    }, null)
+
+    if (!dissolved) return null
+    const surfaceAreaKm2 = featureAreaKm2(dissolved)
+    return {
+      id: layer.key,
+      name: `${layer.label} · ${layer.optionLabel}`,
+      feature: {
+        ...dissolved,
+        properties: {
+          ...(dissolved.properties ?? {}),
+          id: `layer-diff:${layer.key}`,
+          boundaryId: `layer-diff:${layer.key}`,
+          boundaryName: `${layer.label} · ${layer.optionLabel}`,
+        },
+      },
+      areaKm2: surfaceAreaKm2,
+    }
+  } catch {
+    return null
+  }
+}
+
 function polygonFeature(
   feature: GeoJSON.Feature<GeoJSON.Geometry | null> | null,
   properties: Record<string, unknown>,
@@ -641,7 +738,7 @@ function mapBcDaChunkFeatureToRegion(
   } satisfies StudyAreaRegion
 }
 
-function buildSurfaceDifference(a: StudyAreaRegion, b: StudyAreaRegion): SurfaceDifference {
+function buildSurfaceDifference(a: DiffSurface, b: DiffSurface): SurfaceDifference {
   try {
     const overlap = polygonFeature(
       intersect(a.feature as never, b.feature as never) as GeoJSON.Feature<GeoJSON.Geometry | null> | null,
@@ -771,7 +868,10 @@ function DevBoundaries() {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null)
+  const [selectedPmtilesFeature, setSelectedPmtilesFeature] = useState<SelectedPmtilesFeature | null>(null)
+  const [pmtilesFeatureCache, setPmtilesFeatureCache] = useState<Record<string, SelectedPmtilesFeature>>({})
   const [selectedPolygonFocuses, setSelectedPolygonFocuses] = useState<PolygonFocus[]>([])
+  const [selectedTrayExpanded, setSelectedTrayExpanded] = useState(false)
   const [fitSelectedRegion, setFitSelectedRegion] = useState(true)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [isolatedPolygonFocuses, setIsolatedPolygonFocuses] = useState<PolygonFocus[]>([])
@@ -787,6 +887,7 @@ function DevBoundaries() {
   const [enabledCensusParentLevels, setEnabledCensusParentLevels] = useState<CensusParentLevel[]>([])
   const [parentBoundaryCache, setParentBoundaryCache] = useState<Partial<Record<CensusParentLevel, ParentBoundaryCacheEntry>>>({})
   const [surfaceDifferenceMode, setSurfaceDifferenceMode] = useState(false)
+  const [layerDifferenceMode, setLayerDifferenceMode] = useState(false)
   const [sourceOpacities, setSourceOpacities] = useState<Record<BoundarySource, number>>(() => (
     BOUNDARY_SOURCE_OPTIONS.reduce<Record<BoundarySource, number>>((acc, option) => {
       acc[option.value] = 0.22
@@ -845,6 +946,7 @@ function DevBoundaries() {
         setFitSelectedRegion(false)
         setCompareIds([])
         setSurfaceDifferenceMode(false)
+        setLayerDifferenceMode(false)
       })
       .catch(() => {
         // Bad shared URLs should not block the page from loading with defaults.
@@ -866,7 +968,9 @@ function DevBoundaries() {
   ), [activeSources, sourceLevels])
 
   const activeCensusChunkLevel = useMemo<ChunkedCensusLevel | null>(() => (
-    activeLayers.find(isChunkedCensusLayer)?.level ?? null
+    activeLayers.find((layer): layer is ActiveLayer & { level: ChunkedCensusLevel } => (
+      isChunkedCensusLayer(layer) && !isDbPmtilesLayer(layer)
+    ))?.level ?? null
   ), [activeLayers])
   const activeCensusChunkManifest = activeCensusChunkLevel ? censusChunkManifests[activeCensusChunkLevel] ?? null : null
   const activeCensusChunkError = activeCensusChunkLevel ? censusChunkErrors[activeCensusChunkLevel] ?? null : null
@@ -874,24 +978,45 @@ function DevBoundaries() {
     () => chooseBcDaLevel(activeCensusChunkManifest, mapZoom),
     [activeCensusChunkManifest, mapZoom],
   )
-  const activeCensusChunkMinimumZoom = useMemo(() => {
-    const levels = getBcDaManifestLevels(activeCensusChunkManifest)
-    if (levels.length === 0) return null
-    return Math.min(...levels.map((level) => level.minZoom))
-  }, [activeCensusChunkManifest])
-  const chunkedCensusZoomHint = activeCensusChunkLevel
-    && activeCensusChunkMinimumZoom !== null
-    && mapZoom < activeCensusChunkMinimumZoom
-    ? `${getStudyAreaLevelLabel(activeCensusChunkLevel)} boundaries appear at z${activeCensusChunkMinimumZoom}+`
-    : null
   const activeVisibleCensusChunks = useMemo(() => {
     if (!activeCensusChunkDetailLevel || !mapBounds) return []
     return activeCensusChunkDetailLevel.chunks.filter((chunk) => bboxesIntersect(chunk.bbox, mapBounds))
   }, [activeCensusChunkDetailLevel, mapBounds])
-  const activeVisibleCensusChunkKeys = useMemo(() => {
-    if (!activeCensusChunkLevel || !activeCensusChunkDetailLevel) return new Set<string>()
-    return new Set(activeVisibleCensusChunks.map((chunk) => `${activeCensusChunkLevel}:${activeCensusChunkDetailLevel.id}:${chunk.id}`))
-  }, [activeCensusChunkDetailLevel, activeCensusChunkLevel, activeVisibleCensusChunks])
+  const renderedCensusChunkDetailLevel = useMemo(() => {
+    if (!activeCensusChunkLevel || !activeCensusChunkManifest || !activeCensusChunkDetailLevel || !mapBounds) {
+      return activeCensusChunkDetailLevel
+    }
+
+    const levels = getBcDaManifestLevels(activeCensusChunkManifest)
+    const targetIndex = levels.findIndex((level) => level.id === activeCensusChunkDetailLevel.id)
+    const renderCandidates = (targetIndex >= 0 ? levels.slice(0, targetIndex + 1) : levels).reverse()
+
+    for (const detailLevel of renderCandidates) {
+      const visibleChunks = detailLevel.chunks.filter((chunk) => bboxesIntersect(chunk.bbox, mapBounds))
+      if (visibleChunks.length === 0) return detailLevel
+
+      const allVisibleChunksLoaded = visibleChunks.every((chunk) => (
+        censusChunkRegionsByKey[censusChunkCacheKey(activeCensusChunkLevel, detailLevel.id, chunk.id)]
+      ))
+      if (allVisibleChunksLoaded) return detailLevel
+    }
+
+    return activeCensusChunkDetailLevel
+  }, [
+    activeCensusChunkDetailLevel,
+    activeCensusChunkLevel,
+    activeCensusChunkManifest,
+    censusChunkRegionsByKey,
+    mapBounds,
+  ])
+  const renderedVisibleCensusChunks = useMemo(() => {
+    if (!renderedCensusChunkDetailLevel || !mapBounds) return []
+    return renderedCensusChunkDetailLevel.chunks.filter((chunk) => bboxesIntersect(chunk.bbox, mapBounds))
+  }, [mapBounds, renderedCensusChunkDetailLevel])
+  const renderedVisibleCensusChunkKeys = useMemo(() => {
+    if (!activeCensusChunkLevel || !renderedCensusChunkDetailLevel) return new Set<string>()
+    return new Set(renderedVisibleCensusChunks.map((chunk) => censusChunkCacheKey(activeCensusChunkLevel, renderedCensusChunkDetailLevel.id, chunk.id)))
+  }, [activeCensusChunkLevel, renderedCensusChunkDetailLevel, renderedVisibleCensusChunks])
   const bcDaActive = activeLayers.some(isBcDaSimplifiedLayer)
   const bcDaManifest = censusChunkManifests.da ?? null
   const parentBoundaryOptions = useMemo(() => bcDaManifest?.parentBoundaries ?? [], [bcDaManifest])
@@ -965,18 +1090,18 @@ function DevBoundaries() {
     if (!activeCensusChunkLevel || !activeCensusChunkDetailLevel || activeVisibleCensusChunks.length === 0) return
 
     const chunksToLoad = activeVisibleCensusChunks.filter((chunk) => {
-        const key = `${activeCensusChunkLevel}:${activeCensusChunkDetailLevel.id}:${chunk.id}`
+        const key = censusChunkCacheKey(activeCensusChunkLevel, activeCensusChunkDetailLevel.id, chunk.id)
         return !censusChunkRegionsByKey[key] && !censusRequestedChunkIds.current.has(key)
       })
 
     if (chunksToLoad.length === 0) return
 
-    const chunkKeys = chunksToLoad.map((chunk) => `${activeCensusChunkLevel}:${activeCensusChunkDetailLevel.id}:${chunk.id}`)
+    const chunkKeys = chunksToLoad.map((chunk) => censusChunkCacheKey(activeCensusChunkLevel, activeCensusChunkDetailLevel.id, chunk.id))
     chunkKeys.forEach((key) => censusRequestedChunkIds.current.add(key))
     setCensusLoadingChunkIds((current) => Array.from(new Set([...current, ...chunkKeys])))
 
     chunksToLoad.forEach((chunk) => {
-      const chunkKey = `${activeCensusChunkLevel}:${activeCensusChunkDetailLevel.id}:${chunk.id}`
+      const chunkKey = censusChunkCacheKey(activeCensusChunkLevel, activeCensusChunkDetailLevel.id, chunk.id)
       fetch(chunkUrl(activeCensusChunkLevel, chunk.path))
         .then((response) => {
           if (!response.ok) {
@@ -1049,15 +1174,16 @@ function DevBoundaries() {
 
   const censusChunkRegions = useMemo(() => (
     Object.entries(censusChunkRegionsByKey)
-      .filter(([key]) => activeVisibleCensusChunkKeys.has(key))
+      .filter(([key]) => renderedVisibleCensusChunkKeys.has(key))
       .flatMap(([, regions]) => regions)
       .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
-  ), [activeVisibleCensusChunkKeys, censusChunkRegionsByKey])
+  ), [censusChunkRegionsByKey, renderedVisibleCensusChunkKeys])
 
   const activeLayerViews = useMemo<ActiveLayerView[]>(() => {
     const term = query.trim().toLowerCase()
     return activeLayers.map((layer) => {
       const chunkedLayer = isChunkedCensusLayer(layer)
+      const pmtilesLayer = isDbPmtilesLayer(layer)
       const entry = chunkedLayer
         ? {
             regions: censusChunkRegions,
@@ -1065,7 +1191,7 @@ function DevBoundaries() {
             error: activeCensusChunkError ?? undefined,
           } satisfies BoundaryCacheEntry
         : cache[layer.key]
-      const regions = chunkedLayer ? censusChunkRegions : entry?.regions ?? EMPTY_REGIONS
+      const regions = chunkedLayer && !pmtilesLayer ? censusChunkRegions : entry?.regions ?? EMPTY_REGIONS
       const filteredRegions = term
         ? regions.filter((region) => regionSearchText(region).includes(term))
         : regions
@@ -1079,8 +1205,8 @@ function DevBoundaries() {
         entry,
         regions,
         filteredRegions,
-        loading: chunkedLayer
-          ? !activeCensusChunkError && (!activeCensusChunkManifest || censusLoadingChunkIds.length > 0)
+        loading: chunkedLayer && !pmtilesLayer
+          ? !activeCensusChunkError && (!activeCensusChunkManifest || (regions.length === 0 && censusLoadingChunkIds.length > 0))
           : !entry || entry.state === 'loading',
         error: entry?.state === 'error' ? entry.error : undefined,
       }
@@ -1118,6 +1244,11 @@ function DevBoundaries() {
   const allRegions = useMemo(() => activeLayerViews.flatMap((layer) => layer.regions), [activeLayerViews])
   const selectedRegion = allRegions.find((region) => region.id === selectedId) ?? null
   const selectedRegionLayerScope = activeLayerViews.find((layer) => selectedRegion && layer.regions.some((region) => region.id === selectedRegion.id))?.key ?? null
+  const regionByFocusKey = useMemo(() => (
+    new globalThis.Map(activeLayerViews.flatMap((layer) => (
+      layer.regions.map((region) => [polygonFocusKey({ id: region.id, scope: layer.key }), { region, scope: layer.key }] as const)
+    )))
+  ), [activeLayerViews])
   const selectedRegionLayerFocuses = selectedRegionLayerScope
     ? selectedPolygonFocuses.filter((focus) => focus.scope === selectedRegionLayerScope)
     : EMPTY_POLYGON_FOCUSES
@@ -1139,12 +1270,43 @@ function DevBoundaries() {
   const allMapVisibleRegions = useMemo(() => (
     activeLayerViews.flatMap((layer) => visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions)
   ), [activeLayerViews, visibleLayerRegionsByKey])
+  const layerDiffLayers = useMemo(() => activeLayerViews.slice(-2), [activeLayerViews])
+  const layerDiffRegionCounts = useMemo(() => (
+    layerDiffLayers.map((layer) => (visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions).length)
+  ), [layerDiffLayers, visibleLayerRegionsByKey])
+  const layerDiffBlockedReason = useMemo(() => {
+    if (layerDiffLayers.length !== 2) return 'Select at least two active layers to diff whole layers.'
+    const emptyIndex = layerDiffRegionCounts.findIndex((count) => count === 0)
+    if (emptyIndex >= 0) return `${layerDiffLayers[emptyIndex].label} has no visible boundaries to diff.`
+    const tooLargeIndex = layerDiffRegionCounts.findIndex((count) => count > MAX_LAYER_DIFF_FEATURES)
+    if (tooLargeIndex >= 0) {
+      return `${layerDiffLayers[tooLargeIndex].label} has ${formatNumber(layerDiffRegionCounts[tooLargeIndex])} visible boundaries; narrow it below ${formatNumber(MAX_LAYER_DIFF_FEATURES)} first.`
+    }
+    return null
+  }, [layerDiffLayers, layerDiffRegionCounts])
+  const layerDiffSurfaces = useMemo<[DiffSurface, DiffSurface] | null>(() => {
+    if (layerDiffBlockedReason || layerDiffLayers.length !== 2) return null
+    const surfaces = layerDiffLayers.map((layer) => (
+      diffSurfaceFromLayer(layer, visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions)
+    ))
+    return surfaces[0] && surfaces[1] ? [surfaces[0], surfaces[1]] : null
+  }, [layerDiffBlockedReason, layerDiffLayers, visibleLayerRegionsByKey])
   const surfaceDifference = useMemo(() => (
     compareRegions.length === 2 ? buildSurfaceDifference(compareRegions[0], compareRegions[1]) : null
   ), [compareRegions])
+  const layerSurfaceDifference = useMemo(() => (
+    layerDiffSurfaces ? buildSurfaceDifference(layerDiffSurfaces[0], layerDiffSurfaces[1]) : null
+  ), [layerDiffSurfaces])
+  const activeDifferenceSurfaces = layerDifferenceMode
+    ? layerDiffSurfaces
+    : surfaceDifferenceMode && compareRegions.length === 2
+      ? [compareRegions[0], compareRegions[1]] as [DiffSurface, DiffSurface]
+      : null
+  const activeSurfaceDifference = layerDifferenceMode ? layerSurfaceDifference : surfaceDifferenceMode ? surfaceDifference : null
   const activeLoading = activeLayerViews.some((layer) => layer.loading)
   const activeErrors = activeLayerViews.filter((layer) => layer.error)
   const topLayerKey = activeLayerViews[activeLayerViews.length - 1]?.key ?? null
+  const hasDbPmtilesLayer = activeLayerViews.some(isDbPmtilesLayer)
   const activeRange = useMemo(() => levelRange(allRegions), [allRegions])
   const visibleRange = useMemo(() => levelRange(allMapVisibleRegions), [allMapVisibleRegions])
   const fitRegions = useMemo(
@@ -1155,7 +1317,7 @@ function DevBoundaries() {
     ? 'No study areas selected'
     : activeLayerViews.length === 1
       ? `${activeLayerViews[0].label} - ${activeLayerViews[0].optionLabel}`
-      : `${activeLayerViews.length} study areas - ${allMapVisibleRegions.length.toLocaleString()} visible boundaries`
+      : `${activeLayerViews.length} study areas - ${allMapVisibleRegions.length.toLocaleString()} visible boundaries${hasDbPmtilesLayer ? ' + PMTiles' : ''}`
 
   const boundariesShareState = useMemo<BoundariesShareState>(() => {
     const sharedSourceLevels = activeSources.reduce<Partial<Record<BoundarySource, RegionLevel>>>((levels, source) => {
@@ -1231,10 +1393,13 @@ function DevBoundaries() {
     if (selectedRegionLayerScope && scopes.has(selectedRegionLayerScope)) {
       setSelectedId(null)
     }
+    if (selectedPmtilesFeature && scopes.has(selectedPmtilesFeature.scope)) {
+      setSelectedPmtilesFeature(null)
+    }
     if (selectedParentBoundary && scopes.has(selectedParentBoundary.scope)) {
       setSelectedParentId(null)
     }
-  }, [selectedParentBoundary, selectedRegionLayerScope])
+  }, [selectedParentBoundary, selectedPmtilesFeature, selectedRegionLayerScope])
 
   const toggleSource = useCallback((nextSource: BoundarySource) => {
     const removingSource = activeSources.includes(nextSource)
@@ -1249,6 +1414,7 @@ function DevBoundaries() {
       return [...current, nextSource]
     })
     setCompareIds([])
+    setLayerDifferenceMode(false)
   }, [activeSources, clearPolygonFocusForScopes, sourceLevels])
 
   const moveSource = useCallback((source: BoundarySource, direction: -1 | 1) => {
@@ -1289,6 +1455,7 @@ function DevBoundaries() {
     }
     clearPolygonFocusForScopes(scopesToClear)
     setCompareIds([])
+    setLayerDifferenceMode(false)
   }, [clearPolygonFocusForScopes, enabledCensusParentLevels, sourceLevels])
 
   const handleOpacityChange = useCallback((source: BoundarySource, value: number) => {
@@ -1301,31 +1468,98 @@ function DevBoundaries() {
     ))
   }, [])
 
+  const removeSelectedFocus = useCallback((focus: PolygonFocus) => {
+    setSelectedPolygonFocuses((current) => current.filter((candidate) => !samePolygonFocus(candidate, focus)))
+    setIsolatedPolygonFocuses((current) => current.filter((candidate) => !samePolygonFocus(candidate, focus)))
+    setHiddenPolygonFocuses((current) => current.filter((candidate) => !samePolygonFocus(candidate, focus)))
+    if (selectedRegionLayerScope === focus.scope && selectedId === focus.id) setSelectedId(null)
+    if (selectedParentBoundary?.scope === focus.scope && selectedParentId === focus.id) setSelectedParentId(null)
+    if (selectedPmtilesFeature?.scope === focus.scope && selectedPmtilesFeature.id === focus.id) setSelectedPmtilesFeature(null)
+  }, [selectedId, selectedParentBoundary, selectedParentId, selectedPmtilesFeature, selectedRegionLayerScope])
+
   const handleFeatureClick = useCallback((id: string, scope: string, event: PolygonClickMeta) => {
     selectPolygonFocus({ id, scope }, event.shiftKey)
     setFitSelectedRegion(!event.shiftKey)
-    setSelectedId(id)
-    setSelectedParentId(null)
+    if (event.shiftKey) {
+      setSelectedTrayExpanded(false)
+      setSelectedId(null)
+      setSelectedParentId(null)
+      setSelectedPmtilesFeature(null)
+    } else {
+      setSelectedId(id)
+      setSelectedParentId(null)
+      setSelectedPmtilesFeature(null)
+    }
   }, [selectPolygonFocus])
 
   const handleParentFeatureClick = useCallback((id: string, scope: string, event: PolygonClickMeta) => {
     selectPolygonFocus({ id, scope }, event.shiftKey)
     setFitSelectedRegion(false)
-    setSelectedParentId(id)
+    if (event.shiftKey) {
+      setSelectedTrayExpanded(false)
+      setSelectedParentId(null)
+      setSelectedId(null)
+      setSelectedPmtilesFeature(null)
+    } else {
+      setSelectedParentId(id)
+      setSelectedId(null)
+      setSelectedPmtilesFeature(null)
+    }
+  }, [selectPolygonFocus])
+
+  const handlePmtilesFeatureClick = useCallback((
+    id: string,
+    scope: string,
+    event: PolygonClickMeta,
+    properties: Record<string, unknown>,
+    lngLat: { lng: number; lat: number } | null,
+  ) => {
+    selectPolygonFocus({ id, scope }, event.shiftKey)
+    setFitSelectedRegion(false)
     setSelectedId(null)
+    setSelectedParentId(null)
+    if (event.shiftKey) setSelectedTrayExpanded(false)
+    if (lngLat) {
+      const nextFeature = {
+        id,
+        scope,
+        lngLat,
+        properties,
+      }
+      setPmtilesFeatureCache((current) => ({
+        ...current,
+        [polygonFocusKey({ id, scope })]: nextFeature,
+      }))
+      setSelectedPmtilesFeature(event.shiftKey ? null : nextFeature)
+    }
   }, [selectPolygonFocus])
 
   const toggleCompare = useCallback((id: string) => {
     setCompareIds((current) => (
       current.includes(id)
         ? current.filter((value) => value !== id)
-        : [...current.slice(-2), id]
+        : [...current.slice(-1), id]
     ))
   }, [])
+
+  const showLayerDiff = useCallback((id: string) => {
+    setCompareIds((current) => (
+      current.includes(id) ? current : [...current.slice(-1), id]
+    ))
+    setSurfaceDifferenceMode(true)
+    setLayerDifferenceMode(false)
+  }, [])
+
+  const showWholeLayerDiff = useCallback(() => {
+    if (layerDiffBlockedReason) return
+    setSurfaceDifferenceMode(false)
+    setLayerDifferenceMode(true)
+  }, [layerDiffBlockedReason])
 
   const clearCompare = useCallback(() => {
     setCompareIds([])
     setSurfaceDifferenceMode(false)
+    setLayerDifferenceMode(false)
   }, [])
 
   const isolatePolygon = useCallback((focuses: PolygonFocus[]) => {
@@ -1339,23 +1573,106 @@ function DevBoundaries() {
     setHiddenPolygonFocuses((current) => current.filter((focus) => !targetScopes.has(focus.scope)))
   }, [])
 
-  const hidePolygon = useCallback((focuses: PolygonFocus[]) => {
-    const targets = uniquePolygonFocuses(focuses)
-    setFitSelectedRegion(false)
-    setIsolatedPolygonFocuses((current) => current.filter((focus) => !targets.some((target) => samePolygonFocus(target, focus))))
-    setHiddenPolygonFocuses((current) => (
-      uniquePolygonFocuses([...current, ...targets])
-    ))
-    setSelectedPolygonFocuses((current) => current.filter((focus) => !targets.some((target) => samePolygonFocus(target, focus))))
-    setSelectedId((current) => (targets.some((focus) => focus.id === current) ? null : current))
-    setSelectedParentId((current) => (targets.some((focus) => focus.id === current) ? null : current))
-  }, [])
+	  const hidePolygon = useCallback((focuses: PolygonFocus[]) => {
+	    const targets = uniquePolygonFocuses(focuses)
+	    setFitSelectedRegion(false)
+	    setIsolatedPolygonFocuses((current) => current.filter((focus) => !targets.some((target) => samePolygonFocus(target, focus))))
+	    setHiddenPolygonFocuses((current) => (
+	      uniquePolygonFocuses([...current, ...targets])
+	    ))
+	    setSelectedPolygonFocuses((current) => current.filter((focus) => !targets.some((target) => samePolygonFocus(target, focus))))
+	    setSelectedId((current) => (targets.some((focus) => focus.id === current) ? null : current))
+	    setSelectedParentId((current) => (targets.some((focus) => focus.id === current) ? null : current))
+	    setSelectedPmtilesFeature((current) => (current && targets.some((focus) => samePolygonFocus(focus, current)) ? null : current))
+	  }, [])
 
-  const clearPolygonFocus = useCallback(() => {
-    setFitSelectedRegion(false)
-    setIsolatedPolygonFocuses([])
-    setHiddenPolygonFocuses([])
-  }, [])
+	  const clearPolygonFocus = useCallback(() => {
+	    setFitSelectedRegion(false)
+	    setIsolatedPolygonFocuses([])
+	    setHiddenPolygonFocuses([])
+	  }, [])
+
+	  const clearSelectedFocuses = useCallback(() => {
+	    setSelectedPolygonFocuses([])
+	    setSelectedId(null)
+	    setSelectedParentId(null)
+	    setSelectedPmtilesFeature(null)
+	  }, [])
+
+	  const isolateSelectedFocuses = useCallback(() => {
+	    if (selectedPolygonFocuses.length === 0) return
+	    isolatePolygon(selectedPolygonFocuses)
+	  }, [isolatePolygon, selectedPolygonFocuses])
+
+	  const hideSelectedFocuses = useCallback(() => {
+	    if (selectedPolygonFocuses.length === 0) return
+	    hidePolygon(selectedPolygonFocuses)
+	  }, [hidePolygon, selectedPolygonFocuses])
+
+	  const selectedFocusCards = useMemo<SelectedFocusCard[]>(() => {
+	    const cards: SelectedFocusCard[] = []
+	    selectedPolygonFocuses.forEach((focus) => {
+	      const regionMatch = regionByFocusKey.get(polygonFocusKey(focus))
+	      if (regionMatch) {
+	        const { region, scope } = regionMatch
+	        cards.push({
+	          focus,
+	          title: region.name,
+	          subtitle: `${sourceLabel(region.source)} · ${getStudyAreaLevelLabel(region.level)}`,
+	          areaLabel: formatArea(region.areaKm2),
+	          onOpen: () => {
+	            setFitSelectedRegion(true)
+	            setSelectedId(region.id)
+	            setSelectedParentId(null)
+	            setSelectedPmtilesFeature(null)
+	            selectPolygonFocus({ id: region.id, scope }, true)
+	          },
+	        })
+	        return
+	      }
+
+	      const pmtilesFeature = pmtilesFeatureCache[polygonFocusKey(focus)]
+	      if (pmtilesFeature) {
+	        cards.push({
+	          focus,
+	          title: pmtilesFeatureName(pmtilesFeature.properties),
+	          subtitle: `Census boundaries · ${getStudyAreaLevelLabel(BC_DB_CHUNKED_LEVEL)}`,
+	          areaLabel: formatArea(pmtilesFeatureAreaKm2(pmtilesFeature.properties)),
+	          onOpen: () => {
+	            setFitSelectedRegion(false)
+	            setSelectedId(null)
+	            setSelectedParentId(null)
+	            setSelectedPmtilesFeature(pmtilesFeature)
+	            selectPolygonFocus({ id: pmtilesFeature.id, scope: pmtilesFeature.scope }, true)
+	          },
+	        })
+	        return
+	      }
+
+	      for (const view of enabledParentBoundaryViews) {
+	        const scope = `census-parent:${view.level}`
+	        if (focus.scope !== scope) continue
+	        const feature = view.data.features.find((candidate) => polygonFeatureId(candidate) === focus.id)
+	        if (!feature) continue
+	        const properties = feature.properties ?? {}
+	        cards.push({
+	          focus,
+	          title: String(properties.boundaryName ?? properties.name ?? focus.id),
+	          subtitle: view.parent.label,
+	          areaLabel: formatArea(Number(properties.areaKm2 ?? 0)),
+	          onOpen: () => {
+	            setFitSelectedRegion(false)
+	            setSelectedId(null)
+	            setSelectedParentId(focus.id)
+	            setSelectedPmtilesFeature(null)
+	            selectPolygonFocus(focus, true)
+	          },
+	        })
+	        return
+	      }
+	    })
+	    return cards
+	  }, [enabledParentBoundaryViews, pmtilesFeatureCache, regionByFocusKey, selectPolygonFocus, selectedPolygonFocuses])
 
   const sidebar = (
     <MapSidebarShell
@@ -1406,6 +1723,36 @@ function DevBoundaries() {
           {activeSources.length === 0 && (
             <div className="rounded-md border border-dashed bg-muted/20 p-3 text-xs text-muted-foreground">
               No study areas selected.
+            </div>
+          )}
+          {activeLayerViews.length >= 2 && (
+            <div className="rounded-md border bg-background p-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-foreground">Layer diff</div>
+                  <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                    {layerDiffLayers.map((layer) => layer.label).join(' vs ')}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={showWholeLayerDiff}
+                  disabled={Boolean(layerDiffBlockedReason)}
+                  className={cn(
+                    'inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                    layerDifferenceMode
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'bg-background text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                  title={layerDiffBlockedReason ?? 'Diff the two top active layers'}
+                >
+                  <GitCompareArrows className="size-3.5" />
+                  Diff top layers
+                </button>
+              </div>
+              {layerDiffBlockedReason && (
+                <div className="mt-2 text-[10px] leading-4 text-muted-foreground">{layerDiffBlockedReason}</div>
+              )}
             </div>
           )}
           {activeSources.map((source, index) => {
@@ -1516,9 +1863,6 @@ function DevBoundaries() {
                       ? Object.keys(censusChunkRegionsByKey).filter((key) => key.startsWith(`${optionChunkedLevel}:${optionDetailLevel.id}:`)).length
                       : 0
                     const totalChunkCount = optionDetailLevel?.chunks.length ?? 0
-                    const minimumZoom = optionManifest
-                      ? Math.min(...getBcDaManifestLevels(optionManifest).map((level) => level.minZoom))
-                      : null
                     return (
                       <button
                         key={option.value}
@@ -1534,11 +1878,13 @@ function DevBoundaries() {
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-xs font-medium">{option.label}</span>
                           <span className="text-[10px] text-muted-foreground">
-                            {optionChunkedLevel
+                            {optionChunkedLevel === BC_DB_CHUNKED_LEVEL
+                              ? 'PMTiles'
+                              : optionChunkedLevel
                               ? optionManifest
                                 ? optionDetailLevel
                                   ? `${formatNumber(optionRegions.length)} / ${formatNumber(optionManifest.features)} loaded`
-                                  : `Zoom to ${minimumZoom ?? '--'}+`
+                                  : 'Not loaded'
                                 : 'Not loaded'
                               : (entry ? `${formatNumber(entry.regions.length)} areas` : 'Not loaded')}
                           </span>
@@ -1569,7 +1915,7 @@ function DevBoundaries() {
           columns={2}
           stats={[
             { label: 'Study areas', value: formatNumber(activeLayerViews.length) },
-            { label: 'Visible boundaries', value: activeLoading ? '...' : formatNumber(allMapVisibleRegions.length) },
+            { label: 'Visible boundaries', value: activeLoading ? '...' : `${formatNumber(allMapVisibleRegions.length)}${hasDbPmtilesLayer ? ' + PMTiles' : ''}` },
             { label: 'Total area', value: activeLoading ? '...' : formatArea(visibleRange.total || activeRange.total) },
             { label: 'Largest', value: activeLoading ? '...' : formatArea(visibleRange.max || activeRange.max) },
           ]}
@@ -1582,9 +1928,7 @@ function DevBoundaries() {
             <div key={layer.key} className="flex items-center justify-between gap-3">
               <span className="min-w-0 truncate">{layer.label}</span>
               <span className="shrink-0 font-medium text-foreground">
-                {layer.loading
-                  ? 'Loading'
-                  : `${formatNumber(visibleLayerRegionsByKey[layer.key]?.length ?? layer.filteredRegions.length)} / ${formatNumber(layer.filteredRegions.length)} ${layer.optionLabel}${isChunkedCensusLayer(layer) && censusLoadingChunkIds.length > 0 ? ` · ${censusLoadingChunkIds.length} loading` : ''}`}
+                {layerSummaryText(layer, visibleLayerRegionsByKey, censusLoadingChunkIds.length)}
               </span>
             </div>
           ))}
@@ -1610,8 +1954,8 @@ function DevBoundaries() {
             {activeLoading
               ? 'Loading boundaries'
               : polygonFocusActive
-                ? `${allMapVisibleRegions.length.toLocaleString()} visible after filters`
-                : `${allMapVisibleRegions.length.toLocaleString()} visible boundaries`}
+                ? `${allMapVisibleRegions.length.toLocaleString()} visible after filters${hasDbPmtilesLayer ? ' + PMTiles' : ''}`
+                : `${allMapVisibleRegions.length.toLocaleString()} visible boundaries${hasDbPmtilesLayer ? ' + PMTiles' : ''}`}
           </span>
           {(compareIds.length > 0 || polygonFocusActive) && (
             <button
@@ -1639,11 +1983,18 @@ function DevBoundaries() {
             {activeLayerViews.map((layer) => (
               <div key={layer.key}>
                 <div className="sticky top-[33px] z-10 border-b border-border bg-muted/80 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur">
-                  {layer.label} · {layer.optionLabel} · {(visibleLayerRegionsByKey[layer.key]?.length ?? layer.filteredRegions.length).toLocaleString()}
-                  {polygonFocusActive && (visibleLayerRegionsByKey[layer.key]?.length ?? layer.filteredRegions.length) !== layer.filteredRegions.length && (
+                  {isDbPmtilesLayer(layer)
+                    ? `${layer.label} · ${layer.optionLabel} · PMTiles`
+                    : `${layer.label} · ${layer.optionLabel} · ${layerVisibleCount(layer, visibleLayerRegionsByKey).toLocaleString()}`}
+                  {polygonFocusActive && !isDbPmtilesLayer(layer) && layerVisibleCount(layer, visibleLayerRegionsByKey) !== layer.filteredRegions.length && (
                     <span className="text-muted-foreground"> / {layer.filteredRegions.length.toLocaleString()}</span>
                   )}
                 </div>
+                {isDbPmtilesLayer(layer) && layer.filteredRegions.length === 0 && (
+                  <div className="px-4 py-3 text-xs text-muted-foreground">
+                    Rendered from vector tiles. Search, list selection, and area totals are not available for this trial layer yet.
+                  </div>
+                )}
                 {layer.filteredRegions.slice(0, 120).map((region) => {
                   const comparing = compareIds.includes(region.id)
                   return (
@@ -1656,12 +2007,19 @@ function DevBoundaries() {
                     >
                       <button
                         type="button"
-                        onClick={(event) => {
-                          setFitSelectedRegion(!event.shiftKey)
-                          setSelectedId(region.id)
-                          setSelectedParentId(null)
-                          selectPolygonFocus({ id: region.id, scope: layer.key }, event.shiftKey)
-                        }}
+	                        onClick={(event) => {
+	                          setFitSelectedRegion(!event.shiftKey)
+	                          if (event.shiftKey) {
+	                            setSelectedId(null)
+	                            setSelectedParentId(null)
+	                            setSelectedPmtilesFeature(null)
+	                          } else {
+	                            setSelectedId(region.id)
+	                            setSelectedParentId(null)
+	                            setSelectedPmtilesFeature(null)
+	                          }
+	                          selectPolygonFocus({ id: region.id, scope: layer.key }, event.shiftKey)
+	                        }}
                         className="w-full text-left"
                       >
                         <div className="mb-1 flex items-start justify-between gap-2">
@@ -1729,11 +2087,6 @@ function DevBoundaries() {
         doubleClickZoom={false}
       >
         <MapControls position="top-right" mobilePosition="bottom-right" />
-        {chunkedCensusZoomHint && (
-          <div className="pointer-events-none absolute left-1/2 top-4 z-20 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md border border-border bg-background/95 px-3 py-2 text-center text-xs font-medium text-foreground shadow-sm">
-            {chunkedCensusZoomHint}
-          </div>
-        )}
         <TrackMapBounds onBoundsChange={setMapBounds} onZoomChange={setMapZoom} />
         <FitToRegions
           regions={fitRegions}
@@ -1747,41 +2100,71 @@ function DevBoundaries() {
           const layerVisible = !layerHiddenForParentOutlines || isolatedPolygonFocuses.some((focus) => focus.scope === layer.key)
           const denseDbLayer = layer.source === 'census' && layer.level === BC_DB_CHUNKED_LEVEL
           const fillOpacity = denseDbLayer
-            ? ['interpolate', ['linear'], ['zoom'], 9, 0.055, 11, Math.min(layer.opacity, 0.11), 13, Math.min(layer.opacity, 0.16)]
+            ? ['interpolate', ['linear'], ['zoom'], 5, 0.025, 7, 0.04, 9, 0.055, 11, Math.min(layer.opacity, 0.11), 13, Math.min(layer.opacity, 0.16)]
             : layer.opacity
           const lineWidth = denseDbLayer
-            ? ['interpolate', ['linear'], ['zoom'], 9, 0.18, 11, 0.35, 13, 0.7]
+            ? ['interpolate', ['linear'], ['zoom'], 5, 0.08, 7, 0.12, 9, 0.18, 11, 0.35, 13, 0.7]
             : activeLayerViews.length > 1 ? 1.1 : 0.9
-          const lineOpacity = denseDbLayer ? 0.62 : 0.86
+          const lineOpacity = denseDbLayer ? 0.42 : 0.86
           const hoverEnabled = layer.key === topLayerKey && layerVisible && (!denseDbLayer || focusedRegions.length <= 2500)
           return (
             <Fragment key={`${activeSources.join('|')}:${layer.key}`}>
-              <MapFillLayer
-                data={focusedRegions.length > 0 ? featureCollection(focusedRegions) : EMPTY_COLLECTION}
-                fillColor={layer.colors.fill}
-                fillOpacity={fillOpacity}
-                lineColor={layer.colors.line}
-                lineOpacity={lineOpacity}
-                lineWidth={lineWidth}
-                idProperty="boundaryId"
-                selectedIds={selectedPolygonFocuses.filter((focus) => focus.scope === layer.key).map((focus) => focus.id)}
-                selectionColor="#f97316"
-                selectionWidth={3}
-                visible={layerVisible}
-                onFeatureClick={(id, event) => handleFeatureClick(id, layer.key, event)}
-                hoverHtml={hoverEnabled
-                  ? (properties) => {
-                      const parents = censusParentSummary(properties)
-                      return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
-                        <div class="font-semibold leading-5">${escapeHtml(String(properties.boundaryName ?? ''))}</div>
-                        <div class="mt-1 text-muted-foreground">${escapeHtml(sourceLabel(String(properties.boundarySource ?? layer.source) as BoundarySource))} &middot; ${escapeHtml(getStudyAreaLevelLabel(String(properties.boundaryLevel ?? '')))}</div>
-                        <div class="mt-1 text-muted-foreground">${escapeHtml(String(properties.boundaryCode ?? ''))}</div>
-                        ${parents ? `<div class="mt-2 text-muted-foreground">${escapeHtml(parents)}</div>` : ''}
-                        <div class="mt-2 font-semibold">${escapeHtml(formatArea(Number(properties.areaKm2 ?? 0)))}</div>
-                      </div>`
-                    }
-                  : undefined}
-              />
+              {denseDbLayer ? (
+	                <MapPmtilesFillLayer
+	                  url={BC_DB_PMTILES_URL}
+	                  sourceLayer={BC_DB_PMTILES_SOURCE_LAYER}
+	                  fillColor={layer.colors.fill}
+	                  fillOpacity={fillOpacity}
+	                  lineColor={layer.colors.line}
+	                  lineOpacity={lineOpacity}
+	                  lineWidth={lineWidth}
+	                  idProperty="id"
+	                  selectedIds={selectedPolygonFocuses.filter((focus) => focus.scope === layer.key).map((focus) => focus.id)}
+	                  selectionColor="#f97316"
+	                  selectionWidth={3}
+	                  visible={layerVisible}
+	                  onFeatureClick={(id, event, properties, lngLat) => handlePmtilesFeatureClick(id, layer.key, event, properties, lngLat)}
+	                  hoverHtml={hoverEnabled
+	                    ? (properties) => {
+	                        const parents = censusParentSummary(properties)
+	                        return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
+	                          <div class="font-semibold leading-5">${escapeHtml(pmtilesFeatureName(properties))}</div>
+	                          <div class="mt-1 text-muted-foreground">${escapeHtml(sourceLabel(layer.source))} &middot; ${escapeHtml(getStudyAreaLevelLabel(layer.level))}</div>
+	                          <div class="mt-1 text-muted-foreground">${escapeHtml(pmtilesFeatureCode(properties))}</div>
+	                          ${parents ? `<div class="mt-2 text-muted-foreground">${escapeHtml(parents)}</div>` : ''}
+	                          <div class="mt-2 font-semibold">${escapeHtml(formatArea(pmtilesFeatureAreaKm2(properties)))}</div>
+	                        </div>`
+	                      }
+	                    : undefined}
+	                />
+              ) : (
+                <MapFillLayer
+                  data={focusedRegions.length > 0 ? featureCollection(focusedRegions) : EMPTY_COLLECTION}
+                  fillColor={layer.colors.fill}
+                  fillOpacity={fillOpacity}
+                  lineColor={layer.colors.line}
+                  lineOpacity={lineOpacity}
+                  lineWidth={lineWidth}
+                  idProperty="boundaryId"
+                  selectedIds={selectedPolygonFocuses.filter((focus) => focus.scope === layer.key).map((focus) => focus.id)}
+                  selectionColor="#f97316"
+                  selectionWidth={3}
+                  visible={layerVisible}
+                  onFeatureClick={(id, event) => handleFeatureClick(id, layer.key, event)}
+                  hoverHtml={hoverEnabled
+                    ? (properties) => {
+                        const parents = censusParentSummary(properties)
+                        return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
+                          <div class="font-semibold leading-5">${escapeHtml(String(properties.boundaryName ?? ''))}</div>
+                          <div class="mt-1 text-muted-foreground">${escapeHtml(sourceLabel(String(properties.boundarySource ?? layer.source) as BoundarySource))} &middot; ${escapeHtml(getStudyAreaLevelLabel(String(properties.boundaryLevel ?? '')))}</div>
+                          <div class="mt-1 text-muted-foreground">${escapeHtml(String(properties.boundaryCode ?? ''))}</div>
+                          ${parents ? `<div class="mt-2 text-muted-foreground">${escapeHtml(parents)}</div>` : ''}
+                          <div class="mt-2 font-semibold">${escapeHtml(formatArea(Number(properties.areaKm2 ?? 0)))}</div>
+                        </div>`
+                      }
+                    : undefined}
+                />
+              )}
               {isBcDaSimplifiedLayer(layer) && enabledParentBoundaryViews.map((view) => {
                 const parentScope = `census-parent:${view.level}`
                 return (
@@ -1811,10 +2194,10 @@ function DevBoundaries() {
             </Fragment>
           )
         })}
-        {surfaceDifferenceMode && surfaceDifference && (
+        {activeSurfaceDifference && activeDifferenceSurfaces && (
           <>
             <MapFillLayer
-              data={singleFeatureCollection(surfaceDifference.onlyA)}
+              data={singleFeatureCollection(activeSurfaceDifference.onlyA)}
               fillColor="#22c55e"
               fillOpacity={0.38}
               lineColor="#15803d"
@@ -1823,13 +2206,13 @@ function DevBoundaries() {
               idProperty="boundaryId"
               hoverHtml={() => (
                 `<div class="rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
-                  <div class="font-semibold">Only ${escapeHtml(compareRegions[0].name)}</div>
-                  <div class="mt-1">${escapeHtml(formatArea(surfaceDifference.onlyAKm2))}</div>
+                  <div class="font-semibold">Only ${escapeHtml(activeDifferenceSurfaces[0].name)}</div>
+                  <div class="mt-1">${escapeHtml(formatArea(activeSurfaceDifference.onlyAKm2))}</div>
                 </div>`
               )}
             />
             <MapFillLayer
-              data={singleFeatureCollection(surfaceDifference.onlyB)}
+              data={singleFeatureCollection(activeSurfaceDifference.onlyB)}
               fillColor="#38bdf8"
               fillOpacity={0.38}
               lineColor="#0284c7"
@@ -1838,13 +2221,13 @@ function DevBoundaries() {
               idProperty="boundaryId"
               hoverHtml={() => (
                 `<div class="rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
-                  <div class="font-semibold">Only ${escapeHtml(compareRegions[1].name)}</div>
-                  <div class="mt-1">${escapeHtml(formatArea(surfaceDifference.onlyBKm2))}</div>
+                  <div class="font-semibold">Only ${escapeHtml(activeDifferenceSurfaces[1].name)}</div>
+                  <div class="mt-1">${escapeHtml(formatArea(activeSurfaceDifference.onlyBKm2))}</div>
                 </div>`
               )}
             />
             <MapFillLayer
-              data={singleFeatureCollection(surfaceDifference.overlap)}
+              data={singleFeatureCollection(activeSurfaceDifference.overlap)}
               fillColor="#f59e0b"
               fillOpacity={0.58}
               lineColor="#b45309"
@@ -1854,15 +2237,15 @@ function DevBoundaries() {
               hoverHtml={() => (
                 `<div class="rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
                   <div class="font-semibold">Overlap</div>
-                  <div class="mt-1">${escapeHtml(formatArea(surfaceDifference.overlapKm2))}</div>
+                  <div class="mt-1">${escapeHtml(formatArea(activeSurfaceDifference.overlapKm2))}</div>
                 </div>`
               )}
             />
           </>
         )}
-        {selectedRegion && (
-          <MapPopup
-            key={`region:${selectedRegion.id}`}
+	        {selectedRegion && (
+	          <MapPopup
+	            key={`region:${selectedRegion.id}`}
             longitude={(selectedRegion.bounds[0] + selectedRegion.bounds[2]) / 2}
             latitude={(selectedRegion.bounds[1] + selectedRegion.bounds[3]) / 2}
             closeOnClick={false}
@@ -1900,14 +2283,26 @@ function DevBoundaries() {
                   <div className="font-medium text-foreground">{formatArea(selectedRegion.areaKm2)}</div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => toggleCompare(selectedRegion.id)}
-                className="mt-3 inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
-              >
-                <ChevronsUpDown className="size-3.5" />
-                {compareIds.includes(selectedRegion.id) ? 'Remove from compare' : 'Add to compare'}
-              </button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleCompare(selectedRegion.id)}
+                  className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
+                >
+                  <ChevronsUpDown className="size-3.5" />
+                  {compareIds.includes(selectedRegion.id) ? 'Remove from compare' : 'Add to compare'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => showLayerDiff(selectedRegion.id)}
+                  disabled={compareIds.length === 0 && !compareIds.includes(selectedRegion.id)}
+                  className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-3 text-xs font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  title={compareIds.length === 0 ? 'Add one boundary to compare first' : 'Show selected-boundary difference'}
+                >
+                  <GitCompareArrows className="size-3.5" />
+                  Boundary diff
+                </button>
+              </div>
               {selectedRegionLayerScope && (
                 <PolygonFocusControls
                   polygonId={selectedRegion.id}
@@ -1919,10 +2314,62 @@ function DevBoundaries() {
                   onClear={clearPolygonFocus}
                 />
               )}
-            </div>
-          </MapPopup>
-        )}
-        {selectedParentBoundary && (
+	            </div>
+	          </MapPopup>
+	        )}
+	        {selectedPmtilesFeature && (
+	          <MapPopup
+	            key={`pmtiles:${selectedPmtilesFeature.id}`}
+	            longitude={selectedPmtilesFeature.lngLat.lng}
+	            latitude={selectedPmtilesFeature.lngLat.lat}
+	            closeOnClick={false}
+	            onClose={() => {
+	              setSelectedPmtilesFeature(null)
+	            }}
+	          >
+	            <div className="min-w-56 text-sm">
+	              <div className="font-semibold text-foreground">{pmtilesFeatureName(selectedPmtilesFeature.properties)}</div>
+	              <div className="mt-1 text-xs text-muted-foreground">{pmtilesFeatureCode(selectedPmtilesFeature.properties)}</div>
+	              {censusParentRows(selectedPmtilesFeature.properties).length > 0 && (
+	                <div className="mt-3 space-y-1.5 rounded border bg-muted/30 p-2 text-xs">
+	                  {censusParentRows(selectedPmtilesFeature.properties).map((row) => (
+	                    <div key={row.label} className="flex items-start justify-between gap-3">
+	                      <span className="text-muted-foreground">{row.label}</span>
+	                      <span className="text-right font-medium text-foreground">
+	                        {String(row.name ?? row.code)}
+	                        {Boolean(row.code && row.name) && <span className="ml-1 text-muted-foreground">({String(row.code)})</span>}
+	                      </span>
+	                    </div>
+	                  ))}
+	                </div>
+	              )}
+	              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+	                <div className="rounded border bg-muted/30 p-2">
+	                  <div className="text-[10px] text-muted-foreground">Study area</div>
+	                  <div className="font-medium text-foreground">Census boundaries</div>
+	                </div>
+	                <div className="rounded border bg-muted/30 p-2">
+	                  <div className="text-[10px] text-muted-foreground">Hierarchy / variant</div>
+	                  <div className="font-medium text-foreground">{getStudyAreaLevelLabel(BC_DB_CHUNKED_LEVEL)}</div>
+	                </div>
+	                <div className="rounded border bg-muted/30 p-2">
+	                  <div className="text-[10px] text-muted-foreground">Area</div>
+	                  <div className="font-medium text-foreground">{formatArea(pmtilesFeatureAreaKm2(selectedPmtilesFeature.properties))}</div>
+	                </div>
+	              </div>
+	              <PolygonFocusControls
+	                polygonId={selectedPmtilesFeature.id}
+	                polygonScope={selectedPmtilesFeature.scope}
+	                targetFocuses={selectedPolygonFocuses.filter((focus) => focus.scope === selectedPmtilesFeature.scope)}
+	                focusActive={polygonFocusActive}
+	                onIsolate={isolatePolygon}
+	                onHide={hidePolygon}
+	                onClear={clearPolygonFocus}
+	              />
+	            </div>
+	          </MapPopup>
+	        )}
+	        {selectedParentBoundary && (
           <MapPopup
             key={`parent:${selectedParentBoundary.id}`}
             longitude={(selectedParentBoundary.bounds[0] + selectedParentBoundary.bounds[2]) / 2}
@@ -1957,14 +2404,92 @@ function DevBoundaries() {
             </div>
           </MapPopup>
         )}
-      </Map>
+	      </Map>
+	
+	      {selectedFocusCards.length > 0 && compareRegions.length === 0 && !layerDifferenceMode && (
+	        <div className="absolute bottom-4 left-3 right-3 z-20 max-w-full rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur sm:left-4 sm:right-4">
+	          <div className={cn('flex flex-wrap items-center justify-between gap-2 p-2.5', selectedTrayExpanded && 'border-b')}>
+	            <button
+	              type="button"
+	              onClick={() => setSelectedTrayExpanded((current) => !current)}
+	              className="flex min-w-[12rem] flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-accent"
+	              aria-expanded={selectedTrayExpanded}
+	            >
+	              <SquareStack className="size-4 shrink-0 text-muted-foreground" />
+	              <h2 className="truncate text-sm font-semibold">{selectedFocusCards.length} selected boundaries</h2>
+	              <ChevronUp className={cn('ml-auto size-4 shrink-0 text-muted-foreground transition-transform', !selectedTrayExpanded && 'rotate-180')} />
+	            </button>
+	            <div className="ml-auto flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-1">
+	              <button
+	                type="button"
+	                onClick={isolateSelectedFocuses}
+	                className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+	                title={`Show only ${selectedFocusCards.length} selected boundaries`}
+	              >
+	                <Focus className="size-3.5" />
+	                <span className="hidden sm:inline">Show only</span>
+	              </button>
+	              <button
+	                type="button"
+	                onClick={hideSelectedFocuses}
+	                className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+	                title={`Exclude ${selectedFocusCards.length} selected boundaries`}
+	              >
+	                <EyeOff className="size-3.5" />
+	                <span className="hidden sm:inline">Exclude</span>
+	              </button>
+	              <button
+	                type="button"
+	                onClick={clearSelectedFocuses}
+	                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+	                aria-label="Clear selected boundaries"
+	                title="Clear selected boundaries"
+	              >
+	                <X className="size-4" />
+	              </button>
+	            </div>
+	          </div>
+	          {selectedTrayExpanded && (
+	            <div className="grid max-h-48 gap-2 overflow-y-auto p-3 sm:grid-cols-2 lg:grid-cols-3">
+	              {selectedFocusCards.map((card) => (
+	                <div key={polygonFocusKey(card.focus)} className="group relative rounded-md border bg-background p-3">
+	                  <button
+	                    type="button"
+	                    onClick={card.onOpen}
+	                    className="block w-full pr-7 text-left"
+	                  >
+	                    <div className="line-clamp-1 text-sm font-medium text-foreground">{card.title}</div>
+	                    <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{card.subtitle}</div>
+	                    {card.areaLabel && (
+	                      <div className="mt-3 flex items-center justify-between text-xs">
+	                        <span className="text-muted-foreground">Area</span>
+	                        <span className="font-semibold text-foreground">{card.areaLabel}</span>
+	                      </div>
+	                    )}
+	                  </button>
+	                  <button
+	                    type="button"
+	                    onClick={() => removeSelectedFocus(card.focus)}
+	                    className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+	                    aria-label={`Remove ${card.title}`}
+	                  >
+	                    <X className="size-3.5" />
+	                  </button>
+	                </div>
+	              ))}
+	            </div>
+	          )}
+	        </div>
+	      )}
 
-      {compareRegions.length > 0 && (
-        <div className="absolute bottom-4 left-1/2 z-20 w-[min(48rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur">
+	      {(compareRegions.length > 0 || layerDifferenceMode) && (
+	        <div className="absolute bottom-4 left-1/2 z-20 w-[min(48rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur">
           <div className="flex items-center justify-between gap-3 border-b p-3">
             <div className="flex min-w-0 items-center gap-2">
               <Layers className="size-4 text-muted-foreground" />
-              <h2 className="truncate text-sm font-semibold">Compare selected areas</h2>
+              <h2 className="truncate text-sm font-semibold">
+                {layerDifferenceMode ? 'Diff active layers' : 'Compare selected boundaries'}
+              </h2>
             </div>
             <button
               type="button"
@@ -1978,48 +2503,69 @@ function DevBoundaries() {
           <div className="border-b p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-xs font-semibold text-foreground">Surface difference</div>
-                <div className="text-[10px] text-muted-foreground">Shows overlap and area unique to each of two selected surfaces.</div>
+                <div className="text-xs font-semibold text-foreground">Layer diff</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {layerDifferenceMode
+                    ? 'Shows overlap and area unique to each whole active layer.'
+                    : 'Shows overlap and area unique to each selected boundary.'}
+                </div>
               </div>
               <button
                 type="button"
-                disabled={compareRegions.length !== 2}
-                onClick={() => setSurfaceDifferenceMode((current) => !current)}
+                disabled={layerDifferenceMode ? !layerSurfaceDifference : compareRegions.length !== 2}
+                onClick={layerDifferenceMode ? () => setLayerDifferenceMode(false) : () => setSurfaceDifferenceMode((current) => !current)}
                 className={cn(
                   'h-8 rounded-md border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                  surfaceDifferenceMode && compareRegions.length === 2
+                  (layerDifferenceMode || (surfaceDifferenceMode && compareRegions.length === 2))
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'bg-background text-muted-foreground hover:bg-accent hover:text-foreground',
                 )}
               >
-                {surfaceDifferenceMode && compareRegions.length === 2 ? 'Hide surfaces' : 'Show surfaces'}
+                {layerDifferenceMode || (surfaceDifferenceMode && compareRegions.length === 2) ? 'Hide diff' : 'Show diff'}
               </button>
             </div>
-            {compareRegions.length !== 2 && (
+            {!layerDifferenceMode && compareRegions.length !== 2 && (
               <div className="mt-2 text-[10px] text-muted-foreground">Select exactly two areas to enable surface difference mode.</div>
             )}
-            {surfaceDifference && (
+            {layerDifferenceMode && !layerSurfaceDifference && (
+              <div className="mt-2 text-[10px] text-muted-foreground">{layerDiffBlockedReason ?? 'Unable to dissolve one of the selected layers.'}</div>
+            )}
+            {activeSurfaceDifference && activeDifferenceSurfaces && (
               <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
                 <div className="rounded border bg-amber-500/10 p-2">
                   <div className="text-[10px] text-muted-foreground">Overlap</div>
-                  <div className="font-semibold text-foreground">{formatArea(surfaceDifference.overlapKm2)}</div>
+                  <div className="font-semibold text-foreground">{formatArea(activeSurfaceDifference.overlapKm2)}</div>
                   <div className="mt-1 text-[10px] text-muted-foreground">
-                    {Math.round(surfaceDifference.aShare * 100)}% of A · {Math.round(surfaceDifference.bShare * 100)}% of B
+                    {Math.round(activeSurfaceDifference.aShare * 100)}% of A · {Math.round(activeSurfaceDifference.bShare * 100)}% of B
                   </div>
                 </div>
                 <div className="rounded border bg-green-500/10 p-2">
                   <div className="text-[10px] text-muted-foreground">Only A</div>
-                  <div className="font-semibold text-foreground">{formatArea(surfaceDifference.onlyAKm2)}</div>
+                  <div className="font-semibold text-foreground">{formatArea(activeSurfaceDifference.onlyAKm2)}</div>
+                  <div className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{activeDifferenceSurfaces[0].name}</div>
                 </div>
                 <div className="rounded border bg-sky-500/10 p-2">
                   <div className="text-[10px] text-muted-foreground">Only B</div>
-                  <div className="font-semibold text-foreground">{formatArea(surfaceDifference.onlyBKm2)}</div>
+                  <div className="font-semibold text-foreground">{formatArea(activeSurfaceDifference.onlyBKm2)}</div>
+                  <div className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{activeDifferenceSurfaces[1].name}</div>
                 </div>
               </div>
             )}
           </div>
           <div className="grid gap-2 p-3 sm:grid-cols-3">
-            {compareRegions.map((region) => (
+            {layerDifferenceMode && activeDifferenceSurfaces ? activeDifferenceSurfaces.map((surface, index) => (
+              <div
+                key={surface.id}
+                className="rounded-md border bg-background p-3 text-left"
+              >
+                <div className="line-clamp-1 text-sm font-medium text-foreground">{surface.name}</div>
+                <div className="mt-1 text-xs text-muted-foreground">Layer {index === 0 ? 'A' : 'B'} dissolved surface</div>
+                <div className="mt-3 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Area</span>
+                  <span className="font-semibold text-foreground">{formatArea(surface.areaKm2)}</span>
+                </div>
+              </div>
+            )) : compareRegions.map((region) => (
               <button
                 key={region.id}
                 type="button"

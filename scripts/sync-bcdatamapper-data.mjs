@@ -87,7 +87,16 @@ const skippedSourcePaths = new Set([
   // authoritative BC childcare scraper output is copied to the same public path
   // later in pathMappings.
   'datascrapers/walkability/output/supplemental/bc_childcare_locations.geojson',
+  'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/large',
+  'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/canue-postal-aggregates',
+  'datascrapers/census/output/bcenviroscreen-census-lha/raw',
 ])
+
+const skippedSourcePrefixes = [
+  'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/large/',
+  'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/canue-postal-aggregates/',
+  'datascrapers/census/output/bcenviroscreen-census-lha/raw/',
+]
 
 if (process.env.PGMAPS_SKIP_VENDOR_DATA_SYNC === '1') {
   console.log('[data] skipped bcdatamapper data sync')
@@ -112,7 +121,10 @@ function copyPath(sourceRelative, targetRelative) {
     recursive: true,
     force: true,
     errorOnExist: false,
-    filter: (sourcePath) => !skippedSourcePaths.has(relative(vendorRoot, sourcePath)),
+    filter: (sourcePath) => {
+      const relativeSource = relative(vendorRoot, sourcePath)
+      return !skippedSourcePaths.has(relativeSource) && !skippedSourcePrefixes.some((prefix) => relativeSource.startsWith(prefix))
+    },
   })
 }
 

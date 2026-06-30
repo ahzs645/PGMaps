@@ -743,11 +743,23 @@ type MapPmtilesFillLayerProps = {
   url: string
   sourceLayer: string
   fillColor: string | StyleExpression
-  fillOpacity?: number
+  fillOpacity?: number | StyleExpression
   lineColor?: string | StyleExpression
-  lineWidth?: number
+  lineWidth?: number | StyleExpression
   lineOpacity?: number
+  idProperty?: string
+  selectedId?: string | number | null
+  selectedIds?: Array<string | number>
+  selectionColor?: string
+  selectionWidth?: number
   visible?: boolean
+  onFeatureClick?: (
+    id: string,
+    event: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean },
+    properties: Record<string, unknown>,
+    lngLat: { lng: number; lat: number } | null,
+  ) => void
+  hoverHtml?: (properties: Record<string, unknown>) => string | null
 }
 
 function MapPmtilesFillLayer({
@@ -758,20 +770,46 @@ function MapPmtilesFillLayer({
   lineColor = BORDER_COLOR,
   lineWidth = 0.4,
   lineOpacity = 0.35,
+  idProperty = 'id',
+  selectedId = null,
+  selectedIds = [],
+  selectionColor = SELECTION_COLOR,
+  selectionWidth = SELECTION_WIDTH,
   visible = true,
+  onFeatureClick,
+  hoverHtml,
 }: MapPmtilesFillLayerProps) {
   const { map, isLoaded } = useMap()
   const uid = useId().replace(/:/g, '')
   const sourceId = `pmtiles-src-${uid}`
   const fillLayerId = `pmtiles-fill-${uid}`
   const lineLayerId = `pmtiles-line-${uid}`
+  const selectedLayerId = `pmtiles-sel-${uid}`
+  const onClickRef = useRef(onFeatureClick)
+  const hoverHtmlRef = useRef(hoverHtml)
+  const idPropRef = useRef(idProperty)
+  const tooltipRef = useRef<MapLibreGLRuntime.Popup | null>(null)
+  const boxZoomWasEnabledRef = useRef(false)
+  const doubleClickZoomWasEnabledRef = useRef(false)
+
+  useEffect(() => {
+    onClickRef.current = onFeatureClick
+  }, [onFeatureClick])
+
+  useEffect(() => {
+    hoverHtmlRef.current = hoverHtml
+  }, [hoverHtml])
+
+  useEffect(() => {
+    idPropRef.current = idProperty
+  }, [idProperty])
 
   // Creation reads the latest style through a ref so recreating the source
   // (url change) keeps current paint without depending on per-render
   // expression identities; live updates flow through the effects below.
-  const styleRef = useRef({ fillColor, fillOpacity, lineColor, lineWidth, lineOpacity, visible })
+  const styleRef = useRef({ fillColor, fillOpacity, lineColor, lineWidth, lineOpacity, selectionColor, selectionWidth, visible })
   useEffect(() => {
-    styleRef.current = { fillColor, fillOpacity, lineColor, lineWidth, lineOpacity, visible }
+    styleRef.current = { fillColor, fillOpacity, lineColor, lineWidth, lineOpacity, selectionColor, selectionWidth, visible }
   })
 
   useEffect(() => {
@@ -813,8 +851,121 @@ function MapPmtilesFillLayer({
       },
     })
 
+    map.addLayer({
+      id: selectedLayerId,
+      type: 'line',
+      source: sourceId,
+      'source-layer': sourceLayer,
+      filter: ['==', ['get', idPropRef.current], ''] as never,
+      paint: {
+        'line-color': style.selectionColor,
+        'line-width': style.selectionWidth,
+        'line-opacity': 1,
+      },
+      layout: {
+        visibility: style.visible ? 'visible' : 'none',
+      },
+    })
+
+    const removeTooltip = () => {
+      tooltipRef.current?.remove()
+    }
+
+    const handleClick = (event: unknown) => {
+      const e = event as {
+        features?: Array<{ properties?: Record<string, unknown> }>
+        lngLat?: { lng: number; lat: number }
+        originalEvent?: Event & {
+          shiftKey?: boolean
+          altKey?: boolean
+          ctrlKey?: boolean
+          metaKey?: boolean
+        }
+        preventDefault?: () => void
+      }
+      const properties = e.features?.[0]?.properties
+      const id = properties?.[idPropRef.current]
+      if (id != null && properties) {
+        e.preventDefault?.()
+        e.originalEvent?.preventDefault()
+        dispatchMobileMapFeatureClick()
+        const originalEvent = e.originalEvent
+        onClickRef.current?.(String(id), {
+          shiftKey: originalEvent?.shiftKey === true,
+          altKey: originalEvent?.altKey === true,
+          ctrlKey: originalEvent?.ctrlKey === true,
+          metaKey: originalEvent?.metaKey === true,
+        }, properties, e.lngLat ?? null)
+      }
+    }
+
+    const handleMouseEnter = () => {
+      map.getCanvas().style.cursor = 'pointer'
+      boxZoomWasEnabledRef.current = map.boxZoom.isEnabled()
+      if (boxZoomWasEnabledRef.current) map.boxZoom.disable()
+      doubleClickZoomWasEnabledRef.current = map.doubleClickZoom.isEnabled()
+      if (doubleClickZoomWasEnabledRef.current) map.doubleClickZoom.disable()
+    }
+
+    const handleMouseMove = (event: unknown) => {
+      const formatter = hoverHtmlRef.current
+      if (!formatter) return
+      const e = event as {
+        features?: Array<{ properties?: Record<string, unknown> }>
+        lngLat?: MapLibreGL.LngLatLike
+      }
+      const properties = e.features?.[0]?.properties
+      const html = properties ? formatter(properties) : null
+      if (!html || !e.lngLat) {
+        removeTooltip()
+        return
+      }
+      if (!tooltipRef.current) {
+        tooltipRef.current = new MapLibreGLRuntime.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          className: 'mapcn-tooltip pointer-events-none',
+          offset: 12,
+        })
+      }
+      tooltipRef.current.setLngLat(e.lngLat).setHTML(html).addTo(map)
+    }
+
+    const handleMouseLeave = () => {
+      map.getCanvas().style.cursor = ''
+      if (boxZoomWasEnabledRef.current) {
+        map.boxZoom.enable()
+        boxZoomWasEnabledRef.current = false
+      }
+      if (doubleClickZoomWasEnabledRef.current) {
+        map.doubleClickZoom.enable()
+        doubleClickZoomWasEnabledRef.current = false
+      }
+      removeTooltip()
+    }
+
+    map.on('click', fillLayerId, handleClick as never)
+    map.on('mouseenter', fillLayerId, handleMouseEnter)
+    map.on('mousemove', fillLayerId, handleMouseMove as never)
+    map.on('mouseleave', fillLayerId, handleMouseLeave)
+
     return () => {
       try {
+        map.off('click', fillLayerId, handleClick as never)
+        map.off('mouseenter', fillLayerId, handleMouseEnter)
+        map.off('mousemove', fillLayerId, handleMouseMove as never)
+        map.off('mouseleave', fillLayerId, handleMouseLeave)
+        if (boxZoomWasEnabledRef.current) {
+          map.boxZoom.enable()
+          boxZoomWasEnabledRef.current = false
+        }
+        if (doubleClickZoomWasEnabledRef.current) {
+          map.doubleClickZoom.enable()
+          doubleClickZoomWasEnabledRef.current = false
+        }
+        removeTooltip()
+        tooltipRef.current = null
+        if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
         if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
         if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
         if (map.getSource(sourceId)) map.removeSource(sourceId)
@@ -822,14 +973,15 @@ function MapPmtilesFillLayer({
         // Map already destroyed during unmount
       }
     }
-  }, [fillLayerId, isLoaded, lineLayerId, map, sourceId, sourceLayer, url])
+  }, [fillLayerId, isLoaded, lineLayerId, map, selectedLayerId, sourceId, sourceLayer, url])
 
   useEffect(() => {
     if (!isLoaded || !map) return
     const visibility = visible ? 'visible' : 'none'
     if (map.getLayer(fillLayerId)) map.setLayoutProperty(fillLayerId, 'visibility', visibility)
     if (map.getLayer(lineLayerId)) map.setLayoutProperty(lineLayerId, 'visibility', visibility)
-  }, [fillLayerId, isLoaded, lineLayerId, map, visible])
+    if (map.getLayer(selectedLayerId)) map.setLayoutProperty(selectedLayerId, 'visibility', visibility)
+  }, [fillLayerId, isLoaded, lineLayerId, map, selectedLayerId, visible])
 
   useEffect(() => {
     if (!isLoaded || !map) return
@@ -842,7 +994,22 @@ function MapPmtilesFillLayer({
       map.setPaintProperty(lineLayerId, 'line-width', lineWidth)
       map.setPaintProperty(lineLayerId, 'line-opacity', lineOpacity)
     }
-  }, [fillColor, fillLayerId, fillOpacity, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map])
+    if (map.getLayer(selectedLayerId)) {
+      map.setPaintProperty(selectedLayerId, 'line-color', selectionColor)
+      map.setPaintProperty(selectedLayerId, 'line-width', selectionWidth)
+    }
+  }, [fillColor, fillLayerId, fillOpacity, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map, selectedLayerId, selectionColor, selectionWidth])
+
+  useEffect(() => {
+    if (!isLoaded || !map || !map.getLayer(selectedLayerId)) return
+    const selectedValues = Array.from(new Set([selectedId, ...selectedIds].filter((id) => id != null)))
+    map.setFilter(
+      selectedLayerId,
+      selectedValues.length > 0
+        ? ['in', ['get', idProperty], ['literal', selectedValues]] as never
+        : ['==', ['get', idProperty], ''] as never,
+    )
+  }, [idProperty, isLoaded, map, selectedId, selectedIds, selectedLayerId])
 
   return null
 }
