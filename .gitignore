@@ -51,6 +51,9 @@ coverage
 playwright-report
 test-results
 
+# Local scraper/browser scratch output
+tmp/
+
 # Generated from bcdatamapper data sync for local app use.
 public/data/acknowledgement/
 public/data/ascent/
@@ -64,6 +67,7 @@ public/data/cell-coverage/
 public/data/census/
 public/data/citypg/
 public/data/drought/
+public/data/environmental-burden/
 public/data/epa/
 public/data/erstat-hospitals.json
 public/data/ev-charging/
@@ -122,3 +126,5 @@ public/data/health/health-place-sites.csv
 public/data/health/health-place-sites.geojson
 public/data/health/statcan-odhf-bc.csv
 public/data/health/statcan-odhf-bc.geojson
+public/data/health/bccdc-chronic-disease-tableau/
+public/data/health/phsa-community-health/
