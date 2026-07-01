@@ -89,12 +89,16 @@ const skippedSourcePaths = new Set([
   'datascrapers/walkability/output/supplemental/bc_childcare_locations.geojson',
   'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/large',
   'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/canue-postal-aggregates',
+  'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/traffic-data-program/tms-site-report-pdfs',
+  'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/traffic-data-program/utv-segment-report-pdfs',
   'datascrapers/census/output/bcenviroscreen-census-lha/raw',
 ])
 
 const skippedSourcePrefixes = [
   'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/large/',
   'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/canue-postal-aggregates/',
+  'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/traffic-data-program/tms-site-report-pdfs/',
+  'datascrapers/environmental-burden/output/bc-enviro-screen/raw-rebuild-seed/compact/traffic-data-program/utv-segment-report-pdfs/',
   'datascrapers/census/output/bcenviroscreen-census-lha/raw/',
 ]
 
