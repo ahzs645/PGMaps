@@ -8,9 +8,11 @@ import {
   Plus,
   Search,
   Settings as SettingsIcon,
+  X,
 } from 'lucide-react'
 import type { AirMonitor, BoundarySource, RegionLevel } from '@/maps/airquality'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import {
   SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS,
@@ -31,11 +33,11 @@ import type {
   ScoreMethodSettings,
 } from '../types'
 import { BaselineComparisonCard } from './BaselineComparisonCard'
-import { EquationComposer, WeightDistribution } from './EquationComposer'
+import { WeightDistribution } from './EquationComposer'
 import { MethodControls } from './MethodControls'
 import { ScoreBuilderMap } from './ScoreBuilderMap'
 import { ScorePresetDialog } from './ScorePresetDialog'
-import { getDefaultMetricWeight, getWeightIntent } from './scoreBuilderPanelUtils'
+import { clampWeight, getCategoryTone, getDefaultMetricWeight, getWeightIntent } from './scoreBuilderPanelUtils'
 
 export interface ScoreBuilderBuildViewProps {
   weights: ScoreMetricWeightMap
@@ -107,7 +109,6 @@ export function ScoreBuilderBuildView({
 }: ScoreBuilderBuildViewProps) {
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [studyAreaOpen, setStudyAreaOpen] = useState(false)
-  const [focusedMetric, setFocusedMetric] = useState<ScoreMetricKey | null>(null)
   const activeTerms = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0), [weights])
   const topRegions = scoredRegions.slice(0, 5)
   const boundarySourceLabel =
@@ -198,26 +199,32 @@ export function ScoreBuilderBuildView({
           </section>
 
           <section className="rounded-lg border border-border bg-background p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Equation
-                </div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">
-                  Pick metrics from the library, then weight them. Negative weights reward, positive weights
-                  penalize.
-                </div>
+            <div className="mb-2">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Equation</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                Slide how much each metric matters. The +/− toggle sets whether high values raise or lower the score.
               </div>
             </div>
             <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} />
-            <EquationComposer
-              activeTerms={activeTerms}
-              weights={weights}
-              totalAbsoluteWeight={totalAbsoluteWeight}
-              focusedMetric={focusedMetric}
-              onFocus={setFocusedMetric}
-              onWeightChange={onWeightChange}
-            />
+
+            {activeTerms.length === 0 ? (
+              <div className="mt-3 rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                No active metrics. Pick one from the library to start the equation.
+              </div>
+            ) : (
+              <div className="mt-3 space-y-1.5">
+                {activeTerms.map((metric) => (
+                  <CompactWeightRow
+                    key={metric.key}
+                    metric={metric}
+                    value={weights[metric.key]}
+                    totalAbsoluteWeight={totalAbsoluteWeight}
+                    onChange={(value) => onWeightChange(metric.key, value)}
+                    onRemove={() => onWeightChange(metric.key, 0)}
+                  />
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="rounded-lg border border-border bg-background p-3">
@@ -383,6 +390,99 @@ export function ViewModeToggle({
       >
         <MapIcon className="h-3.5 w-3.5" />
         Explore
+      </button>
+    </div>
+  )
+}
+
+/**
+ * One-line weight editor, OECD Better Life Index style: a small direction toggle plus a
+ * 0-100 importance slider, with the normalized share readout. Replaces the signed
+ * slider card so five metrics read like a list instead of a wall.
+ */
+function CompactWeightRow({
+  metric,
+  value,
+  totalAbsoluteWeight,
+  onChange,
+  onRemove,
+}: {
+  metric: (typeof SCORE_METRICS)[number]
+  value: number
+  totalAbsoluteWeight: number
+  onChange: (value: number) => void
+  onRemove: () => void
+}) {
+  const clamped = clampWeight(value)
+  const magnitude = Math.abs(clamped)
+  const positive = clamped > 0
+  const share = totalAbsoluteWeight > 0 ? Math.round((magnitude / totalAbsoluteWeight) * 100) : 0
+
+  const applyMagnitude = (nextMagnitude: number) => {
+    const next = Math.max(1, Math.min(100, Math.round(nextMagnitude)))
+    onChange(positive ? next : -next)
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/20 px-2 py-1.5 sm:flex-nowrap">
+      <button
+        type="button"
+        onClick={() => onChange(-clamped)}
+        title={
+          positive
+            ? 'Counts up — high values raise the score. Click to flip.'
+            : 'Counts down — high values lower the score. Click to flip.'
+        }
+        aria-label={`Flip direction for ${metric.shortLabel}`}
+        className={cn(
+          'flex h-6 w-6 shrink-0 items-center justify-center rounded border text-xs font-bold',
+          positive
+            ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'
+            : 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300',
+        )}
+      >
+        {positive ? '+' : '−'}
+      </button>
+      <span className={cn('h-2 w-2 shrink-0 rounded-full', getCategoryTone(metric.category))} aria-hidden="true" />
+      <span
+        className="min-w-0 flex-1 truncate text-xs font-medium text-foreground sm:w-40 sm:flex-none"
+        title={metric.label}
+      >
+        {metric.shortLabel}
+      </span>
+      <Slider
+        min={1}
+        max={100}
+        step={1}
+        value={[magnitude]}
+        onValueChange={([next]) => applyMagnitude(next ?? magnitude)}
+        aria-label={`${metric.shortLabel} importance`}
+        className="order-last basis-full pb-1 sm:order-none sm:min-w-0 sm:flex-1 sm:basis-0 sm:pb-0"
+      />
+      <input
+        type="number"
+        min={1}
+        max={100}
+        step={1}
+        value={magnitude}
+        onChange={(event) => {
+          const parsed = Number.parseFloat(event.target.value)
+          if (Number.isFinite(parsed)) applyMagnitude(parsed)
+        }}
+        aria-label={`${metric.shortLabel} weight`}
+        className="w-11 shrink-0 rounded border border-input bg-background px-1 py-0.5 text-right text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+      />
+      <span className="w-9 shrink-0 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
+        {share}%
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        title="Remove metric"
+        aria-label={`Remove ${metric.shortLabel}`}
+        className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+      >
+        <X className="h-3.5 w-3.5" />
       </button>
     </div>
   )
