@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BookOpen,
   Check,
+  ChevronDown,
   ChevronRight,
   Eye,
   EyeOff,
@@ -12,7 +13,6 @@ import {
   FileText,
   FolderKanban,
   FolderOpen,
-  Image,
   Layers,
   Map as MapIcon,
   PanelRight,
@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import healthAuthorityBoundaries from '../../public/data/boundaries/BCMoH/simplified/health_authorities.json'
 
 type ProjectKind = 'raster-story' | 'index-preset' | 'research-pack'
@@ -1202,9 +1203,15 @@ function ProjectCatalogPage({
   onSelectProject: (slug: string) => void
   onOpenProject: (slug: string) => void
 }) {
+  const [expandedSlug, setExpandedSlug] = useState<string | null>(null)
+
+  function onToggleExpand(slug: string) {
+    setExpandedSlug((current) => (current === slug ? null : slug))
+  }
+
   return (
-    <div className="h-[calc(100vh-4rem)] min-h-[720px] bg-muted/30 p-4 text-foreground sm:p-5">
-      <div className="mx-auto grid h-full max-w-[98rem] gap-4 lg:grid-cols-[minmax(40rem,1.35fr)_minmax(24rem,0.85fr)]">
+    <div className="bg-muted/30 p-3 text-foreground sm:p-5 lg:h-[calc(100vh-4rem)] lg:min-h-[720px]">
+      <div className="mx-auto max-w-[98rem] gap-4 lg:grid lg:h-full lg:grid-cols-[minmax(40rem,1.35fr)_minmax(24rem,0.85fr)]">
         <section className="flex min-h-0 flex-col rounded-lg border bg-background shadow-sm">
           <header className="border-b p-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -1239,15 +1246,14 @@ function ProjectCatalogPage({
             </div>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-auto">
-            <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left">
+          <div className="hidden min-h-0 flex-1 overflow-auto lg:block">
+            <table className="w-full min-w-[560px] border-separate border-spacing-0 text-left">
               <thead className="sticky top-0 z-10 bg-background text-[11px] uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))]">
                 <tr>
-                  <th className="w-[38%] px-4 py-3 font-semibold">Project</th>
-                  <th className="w-[16%] px-3 py-3 font-semibold">State</th>
+                  <th className="w-[48%] px-4 py-3 font-semibold">Project</th>
+                  <th className="w-[20%] px-3 py-3 font-semibold">State</th>
                   <th className="w-[18%] px-3 py-3 font-semibold">Resources</th>
-                  <th className="w-[18%] px-3 py-3 font-semibold">Calls</th>
-                  <th className="w-[10%] px-4 py-3 text-right font-semibold">Open</th>
+                  <th className="w-[14%] px-4 py-3 text-right font-semibold">Open</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -1308,19 +1314,6 @@ function ProjectCatalogPage({
                           <span className="font-medium text-foreground">{project.files.length}</span> files
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-xs leading-5 text-muted-foreground">
-                        <div className="truncate">
-                          <span className="font-medium text-foreground">Preset:</span> {project.presetKey}
-                        </div>
-                        <div className="truncate">
-                          <span className="font-medium text-foreground">Lab:</span> {getLabUrl(project)}
-                        </div>
-                        {project.portalRasterLayers && (
-                          <div className="truncate">
-                            <span className="font-medium text-foreground">Raster:</span> Nechako WMS
-                          </div>
-                        )}
-                      </td>
                       <td className="px-4 py-3 text-right">
                         <Button
                           type="button"
@@ -1342,12 +1335,27 @@ function ProjectCatalogPage({
               <div className="p-8 text-center text-sm text-muted-foreground">No projects match the current search.</div>
             )}
           </div>
+
+          <div className="space-y-3 p-3 lg:hidden">
+            {filteredProjects.map((project) => (
+              <ProjectCatalogMobileCard
+                key={project.slug}
+                project={project}
+                expanded={expandedSlug === project.slug}
+                onToggleExpand={() => onToggleExpand(project.slug)}
+                onOpen={() => onOpenProject(project.slug)}
+              />
+            ))}
+            {filteredProjects.length === 0 && (
+              <div className="p-8 text-center text-sm text-muted-foreground">No projects match the current search.</div>
+            )}
+          </div>
         </section>
 
         {selectedProject ? (
           <ProjectCatalogPreview project={selectedProject} onOpenProject={() => onOpenProject(selectedProject.slug)} />
         ) : (
-          <aside className="flex min-h-0 items-center justify-center rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground shadow-sm">
+          <aside className="hidden min-h-0 items-center justify-center rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground shadow-sm lg:flex">
             Select a project to preview its details.
           </aside>
         )}
@@ -1356,12 +1364,196 @@ function ProjectCatalogPage({
   )
 }
 
-function ProjectCatalogPreview({ project, onOpenProject }: { project: ProjectDefinition; onOpenProject: () => void }) {
-  const previewVisibleLayerIds = useMemo(() => defaultVisibleLayerIds(project), [project])
+function ProjectDetailSections({ project }: { project: ProjectDefinition }) {
   const detailParagraphs = project.details ?? [project.summary, project.sourceNote]
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background shadow-sm">
+    <>
+      <section className="p-4">
+        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+          <BookOpen className="h-4 w-4" />
+          About
+        </div>
+        <div className="space-y-2 text-sm leading-6 text-muted-foreground">
+          {detailParagraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </div>
+        {project.image && (
+          <figure className="mt-3 overflow-hidden rounded-md border bg-muted/20">
+            <img
+              src={project.image.src}
+              alt={project.image.alt}
+              loading="lazy"
+              className="max-h-56 w-full object-contain"
+            />
+            <figcaption className="border-t px-3 py-2 text-xs leading-5 text-muted-foreground">
+              {project.image.caption}
+            </figcaption>
+          </figure>
+        )}
+      </section>
+
+      <section className="border-t p-4">
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            ['Owner', project.owner],
+            ['Region', project.region],
+            ['Updated', project.updated],
+            ['Preset', project.presetKey],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-md border bg-muted/20 px-3 py-2">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+              <div className="mt-0.5 truncate text-sm font-semibold text-foreground">{value}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-t p-4">
+        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Layers className="h-4 w-4" />
+          Resources and Calls
+        </div>
+        <div className="space-y-3">
+          <div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Layer Stack
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {project.layers.map((layer) => (
+                <span
+                  key={layer.id}
+                  className="rounded-md border bg-muted/20 px-2 py-1 text-[11px] text-muted-foreground"
+                >
+                  {layer.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {project.catalogMetrics.map((metric) => (
+              <div key={metric.label} className="rounded-md border bg-muted/20 px-3 py-2">
+                <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {metric.label}
+                </div>
+                <div className="mt-0.5 text-sm font-semibold text-foreground">{metric.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Files</div>
+            <div className="space-y-2">
+              {project.files.map((file) => (
+                <div key={file.label} className="flex items-start gap-2 rounded-md border bg-muted/20 px-3 py-2">
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-foreground">{file.label}</div>
+                    <div className="text-xs leading-5 text-muted-foreground">{file.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {project.links && project.links.length > 0 && (
+            <div>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Links</div>
+              <div className="space-y-2">
+                {project.links.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target={link.href.startsWith('http') ? '_blank' : undefined}
+                    rel={link.href.startsWith('http') ? 'noreferrer' : undefined}
+                    className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
+                  >
+                    <span className="truncate">{link.label}</span>
+                    <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    </>
+  )
+}
+
+function ProjectCatalogMobileCard({
+  project,
+  expanded,
+  onToggleExpand,
+  onOpen,
+}: {
+  project: ProjectDefinition
+  expanded: boolean
+  onToggleExpand: () => void
+  onOpen: () => void
+}) {
+  return (
+    <article className="overflow-hidden rounded-lg border bg-background shadow-sm">
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <span
+            className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white', project.iconTone)}
+          >
+            <FolderKanban className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              <span className={cn('rounded-md border px-2 py-0.5 text-[11px] font-semibold', project.accent)}>
+                {KIND_LABELS[project.kind]}
+              </span>
+              <span className="rounded-md border bg-muted/30 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                {project.status}
+              </span>
+            </div>
+            <h2 className="text-base font-bold leading-tight text-foreground">{project.title}</h2>
+          </div>
+        </div>
+
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{project.summary}</p>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button type="button" size="sm" onClick={onOpen}>
+            Enter Project
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to={getLabUrl(project)}>
+              <Settings2 className="h-4 w-4" />
+              Index Lab
+            </Link>
+          </Button>
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          aria-expanded={expanded}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50"
+        >
+          {expanded ? 'Hide details' : 'Project details'}
+          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')} />
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="border-t">
+          <ProjectDetailSections project={project} />
+        </div>
+      )}
+    </article>
+  )
+}
+
+function ProjectCatalogPreview({ project, onOpenProject }: { project: ProjectDefinition; onOpenProject: () => void }) {
+  return (
+    <aside className="hidden min-h-0 flex-col overflow-hidden rounded-lg border bg-background shadow-sm lg:flex">
       <div className="border-b p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -1401,133 +1593,14 @@ function ProjectCatalogPreview({ project, onOpenProject }: { project: ProjectDef
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <section className="p-4">
-          <ProjectMapPreview
-            project={project}
-            visibleLayerIds={previewVisibleLayerIds}
-            rasterOpacity={82}
-            className="h-[18rem] min-h-[18rem] rounded-md lg:min-h-[18rem]"
-          />
-        </section>
-
-        {project.image && (
-          <section className="border-t p-4">
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Image className="h-4 w-4" />
-              Reference Image
-            </div>
-            <figure className="overflow-hidden rounded-md border bg-muted/20">
-              <img src={project.image.src} alt={project.image.alt} className="max-h-[28rem] w-full object-contain" />
-              <figcaption className="border-t px-3 py-2 text-xs leading-5 text-muted-foreground">
-                {project.image.caption}
-              </figcaption>
-            </figure>
-          </section>
-        )}
-
-        <section className="border-t p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <BookOpen className="h-4 w-4" />
-            About
-          </div>
-          <div className="space-y-2 text-sm leading-6 text-muted-foreground">
-            {detailParagraphs.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-        </section>
-
-        <section className="border-t p-4">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {[
-              ['Owner', project.owner],
-              ['Region', project.region],
-              ['Updated', project.updated],
-              ['Preset', project.presetKey],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-md border bg-muted/20 px-3 py-2">
-                <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-                <div className="mt-0.5 truncate text-sm font-semibold text-foreground">{value}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="border-t p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Layers className="h-4 w-4" />
-            Resources and Calls
-          </div>
-          <div className="space-y-3">
-            <div>
-              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Layer Stack
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {project.layers.map((layer) => (
-                  <span
-                    key={layer.id}
-                    className="rounded-md border bg-muted/20 px-2 py-1 text-[11px] text-muted-foreground"
-                  >
-                    {layer.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-3">
-              {project.catalogMetrics.map((metric) => (
-                <div key={metric.label} className="rounded-md border bg-muted/20 px-3 py-2">
-                  <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {metric.label}
-                  </div>
-                  <div className="mt-0.5 text-sm font-semibold text-foreground">{metric.value}</div>
-                </div>
-              ))}
-            </div>
-
-            <div>
-              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Files</div>
-              <div className="space-y-2">
-                {project.files.map((file) => (
-                  <div key={file.label} className="flex items-start gap-2 rounded-md border bg-muted/20 px-3 py-2">
-                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-foreground">{file.label}</div>
-                      <div className="text-xs leading-5 text-muted-foreground">{file.detail}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {project.links && project.links.length > 0 && (
-              <div>
-                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Links</div>
-                <div className="space-y-2">
-                  {project.links.map((link) => (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      target={link.href.startsWith('http') ? '_blank' : undefined}
-                      rel={link.href.startsWith('http') ? 'noreferrer' : undefined}
-                      className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
-                    >
-                      <span className="truncate">{link.label}</span>
-                      <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+        <ProjectDetailSections project={project} />
       </div>
     </aside>
   )
 }
 
 function LoadedProjectWorkspace({ project, onBack }: { project: ProjectDefinition; onBack: () => void }) {
+  const isMobile = useIsMobile()
   const [activeTab, setActiveTab] = useState<ControllerTab>('project')
   const [activeSceneIndex, setActiveSceneIndex] = useState(0)
   const [rasterOpacity, setRasterOpacity] = useState(82)
@@ -1658,10 +1731,101 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectDefinitio
     />
   )
 
+  const mobileSidebar = (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex items-center justify-between gap-2 border-b p-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex h-9 items-center gap-2 rounded-md border bg-background px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          All projects
+        </button>
+        <Button asChild size="sm" variant="outline">
+          <Link to={getLabUrl(project)}>
+            <Settings2 className="h-4 w-4" />
+            Index Lab
+          </Link>
+        </Button>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <BookOpen className="h-3.5 w-3.5" />
+            Story Scenes
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {project.scenes.map((scene, index) => (
+              <button
+                key={scene.label}
+                type="button"
+                onClick={() => applyScene(index)}
+                className={cn(
+                  'rounded-md border bg-background px-3 py-2 text-left text-sm font-semibold text-foreground transition-colors',
+                  index === activeSceneIndex ? 'border-primary bg-primary/5' : 'hover:bg-muted/50',
+                )}
+              >
+                {scene.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 rounded-md border bg-muted/20 p-3">
+            <div className="text-sm font-semibold text-foreground">{activeScene.title}</div>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{activeScene.text}</p>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Layers className="h-3.5 w-3.5" />
+              Map Stack
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {visibleLayerIds.size}/{project.layers.length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {project.layers.map((layer) => (
+              <LayerToggle
+                key={layer.id}
+                layer={layer}
+                visible={visibleLayerIds.has(layer.id)}
+                onToggle={() => toggleLayer(layer.id)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg border bg-background p-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-foreground">Raster Opacity</div>
+            <div className="text-xs font-medium text-muted-foreground">{rasterOpacity}%</div>
+          </div>
+          <Slider
+            value={[rasterOpacity]}
+            min={20}
+            max={100}
+            step={5}
+            onValueChange={(value) => setRasterOpacity(value[0] ?? rasterOpacity)}
+            aria-label="Raster opacity"
+          />
+        </div>
+
+        <div className="rounded-md border bg-muted/20 p-3">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Source Note</div>
+          <p className="text-xs leading-5 text-muted-foreground">{project.sourceNote}</p>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="h-[calc(100vh-4rem)] min-h-[640px]">
       <MapSectionLayout
-        sidebar={leftSidebar}
+        sidebar={isMobile ? mobileSidebar : leftSidebar}
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
         desktopSidebarWidth={sidebarWidth}
