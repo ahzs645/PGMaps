@@ -9,6 +9,7 @@ import { DatasetInfo } from '@/components/DatasetInfo'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { distanceKm } from '@/lib/geo'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useTransitData, type TransitStop } from '@/maps/scorebuilder/hooks/useTransitData'
 import { bundleRoutes, type BundledFeatureCollection, type RouteInput } from './lib/transitiveBundling'
@@ -107,17 +108,6 @@ function formatDistanceKm(km: number): string {
   if (!Number.isFinite(km)) return 'No value'
   if (km < 1) return `${Math.round(km * 1000).toLocaleString()} m`
   return `${km.toLocaleString(undefined, { maximumFractionDigits: 2 })} km`
-}
-
-function distanceKm(a: [number, number], b: [number, number]): number {
-  const toRad = (value: number) => (value * Math.PI) / 180
-  const earthRadiusKm = 6371
-  const deltaLat = toRad(b[1] - a[1])
-  const deltaLng = toRad(b[0] - a[0])
-  const lat1 = toRad(a[1])
-  const lat2 = toRad(b[1])
-  const h = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2
-  return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
 function useRouteData() {

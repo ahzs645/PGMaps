@@ -23,6 +23,8 @@ import {
   type StudyAreaRegion,
 } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
+import { formatNumber } from '@/lib/format'
+import { BC_CENTER } from '@/components/ui/map-styles'
 
 type LoadState = 'loading' | 'ready' | 'error'
 
@@ -177,7 +179,6 @@ interface PolygonClickMeta {
   shiftKey: boolean
 }
 
-const BC_CENTER: [number, number] = [-124.4, 53.9]
 const BC_DA_SIMPLIFIED_LEVEL = 'da' satisfies RegionLevel
 const BC_DB_CHUNKED_LEVEL = 'db' satisfies RegionLevel
 type ChunkedCensusLevel = typeof BC_DA_SIMPLIFIED_LEVEL | typeof BC_DB_CHUNKED_LEVEL
@@ -352,9 +353,6 @@ function formatArea(value: number) {
   return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} km²`
 }
 
-function formatNumber(value: number) {
-  return value.toLocaleString()
-}
 
 function formatGzipMiB(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return null

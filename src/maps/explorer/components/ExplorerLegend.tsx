@@ -45,7 +45,7 @@ export function ExplorerLegend({
           </button>
           <button
             onClick={onToggleHeatmap}
-            className={`hidden rounded border px-2 py-0.5 text-[10px] font-medium transition-colors md:inline-flex ${
+            className={`inline-flex rounded border px-2 py-0.5 text-[10px] font-medium transition-colors ${
               showHeatmap
                 ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
                 : 'border-input text-muted-foreground hover:text-foreground'
@@ -57,16 +57,6 @@ export function ExplorerLegend({
       }
     >
       <MapLegendSection>
-        <button
-          onClick={onToggleHeatmap}
-          className={`mb-1 inline-flex rounded border px-2 py-0.5 text-[10px] font-medium transition-colors md:hidden ${
-            showHeatmap
-              ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
-              : 'border-input text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {showHeatmap ? 'Heatmap ON' : 'Heatmap'}
-        </button>
         {legendDatasets.slice(0, 8).map((dataset) => {
           const stat = datasetStats.find((entry) => entry.dataset.id === dataset.id)
           return (

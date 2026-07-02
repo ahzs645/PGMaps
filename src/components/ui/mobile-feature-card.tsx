@@ -2,8 +2,9 @@ import { ChevronDown, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { MAP_OVERLAY_Z } from './map-overlay'
+import { MOBILE_MEDIA_QUERY } from '@/hooks/useIsMobile'
 
-export const MOBILE_FEATURE_CARD_MEDIA_QUERY = '(max-width: 767px)'
+export const MOBILE_FEATURE_CARD_MEDIA_QUERY = MOBILE_MEDIA_QUERY
 export const MOBILE_FEATURE_CARD_HEIGHT = 720
 export const MOBILE_FEATURE_CARD_COMPACT_HEIGHT = 300
 export const MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT = 92

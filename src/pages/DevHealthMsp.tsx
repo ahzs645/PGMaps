@@ -6,6 +6,7 @@ import { Timeline } from '@/components/ui/timeline'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { FilterChipGroup, MapSidebarShell, SearchInput, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
+import { formatCompactCurrency, formatPercent as formatPercentFraction } from '@/lib/format'
 
 const MSP_FACILITIES_URL = '/data/health/msp-facilities.geojson'
 const MAP_CENTER: [number, number] = [-124.7, 53.3]
@@ -525,16 +526,11 @@ function timelineWindowLabel(selectedYear: number, windowSize: number, minYear: 
 }
 
 function formatCurrency(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return '--'
-  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}b`
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}m`
-  if (value >= 1_000) return `$${(value / 1_000).toLocaleString(undefined, { maximumFractionDigits: 0 })}k`
-  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+  return formatCompactCurrency(value, { fallback: '--' })
 }
 
 function formatPercent(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return '--'
-  return `${(value * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`
+  return formatPercentFraction(value, { fallback: '--' })
 }
 
 export default DevHealthMsp

@@ -11,6 +11,7 @@ import { HAZARD_RATING_OPTIONS, useFoodMapFilters } from './hooks/useFoodMapFilt
 import { stringCodec, useUrlState } from '@/hooks/useUrlState'
 import { toggleArrayItem, useToggleArray } from '@/hooks/useToggleArray'
 import { createEmptyViolationRiskSummary, summarizeViolationRisk } from './risk'
+import { getHazardRating } from './hazard'
 import type { RestaurantWithStats, HazardRating } from './types'
 
 type ViolationBucket = 'zero' | 'low' | 'medium' | 'high'
@@ -220,9 +221,7 @@ export default function FoodMap() {
   const filteredRestaurants = useMemo(() => {
     return restaurantsWithStats.filter(r => {
       // In hazard mode, filter by the rating at the selected date
-      const ratingToCheck = visualizationMode === 'hazard'
-        ? r.hazardRatingAtDate
-        : (r.current_hazard_rating || r.hazard_rating || 'Unknown') as HazardRating
+      const ratingToCheck = visualizationMode === 'hazard' ? r.hazardRatingAtDate : getHazardRating(r)
 
       const matchesHazard = selectedHazardRatings.includes(ratingToCheck)
       const violationCount = r.violationStats?.total || 0

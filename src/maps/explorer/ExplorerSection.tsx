@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { HeatmapMashupLayer } from '@/components/HeatmapMashupLayer'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { NeighborhoodReport } from '@/components/NeighborhoodReport'
 import { ExplorerLegend } from './components/ExplorerLegend'
@@ -14,6 +15,7 @@ import { useExplorerSearch } from './hooks/useExplorerSearch'
 import { useExplorerTimeline } from './hooks/useExplorerTimeline'
 
 export default function ExplorerSection() {
+  const isMobileViewport = useIsMobile()
   const [showSidebar, setShowSidebar] = useState(true)
   const [showMobileLegend, setShowMobileLegend] = useState(true)
   const [neighborhoodPoint, setNeighborhoodPoint] = useState<{ lat: number; lng: number } | null>(null)
@@ -139,7 +141,7 @@ export default function ExplorerSection() {
           />
         )}
 
-        {selectedItem && (
+        {isMobileViewport && selectedItem && (
           <MobileExplorerFeatureCard
             item={selectedItem}
             onClose={() => setSelectedItemId(null)}

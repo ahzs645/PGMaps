@@ -1,5 +1,6 @@
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
+import { haversineKm } from '@/lib/geo'
 
 export type SourceKey = 'verified' | 'nativeLand' | 'cad' | 'treaty' | 'reserve' | 'local'
 export type MatchType = 'place' | 'municipality' | 'boundary'
@@ -539,14 +540,7 @@ export function relationshipMatches(graph: RelationshipGraph, match: MatchedRela
   )))
 }
 
-export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const toRad = (value: number) => (value * Math.PI) / 180
-  const earthRadiusKm = 6371
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(a)))
-}
+export { haversineKm }
 
 export type MultiPointInput = { latitude: number; longitude: number; nationNames: string[] }
 

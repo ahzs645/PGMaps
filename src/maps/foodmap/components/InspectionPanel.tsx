@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { assessViolationRisk, summarizeViolationRisk } from '../risk'
+import { getHazardRating } from '../hazard'
 import type { RestaurantWithStats, HazardRating, Inspection, Violation, ViolationRiskBand } from '../types'
 
 interface InspectionPanelProps {
@@ -121,7 +122,7 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
     return summarizeViolationRisk(inspections)
   }, [inspections])
 
-  const currentRating = (restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown') as HazardRating
+  const currentRating = getHazardRating(restaurant)
 
   // Master-detail navigation: the panel shows a list of inspection cards, and
   // opening one drills into a dedicated detail view of its violations. With a

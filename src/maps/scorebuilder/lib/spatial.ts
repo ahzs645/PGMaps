@@ -1,4 +1,5 @@
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import { distanceKm } from '@/lib/geo'
 import area from '@turf/area'
 import intersect from '@turf/intersect'
 import union from '@turf/union'
@@ -61,16 +62,7 @@ export function regionCenter(region: ScoreBuilderRegion): [number, number] {
   return [(region.bounds[0] + region.bounds[2]) / 2, (region.bounds[1] + region.bounds[3]) / 2]
 }
 
-export function distanceKm(a: [number, number], b: [number, number]): number {
-  const toRad = (value: number) => (value * Math.PI) / 180
-  const earthRadiusKm = 6371
-  const deltaLat = toRad(b[1] - a[1])
-  const deltaLng = toRad(b[0] - a[0])
-  const lat1 = toRad(a[1])
-  const lat2 = toRad(b[1])
-  const h = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2
-  return 2 * earthRadiusKm * Math.asin(Math.min(1, Math.sqrt(h)))
-}
+export { distanceKm }
 
 /** Linear access score in [0, 1]: 1 at the origin, 0 at or beyond `maxKm` from the nearest point. */
 export function catchmentAccess(

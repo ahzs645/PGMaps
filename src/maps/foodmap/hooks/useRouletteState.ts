@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
-// @ts-expect-error - turf types issue with package exports
-import * as turf from '@turf/turf'
+import { haversineKm } from '@/lib/geo'
+import { getHazardRating } from '../hazard'
 import type { Restaurant, HazardRating, SourceLocation, SpinnerMode, RouletteRestaurant } from '../types'
 
 // Parse date string like "18-Mar-2024" or "March 18, 2024"
@@ -26,9 +26,7 @@ function parseInspectionDate(dateStr: string | undefined): Date | null {
 // Calculate distance in km between source and restaurant
 function calculateDistance(source: SourceLocation, restaurant: Restaurant): number | null {
   if (!source || !restaurant.latitude || !restaurant.longitude) return null
-  const from = turf.point([source.lng, source.lat])
-  const to = turf.point([restaurant.longitude, restaurant.latitude])
-  return turf.distance(from, to, { units: 'kilometers' })
+  return haversineKm(source.lat, source.lng, restaurant.latitude, restaurant.longitude)
 }
 
 // Count violations within a time period
@@ -110,7 +108,7 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
         if (distance === null || distance > maxDistance) return false
       }
 
-      const rating = (r.current_hazard_rating || r.hazard_rating || 'Unknown') as HazardRating
+      const rating = getHazardRating(r)
       if (excludedHazardRatings.includes(rating)) return false
 
       if (maxViolations !== null) {

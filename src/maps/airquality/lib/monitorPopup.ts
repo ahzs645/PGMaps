@@ -1,3 +1,4 @@
+import { haversineKm } from '@/lib/geo'
 import type { AirMonitor } from '../types'
 
 export const MONITOR_ZOOM = 15
@@ -169,14 +170,7 @@ export function getMarkerText(pm25: number | null | undefined): string {
 }
 
 export function distanceKm(a: AirMonitor, b: AirMonitor): number {
-  const earthRadiusKm = 6371
-  const toRadians = (degrees: number) => degrees * Math.PI / 180
-  const dLat = toRadians(b.latitude - a.latitude)
-  const dLon = toRadians(b.longitude - a.longitude)
-  const lat1 = toRadians(a.latitude)
-  const lat2 = toRadians(b.latitude)
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
-  return 2 * earthRadiusKm * Math.asin(Math.sqrt(h))
+  return haversineKm(a.latitude, a.longitude, b.latitude, b.longitude)
 }
 
 export function isFemMonitor(monitor: AirMonitor): boolean {

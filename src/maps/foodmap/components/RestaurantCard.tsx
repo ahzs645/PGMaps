@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { createEmptyViolationRiskSummary } from '../risk'
+import { getHazardRating } from '../hazard'
 import type { RestaurantWithStats, HazardRating, VisualizationMode, ViolationRiskBand } from '../types'
 
 interface RestaurantCardProps {
@@ -48,9 +49,7 @@ export function RestaurantCard({
   visualizationMode = 'violations',
   onClick
 }: RestaurantCardProps) {
-  const rating = useMemo(() => {
-    return (restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown') as HazardRating
-  }, [restaurant])
+  const rating = useMemo(() => getHazardRating(restaurant), [restaurant])
 
   const violationStats = useMemo(() => {
     return restaurant.violationStats || {

@@ -1,11 +1,11 @@
-import type { ElementType } from 'react'
 import { Bus, ShieldAlert, Trees } from 'lucide-react'
+import type { SectionTab } from '@/components/layout/SectionTabsBar'
 
 export type PGDataTab = 'crime' | 'parks' | 'transit'
 
-export const PG_DATA_TABS: Array<{ id: PGDataTab; label: string; icon: ElementType }> = [
+export const PG_DATA_TABS: Array<SectionTab<PGDataTab>> = [
   { id: 'crime', label: 'Crime', icon: ShieldAlert },
-  { id: 'parks', label: 'Parks & Trails', icon: Trees },
+  { id: 'parks', label: 'Parks & Trails', icon: Trees, shortLabel: 'Parks' },
   { id: 'transit', label: 'Transit', icon: Bus },
 ]
 

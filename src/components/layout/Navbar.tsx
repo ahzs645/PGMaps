@@ -122,7 +122,7 @@ export function Navbar() {
           ref={menuRef}
           data-testid="mobile-nav-menu"
           className={cn(
-            "fixed left-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[1000] max-h-[calc(100dvh-env(safe-area-inset-top)-4.75rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur lg:hidden",
+            "fixed left-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[1000] max-h-[calc(100dvh-env(safe-area-inset-top)-4.75rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur md:hidden",
             isHomePage && 'left-8 top-[calc(env(safe-area-inset-top)+4.5rem)] max-h-[calc(100dvh-env(safe-area-inset-top)-5.5rem)]',
           )}
         >
@@ -238,7 +238,7 @@ export function Navbar() {
             <ChevronDown className={cn('size-3.5 transition-transform', mobileMenuOpen && 'rotate-180')} />
           </button>
 
-          <nav className="hidden min-w-0 items-center gap-1 lg:flex">
+          <nav className="hidden min-w-0 items-center gap-1 md:flex">
             {navLinks.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}

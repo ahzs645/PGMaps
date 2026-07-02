@@ -4,6 +4,7 @@ import {
   type BoundarySource,
   type RegionLevel,
 } from '@/lib/studyArea'
+import { formatPercentValue } from '@/lib/format'
 import { useJsonManifest } from './shared'
 import { formatFileSize } from './miscDataUtils'
 
@@ -75,8 +76,7 @@ export interface EvChargingBoundarySummary extends EvChargingSummaryStats {
 }
 
 function formatPercent(value: number): string {
-  if (!Number.isFinite(value)) return '0%'
-  return `${value.toLocaleString(undefined, { maximumFractionDigits: value < 10 ? 1 : 0 })}%`
+  return formatPercentValue(value, { fallback: '0%', maximumFractionDigits: value < 10 ? 1 : 0 })
 }
 
 function formatDensity(value: number | null): string {

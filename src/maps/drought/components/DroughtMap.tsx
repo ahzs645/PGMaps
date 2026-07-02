@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Map as PgMap, MapControls, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES } from '@/components/ui/map-styles'
+import { isMobileViewport } from '@/hooks/useIsMobile'
 import { DROUGHT_BC_CENTER } from '../constants'
 import type { DroughtFeatureCollection } from '../types'
 
@@ -23,7 +24,7 @@ export function DroughtMap({ data, selectedId, onFeatureClick, loading = false }
   useEffect(() => {
     const map = mapRef.current
     if (!map || featureCount === 0) return
-    if (window.innerWidth < 768) {
+    if (isMobileViewport()) {
       map.jumpTo({ center: DROUGHT_MOBILE_CENTER, zoom: 4.75 })
       return
     }
