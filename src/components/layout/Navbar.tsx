@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
-import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight, RadioTower, PawPrint, Footprints, Droplets, Waves, Bus } from 'lucide-react'
+import { Map, Layers, Calculator, Wind, BarChart3, Trees, Sun, Moon, ShieldAlert, Building2, UtensilsCrossed, Database, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { cn } from '@/lib/utils'
+import { MISC_TABS } from '@/maps/pgdata/miscDataTabs'
+import { PG_DATA_TABS } from '@/maps/pgdata/pgDataTabs'
 
 const navLinks = [
   { path: '/', label: 'Home', icon: Map },
@@ -20,23 +22,18 @@ const navLinks = [
   { path: '/misc', label: 'MISC', icon: Database },
 ]
 
-const miscTabLinks = [
-  { path: '/misc?tab=heatShade', label: 'Heat & Shade', icon: Trees },
-  { path: '/misc', label: 'CANUE', icon: Database },
-  { path: '/misc?tab=network', label: 'Network', icon: RadioTower },
-  { path: '/misc?tab=icbc', label: 'ICBC', icon: ShieldAlert },
-  { path: '/misc?tab=wars', label: 'WARS', icon: PawPrint },
-  { path: '/misc?tab=walkability', label: 'Walkability', icon: Footprints },
-  { path: '/misc?tab=water', label: 'Water', icon: Droplets },
-  { path: '/misc?tab=flood', label: 'Flood', icon: Waves },
-  { path: '/misc?tab=drought', label: 'Drought', icon: Droplets },
-]
+// Derived from each section's canonical tab list so the mobile submenu never drifts from the desktop tabs.
+const miscTabLinks = MISC_TABS.map(({ id, label, icon }) => ({
+  path: id === 'canue' ? '/misc' : `/misc?tab=${id}`,
+  label,
+  icon,
+}))
 
-const pgDataTabLinks = [
-  { path: '/pgdata', label: 'Crime', icon: ShieldAlert },
-  { path: '/pgdata?tab=parks', label: 'Parks & Trails', icon: Trees },
-  { path: '/pgdata?tab=transit', label: 'Transit', icon: Bus },
-]
+const pgDataTabLinks = PG_DATA_TABS.map(({ id, label, icon }) => ({
+  path: id === 'crime' ? '/pgdata' : `/pgdata?tab=${id}`,
+  label,
+  icon,
+}))
 
 export function Navbar() {
   const location = useLocation()

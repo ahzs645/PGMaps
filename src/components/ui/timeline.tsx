@@ -1,7 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react'
 import { ChevronLeft, ChevronRight, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react'
-import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { MOBILE_FEATURE_CARD_MEDIA_QUERY } from '@/components/ui/mobile-feature-card'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { calculatePercentageChange, formatPercentChange, type PercentageChangeResult } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
 
@@ -161,6 +162,7 @@ export function Timeline({
   overflowBuckets = false,
   percentChangeMode,
 }: TimelineProps) {
+  const isMobile = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(1000)
   const [barViewportWidth, setBarViewportWidth] = useState(0)
@@ -307,6 +309,14 @@ export function Timeline({
     }
   }, [buckets, maxPosition, onDateChange])
 
+  const speedLabel = SPEED_OPTIONS.find((opt) => opt.value === speed)?.label ?? '1x'
+  const cycleSpeed = useCallback(() => {
+    setSpeed((current) => {
+      const idx = SPEED_OPTIONS.findIndex((opt) => opt.value === current)
+      return SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length].value
+    })
+  }, [])
+
   const handleSliderChange = useCallback(
     ([idx]: number[]) => {
       if (buckets[idx]) {
@@ -391,8 +401,8 @@ export function Timeline({
   } satisfies CSSProperties
   const controlButtonClass =
     'flex size-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:size-8'
-  const selectClass = 'sm:hidden'
-  const selectTriggerClass = 'h-10 border-input bg-background px-3 text-base font-semibold text-foreground shadow-sm'
+  const mobileControlButtonClass =
+    'flex size-9 shrink-0 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30'
 
   return (
     <div
@@ -406,6 +416,73 @@ export function Timeline({
       }
     >
       <div className="rounded-lg border border-border/60 bg-background/95 p-2.5 shadow-xl backdrop-blur-sm sm:rounded-xl sm:p-3 md:p-4">
+        {isMobile ? (
+          <div className="mb-2 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsPlaying((p) => !p)}
+                className={cn(
+                  'flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors',
+                  isPlaying
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
+              </button>
+              <button
+                onClick={stepBackward}
+                disabled={currentIndex === 0}
+                className={mobileControlButtonClass}
+                aria-label={`Previous ${unitLabel}`}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={stepForward}
+                disabled={currentIndex >= maxPosition}
+                className={mobileControlButtonClass}
+                aria-label={`Next ${unitLabel}`}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <div className="min-w-0 flex-1 rounded-md border border-primary/50 bg-primary/10 px-2 py-2 text-sm font-semibold text-primary">
+                <span className="block truncate text-center">{formattedDate}</span>
+              </div>
+              <button
+                onClick={cycleSpeed}
+                className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-md border border-border/60 px-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={`Playback speed ${speedLabel}, tap to change`}
+              >
+                {speedLabel}
+              </button>
+              {onClose && (
+                <button onClick={onClose} className={mobileControlButtonClass} aria-label="Close timeline">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            {windowMode && (
+              <div className="grid auto-cols-fr grid-flow-col gap-1 rounded-md border border-input p-0.5">
+                {windowOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => windowMode.onSizeChange(opt.value)}
+                    className={cn(
+                      'whitespace-nowrap rounded px-1 py-1 text-[11px] font-medium transition-colors',
+                      windowMode.size === opt.value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
         <div className="mb-3 flex flex-col gap-2 sm:mb-3 sm:gap-2 lg:flex-row lg:items-center lg:gap-3">
           <div className="flex min-w-0 items-center gap-1.5 lg:flex-wrap lg:gap-2">
             <div className="flex items-center gap-1">
@@ -479,50 +556,31 @@ export function Timeline({
 
           <div className="flex min-w-0 items-center gap-1.5 sm:flex-wrap sm:gap-2 lg:ml-auto lg:justify-end">
             {windowMode && (
-              <>
-                <AppSelect
-                  value={String(windowMode.size)}
-                  onValueChange={(nextValue) => windowMode.onSizeChange(Number(nextValue))}
-                  options={windowOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
-                  className={cn(selectClass, 'min-w-0 flex-1')}
-                  triggerClassName={selectTriggerClass}
-                  triggerAriaLabel="Timeline range"
-                />
-                <div className="hidden min-w-0 flex-1 grid-cols-4 gap-0.5 rounded-md border border-input p-0.5 sm:flex sm:flex-none sm:items-center sm:gap-1">
-                  {windowOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => windowMode.onSizeChange(opt.value)}
-                      className={cn(
-                        'whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors sm:px-2',
-                        windowMode.size === opt.value
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </>
+              <div className="flex min-w-0 items-center gap-1 rounded-md border border-input p-0.5">
+                {windowOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => windowMode.onSizeChange(opt.value)}
+                    className={cn(
+                      'whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-medium transition-colors',
+                      windowMode.size === opt.value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             )}
 
-            <AppSelect
-              value={String(speed)}
-              onValueChange={(nextValue) => setSpeed(Number(nextValue))}
-              options={SPEED_OPTIONS.map((opt) => ({ value: String(opt.value), label: opt.label }))}
-              className={selectClass}
-              triggerClassName={selectTriggerClass}
-              triggerAriaLabel="Timeline speed"
-            />
-
-            <div className="hidden items-center gap-0.5 rounded-md border border-input p-0.5 sm:flex sm:gap-1">
+            <div className="flex items-center gap-1 rounded-md border border-input p-0.5">
               {SPEED_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => setSpeed(opt.value)}
                   className={cn(
-                    'rounded px-1 py-0.5 text-[10px] font-medium transition-colors sm:px-1.5',
+                    'rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors',
                     speed === opt.value
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:text-foreground',
@@ -534,6 +592,7 @@ export function Timeline({
             </div>
           </div>
         </div>
+        )}
 
         {bucketCounts && !shouldUseCompactBars ? (
           <div

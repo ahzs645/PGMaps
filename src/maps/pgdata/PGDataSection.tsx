@@ -1,33 +1,15 @@
 import { useEffect, useMemo } from 'react'
-import type { ElementType } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Bus, ShieldAlert, Trees } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { handleHorizontalWheelScroll } from '@/components/ui/horizontal-scroll'
 import ParksSection from '@/maps/parks/ParksSection'
 import CrimeDataSection from './CrimeDataSection'
 import TransitDataSection from './TransitDataSection'
-
-type PGDataTab = 'crime' | 'parks' | 'transit'
-
-const TABS: Array<{
-  id: PGDataTab
-  label: string
-  icon: ElementType
-}> = [
-  { id: 'crime', label: 'Crime', icon: ShieldAlert },
-  { id: 'parks', label: 'Parks & Trails', icon: Trees },
-  { id: 'transit', label: 'Transit', icon: Bus },
-]
-
-function normalizeTab(value: string | null): PGDataTab {
-  if (value === 'parks' || value === 'crime' || value === 'transit') return value
-  return 'crime'
-}
+import { PG_DATA_TABS, parsePgDataTab, type PGDataTab } from './pgDataTabs'
 
 export default function PGDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const activeTab = normalizeTab(searchParams.get('tab'))
+  const activeTab = parsePgDataTab(searchParams.get('tab'))
 
   useEffect(() => {
     if (!searchParams.get('tab')) {
@@ -56,7 +38,7 @@ export default function PGDataSection() {
         onWheel={handleHorizontalWheelScroll}
       >
         <div className="flex w-max rounded-md border border-border bg-muted/40 p-0.5 md:rounded-lg md:p-1">
-          {TABS.map(({ id, label, icon: Icon }) => (
+          {PG_DATA_TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
