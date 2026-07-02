@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Activity, Flame, Settings as SettingsIcon, Undo2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Activity, Flame, Hammer, Settings as SettingsIcon, Undo2 } from 'lucide-react'
 import {
   DESKTOP_SIDEBAR_MAX_WIDTH,
   DESKTOP_SIDEBAR_MIN_WIDTH,
@@ -7,6 +8,7 @@ import {
 } from '@/components/layout/MapSectionLayout'
 import { cn } from '@/lib/utils'
 import type { MapRef } from '@/components/ui/map'
+import { ScoreBuilderBuildView } from './components/ScoreBuilderBuildView'
 import { ScoreBuilderEquationBar } from './components/ScoreBuilderEquationBar'
 import { ScoreBuilderLeftPanel } from './components/ScoreBuilderLeftPanel'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
@@ -38,6 +40,7 @@ import {
   downloadProjectPackage,
   findProjectPackageBySlug,
 } from '@/lib/projectPackages'
+import { hasUrlWeightParams } from './hooks/scoreBuilderReducer'
 
 const LAYOUT_STORAGE_KEY = 'pgmaps.indexLab.layout'
 
@@ -50,6 +53,18 @@ interface StoredLayoutPrefs {
 
 const DEFAULT_SIDEBAR_WIDTH = 300
 const DEFAULT_RIGHT_SIDEBAR_WIDTH = 380
+
+type LabViewMode = 'build' | 'explore'
+
+function initialLabViewMode(): LabViewMode {
+  if (typeof window === 'undefined') return 'explore'
+  const params = new URLSearchParams(window.location.search)
+  const explicit = params.get('view')
+  if (explicit === 'build' || explicit === 'explore') return explicit
+  // A recipe arriving via URL (share link, project deep link, quick preset) lands on the
+  // map-first Explore view; a cold visit lands on the Build view to compose one.
+  return hasUrlWeightParams(params) || params.get('quick') || params.get('project') ? 'explore' : 'build'
+}
 
 function clampStoredWidth(width: number | undefined, fallback: number): number {
   if (typeof width !== 'number' || !Number.isFinite(width)) return fallback
@@ -91,6 +106,19 @@ export default function ScoreBuilderSection() {
   const sb = useScoreBuilderState()
   const { state } = sb
   const isDesktop = !useIsMobile()
+
+  // Build/Explore split: same state, two layouts. The choice is linkable via `view=`.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [viewMode, setViewModeState] = useState<LabViewMode>(initialLabViewMode)
+  const setViewMode = useCallback(
+    (mode: LabViewMode) => {
+      setViewModeState(mode)
+      const next = new URLSearchParams(searchParams)
+      next.set('view', mode)
+      setSearchParams(next, { replace: true })
+    },
+    [searchParams, setSearchParams],
+  )
 
   // Panel visibility: explicit user choice (localStorage) wins; otherwise default to open,
   // except the right panel on narrow desktops/tablets where both panels would crowd out the map.
@@ -478,8 +506,44 @@ export default function ScoreBuilderSection() {
     />
   )
 
+  const buildView = (
+    <ScoreBuilderBuildView
+      weights={state.weights}
+      onWeightChange={sb.handleWeightChange}
+      onAddMetric={sb.handleAddMetric}
+      totalAbsoluteWeight={sb.totalAbsoluteWeight}
+      methodSettings={state.methodSettings}
+      onMethodSettingsChange={sb.setMethodSettings}
+      boundarySource={state.boundarySource}
+      onBoundarySourceChange={sb.setBoundarySource}
+      selectedRegionLevel={sb.selectedRegionLevel}
+      onRegionLevelChange={sb.handleRegionLevelChange}
+      boundaryLevelOptions={sb.boundaryLevelOptions}
+      equationPreview={results.equationPreview}
+      scoreSpread={results.scoreSpread}
+      scoredRegions={results.scoredRegions}
+      loading={datasets.loading}
+      activeRecipeLabel={activeRecipeLabel}
+      activeRecipeDescription={activeRecipeDescription}
+      activePresetKey={results.activePresetKey}
+      onApplyPreset={sb.handleApplyPreset}
+      baseline={baseline}
+      baselineComparison={baselineComparison}
+      onPinBaseline={pinBaseline}
+      onClearBaseline={clearBaseline}
+      monitors={points.filteredMonitors}
+      showPoints={state.showPoints}
+      regionFillColors={mapRegionFillColors}
+      onSwitchToExplore={() => setViewMode('explore')}
+      onOpenSettings={() => setSettingsOpen(true)}
+      onExportProjectPackage={handleExportProjectPackage}
+    />
+  )
+
   return (
     <>
+      {viewMode === 'build' && buildView}
+      {viewMode === 'explore' && (
       <MapSectionLayout
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={toggleSidebar}
@@ -523,6 +587,7 @@ export default function ScoreBuilderSection() {
               densityMode={state.densityMode}
               onToggleDensityMode={sb.handleToggleDensityMode}
               onOpenSettings={() => setSettingsOpen(true)}
+              onOpenBuildView={() => setViewMode('build')}
               onUndo={sb.undo}
               onRedo={sb.redo}
               canUndo={sb.canUndo}
@@ -589,6 +654,15 @@ export default function ScoreBuilderSection() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setViewMode('build')}
+                  aria-label="Open build view"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-background/95 px-3 py-2 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors"
+                >
+                  <Hammer className="h-3.5 w-3.5" />
+                  Build
+                </button>
+                <button
+                  type="button"
                   onClick={sb.undo}
                   disabled={!sb.canUndo}
                   aria-label="Undo"
@@ -640,6 +714,7 @@ export default function ScoreBuilderSection() {
           </div>
         </div>
       </MapSectionLayout>
+      )}
 
       <ScoreBuilderRegionInsightDialog
         open={state.regionInsightOpen}
