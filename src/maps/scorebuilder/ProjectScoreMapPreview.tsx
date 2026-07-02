@@ -1,0 +1,113 @@
+import { useCallback, useMemo } from 'react'
+import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { buildProjectLabParams, type ProjectPackage } from '@/lib/projectPackages'
+import { cn } from '@/lib/utils'
+import { SCORE_METRICS } from './constants'
+import { ScoreBuilderMap } from './components/ScoreBuilderMap'
+import { createInitialScoreBuilderState, getSelectedRegionLevel } from './hooks/scoreBuilderReducer'
+import { useScoreBuilderDatasets } from './hooks/useScoreBuilderDatasets'
+import { useScoreBuilderMetricRows } from './hooks/useScoreBuilderMetricRows'
+import { useScoreBuilderPointRecords } from './hooks/useScoreBuilderPointRecords'
+import { useScoreBuilderResults } from './hooks/useScoreBuilderResults'
+import { useWalkabilityMiZonal } from './hooks/useWalkabilityMiZonal'
+
+const TRANSPARENT_FILL = 'rgba(0, 0, 0, 0)'
+
+/**
+ * Read-only scored map for a project package with a lab recipe. Reuses the score
+ * builder data pipeline with a fixed control state derived from the package, so the
+ * project workspace shows the same surface the Index Lab opens with.
+ */
+export function ProjectScoreMapPreview({
+  project,
+  showScoreSurface,
+  showPoints,
+  className,
+}: {
+  project: ProjectPackage
+  showScoreSurface: boolean
+  showPoints: boolean
+  className?: string
+}) {
+  const control = useMemo(() => {
+    const params = buildProjectLabParams(project) ?? new URLSearchParams()
+    return createInitialScoreBuilderState(params)
+  }, [project])
+  const selectedRegionLevel = getSelectedRegionLevel(control)
+  const enabledSourceSet = useMemo(() => new Set(control.enabledDataSources), [control.enabledDataSources])
+
+  const datasets = useScoreBuilderDatasets({
+    enabledSourceSet,
+    boundarySource: control.boundarySource,
+    selectedRegionLevel,
+    customMetricRecipes: control.customMetricRecipes,
+  })
+
+  const points = useScoreBuilderPointRecords({
+    enabledSourceSet,
+    datasets,
+    selectedNetworks: control.selectedNetworks,
+    parkBufferAccessNeeded: (control.weights.parkAccessGap1Mile ?? 0) !== 0,
+  })
+
+  const walkabilityMiByRegion = useWalkabilityMiZonal(
+    (control.weights.walkabilityMiSurface ?? 0) !== 0,
+    datasets.regions,
+  )
+
+  const { regionMetricRows, metricRanges, metricValueLists } = useScoreBuilderMetricRows({
+    regions: datasets.regions,
+    points,
+    customMetricRecipes: control.customMetricRecipes,
+    censusCategoryData: datasets.censusCategoryData,
+    datasetCollections: datasets.datasetCollections,
+    healthyPlanPgEnabled: enabledSourceSet.has('healthyPlanPg'),
+    activeMetricDefinitions: SCORE_METRICS,
+    walkabilityMiByRegion,
+  })
+
+  const results = useScoreBuilderResults({
+    control,
+    selectedRegionLevel,
+    activeMetricDefinitions: SCORE_METRICS,
+    regionMetricRows,
+    metricRanges,
+    metricValueLists,
+  })
+
+  const hiddenFillColors = useMemo(() => {
+    if (showScoreSurface) return null
+    return Object.fromEntries(results.scoredRegions.map((entry) => [entry.region.id, TRANSPARENT_FILL]))
+  }, [results.scoredRegions, showScoreSurface])
+
+  const handleRegionClick = useCallback(() => {}, [])
+
+  const palette = results.scorePaletteProfile
+
+  return (
+    <div className={cn('relative overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
+      <ScoreBuilderMap
+        regions={results.scoredRegions}
+        selectedRegionId={null}
+        monitors={points.filteredMonitors}
+        showPoints={showPoints}
+        onRegionClick={handleRegionClick}
+        regionFillColors={hiddenFillColors}
+        loading={datasets.loading}
+      />
+
+      <MapLegendPanel title={project.title} width="sm" collapsible>
+        <div className="space-y-2">
+          <MapGradientLegendItem
+            colors={[...palette.colors]}
+            minLabel={palette.legend.low}
+            maxLabel={palette.legend.high}
+          />
+          <div className="text-[10px] leading-snug text-muted-foreground">
+            {results.scoredRegions.length.toLocaleString()} regions scored with the project recipe.
+          </div>
+        </div>
+      </MapLegendPanel>
+    </div>
+  )
+}

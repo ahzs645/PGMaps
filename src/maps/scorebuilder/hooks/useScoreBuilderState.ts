@@ -499,6 +499,7 @@ export function useScoreBuilderState() {
     applyCorrelatePair,
     toggleScoreFilter,
     setMethodSettings,
+    buildShareState,
     handleShareUrl,
     undo,
     redo,

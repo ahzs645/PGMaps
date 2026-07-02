@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "slug": "park-access-equity",
+  "title": "Park Access Equity",
+  "kind": "index-preset",
+  "theme": "emerald",
+  "owner": "PGMaps",
+  "updated": "Current",
+  "region": "Prince George DA",
+  "status": "Ready",
+  "summary": "A project view for park access gaps and neighbourhood-scale equity checks, backed by the real park access recipe.",
+  "sourceNote": "The project carries the real Park Access Equity recipe with catchment accessibility, deprivation, and population context. Index Lab opens with the same weights and pins this project as the baseline.",
+  "details": [
+    "A project view for explaining where park access gaps appear and which neighbourhood-scale assets are part of the access story.",
+    "Scenes move from the access score to the bare surface and the editable Index Lab recipe."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    { "label": "Preset", "value": "Parks" },
+    { "label": "Boundary", "value": "DA" },
+    { "label": "Lab", "value": "Yes" }
+  ],
+  "layers": [
+    { "id": "base", "label": "Muted streets", "type": "base", "checked": true, "locked": true },
+    { "id": "score-surface", "label": "Access equity score", "type": "raster", "checked": true, "role": "score" },
+    { "id": "points", "label": "Monitoring and facility points", "type": "point", "checked": true, "role": "points" }
+  ],
+  "legend": [
+    { "label": "Served", "color": "#bbf7d0" },
+    { "label": "Partial access", "color": "#bef264" },
+    { "label": "Access gap", "color": "#facc15" },
+    { "label": "High gap", "color": "#dc2626" }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "Park access equity surface",
+      "text": "Lead with the access score across dissemination areas, weighting walk and transit catchments against need.",
+      "focus": "Access equity score",
+      "visibleLayerIds": ["base", "score-surface", "points"]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Read the access gradient on its own before pointing at specific assets.",
+      "focus": "Score gradient",
+      "visibleLayerIds": ["base", "score-surface"]
+    },
+    {
+      "label": "Recipe",
+      "title": "Customizable score",
+      "text": "Use Index Lab when the project needs weight changes, alternate boundaries, or exportable scored regions.",
+      "focus": "Index Lab preset",
+      "visibleLayerIds": ["base", "score-surface", "points"]
+    }
+  ],
+  "files": [
+    { "label": "Index recipe", "detail": "Preset weights and method settings" },
+    { "label": "Park inventory", "detail": "City open-space features" },
+    { "label": "Index export", "detail": "Scored dissemination areas" }
+  ],
+  "lab": {
+    "presetKey": "parkAccessEquity",
+    "boundarySource": "census",
+    "boundaryLevel": "da",
+    "weights": {
+      "parkWalk10Access": 28,
+      "parkWalk20Access": 18,
+      "parkTransit20Access": 12,
+      "parkAreaRatio": 10,
+      "amenityDensity": 8,
+      "cimdComposite": 14,
+      "populationDensity": 10
+    },
+    "normalization": "percentile",
+    "aggregation": "additive"
+  }
+}

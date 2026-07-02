@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "slug": "transit-equity-project",
+  "title": "Transit Equity Project",
+  "kind": "research-pack",
+  "theme": "blue",
+  "owner": "PGMaps",
+  "updated": "Draft",
+  "region": "Prince George DA",
+  "status": "Draft",
+  "summary": "A research pack scoring frequent, accessible, sheltered transit service against population and deprivation need.",
+  "sourceNote": "GTFS-derived service metrics combined with census and deprivation context. The full weighting model lives in Index Lab, which opens with this exact recipe.",
+  "details": [
+    "A research pack for reviewing transit access against population context with a transparent equity scoring recipe.",
+    "The story keeps service context visible while the lab remains available for weighting changes and boundary-level experiments."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    { "label": "Preset", "value": "Transit" },
+    { "label": "Boundary", "value": "DA" },
+    { "label": "Lab", "value": "Yes" }
+  ],
+  "layers": [
+    { "id": "base", "label": "Muted streets", "type": "base", "checked": true, "locked": true },
+    { "id": "score-surface", "label": "Transit equity score", "type": "raster", "checked": true, "role": "score" },
+    { "id": "points", "label": "Monitoring and facility points", "type": "point", "checked": true, "role": "points" }
+  ],
+  "legend": [
+    { "label": "Higher service", "color": "#bfdbfe" },
+    { "label": "Moderate service", "color": "#60a5fa" },
+    { "label": "Equity review", "color": "#f59e0b" },
+    { "label": "Priority review", "color": "#dc2626" }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "Transit equity score",
+      "text": "Start with the combined service-versus-need score across dissemination areas.",
+      "focus": "Transit equity score",
+      "visibleLayerIds": ["base", "score-surface", "points"]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Read the equity gradient on its own before drilling into stops and exchanges.",
+      "focus": "Score gradient",
+      "visibleLayerIds": ["base", "score-surface"]
+    },
+    {
+      "label": "Recipe",
+      "title": "Lab handoff",
+      "text": "Open the recipe in Index Lab to edit the weighting model or switch to another boundary level.",
+      "focus": "Index Lab preset",
+      "visibleLayerIds": ["base", "score-surface", "points"]
+    }
+  ],
+  "files": [
+    { "label": "GTFS bundles", "detail": "Routes, stops, and service metadata" },
+    { "label": "Index recipe", "detail": "Transit equity preset" },
+    { "label": "Ranked export", "detail": "Review areas by boundary" }
+  ],
+  "lab": {
+    "presetKey": "transitEquity",
+    "boundarySource": "census",
+    "boundaryLevel": "da",
+    "weights": {
+      "frequentTransitStopAccess": 24,
+      "accessibleFrequentTransitAccess": 20,
+      "transitServiceSpan": 16,
+      "transitTripsPerStop": 14,
+      "transitShelterDensity": 8,
+      "cimdEconomicDependency": 10,
+      "populationDensity": 8
+    },
+    "normalization": "percentile",
+    "aggregation": "additive"
+  }
+}

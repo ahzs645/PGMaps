@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "slug": "active-living-walkability",
+  "title": "Active Living Walkability Study",
+  "kind": "index-preset",
+  "theme": "blue",
+  "owner": "PGMaps",
+  "updated": "Current",
+  "region": "Prince George DA",
+  "status": "Ready",
+  "summary": "Walkability project built on the pedestrian network study: sidewalks, crossings, trails, transit, parks, and services against pedestrian crash pressure.",
+  "sourceNote": "The project carries the real Active Living / Walkability recipe. Index Lab opens with the same weights and boundary level, where the 44-factor walkability source surface is also available for comparison.",
+  "details": [
+    "A guided walkability project using the pedestrian network study inputs: sidewalk and walkway density, intersections and crossings, trail access, transit, parks, and everyday service access.",
+    "Pedestrian crash density enters as a negative weight so high-collision corridors reduce the walkability score instead of hiding inside it.",
+    "In Index Lab the same recipe can be edited, and the walkability MI source surface can be turned on to compare the boundary-level score against the underlying 44-factor grid."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    { "label": "Preset", "value": "Walkability" },
+    { "label": "Boundary", "value": "DA" },
+    { "label": "Lab", "value": "Yes" }
+  ],
+  "layers": [
+    { "id": "base", "label": "Muted streets", "type": "base", "checked": true, "locked": true },
+    { "id": "score-surface", "label": "Walkability score surface", "type": "raster", "checked": true, "role": "score" },
+    { "id": "points", "label": "Monitoring and facility points", "type": "point", "checked": false, "role": "points" }
+  ],
+  "legend": [
+    { "label": "Car-dependent", "color": "#fee2e2" },
+    { "label": "Partly walkable", "color": "#fde68a" },
+    { "label": "Walkable", "color": "#bbf7d0" },
+    { "label": "Most walkable", "color": "#15803d" }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "Walkability score surface",
+      "text": "Start with the combined walkability score across dissemination areas.",
+      "focus": "Weighted walkability score",
+      "visibleLayerIds": ["base", "score-surface"]
+    },
+    {
+      "label": "Services",
+      "title": "Facility context",
+      "text": "Add the point layer to see which services and facilities anchor the walkable areas.",
+      "focus": "Facilities over the score surface",
+      "visibleLayerIds": ["base", "score-surface", "points"]
+    },
+    {
+      "label": "Recipe",
+      "title": "Recipe handoff",
+      "text": "Open the recipe in Index Lab to change weights or switch on the 44-factor walkability source surface.",
+      "focus": "Index Lab configuration",
+      "visibleLayerIds": ["base", "score-surface"]
+    }
+  ],
+  "files": [
+    { "label": "Index recipe", "detail": "Preset weights and method settings" },
+    { "label": "Pedestrian network study", "detail": "Sidewalks, walkways, crossings, and trails" },
+    { "label": "MI source surface", "detail": "44-factor walkability grid, available in the lab" }
+  ],
+  "lab": {
+    "presetKey": "activeLivingWalkability",
+    "boundarySource": "census",
+    "boundaryLevel": "da",
+    "weights": {
+      "sidewalkDensity": 16,
+      "walkwayDensity": 10,
+      "walkabilityIntersectionDensity": 12,
+      "walkabilityCrossingDensity": 10,
+      "trailDensity": 10,
+      "parkWalk10Access": 10,
+      "accessibleFrequentTransitAccess": 10,
+      "serviceAccessComposite": 12,
+      "pedestrianCrashDensity": -10
+    },
+    "normalization": "percentile",
+    "aggregation": "additive"
+  }
+}

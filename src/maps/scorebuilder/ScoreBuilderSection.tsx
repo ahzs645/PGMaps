@@ -33,6 +33,11 @@ import {
   compareAgainstBaseline,
   type BaselineSnapshot,
 } from './lib/baselineComparison'
+import {
+  buildProjectPackageFromShareState,
+  downloadProjectPackage,
+  findProjectPackageBySlug,
+} from '@/lib/projectPackages'
 
 const LAYOUT_STORAGE_KEY = 'pgmaps.indexLab.layout'
 
@@ -229,6 +234,34 @@ export default function ScoreBuilderSection() {
     [baseline, results.scoredRegions],
   )
 
+  // Deep links from a project package carry a `project` param (read once at mount — the
+  // URL-persistence effect strips it). Once the recipe's data is fully scored, pin the
+  // project as the baseline so edits are compared against the published version.
+  const [projectContextSlug] = useState(() =>
+    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('project'),
+  )
+  const [projectContextTitle, setProjectContextTitle] = useState<string | null>(null)
+  useEffect(() => {
+    if (!projectContextSlug) return
+    let cancelled = false
+    findProjectPackageBySlug(projectContextSlug).then((pkg) => {
+      if (!cancelled) setProjectContextTitle(pkg?.title ?? projectContextSlug)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [projectContextSlug])
+  const projectBaselinePinned = useRef(false)
+  useEffect(() => {
+    if (!projectContextSlug || !projectContextTitle || projectBaselinePinned.current) return
+    if (datasets.loading || results.scoredRegions.length === 0) return
+    projectBaselinePinned.current = true
+    // One-shot pin after the async scoring settles; the ref guard prevents any cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBaseline(captureBaselineSnapshot(results.scoredRegions, `Project: ${projectContextTitle}`))
+  }, [datasets.loading, projectContextSlug, projectContextTitle, results.scoredRegions])
+
+
   const mapInstanceRef = useRef<MapRef | null>(null)
   const handleMapInstance = useCallback((map: MapRef | null) => {
     mapInstanceRef.current = map
@@ -239,6 +272,18 @@ export default function ScoreBuilderSection() {
     : results.activePreset
       ? results.activePreset.description
       : 'Custom index built in the PGMaps Index Lab.'
+
+  const handleExportProjectPackage = useCallback(
+    (label: string) => {
+      const pkg = buildProjectPackageFromShareState(
+        sb.buildShareState(),
+        label.trim() || activeRecipeLabel,
+        activeRecipeDescription,
+      )
+      downloadProjectPackage(pkg)
+    },
+    [activeRecipeDescription, activeRecipeLabel, sb],
+  )
 
   const handleExport = useCallback(
     (format: ScoreBuilderExportFormat) => {
@@ -630,6 +675,7 @@ export default function ScoreBuilderSection() {
         onSaveIndex={sb.saveCurrentIndex}
         onApplySavedIndex={sb.applySavedIndex}
         onDeleteSavedIndex={sb.deleteSavedIndex}
+        onExportProjectPackage={handleExportProjectPackage}
         activeRecipeLabel={activeRecipeLabel}
       />
     </>
