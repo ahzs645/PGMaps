@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { stringCodec, stringUnionCodec, useUrlState, type UrlCodec } from '@/hooks/useUrlState'
 import { CensusMap } from './components/CensusMap'
@@ -30,6 +31,7 @@ const idCodec: UrlCodec<string | null> = {
 }
 
 export default function CensusSection() {
+  const isMobileViewport = useIsMobile()
   const { unitsByLevel, boundsByLevel, bounds, loading, error } = useCensusData()
   const { catalog, loading: catalogLoading, error: catalogError } = useCensusCatalog()
   const [showSidebar, setShowSidebar] = useState(true)
@@ -234,7 +236,7 @@ export default function CensusSection() {
           <MapGradientLegendItem colors={LEGEND_SWATCHES} minLabel="Low" maxLabel="High" />
         </MapLegendPanel>
 
-        {selectedUnit && (
+        {isMobileViewport && selectedUnit && (
           <MobileCensusFeatureCard
             unit={selectedUnit}
             hierarchyLabel={selectedHierarchyLabel}

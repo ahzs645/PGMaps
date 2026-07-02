@@ -111,8 +111,4 @@ export function getInterpolatedValueColor(value: number, stops: [number, string]
   return stops[stops.length - 1][1]
 }
 
-export function formatCurrency(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`
-  return `$${value}`
-}
+export { formatCompactCurrency as formatCurrency } from '@/lib/format'

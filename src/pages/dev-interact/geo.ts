@@ -1,9 +1,8 @@
 import area from '@turf/area'
 import bbox from '@turf/bbox'
+import { distanceKm } from '@/lib/geo'
 import { neighbourhoodFeatures, parkFeatures, routeFeatures } from './data'
 import type { InteractFeature, InteractFeatureProperties, LayerId, YearRange } from './types'
-
-const EARTH_RADIUS_KM = 6371.0088
 
 export function formatArea(squareMeters: number): string {
   const squareKm = squareMeters / 1_000_000
@@ -80,17 +79,7 @@ export function measurementCanClose(points: [number, number][]): boolean {
 }
 
 export function lineLengthKm(coordinates: [number, number][]): number {
-  return coordinates.slice(1).reduce((total, coordinate, index) => {
-    const previous = coordinates[index]
-    const lat1 = previous[1] * Math.PI / 180
-    const lat2 = coordinate[1] * Math.PI / 180
-    const deltaLat = lat2 - lat1
-    const deltaLng = (coordinate[0] - previous[0]) * Math.PI / 180
-    const haversine = Math.sin(deltaLat / 2) ** 2 +
-      Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2
-
-    return total + 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
-  }, 0)
+  return coordinates.slice(1).reduce((total, coordinate, index) => total + distanceKm(coordinates[index], coordinate), 0)
 }
 
 export function measurementStats(points: [number, number][], complete: boolean) {

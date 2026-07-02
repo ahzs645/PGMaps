@@ -17,6 +17,7 @@ import {
   MOBILE_MAP_SHEET_STACK_EVENT,
 } from '@/components/ui/mobile-feature-card'
 import { MAP_OVERLAY_ROOT_STYLE } from '@/components/ui/map-overlay'
+import { isMobileViewport } from '@/hooks/useIsMobile'
 
 type MobileSheetState = 'collapsed' | 'half' | 'full'
 
@@ -115,13 +116,8 @@ function stateFromTranslate(y: number, height: number, fullOffset = DEFAULT_FULL
 }
 
 const SPRING = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)'
-const DESKTOP_MEDIA_MIN_WIDTH = 768
 const MOBILE_STACK_REAR_SHEET_VISIBLE_GAP = 6
 const MOBILE_FEATURE_CARD_FRONT_OFFSET = 8
-
-function isMobileViewport() {
-  return typeof window !== 'undefined' && window.innerWidth < DESKTOP_MEDIA_MIN_WIDTH
-}
 
 export const DESKTOP_SIDEBAR_MIN_WIDTH = 240
 export const DESKTOP_SIDEBAR_MAX_WIDTH = 520

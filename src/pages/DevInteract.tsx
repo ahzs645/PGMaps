@@ -5,6 +5,7 @@ import { Map, MapControls, MapMarker, MapPopup, MarkerContent } from '@/componen
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { CENTER, YEAR_FILTER_DOMAIN, neighbourhoodFeatures, parkFeatures, routeFeatures } from './dev-interact/data'
 import { DesktopFeaturePopup } from './dev-interact/DesktopFeaturePopup'
 import { FeatureTablePanel } from './dev-interact/FeatureTablePanel'
@@ -43,7 +44,6 @@ const MOBILE_FEATURE_COLLAPSED_VISIBLE_HEIGHT = 98
 const MOBILE_CONTROLS_DOCKED_VISIBLE_HEIGHT = 56
 const FEATURE_SELECT_DISMISS_SUPPRESS_MS = 150
 const MAP_DRAG_DISMISS_SUPPRESS_MS = 650
-const MOBILE_MEDIA_QUERY = '(max-width: 767px)'
 const ROUTE_HIT_DISTANCE_DEGREES = 0.0012
 
 const initialMobilePanelState: MobilePanelState = {
@@ -93,22 +93,6 @@ function mobilePanelReducer(state: MobilePanelState, action: MobilePanelAction):
   }
 }
 
-function useIsMobileViewport() {
-  const [isMobile, setIsMobile] = useState(() => (
-    typeof window === 'undefined' ? false : window.matchMedia(MOBILE_MEDIA_QUERY).matches
-  ))
-
-  useEffect(() => {
-    const media = window.matchMedia(MOBILE_MEDIA_QUERY)
-    const update = () => setIsMobile(media.matches)
-    update()
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
-  }, [])
-
-  return isMobile
-}
-
 function pointToSegmentDistance(point: [number, number], start: [number, number], end: [number, number]) {
   const [px, py] = point
   const [ax, ay] = start
@@ -156,7 +140,7 @@ function DevInteract() {
   const [measurementPoints, setMeasurementPoints] = useState<[number, number][]>([])
   const [redoMeasurementPoints, setRedoMeasurementPoints] = useState<[number, number][]>([])
   const [measurementCursor, setMeasurementCursor] = useState<[number, number] | null>(null)
-  const isMobileViewport = useIsMobileViewport()
+  const isMobileViewport = useIsMobile()
   const skipNextMapDismiss = useRef(false)
   const skipMapDismissUntil = useRef(0)
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Map as PgMap, MapClusterLayer, MapControls, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
-import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { useMap } from '@/components/ui/map'
 import { useJsonManifest } from '@/maps/pgdata/shared'
 import type { AirMonitor } from '@/maps/airquality'
@@ -48,7 +48,7 @@ interface WalkabilityLiveGridState {
   grid: WalkabilityLiveGrid | null
 }
 
-const ZOOM = 12
+const ZOOM = PG_DEFAULT_ZOOM
 const SCORE_BUILDER_MAP_STYLES = {
   light: MAP_STYLES.light,
   dark: MAP_STYLES.light,

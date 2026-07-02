@@ -1,9 +1,6 @@
-import { useEffect, useState } from 'react'
-import { formatDate as formatDateShared } from '@/lib/format'
+import { useFetchData } from '@/hooks/useFetchData'
 
-export function formatDate(value: string | undefined): string {
-  return formatDateShared(value)
-}
+export { formatDate } from '@/lib/format'
 
 // Not migrated to @/lib/format's formatNumber: this intentionally formats with the
 // runtime's default locale (`toLocaleString(undefined, ...)`), while the shared
@@ -14,42 +11,5 @@ export function formatNullableNumber(value: number | null | undefined): string {
 }
 
 export function useJsonManifest<T>(path: string | null) {
-  const [data, setData] = useState<T | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!path) {
-      setData(null)
-      setError(null)
-      return
-    }
-
-    const controller = new AbortController()
-    const resolvedPath = path
-
-    async function load() {
-      try {
-        setError(null)
-        const response = await fetch(resolvedPath, { signal: controller.signal })
-        if (!response.ok) throw new Error(`Failed to fetch ${resolvedPath}: ${response.status}`)
-        const contentType = response.headers.get('content-type') ?? ''
-        const text = await response.text()
-        if (!contentType.includes('json') && text.trimStart().startsWith('<')) {
-          console.warn(`Expected JSON from ${resolvedPath}, but received ${contentType || 'unknown content type'}`)
-          throw new Error('Dataset is not included in this build')
-        }
-        setData(JSON.parse(text) as T)
-        setError(null)
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return
-        setData(null)
-        setError((err as Error).message || `Unable to load ${resolvedPath}`)
-      }
-    }
-
-    void load()
-    return () => controller.abort()
-  }, [path])
-
-  return { data, error }
+  return useFetchData<T>(path)
 }

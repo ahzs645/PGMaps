@@ -1,7 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react'
 import { ChevronLeft, ChevronRight, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react'
-import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { MOBILE_FEATURE_CARD_MEDIA_QUERY } from '@/components/ui/mobile-feature-card'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { calculatePercentageChange, formatPercentChange, type PercentageChangeResult } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
 
@@ -161,6 +162,7 @@ export function Timeline({
   overflowBuckets = false,
   percentChangeMode,
 }: TimelineProps) {
+  const isMobile = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(1000)
   const [barViewportWidth, setBarViewportWidth] = useState(0)
@@ -307,6 +309,38 @@ export function Timeline({
     }
   }, [buckets, maxPosition, onDateChange])
 
+  const speedLabel = SPEED_OPTIONS.find((opt) => opt.value === speed)?.label ?? '1x'
+  const cycleSpeed = useCallback(() => {
+    setSpeed((current) => {
+      const idx = SPEED_OPTIONS.findIndex((opt) => opt.value === current)
+      return SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length].value
+    })
+  }, [])
+
+  const windowOptions = windowMode?.options ?? DEFAULT_WINDOW_OPTIONS
+  const windowLabel = windowOptions.find((opt) => opt.value === windowMode?.size)?.label ?? windowOptions[0]?.label
+  const cycleWindow = () => {
+    if (!windowMode) return
+    const idx = windowOptions.findIndex((opt) => opt.value === windowMode.size)
+    windowMode.onSizeChange(windowOptions[(idx + 1) % windowOptions.length].value)
+  }
+
+  const scrubbingRef = useRef(false)
+  const scrubToClientX = useCallback(
+    (clientX: number) => {
+      const viewport = barViewportRef.current
+      if (!viewport || buckets.length === 0) return
+      const rect = viewport.getBoundingClientRect()
+      const perBucket = overflowBuckets && barViewportWidth > 0 ? bucketWidth : rect.width / buckets.length
+      const idx = Math.max(0, Math.min(maxPosition, Math.floor((clientX - rect.left + barScrollLeft) / perBucket)))
+      if (buckets[idx] && idx !== currentIndex) {
+        onDateChange(buckets[idx].start)
+        setIsPlaying(false)
+      }
+    },
+    [buckets, overflowBuckets, barViewportWidth, bucketWidth, barScrollLeft, currentIndex, maxPosition, onDateChange],
+  )
+
   const handleSliderChange = useCallback(
     ([idx]: number[]) => {
       if (buckets[idx]) {
@@ -384,15 +418,14 @@ export function Timeline({
 
   if (buckets.length === 0) return null
 
-  const windowOptions = windowMode?.options ?? DEFAULT_WINDOW_OPTIONS
   const barStripStyle = {
     width: overflowBuckets && barStripWidth > 0 ? `${barStripWidth}px` : '100%',
     transform: `translateX(-${barScrollLeft}px)`,
   } satisfies CSSProperties
   const controlButtonClass =
     'flex size-8 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:size-8'
-  const selectClass = 'sm:hidden'
-  const selectTriggerClass = 'h-10 border-input bg-background px-3 text-base font-semibold text-foreground shadow-sm'
+  const mobileControlButtonClass =
+    'flex size-9 shrink-0 items-center justify-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30'
 
   return (
     <div
@@ -406,6 +439,62 @@ export function Timeline({
       }
     >
       <div className="rounded-lg border border-border/60 bg-background/95 p-2.5 shadow-xl backdrop-blur-sm sm:rounded-xl sm:p-3 md:p-4">
+        {isMobile ? (
+          <div className="mb-2 flex items-center gap-1.5">
+            <button
+              onClick={() => setIsPlaying((p) => !p)}
+              className={cn(
+                'flex size-9 shrink-0 items-center justify-center rounded-full border transition-colors',
+                isPlaying
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
+            </button>
+            <button
+              onClick={stepBackward}
+              disabled={currentIndex === 0}
+              className={mobileControlButtonClass}
+              aria-label={`Previous ${unitLabel}`}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={stepForward}
+              disabled={currentIndex >= maxPosition}
+              className={mobileControlButtonClass}
+              aria-label={`Next ${unitLabel}`}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <div className="min-w-0 flex-1 rounded-md border border-primary/50 bg-primary/10 px-1.5 py-2 text-xs font-semibold text-primary">
+              <span className="block truncate text-center">{formattedDate}</span>
+            </div>
+            {windowMode && (
+              <button
+                onClick={cycleWindow}
+                className="flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-border/60 px-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={`Time window ${windowLabel}, tap to change`}
+              >
+                {windowLabel}
+              </button>
+            )}
+            <button
+              onClick={cycleSpeed}
+              className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-md border border-border/60 px-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label={`Playback speed ${speedLabel}, tap to change`}
+            >
+              {speedLabel}
+            </button>
+            {onClose && (
+              <button onClick={onClose} className={mobileControlButtonClass} aria-label="Close timeline">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        ) : (
         <div className="mb-3 flex flex-col gap-2 sm:mb-3 sm:gap-2 lg:flex-row lg:items-center lg:gap-3">
           <div className="flex min-w-0 items-center gap-1.5 lg:flex-wrap lg:gap-2">
             <div className="flex items-center gap-1">
@@ -479,50 +568,31 @@ export function Timeline({
 
           <div className="flex min-w-0 items-center gap-1.5 sm:flex-wrap sm:gap-2 lg:ml-auto lg:justify-end">
             {windowMode && (
-              <>
-                <AppSelect
-                  value={String(windowMode.size)}
-                  onValueChange={(nextValue) => windowMode.onSizeChange(Number(nextValue))}
-                  options={windowOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
-                  className={cn(selectClass, 'min-w-0 flex-1')}
-                  triggerClassName={selectTriggerClass}
-                  triggerAriaLabel="Timeline range"
-                />
-                <div className="hidden min-w-0 flex-1 grid-cols-4 gap-0.5 rounded-md border border-input p-0.5 sm:flex sm:flex-none sm:items-center sm:gap-1">
-                  {windowOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => windowMode.onSizeChange(opt.value)}
-                      className={cn(
-                        'whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors sm:px-2',
-                        windowMode.size === opt.value
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </>
+              <div className="flex min-w-0 items-center gap-1 rounded-md border border-input p-0.5">
+                {windowOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => windowMode.onSizeChange(opt.value)}
+                    className={cn(
+                      'whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-medium transition-colors',
+                      windowMode.size === opt.value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             )}
 
-            <AppSelect
-              value={String(speed)}
-              onValueChange={(nextValue) => setSpeed(Number(nextValue))}
-              options={SPEED_OPTIONS.map((opt) => ({ value: String(opt.value), label: opt.label }))}
-              className={selectClass}
-              triggerClassName={selectTriggerClass}
-              triggerAriaLabel="Timeline speed"
-            />
-
-            <div className="hidden items-center gap-0.5 rounded-md border border-input p-0.5 sm:flex sm:gap-1">
+            <div className="flex items-center gap-1 rounded-md border border-input p-0.5">
               {SPEED_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => setSpeed(opt.value)}
                   className={cn(
-                    'rounded px-1 py-0.5 text-[10px] font-medium transition-colors sm:px-1.5',
+                    'rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors',
                     speed === opt.value
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:text-foreground',
@@ -534,8 +604,9 @@ export function Timeline({
             </div>
           </div>
         </div>
+        )}
 
-        {bucketCounts && !shouldUseCompactBars ? (
+        {!isMobile && bucketCounts && !shouldUseCompactBars ? (
           <div
             ref={barViewportRef}
             className={cn(
@@ -582,8 +653,39 @@ export function Timeline({
         ) : (
           <div
             ref={barViewportRef}
+            role="slider"
+            aria-valuemin={0}
+            aria-valuemax={maxPosition}
+            aria-valuenow={Math.min(currentIndex, maxPosition)}
+            aria-valuetext={formattedDate}
+            aria-label="Timeline date"
+            tabIndex={isMobile ? 0 : -1}
+            onPointerDown={(event) => {
+              scrubbingRef.current = true
+              event.currentTarget.setPointerCapture(event.pointerId)
+              scrubToClientX(event.clientX)
+            }}
+            onPointerMove={(event) => {
+              if (scrubbingRef.current) scrubToClientX(event.clientX)
+            }}
+            onPointerUp={() => {
+              scrubbingRef.current = false
+            }}
+            onPointerCancel={() => {
+              scrubbingRef.current = false
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowLeft') {
+                event.preventDefault()
+                stepBackward()
+              } else if (event.key === 'ArrowRight') {
+                event.preventDefault()
+                stepForward()
+              }
+            }}
             className={cn(
-              'mb-1 h-7 overflow-y-visible sm:h-6',
+              'touch-none overflow-y-visible',
+              isMobile ? 'h-10' : 'mb-1 h-6',
               overflowBuckets ? 'overflow-x-hidden' : 'overflow-visible',
             )}
           >
@@ -611,24 +713,24 @@ export function Timeline({
                       setIsPlaying(false)
                     }}
                   >
-                    {isPeriodStart && (
-                      <>
-                        <span className="text-[10px] leading-none text-muted-foreground sm:hidden">
+                    {isPeriodStart &&
+                      (isMobile ? (
+                        <span className="text-[10px] leading-none text-muted-foreground">
                           {granularity === 'week' ? MONTH_NAMES[bucket.start.getMonth()] : bucket.start.getFullYear()}
                         </span>
-                        <span className="hidden text-[9px] text-muted-foreground sm:block">
+                      ) : (
+                        <span className="text-[9px] text-muted-foreground">
                           {granularity === 'week' ? bucket.shortLabel : bucket.start.getFullYear()}
                         </span>
-                      </>
-                    )}
+                      ))}
                     <div
                       className={cn(
                         'w-full transition-colors',
                         inWindow
-                          ? 'h-3.5 bg-primary sm:h-3'
+                          ? cn('bg-primary', isMobile ? 'h-6' : 'h-3')
                           : isPeriodStart
-                            ? 'h-2.5 bg-muted-foreground/30 sm:h-2'
-                            : 'h-1 bg-muted-foreground/15',
+                            ? cn('bg-muted-foreground/30', isMobile ? 'h-4' : 'h-2')
+                            : cn('bg-muted-foreground/15', isMobile ? 'h-2' : 'h-1'),
                       )}
                       style={{ borderRadius: '1px 1px 0 0', minWidth: '2px' }}
                     />
@@ -639,19 +741,21 @@ export function Timeline({
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <Slider
-            min={0}
-            max={maxPosition}
-            step={1}
-            value={[Math.min(currentIndex, maxPosition)]}
-            onValueChange={handleSliderChange}
-            className="flex-1 py-2"
-            aria-label="Timeline date"
-          />
+        {!isMobile && (
+          <div className="flex items-center gap-2">
+            <Slider
+              min={0}
+              max={maxPosition}
+              step={1}
+              value={[Math.min(currentIndex, maxPosition)]}
+              onValueChange={handleSliderChange}
+              className="flex-1 py-2"
+              aria-label="Timeline date"
+            />
 
-          <div className="hidden text-[10px] text-muted-foreground sm:block">{buckets[currentIndex]?.shortLabel}</div>
-        </div>
+            <div className="hidden text-[10px] text-muted-foreground sm:block">{buckets[currentIndex]?.shortLabel}</div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -8,7 +8,7 @@ import {
   type MapRef
 } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
-import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
 import type {
   ExplorerItem,
@@ -31,7 +31,7 @@ interface ExplorerMapProps {
   loading?: boolean
 }
 
-const ZOOM = 12
+const ZOOM = PG_DEFAULT_ZOOM
 
 export function ExplorerMap({
   pointCollections,

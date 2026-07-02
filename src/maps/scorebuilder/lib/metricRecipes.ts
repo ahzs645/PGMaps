@@ -1,5 +1,6 @@
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
+import { distanceKm } from '@/lib/geo'
 import type { StudyAreaRegion } from '@/lib/studyArea'
 
 export type RecipeValueType = string | number | boolean | null
@@ -410,15 +411,3 @@ function featureCentroid(feature: StudyAreaRegion['feature']): [number, number] 
   return [sum[0] / ring.length, sum[1] / ring.length]
 }
 
-function distanceKm(left: [number, number], right: [number, number]): number {
-  const toRadians = (degrees: number) => (degrees * Math.PI) / 180
-  const earthRadiusKm = 6371
-  const deltaLat = toRadians(right[1] - left[1])
-  const deltaLng = toRadians(right[0] - left[0])
-  const leftLat = toRadians(left[1])
-  const rightLat = toRadians(right[1])
-  const a =
-    Math.sin(deltaLat / 2) ** 2 +
-    Math.cos(leftLat) * Math.cos(rightLat) * Math.sin(deltaLng / 2) ** 2
-  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}

@@ -1,5 +1,5 @@
-import type { ElementType } from 'react'
 import { Database, Droplets, Flame, Footprints, PawPrint, RadioTower, ShieldAlert, Trash2, Trees, Waves, Zap } from 'lucide-react'
+import type { SectionTab } from '@/components/layout/SectionTabsBar'
 
 export type MiscDataTab =
   | 'heatShade'
@@ -15,8 +15,8 @@ export type MiscDataTab =
   | 'drought'
   | 'bcer'
 
-export const MISC_TABS: Array<{ id: MiscDataTab; label: string; icon: ElementType }> = [
-  { id: 'heatShade', label: 'Heat & Shade', icon: Trees },
+export const MISC_TABS: Array<SectionTab<MiscDataTab>> = [
+  { id: 'heatShade', label: 'Heat & Shade', icon: Trees, shortLabel: 'Shade' },
   { id: 'canue', label: 'CANUE', icon: Database },
   { id: 'network', label: 'Network', icon: RadioTower },
   { id: 'ev', label: 'EV Chargers', icon: Zap },

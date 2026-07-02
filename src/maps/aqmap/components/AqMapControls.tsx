@@ -3,6 +3,7 @@ import { Crosshair, Info, Layers as LayersIcon, Loader2, Maximize, Minus, Plus, 
 import { useMap } from '@/components/ui/map'
 import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { cn } from '@/lib/utils'
+import { isMobileViewport } from '@/hooks/useIsMobile'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import type { SmokeLayerDefinition, SmokeLayerKey } from '../lib/smokeLayers'
 import { AQ_OBSERVATION_NETWORKS, type AqBasemap, type AqMonitorGroup, type AqNetworkSlug } from '../lib/monitorPresentation'
@@ -798,7 +799,7 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
         * Math.PI
         * 6378137
       ) / (512 * (2 ** map.getZoom()))
-      const maxWidth = window.innerWidth < 768 ? 72 : 100
+      const maxWidth = isMobileViewport() ? 72 : 100
       const rawDistanceMeters = metersPerPixel * maxWidth
       const niceDistances = [
         1, 2, 5, 10, 20, 50, 100, 200, 500,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { RouletteRestaurant, HazardRating } from '../../types'
+import { getHazardRating, HAZARD_TAILWIND } from '../../hazard'
+import type { RouletteRestaurant } from '../../types'
 
 interface RouletteSlotProps {
   restaurants: RouletteRestaurant[]
@@ -13,19 +14,8 @@ interface SlotCard extends RouletteRestaurant {
   id: string
 }
 
-const hazardColors: Record<HazardRating, { bg: string; border: string; text: string }> = {
-  'Low': { bg: 'bg-green-500', border: 'border-green-500', text: 'text-green-500' },
-  'Moderate': { bg: 'bg-amber-500', border: 'border-amber-500', text: 'text-amber-500' },
-  'Unknown': { bg: 'bg-gray-500', border: 'border-gray-500', text: 'text-gray-500' }
-}
-
-function getHazardRating(restaurant: RouletteRestaurant): HazardRating {
-  return (restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown') as HazardRating
-}
-
 function getHazardColors(restaurant: RouletteRestaurant) {
-  const rating = getHazardRating(restaurant)
-  return hazardColors[rating] || hazardColors['Unknown']
+  return HAZARD_TAILWIND[getHazardRating(restaurant)] || HAZARD_TAILWIND.Unknown
 }
 
 function getDifficultyIndicator(restaurant: RouletteRestaurant) {

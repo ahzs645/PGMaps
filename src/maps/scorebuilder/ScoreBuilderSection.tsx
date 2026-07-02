@@ -17,7 +17,7 @@ import { ScoreBuilderRightPanel } from './components/ScoreBuilderRightPanel'
 import { ScoreBuilderSettingsDialog } from './components/ScoreBuilderSettingsDialog'
 import { ScoreBuilderSidebar } from './components/ScoreBuilderSidebar'
 import { ScoreBuilderWalkabilitySurfacePanel } from './components/ScoreBuilderWalkabilitySurfacePanel'
-import { useMediaQuery } from './hooks/useMediaQuery'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { useScoreBuilderDatasets } from './hooks/useScoreBuilderDatasets'
 import { useScoreBuilderMapColors } from './hooks/useScoreBuilderMapColors'
 import { useScoreBuilderMetricRows } from './hooks/useScoreBuilderMetricRows'
@@ -85,7 +85,7 @@ function writeLayoutPrefs(prefs: StoredLayoutPrefs) {
 export default function ScoreBuilderSection() {
   const sb = useScoreBuilderState()
   const { state } = sb
-  const isDesktop = useMediaQuery('(min-width: 768px)')
+  const isDesktop = !useIsMobile()
 
   // Panel visibility: explicit user choice (localStorage) wins; otherwise default to open,
   // except the right panel on narrow desktops/tablets where both panels would crowd out the map.

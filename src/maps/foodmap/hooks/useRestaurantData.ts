@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { getHazardRating } from '../hazard'
 import type { Restaurant, RestaurantStats, HazardRating, EstablishmentType } from '../types'
 import { normalizeViolation } from '../violation-codes'
 
@@ -96,7 +97,7 @@ export function useRestaurantData(enabled = true) {
     const geocoded = restaurants.filter(r => r.latitude && r.longitude).length
 
     const byHazard = restaurants.reduce((acc, r) => {
-      const rating = (r.current_hazard_rating || r.hazard_rating || 'Unknown') as HazardRating
+      const rating = getHazardRating(r)
       acc[rating] = (acc[rating] || 0) + 1
       return acc
     }, {} as Record<HazardRating, number>)

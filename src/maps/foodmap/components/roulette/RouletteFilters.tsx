@@ -1,6 +1,7 @@
 import { RouletteLocationPicker } from './RouletteLocationPicker'
 import { AppSelect } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { HAZARD_TAILWIND } from '../../hazard'
 import type { SourceLocation, HazardRating } from '../../types'
 
 interface RouletteFiltersProps {
@@ -22,11 +23,12 @@ interface RouletteFiltersProps {
 }
 
 const hazardOptions: HazardRating[] = ['Low', 'Moderate', 'Unknown']
-const hazardColors: Record<HazardRating, { active: string; inactive: string }> = {
-  'Low': { active: 'bg-green-500', inactive: 'border-green-500 text-green-600 dark:text-green-400' },
-  'Moderate': { active: 'bg-amber-500', inactive: 'border-amber-500 text-amber-600 dark:text-amber-400' },
-  'Unknown': { active: 'bg-gray-500', inactive: 'border-gray-500 text-gray-600 dark:text-gray-400' }
-}
+const hazardColors = Object.fromEntries(
+  hazardOptions.map((rating) => {
+    const { bg, border, text } = HAZARD_TAILWIND[rating]
+    return [rating, { active: bg, inactive: `${border} ${text}` }]
+  }),
+) as Record<HazardRating, { active: string; inactive: string }>
 
 const timeOptions = [
   { value: 3, label: '3 months' },

@@ -11,7 +11,8 @@ import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components
 import { SharedMap } from '@/components/ui/persistent-map'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
-import type { RestaurantWithStats, HazardRating, VisualizationMode } from '../types'
+import { getHazardRating, HAZARD_HEX_COLORS, HAZARD_TAILWIND } from '../hazard'
+import type { RestaurantWithStats, VisualizationMode } from '../types'
 
 interface RestaurantMapProps {
   restaurants: RestaurantWithStats[]
@@ -21,19 +22,6 @@ interface RestaurantMapProps {
   onRestaurantClick: (restaurant: RestaurantWithStats) => void
   onViewInspections: (restaurant: RestaurantWithStats) => void
   onClearSelection: () => void
-}
-
-const HAZARD_COLORS: Record<'light' | 'dark', Record<HazardRating, string>> = {
-  light: {
-    Low: '#30a46c',
-    Moderate: '#ffc53d',
-    Unknown: '#8b8d98'
-  },
-  dark: {
-    Low: '#33b074',
-    Moderate: '#ffd60a',
-    Unknown: '#777b84'
-  }
 }
 
 function getViolationCountColor(count: number, isDarkMode: boolean): string {
@@ -56,8 +44,8 @@ function getMarkerColor(restaurant: RestaurantWithStats, visualizationMode: Visu
   if (visualizationMode === 'violations') {
     return getViolationCountColor(restaurant.violationStats?.total || 0, isDarkMode)
   } else {
-    const rating = restaurant.hazardRatingAtDate || restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown'
-    return HAZARD_COLORS[colorMode][rating as HazardRating] || HAZARD_COLORS[colorMode].Unknown
+    const rating = getHazardRating(restaurant, { atDate: true })
+    return HAZARD_HEX_COLORS[colorMode][rating] || HAZARD_HEX_COLORS[colorMode].Unknown
   }
 }
 
@@ -145,11 +133,9 @@ function RestaurantMarker({ restaurant, visualizationMode, isSelected, isMobileV
   }
   const color = getMarkerColor(restaurant, visualizationMode, isDarkMode)
   const size = getMarkerSize(stats.total, visualizationMode)
-  const rating = restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown'
+  const rating = getHazardRating(restaurant)
 
-  const hazardColorClass = rating === 'Low' ? 'bg-green-500'
-    : rating === 'Moderate' ? 'bg-amber-500'
-    : 'bg-gray-500'
+  const hazardColorClass = HAZARD_TAILWIND[rating].bg
   const ratingBadgeClass = rating === 'Low'
     ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
     : rating === 'Moderate'
@@ -285,9 +271,7 @@ function MobileRestaurantFeatureCard({
     critical: 0,
     inspectionCount: 0
   }
-  const rating = visualizationMode === 'hazard'
-    ? restaurant.hazardRatingAtDate || restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown'
-    : restaurant.current_hazard_rating || restaurant.hazard_rating || 'Unknown'
+  const rating = getHazardRating(restaurant, { atDate: visualizationMode === 'hazard' })
   const ratingBadgeClass = rating === 'Low'
     ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
     : rating === 'Moderate'

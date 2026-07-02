@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { Timeline } from '@/components/ui/timeline'
 import { toggleArrayItem } from '@/hooks/useToggleArray'
@@ -57,6 +58,7 @@ function isAssessmentBoundarySource(source: string | null): source is Assessment
 }
 
 export default function BcAssessmentSection() {
+  const isMobileViewport = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
   const { properties, loading, error } = useBcAssessmentData()
 
@@ -324,7 +326,7 @@ export default function BcAssessmentSection() {
           </MapLegendPanel>
         )}
 
-        {visibleSelectedProperty && (
+        {isMobileViewport && visibleSelectedProperty && (
           <MobileBcAssessmentFeatureCard
             property={selectedDisplayProperty ?? visibleSelectedProperty}
             onClose={handleClearSelection}

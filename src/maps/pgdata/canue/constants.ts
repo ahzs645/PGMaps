@@ -519,7 +519,7 @@ export const CANUE_SUFFIX_LABELS_BY_DATASET: Record<string, Record<string, strin
   },
 }
 
-export const BC_CENTER: [number, number] = [-124.6, 54.4]
+export { BC_CENTER } from '@/components/ui/map-styles'
 export const CANUE_MONTHS = [
   { value: 1, key: 'jan', label: 'January' },
   { value: 2, key: 'feb', label: 'February' },

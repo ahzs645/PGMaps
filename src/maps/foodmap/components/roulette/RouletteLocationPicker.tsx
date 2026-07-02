@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react'
 import { Map, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
+import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 // @ts-expect-error - turf types issue with package exports
 import * as turf from '@turf/turf'
 import type maplibregl from 'maplibre-gl'
@@ -11,12 +12,7 @@ interface RouletteLocationPickerProps {
   onLocationSelected: (location: SourceLocation) => void
 }
 
-// Prince George center coordinates
-const CENTER: [number, number] = [-122.764593, 53.909784]
 const ZOOM = 11
-
-const LIGHT_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
-const DARK_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 
 export function RouletteLocationPicker({
   sourceLocation,
@@ -33,12 +29,9 @@ export function RouletteLocationPicker({
   return (
     <div className="h-40 w-full cursor-crosshair overflow-hidden rounded-lg border border-input">
       <Map
-        center={sourceLocation ? [sourceLocation.lng, sourceLocation.lat] : CENTER}
+        center={sourceLocation ? [sourceLocation.lng, sourceLocation.lat] : PG_CENTER}
         zoom={sourceLocation ? 12 : ZOOM}
-        styles={{
-          light: LIGHT_STYLE,
-          dark: DARK_STYLE
-        }}
+        styles={MAP_STYLES}
       >
         <MapClickHandler onMapClick={handleMapClick} />
         <RadiusCircle sourceLocation={sourceLocation} maxDistance={maxDistance} />

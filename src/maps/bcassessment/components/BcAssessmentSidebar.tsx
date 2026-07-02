@@ -17,6 +17,7 @@ import {
   type StudyAreaSourceOption,
 } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
+import { formatNumber } from '@/lib/format'
 import { DATASETS } from '@/lib/dataCatalog'
 import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, CATEGORY_LABELS, getCategoryColor, COLOR_METRICS, formatCurrency } from '../constants'
 import type {
@@ -116,9 +117,7 @@ const REGION_LEVEL_OPTIONS: Record<
   watershed: createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
 }
 
-export function formatNumber(n: number): string {
-  return n.toLocaleString()
-}
+export { formatNumber }
 
 export function HistorySparkline({ values }: { values: number[] }) {
   const [hovered, setHovered] = useState<number | null>(null)

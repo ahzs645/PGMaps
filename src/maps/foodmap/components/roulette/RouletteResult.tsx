@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { getHazardRating, HAZARD_TAILWIND } from '../../hazard'
 import type { RouletteRestaurant, HazardRating } from '../../types'
 
 interface RouletteResultProps {
@@ -7,18 +8,12 @@ interface RouletteResultProps {
   onViewOnMap: () => void
 }
 
-const hazardColors: Record<HazardRating, string> = {
-  Low: 'bg-green-500',
-  Moderate: 'bg-amber-500',
-  Unknown: 'bg-gray-500'
-}
-
 function getHazardColor(rating?: HazardRating): string {
-  return hazardColors[rating || 'Unknown'] || hazardColors.Unknown
+  return (HAZARD_TAILWIND[rating || 'Unknown'] || HAZARD_TAILWIND.Unknown).bg
 }
 
 export function RouletteResult({ winner, onSpinAgain, onViewOnMap }: RouletteResultProps) {
-  const rating = (winner.current_hazard_rating || winner.hazard_rating || 'Unknown') as HazardRating
+  const rating = getHazardRating(winner)
   const violationCount = winner.rouletteViolationCount ??
     (winner.inspections || []).reduce((sum, i) => sum + (i.violations?.length || 0), 0)
   const inspectionCount = (winner.inspections || []).length
