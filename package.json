@@ -33,6 +33,7 @@
     "drought:sync": "npm --prefix vendor/bcdatamapper run drought:sync --",
     "drought:canonical": "npm --prefix vendor/bcdatamapper run drought:canonical --",
     "environmental-burden:bc-enviro-screen": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen --",
+    "environmental-burden:pesticide-proxy": "npm --prefix vendor/bcdatamapper run environmental-burden:pesticide-proxy --",
     "environmental-burden:bc-enviro-screen:shiny-table": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen:shiny-table --",
     "environmental-burden:bc-enviro-screen:raw-seed": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen:raw-seed --",
     "environmental-burden:bc-enviro-screen:linear-footprint-sources": "npm --prefix vendor/bcdatamapper run environmental-burden:bc-enviro-screen:linear-footprint-sources --",
