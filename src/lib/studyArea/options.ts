@@ -59,7 +59,7 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
   {
     value: 'census',
     label: 'Census boundaries',
-    description: 'BC census hierarchy, PG dissemination blocks',
+    description: 'Prince George census hierarchy, division to dissemination block',
     group: 'Administrative',
   },
   {

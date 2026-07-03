@@ -40,8 +40,6 @@ import {
   downloadProjectPackage,
   findProjectPackageBySlug,
 } from '@/lib/projectPackages'
-import { hasUrlWeightParams } from './hooks/scoreBuilderReducer'
-
 const LAYOUT_STORAGE_KEY = 'pgmaps.indexLab.layout'
 
 interface StoredLayoutPrefs {
@@ -61,9 +59,8 @@ function initialLabViewMode(): LabViewMode {
   const params = new URLSearchParams(window.location.search)
   const explicit = params.get('view')
   if (explicit === 'build' || explicit === 'explore') return explicit
-  // A recipe arriving via URL (share link, project deep link, quick preset) lands on the
-  // map-first Explore view; a cold visit lands on the Build view to compose one.
-  return hasUrlWeightParams(params) || params.get('quick') || params.get('project') ? 'explore' : 'build'
+  // The map-first Explore view is the default; Build is an explicit opt-in via `view=build`.
+  return 'explore'
 }
 
 function clampStoredWidth(width: number | undefined, fallback: number): number {

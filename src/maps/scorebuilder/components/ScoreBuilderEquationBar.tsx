@@ -163,13 +163,14 @@ export function ScoreBuilderEquationBar({
     <div className="shrink-0 border-b border-border bg-background/96 px-4 py-3 shadow-sm backdrop-blur">
       <div className="rounded-xl border border-border bg-card p-3 shadow-sm" data-score-builder-results-preview="true">
         <div className="flex flex-wrap items-start justify-between gap-3">
+          {/* Leading toggle mirrors the Build header so it stays put when swapping views. */}
+          {onOpenBuildView && <ViewModeToggle mode="explore" onSwitchToBuild={onOpenBuildView} />}
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold text-foreground">{activeRecipeLabel}</h2>
             <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{activeRecipeDescription}</p>
           </div>
           <div className="flex w-full shrink-0 items-start gap-2 sm:w-auto">
             <div className="flex flex-1 flex-wrap items-center justify-end gap-1 sm:flex-none">
-              {onOpenBuildView && <ViewModeToggle mode="explore" onSwitchToBuild={onOpenBuildView} />}
               <button
                 type="button"
                 aria-expanded={equationOpen}

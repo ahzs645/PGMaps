@@ -40,11 +40,15 @@ interface BoundaryFeatureCollection {
 }
 
 const BOUNDARY_INDEX_PATH = '/data/boundaries/BCMoH/index.json'
+// The picker levels stay scoped to the committed Prince George extracts: the
+// province-wide bc-da-simplified parents (844 CTs, ~7.8k DAs) freeze the scoring
+// pipeline and are only available after the vendor data sync anyway. The provincial
+// dataset remains reachable through the explicit `bcDaSimplified` level.
 const CENSUS_FILE_BY_LEVEL: Record<CensusBoundaryLevel, string> = {
-  cd: '/data/census/bc-da-simplified/parents/cd.geojson',
-  csd: '/data/census/bc-da-simplified/parents/csd.geojson',
-  ct: '/data/census/bc-da-simplified/parents/ct.geojson',
-  da: '/data/census/bc-da-simplified/manifest.json',
+  cd: '/data/census/prince_george_cd.geo.json',
+  csd: '/data/census/prince_george_csd.geo.json',
+  ct: '/data/census/prince_george_ct.geo.json',
+  da: '/data/census/prince_george_da.geo.json',
   db: '/data/census/prince_george_db.geo.json',
   bcDaSimplified: '/data/census/bc-da-simplified/manifest.json',
 }
@@ -52,7 +56,14 @@ const CITY_FILE_BY_LEVEL: Record<CityBoundaryLevel, string> = {
   elementarySchoolCatchment: '/data/boundaries/CityPG/elementary_school_catchments.geojson',
   secondarySchoolCatchment: '/data/boundaries/CityPG/secondary_school_catchments.geojson',
 }
+// The walkability snapshot carries the exact same 31 CityPG community polygons
+// (matching OBJECTIDs/geometry) plus precomputed walkability variant scores, so the
+// community boundary source loads it directly and the plain boundary file stays as
+// a fallback. This keeps "Community polygons" and walkability metrics on one source.
 const COMMUNITY_FILE_BY_LEVEL: Record<CommunityBoundaryLevel, string> = {
+  communityPolygon: '/data/walkability/community_walkability.geojson',
+}
+const COMMUNITY_FALLBACK_FILE_BY_LEVEL: Record<CommunityBoundaryLevel, string> = {
   communityPolygon: '/data/citypg/community_boundaries.geojson',
 }
 const REGIONAL_DISTRICT_FILE_BY_LEVEL: Record<RegionalDistrictBoundaryLevel, string> = {
@@ -127,6 +138,12 @@ async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, { signal })
   if (!response.ok) {
     throw new Error(`Failed to fetch ${path}: ${response.status}`)
+  }
+  // A missing file behind the SPA fallback comes back as 200 text/html; surface it
+  // as a missing-file error instead of letting JSON.parse choke on "<!DOCTYPE".
+  const contentType = response.headers.get('content-type') ?? ''
+  if (contentType.includes('text/html')) {
+    throw new Error(`Failed to fetch ${path}: file missing (got HTML fallback)`)
   }
   return response.json() as Promise<T>
 }
@@ -309,7 +326,7 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  if (level === 'da' || level === 'bcDaSimplified') {
+  if (level === 'bcDaSimplified') {
     const manifest = await fetchJson<{
       chunks: Array<{ path: string }>
       levels?: Array<{ id: string; chunks: Array<{ path: string }> }>
@@ -427,7 +444,13 @@ async function loadCommunityRegions(level: CommunityBoundaryLevel, signal?: Abor
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(COMMUNITY_FILE_BY_LEVEL[level], signal)
+  let geometry: BoundaryFeatureCollection
+  try {
+    geometry = await fetchJson<BoundaryFeatureCollection>(COMMUNITY_FILE_BY_LEVEL[level], signal)
+  } catch (error) {
+    if (signal?.aborted) throw error
+    geometry = await fetchJson<BoundaryFeatureCollection>(COMMUNITY_FALLBACK_FILE_BY_LEVEL[level], signal)
+  }
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {

@@ -26,16 +26,17 @@ import {
 export const BOUNDARY_LEVEL_OPTIONS = _SCORE_BUILDER_HEALTH_BOUNDARY_LEVEL_OPTIONS
 
 /**
- * Boundary sources offered in the Index Lab. The Prince George community
- * walkability geography is exposed here only (not in the shared
- * `BOUNDARY_SOURCE_OPTIONS`) so it stays scoped to the score builder.
+ * Boundary sources offered in the Index Lab. The community boundary source loads
+ * the walkability snapshot of the same 31 CityPG polygons, so the precomputed
+ * walkability variant metrics are available on it directly — no separate
+ * "PG Community (walkability)" entry needed.
  */
-export const SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
-  ..._SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS,
-  {
-    value: 'walkabilityCommunity',
-    label: 'PG Community (walkability)',
-    description: '31 Prince George community areas with precomputed walkability variants',
-    group: 'Local',
-  },
-]
+export const SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = _SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS.map(
+  (option) =>
+    option.value === 'cityCommunity'
+      ? {
+          ...option,
+          description: '31 CityPG community / neighbourhood areas with precomputed walkability variants',
+        }
+      : option,
+)
