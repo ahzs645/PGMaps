@@ -470,8 +470,8 @@ export function useScoreBuilderMetricRows({
       metricValues.walkabilityMiSurface = walkabilityMiByRegion?.get(region.id)?.mean ?? 0
 
       // Community walkability variants are precomputed and ride along in the
-      // boundary feature properties (PG Community boundary only).
-      if (region.source === 'walkabilityCommunity') {
+      // boundary feature properties (PG community boundaries only).
+      if (region.source === 'walkabilityCommunity' || region.source === 'cityCommunity') {
         const props = (region.feature.properties ?? {}) as Record<string, unknown>
         const readScore = (key: string): number => {
           const value = Number(props[key])

@@ -26,13 +26,10 @@ import type { ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap, Score
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { ScorePresetDialog } from './ScorePresetDialog'
-import { ViewModeToggle } from './ScoreBuilderBuildView'
 
 interface ScoreBuilderEquationBarProps {
   weights: ScoreMetricWeightMap
   activePresetKey: string | null
-  activeRecipeLabel: string
-  activeRecipeDescription: string
   boundarySource: BoundarySource
   equationPreview: string
   methodSettings: ScoreMethodSettings
@@ -46,7 +43,6 @@ interface ScoreBuilderEquationBarProps {
   densityMode: boolean
   onToggleDensityMode: () => void
   onOpenSettings: () => void
-  onOpenBuildView?: () => void
   onUndo: () => void
   onRedo: () => void
   canUndo: boolean
@@ -89,8 +85,6 @@ function getCategoryDot(category: string): string {
 export function ScoreBuilderEquationBar({
   weights,
   activePresetKey,
-  activeRecipeLabel,
-  activeRecipeDescription,
   boundarySource,
   equationPreview,
   methodSettings,
@@ -104,7 +98,6 @@ export function ScoreBuilderEquationBar({
   densityMode,
   onToggleDensityMode,
   onOpenSettings,
-  onOpenBuildView,
   onUndo,
   onRedo,
   canUndo,
@@ -162,14 +155,11 @@ export function ScoreBuilderEquationBar({
   return (
     <div className="shrink-0 border-b border-border bg-background/96 px-4 py-3 shadow-sm backdrop-blur">
       <div className="rounded-xl border border-border bg-card p-3 shadow-sm" data-score-builder-results-preview="true">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-sm font-semibold text-foreground">{activeRecipeLabel}</h2>
-            <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{activeRecipeDescription}</p>
-          </div>
+        {/* The recipe title lives in the shared Index Lab header above; this card only
+            carries the equation itself plus the map-lens and quick actions. */}
+        <div className="flex flex-wrap items-start justify-end gap-3">
           <div className="flex w-full shrink-0 items-start gap-2 sm:w-auto">
             <div className="flex flex-1 flex-wrap items-center justify-end gap-1 sm:flex-none">
-              {onOpenBuildView && <ViewModeToggle mode="explore" onSwitchToBuild={onOpenBuildView} />}
               <button
                 type="button"
                 aria-expanded={equationOpen}

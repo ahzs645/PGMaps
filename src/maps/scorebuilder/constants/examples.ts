@@ -3,17 +3,17 @@ import { MODULE_PERCENTILE_METHOD, PERCENTILE_METHOD, WINSORIZED_METHOD, Z_SCORE
 import { ZERO_WEIGHTS } from './weights'
 
 export const SCORE_EXAMPLES: ScoreExample[] = [
-  // ── Census boundaries ────────────────────────────────────────────────
+  // ── Community polygons ───────────────────────────────────────────────
 
-  // Census Tract (CT) – 23 tracts, good neighbourhood-level analysis
+  // 31 CityPG community areas — the default cold-start recipe
   {
     key: 'greenestNeighbourhoods',
     label: 'Greenest Neighbourhoods',
     question: 'Which parts of PG have the best park and trail access?',
     description:
-      'Scores each census tract by park coverage, trail density, and amenity access. High-scoring areas have more green space per resident.',
-    boundarySource: 'census',
-    boundaryLevel: 'ct',
+      'Scores each of the 31 CityPG communities by park coverage, trail density, and amenity access. High-scoring areas have more green space per resident.',
+    boundarySource: 'cityCommunity',
+    boundaryLevel: 'communityPolygon',
     dataSources: ['parks', 'census'],
     networkFilter: 'none',
     weights: {
@@ -25,6 +25,8 @@ export const SCORE_EXAMPLES: ScoreExample[] = [
       populationDensity: 15,
     },
   },
+
+  // ── Census boundaries ────────────────────────────────────────────────
   {
     key: 'airQualityGapsCt',
     label: 'Air Monitoring Gaps (Tract)',
@@ -654,6 +656,7 @@ export const SCORE_BUILDER_EXAMPLES: ScoreExample[] = SCORE_EXAMPLES.map((exampl
   methodSettings: example.methodSettings ?? getRecommendedExampleMethodSettings(example),
 })).filter(
   (example) =>
+    example.boundarySource === 'cityCommunity' ||
     (example.boundarySource === 'census' && (example.boundaryLevel === 'ct' || example.boundaryLevel === 'da')) ||
     example.boundarySource === 'bcHealth',
 )

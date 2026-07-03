@@ -8,8 +8,10 @@ import {
 } from '@/components/layout/MapSectionLayout'
 import { cn } from '@/lib/utils'
 import type { MapRef } from '@/components/ui/map'
-import { ScoreBuilderBuildView } from './components/ScoreBuilderBuildView'
+import { IndexLabHeader, ScoreBuilderBuildView } from './components/ScoreBuilderBuildView'
 import { ScoreBuilderEquationBar } from './components/ScoreBuilderEquationBar'
+import { ScorePresetDialog } from './components/ScorePresetDialog'
+import { SCORE_PRESETS } from './constants'
 import { ScoreBuilderLeftPanel } from './components/ScoreBuilderLeftPanel'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import { ScoreBuilderMapLegend } from './components/ScoreBuilderMapLegend'
@@ -40,8 +42,6 @@ import {
   downloadProjectPackage,
   findProjectPackageBySlug,
 } from '@/lib/projectPackages'
-import { hasUrlWeightParams } from './hooks/scoreBuilderReducer'
-
 const LAYOUT_STORAGE_KEY = 'pgmaps.indexLab.layout'
 
 interface StoredLayoutPrefs {
@@ -61,9 +61,8 @@ function initialLabViewMode(): LabViewMode {
   const params = new URLSearchParams(window.location.search)
   const explicit = params.get('view')
   if (explicit === 'build' || explicit === 'explore') return explicit
-  // A recipe arriving via URL (share link, project deep link, quick preset) lands on the
-  // map-first Explore view; a cold visit lands on the Build view to compose one.
-  return hasUrlWeightParams(params) || params.get('quick') || params.get('project') ? 'explore' : 'build'
+  // The map-first Explore view is the default; Build is an explicit opt-in via `view=build`.
+  return 'explore'
 }
 
 function clampStoredWidth(width: number | undefined, fallback: number): number {
@@ -132,6 +131,7 @@ export default function ScoreBuilderSection() {
     return !sb.initializedFromUrlWeights
   })
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(() =>
     clampStoredWidth(readLayoutPrefs().sidebarWidth, DEFAULT_SIDEBAR_WIDTH),
   )
@@ -544,6 +544,20 @@ export default function ScoreBuilderSection() {
     <>
       {viewMode === 'build' && buildView}
       {viewMode === 'explore' && (
+      <div className="flex h-full min-h-0 flex-col">
+      {/* Same header strip as the Build view, so the toggle and actions stay put on swap. */}
+      {isDesktop && (
+        <IndexLabHeader
+          mode="explore"
+          onSwitchToBuild={() => setViewMode('build')}
+          title={activeRecipeLabel}
+          description={activeRecipeDescription}
+          onOpenPresets={() => setPresetDialogOpen(true)}
+          onExportPackage={() => handleExportProjectPackage(activeRecipeLabel)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      )}
+      <div className="min-h-0 flex-1">
       <MapSectionLayout
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={toggleSidebar}
@@ -574,8 +588,6 @@ export default function ScoreBuilderSection() {
               metrics={sb.activeMetricDefinitions}
               methodSettings={state.methodSettings}
               activePresetKey={results.activePresetKey}
-              activeRecipeLabel={activeRecipeLabel}
-              activeRecipeDescription={activeRecipeDescription}
               boundarySource={state.boundarySource}
               equationPreview={results.equationPreview}
               onWeightChange={sb.handleWeightChange}
@@ -587,7 +599,6 @@ export default function ScoreBuilderSection() {
               densityMode={state.densityMode}
               onToggleDensityMode={sb.handleToggleDensityMode}
               onOpenSettings={() => setSettingsOpen(true)}
-              onOpenBuildView={() => setViewMode('build')}
               onUndo={sb.undo}
               onRedo={sb.redo}
               canUndo={sb.canUndo}
@@ -714,7 +725,17 @@ export default function ScoreBuilderSection() {
           </div>
         </div>
       </MapSectionLayout>
+      </div>
+      </div>
       )}
+
+      <ScorePresetDialog
+        open={presetDialogOpen}
+        onOpenChange={setPresetDialogOpen}
+        presets={SCORE_PRESETS}
+        activePresetKey={results.activePresetKey}
+        onApplyPreset={sb.handleApplyPreset}
+      />
 
       <ScoreBuilderRegionInsightDialog
         open={state.regionInsightOpen}

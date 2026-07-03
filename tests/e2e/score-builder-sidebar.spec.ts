@@ -11,10 +11,11 @@ import type { ScoreDataSource } from '../../src/maps/scorebuilder/types'
 
 const boundaryMatrix = {
   census: [
-    { level: 'cd', label: 'Census Division', count: 29 },
-    { level: 'csd', label: 'Census Subdivision', count: 751 },
-    { level: 'ct', label: 'Census Tract', count: 844 },
-    { level: 'da', label: 'Dissemination Area', count: 7848 },
+    // Prince George extracts — the province-wide bc-da-simplified set froze the pipeline.
+    { level: 'cd', label: 'Census Division', count: 1 },
+    { level: 'csd', label: 'Census Subdivision', count: 1 },
+    { level: 'ct', label: 'Census Tract', count: 23 },
+    { level: 'da', label: 'Dissemination Area', count: 135 },
     { level: 'db', label: 'Dissemination Block', count: 1011 },
   ],
   bcHealth: [
@@ -149,8 +150,9 @@ test.describe('Score Builder desktop interface', () => {
     await expect(page.getByRole('button', { name: /Demographics/i })).toContainText('ON')
     await expect(page.getByRole('button', { name: /Air Quality/i })).toContainText('OFF')
 
+    // The recipe title lives in the shared Index Lab header; the preview card holds the equation.
+    await expect(page.locator('[data-index-lab-header="true"]')).toContainText('Greenest Neighbourhoods')
     const preview = page.locator('[data-score-builder-results-preview="true"]')
-    await expect(preview).toContainText('Greenest Neighbourhoods')
     await expect(preview).toContainText('Score=')
     await expect(preview).not.toContainText('|weights|')
     await expect(page.locator('[data-score-builder-equation-term]')).toHaveCount(5)
@@ -170,7 +172,7 @@ test.describe('Score Builder desktop interface', () => {
     await dialog.getByRole('tab', { name: 'Examples' }).click()
     await dialog.getByRole('button', { name: /Air Monitoring Gaps \(Tract\)/ }).click()
 
-    await expect(page.locator('[data-score-builder-results-preview="true"]').first()).toContainText(
+    await expect(page.locator('[data-index-lab-header="true"]').first()).toContainText(
       'Air Monitoring Gaps (Tract)',
     )
     await expect(dataSourceButton(page, 'Air Quality')).toContainText('ON')
@@ -190,14 +192,18 @@ test.describe('Score Builder desktop interface', () => {
     const errorMessage = page.getByText('Unable to build scores')
 
     await page.locator('[data-score-builder-tab="regions"]').click()
-    await expect(regionStats).toContainText('844 of 844 regions', { timeout: 20_000 })
+    // Cold start lands on the 31 CityPG community polygons.
+    await expect(regionStats).toContainText('31 of 31 regions', { timeout: 20_000 })
+
+    await page.locator('[data-score-builder-boundary-source="census"]').click()
+    await expect(regionStats).toContainText('23 of 23 regions', { timeout: 20_000 })
     await expectLevelOptions(page, ['Census Division', 'Census Subdivision', 'Census Tract', 'Dissemination Area', 'Dissemination Block'])
 
     await selectLevel(page, 'Dissemination Area')
     await expect(levelTrigger).toContainText('Dissemination Area')
     await expect(loadingMessage).toBeHidden({ timeout: 30_000 })
     await expect(errorMessage).toHaveCount(0)
-    await expect(regionStats).toContainText('7,848 of 7,848 regions')
+    await expect(regionStats).toContainText('135 of 135 regions')
 
     await page.locator('[data-score-builder-boundary-source="bcHealth"]').click()
     await expectLevelOptions(page, ['Health Authority', 'HSDA', 'LHA', 'CHSA'])
@@ -300,14 +306,15 @@ test.describe('Score Builder desktop interface', () => {
   })
 
   test('flipping a metric turns the active example into a custom index', async ({ page }) => {
+    const header = page.locator('[data-index-lab-header="true"]').first()
     const preview = page.locator('[data-score-builder-results-preview="true"]').first()
-    await expect(preview).toContainText('Greenest Neighbourhoods')
+    await expect(header).toContainText('Greenest Neighbourhoods')
 
     // The first chip button flips the metric's direction — a real edit that no longer matches the example.
     await preview.locator('[data-score-builder-equation-term="parkDensity"] button').first().click()
 
-    await expect(preview).toContainText('Custom index')
-    await expect(preview).not.toContainText('Greenest Neighbourhoods')
+    await expect(header).toContainText('Custom index')
+    await expect(header).not.toContainText('Greenest Neighbourhoods')
   })
 
   test('priority mode can rank active metrics and apply weights', async ({ page }) => {
