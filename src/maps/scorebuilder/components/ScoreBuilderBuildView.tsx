@@ -118,52 +118,15 @@ export function ScoreBuilderBuildView({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-muted/30">
-      {/* On mobile the app navbar is a fixed overlay of floating pills, so the header's
-          solid background extends up behind them instead of leaving a see-through gap. */}
-      <header className="border-b border-border bg-background max-md:pt-[calc(env(safe-area-inset-top)+3.25rem)]">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:px-4">
-          <ViewModeToggle mode="build" onSwitchToExplore={onSwitchToExplore} />
-          <div className="hidden min-w-0 flex-1 md:block">
-            <h2 className="truncate text-sm font-semibold text-foreground">{activeRecipeLabel}</h2>
-            <p className="line-clamp-1 text-[11px] text-muted-foreground">{activeRecipeDescription}</p>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setPresetDialogOpen(true)}
-              title="Browse presets and projects"
-              aria-label="Browse presets and projects"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <BookOpen className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Presets</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onExportProjectPackage(activeRecipeLabel)}
-              title="Download the current recipe as a project package file"
-              aria-label="Download project package"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Package</span>
-            </button>
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              title="Advanced settings — examples, saved indexes, robustness"
-              aria-label="Open advanced settings"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <SettingsIcon className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="w-full min-w-0 md:hidden">
-            <h2 className="truncate text-sm font-semibold text-foreground">{activeRecipeLabel}</h2>
-            <p className="line-clamp-1 text-[11px] text-muted-foreground">{activeRecipeDescription}</p>
-          </div>
-        </div>
-      </header>
+      <IndexLabHeader
+        mode="build"
+        onSwitchToExplore={onSwitchToExplore}
+        title={activeRecipeLabel}
+        description={activeRecipeDescription}
+        onOpenPresets={() => setPresetDialogOpen(true)}
+        onExportPackage={() => onExportProjectPackage(activeRecipeLabel)}
+        onOpenSettings={onOpenSettings}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[minmax(17rem,21rem)_minmax(0,1fr)_minmax(19rem,24rem)] lg:overflow-hidden">
         <MetricLibraryPanel
@@ -181,7 +144,9 @@ export function ScoreBuilderBuildView({
                   Study area
                 </div>
                 <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
-                  {boundarySourceLabel} · {boundaryLevelLabel}
+                  {boundarySourceLabel === boundaryLevelLabel
+                    ? boundarySourceLabel
+                    : `${boundarySourceLabel} · ${boundaryLevelLabel}`}
                 </div>
               </div>
               <button
@@ -355,6 +320,83 @@ export function ScoreBuilderBuildView({
         onApplyPreset={onApplyPreset}
       />
     </div>
+  )
+}
+
+/**
+ * Shared Index Lab header strip: view toggle, recipe title, and the
+ * Presets / Package / Settings actions. Both the Build and Explore views render
+ * this exact bar so the toggle and buttons never move when swapping views.
+ */
+export function IndexLabHeader({
+  mode,
+  onSwitchToBuild,
+  onSwitchToExplore,
+  title,
+  description,
+  onOpenPresets,
+  onExportPackage,
+  onOpenSettings,
+}: {
+  mode: 'build' | 'explore'
+  onSwitchToBuild?: () => void
+  onSwitchToExplore?: () => void
+  title: string
+  description: string
+  onOpenPresets: () => void
+  onExportPackage: () => void
+  onOpenSettings: () => void
+}) {
+  return (
+    // On mobile the app navbar is a fixed overlay of floating pills, so the header's
+    // solid background extends up behind them instead of leaving a see-through gap.
+    <header
+      data-index-lab-header="true"
+      className="shrink-0 border-b border-border bg-background max-md:pt-[calc(env(safe-area-inset-top)+3.25rem)]"
+    >
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:px-4">
+        <ViewModeToggle mode={mode} onSwitchToBuild={onSwitchToBuild} onSwitchToExplore={onSwitchToExplore} />
+        <div className="hidden min-w-0 flex-1 md:block">
+          <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
+          <p className="line-clamp-1 text-[11px] text-muted-foreground">{description}</p>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onOpenPresets}
+            title="Browse presets and projects"
+            aria-label="Browse presets and projects"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Presets</span>
+          </button>
+          <button
+            type="button"
+            onClick={onExportPackage}
+            title="Download the current recipe as a project package file"
+            aria-label="Download project package"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Package</span>
+          </button>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            title="Advanced settings — examples, saved indexes, robustness"
+            aria-label="Open advanced settings"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <SettingsIcon className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="w-full min-w-0 md:hidden">
+          <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
+          <p className="line-clamp-1 text-[11px] text-muted-foreground">{description}</p>
+        </div>
+      </div>
+    </header>
   )
 }
 
