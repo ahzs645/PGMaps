@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "slug": "heat-shade-priority",
+  "title": "Heat + Shade Relief Priority",
+  "kind": "index-preset",
+  "theme": "amber",
+  "owner": "PGMaps",
+  "updated": "Current",
+  "region": "Prince George DA",
+  "status": "Ready",
+  "summary": "A guided version of the heat relief recipe for finding dense, deprivation-affected areas with weaker shade, cooling access, and older housing.",
+  "sourceNote": "The project carries the real Heat Relief Priority recipe. Opening it in Index Lab loads the exact same weights, boundary level, and cumulative-burden method, with this project pinned as the comparison baseline.",
+  "details": [
+    "A guided project shell for the heat relief preset, keeping the recommended score surface and cooling context visible before anyone edits weights.",
+    "The map scenes separate the final priority score from shade signals, cooling access, and the method handoff so the project reads like a small briefing rather than a raw index builder."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    { "label": "Preset", "value": "Heat" },
+    { "label": "Boundary", "value": "DA" },
+    { "label": "Lab", "value": "Yes" }
+  ],
+  "layers": [
+    { "id": "base", "label": "Muted streets", "type": "base", "checked": true, "locked": true },
+    { "id": "score-surface", "label": "Priority score surface", "type": "raster", "checked": true, "role": "score" },
+    { "id": "points", "label": "Monitoring and facility points", "type": "point", "checked": true, "role": "points" }
+  ],
+  "legend": [
+    { "label": "Lower priority", "color": "#dcfce7" },
+    { "label": "Watch", "color": "#fde68a" },
+    { "label": "Priority", "color": "#fb923c" },
+    { "label": "Highest priority", "color": "#b91c1c" }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "Heat relief priority surface",
+      "text": "Start with the final cumulative-burden priority surface scored across dissemination areas.",
+      "focus": "Weighted heat relief score",
+      "visibleLayerIds": ["base", "score-surface", "points"]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Drop the point context to read the priority gradient on its own.",
+      "focus": "Priority score gradient",
+      "visibleLayerIds": ["base", "score-surface"]
+    },
+    {
+      "label": "Context",
+      "title": "Facility context",
+      "text": "Bring the point layer back to check which facilities sit inside the highest-priority areas.",
+      "focus": "Facilities over the score surface",
+      "visibleLayerIds": ["base", "score-surface", "points"]
+    },
+    {
+      "label": "Recipe",
+      "title": "Recipe handoff",
+      "text": "Open the same recipe in Index Lab to change the weights, boundary level, normalization, and map palette.",
+      "focus": "Index Lab configuration",
+      "visibleLayerIds": ["base", "score-surface"]
+    }
+  ],
+  "files": [
+    { "label": "Index recipe", "detail": "Preset weights and method settings" },
+    { "label": "Boundary export", "detail": "Scored DA features" },
+    { "label": "Method note", "detail": "Proxy limitations and source review" }
+  ],
+  "lab": {
+    "presetKey": "heatReliefPriority",
+    "boundarySource": "census",
+    "boundaryLevel": "da",
+    "weights": {
+      "shadeGap": 28,
+      "canopyProxyRatio": 18,
+      "coolingWalk15Access": 16,
+      "buildingAge": 14,
+      "cimdSituationalVulnerability": 14,
+      "cimdComposite": 10,
+      "populationDensity": 10
+    },
+    "normalization": "percentile",
+    "aggregation": "cumulativeBurden"
+  }
+}

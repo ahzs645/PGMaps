@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Bookmark, Trash2 } from 'lucide-react'
+import { Bookmark, Download, Trash2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { buildProjectPackageFromShareState, downloadProjectPackage } from '@/lib/projectPackages'
 import type { SavedIndexEntry } from '../lib/savedIndexes'
 import type {
   RobustnessResult,
@@ -62,6 +63,7 @@ interface ScoreBuilderSettingsDialogProps {
   onSaveIndex: (label: string) => void
   onApplySavedIndex: (id: string) => void
   onDeleteSavedIndex: (id: string) => void
+  onExportProjectPackage?: (label: string) => void
   activeRecipeLabel: string
 }
 
@@ -89,6 +91,7 @@ export function ScoreBuilderSettingsDialog({
   onSaveIndex,
   onApplySavedIndex,
   onDeleteSavedIndex,
+  onExportProjectPackage,
   activeRecipeLabel,
 }: ScoreBuilderSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('methodology')
@@ -172,7 +175,23 @@ export function ScoreBuilderSettingsDialog({
                       <Bookmark className="h-3.5 w-3.5" />
                       Save
                     </button>
+                    {onExportProjectPackage && (
+                      <button
+                        type="button"
+                        onClick={() => onExportProjectPackage(saveLabel)}
+                        title="Download the current recipe as a project package file"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-input px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Package
+                      </button>
+                    )}
                   </div>
+                  {onExportProjectPackage && (
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      A package file can be imported on the Projects page or shared with someone else.
+                    </p>
+                  )}
                 </div>
 
                 {savedIndexes.length === 0 ? (
@@ -200,6 +219,17 @@ export function ScoreBuilderSettingsDialog({
                             className="rounded-md border border-input px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                           >
                             Load
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              downloadProjectPackage(buildProjectPackageFromShareState(entry.state, entry.label))
+                            }
+                            title="Download as project package"
+                            aria-label={`Download ${entry.label} as a project package`}
+                            className="rounded-md border border-input p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            <Download className="h-3.5 w-3.5" />
                           </button>
                           <button
                             type="button"

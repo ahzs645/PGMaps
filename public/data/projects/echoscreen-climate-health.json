@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "slug": "echoscreen-climate-health",
+  "title": "EchoScreen Cumulative Impacts Study",
+  "kind": "raster-story",
+  "theme": "cyan",
+  "owner": "NH - UNBC",
+  "updated": "Apr 2024",
+  "region": "Northern BC watersheds",
+  "status": "Prototype",
+  "summary": "Climate and health exchange map with watershed context, health facilities, future heat rasters, and precipitation-change layers.",
+  "sourceNote": "Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. Northern Health is drawn from the local BC Ministry of Health boundary data.",
+  "details": [
+    "Created for the NH - UNBC Climate & Health Knowledge Exchange Event on April 12, 2024.",
+    "The project gives Northern Health staff and UNBC researchers a shared map package for climate-health discussion, northern BC expertise, resources, and collaboration opportunities.",
+    "Climate variables use CMIP6 CanDCS-U6 data under SSP585 from ClimateData.ca, with the Northern Health boundary and watershed context kept visible while the raster story changes."
+  ],
+  "image": {
+    "src": "/media/dev-projects/echoscreen-climate-health-event.png",
+    "alt": "Northern Health and UNBC climate and health knowledge exchange event poster"
+  },
+  "links": [
+    {
+      "label": "NH - UNBC event page",
+      "href": "https://www.leaph.org/events/nh---unbc-climate-health-knowledge-exchange-event"
+    },
+    {
+      "label": "Nechako Watershed Portal",
+      "href": "https://nechakowatershed-portal.ca/"
+    }
+  ],
+  "catalogMetrics": [
+    { "label": "Scenes", "value": "4" },
+    { "label": "Layers", "value": "9" },
+    { "label": "Raster", "value": "Portal WMS" }
+  ],
+  "layers": [
+    { "id": "topo", "label": "ESRI Topo", "type": "base", "checked": true, "locked": true },
+    { "id": "watershed-labels", "label": "Watershed Labels", "type": "boundary", "checked": true },
+    { "id": "hospitals", "label": "Hospitals", "type": "point", "checked": true },
+    { "id": "northern-health", "label": "Northern Health", "type": "boundary", "checked": true },
+    { "id": "rivers", "label": "River and lake network", "type": "line", "checked": true },
+    { "id": "fraser-nechako", "label": "Fraser and Nechako watersheds", "type": "boundary", "checked": true },
+    { "id": "hot-days-past", "label": "Days >30C NH, 1971-2000", "type": "raster", "checked": false },
+    { "id": "hot-days-future", "label": "Days >30C NH, 2071-2100", "type": "raster", "checked": true },
+    { "id": "precip-change", "label": "Winter precip change", "type": "raster", "checked": false }
+  ],
+  "legend": [
+    { "label": "Low projected heat", "color": "#fef3c7" },
+    { "label": "Moderate projected heat", "color": "#f59e0b" },
+    { "label": "High projected heat", "color": "#ea580c" },
+    { "label": "Highest projected heat", "color": "#b91c1c" }
+  ],
+  "scenes": [
+    {
+      "label": "Context",
+      "title": "Watershed and health context",
+      "text": "Open with the recognizable river system, health boundary, hospitals, and watershed labels before introducing climate surfaces.",
+      "focus": "Northern Health boundary plus Fraser and Nechako watersheds",
+      "visibleLayerIds": ["topo", "watershed-labels", "hospitals", "northern-health", "rivers", "fraser-nechako"]
+    },
+    {
+      "label": "Future Heat",
+      "title": "Projected hot-day surface",
+      "text": "Switch on the future raster to show where hot days become the dominant climate signal across the project extent.",
+      "focus": "Days >30C, 2071-2100",
+      "visibleLayerIds": [
+        "topo",
+        "watershed-labels",
+        "hospitals",
+        "northern-health",
+        "rivers",
+        "fraser-nechako",
+        "hot-days-future"
+      ]
+    },
+    {
+      "label": "Change",
+      "title": "Seasonal precipitation change",
+      "text": "Use the same project shell to pivot from heat to seasonal precipitation without leaving the story package.",
+      "focus": "Winter and summer precipitation-change raster",
+      "visibleLayerIds": ["topo", "watershed-labels", "northern-health", "rivers", "precip-change"]
+    },
+    {
+      "label": "Methods",
+      "title": "Project files and method note",
+      "text": "Keep source files, citations, and a concise method note beside the map.",
+      "focus": "Project description and downloadable files",
+      "visibleLayerIds": ["topo", "watershed-labels", "hospitals", "northern-health", "rivers", "hot-days-future"]
+    }
+  ],
+  "files": [
+    { "label": "Project package", "detail": "Layers, style, scenes, and notes" },
+    { "label": "Nechako portal WMS", "detail": "ClimateData.ca raster layers" },
+    { "label": "BCMoH boundary", "detail": "Local Northern Health multipolygon" }
+  ],
+  "portalMap": {
+    "endpoint": "https://nechakowatershed-portal.ca/cgi-bin/qgis_mapserv.fcgi/",
+    "defaultMapPath": "/var/www/qgis_maps/northern_health/northern_health.qgz",
+    "bounds": [-139.000001, 51.916666, -118.25, 60],
+    "center": [-128.6, 56.2],
+    "zoom": 4.35,
+    "localBoundaryLayerId": "northern-health",
+    "rasterLayers": [
+      { "id": "hot-days-past", "layerName": "Days >30C (1971-2000) NH (source: ClimateData.ca)" },
+      { "id": "hot-days-future", "layerName": "Days >30C (2071-2100) NH (source: ClimateData.ca)" },
+      {
+        "id": "precip-change",
+        "layerName": "Change in winter precip (between 1971-2000 and 2071-2100) (source: ClimateData.ca)"
+      }
+    ],
+    "contextLayers": [
+      {
+        "id": "fraser-nechako",
+        "layerName": "Fraser Watershed",
+        "mapPath": "/var/www/qgis_maps/waterbodies/waterbodies.qgs",
+        "opacity": 0.8,
+        "legendColor": "#2563eb",
+        "legendLabel": "Fraser watershed",
+        "legendShape": "line"
+      },
+      {
+        "id": "fraser-nechako",
+        "layerName": "Nechako Watershed",
+        "mapPath": "/var/www/qgis_maps/waterbodies/waterbodies.qgs",
+        "opacity": 0.82,
+        "legendColor": "#0891b2",
+        "legendLabel": "Nechako watershed",
+        "legendShape": "line"
+      },
+      {
+        "id": "rivers",
+        "layerName": "Lake",
+        "mapPath": "/var/www/qgis_maps/waterbodies/waterbodies.qgs",
+        "opacity": 0.85,
+        "legendColor": "#7dd3fc",
+        "legendLabel": "Lakes",
+        "legendShape": "square"
+      },
+      {
+        "id": "rivers",
+        "layerName": "River",
+        "mapPath": "/var/www/qgis_maps/waterbodies/waterbodies.qgs",
+        "opacity": 0.85,
+        "legendColor": "#0284c7",
+        "legendLabel": "Rivers",
+        "legendShape": "line"
+      },
+      {
+        "id": "rivers",
+        "layerName": "Stream (order 5 and up)",
+        "mapPath": "/var/www/qgis_maps/waterbodies/waterbodies.qgs",
+        "opacity": 0.72,
+        "legendColor": "#38bdf8",
+        "legendLabel": "Major streams",
+        "legendShape": "line"
+      },
+      {
+        "id": "hospitals",
+        "layerName": "Hospitals",
+        "opacity": 1,
+        "legendColor": "#111827",
+        "legendLabel": "Hospitals",
+        "legendShape": "circle"
+      },
+      {
+        "id": "watershed-labels",
+        "layerName": "Watershed Labels",
+        "mapPath": "/var/www/qgis_maps/waterbodies/waterbodies.qgs",
+        "opacity": 0.95,
+        "legendColor": "#64748b",
+        "legendLabel": "Watershed labels",
+        "legendShape": "dashed-line"
+      }
+    ]
+  }
+}

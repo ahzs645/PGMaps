@@ -26,6 +26,7 @@ import type { ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap, Score
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { ScorePresetDialog } from './ScorePresetDialog'
+import { ViewModeToggle } from './ScoreBuilderBuildView'
 
 interface ScoreBuilderEquationBarProps {
   weights: ScoreMetricWeightMap
@@ -45,6 +46,7 @@ interface ScoreBuilderEquationBarProps {
   densityMode: boolean
   onToggleDensityMode: () => void
   onOpenSettings: () => void
+  onOpenBuildView?: () => void
   onUndo: () => void
   onRedo: () => void
   canUndo: boolean
@@ -102,6 +104,7 @@ export function ScoreBuilderEquationBar({
   densityMode,
   onToggleDensityMode,
   onOpenSettings,
+  onOpenBuildView,
   onUndo,
   onRedo,
   canUndo,
@@ -166,6 +169,7 @@ export function ScoreBuilderEquationBar({
           </div>
           <div className="flex w-full shrink-0 items-start gap-2 sm:w-auto">
             <div className="flex flex-1 flex-wrap items-center justify-end gap-1 sm:flex-none">
+              {onOpenBuildView && <ViewModeToggle mode="explore" onSwitchToBuild={onOpenBuildView} />}
               <button
                 type="button"
                 aria-expanded={equationOpen}

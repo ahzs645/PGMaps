@@ -195,6 +195,9 @@ export function useScoreBuilderState() {
   useEffect(() => {
     if (searchParamsRef.current.get('quick')) return
     const params = new URLSearchParams()
+    // The build/explore view param is owned by the section; carry it through rewrites.
+    const view = searchParamsRef.current.get('view')
+    if (view === 'build' || view === 'explore') params.set('view', view)
     params.set('src', state.boundarySource)
     params.set('level', selectedRegionLevel)
     params.set('w', encodeWeightsToParams(state.weights))
@@ -499,6 +502,7 @@ export function useScoreBuilderState() {
     applyCorrelatePair,
     toggleScoreFilter,
     setMethodSettings,
+    buildShareState,
     handleShareUrl,
     undo,
     redo,

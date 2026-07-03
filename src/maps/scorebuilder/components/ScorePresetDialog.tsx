@@ -1,7 +1,13 @@
-import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { FolderKanban, Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import {
+  buildProjectLabUrl,
+  loadLocalProjectPackages,
+  loadStaticProjectPackages,
+  type ProjectPackage,
+} from '@/lib/projectPackages'
 import { SCORE_PRESETS, getScoreDataSourcesForWeights, getScorePresetMethodology } from '../constants'
 
 type ScorePreset = (typeof SCORE_PRESETS)[number]
@@ -150,6 +156,37 @@ export function ScorePresetDialog({
     })).filter((group) => group.presets.length > 0)
   }, [normalizedQuery, presets])
 
+  // Guided project packages surface alongside the raw presets; loaded lazily on first open.
+  const [projects, setProjects] = useState<ProjectPackage[] | null>(null)
+  useEffect(() => {
+    if (!open || projects !== null) return
+    let cancelled = false
+    loadStaticProjectPackages()
+      .then((staticPackages) => {
+        if (cancelled) return
+        const staticSlugs = new Set(staticPackages.map((pkg) => pkg.slug))
+        const locals = loadLocalProjectPackages().filter((pkg) => !staticSlugs.has(pkg.slug))
+        setProjects([...staticPackages, ...locals].filter((pkg) => pkg.lab))
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, projects])
+
+  const filteredProjects = useMemo(() => {
+    if (!projects) return []
+    if (!normalizedQuery) return projects
+    return projects.filter((pkg) => `${pkg.title} ${pkg.summary}`.toLowerCase().includes(normalizedQuery))
+  }, [normalizedQuery, projects])
+
+  const openProject = (pkg: ProjectPackage) => {
+    const url = buildProjectLabUrl(pkg)
+    if (url) window.location.assign(url)
+  }
+
   const applyPreset = (presetKey: string) => {
     onApplyPreset(presetKey)
     onOpenChange(false)
@@ -172,6 +209,48 @@ export function ScorePresetDialog({
               className="w-full rounded-lg border border-input bg-background px-3 py-2 pl-9 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
           </div>
+
+          {filteredProjects.length > 0 && (
+            <section>
+              <div className="mb-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Projects
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  Guided project packages. Opening one loads its full recipe and pins it as the comparison baseline.
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {filteredProjects.map((pkg) => (
+                  <button
+                    key={pkg.slug}
+                    type="button"
+                    onClick={() => openProject(pkg)}
+                    className="rounded-lg border border-border bg-background p-3 text-left transition-colors hover:border-cyan-400 hover:bg-cyan-50/60 dark:hover:bg-cyan-950/25"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-sm font-semibold text-foreground">{pkg.title}</div>
+                      <FolderKanban className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </div>
+                    <div className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{pkg.summary}</div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        {pkg.lab?.boundaryLevel.toUpperCase()}
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        {Object.keys(pkg.lab?.weights ?? {}).length} metrics
+                      </span>
+                      {pkg.local && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Local
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
           {groupedPresets.map((group) => (
             <section key={group.key}>
