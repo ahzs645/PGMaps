@@ -457,7 +457,7 @@ function CompactWeightRow({
       <span className={cn('h-2 w-2 shrink-0 rounded-full', getCategoryTone(metric.category))} aria-hidden="true" />
       <span
         className="min-w-0 flex-1 truncate text-xs font-medium text-foreground sm:w-40 sm:flex-none"
-        title={metric.label}
+        title={`${metric.label} — ${share}% of the score`}
       >
         {metric.shortLabel}
       </span>
@@ -483,9 +483,6 @@ function CompactWeightRow({
         aria-label={`${metric.shortLabel} weight`}
         className="w-11 shrink-0 rounded border border-input bg-background px-1 py-0.5 text-right text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
       />
-      <span className="w-9 shrink-0 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
-        {share}%
-      </span>
       <button
         type="button"
         onClick={onRemove}
