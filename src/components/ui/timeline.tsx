@@ -440,6 +440,7 @@ export function Timeline({
     >
       <div className="rounded-lg border border-border/60 bg-background/95 p-2.5 shadow-xl backdrop-blur-sm sm:rounded-xl sm:p-3 md:p-4">
         {isMobile ? (
+          <>
           <div className="mb-2 flex items-center gap-1.5">
             <button
               onClick={() => setIsPlaying((p) => !p)}
@@ -494,6 +495,12 @@ export function Timeline({
               </button>
             )}
           </div>
+          {(statsLabel || currentPercentChangeLabel) && (
+            <div className="mb-1.5 truncate text-center text-[11px] text-muted-foreground">
+              {[statsLabel, currentPercentChangeLabel].filter(Boolean).join(' · ')}
+            </div>
+          )}
+          </>
         ) : (
         <div className="mb-3 flex flex-col gap-2 sm:mb-3 sm:gap-2 lg:flex-row lg:items-center lg:gap-3">
           <div className="flex min-w-0 items-center gap-1.5 lg:flex-wrap lg:gap-2">
@@ -702,6 +709,10 @@ export function Timeline({
                     ? `${bucket.label}: ${formattedCount} ${bucketValueLabel} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
                     : `${bucket.label}: ${formattedCount} ${bucketValueLabel}`
                   : undefined
+                // On mobile, scale the bar by its bucket count so the strip reads
+                // as a mini density histogram rather than a flat tick row.
+                const mobileScaledHeight =
+                  isMobile && bucketCounts ? Math.max(4, Math.round((count / maxCount) * 32)) : undefined
                 return (
                   <div
                     key={bucket.key}
@@ -726,13 +737,23 @@ export function Timeline({
                     <div
                       className={cn(
                         'w-full transition-colors',
-                        inWindow
-                          ? cn('bg-primary', isMobile ? 'h-6' : 'h-3')
-                          : isPeriodStart
-                            ? cn('bg-muted-foreground/30', isMobile ? 'h-4' : 'h-2')
-                            : cn('bg-muted-foreground/15', isMobile ? 'h-2' : 'h-1'),
+                        mobileScaledHeight != null
+                          ? inWindow
+                            ? 'bg-primary'
+                            : 'bg-muted-foreground/40'
+                          : inWindow
+                            ? cn('bg-primary', isMobile ? 'h-6' : 'h-3')
+                            : isPeriodStart
+                              ? cn('bg-muted-foreground/30', isMobile ? 'h-4' : 'h-2')
+                              : cn('bg-muted-foreground/15', isMobile ? 'h-2' : 'h-1'),
                       )}
-                      style={{ borderRadius: '1px 1px 0 0', minWidth: '2px' }}
+                      style={{
+                        borderRadius: '1px 1px 0 0',
+                        minWidth: '2px',
+                        ...(mobileScaledHeight != null
+                          ? { height: `${mobileScaledHeight}px`, opacity: inWindow ? 1 : 0.6 }
+                          : {}),
+                      }}
                     />
                   </div>
                 )

@@ -118,6 +118,7 @@ type OpenLitterPointProperties = OpenLitterMapProperties & {
 }
 
 const ALL_CATEGORIES = 'all'
+const ALL_OBJECTS = 'all'
 
 const CATEGORY_COLORS: Record<string, string> = {
   alcohol: '#7c3aed',
@@ -406,8 +407,10 @@ export function useOpenLitterMapData(
   initialShowPoints: string | null = null,
   initialShowHeatmap: string | null = null,
   initialShowHexes: string | null = null,
+  initialObject: string | null = null,
 ) {
   const [selectedCategory, setSelectedCategoryState] = useState(initialCategory || ALL_CATEGORIES)
+  const [selectedObject, setSelectedObjectState] = useState(initialObject || ALL_OBJECTS)
   const [showPoints, setShowPoints] = useState(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState(initialShowHeatmap === '1')
   const [showHexes, setShowHexes] = useState(initialShowHexes === '1')
@@ -424,6 +427,14 @@ export function useOpenLitterMapData(
 
   const setSelectedCategory = useCallback((category: string) => {
     setSelectedCategoryState(category)
+    // Objects differ per category, so drop any active object filter when the
+    // category changes to avoid an empty selection.
+    setSelectedObjectState(ALL_OBJECTS)
+    setSelectedId(null)
+  }, [])
+
+  const setSelectedObject = useCallback((object: string) => {
+    setSelectedObjectState(object)
     setSelectedId(null)
   }, [])
 
@@ -435,6 +446,26 @@ export function useOpenLitterMapData(
       }),
     [features, selectedCategory],
   )
+
+  const objectOptions = useMemo(() => {
+    const counts = new Map<string, { name: string; count: number; litter: number }>()
+    for (const feature of categoryFilteredFeatures) {
+      for (const object of feature.properties.objectNames ?? []) {
+        const entry = counts.get(object) ?? { name: object, count: 0, litter: 0 }
+        entry.count += 1
+        entry.litter += Number(feature.properties.litterCount) || 1
+        counts.set(object, entry)
+      }
+    }
+    return Array.from(counts.values()).sort(
+      (a, b) => b.litter - a.litter || b.count - a.count || a.name.localeCompare(b.name),
+    )
+  }, [categoryFilteredFeatures])
+
+  const scopedFeatures = useMemo(() => {
+    if (selectedObject === ALL_OBJECTS) return categoryFilteredFeatures
+    return categoryFilteredFeatures.filter((feature) => feature.properties.objectNames?.includes(selectedObject))
+  }, [categoryFilteredFeatures, selectedObject])
 
   const dateRange = useMemo(() => {
     if (features.length === 0) {
@@ -482,25 +513,25 @@ export function useOpenLitterMapData(
   }, [dateRange.start, effectiveTimelineDate, timelineEnabled, timelineWindowSize])
 
   const filteredFeatures = useMemo(() => {
-    if (!timelineFilterRange) return categoryFilteredFeatures
-    return categoryFilteredFeatures.filter((feature) => {
+    if (!timelineFilterRange) return scopedFeatures
+    return scopedFeatures.filter((feature) => {
       const date = parseLitterDate(feature)
       if (!date) return false
       const time = date.getTime()
       return time >= timelineFilterRange.start && time <= timelineFilterRange.end
     })
-  }, [categoryFilteredFeatures, timelineFilterRange])
+  }, [scopedFeatures, timelineFilterRange])
 
   const bucketCounts = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const feature of categoryFilteredFeatures) {
+    for (const feature of scopedFeatures) {
       const date = parseLitterDate(feature)
       if (!date) continue
       const key = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
     return counts
-  }, [categoryFilteredFeatures])
+  }, [scopedFeatures])
 
   const categoryBreakdown = useMemo(() => {
     const counts = new Map<string, { name: string; count: number; litter: number; color: string }>()
@@ -559,6 +590,9 @@ export function useOpenLitterMapData(
     heatmapData,
     selectedCategory,
     setSelectedCategory,
+    selectedObject,
+    setSelectedObject,
+    objectOptions,
     showPoints,
     setShowPoints,
     showHeatmap,
@@ -586,15 +620,15 @@ export type OpenLitterMapState = ReturnType<typeof useOpenLitterMapData>
 
 export function OpenLitterMapLayerControls({ litter }: { litter: OpenLitterMapState }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <ToggleChip active={litter.showPoints} onClick={() => litter.setShowPoints(!litter.showPoints)}>
-        {litter.showPoints ? 'Hide points' : 'Show points'}
+        {litter.showPoints ? 'Hide points' : 'Points'}
       </ToggleChip>
       <ToggleChip active={litter.showHeatmap} onClick={() => litter.setShowHeatmap(!litter.showHeatmap)} tone="orange">
         Heatmap
       </ToggleChip>
       <ToggleChip active={litter.showHexes} onClick={() => litter.setShowHexes(!litter.showHexes)} tone="teal">
-        Hex
+        Hexagons
       </ToggleChip>
     </div>
   )
@@ -603,14 +637,17 @@ export function OpenLitterMapLayerControls({ litter }: { litter: OpenLitterMapSt
 export function OpenLitterMapSidebar({
   litter,
   showSelectedRecord = true,
+  showLayerControls = false,
 }: {
   litter: OpenLitterMapState
   showSelectedRecord?: boolean
+  showLayerControls?: boolean
 }) {
   const manifest = litter.manifest.data
   const dateLabel = manifest?.dateStart && manifest.dateEnd
     ? `${formatLitterDate(manifest.dateStart)} - ${formatLitterDate(manifest.dateEnd)}`
     : 'All dates'
+  const objectFilterActive = litter.selectedObject !== ALL_OBJECTS
 
   return (
     <>
@@ -625,6 +662,13 @@ export function OpenLitterMapSidebar({
         }
       >
         <div className="space-y-3">
+          {showLayerControls && (
+            <div className="space-y-1.5">
+              <span className="block text-xs font-medium text-foreground">Map layers</span>
+              <OpenLitterMapLayerControls litter={litter} />
+            </div>
+          )}
+
           <label className="block text-xs font-medium text-foreground">
             Category
             <AppSelect
@@ -642,6 +686,41 @@ export function OpenLitterMapSidebar({
               triggerClassName="h-8 rounded-md text-xs"
             />
           </label>
+
+          {litter.objectOptions.length > 0 && (
+            <label className="block text-xs font-medium text-foreground">
+              Object
+              <AppSelect
+                value={litter.selectedObject}
+                onValueChange={litter.setSelectedObject}
+                options={[
+                  {
+                    value: ALL_OBJECTS,
+                    label:
+                      litter.selectedCategory === ALL_CATEGORIES ? 'All objects' : `All objects in ${litter.selectedCategory}`,
+                    selectedLabel: 'All objects',
+                  },
+                  ...litter.objectOptions.map((object) => ({
+                    value: object.name,
+                    label: `${object.name} (${object.litter.toLocaleString()})`,
+                    selectedLabel: object.name,
+                  })),
+                ]}
+                className="mt-1"
+                triggerClassName="h-8 rounded-md text-xs"
+              />
+            </label>
+          )}
+
+          {objectFilterActive && (
+            <button
+              type="button"
+              onClick={() => litter.setSelectedObject(ALL_OBJECTS)}
+              className="text-[11px] font-medium text-rose-600 hover:underline dark:text-rose-400"
+            >
+              Clear object filter
+            </button>
+          )}
 
           <StatGrid
             stats={[
