@@ -62,6 +62,19 @@ const BAR_BUCKET_WIDTH = 8
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+/**
+ * Shorten a "Mon YYYY – Mon YYYY" range so it fits inline on narrow screens:
+ * same year collapses to "Oct–Dec 2022", cross-year drops the spaces to
+ * "Nov 2022–Jan 2023". Non-range labels pass through untouched.
+ */
+function toCompactRangeLabel(label: string): string {
+  const match = label.match(/^(\w{3,}) (\d{4}) – (\w{3,}) (\d{4})$/)
+  if (!match) return label
+  const [, startMonth, startYear, endMonth, endYear] = match
+  if (startYear === endYear) return `${startMonth}–${endMonth} ${endYear}`
+  return `${startMonth} ${startYear}–${endMonth} ${endYear}`
+}
+
 interface Bucket {
   key: string
   label: string
@@ -440,7 +453,6 @@ export function Timeline({
     >
       <div className="rounded-lg border border-border/60 bg-background/95 p-2.5 shadow-xl backdrop-blur-sm sm:rounded-xl sm:p-3 md:p-4">
         {isMobile ? (
-          <>
           <div className="mb-2 flex items-center gap-1.5">
             <button
               onClick={() => setIsPlaying((p) => !p)}
@@ -470,7 +482,9 @@ export function Timeline({
             >
               <ChevronRight className="h-4 w-4" />
             </button>
-            <div className="flex-1" aria-hidden="true" />
+            <div className="min-w-0 flex-1 rounded-md border border-primary/50 bg-primary/10 px-1.5 py-2 text-xs font-semibold text-primary">
+              <span className="block truncate text-center">{toCompactRangeLabel(formattedDate)}</span>
+            </div>
             {windowMode && (
               <button
                 onClick={cycleWindow}
@@ -493,17 +507,6 @@ export function Timeline({
               </button>
             )}
           </div>
-          <div className="mb-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-            <span className="rounded-md border border-primary/50 bg-primary/10 px-2.5 py-1 text-center text-xs font-semibold text-primary">
-              {formattedDate}
-            </span>
-            {(statsLabel || currentPercentChangeLabel) && (
-              <span className="text-[11px] text-muted-foreground">
-                {[statsLabel, currentPercentChangeLabel].filter(Boolean).join(' · ')}
-              </span>
-            )}
-          </div>
-          </>
         ) : (
         <div className="mb-3 flex flex-col gap-2 sm:mb-3 sm:gap-2 lg:flex-row lg:items-center lg:gap-3">
           <div className="flex min-w-0 items-center gap-1.5 lg:flex-wrap lg:gap-2">
