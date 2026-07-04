@@ -84,6 +84,7 @@ import {
 } from './wars'
 import {
   OPEN_LITTER_TIMELINE_WINDOW_OPTIONS,
+  formatLitterName,
   MobileOpenLitterMapFeatureCard,
   OpenLitterMapLayer,
   OpenLitterMapLayerControls,
@@ -1172,7 +1173,7 @@ export default function MiscDataSection() {
                         : activeTab === 'wars'
                         ? `${wars.selectedSpecies === 'all' ? 'All species' : wars.selectedSpecies} | ${wars.filteredFeatures.length.toLocaleString()} records`
                         : activeTab === 'openLitterMap'
-                          ? `${openLitterMap.selectedCategory === 'all' ? 'All categories' : openLitterMap.selectedCategory}${openLitterMap.selectedObject === 'all' ? '' : ` › ${openLitterMap.selectedObject}`} | ${openLitterMap.filteredFeatures.length.toLocaleString()} records`
+                          ? `${openLitterMap.selectedCategory === 'all' ? 'All categories' : formatLitterName(openLitterMap.selectedCategory)}${openLitterMap.selectedObject === 'all' ? '' : ` › ${formatLitterName(openLitterMap.selectedObject)}`} | ${openLitterMap.filteredFeatures.length.toLocaleString()} records`
                           : activeTab === 'walkability'
                             ? walkability.displayMode === 'heatmap'
                               ? `${walkability.selectedHeatmapVariant?.label || 'Citywide MI grid'}`
