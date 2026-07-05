@@ -13,6 +13,7 @@ import type {
   BoundaryLevel,
   BoundaryRegionRecord,
   BoundarySource,
+  BcRfcBoundaryLevel,
   CensusBoundaryLevel,
   CommunityBoundaryLevel,
   CityBoundaryLevel,
@@ -89,6 +90,8 @@ const FIRE_ZONE_FILE_BY_LEVEL: Record<FireZoneBoundaryLevel, string> = {
   fireCentre: '/data/boundaries/BCWildfire/fire_zones.geojson',
   fireZone: '/data/boundaries/BCWildfire/fire_zones.geojson',
 }
+export const BC_RFC_ARCGIS_ROOT = 'https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services'
+export const BC_RFC_SNOW_BASINS_URL = `${BC_RFC_ARCGIS_ROOT}/Snow_Basins_Indices_View/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson&resultRecordCount=1000`
 const NR_ADMIN_FILE_BY_LEVEL: Record<NrAdminBoundaryLevel, string> = {
   nrArea: '/data/boundaries/BCNR/nr_areas.geojson',
   nrRegion: '/data/boundaries/BCNR/nr_regions.geojson',
@@ -124,6 +127,7 @@ const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
 ])
 const DRAINAGE_LEVEL_SET = new Set<DrainageBoundaryLevel>(['oceanDrainageArea', 'drainageRegion'])
 const FIRE_ZONE_LEVEL_SET = new Set<FireZoneBoundaryLevel>(['fireCentre', 'fireZone'])
+const BC_RFC_LEVEL_SET = new Set<BcRfcBoundaryLevel>(['rfcSnowBasin'])
 const NR_ADMIN_LEVEL_SET = new Set<NrAdminBoundaryLevel>(['nrArea', 'nrRegion', 'nrDistrict'])
 const UWR_LEVEL_SET = new Set<UwrBoundaryLevel>(['ungulateWinterRange'])
 const CROWN_TENURE_LEVEL_SET = new Set<CrownTenureBoundaryLevel>(['crownTenure'])
@@ -196,6 +200,10 @@ function isFireZoneBoundaryLevel(level: RegionLevel): level is FireZoneBoundaryL
   return FIRE_ZONE_LEVEL_SET.has(level as FireZoneBoundaryLevel)
 }
 
+function isBcRfcBoundaryLevel(level: RegionLevel): level is BcRfcBoundaryLevel {
+  return BC_RFC_LEVEL_SET.has(level as BcRfcBoundaryLevel)
+}
+
 function isNrAdminBoundaryLevel(level: RegionLevel): level is NrAdminBoundaryLevel {
   return NR_ADMIN_LEVEL_SET.has(level as NrAdminBoundaryLevel)
 }
@@ -264,6 +272,27 @@ function toPolygonFeature(feature: RawBoundaryFeature): BoundaryFeature | null {
     id: feature.id,
     properties: feature.properties ?? {},
     geometry,
+  }
+}
+
+export function studyAreaRegionsToFeatureCollection(
+  regions: StudyAreaRegion[],
+): GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> {
+  return {
+    type: 'FeatureCollection',
+    features: regions.map((region) => ({
+      ...region.feature,
+      properties: {
+        ...region.feature.properties,
+        id: region.id,
+        boundaryId: region.id,
+        boundaryName: region.name,
+        boundaryCode: region.code,
+        boundaryLevel: region.level,
+        boundarySource: region.source,
+        areaKm2: region.areaKm2,
+      },
+    })),
   }
 }
 
@@ -790,6 +819,52 @@ async function loadBcWildfireRegions(level: FireZoneBoundaryLevel, signal?: Abor
   return sortedRegions
 }
 
+async function loadBcRfcRegions(level: BcRfcBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
+  const cacheKey = `bcRfc:${level}`
+  const cached = boundaryRegionCache.get(cacheKey)
+  if (cached) return cached
+
+  const geometry = await fetchJson<BoundaryFeatureCollection>(BC_RFC_SNOW_BASINS_URL, signal)
+
+  const regions = geometry.features
+    .map<StudyAreaRegion | null>((rawFeature) => {
+      const feature = toPolygonFeature(rawFeature)
+      if (!feature) return null
+
+      const properties = (feature.properties ?? {}) as Record<string, unknown>
+      const code = String(properties.basinID ?? properties.OBJECTID_12 ?? properties.OBJECTID ?? rawFeature.id ?? '').trim()
+      if (!code) return null
+
+      const displayName = String(properties.basinName ?? properties.BASIN ?? properties.basin ?? code).trim() || code
+      const normalizedFeature: BoundaryFeature = {
+        ...feature,
+        properties: {
+          ...properties,
+          boundaryCode: code,
+          boundaryName: displayName,
+        },
+      }
+      const areaKm2 = area(normalizedFeature) / 1_000_000
+      const bounds = bbox(normalizedFeature) as [number, number, number, number]
+
+      return {
+        id: `bcRfc:${level}:${code}`,
+        code,
+        name: displayName,
+        source: 'bcRfc',
+        level,
+        feature: normalizedFeature,
+        bounds,
+        areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
+      } satisfies StudyAreaRegion
+    })
+    .filter((region): region is StudyAreaRegion => region !== null)
+
+  const sortedRegions = sortRegions(regions)
+  boundaryRegionCache.set(cacheKey, sortedRegions)
+  return sortedRegions
+}
+
 async function loadWalkabilityCommunityRegions(
   level: WalkabilityCommunityBoundaryLevel,
   signal?: AbortSignal,
@@ -875,6 +950,13 @@ export async function loadStudyAreaRegions(
       throw new Error(`Invalid BC wildfire boundary level: ${level}`)
     }
     return loadBcWildfireRegions(level, signal)
+  }
+
+  if (source === 'bcRfc') {
+    if (!isBcRfcBoundaryLevel(level)) {
+      throw new Error(`Invalid BC River Forecast Centre boundary level: ${level}`)
+    }
+    return loadBcRfcRegions(level, signal)
   }
 
   if (source === 'uwr') {

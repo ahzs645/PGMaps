@@ -733,32 +733,30 @@ export default function DevNetworks() {
   )
 
   return (
-    <div className="h-screen overflow-hidden bg-background">
-      <MapSectionLayout
-        sidebar={sidebar}
-        showDesktopSidebar={showSidebar}
-        onToggleDesktopSidebar={() => setShowSidebar((value) => !value)}
-        desktopSidebarWidth={384}
-        mobileInitialSheetState="half"
-        mobilePeek={<div className="text-sm font-semibold text-foreground">Network Coverage</div>}
+    <MapSectionLayout
+      sidebar={sidebar}
+      showDesktopSidebar={showSidebar}
+      onToggleDesktopSidebar={() => setShowSidebar((value) => !value)}
+      desktopSidebarWidth={384}
+      mobileInitialSheetState="half"
+      mobilePeek={<div className="text-sm font-semibold text-foreground">Network Coverage</div>}
+    >
+      <AppMap
+        className="h-full w-full"
+        center={[-101.5, 56.2]}
+        zoom={3.2}
+        minZoom={2}
+        maxZoom={10}
+        showStyleLoadingOverlay={false}
       >
-        <AppMap
-          className="h-full w-full"
-          center={[-101.5, 56.2]}
-          zoom={3.2}
-          minZoom={2}
-          maxZoom={10}
-          showStyleLoadingOverlay={false}
-        >
-          <DevNetworkDeckOverlay
-            visibleTelusLayerIds={visibleTelusLayerIds}
-            visibleBellLayerIds={visibleBellLayerIds}
-            visibleRogersLayerIds={visibleRogersLayerIds}
-            bellRenderMode={bellRenderMode}
-            bellDataById={bellDataById}
-          />
-        </AppMap>
-      </MapSectionLayout>
-    </div>
+        <DevNetworkDeckOverlay
+          visibleTelusLayerIds={visibleTelusLayerIds}
+          visibleBellLayerIds={visibleBellLayerIds}
+          visibleRogersLayerIds={visibleRogersLayerIds}
+          bellRenderMode={bellRenderMode}
+          bellDataById={bellDataById}
+        />
+      </AppMap>
+    </MapSectionLayout>
   )
 }

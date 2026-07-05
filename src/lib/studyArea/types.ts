@@ -3,6 +3,7 @@ export type {
   BoundaryLevel,
   BoundaryRegionRecord,
   BoundarySource,
+  BcRfcBoundaryLevel,
   CensusBoundaryLevel,
   CommunityBoundaryLevel,
   CityBoundaryLevel,

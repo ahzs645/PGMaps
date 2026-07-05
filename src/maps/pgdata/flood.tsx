@@ -4,6 +4,7 @@ import { MapClusterLayer, MapPopup } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { InlineAlert, LegendItem, MapGradientLegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
+import { BC_RFC_ARCGIS_ROOT, loadStudyAreaRegions, studyAreaRegionsToFeatureCollection } from '@/lib/studyArea'
 
 type FloodPointMode = 'current' | 'clever' | 'coffee'
 type FloodRiskFilter = 'all' | '2y' | '5y'
@@ -72,15 +73,11 @@ type FloodStationFeature = GeoJSON.Feature<GeoJSON.Point, FloodStationProperties
 type FloodStationCollection = GeoJSON.FeatureCollection<GeoJSON.Point, FloodStationProperties>
 type FloodBasinCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, Record<string, unknown>>
 
-const RFC_ARCGIS_ROOT = 'https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services'
-
 const FLOOD_ENDPOINTS: Record<FloodPointMode, string> = {
-  current: `${RFC_ARCGIS_ROOT}/StationInformation/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json&resultRecordCount=2000`,
-  clever: `${RFC_ARCGIS_ROOT}/CLM_MapHub_forecast/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json&resultRecordCount=2000`,
-  coffee: `${RFC_ARCGIS_ROOT}/coffee_MapHub_forecast/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json&resultRecordCount=2000`,
+  current: `${BC_RFC_ARCGIS_ROOT}/StationInformation/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json&resultRecordCount=2000`,
+  clever: `${BC_RFC_ARCGIS_ROOT}/CLM_MapHub_forecast/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json&resultRecordCount=2000`,
+  coffee: `${BC_RFC_ARCGIS_ROOT}/coffee_MapHub_forecast/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json&resultRecordCount=2000`,
 }
-
-const FLOOD_BASINS_URL = `${RFC_ARCGIS_ROOT}/Snow_Basins_Indices_View/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson&resultRecordCount=1000`
 
 const FLOOD_MODE_OPTIONS: Array<{ value: FloodPointMode; label: string }> = [
   { value: 'current', label: 'Current return periods' },
@@ -237,7 +234,7 @@ export function useFloodData(active: boolean) {
           mode === 'current'
             ? fetchArcGis<CurrentStationAttributes>(FLOOD_ENDPOINTS.current, controller.signal)
             : fetchArcGis<ForecastStationAttributes>(FLOOD_ENDPOINTS[mode], controller.signal),
-          fetch(FLOOD_BASINS_URL, { signal: controller.signal }),
+          loadStudyAreaRegions('bcRfc', 'rfcSnowBasin', controller.signal),
         ])
         const nextStations = (stationResponse.features ?? [])
           .map((feature) => mode === 'current'
@@ -245,9 +242,9 @@ export function useFloodData(active: boolean) {
             : normalizeForecastStation(mode, feature as ArcGisFeature<ForecastStationAttributes>))
           .filter((feature): feature is FloodStationFeature => Boolean(feature))
 
-        const nextBasins = await basinResponse.json() as FloodBasinCollection
+        const nextBasins = studyAreaRegionsToFeatureCollection(basinResponse) as FloodBasinCollection
         setStations(nextStations)
-        setBasins(nextBasins.type === 'FeatureCollection' ? nextBasins : { type: 'FeatureCollection', features: [] })
+        setBasins(nextBasins)
       } catch (err) {
         if ((err as Error).name !== 'AbortError') setError((err as Error).message || 'Unable to load BC RFC flood data')
       } finally {

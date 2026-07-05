@@ -114,6 +114,7 @@ const BOUNDARY_SOURCES = [
   'watershed',
   'bcDrainage',
   'bcWildfire',
+  'bcRfc',
   'nrAdmin',
   'uwr',
   'crownTenure',

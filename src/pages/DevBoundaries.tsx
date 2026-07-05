@@ -18,6 +18,7 @@ import {
   getStudyAreaLevelLabel,
   isValidLevelForSource,
   loadStudyAreaRegions,
+  studyAreaRegionsToFeatureCollection,
   type BoundarySource,
   type RegionLevel,
   type StudyAreaRegion,
@@ -191,9 +192,10 @@ const BC_DB_CHUNK_BASE_PATH = (
   (import.meta.env.VITE_BC_DB_CHUNK_BASE_URL as string | undefined)?.replace(/\/+$/, '') || BC_DB_DEFAULT_CHUNK_BASE_PATH
 )
 const BC_DB_CHUNK_MANIFEST_PATH = `${BC_DB_CHUNK_BASE_PATH}/manifest.json`
-const BC_DB_PMTILES_URL = import.meta.env.PROD
-  ? 'https://data.map.ahmad.sh/census/bc-db.pmtiles'
-  : '/data/census/bc-db.pmtiles'
+const BC_DB_DEFAULT_PMTILES_URL = 'https://data.map.ahmad.sh/census/bc-db.pmtiles'
+const BC_DB_PMTILES_URL = (
+  (import.meta.env.VITE_BC_DB_PMTILES_URL as string | undefined)?.trim() || BC_DB_DEFAULT_PMTILES_URL
+)
 const BC_DB_PMTILES_SOURCE_LAYER = 'bc_db'
 const CENSUS_CHUNK_CONFIG: Record<ChunkedCensusLevel, { basePath: string; manifestPath: string }> = {
   da: {
@@ -214,6 +216,11 @@ const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.Mult
 const MAX_LAYER_DIFF_FEATURES = 500
 
 const CENSUS_PARENT_LEVEL_ORDER: CensusParentLevel[] = ['cd', 'csd', 'ct']
+const BC_CENSUS_PARENT_FILE_BY_LEVEL: Record<CensusParentLevel, string> = {
+  cd: '/data/census/bc-da-simplified/parents/cd.geojson',
+  csd: '/data/census/bc-da-simplified/parents/csd.geojson',
+  ct: '/data/census/bc-da-simplified/parents/ct.geojson',
+}
 
 const CENSUS_PARENT_LAYER_STYLES: Record<CensusParentLevel, { fill: string; line: string; width: number }> = {
   cd: { fill: '#f59e0b', line: '#92400e', width: 2.2 },
@@ -221,12 +228,22 @@ const CENSUS_PARENT_LAYER_STYLES: Record<CensusParentLevel, { fill: string; line
   ct: { fill: '#a78bfa', line: '#6d28d9', width: 1.2 },
 }
 
-const DEFAULT_SOURCE_LEVELS = BOUNDARY_SOURCE_OPTIONS.reduce<Record<BoundarySource, RegionLevel>>((acc, option) => {
+const BOUNDARY_EXPLORER_SOURCE_OPTIONS = BOUNDARY_SOURCE_OPTIONS.map((option) => (
+  option.value === 'census'
+    ? {
+        ...option,
+        description: 'BC-wide census hierarchy, division to dissemination block',
+      }
+    : option
+))
+
+const DEFAULT_SOURCE_LEVELS = BOUNDARY_EXPLORER_SOURCE_OPTIONS.reduce<Record<BoundarySource, RegionLevel>>((acc, option) => {
   acc[option.value] = getDefaultLevelForSource(option.value)
   return acc
 }, {} as Record<BoundarySource, RegionLevel>)
 
-const BOUNDARY_SOURCE_VALUE_SET = new Set<string>(BOUNDARY_SOURCE_OPTIONS.map((option) => option.value))
+const BOUNDARY_SOURCE_VALUE_SET = new Set<string>(BOUNDARY_EXPLORER_SOURCE_OPTIONS.map((option) => option.value))
+const boundaryExplorerRegionCache = new globalThis.Map<string, StudyAreaRegion[]>()
 
 const boundariesShareEngine = createWebShareEngine<BoundariesShareState>({
   codecs: ['raw', 'lz'],
@@ -244,6 +261,7 @@ const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
   watershed: { fill: '#22c55e', line: '#15803d' },
   bcDrainage: { fill: '#0891b2', line: '#155e75' },
   bcWildfire: { fill: '#dc2626', line: '#991b1b' },
+  bcRfc: { fill: '#38bdf8', line: '#075985' },
   nrAdmin: { fill: '#64748b', line: '#334155' },
   uwr: { fill: '#84cc16', line: '#4d7c0f' },
   crownTenure: { fill: '#a855f7', line: '#7e22ce' },
@@ -361,7 +379,7 @@ function formatGzipMiB(bytes: number) {
 }
 
 function sourceLabel(source: BoundarySource) {
-  return BOUNDARY_SOURCE_OPTIONS.find((option) => option.value === source)?.label ?? source
+  return BOUNDARY_EXPLORER_SOURCE_OPTIONS.find((option) => option.value === source)?.label ?? source
 }
 
 function regionSearchText(region: StudyAreaRegion) {
@@ -473,25 +491,6 @@ function levelRange(regions: StudyAreaRegion[]) {
   }
 }
 
-function featureCollection(regions: StudyAreaRegion[]): GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> {
-  return {
-    type: 'FeatureCollection',
-    features: regions.map((region) => ({
-      ...region.feature,
-      properties: {
-        ...region.feature.properties,
-        id: region.id,
-        boundaryId: region.id,
-        boundaryName: region.name,
-        boundaryCode: region.code,
-        boundaryLevel: region.level,
-        boundarySource: region.source,
-        areaKm2: region.areaKm2,
-      },
-    })),
-  }
-}
-
 function polygonFeatureId(feature: GeoJSON.Feature<GeoJSON.Geometry | null>): string | null {
   const id = feature.properties?.boundaryId ?? feature.properties?.id
   return id == null ? null : String(id)
@@ -515,6 +514,96 @@ function isBoundarySource(value: unknown): value is BoundarySource {
 
 function isCensusParentLevel(value: unknown): value is CensusParentLevel {
   return value === 'cd' || value === 'csd' || value === 'ct'
+}
+
+async function fetchBoundaryExplorerJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(path, { signal })
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${path}: ${response.status}`)
+  }
+
+  const contentType = response.headers.get('content-type') ?? ''
+  if (contentType.includes('text/html')) {
+    throw new Error(`Failed to fetch ${path}: file missing (got HTML fallback)`)
+  }
+
+  return response.json() as Promise<T>
+}
+
+function mapBcCensusParentFeatureToRegion(
+  rawFeature: GeoJSON.Feature<GeoJSON.Geometry | null, Record<string, unknown>>,
+  level: CensusParentLevel,
+): StudyAreaRegion | null {
+  if (!rawFeature.geometry || (rawFeature.geometry.type !== 'Polygon' && rawFeature.geometry.type !== 'MultiPolygon')) {
+    return null
+  }
+
+  const feature = rawFeature as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, Record<string, unknown>>
+  const properties = feature.properties ?? {}
+  const code = String(properties.boundaryCode ?? properties.id ?? rawFeature.id ?? '').trim()
+  if (!code) return null
+
+  const displayName = String(properties.boundaryName ?? properties.name ?? code).trim() || code
+  const areaKm2 = Number(properties.areaKm2 ?? properties.areaSqKm ?? area(feature) / 1_000_000)
+  const normalizedAreaKm2 = Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0
+  const id = `census:${level}:${code}`
+  const normalizedFeature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, Record<string, unknown>> = {
+    ...feature,
+    properties: {
+      ...properties,
+      id,
+      boundaryId: id,
+      boundaryCode: code,
+      boundaryName: displayName,
+      boundaryLevel: level,
+      boundarySource: 'census',
+      areaKm2: normalizedAreaKm2,
+    },
+  }
+
+  return {
+    id,
+    code,
+    name: displayName,
+    source: 'census',
+    level,
+    feature: normalizedFeature,
+    bounds: bbox(normalizedFeature) as BoundaryBbox,
+    areaKm2: normalizedAreaKm2,
+  } satisfies StudyAreaRegion
+}
+
+async function loadBoundaryExplorerCensusParentRegions(
+  level: CensusParentLevel,
+  signal?: AbortSignal,
+): Promise<StudyAreaRegion[]> {
+  const cacheKey = `boundary-explorer:census:${level}`
+  const cached = boundaryExplorerRegionCache.get(cacheKey)
+  if (cached) return cached
+
+  const collection = await fetchBoundaryExplorerJson<BcDaChunkFeatureCollection>(
+    BC_CENSUS_PARENT_FILE_BY_LEVEL[level],
+    signal,
+  )
+  const regions = collection.features
+    .map((feature) => mapBcCensusParentFeatureToRegion(feature, level))
+    .filter((region): region is StudyAreaRegion => region !== null)
+    .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
+
+  boundaryExplorerRegionCache.set(cacheKey, regions)
+  return regions
+}
+
+function loadBoundaryExplorerStudyAreaRegions(
+  source: BoundarySource,
+  level: RegionLevel,
+  signal?: AbortSignal,
+) {
+  if (source === 'census' && isCensusParentLevel(level)) {
+    return loadBoundaryExplorerCensusParentRegions(level, signal)
+  }
+
+  return loadStudyAreaRegions(source, level, signal)
 }
 
 function isPolygonFocus(value: unknown): value is PolygonFocus {
@@ -801,7 +890,7 @@ function FitToRegions({
     if (fittedLayerRegionsKeyRef.current === layerRegionsKey) return
     fittedLayerRegionsKeyRef.current = layerRegionsKey
 
-    const bounds = bbox(featureCollection(regions) as never) as [number, number, number, number]
+    const bounds = bbox(studyAreaRegionsToFeatureCollection(regions) as never) as [number, number, number, number]
     map.fitBounds(bounds, {
       padding: 48,
       duration: 650,
@@ -861,7 +950,7 @@ function DevBoundaries() {
   const lastEncodedShareToken = useRef<string | null>(initialShareTokenValue)
   const [shareStateReady, setShareStateReady] = useState(() => !initialShareTokenValue)
   const [showSidebar, setShowSidebar] = useState(true)
-  const [activeSources, setActiveSources] = useState<BoundarySource[]>(['cityCommunity'])
+  const [activeSources, setActiveSources] = useState<BoundarySource[]>([])
   const [sourceLevels, setSourceLevels] = useState<Record<BoundarySource, RegionLevel>>(() => DEFAULT_SOURCE_LEVELS)
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -887,7 +976,7 @@ function DevBoundaries() {
   const [surfaceDifferenceMode, setSurfaceDifferenceMode] = useState(false)
   const [layerDifferenceMode, setLayerDifferenceMode] = useState(false)
   const [sourceOpacities, setSourceOpacities] = useState<Record<BoundarySource, number>>(() => (
-    BOUNDARY_SOURCE_OPTIONS.reduce<Record<BoundarySource, number>>((acc, option) => {
+    BOUNDARY_EXPLORER_SOURCE_OPTIONS.reduce<Record<BoundarySource, number>>((acc, option) => {
       acc[option.value] = 0.22
       return acc
     }, {} as Record<BoundarySource, number>)
@@ -1036,7 +1125,7 @@ function DevBoundaries() {
     })
 
     layersToLoad.forEach((layer) => {
-      loadStudyAreaRegions(layer.source, layer.level)
+      loadBoundaryExplorerStudyAreaRegions(layer.source, layer.level)
         .then((regions) => {
           setCache((current) => ({
             ...current,
@@ -1375,7 +1464,7 @@ function DevBoundaries() {
   }, [boundariesShareState, shareStateReady])
 
   const sourceGroups = useMemo(() => (
-    BOUNDARY_SOURCE_OPTIONS.reduce<Record<string, typeof BOUNDARY_SOURCE_OPTIONS>>((groups, option) => {
+    BOUNDARY_EXPLORER_SOURCE_OPTIONS.reduce<Record<string, typeof BOUNDARY_EXPLORER_SOURCE_OPTIONS>>((groups, option) => {
       const group = option.group ?? 'Other'
       groups[group] = groups[group] ?? []
       groups[group].push(option)
@@ -2137,7 +2226,7 @@ function DevBoundaries() {
 	                />
               ) : (
                 <MapFillLayer
-                  data={focusedRegions.length > 0 ? featureCollection(focusedRegions) : EMPTY_COLLECTION}
+                  data={focusedRegions.length > 0 ? studyAreaRegionsToFeatureCollection(focusedRegions) : EMPTY_COLLECTION}
                   fillColor={layer.colors.fill}
                   fillOpacity={fillOpacity}
                   lineColor={layer.colors.line}

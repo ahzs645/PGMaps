@@ -174,7 +174,7 @@ function DevCard({ title, description, href, icon: Icon, color, label, subpages 
 export default function DevLibrary() {
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
-      <div className="container mx-auto px-4 py-8 sm:px-6 sm:py-12">
+      <div className="container mx-auto px-4 pb-8 pt-24 sm:px-6 sm:pb-12 sm:pt-28 md:py-12">
         <div className="mb-8 flex flex-col gap-5 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-md border bg-background px-3 py-1 text-sm font-medium text-muted-foreground">

@@ -2,6 +2,7 @@ import type {
   BoundaryIndex,
   BoundaryLevel,
   BoundarySource,
+  BcRfcBoundaryLevel,
   CensusBoundaryLevel,
   CommunityBoundaryLevel,
   CityBoundaryLevel,
@@ -81,6 +82,12 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     group: 'Natural / resource',
   },
   {
+    value: 'bcRfc',
+    label: 'BC RFC basins',
+    description: 'BC River Forecast Centre snow-basin polygons',
+    group: 'Natural / resource',
+  },
+  {
     value: 'nrAdmin',
     label: 'Natural Resource admin',
     description: 'BC NR Areas, Regions, and Districts',
@@ -117,6 +124,7 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   drainageRegion: 'Drainage Region',
   fireCentre: 'Fire Centre',
   fireZone: 'Fire Zone',
+  rfcSnowBasin: 'RFC Snow Basin',
   nrArea: 'NR Area',
   nrRegion: 'NR Region',
   nrDistrict: 'NR District',
@@ -177,6 +185,10 @@ export const FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<FireZoneBound
   ...createStudyAreaLevelOptions(['fireCentre', 'fireZone'] as const),
 ]
 
+export const BC_RFC_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<BcRfcBoundaryLevel>[] = [
+  ...createStudyAreaLevelOptions(['rfcSnowBasin'] as const),
+]
+
 export const NR_ADMIN_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<NrAdminBoundaryLevel>[] = [
   ...createStudyAreaLevelOptions(['nrArea', 'nrRegion', 'nrDistrict'] as const),
 ]
@@ -221,6 +233,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return DRAINAGE_BOUNDARY_LEVEL_OPTIONS
     case 'bcWildfire':
       return FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS
+    case 'bcRfc':
+      return BC_RFC_BOUNDARY_LEVEL_OPTIONS
     case 'nrAdmin':
       return NR_ADMIN_BOUNDARY_LEVEL_OPTIONS
     case 'uwr':

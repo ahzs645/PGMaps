@@ -66,6 +66,7 @@ export type BoundarySource =
   | 'watershed'
   | 'bcDrainage'
   | 'bcWildfire'
+  | 'bcRfc'
   | 'nrAdmin'
   | 'uwr'
   | 'crownTenure'
@@ -81,6 +82,7 @@ export type CityBoundaryLevel = 'elementarySchoolCatchment' | 'secondarySchoolCa
 export type WatershedBoundaryLevel = 'majorWatershed' | 'watershedGroup' | 'assessmentWatershed'
 export type DrainageBoundaryLevel = 'oceanDrainageArea' | 'drainageRegion'
 export type FireZoneBoundaryLevel = 'fireCentre' | 'fireZone'
+export type BcRfcBoundaryLevel = 'rfcSnowBasin'
 export type NrAdminBoundaryLevel = 'nrArea' | 'nrRegion' | 'nrDistrict'
 export type UwrBoundaryLevel = 'ungulateWinterRange'
 export type CrownTenureBoundaryLevel = 'crownTenure'
@@ -97,6 +99,7 @@ export type RegionLevel =
   | WatershedBoundaryLevel
   | DrainageBoundaryLevel
   | FireZoneBoundaryLevel
+  | BcRfcBoundaryLevel
   | NrAdminBoundaryLevel
   | UwrBoundaryLevel
   | CrownTenureBoundaryLevel

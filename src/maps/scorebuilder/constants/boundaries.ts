@@ -38,5 +38,11 @@ export const SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = _SC
           ...option,
           description: '31 CityPG community / neighbourhood areas with precomputed walkability variants',
         }
+      : option.value === 'bcRfc'
+        ? {
+            ...option,
+            disabled: true,
+            disabledReason: 'RFC snow basins are available in the boundary debug map but are not wired into Index Lab scoring yet.',
+          }
       : option,
 )
