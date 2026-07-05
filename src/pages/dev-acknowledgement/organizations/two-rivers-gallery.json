@@ -1,0 +1,24 @@
+{
+  "id": "two-rivers-gallery",
+  "name": "Two Rivers Gallery",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "pattern": "located_on_traditional_unceded",
+  "sourceUrl": "https://tworiversgallery.ca/wp-content/uploads/2024/02/trg-strat-plan-doc-final-aug12.pdf",
+  "note": "Official strategic plan PDF names Lheidli T'enneh First Nation.",
+  "statement": "located on the traditional, unceded territory of the Lheidli T'enneh First Nation",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Lheidli T'enneh First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Two Rivers Gallery",
+      "latitude": 53.916,
+      "longitude": -122.747,
+      "acknowledges": [
+        "Lheidli T'enneh First Nation"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "town-of-ladysmith",
+  "name": "Town of Ladysmith",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "gather_work_on_unceded",
+  "sourceUrl": "https://www.ladysmith.ca/",
+  "note": "Homepage acknowledgement names Stz'uminus First Nation.",
+  "statement": "gather and work on the unceded territory of the Stz'uminus First Nation",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Stz'uminus First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 48.995,
+      "longitude": -123.8194,
+      "acknowledges": [
+        "Stz'uminus First Nation"
+      ]
+    }
+  ]
+}

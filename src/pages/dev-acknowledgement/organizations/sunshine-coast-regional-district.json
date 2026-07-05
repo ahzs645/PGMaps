@@ -1,0 +1,26 @@
+{
+  "id": "sunshine-coast-regional-district",
+  "name": "Sunshine Coast Regional District",
+  "sector": "regional-district",
+  "framing": "regional",
+  "pattern": "located_on_territories",
+  "sourceUrl": "https://www.scrd.ca/first-nations",
+  "note": "First Nations page names shíshálh and Sḵwx̱wú7mesh Nations.",
+  "statement": "located on the territories of the shíshálh and Sḵwx̱wú7mesh Nations",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "shíshálh Nation",
+    "Sḵwx̱wú7mesh Nation"
+  ],
+  "campuses": [
+    {
+      "name": "SCRD office",
+      "latitude": 49.47,
+      "longitude": -123.758,
+      "acknowledges": [
+        "shíshálh Nation",
+        "Sḵwx̱wú7mesh Nation"
+      ]
+    }
+  ]
+}

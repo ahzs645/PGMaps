@@ -1,0 +1,28 @@
+{
+  "id": "city-of-campbell-river",
+  "name": "City of Campbell River",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "located_on_unceded",
+  "sourceUrl": "https://www.campbellriver.ca/",
+  "note": "Footer acknowledgement names the Liǧʷiłdax̌ʷ people, specifically Wei Wai Kum and We Wai Kai Nations.",
+  "statement": "located on the unceded traditional territory of the Liǧʷiłdax̌ʷ people, specifically the Wei Wai Kum and We Wai Kai Nations",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Liǧʷiłdax̌ʷ people",
+    "Wei Wai Kum",
+    "We Wai Kai"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 50.0244,
+      "longitude": -125.2475,
+      "acknowledges": [
+        "Liǧʷiłdax̌ʷ people",
+        "Wei Wai Kum",
+        "We Wai Kai"
+      ]
+    }
+  ]
+}

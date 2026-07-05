@@ -1,0 +1,28 @@
+{
+  "id": "sd27-cariboo-chilcotin",
+  "name": "School District 27 (Cariboo-Chilcotin)",
+  "sector": "school-district",
+  "framing": "regional",
+  "pattern": "operate_on_traditional_unceded",
+  "sourceUrl": "https://www.sd27.bc.ca/",
+  "note": "District acknowledgement names Secwepemc, Tsilhqot'in, and Dakelh Nations.",
+  "statement": "operate on the traditional and unceded territories of the Secwepemc, Tsilhqot'in, and Dakelh Nations",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Secwepemc",
+    "Tsilhqot'in",
+    "Dakelh"
+  ],
+  "campuses": [
+    {
+      "name": "School district office",
+      "latitude": 52.13,
+      "longitude": -122.144,
+      "acknowledges": [
+        "Secwepemc",
+        "Tsilhqot'in",
+        "Dakelh"
+      ]
+    }
+  ]
+}

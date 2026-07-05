@@ -1,0 +1,48 @@
+{
+  "id": "strathcona-regional-district",
+  "name": "Strathcona Regional District",
+  "sector": "regional-district",
+  "framing": "mixed",
+  "pattern": "traditional_unceded_territory",
+  "sourceUrl": "https://www.srd.ca/communities",
+  "note": "Communities pages include community-specific acknowledgements across Ligʷiłdax̌ʷ and other coastal Nations.",
+  "statement": "located on the traditional unceded territory of the Ligʷiłdax̌ʷ people",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Ligʷiłdax̌ʷ people",
+    "Ehattesaht/Chinehkint First Nation",
+    "Homalco First Nation",
+    "Ka:'yu:'k't'h'/Che:k'tles7et'h' First Nations",
+    "Klahoose First Nation",
+    "K’ómoks First Nation",
+    "Kwiakah First Nation",
+    "Mowachaht/Muchalaht First Nation",
+    "Nuchatlaht First Nation",
+    "Tla’amin Nation",
+    "Tlowitsis Nation",
+    "We Wai Kai Nation",
+    "Wei Wai Kum First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "SRD office",
+      "latitude": 50.0199,
+      "longitude": -125.2442,
+      "acknowledges": [
+        "Ligʷiłdax̌ʷ people",
+        "Ehattesaht/Chinehkint First Nation",
+        "Homalco First Nation",
+        "Ka:'yu:'k't'h'/Che:k'tles7et'h' First Nations",
+        "Klahoose First Nation",
+        "K’ómoks First Nation",
+        "Kwiakah First Nation",
+        "Mowachaht/Muchalaht First Nation",
+        "Nuchatlaht First Nation",
+        "Tla’amin Nation",
+        "Tlowitsis Nation",
+        "We Wai Kai Nation",
+        "Wei Wai Kum First Nation"
+      ]
+    }
+  ]
+}

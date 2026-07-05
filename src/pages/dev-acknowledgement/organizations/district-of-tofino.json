@@ -1,0 +1,24 @@
+{
+  "id": "district-of-tofino",
+  "name": "District of Tofino",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "on_whose_land_we_work",
+  "sourceUrl": "https://tofino.ca/",
+  "note": "Footer acknowledgement names the traditional and unceded territory of ƛaʔuukʷiʔatḥ / Tla-o-qui-aht First Nation.",
+  "statement": "traditional and unceded territory of the ƛaʔuukʷiʔatḥ (Tla-o-qui-aht First Nation)",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "ƛaʔuukʷiʔatḥ (Tla-o-qui-aht First Nation)"
+  ],
+  "campuses": [
+    {
+      "name": "Municipal Office",
+      "latitude": 49.1521,
+      "longitude": -125.9066,
+      "acknowledges": [
+        "ƛaʔuukʷiʔatḥ (Tla-o-qui-aht First Nation)"
+      ]
+    }
+  ]
+}

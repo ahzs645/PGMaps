@@ -1,0 +1,26 @@
+{
+  "id": "north-vancouver-school-district",
+  "name": "North Vancouver School District 44",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "pattern": "located_on_traditional_territories",
+  "sourceUrl": "https://www.sd44.ca/ContactUs/pages/default.aspx",
+  "note": "Contact page names Skwxwú7mesh Nation and Tsleil-Waututh Nation.",
+  "statement": "located on the traditional territories of the Skwxwú7mesh Nation and Tsleil-Waututh Nation",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Skwxwú7mesh Nation",
+    "Tsleil-Waututh Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Education Services Centre",
+      "latitude": 49.3305,
+      "longitude": -123.0728,
+      "acknowledges": [
+        "Skwxwú7mesh Nation",
+        "Tsleil-Waututh Nation"
+      ]
+    }
+  ]
+}

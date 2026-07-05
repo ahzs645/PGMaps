@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 import { defaultWordingOptions } from './dev-acknowledgement/data'
@@ -6,7 +6,7 @@ import { useAcknowledgementLookups } from './dev-acknowledgement/hooks/useAcknow
 import { buildFallbackAcknowledgement as buildAcknowledgement, buildMultiPointAcknowledgement, buildRegionalAcknowledgement, buildRelationshipAcknowledgement, peopleGroupName } from '@/lib/acknowledgement/engine'
 import type { MatchType, SourceKey, SpeakerPerspective, WordingMode, WordingOptions } from './dev-acknowledgement/types'
 import type { OrgRecord } from './dev-acknowledgement/organizations'
-import { effectiveSelectedCandidateIds, nextDraftWording, selectedCandidateNames, toggleMatchTypeState, visibleAcknowledgementCandidates } from './dev-acknowledgement/state'
+import { effectiveSelectedCandidateIds, selectedCandidateNames, toggleMatchTypeState, visibleAcknowledgementCandidates } from './dev-acknowledgement/state'
 import { AcknowledgementHeader } from './dev-acknowledgement/components/AcknowledgementHeader'
 import { CandidateNations } from './dev-acknowledgement/components/CandidateNations'
 import { DataProvenancePanel } from './dev-acknowledgement/components/DataProvenancePanel'
@@ -43,13 +43,12 @@ export default function DevAcknowledgement() {
   const [organizationName, setOrganizationName] = useState('UNBC')
   const [scope, setScope] = useState<AcknowledgementScope>('specific')
   const [regionName, setRegionName] = useState('British Columbia')
-  const [customWording, setCustomWording] = useState('')
+  const [customWordingOverride, setCustomWordingOverride] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'mapNations' | 'wording' | 'organizations'>('mapNations')
   const [orgToLoad, setOrgToLoad] = useState<string | null>(null)
   const [orgPreset, setOrgPreset] = useState<string | null>(null)
   const [multiPointContext, setMultiPointContext] = useState<MultiPointWordingContext | null>(null)
-  const previousGeneratedWording = useRef('')
   // The org currently loaded onto the map (null = free-form points). When set, the
   // speaker is unambiguously that organization, so we lock the voice to it and hide
   // the redundant Community/Individual/Organization picker.
@@ -153,13 +152,8 @@ export default function DevAcknowledgement() {
       : buildAcknowledgement(wordingMode, selectedNames, { perspective, organizationName })
   }, [allSelectedVerified, effectiveSelectedIds, enabledSources.verified, matchedRelationshipPlace, multiPointContext, organizationName, perspective, regionName, relationshipGraph, scope, selectedNames, wordingMode, wordingOptions])
 
-  useEffect(() => {
-    setCustomWording((current) => {
-      const next = nextDraftWording(current, previousGeneratedWording.current, generatedWording)
-      previousGeneratedWording.current = generatedWording
-      return next
-    })
-  }, [generatedWording])
+  const customWording = customWordingOverride ?? generatedWording
+  const customWordingDirty = customWordingOverride !== null
 
   const toggleSource = (source: SourceKey) => {
     setEnabledSources((current) => ({ ...current, [source]: !current[source] }))
@@ -199,9 +193,12 @@ export default function DevAcknowledgement() {
   }, [customWording])
 
   const resetCustomWording = useCallback(() => {
-    previousGeneratedWording.current = generatedWording
-    setCustomWording(generatedWording)
-  }, [generatedWording])
+    setCustomWordingOverride(null)
+  }, [])
+
+  const updateCustomWording = useCallback((value: string) => {
+    setCustomWordingOverride(value)
+  }, [])
 
   return (
     <div className="min-h-full bg-stone-50 pt-12 text-slate-950 sm:pt-0">
@@ -315,8 +312,8 @@ export default function DevAcknowledgement() {
             wordingOptions={wordingOptions}
             onToggleOption={toggleWordingOption}
             customWording={customWording}
-            onCustomWordingChange={setCustomWording}
-            customWordingDirty={customWording.trim() !== generatedWording.trim()}
+            onCustomWordingChange={updateCustomWording}
+            customWordingDirty={customWordingDirty}
             onResetCustomWording={resetCustomWording}
           />
           <aside className="space-y-4">

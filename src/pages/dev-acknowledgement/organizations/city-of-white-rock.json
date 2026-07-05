@@ -1,0 +1,26 @@
+{
+  "id": "city-of-white-rock",
+  "name": "City of White Rock",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "situated_on_unceded",
+  "sourceUrl": "https://www.whiterockcity.ca/870/Semiahmoo-First-Nation",
+  "note": "Names Semiahmoo First Nation and the broader Coast Salish territory.",
+  "statement": "We acknowledge we are on the traditional, unceded territories of the Semiahmoo First Nation and the broader territory of the Coast Salish Peoples.",
+  "statementKind": "exact_statement",
+  "acknowledges": [
+    "Semiahmoo First Nation",
+    "Coast Salish Peoples"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.0253,
+      "longitude": -122.8032,
+      "acknowledges": [
+        "Semiahmoo First Nation",
+        "Coast Salish Peoples"
+      ]
+    }
+  ]
+}

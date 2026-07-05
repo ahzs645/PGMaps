@@ -1,0 +1,26 @@
+{
+  "id": "town-of-qualicum-beach",
+  "name": "Town of Qualicum Beach",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "located_on_ancestral_unceded",
+  "sourceUrl": "https://qualicumbeach.com/recreation-culture/qualicum-first-nation/",
+  "note": "First Nation page acknowledges Coast Salish peoples and local relationship with Qualicum First Nation.",
+  "statement": "located on the ancestral and unceded territory of the Coast Salish peoples",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Coast Salish",
+    "Qualicum First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Town Hall",
+      "latitude": 49.3476,
+      "longitude": -124.4433,
+      "acknowledges": [
+        "Coast Salish",
+        "Qualicum First Nation"
+      ]
+    }
+  ]
+}

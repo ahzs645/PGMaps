@@ -1,0 +1,24 @@
+{
+  "id": "kamloops-art-gallery",
+  "name": "Kamloops Art Gallery",
+  "sector": "cultural",
+  "framing": "single_specific",
+  "pattern": "situated_on_unceded_unsurrendered",
+  "sourceUrl": "https://kag.bc.ca/history",
+  "note": "History page names Tk̓emlúps te Secwépemc.",
+  "statement": "situated on the unceded and unsurrendered lands of the Tk̓emlúps te Secwépemc",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Tk̓emlúps te Secwépemc"
+  ],
+  "campuses": [
+    {
+      "name": "Kamloops Art Gallery",
+      "latitude": 50.675,
+      "longitude": -120.33,
+      "acknowledges": [
+        "Tk̓emlúps te Secwépemc"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "id": "qathet-regional-district",
+  "name": "qathet Regional District",
+  "sector": "regional-district",
+  "framing": "regional",
+  "pattern": "within_traditional_territory",
+  "sourceUrl": "https://qathet.ca/about/about-the-qrd/geographic-boundaries/",
+  "note": "Geographic boundaries page names six First Nations connected to the regional district area.",
+  "statement": "within the traditional territory of the Tla’amin, shíshálh, Klahoose, Nanoose, Homalco, and K’ómoks First Nations",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Tla’amin Nation",
+    "shíshálh Nation",
+    "Klahoose First Nation",
+    "Nanoose First Nation",
+    "Homalco First Nation",
+    "K’ómoks First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "qathet Regional District office",
+      "latitude": 49.839,
+      "longitude": -124.528,
+      "acknowledges": [
+        "Tla’amin Nation",
+        "shíshálh Nation",
+        "Klahoose First Nation",
+        "Nanoose First Nation",
+        "Homalco First Nation",
+        "K’ómoks First Nation"
+      ]
+    }
+  ]
+}

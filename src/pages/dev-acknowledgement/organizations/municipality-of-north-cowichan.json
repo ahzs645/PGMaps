@@ -1,0 +1,36 @@
+{
+  "id": "municipality-of-north-cowichan",
+  "name": "Municipality of North Cowichan",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "sits_on_traditional_territories",
+  "sourceUrl": "https://www.northcowichan.ca/our-communities/about-north-cowichan",
+  "note": "About page uses Quw'utsun framing and identifies Cowichan-area Nations.",
+  "statement": "sits on the traditional territories of the Quw’utsun First Nation",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Quw'utsun First Nation",
+    "Cowichan Tribes",
+    "Halalt First Nation",
+    "Lyackson First Nation",
+    "Penelakut Tribe",
+    "Stz'uminus First Nation",
+    "Snuneymuxw First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Municipal Hall",
+      "latitude": 48.8061,
+      "longitude": -123.714,
+      "acknowledges": [
+        "Quw'utsun First Nation",
+        "Cowichan Tribes",
+        "Halalt First Nation",
+        "Lyackson First Nation",
+        "Penelakut Tribe",
+        "Stz'uminus First Nation",
+        "Snuneymuxw First Nation"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "sea-to-sky-school-district",
+  "name": "School District 48 (Sea to Sky)",
+  "sector": "school-district",
+  "framing": "single_specific",
+  "pattern": "unceded_ancestral_territories",
+  "sourceUrl": "https://www.sd48seatosky.org/",
+  "note": "Homepage acknowledgement names Sḵwx̱wú7mesh Úxwumixw and St’át’y’emc Nations.",
+  "statement": "unceded and ancestral territories of the Sḵwx̱wú7mesh Úxwumixw and St’át’y’emc Nations",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Sḵwx̱wú7mesh Úxwumixw",
+    "St’át’y’emc"
+  ],
+  "campuses": [
+    {
+      "name": "School district office",
+      "latitude": 49.6998,
+      "longitude": -123.1555,
+      "acknowledges": [
+        "Sḵwx̱wú7mesh Úxwumixw",
+        "St’át’y’emc"
+      ]
+    }
+  ]
+}

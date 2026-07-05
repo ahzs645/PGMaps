@@ -1,0 +1,34 @@
+{
+  "id": "town-of-sidney",
+  "name": "Town of Sidney",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "located_within_traditional_territory",
+  "sourceUrl": "https://www.sidney.ca/discover-sidney/culture-and-heritage/",
+  "note": "Culture and heritage page names W̱SÁNEĆ territory and lists Tsartlip, Pauquachin, Tseycum, Tsawout, and Malahat.",
+  "statement": "located within the traditional territory of the W̱SÁNEĆ People",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "W̱SÁNEĆ People",
+    "Tsartlip",
+    "Pauquachin",
+    "Tseycum",
+    "Tsawout",
+    "Malahat"
+  ],
+  "campuses": [
+    {
+      "name": "Town Hall",
+      "latitude": 48.6502,
+      "longitude": -123.3989,
+      "acknowledges": [
+        "W̱SÁNEĆ People",
+        "Tsartlip",
+        "Pauquachin",
+        "Tseycum",
+        "Tsawout",
+        "Malahat"
+      ]
+    }
+  ]
+}

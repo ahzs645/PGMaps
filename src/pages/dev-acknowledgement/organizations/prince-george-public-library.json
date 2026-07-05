@@ -1,0 +1,24 @@
+{
+  "id": "prince-george-public-library",
+  "name": "Prince George Public Library",
+  "sector": "library",
+  "framing": "single_specific",
+  "pattern": "unceded_ancestral_lands",
+  "sourceUrl": "https://www.pgpl.ca/policies",
+  "note": "Policy pages use Lheidli T'enneh acknowledgement wording for Prince George.",
+  "statement": "the unceded ancestral lands of the Lheidli T'enneh",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Lheidli T'enneh First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Bob Harkins Branch",
+      "latitude": 53.916,
+      "longitude": -122.748,
+      "acknowledges": [
+        "Lheidli T'enneh First Nation"
+      ]
+    }
+  ]
+}

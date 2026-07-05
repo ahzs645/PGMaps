@@ -1,0 +1,26 @@
+{
+  "id": "sd6-rocky-mountain",
+  "name": "Rocky Mountain School District No. 6",
+  "sector": "school-district",
+  "framing": "regional",
+  "pattern": "located_on_traditional_unceded",
+  "sourceUrl": "https://www.sd6.bc.ca/programs-and-services/indigenous-education",
+  "note": "Indigenous Education page names Ktunaxa and Secwépemc Nations.",
+  "statement": "located on the traditional unceded territories of the Ktunaxa and Secwépemc Nations",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Ktunaxa",
+    "Secwépemc"
+  ],
+  "campuses": [
+    {
+      "name": "School district office",
+      "latitude": 50.507,
+      "longitude": -116.031,
+      "acknowledges": [
+        "Ktunaxa",
+        "Secwépemc"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "township-of-langley",
+  "name": "Township of Langley",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "on_traditional_territories",
+  "sourceUrl": "https://www.tol.ca/en/arts-culture/indigenous-awareness.aspx",
+  "note": "Indigenous Awareness page names Coast Salish people and local Nations.",
+  "statement": "on the traditional territories of the Coast Salish People",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Coast Salish",
+    "q̓ʷɑ:n̓ƛ̓ən̓ (Kwantlen) First Nation",
+    "q̓ic̓əy̓ (Katzie) First Nation",
+    "Máthxwi (Matsqui) First Nation",
+    "se’mya’me (Semiahmoo) First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Civic Facility",
+      "latitude": 49.1218,
+      "longitude": -122.6579,
+      "acknowledges": [
+        "Coast Salish",
+        "q̓ʷɑ:n̓ƛ̓ən̓ (Kwantlen) First Nation",
+        "q̓ic̓əy̓ (Katzie) First Nation",
+        "Máthxwi (Matsqui) First Nation",
+        "se’mya’me (Semiahmoo) First Nation"
+      ]
+    }
+  ]
+}

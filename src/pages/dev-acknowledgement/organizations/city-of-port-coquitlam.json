@@ -1,0 +1,24 @@
+{
+  "id": "city-of-port-coquitlam",
+  "name": "City of Port Coquitlam",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "honour_and_thank",
+  "sourceUrl": "https://www.portcoquitlam.ca/our-government/truth-reconciliation",
+  "note": "Truth and Reconciliation page names kʷikʷəƛ̓əm (Kwikwetlem) First Nation.",
+  "statement": "honour and thank the kʷikʷəƛ̓əm (Kwikwetlem) First Nation",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "kʷikʷəƛ̓əm (Kwikwetlem) First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.2625,
+      "longitude": -122.7811,
+      "acknowledges": [
+        "kʷikʷəƛ̓əm (Kwikwetlem) First Nation"
+      ]
+    }
+  ]
+}

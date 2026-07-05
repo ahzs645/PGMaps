@@ -1,0 +1,44 @@
+{
+  "id": "capital-regional-district",
+  "name": "Capital Regional District",
+  "sector": "regional-district",
+  "framing": "regional",
+  "pattern": "conducts_business_within_territories",
+  "sourceUrl": "https://www.crd.ca/government-administration/first-nations-relations",
+  "note": "Regional acknowledgement names many First Nations across the capital region.",
+  "statement": "conducts its business within the Territories of many First Nations",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Pauquachin",
+    "Malahat",
+    "Pacheedaht",
+    "Penelakut",
+    "Sc'ianew",
+    "Songhees",
+    "Tsawout",
+    "T’Sou-ke",
+    "Tsartlip",
+    "Tseycum",
+    "xʷsepsum (Kosapsum)"
+  ],
+  "campuses": [
+    {
+      "name": "Headquarters",
+      "latitude": 48.4284,
+      "longitude": -123.3656,
+      "acknowledges": [
+        "Pauquachin",
+        "Malahat",
+        "Pacheedaht",
+        "Penelakut",
+        "Sc'ianew",
+        "Songhees",
+        "Tsawout",
+        "T’Sou-ke",
+        "Tsartlip",
+        "Tseycum",
+        "xʷsepsum (Kosapsum)"
+      ]
+    }
+  ]
+}

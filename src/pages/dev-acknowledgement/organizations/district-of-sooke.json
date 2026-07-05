@@ -1,0 +1,28 @@
+{
+  "id": "district-of-sooke",
+  "name": "District of Sooke",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "located_on",
+  "sourceUrl": "https://www.sooke.ca/our-community/first-nations-indigenous-relations/",
+  "note": "First Nations relations page names Coast Salish Peoples, T’Sou-ke Nation, and Sc’ianew Nation.",
+  "statement": "We gratefully acknowledge the T’Sou-ke and Sc’ianew Nations and their enduring relationship with the land, waters, and all beings.",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Coast Salish Peoples",
+    "T’Sou-ke Nation",
+    "Sc’ianew Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Municipal Hall",
+      "latitude": 48.3744,
+      "longitude": -123.7276,
+      "acknowledges": [
+        "Coast Salish Peoples",
+        "T’Sou-ke Nation",
+        "Sc’ianew Nation"
+      ]
+    }
+  ]
+}

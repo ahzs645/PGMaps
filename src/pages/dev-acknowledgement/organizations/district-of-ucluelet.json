@@ -1,0 +1,24 @@
+{
+  "id": "district-of-ucluelet",
+  "name": "District of Ucluelet",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "territories_lands_waters",
+  "sourceUrl": "https://ucluelet.ca/",
+  "note": "Homepage acknowledgement names the Yuułuʔiłʔatḥ; wording also includes broad gratitude to other Indigenous peoples.",
+  "statement": "traditional territories, lands, and waters of the Yuułuʔiłʔatḥ",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Yuułuʔiłʔatḥ"
+  ],
+  "campuses": [
+    {
+      "name": "District office",
+      "latitude": 48.9423,
+      "longitude": -125.5463,
+      "acknowledges": [
+        "Yuułuʔiłʔatḥ"
+      ]
+    }
+  ]
+}

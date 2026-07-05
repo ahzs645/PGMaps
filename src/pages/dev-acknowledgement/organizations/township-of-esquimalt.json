@@ -1,0 +1,26 @@
+{
+  "id": "township-of-esquimalt",
+  "name": "Township of Esquimalt",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "within_traditional_territories",
+  "sourceUrl": "https://www.esquimalt.ca/culture-heritage/first-nations-indigenous-relationships",
+  "note": "Acknowledgement names xʷsepsəm / Kosapsum (Esquimalt) Nation and Songhees Nation.",
+  "statement": "within the Traditional Territories of the xʷsepsəm or Kosapsum (Esquimalt) Nation and Songhees Nation",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "xʷsepsəm (Kosapsum) Nation",
+    "Songhees Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Municipal Hall",
+      "latitude": 48.4299,
+      "longitude": -123.4148,
+      "acknowledges": [
+        "xʷsepsəm (Kosapsum) Nation",
+        "Songhees Nation"
+      ]
+    }
+  ]
+}

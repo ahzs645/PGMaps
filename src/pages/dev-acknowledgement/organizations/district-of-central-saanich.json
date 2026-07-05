@@ -1,0 +1,28 @@
+{
+  "id": "district-of-central-saanich",
+  "name": "District of Central Saanich",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "situated_on",
+  "sourceUrl": "https://www.centralsaanich.ca/our-community/first-nations",
+  "note": "Footer acknowledgement names W̱SÁNEĆ territory, including W̱JOȽEȽP (Tsartlip) and SȾÁUTW̱ (Tsawout).",
+  "statement": "situated on the traditional territory of the W̱SÁNEĆ people which includes W̱JOȽEȽP (Tsartlip) and SȾÁUTW̱ (Tsawout) First Nations",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "W̱SÁNEĆ People",
+    "W̱JOȽEȽP (Tsartlip)",
+    "SȾÁUTW̱ (Tsawout)"
+  ],
+  "campuses": [
+    {
+      "name": "Municipal Hall",
+      "latitude": 48.5785,
+      "longitude": -123.4433,
+      "acknowledges": [
+        "W̱SÁNEĆ People",
+        "W̱JOȽEȽP (Tsartlip)",
+        "SȾÁUTW̱ (Tsawout)"
+      ]
+    }
+  ]
+}

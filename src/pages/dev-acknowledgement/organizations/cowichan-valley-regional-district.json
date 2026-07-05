@@ -1,0 +1,42 @@
+{
+  "id": "cowichan-valley-regional-district",
+  "name": "Cowichan Valley Regional District",
+  "sector": "regional-district",
+  "framing": "regional",
+  "pattern": "ancestral_unceded_territories_including",
+  "sourceUrl": "https://cvrd.ca/communities/first-nations/",
+  "note": "First Nations page lists multiple Nations whose ancestral and unceded territories are within the regional district.",
+  "statement": "ancestral and unceded territories of First Nations including",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Quw'utsun First Nation",
+    "Malahat Nation",
+    "Pauquachin First Nation",
+    "Ts'uubaa-asatx Nation",
+    "Halalt First Nation",
+    "Penelakut Tribe",
+    "Stz'uminus First Nation",
+    "Lyackson First Nation",
+    "Ditidaht First Nation",
+    "Pacheedaht First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "CVRD office",
+      "latitude": 48.779,
+      "longitude": -123.7077,
+      "acknowledges": [
+        "Quw'utsun First Nation",
+        "Malahat Nation",
+        "Pauquachin First Nation",
+        "Ts'uubaa-asatx Nation",
+        "Halalt First Nation",
+        "Penelakut Tribe",
+        "Stz'uminus First Nation",
+        "Lyackson First Nation",
+        "Ditidaht First Nation",
+        "Pacheedaht First Nation"
+      ]
+    }
+  ]
+}

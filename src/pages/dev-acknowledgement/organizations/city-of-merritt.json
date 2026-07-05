@@ -1,0 +1,26 @@
+{
+  "id": "city-of-merritt",
+  "name": "City of Merritt",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "traditional_ancestral_unceded",
+  "sourceUrl": "https://www.merritt.ca/indigenous-june/",
+  "note": "Official Indigenous History Month page names Nlaka'pamux and Syilx peoples.",
+  "statement": "traditional, ancestral and unceded territory of the Nlaka'pamux and Syilx people",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "Nlaka'pamux",
+    "Syilx"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 50.112,
+      "longitude": -120.789,
+      "acknowledges": [
+        "Nlaka'pamux",
+        "Syilx"
+      ]
+    }
+  ]
+}

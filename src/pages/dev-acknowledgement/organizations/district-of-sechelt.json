@@ -1,0 +1,24 @@
+{
+  "id": "district-of-sechelt",
+  "name": "District of Sechelt",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "located_on_unceded",
+  "sourceUrl": "https://www.sechelt.ca/en/arts-and-recreation/history-and-heritage.aspx",
+  "note": "Footer acknowledgement names the traditional and unceded territory of the shíshálh Nation.",
+  "statement": "located on the traditional and unceded territory of the shíshálh Nation",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "shíshálh Nation"
+  ],
+  "campuses": [
+    {
+      "name": "Municipal Hall",
+      "latitude": 49.4746,
+      "longitude": -123.7545,
+      "acknowledges": [
+        "shíshálh Nation"
+      ]
+    }
+  ]
+}

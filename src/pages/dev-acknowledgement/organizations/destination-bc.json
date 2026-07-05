@@ -1,0 +1,28 @@
+{
+  "id": "destination-bc",
+  "name": "Destination British Columbia",
+  "sector": "crown-agency",
+  "framing": "mixed",
+  "pattern": "respectfully_acknowledges",
+  "sourceUrl": "https://www.destinationbc.ca/content/uploads/2023/03/Destination-BC-Accessibility-Inclusion-Committee-Terms-of-Reference.pdf",
+  "note": "Official committee terms PDF names the host Nations for the Vancouver office and also uses province-wide First Nations acknowledgement framing.",
+  "statement": "respectfully acknowledges the xʷməθkʷəy̓əm (Musqueam), Sḵwx̱wú7mesh (Squamish), and səlilwətaɬ (Tsleil-Waututh) Nations",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "xʷməθkʷəy̓əm (Musqueam)",
+    "Sḵwx̱wú7mesh (Squamish)",
+    "səlilwətaɬ (Tsleil-Waututh)"
+  ],
+  "campuses": [
+    {
+      "name": "Vancouver office",
+      "latitude": 49.286,
+      "longitude": -123.119,
+      "acknowledges": [
+        "xʷməθkʷəy̓əm (Musqueam)",
+        "Sḵwx̱wú7mesh (Squamish)",
+        "səlilwətaɬ (Tsleil-Waututh)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "city-of-pitt-meadows",
+  "name": "City of Pitt Meadows",
+  "sector": "municipality",
+  "framing": "single_specific",
+  "pattern": "located_on_unceded",
+  "sourceUrl": "https://www.pittmeadows.ca/our-community/indigenous-peoples-and-reconciliation",
+  "note": "Acknowledgement names q̓ic̓əy̓ (Katzie) First Nation.",
+  "statement": "located on the traditional, unceded territory of q̓ic̓əy̓ (Katzie) First Nation",
+  "statementKind": "exact_excerpt",
+  "acknowledges": [
+    "q̓ic̓əy̓ (Katzie) First Nation"
+  ],
+  "campuses": [
+    {
+      "name": "City Hall",
+      "latitude": 49.2212,
+      "longitude": -122.6896,
+      "acknowledges": [
+        "q̓ic̓əy̓ (Katzie) First Nation"
+      ]
+    }
+  ]
+}
