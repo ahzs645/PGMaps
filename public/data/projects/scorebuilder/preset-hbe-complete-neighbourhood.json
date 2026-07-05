@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "slug": "score-preset-hbe-complete-neighbourhood",
+  "title": "HBE Complete Neighbourhood",
+  "kind": "index-preset",
+  "theme": "blue",
+  "owner": "PGMaps Index Lab",
+  "updated": "Generated",
+  "region": "Prince George DA",
+  "status": "Ready",
+  "summary": "Toolkit neighbourhood-design proxy for compact, connected places with mixed services, parks, housing choice, and lower safety pressure.",
+  "sourceNote": "Generated from the score-builder preset \"hbeCompleteNeighbourhood\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+  "details": [
+    "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+    "Primary active metrics include Restaurant Density, Population Density, Parcel Density, Multi-Family Share, Commercial Parcel Share, Crime Per Capita."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    {
+      "label": "Source",
+      "value": "Preset"
+    },
+    {
+      "label": "Boundary",
+      "value": "DA"
+    },
+    {
+      "label": "Metrics",
+      "value": "9"
+    }
+  ],
+  "layers": [
+    {
+      "id": "base",
+      "label": "Muted streets",
+      "type": "base",
+      "checked": true,
+      "locked": true
+    },
+    {
+      "id": "score-surface",
+      "label": "Score surface",
+      "type": "raster",
+      "checked": true,
+      "role": "score"
+    },
+    {
+      "id": "points",
+      "label": "Facility points",
+      "type": "point",
+      "checked": false,
+      "role": "points"
+    }
+  ],
+  "legend": [
+    {
+      "label": "Lower score",
+      "color": "#dbeafe"
+    },
+    {
+      "label": "Mid score",
+      "color": "#fde68a"
+    },
+    {
+      "label": "Higher score",
+      "color": "#fb923c"
+    },
+    {
+      "label": "Highest score",
+      "color": "#b91c1c"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "HBE Complete Neighbourhood score surface",
+      "text": "Review the generated preset across DA boundaries.",
+      "focus": "Score surface",
+      "visibleLayerIds": [
+        "base",
+        "score-surface",
+        "points"
+      ]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Hide point context to read the ranked boundary surface on its own.",
+      "focus": "Score gradient",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    },
+    {
+      "label": "Recipe",
+      "title": "Index Lab handoff",
+      "text": "Open the same JSON recipe in Index Lab to change weights, methods, and boundary choices.",
+      "focus": "Editable recipe",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "label": "Project package",
+      "detail": "Generated JSON project recipe"
+    },
+    {
+      "label": "Index recipe",
+      "detail": "9 active metrics; additive aggregation"
+    },
+    {
+      "label": "Data sources",
+      "detail": "Parks, Food, Census, Property, Safety, Transit"
+    }
+  ],
+  "lab": {
+    "presetKey": "hbeCompleteNeighbourhood",
+    "boundarySource": "census",
+    "boundaryLevel": "da",
+    "weights": {
+      "restaurantDensity": 10,
+      "populationDensity": 8,
+      "parcelDensity": 8,
+      "multiFamilyShare": 10,
+      "commercialShare": 8,
+      "crimePerCapita": -10,
+      "transitStopDensity": 10,
+      "parkWalk10Access": 14,
+      "serviceAccessComposite": 22
+    },
+    "normalization": "percentile",
+    "aggregation": "additive",
+    "mapSurface": "boundary"
+  }
+}

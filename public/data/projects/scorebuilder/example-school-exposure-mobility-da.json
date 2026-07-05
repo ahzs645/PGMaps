@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "slug": "score-example-school-exposure-mobility-da",
+  "title": "School Exposure + Active Mobility Proxy (DA)",
+  "kind": "index-preset",
+  "theme": "emerald",
+  "owner": "PGMaps Index Lab",
+  "updated": "Generated",
+  "region": "Prince George DA",
+  "status": "Ready",
+  "summary": "A near-term school proxy using population, trails, parks, amenities, monitor coverage, food-risk, and safety pressure until school points and catchments are fully wired in.",
+  "sourceNote": "Generated from the score-builder example \"schoolExposureMobilityDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+  "details": [
+    "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+    "Primary active metrics include Overall Sensor Density, Reference Sensor Density, Park Density, Trail Density, Amenity Density, Food Risk Score."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    {
+      "label": "Source",
+      "value": "Example"
+    },
+    {
+      "label": "Boundary",
+      "value": "DA"
+    },
+    {
+      "label": "Metrics",
+      "value": "9"
+    }
+  ],
+  "layers": [
+    {
+      "id": "base",
+      "label": "Muted streets",
+      "type": "base",
+      "checked": true,
+      "locked": true
+    },
+    {
+      "id": "score-surface",
+      "label": "Score surface",
+      "type": "raster",
+      "checked": true,
+      "role": "score"
+    },
+    {
+      "id": "points",
+      "label": "Monitoring points",
+      "type": "point",
+      "checked": false,
+      "role": "points"
+    }
+  ],
+  "legend": [
+    {
+      "label": "Lower score",
+      "color": "#dbeafe"
+    },
+    {
+      "label": "Mid score",
+      "color": "#fde68a"
+    },
+    {
+      "label": "Higher score",
+      "color": "#fb923c"
+    },
+    {
+      "label": "Highest score",
+      "color": "#b91c1c"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "School Exposure + Active Mobility Proxy (DA) score surface",
+      "text": "Review the generated example across DA boundaries.",
+      "focus": "Score surface",
+      "visibleLayerIds": [
+        "base",
+        "score-surface",
+        "points"
+      ]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Hide point context to read the ranked boundary surface on its own.",
+      "focus": "Score gradient",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    },
+    {
+      "label": "Recipe",
+      "title": "Index Lab handoff",
+      "text": "Open the same JSON recipe in Index Lab to change weights, methods, and boundary choices.",
+      "focus": "Editable recipe",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "label": "Project package",
+      "detail": "Generated JSON project recipe"
+    },
+    {
+      "label": "Index recipe",
+      "detail": "9 active metrics; additive aggregation"
+    },
+    {
+      "label": "Data sources",
+      "detail": "Air, Parks, Food, Census, Safety"
+    }
+  ],
+  "lab": {
+    "boundarySource": "census",
+    "boundaryLevel": "da",
+    "weights": {
+      "overallDensity": -12,
+      "referenceDensity": -8,
+      "parkDensity": 14,
+      "trailDensity": 16,
+      "amenityDensity": 10,
+      "foodRiskScore": -8,
+      "criticalViolationRate": -6,
+      "populationDensity": 18,
+      "crimePerCapita": -8
+    },
+    "normalization": "percentile",
+    "aggregation": "additive",
+    "mapSurface": "boundary",
+    "selectedNetworks": "all"
+  }
+}

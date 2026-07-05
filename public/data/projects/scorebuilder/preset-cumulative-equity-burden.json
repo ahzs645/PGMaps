@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "slug": "score-preset-cumulative-equity-burden",
+  "title": "Cumulative Equity Burden",
+  "kind": "index-preset",
+  "theme": "amber",
+  "owner": "PGMaps Index Lab",
+  "updated": "Generated",
+  "region": "Prince George DA",
+  "status": "Ready",
+  "summary": "CalEnviroScreen-style overlap of local burden, deprivation vulnerability, and adaptive-capacity gaps.",
+  "sourceNote": "Generated from the score-builder preset \"cumulativeEquityBurden\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+  "details": [
+    "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+    "Primary active metrics include Food Risk Score, Critical Violation Rate, Population Density, 10-Year Value Growth, Average Building Age, Crime Per Capita."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    {
+      "label": "Source",
+      "value": "Preset"
+    },
+    {
+      "label": "Boundary",
+      "value": "DA"
+    },
+    {
+      "label": "Metrics",
+      "value": "12"
+    }
+  ],
+  "layers": [
+    {
+      "id": "base",
+      "label": "Muted streets",
+      "type": "base",
+      "checked": true,
+      "locked": true
+    },
+    {
+      "id": "score-surface",
+      "label": "Score surface",
+      "type": "raster",
+      "checked": true,
+      "role": "score"
+    },
+    {
+      "id": "points",
+      "label": "Facility points",
+      "type": "point",
+      "checked": false,
+      "role": "points"
+    }
+  ],
+  "legend": [
+    {
+      "label": "Lower score",
+      "color": "#dbeafe"
+    },
+    {
+      "label": "Mid score",
+      "color": "#fde68a"
+    },
+    {
+      "label": "Higher score",
+      "color": "#fb923c"
+    },
+    {
+      "label": "Highest score",
+      "color": "#b91c1c"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "Cumulative Equity Burden score surface",
+      "text": "Review the generated preset across DA boundaries.",
+      "focus": "Score surface",
+      "visibleLayerIds": [
+        "base",
+        "score-surface",
+        "points"
+      ]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Hide point context to read the ranked boundary surface on its own.",
+      "focus": "Score gradient",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    },
+    {
+      "label": "Recipe",
+      "title": "Index Lab handoff",
+      "text": "Open the same JSON recipe in Index Lab to change weights, methods, and boundary choices.",
+      "focus": "Editable recipe",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "label": "Project package",
+      "detail": "Generated JSON project recipe"
+    },
+    {
+      "label": "Index recipe",
+      "detail": "12 active metrics; cumulativeBurden aggregation"
+    },
+    {
+      "label": "Data sources",
+      "detail": "Parks, Heat, Food, Census, Property, Safety, Transit, CIMD"
+    }
+  ],
+  "lab": {
+    "presetKey": "cumulativeEquityBurden",
+    "boundarySource": "census",
+    "boundaryLevel": "da",
+    "weights": {
+      "foodRiskScore": 16,
+      "criticalViolationRate": 10,
+      "populationDensity": 10,
+      "valueGrowth10y": 8,
+      "buildingAge": 8,
+      "crimePerCapita": 18,
+      "parkWalk10Access": 12,
+      "coolingWalk15Access": 10,
+      "serviceAccessComposite": 8,
+      "shadeGap": 16,
+      "cimdComposite": 20,
+      "cimdEconomicDependency": 10
+    },
+    "normalization": "percentile",
+    "aggregation": "cumulativeBurden",
+    "mapSurface": "boundary"
+  }
+}

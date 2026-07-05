@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "slug": "score-preset-hbe-linkages-index",
+  "title": "HBE Linkages Index",
+  "kind": "index-preset",
+  "theme": "amber",
+  "owner": "PGMaps Index Lab",
+  "updated": "Generated",
+  "region": "Prince George CT",
+  "status": "Ready",
+  "summary": "Healthy Built Environment toolkit proxy combining complete neighbourhoods, active mobility, nature access, food context, housing, and equity.",
+  "sourceNote": "Generated from the score-builder preset \"hbeLinkagesIndex\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+  "details": [
+    "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+    "Primary active metrics include Restaurant Density, Food Risk Score, Critical Violation Rate, Average Assessed Value, 10-Year Value Growth, Multi-Family Share."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    {
+      "label": "Source",
+      "value": "Preset"
+    },
+    {
+      "label": "Boundary",
+      "value": "CT"
+    },
+    {
+      "label": "Metrics",
+      "value": "14"
+    }
+  ],
+  "layers": [
+    {
+      "id": "base",
+      "label": "Muted streets",
+      "type": "base",
+      "checked": true,
+      "locked": true
+    },
+    {
+      "id": "score-surface",
+      "label": "Score surface",
+      "type": "raster",
+      "checked": true,
+      "role": "score"
+    },
+    {
+      "id": "points",
+      "label": "Facility points",
+      "type": "point",
+      "checked": false,
+      "role": "points"
+    }
+  ],
+  "legend": [
+    {
+      "label": "Lower score",
+      "color": "#dbeafe"
+    },
+    {
+      "label": "Mid score",
+      "color": "#fde68a"
+    },
+    {
+      "label": "Higher score",
+      "color": "#fb923c"
+    },
+    {
+      "label": "Highest score",
+      "color": "#b91c1c"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "HBE Linkages Index score surface",
+      "text": "Review the generated preset across CT boundaries.",
+      "focus": "Score surface",
+      "visibleLayerIds": [
+        "base",
+        "score-surface",
+        "points"
+      ]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Hide point context to read the ranked boundary surface on its own.",
+      "focus": "Score gradient",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    },
+    {
+      "label": "Recipe",
+      "title": "Index Lab handoff",
+      "text": "Open the same JSON recipe in Index Lab to change weights, methods, and boundary choices.",
+      "focus": "Editable recipe",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "label": "Project package",
+      "detail": "Generated JSON project recipe"
+    },
+    {
+      "label": "Index recipe",
+      "detail": "14 active metrics; modulePercentileRankedSum aggregation"
+    },
+    {
+      "label": "Data sources",
+      "detail": "Parks, Heat, Food, Census, Property, Safety, Transit, CIMD"
+    }
+  ],
+  "lab": {
+    "presetKey": "hbeLinkagesIndex",
+    "boundarySource": "census",
+    "boundaryLevel": "ct",
+    "weights": {
+      "restaurantDensity": 8,
+      "foodRiskScore": -6,
+      "criticalViolationRate": -4,
+      "avgAssessedValue": -6,
+      "valueGrowth10y": -5,
+      "multiFamilyShare": 7,
+      "crimePerCapita": -6,
+      "transitServiceSpan": 8,
+      "accessibleFrequentTransitAccess": 10,
+      "parkWalk10Access": 10,
+      "coolingWalk15Access": 8,
+      "serviceAccessComposite": 14,
+      "canopyProxyRatio": 10,
+      "cimdComposite": -8
+    },
+    "normalization": "percentile",
+    "aggregation": "modulePercentileRankedSum",
+    "mapSurface": "boundary"
+  }
+}

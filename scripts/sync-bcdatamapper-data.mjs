@@ -1,5 +1,6 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -7,6 +8,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const vendorRoot = join(root, 'vendor', 'bcdatamapper')
 const target = join(root, 'public', 'data')
 const clean = process.argv.includes('--clean')
+
+const appOwnedDataPaths = [
+  'health/msp-facilities.geojson',
+  'health/msp-facility-geocode-cache.json',
+  'projects',
+  'smoke',
+  'walkability/heatmap/factor_masks.json',
+]
 
 const contentMappings = [
   ['datascrapers/air/output', '.'],
@@ -107,8 +116,31 @@ if (process.env.PGMAPS_SKIP_VENDOR_DATA_SYNC === '1') {
   process.exit(0)
 }
 
+let cleanPreserveRoot = null
+const preservedCleanPaths = []
+
 if (clean && existsSync(target)) {
+  cleanPreserveRoot = mkdtempSync(join(tmpdir(), 'pgmaps-data-preserve-'))
+  for (const preservePath of appOwnedDataPaths) {
+    const source = join(target, preservePath)
+    if (!existsSync(source)) continue
+    const destination = join(cleanPreserveRoot, preservePath)
+    mkdirSync(dirname(destination), { recursive: true })
+    cpSync(source, destination, { recursive: true, force: true })
+    preservedCleanPaths.push(preservePath)
+  }
   rmSync(target, { recursive: true, force: true })
+}
+
+function restorePreservedCleanPaths() {
+  if (!cleanPreserveRoot) return
+  for (const preservePath of preservedCleanPaths) {
+    const source = join(cleanPreserveRoot, preservePath)
+    const destination = join(target, preservePath)
+    mkdirSync(dirname(destination), { recursive: true })
+    cpSync(source, destination, { recursive: true, force: true })
+  }
+  rmSync(cleanPreserveRoot, { recursive: true, force: true })
 }
 
 function copyPath(sourceRelative, targetRelative) {
@@ -189,5 +221,7 @@ if (existsSync(pm25RasterArchive)) {
   mkdirSync(pm25RasterTiles, { recursive: true })
   execFileSync('tar', ['-xUzf', pm25RasterArchive, '-C', pm25RasterTiles], { stdio: 'inherit' })
 }
+
+restorePreservedCleanPaths()
 
 console.log(`[data] assembled bcdatamapper scraper outputs -> ${relative(root, target)}`)

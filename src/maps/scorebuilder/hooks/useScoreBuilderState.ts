@@ -212,6 +212,10 @@ export function useScoreBuilderState() {
     params.set('scope', state.methodSettings.normalizationScope)
     params.set('vis', state.methodSettings.visualOutput)
     params.set('cscale', state.methodSettings.mapColorScale)
+    if (state.enabledDataSources.includes('airQuality')) {
+      if (state.pendingNetworkSelectAll) params.set('networks', 'all')
+      else if (state.selectedNetworks.length) params.set('networks', state.selectedNetworks.join(','))
+    }
     if (state.methodSettings.paletteOverride) params.set('pal', state.methodSettings.paletteOverride)
     params.set('surface', state.mapSurface)
     if (state.customMetricRecipes.length) params.set('recipes', encodeCustomMetricRecipes(state.customMetricRecipes))
@@ -231,6 +235,8 @@ export function useScoreBuilderState() {
     selectedRegionLevel,
     state.weights,
     state.enabledDataSources,
+    state.pendingNetworkSelectAll,
+    state.selectedNetworks,
     state.mapSurface,
     state.methodSettings,
     state.customMetricRecipes,

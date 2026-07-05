@@ -199,6 +199,19 @@ export function parseMapSurface(value: string | null): 'source' | 'boundary' {
   return value === 'source' ? 'source' : 'boundary'
 }
 
+export function parseSelectedNetworks(value: string | null): {
+  selectedNetworks: string[]
+  pendingNetworkSelectAll: boolean
+} {
+  if (value === 'all') return { selectedNetworks: [], pendingNetworkSelectAll: true }
+  if (!value) return { selectedNetworks: [], pendingNetworkSelectAll: false }
+  const selectedNetworks = value
+    .split(',')
+    .map((network) => network.trim())
+    .filter(Boolean)
+  return { selectedNetworks, pendingNetworkSelectAll: false }
+}
+
 export function parseDataSources(value: string | null): ScoreDataSource[] {
   if (!value) return []
   return value.split(',').filter((s) => ALL_DATA_SOURCES.includes(s as ScoreDataSource)) as ScoreDataSource[]

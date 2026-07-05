@@ -88,6 +88,7 @@
     "health:phsa-community:crosswalk": "npm --prefix vendor/bcdatamapper run health:phsa-community:crosswalk --",
     "health:bccdc-chronic-tableau": "npm --prefix vendor/bcdatamapper run health:bccdc-chronic-tableau --",
     "health:msp-facilities": "node scripts/build-msp-health-facilities.mjs",
+    "projects:scorebuilder": "tsx scripts/generate-scorebuilder-projects.ts",
     "walkability:build": "npm --prefix vendor/bcdatamapper run walkability:build --",
     "walkability:import-supplements": "npm --prefix vendor/bcdatamapper run walkability:import-supplements --",
     "walkability:build-grid-heatmap": "npm --prefix vendor/bcdatamapper run walkability:build-grid-heatmap --",

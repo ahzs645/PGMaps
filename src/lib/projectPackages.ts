@@ -5,7 +5,7 @@ import {
   getScoreDataSourcesForWeights,
 } from '@/maps/scorebuilder/constants'
 import type { ScoreBuilderShareState } from '@/maps/scorebuilder/lib/shareState'
-import type { ScoreMetricWeightMap } from '@/maps/scorebuilder/types'
+import type { ScoreMetricWeightMap, ScoreMethodSettings } from '@/maps/scorebuilder/types'
 
 /**
  * Serializable "project package" shared by the dev projects catalog, the project
@@ -69,7 +69,15 @@ export interface ProjectLabRecipe {
   weights: Record<string, number>
   normalization?: string
   aggregation?: string
+  missingData?: ScoreMethodSettings['missingData']
+  sensitivity?: boolean
+  visualOutput?: ScoreMethodSettings['visualOutput']
+  mapColorScale?: ScoreMethodSettings['mapColorScale']
   paletteOverride?: string
+  mapSurface?: 'source' | 'boundary'
+  selectedNetworks?: string[] | 'all'
+  accessThreshold?: Partial<ScoreMethodSettings['accessThreshold']>
+  healthyPlanPriority?: Partial<ScoreMethodSettings['healthyPlanPriority']>
 }
 
 export interface ProjectPackage {
@@ -309,7 +317,29 @@ export function buildProjectLabParams(pkg: ProjectPackage): URLSearchParams | nu
   if (dataSources.length) params.set('ds', dataSources.join(','))
   if (pkg.lab.normalization) params.set('norm', pkg.lab.normalization)
   if (pkg.lab.aggregation) params.set('agg', pkg.lab.aggregation)
+  if (pkg.lab.missingData) params.set('missing', pkg.lab.missingData)
+  if (typeof pkg.lab.sensitivity === 'boolean') params.set('sens', pkg.lab.sensitivity ? 'on' : 'off')
+  if (pkg.lab.visualOutput) params.set('vis', pkg.lab.visualOutput)
+  if (pkg.lab.mapColorScale) params.set('cscale', pkg.lab.mapColorScale)
   if (pkg.lab.paletteOverride) params.set('pal', pkg.lab.paletteOverride)
+  if (pkg.lab.mapSurface) params.set('surface', pkg.lab.mapSurface)
+  if (pkg.lab.selectedNetworks === 'all') {
+    params.set('networks', 'all')
+  } else if (Array.isArray(pkg.lab.selectedNetworks) && pkg.lab.selectedNetworks.length > 0) {
+    params.set('networks', pkg.lab.selectedNetworks.join(','))
+  }
+  if (typeof pkg.lab.accessThreshold?.minimumAccess === 'number') {
+    params.set('accessMin', String(pkg.lab.accessThreshold.minimumAccess))
+  }
+  if (typeof pkg.lab.accessThreshold?.minimumHits === 'number') {
+    params.set('accessHits', String(pkg.lab.accessThreshold.minimumHits))
+  }
+  if (pkg.lab.healthyPlanPriority?.demographicMetric) {
+    params.set('hpDemo', pkg.lab.healthyPlanPriority.demographicMetric)
+  }
+  if (pkg.lab.healthyPlanPriority?.environmentMetric) {
+    params.set('hpEnv', pkg.lab.healthyPlanPriority.environmentMetric)
+  }
   params.set('project', pkg.slug)
   return params
 }
@@ -438,7 +468,15 @@ export function buildProjectPackageFromShareState(
       weights: nonZeroWeights,
       normalization: share.methodSettings?.normalization,
       aggregation: share.methodSettings?.aggregation,
+      missingData: share.methodSettings?.missingData,
+      sensitivity: share.methodSettings?.sensitivity,
+      visualOutput: share.methodSettings?.visualOutput,
+      mapColorScale: share.methodSettings?.mapColorScale,
       paletteOverride: share.methodSettings?.paletteOverride ?? undefined,
+      mapSurface: share.mapSurface,
+      selectedNetworks: share.selectedNetworks,
+      accessThreshold: share.methodSettings?.accessThreshold,
+      healthyPlanPriority: share.methodSettings?.healthyPlanPriority,
     },
   }
 }

@@ -255,10 +255,6 @@ function ProjectPortalMapPreview({
         zoom={portal.zoom}
         minZoom={3}
         maxZoom={11}
-        maxBounds={[
-          [portal.bounds[0] - 2, portal.bounds[1] - 2],
-          [portal.bounds[2] + 2, portal.bounds[3] + 2],
-        ]}
         styles={PROJECT_MAP_STYLES}
         showStyleLoadingOverlay={false}
       >
@@ -862,6 +858,8 @@ function ProjectCatalogMobileCard({
   onOpen: () => void
   onRemove: (slug: string) => void
 }) {
+  const labUrl = buildProjectLabUrl(project)
+
   return (
     <article className="overflow-hidden rounded-lg border bg-background shadow-sm">
       <div className="p-4">
@@ -879,19 +877,29 @@ function ProjectCatalogMobileCard({
 
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{project.summary}</p>
 
-        <div className="mt-3">
-          <ProjectActions project={project} onOpen={onOpen} labLabel="Index Lab" />
+        <div className={cn('mt-3 grid grid-cols-2 gap-2', labUrl && 'sm:grid-cols-3')}>
+          <Button type="button" size="sm" onClick={onOpen}>
+            Enter Project
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            aria-expanded={expanded}
+            className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50"
+          >
+            {expanded ? 'Hide details' : 'Project details'}
+            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')} />
+          </button>
+          {labUrl && (
+            <Button asChild variant="outline" size="sm" className="col-span-2 sm:col-span-1">
+              <Link to={labUrl}>
+                <Settings2 className="h-4 w-4" />
+                Index Lab
+              </Link>
+            </Button>
+          )}
         </div>
-
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          aria-expanded={expanded}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50"
-        >
-          {expanded ? 'Hide details' : 'Project details'}
-          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')} />
-        </button>
       </div>
 
       {expanded && (
@@ -986,16 +994,12 @@ function ProjectCatalogPage({
       : 'No projects match the current search.'
 
   return (
-    <div className="bg-muted/30 p-3 text-foreground sm:p-5 lg:h-[calc(100vh-4rem)] lg:min-h-[720px]">
+    <div className="bg-muted/30 p-3 pt-[calc(env(safe-area-inset-top)+4rem)] text-foreground sm:p-5 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-5 lg:h-[calc(100vh-4rem)] lg:min-h-[720px]">
       <div className="mx-auto max-w-[98rem] gap-4 lg:grid lg:h-full lg:grid-cols-[minmax(40rem,1.35fr)_minmax(24rem,0.85fr)]">
         <section className="flex min-h-0 flex-col rounded-lg border bg-background shadow-sm">
           <header className="border-b p-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div className="min-w-0">
-                <div className="mb-2 inline-flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                  <FolderKanban className="h-3.5 w-3.5" />
-                  Project catalog
-                </div>
                 <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
                   Open a project to explore its map and story, or send its recipe to Index Lab and play with the
@@ -1003,8 +1007,19 @@ function ProjectCatalogPage({
                 </p>
               </div>
 
-              <div className="grid gap-2 sm:min-w-[28rem] sm:grid-cols-[minmax(0,1fr)_10rem_auto]">
-                <div className="relative">
+              <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_7.75rem] gap-2 sm:min-w-[28rem] sm:grid-cols-[2.25rem_minmax(0,1fr)_10rem]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 px-0"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Import project package"
+                  title="Import project package"
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
+                <div className="relative min-w-0">
                   <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <input
                     value={query}
@@ -1018,11 +1033,8 @@ function ProjectCatalogPage({
                   onValueChange={(value) => onFilterChange(value as CatalogFilter)}
                   options={FILTER_OPTIONS}
                   triggerAriaLabel="Filter projects"
+                  className="min-w-0"
                 />
-                <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="h-4 w-4" />
-                  Import
-                </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1048,7 +1060,7 @@ function ProjectCatalogPage({
               <thead className="sticky top-0 z-10 bg-background text-[11px] uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))]">
                 <tr>
                   <th className="w-[48%] px-4 py-3 font-semibold">Project</th>
-                  <th className="w-[20%] px-3 py-3 font-semibold">State</th>
+                  <th className="w-[20%] px-3 py-3 font-semibold">Type</th>
                   <th className="w-[18%] px-3 py-3 font-semibold">Resources</th>
                   <th className="w-[14%] px-4 py-3 text-right font-semibold">Open</th>
                 </tr>
@@ -1087,7 +1099,7 @@ function ProjectCatalogPage({
                         </button>
                       </td>
                       <td className="px-3 py-3">
-                        <div className="space-y-1.5">
+                        <div>
                           <span
                             className={cn(
                               'inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold',
@@ -1096,10 +1108,6 @@ function ProjectCatalogPage({
                           >
                             {KIND_LABELS[project.kind]}
                           </span>
-                          <div className="text-xs text-muted-foreground">{project.status}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {project.local ? 'Local package' : project.updated}
-                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-3 text-xs leading-5 text-muted-foreground">
@@ -1305,24 +1313,16 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
 
   const mobileSidebar = (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex items-center justify-between gap-2 border-b p-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex h-9 items-center gap-2 rounded-md border bg-background px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          All projects
-        </button>
-        {labUrl && (
+      {labUrl && (
+        <div className="flex justify-end border-b p-3">
           <Button asChild size="sm" variant="outline">
             <Link to={labUrl}>
               <Settings2 className="h-4 w-4" />
               Index Lab
             </Link>
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
         <div>
@@ -1401,7 +1401,7 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
   )
 
   return (
-    <div className="h-[calc(100vh-4rem)] min-h-[640px]">
+    <div className="h-[100dvh] min-h-[640px] md:h-[calc(100vh-4rem)]">
       <MapSectionLayout
         sidebar={isMobile ? mobileSidebar : leftSidebar}
         showDesktopSidebar={showSidebar}
@@ -1409,6 +1409,8 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
         desktopSidebarWidth={sidebarWidth}
         onDesktopSidebarWidthChange={setSidebarWidth}
         mobileInitialSheetState="collapsed"
+        mobileCollapsedVisibleHeight={68}
+        mobileSheetContentClassName="pb-0"
         mobilePeek={
           <div className="min-w-0 text-left">
             <div className="truncate text-xs font-semibold text-foreground">{project.title}</div>

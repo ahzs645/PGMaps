@@ -42,11 +42,22 @@ export function ProjectScoreMapPreview({
     selectedRegionLevel,
     customMetricRecipes: control.customMetricRecipes,
   })
+  const selectedNetworks = useMemo(() => {
+    if (!control.pendingNetworkSelectAll) return control.selectedNetworks
+    return Array.from(new Set(datasets.monitors.map((monitor) => monitor.network))).sort()
+  }, [control.pendingNetworkSelectAll, control.selectedNetworks, datasets.monitors])
+  const previewControl = useMemo(
+    () =>
+      control.pendingNetworkSelectAll
+        ? { ...control, selectedNetworks, pendingNetworkSelectAll: false }
+        : control,
+    [control, selectedNetworks],
+  )
 
   const points = useScoreBuilderPointRecords({
     enabledSourceSet,
     datasets,
-    selectedNetworks: control.selectedNetworks,
+    selectedNetworks,
     parkBufferAccessNeeded: (control.weights.parkAccessGap1Mile ?? 0) !== 0,
   })
 
@@ -67,7 +78,7 @@ export function ProjectScoreMapPreview({
   })
 
   const results = useScoreBuilderResults({
-    control,
+    control: previewControl,
     selectedRegionLevel,
     activeMetricDefinitions: SCORE_METRICS,
     regionMetricRows,

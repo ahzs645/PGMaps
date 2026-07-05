@@ -55,6 +55,7 @@ import {
   parsePaletteOverride,
   parseRegionalDistrictBoundaryLevel,
   parseScoreMetricKey,
+  parseSelectedNetworks,
   parseVisualOutputMode,
   parseWatershedBoundaryLevel,
 } from '../lib/urlState'
@@ -679,6 +680,8 @@ export function createInitialScoreBuilderState(searchParams: URLSearchParams): S
     else enabledDataSources = ['airQuality']
   }
 
+  const networkSelection = parseSelectedNetworks(searchParams.get('networks'))
+
   const methodSettings: ScoreMethodSettings = {
     normalization: parseNormalizationMethod(searchParams.get('norm')),
     aggregation: quickPreset?.methodSettings?.aggregation ?? parseAggregationMethod(searchParams.get('agg')),
@@ -713,8 +716,8 @@ export function createInitialScoreBuilderState(searchParams: URLSearchParams): S
     nrAdminBoundaryLevel: parseNrAdminBoundaryLevel(searchParams.get('level')),
     weights,
     enabledDataSources,
-    selectedNetworks: [],
-    pendingNetworkSelectAll: false,
+    selectedNetworks: networkSelection.selectedNetworks,
+    pendingNetworkSelectAll: networkSelection.pendingNetworkSelectAll,
     customMetricRecipes: parseCustomMetricRecipes(searchParams.get('recipes')),
     methodSettings,
     activeExampleKey: quickPresetKey ? null : !hasUrlWeights ? SCORE_BUILDER_EXAMPLES[0]?.key || null : null,

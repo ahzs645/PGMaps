@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "slug": "score-preset-sensor-gap-equity",
+  "title": "Sensor Gap + Equity Proxy",
+  "kind": "index-preset",
+  "theme": "emerald",
+  "owner": "PGMaps Index Lab",
+  "updated": "Generated",
+  "region": "Prince George CT",
+  "status": "Ready",
+  "summary": "Proxy recipe for populated areas with weak monitor coverage and low adaptive-capacity signals.",
+  "sourceNote": "Generated from the score-builder preset \"sensorGapEquity\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+  "details": [
+    "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+    "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Active Sensor Share, Park Area Ratio."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    {
+      "label": "Source",
+      "value": "Preset"
+    },
+    {
+      "label": "Boundary",
+      "value": "CT"
+    },
+    {
+      "label": "Metrics",
+      "value": "7"
+    }
+  ],
+  "layers": [
+    {
+      "id": "base",
+      "label": "Muted streets",
+      "type": "base",
+      "checked": true,
+      "locked": true
+    },
+    {
+      "id": "score-surface",
+      "label": "Score surface",
+      "type": "raster",
+      "checked": true,
+      "role": "score"
+    },
+    {
+      "id": "points",
+      "label": "Monitoring points",
+      "type": "point",
+      "checked": true,
+      "role": "points"
+    }
+  ],
+  "legend": [
+    {
+      "label": "Lower score",
+      "color": "#dbeafe"
+    },
+    {
+      "label": "Mid score",
+      "color": "#fde68a"
+    },
+    {
+      "label": "Higher score",
+      "color": "#fb923c"
+    },
+    {
+      "label": "Highest score",
+      "color": "#b91c1c"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "Sensor Gap + Equity Proxy score surface",
+      "text": "Review the generated preset across CT boundaries.",
+      "focus": "Score surface",
+      "visibleLayerIds": [
+        "base",
+        "score-surface",
+        "points"
+      ]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Hide point context to read the ranked boundary surface on its own.",
+      "focus": "Score gradient",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    },
+    {
+      "label": "Recipe",
+      "title": "Index Lab handoff",
+      "text": "Open the same JSON recipe in Index Lab to change weights, methods, and boundary choices.",
+      "focus": "Editable recipe",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "label": "Project package",
+      "detail": "Generated JSON project recipe"
+    },
+    {
+      "label": "Index recipe",
+      "detail": "7 active metrics; additive aggregation"
+    },
+    {
+      "label": "Data sources",
+      "detail": "Air, Parks, Census"
+    }
+  ],
+  "lab": {
+    "presetKey": "sensorGapEquity",
+    "boundarySource": "census",
+    "boundaryLevel": "ct",
+    "weights": {
+      "overallDensity": -26,
+      "lowCostDensity": -18,
+      "referenceDensity": -16,
+      "networkVariety": -6,
+      "activeShare": -2,
+      "parkAreaRatio": -4,
+      "populationDensity": 28
+    },
+    "normalization": "winsorizedMinMax",
+    "aggregation": "additive",
+    "mapSurface": "boundary",
+    "selectedNetworks": "all"
+  }
+}

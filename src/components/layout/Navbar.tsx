@@ -45,6 +45,7 @@ export function Navbar() {
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const locationParams = new URLSearchParams(location.search)
+  const showProjectBackButton = location.pathname === '/dev/projects' && locationParams.has('project')
   const mobileGlassButtonClass = 'border-white/70 bg-white/90 text-zinc-950 shadow-lg backdrop-blur hover:bg-white hover:text-zinc-950 dark:border-zinc-700/70 dark:bg-zinc-950/90 dark:text-zinc-50 dark:shadow-black/50 dark:hover:bg-zinc-900 dark:hover:text-zinc-50'
 
   const toggleTheme = () => {
@@ -209,6 +210,21 @@ export function Navbar() {
         data-map-mobile-toolbar="true"
       >
         <div className="flex min-w-0 items-center gap-2.5 xl:gap-6">
+          {showProjectBackButton && (
+            <Link
+              to="/dev/projects"
+              aria-label="Back to all projects"
+              title="Back to all projects"
+              onClick={closeMobileMenu}
+              className={cn(
+                'pointer-events-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition-colors md:hidden',
+                mobileGlassButtonClass,
+              )}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Link>
+          )}
+
           <Link to="/" className="hidden shrink-0 items-center gap-2 md:flex">
             <span className="text-base font-semibold md:text-lg">PGMaps</span>
           </Link>

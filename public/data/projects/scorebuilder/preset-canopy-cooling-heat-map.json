@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "slug": "score-preset-canopy-cooling-heat-map",
+  "title": "Canopy + Cooling Heat Map",
+  "kind": "index-preset",
+  "theme": "amber",
+  "owner": "PGMaps Index Lab",
+  "updated": "Generated",
+  "region": "Prince George DA",
+  "status": "Ready",
+  "summary": "Single-theme heat-map score for stronger canopy proxy and cooling/community facility access.",
+  "sourceNote": "Generated from the score-builder preset \"canopyCoolingHeatMap\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+  "details": [
+    "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+    "Primary active metrics include 15-Minute Cooling Access, Canopy Proxy Ratio."
+  ],
+  "links": [],
+  "catalogMetrics": [
+    {
+      "label": "Source",
+      "value": "Preset"
+    },
+    {
+      "label": "Boundary",
+      "value": "DA"
+    },
+    {
+      "label": "Metrics",
+      "value": "2"
+    }
+  ],
+  "layers": [
+    {
+      "id": "base",
+      "label": "Muted streets",
+      "type": "base",
+      "checked": true,
+      "locked": true
+    },
+    {
+      "id": "score-surface",
+      "label": "Score surface",
+      "type": "raster",
+      "checked": true,
+      "role": "score"
+    },
+    {
+      "id": "points",
+      "label": "Facility points",
+      "type": "point",
+      "checked": true,
+      "role": "points"
+    }
+  ],
+  "legend": [
+    {
+      "label": "Lower score",
+      "color": "#dbeafe"
+    },
+    {
+      "label": "Mid score",
+      "color": "#fde68a"
+    },
+    {
+      "label": "Higher score",
+      "color": "#fb923c"
+    },
+    {
+      "label": "Highest score",
+      "color": "#b91c1c"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "Overview",
+      "title": "Canopy + Cooling Heat Map score surface",
+      "text": "Review the generated preset across DA boundaries.",
+      "focus": "Score surface",
+      "visibleLayerIds": [
+        "base",
+        "score-surface",
+        "points"
+      ]
+    },
+    {
+      "label": "Surface",
+      "title": "Score surface only",
+      "text": "Hide point context to read the ranked boundary surface on its own.",
+      "focus": "Score gradient",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    },
+    {
+      "label": "Recipe",
+      "title": "Index Lab handoff",
+      "text": "Open the same JSON recipe in Index Lab to change weights, methods, and boundary choices.",
+      "focus": "Editable recipe",
+      "visibleLayerIds": [
+        "base",
+        "score-surface"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "label": "Project package",
+      "detail": "Generated JSON project recipe"
+    },
+    {
+      "label": "Index recipe",
+      "detail": "2 active metrics; additive aggregation"
+    },
+    {
+      "label": "Data sources",
+      "detail": "Heat"
+    }
+  ],
+  "lab": {
+    "presetKey": "canopyCoolingHeatMap",
+    "boundarySource": "census",
+    "boundaryLevel": "da",
+    "weights": {
+      "coolingWalk15Access": 40,
+      "canopyProxyRatio": 60
+    },
+    "normalization": "percentile",
+    "aggregation": "additive",
+    "mapSurface": "boundary"
+  }
+}
