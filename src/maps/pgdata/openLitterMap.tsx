@@ -118,6 +118,7 @@ type OpenLitterPointProperties = OpenLitterMapProperties & {
 }
 
 const ALL_CATEGORIES = 'all'
+const ALL_OBJECTS = 'all'
 
 const CATEGORY_COLORS: Record<string, string> = {
   alcohol: '#7c3aed',
@@ -213,6 +214,39 @@ function formatLitterDate(value: string | null): string {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+// OpenLitterMap ships raw snake_case / lowercase tags (e.g. "beer_can",
+// "softdrinks"). These overrides cover names that a plain title-casing pass
+// would leave awkward; everything else falls through to the generic formatter.
+const LITTER_NAME_OVERRIDES: Record<string, string> = {
+  softdrinks: 'Soft drinks',
+  petfood: 'Pet food',
+  fastfood: 'Fast food',
+  dogpoo: 'Dog waste',
+  dumping: 'Illegal dumping',
+  ppe: 'PPE',
+  sup: 'Single-use plastic',
+  tv: 'TV',
+  diy: 'DIY',
+  bbq: 'BBQ',
+  other: 'Other',
+}
+
+/** Turn a raw litter tag into a human-readable label without losing its identity. */
+export function formatLitterName(name: string | null | undefined): string {
+  if (!name) return 'Unknown'
+  const key = name.trim().toLowerCase()
+  if (LITTER_NAME_OVERRIDES[key]) return LITTER_NAME_OVERRIDES[key]
+  const spaced = name.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!spaced) return 'Unknown'
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
+/** Join a list of raw litter tags into a display string, formatting each. */
+function formatLitterNames(names: string[] | null | undefined, fallback = 'Unknown'): string {
+  if (!names || names.length === 0) return fallback
+  return names.map((name) => formatLitterName(name)).join(', ')
 }
 
 function formatBytes(value: number | null | undefined): string {
@@ -406,8 +440,10 @@ export function useOpenLitterMapData(
   initialShowPoints: string | null = null,
   initialShowHeatmap: string | null = null,
   initialShowHexes: string | null = null,
+  initialObject: string | null = null,
 ) {
   const [selectedCategory, setSelectedCategoryState] = useState(initialCategory || ALL_CATEGORIES)
+  const [selectedObject, setSelectedObjectState] = useState(initialObject || ALL_OBJECTS)
   const [showPoints, setShowPoints] = useState(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState(initialShowHeatmap === '1')
   const [showHexes, setShowHexes] = useState(initialShowHexes === '1')
@@ -424,6 +460,14 @@ export function useOpenLitterMapData(
 
   const setSelectedCategory = useCallback((category: string) => {
     setSelectedCategoryState(category)
+    // Objects differ per category, so drop any active object filter when the
+    // category changes to avoid an empty selection.
+    setSelectedObjectState(ALL_OBJECTS)
+    setSelectedId(null)
+  }, [])
+
+  const setSelectedObject = useCallback((object: string) => {
+    setSelectedObjectState(object)
     setSelectedId(null)
   }, [])
 
@@ -435,6 +479,26 @@ export function useOpenLitterMapData(
       }),
     [features, selectedCategory],
   )
+
+  const objectOptions = useMemo(() => {
+    const counts = new Map<string, { name: string; count: number; litter: number }>()
+    for (const feature of categoryFilteredFeatures) {
+      for (const object of feature.properties.objectNames ?? []) {
+        const entry = counts.get(object) ?? { name: object, count: 0, litter: 0 }
+        entry.count += 1
+        entry.litter += Number(feature.properties.litterCount) || 1
+        counts.set(object, entry)
+      }
+    }
+    return Array.from(counts.values()).sort(
+      (a, b) => b.litter - a.litter || b.count - a.count || a.name.localeCompare(b.name),
+    )
+  }, [categoryFilteredFeatures])
+
+  const scopedFeatures = useMemo(() => {
+    if (selectedObject === ALL_OBJECTS) return categoryFilteredFeatures
+    return categoryFilteredFeatures.filter((feature) => feature.properties.objectNames?.includes(selectedObject))
+  }, [categoryFilteredFeatures, selectedObject])
 
   const dateRange = useMemo(() => {
     if (features.length === 0) {
@@ -482,25 +546,25 @@ export function useOpenLitterMapData(
   }, [dateRange.start, effectiveTimelineDate, timelineEnabled, timelineWindowSize])
 
   const filteredFeatures = useMemo(() => {
-    if (!timelineFilterRange) return categoryFilteredFeatures
-    return categoryFilteredFeatures.filter((feature) => {
+    if (!timelineFilterRange) return scopedFeatures
+    return scopedFeatures.filter((feature) => {
       const date = parseLitterDate(feature)
       if (!date) return false
       const time = date.getTime()
       return time >= timelineFilterRange.start && time <= timelineFilterRange.end
     })
-  }, [categoryFilteredFeatures, timelineFilterRange])
+  }, [scopedFeatures, timelineFilterRange])
 
   const bucketCounts = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const feature of categoryFilteredFeatures) {
+    for (const feature of scopedFeatures) {
       const date = parseLitterDate(feature)
       if (!date) continue
       const key = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
     return counts
-  }, [categoryFilteredFeatures])
+  }, [scopedFeatures])
 
   const categoryBreakdown = useMemo(() => {
     const counts = new Map<string, { name: string; count: number; litter: number; color: string }>()
@@ -559,6 +623,9 @@ export function useOpenLitterMapData(
     heatmapData,
     selectedCategory,
     setSelectedCategory,
+    selectedObject,
+    setSelectedObject,
+    objectOptions,
     showPoints,
     setShowPoints,
     showHeatmap,
@@ -586,15 +653,15 @@ export type OpenLitterMapState = ReturnType<typeof useOpenLitterMapData>
 
 export function OpenLitterMapLayerControls({ litter }: { litter: OpenLitterMapState }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <ToggleChip active={litter.showPoints} onClick={() => litter.setShowPoints(!litter.showPoints)}>
-        {litter.showPoints ? 'Hide points' : 'Show points'}
+        {litter.showPoints ? 'Hide points' : 'Points'}
       </ToggleChip>
       <ToggleChip active={litter.showHeatmap} onClick={() => litter.setShowHeatmap(!litter.showHeatmap)} tone="orange">
         Heatmap
       </ToggleChip>
       <ToggleChip active={litter.showHexes} onClick={() => litter.setShowHexes(!litter.showHexes)} tone="teal">
-        Hex
+        Hexagons
       </ToggleChip>
     </div>
   )
@@ -603,14 +670,17 @@ export function OpenLitterMapLayerControls({ litter }: { litter: OpenLitterMapSt
 export function OpenLitterMapSidebar({
   litter,
   showSelectedRecord = true,
+  showLayerControls = false,
 }: {
   litter: OpenLitterMapState
   showSelectedRecord?: boolean
+  showLayerControls?: boolean
 }) {
   const manifest = litter.manifest.data
   const dateLabel = manifest?.dateStart && manifest.dateEnd
     ? `${formatLitterDate(manifest.dateStart)} - ${formatLitterDate(manifest.dateEnd)}`
     : 'All dates'
+  const objectFilterActive = litter.selectedObject !== ALL_OBJECTS
 
   return (
     <>
@@ -625,6 +695,13 @@ export function OpenLitterMapSidebar({
         }
       >
         <div className="space-y-3">
+          {showLayerControls && (
+            <div className="space-y-1.5">
+              <span className="block text-xs font-medium text-foreground">Map layers</span>
+              <OpenLitterMapLayerControls litter={litter} />
+            </div>
+          )}
+
           <label className="block text-xs font-medium text-foreground">
             Category
             <AppSelect
@@ -634,14 +711,51 @@ export function OpenLitterMapSidebar({
                 { value: ALL_CATEGORIES, label: 'All categories' },
                 ...(manifest?.categories ?? []).map((category) => ({
                   value: category.name,
-                  label: `${category.name} (${category.litter.toLocaleString()})`,
-                  selectedLabel: category.name,
+                  label: `${formatLitterName(category.name)} (${category.litter.toLocaleString()})`,
+                  selectedLabel: formatLitterName(category.name),
                 })),
               ]}
               className="mt-1"
               triggerClassName="h-8 rounded-md text-xs"
             />
           </label>
+
+          {litter.objectOptions.length > 0 && (
+            <label className="block text-xs font-medium text-foreground">
+              Object
+              <AppSelect
+                value={litter.selectedObject}
+                onValueChange={litter.setSelectedObject}
+                options={[
+                  {
+                    value: ALL_OBJECTS,
+                    label:
+                      litter.selectedCategory === ALL_CATEGORIES
+                        ? 'All objects'
+                        : `All objects in ${formatLitterName(litter.selectedCategory)}`,
+                    selectedLabel: 'All objects',
+                  },
+                  ...litter.objectOptions.map((object) => ({
+                    value: object.name,
+                    label: `${formatLitterName(object.name)} (${object.litter.toLocaleString()})`,
+                    selectedLabel: formatLitterName(object.name),
+                  })),
+                ]}
+                className="mt-1"
+                triggerClassName="h-8 rounded-md text-xs"
+              />
+            </label>
+          )}
+
+          {objectFilterActive && (
+            <button
+              type="button"
+              onClick={() => litter.setSelectedObject(ALL_OBJECTS)}
+              className="text-[11px] font-medium text-rose-600 hover:underline dark:text-rose-400"
+            >
+              Clear object filter
+            </button>
+          )}
 
           <StatGrid
             stats={[
@@ -679,12 +793,12 @@ export function OpenLitterMapSidebar({
       {showSelectedRecord && litter.selectedFeature && (
         <SidebarSection title="Selected Record">
           <SelectedItemCard
-            title={litter.selectedFeature.properties.categoryNames?.join(', ') || 'Litter record'}
+            title={formatLitterNames(litter.selectedFeature.properties.categoryNames, 'Litter record')}
             onClear={() => litter.setSelectedId(null)}
             rows={[
               { label: 'Observed', value: formatLitterDate(litter.selectedFeature.properties.datetime) },
-              { label: 'Objects', value: litter.selectedFeature.properties.objectNames?.join(', ') || 'Unknown' },
-              { label: 'Materials', value: litter.selectedFeature.properties.materialNames?.join(', ') || 'Unknown' },
+              { label: 'Objects', value: formatLitterNames(litter.selectedFeature.properties.objectNames) },
+              { label: 'Materials', value: formatLitterNames(litter.selectedFeature.properties.materialNames) },
               { label: 'Items', value: litter.selectedFeature.properties.litterCount.toLocaleString() },
               { label: 'Picked up', value: litter.selectedFeature.properties.pickedUp ? 'Yes' : 'No' },
               { label: 'Contributor', value: litter.selectedFeature.properties.name || 'Unknown' },
@@ -844,7 +958,7 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
               <div
                 className="size-4 rounded-full border-2 border-white shadow-md ring-2 ring-cyan-400"
                 style={{ backgroundColor: getCategoryColor(category) }}
-                title={`${category}: ${formatLitterDate(litter.selectedFeature.properties.datetime)}`}
+                title={`${formatLitterName(category)}: ${formatLitterDate(litter.selectedFeature.properties.datetime)}`}
               />
             </MarkerContent>
           </MapMarker>
@@ -859,13 +973,13 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
         >
           <div className="min-w-52 text-xs">
             <div className="pr-5 text-sm font-semibold text-foreground">
-              {litter.selectedFeature.properties.categoryNames?.join(', ') || 'Litter record'}
+              {formatLitterNames(litter.selectedFeature.properties.categoryNames, 'Litter record')}
             </div>
             <div className="text-muted-foreground">{formatLitterDate(litter.selectedFeature.properties.datetime)}</div>
             <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
               <span className="text-muted-foreground">Objects</span>
               <span className="font-medium text-foreground">
-                {litter.selectedFeature.properties.objectNames?.join(', ') || 'Unknown'}
+                {formatLitterNames(litter.selectedFeature.properties.objectNames)}
               </span>
               <span className="text-muted-foreground">Items</span>
               <span className="font-medium text-foreground">{litter.selectedFeature.properties.litterCount}</span>
@@ -888,15 +1002,15 @@ export function MobileOpenLitterMapFeatureCard({ litter }: { litter: OpenLitterM
   return (
     <MobileFeatureCard
       cardKey={litter.selectedId ?? getFeatureKey(feature)}
-      title={feature.properties.categoryNames?.join(', ') || 'Litter record'}
+      title={formatLitterNames(feature.properties.categoryNames, 'Litter record')}
       subtitle={formatLitterDate(feature.properties.datetime)}
       onClose={() => litter.setSelectedId(null)}
     >
       <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
         <div className="space-y-1">
           {[
-            ['Objects', feature.properties.objectNames?.join(', ') || 'Unknown'],
-            ['Materials', feature.properties.materialNames?.join(', ') || 'Unknown'],
+            ['Objects', formatLitterNames(feature.properties.objectNames)],
+            ['Materials', formatLitterNames(feature.properties.materialNames)],
             ['Items', feature.properties.litterCount.toLocaleString()],
             ['Picked up', feature.properties.pickedUp ? 'Yes' : 'No'],
           ].map(([label, value]) => (
@@ -946,7 +1060,7 @@ export function OpenLitterMapLegend({ litter }: { litter: OpenLitterMapState }) 
                 <li key={entry.name}>
                   <LegendItem
                     color={entry.color}
-                    label={`${entry.name} (${entry.litter.toLocaleString()})`}
+                    label={`${formatLitterName(entry.name)} (${entry.litter.toLocaleString()})`}
                     active
                     className="md:gap-2"
                   />

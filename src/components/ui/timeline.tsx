@@ -62,6 +62,19 @@ const BAR_BUCKET_WIDTH = 8
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+/**
+ * Shorten a "Mon YYYY – Mon YYYY" range so it fits inline on narrow screens:
+ * same year collapses to "Oct–Dec 2022", cross-year drops the spaces to
+ * "Nov 2022–Jan 2023". Non-range labels pass through untouched.
+ */
+function toCompactRangeLabel(label: string): string {
+  const match = label.match(/^(\w{3,}) (\d{4}) – (\w{3,}) (\d{4})$/)
+  if (!match) return label
+  const [, startMonth, startYear, endMonth, endYear] = match
+  if (startYear === endYear) return `${startMonth}–${endMonth} ${endYear}`
+  return `${startMonth} ${startYear}–${endMonth} ${endYear}`
+}
+
 interface Bucket {
   key: string
   label: string
@@ -470,7 +483,7 @@ export function Timeline({
               <ChevronRight className="h-4 w-4" />
             </button>
             <div className="min-w-0 flex-1 rounded-md border border-primary/50 bg-primary/10 px-1.5 py-2 text-xs font-semibold text-primary">
-              <span className="block truncate text-center">{formattedDate}</span>
+              <span className="block truncate text-center">{toCompactRangeLabel(formattedDate)}</span>
             </div>
             {windowMode && (
               <button
@@ -702,6 +715,10 @@ export function Timeline({
                     ? `${bucket.label}: ${formattedCount} ${bucketValueLabel} (${formatPercentChange(change.percentChange)} from previous ${unitLabel})`
                     : `${bucket.label}: ${formattedCount} ${bucketValueLabel}`
                   : undefined
+                // On mobile, scale the bar by its bucket count so the strip reads
+                // as a mini density histogram rather than a flat tick row.
+                const mobileScaledHeight =
+                  isMobile && bucketCounts ? Math.max(4, Math.round((count / maxCount) * 32)) : undefined
                 return (
                   <div
                     key={bucket.key}
@@ -726,13 +743,23 @@ export function Timeline({
                     <div
                       className={cn(
                         'w-full transition-colors',
-                        inWindow
-                          ? cn('bg-primary', isMobile ? 'h-6' : 'h-3')
-                          : isPeriodStart
-                            ? cn('bg-muted-foreground/30', isMobile ? 'h-4' : 'h-2')
-                            : cn('bg-muted-foreground/15', isMobile ? 'h-2' : 'h-1'),
+                        mobileScaledHeight != null
+                          ? inWindow
+                            ? 'bg-primary'
+                            : 'bg-muted-foreground/40'
+                          : inWindow
+                            ? cn('bg-primary', isMobile ? 'h-6' : 'h-3')
+                            : isPeriodStart
+                              ? cn('bg-muted-foreground/30', isMobile ? 'h-4' : 'h-2')
+                              : cn('bg-muted-foreground/15', isMobile ? 'h-2' : 'h-1'),
                       )}
-                      style={{ borderRadius: '1px 1px 0 0', minWidth: '2px' }}
+                      style={{
+                        borderRadius: '1px 1px 0 0',
+                        minWidth: '2px',
+                        ...(mobileScaledHeight != null
+                          ? { height: `${mobileScaledHeight}px`, opacity: inWindow ? 1 : 0.6 }
+                          : {}),
+                      }}
                     />
                   </div>
                 )

@@ -84,6 +84,7 @@ import {
 } from './wars'
 import {
   OPEN_LITTER_TIMELINE_WINDOW_OPTIONS,
+  formatLitterName,
   MobileOpenLitterMapFeatureCard,
   OpenLitterMapLayer,
   OpenLitterMapLayerControls,
@@ -463,6 +464,7 @@ export default function MiscDataSection() {
     searchParams.get('litterPoints'),
     searchParams.get('litterHeatmap'),
     searchParams.get('litterHexes'),
+    searchParams.get('litterObject'),
   )
   const walkability = useWalkabilityData(
     activeTab === 'walkability',
@@ -530,6 +532,11 @@ export default function MiscDataSection() {
     } else {
       params.delete('litterCategory')
     }
+    if (activeTab === 'openLitterMap' && openLitterMap.selectedObject !== 'all') {
+      params.set('litterObject', openLitterMap.selectedObject)
+    } else {
+      params.delete('litterObject')
+    }
     if (activeTab === 'openLitterMap' && !openLitterMap.showPoints) params.set('litterPoints', '0')
     else params.delete('litterPoints')
     if (activeTab === 'openLitterMap' && openLitterMap.showHeatmap) params.set('litterHeatmap', '1')
@@ -591,6 +598,7 @@ export default function MiscDataSection() {
     wars.showPoints,
     wars.selectedSpecies,
     openLitterMap.selectedCategory,
+    openLitterMap.selectedObject,
     openLitterMap.showHeatmap,
     openLitterMap.showHexes,
     openLitterMap.showPoints,
@@ -1165,7 +1173,7 @@ export default function MiscDataSection() {
                         : activeTab === 'wars'
                         ? `${wars.selectedSpecies === 'all' ? 'All species' : wars.selectedSpecies} | ${wars.filteredFeatures.length.toLocaleString()} records`
                         : activeTab === 'openLitterMap'
-                          ? `${openLitterMap.selectedCategory === 'all' ? 'All categories' : openLitterMap.selectedCategory} | ${openLitterMap.filteredFeatures.length.toLocaleString()} records`
+                          ? `${openLitterMap.selectedCategory === 'all' ? 'All categories' : formatLitterName(openLitterMap.selectedCategory)}${openLitterMap.selectedObject === 'all' ? '' : ` › ${formatLitterName(openLitterMap.selectedObject)}`} | ${openLitterMap.filteredFeatures.length.toLocaleString()} records`
                           : activeTab === 'walkability'
                             ? walkability.displayMode === 'heatmap'
                               ? `${walkability.selectedHeatmapVariant?.label || 'Citywide MI grid'}`
@@ -1186,7 +1194,7 @@ export default function MiscDataSection() {
             ) : activeTab === 'wars' ? (
               <WarsSidebar wars={wars} showSelectedRecord={false} />
             ) : activeTab === 'openLitterMap' ? (
-              <OpenLitterMapSidebar litter={openLitterMap} showSelectedRecord={false} />
+              <OpenLitterMapSidebar litter={openLitterMap} showSelectedRecord={false} showLayerControls />
             ) : activeTab === 'walkability' ? (
               <WalkabilitySidebar walkability={walkability} showSelectedCommunity={false} />
             ) : undefined
