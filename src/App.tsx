@@ -70,8 +70,10 @@ function App() {
           <Route path="/dev/design" element={<DevDesign />} />
           <Route path="/dev/interact" element={<DevInteract />} />
           <Route path="/dev/interact/sewage" element={<DevInteractSewage />} />
-          <Route path="/dev/wait" element={<DevWait />} />
-          <Route path="/dev/wait/specialist" element={<DevWaitSpecialist />} />
+          <Route path="/dev/wait" element={<Navigate to="/dev/health/wait" replace />} />
+          <Route path="/dev/wait/specialist" element={<Navigate to="/dev/health/wait/specialist" replace />} />
+          <Route path="/dev/health/wait" element={<DevWait />} />
+          <Route path="/dev/health/wait/specialist" element={<DevWaitSpecialist />} />
           <Route path="/dev/fallout" element={<DevFallout />} />
           <Route path="/dev/acknowledgement" element={<DevAcknowledgement />} />
           <Route path="/dev/health/msp" element={<DevHealthMsp />} />

@@ -135,7 +135,7 @@ function DevWait() {
             <p className="mt-1 text-xs text-muted-foreground">
               ERStat-style wait labels using local captured hospital data.
             </p>
-            <Link to="/dev/wait/specialist" className="mt-2 inline-flex text-xs font-medium text-sky-700 hover:underline">
+            <Link to="/dev/health/wait/specialist" className="mt-2 inline-flex text-xs font-medium text-sky-700 hover:underline">
               Surgery specialist map
             </Link>
           </div>

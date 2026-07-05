@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
 import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, FolderKanban, Handshake, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Wind } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 type DevSubpage = {
@@ -67,11 +66,11 @@ const devEntries: DevEntry[] = [
   {
     title: 'ER Wait Times',
     description: 'ERStat-style emergency wait-time labels with live, predicted, no-data, and closed marker states.',
-    href: '/dev/wait',
+    href: '/dev/health/wait',
     icon: Clock3,
     color: 'bg-red-600',
-    label: '/dev/wait',
-    subpages: [{ label: 'Specialist', href: '/dev/wait/specialist' }],
+    label: '/dev/health/wait',
+    subpages: [{ label: 'Specialist', href: '/dev/health/wait/specialist' }],
   },
   {
     title: 'MSP Facility Payments',
@@ -178,13 +177,6 @@ export default function DevLibrary() {
               Choose a development tool or prototype to open its dedicated subpage.
             </p>
           </div>
-
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link to={AQMAP_SAMPLE_PATH}>
-              <Wind className="h-4 w-4" />
-              Open AQMap sample
-            </Link>
-          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

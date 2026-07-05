@@ -160,7 +160,7 @@ function DevWaitSpecialist() {
             <p className="mt-1 text-xs leading-4 text-muted-foreground">
               BC Surgery Wait Times by facility, specialist, and procedure.
             </p>
-            <Link to="/dev/wait" className="mt-2 inline-flex text-xs font-medium text-sky-700 hover:underline">
+            <Link to="/dev/health/wait" className="mt-2 inline-flex text-xs font-medium text-sky-700 hover:underline">
               ER wait map
             </Link>
           </div>
