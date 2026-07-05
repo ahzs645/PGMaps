@@ -1,5 +1,5 @@
 import { Search, Ruler, Table2 } from 'lucide-react'
-import { formatCompactCurrency } from '@/lib/format'
+import { formatCompactCurrency as formatCurrency } from '@/lib/format'
 import type { InteractFeatureProperties, LayerId, LineFeature, PolygonFeature } from './types'
 
 export const CENTER: [number, number] = [-122.7497, 53.9171]
@@ -139,8 +139,6 @@ function featureMeta(id: string): { issuedYear: number; cost: number } {
   }
   return meta[id] ?? { issuedYear: 2019, cost: 0 }
 }
-
-const formatCurrency = formatCompactCurrency
 
 function featureProperties(layer: LayerId, value: string, meta: { issuedYear: number; cost: number }): Array<{ label: string; value: string }> {
   if (layer === 'parks') {

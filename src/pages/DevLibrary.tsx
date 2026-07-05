@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Droplets, FolderKanban, Handshake, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, FolderKanban, Handshake, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Wind } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -31,14 +31,6 @@ const devEntries: DevEntry[] = [
     color: 'bg-sky-500',
     label: '/dev/aqmap',
     subpages: [{ label: 'Main variant', href: '/dev/aqmap/main' }],
-  },
-  {
-    title: 'Watersheds',
-    description: 'BC watershed development map for testing simplified boundaries and full WFS geometry loading.',
-    href: '/dev/watersheds',
-    icon: Droplets,
-    color: 'bg-cyan-600',
-    label: '/dev/watersheds',
   },
   {
     title: 'Boundaries',

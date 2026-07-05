@@ -18,7 +18,6 @@ const spaRoutes = [
   'bc-assessment',
   'dev',
   'dev/boundaries',
-  'dev/watersheds',
   'dev/design',
   'dev/interact',
   'dev/interact/sewage',

@@ -91,13 +91,11 @@ function DevHealthMsp() {
   const [showTimeline, setShowTimeline] = useState(false)
   const [timelineDate, setTimelineDate] = useState(() => new Date(2024, 0, 1))
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
     async function loadFacilities() {
       setLoading(true)
-      setError(null)
       try {
         const response = await fetch(MSP_FACILITIES_URL, { signal: controller.signal })
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -107,7 +105,7 @@ function DevHealthMsp() {
         const maxYear = data.metadata?.fiscalStartYearRange?.max
         if (Number.isFinite(maxYear)) setTimelineDate(new Date(Number(maxYear), 0, 1))
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') setError('Failed to load MSP facility layer.')
+        if ((err as Error).name !== 'AbortError') console.error('Failed to load MSP facility layer.', err)
       } finally {
         if (!controller.signal.aborted) setLoading(false)
       }
@@ -313,11 +311,6 @@ function DevHealthMsp() {
       >
         <MapControls position="top-right" showFullscreen showLocate />
         <ZoomToSelected selected={selected} />
-        <div className="absolute left-3 top-3 z-10 rounded-md border border-border bg-background/95 px-3 py-2 text-xs shadow-md backdrop-blur md:left-auto md:right-14">
-          <div className="font-semibold text-foreground">BC MSP matched facilities</div>
-          <div className="mt-1 text-muted-foreground">{filteredFacilities.length} visible points</div>
-          {error && <div className="mt-1 text-red-600">{error}</div>}
-        </div>
         <div className="absolute right-3 z-10 hidden rounded-md border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur md:block md:bottom-[calc(var(--map-timeline-height,0px)+1rem)]">
           <div className="mb-2 font-semibold">Legend</div>
           {(Object.keys(TYPE_META) as PayeeType[]).map((type) => (
