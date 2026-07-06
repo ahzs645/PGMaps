@@ -868,10 +868,11 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
     [hexZoom, litter.manifest.data?.hexSizeM],
   )
 
+  const manifestBbox = litter.manifest.data?.bbox
   const filteredHexes = useMemo<OpenLitterHexCollection | null>(() => {
-    if (!litter.showHexes || !litter.manifest.data?.bbox || litter.filteredFeatures.length === 0) return null
-    return buildClientHexAggregate(litter.filteredFeatures, litter.manifest.data.bbox, dynamicHexSizeM)
-  }, [dynamicHexSizeM, litter.filteredFeatures, litter.manifest.data?.bbox, litter.showHexes])
+    if (!litter.showHexes || !manifestBbox || litter.filteredFeatures.length === 0) return null
+    return buildClientHexAggregate(litter.filteredFeatures, manifestBbox, dynamicHexSizeM)
+  }, [dynamicHexSizeM, litter.filteredFeatures, manifestBbox, litter.showHexes])
 
   const maxHexLitter = useMemo(() => hexScaleMax(filteredHexes), [filteredHexes])
   const hexOpacity = hexOpacityForZoom(hexZoom)

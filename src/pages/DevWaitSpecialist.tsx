@@ -400,7 +400,10 @@ function SpecialistFacilityMarkers({
 }) {
   const { map } = useMap()
   const [version, setVersion] = useState(0)
-  const [revealedClusterId, setRevealedClusterId] = useState<string | null>(null)
+  const [revealedClusterId, setRevealedClusterId] = useState<{
+    clusterId: string
+    facilitiesKey: string
+  } | null>(null)
 
   useEffect(() => {
     if (!map) return
@@ -416,11 +419,11 @@ function SpecialistFacilityMarkers({
     }
   }, [map])
 
-  useEffect(() => {
-    setRevealedClusterId(null)
-  }, [facilities])
+  const facilitiesKey = useMemo(() => facilities.map((facility) => facility.id).join('|'), [facilities])
 
   const clusters = useMemo(() => {
+    void version
+
     if (!map) {
       return facilities.map((facility) => ({
         id: facility.id,
@@ -466,6 +469,9 @@ function SpecialistFacilityMarkers({
 
     return nextClusters.map(({ x: _x, y: _y, ...cluster }) => cluster)
   }, [facilities, filter, map, version])
+  const activeRevealedClusterId = revealedClusterId?.facilitiesKey === facilitiesKey
+    ? revealedClusterId.clusterId
+    : null
 
   return (
     <>
@@ -483,7 +489,7 @@ function SpecialistFacilityMarkers({
           )
         }
 
-        const isRevealed = revealedClusterId === cluster.id
+        const isRevealed = activeRevealedClusterId === cluster.id
         const visibleFacilities = cluster.facilities.slice(0, REVEAL_LIMIT)
         return (
           <div key={cluster.id}>
@@ -491,7 +497,11 @@ function SpecialistFacilityMarkers({
               <MarkerContent>
                 <button
                   type="button"
-                  onClick={() => setRevealedClusterId((current) => current === cluster.id ? null : cluster.id)}
+                  onClick={() => setRevealedClusterId((current) => (
+                    current?.clusterId === cluster.id && current.facilitiesKey === facilitiesKey
+                      ? null
+                      : { clusterId: cluster.id, facilitiesKey }
+                  ))}
                   aria-label={`${isRevealed ? 'Hide' : 'Reveal'} ${cluster.facilities.length} facilities`}
                   aria-pressed={isRevealed}
                   className={cn(

@@ -1,4 +1,4 @@
-/* global self, postMessage, fetch */
+/* global self, postMessage, fetch, setTimeout, console, atob */
 
 const SOURCE_ROOT = '/data/walkability/source'
 const GIS_DIR = `${SOURCE_ROOT}/data/public_gis`
@@ -1068,23 +1068,6 @@ function polygonArea(rings) {
   return Math.max(0, outer - holes)
 }
 
-function pointInRing(point, ring) {
-  const [x, y] = point
-  let inside = false
-  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
-    const [xi, yi] = ring[index]
-    const [xj, yj] = ring[previous]
-    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi
-    if (intersects) inside = !inside
-  }
-  return inside
-}
-
-function pointInPolygon(point, rings) {
-  if (!rings.length || !pointInRing(point, rings[0])) return false
-  return !rings.slice(1).some((ring) => pointInRing(point, ring))
-}
-
 function pointSegmentDistanceSquared(point, start, end) {
   const [px, py] = point
   const [x1, y1] = start
@@ -1096,33 +1079,6 @@ function pointSegmentDistanceSquared(point, start, end) {
   const x = x1 + t * dx
   const y = y1 + t * dy
   return (px - x) ** 2 + (py - y) ** 2
-}
-
-function distanceToLineStringSquared(point, line) {
-  let best = Infinity
-  for (let index = 1; index < line.length; index += 1) {
-    best = Math.min(best, pointSegmentDistanceSquared(point, line[index - 1], line[index]))
-  }
-  return best
-}
-
-function distanceToPolygonSquared(point, rings) {
-  if (pointInPolygon(point, rings)) return 0
-  let best = Infinity
-  for (const ring of rings) best = Math.min(best, distanceToLineStringSquared(point, ring))
-  return best
-}
-
-function distanceToGeometrySquared(point, geometry) {
-  if (geometry.type === 'Point')
-    return (point[0] - geometry.coordinates[0]) ** 2 + (point[1] - geometry.coordinates[1]) ** 2
-  if (geometry.type === 'LineString') return distanceToLineStringSquared(point, geometry.coordinates)
-  if (geometry.type === 'MultiLineString')
-    return Math.min(...geometry.coordinates.map((line) => distanceToLineStringSquared(point, line)))
-  if (geometry.type === 'Polygon') return distanceToPolygonSquared(point, geometry.coordinates)
-  if (geometry.type === 'MultiPolygon')
-    return Math.min(...geometry.coordinates.map((polygon) => distanceToPolygonSquared(point, polygon)))
-  return Infinity
 }
 
 function addMaskScoreToGrid(grid, mask, score) {

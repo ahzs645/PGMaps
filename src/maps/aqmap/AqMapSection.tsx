@@ -96,6 +96,11 @@ type ForecastZoneAssignment = {
   code: string | null
   name: string | null
 }
+type ForecastZoneAssignmentResult = {
+  forecastZoneData: ForecastZoneCollection
+  monitors: AirMonitor[]
+  assignments: Map<string, ForecastZoneAssignment>
+}
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
   cancelIdleCallback?: (handle: number) => void
@@ -117,6 +122,27 @@ export type AqMapDebugInfo = {
   mapLayerCount: number
   mapSourceCount: number
   selectedFeature: string
+}
+type AqMapStyleStats = {
+  layerCount: number
+  sourceCount: number
+}
+
+const EMPTY_MAP_STYLE_STATS: AqMapStyleStats = {
+  layerCount: 0,
+  sourceCount: 0,
+}
+
+function mapStyleStats(map: maplibregl.Map): AqMapStyleStats {
+  const style = map.getStyle()
+  return {
+    layerCount: style?.layers?.length ?? 0,
+    sourceCount: style?.sources ? Object.keys(style.sources).length : 0,
+  }
+}
+
+function mapStyleStatsEqual(left: AqMapStyleStats, right: AqMapStyleStats) {
+  return left.layerCount === right.layerCount && left.sourceCount === right.sourceCount
 }
 
 let forecastZoneDataCache: ForecastZoneCollection | null = null
@@ -433,14 +459,24 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     error: null,
   })
   const [forecastZoneData, setForecastZoneData] = useState<ForecastZoneCollection | null>(null)
-  const [forecastZoneAssignments, setForecastZoneAssignments] = useState<Map<string, ForecastZoneAssignment> | null>(null)
+  const [forecastZoneAssignments, setForecastZoneAssignments] = useState<ForecastZoneAssignmentResult | null>(null)
   const [forecastZoneError, setForecastZoneError] = useState<string | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
+  const [styleStats, setStyleStats] = useState<AqMapStyleStats>(EMPTY_MAP_STYLE_STATS)
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const handleMapRef = useCallback((map: maplibregl.Map | null) => {
+    mapRef.current = map
+    setMapInstance((current) => (current === map ? current : map))
+  }, [])
+  const activeForecastZoneAssignments =
+    forecastZoneAssignments?.forecastZoneData === forecastZoneData && forecastZoneAssignments.monitors === monitors
+      ? forecastZoneAssignments.assignments
+      : null
   const enrichedMonitors = useMemo<AirMonitor[]>(() => {
-    if (!forecastZoneAssignments) return monitors
+    if (!activeForecastZoneAssignments) return monitors
     return monitors.map((monitor) => {
-      const assignment = forecastZoneAssignments.get(monitorKey(monitor))
+      const assignment = activeForecastZoneAssignments.get(monitorKey(monitor))
       if (!assignment) return monitor
 
       return {
@@ -449,7 +485,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
         forecastZoneName: assignment.name,
       }
     })
-  }, [forecastZoneAssignments, monitors])
+  }, [activeForecastZoneAssignments, monitors])
   // On the main page the monitor icons are locked to MAIN_VIEW_ICON_MODE and the
   // key AQ overlays use the deck.gl snapshot paths. The dedicated /ring route
   // forces ring mode; everywhere else the icon-mode toggle drives it.
@@ -528,20 +564,15 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   }, [forecastZoneData, forecastZoneError, visibleWmsLayers])
 
   useEffect(() => {
-    if (!forecastZoneData || monitors.length === 0) {
-      setForecastZoneAssignments(null)
-      return
-    }
+    if (!forecastZoneData || monitors.length === 0) return
 
     let cancelled = false
     let idleId: number | null = null
     const idleWindow = window as IdleWindow
 
-    setForecastZoneAssignments(null)
-
     const joinMonitorsToZones = () => {
       const assignments = buildForecastZoneAssignments(monitors, forecastZoneData)
-      if (!cancelled) setForecastZoneAssignments(assignments)
+      if (!cancelled) setForecastZoneAssignments({ forecastZoneData, monitors, assignments })
     }
 
     if (idleWindow.requestIdleCallback) {
@@ -823,6 +854,46 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
 
   const toggleWind = useCallback(() => setWindVisible((value) => !value), [])
   const toggleVectorWindBarbs = useCallback(() => setVectorWindBarbsVisible((value) => !value), [])
+  useEffect(() => {
+    if (!mapInstance) return
+
+    let frameId: number | null = null
+    const updateStyleStats = () => {
+      if (frameId !== null) return
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null
+        const next = mapStyleStats(mapInstance)
+        setStyleStats((current) => (mapStyleStatsEqual(current, next) ? current : next))
+      })
+    }
+
+    updateStyleStats()
+    mapInstance.on('idle', updateStyleStats)
+    mapInstance.on('load', updateStyleStats)
+    mapInstance.on('sourcedata', updateStyleStats)
+    mapInstance.on('styledata', updateStyleStats)
+
+    return () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+      mapInstance.off('idle', updateStyleStats)
+      mapInstance.off('load', updateStyleStats)
+      mapInstance.off('sourcedata', updateStyleStats)
+      mapInstance.off('styledata', updateStyleStats)
+    }
+  }, [
+    deckActive,
+    deckTileKeys,
+    effActiveFiresMode,
+    effFireDangerMode,
+    effFirePerimetersMode,
+    effForecastZonesMode,
+    effModelledSmokeMode,
+    fireDangerDeck,
+    mapInstance,
+    smokeLayers,
+    visibleSmokeLayers,
+    visibleWmsLayers,
+  ])
   const selectedMonitorWithZone = useMemo(() => {
     if (!selectedMonitor) return null
     return (
@@ -851,7 +922,6 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   }, [enrichedMonitors, selectedMonitorWithZone])
 
   const debugInfo = useMemo<AqMapDebugInfo>(() => {
-    const style = mapRef.current?.getStyle()
     return {
       zoom: mapView.zoom,
       center: mapView.center,
@@ -866,8 +936,8 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
         firePerimeters: effFirePerimetersMode,
         forecastZones: effForecastZonesMode,
       },
-      mapLayerCount: style?.layers?.length ?? 0,
-      mapSourceCount: style?.sources ? Object.keys(style.sources).length : 0,
+      mapLayerCount: styleStats.layerCount,
+      mapSourceCount: styleStats.sourceCount,
       selectedFeature: selectedMonitorWithZone
         ? `monitor:${selectedMonitorWithZone.id}`
         : selectedForecastZone
@@ -885,6 +955,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     mapView,
     selectedForecastZone,
     selectedMonitorWithZone,
+    styleStats,
     visibleSmokeLayers,
     visibleWmsLayers,
   ])
@@ -954,7 +1025,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
       <div ref={mapContainerRef} className="relative h-full w-full">
         <PgMap
           key={basemap}
-          ref={mapRef}
+          ref={handleMapRef}
           viewport={{
             center: mapView.center,
             zoom: mapView.zoom,

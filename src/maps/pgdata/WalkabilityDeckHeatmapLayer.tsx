@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import { BitmapLayer } from '@deck.gl/layers'
 import { useMap } from '@/components/ui/map'
@@ -86,7 +86,6 @@ export function WalkabilityDeckHeatmapLayer({
   const { map, isLoaded } = useMap()
   const overlayRef = useRef<MapboxOverlay | null>(null)
   const tooltipRef = useRef<maplibregl.Popup | null>(null)
-  const [overlayRevision, setOverlayRevision] = useState(0)
 
   function removeTooltip() {
     tooltipRef.current?.remove()
@@ -98,7 +97,6 @@ export function WalkabilityDeckHeatmapLayer({
     const overlay = new MapboxOverlay({ interleaved: true, layers: [] })
     map.addControl(overlay as unknown as maplibregl.IControl)
     overlayRef.current = overlay
-    setOverlayRevision((current) => current + 1)
     tooltipRef.current = new maplibregl.Popup({
       closeButton: false,
       closeOnClick: false,
@@ -138,7 +136,7 @@ export function WalkabilityDeckHeatmapLayer({
 
   useEffect(() => {
     const overlay = overlayRef.current
-    if (!overlay || !map || !overlayRevision) return
+    if (!overlay || !map || !isLoaded) return
 
     const { canvas, values } = renderWalkabilityGridCanvas(rows, cols, rle)
     overlay.setProps({
@@ -190,7 +188,7 @@ export function WalkabilityDeckHeatmapLayer({
       tooltipRef.current?.remove()
       overlay.setProps({ layers: [] })
     }
-  }, [cols, imageCoordinates, layerKey, map, overlayRevision, rle, rows])
+  }, [cols, imageCoordinates, isLoaded, layerKey, map, rle, rows])
 
   return null
 }

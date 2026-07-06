@@ -35,6 +35,8 @@ type WindBarbDeckSample = WindBarbSample & {
   iconUrl: string
 }
 
+const EMPTY_WIND_BARB_DECK_SAMPLES: WindBarbDeckSample[] = []
+
 const PG_WIND_BBOX = {
   west: -123.5,
   south: 53.2,
@@ -230,8 +232,10 @@ export function VectorWindBarbLayer({
   const { map, isLoaded } = useMap()
   const overlayRef = useRef<MapboxOverlay | null>(null)
   const [dataset, setDataset] = useState<WindBarbDataset | null>(null)
-  const [deckSamples, setDeckSamples] = useState<WindBarbDeckSample[]>([])
+  const [visibleDeckSamples, setVisibleDeckSamples] = useState<WindBarbDeckSample[]>([])
   const [error, setError] = useState<string | null>(null)
+  const canRenderSamples = visible && Boolean(map) && isLoaded && Boolean(dataset)
+  const deckSamples = canRenderSamples ? visibleDeckSamples : EMPTY_WIND_BARB_DECK_SAMPLES
 
   useEffect(() => {
     if (!visible || dataset || error) return
@@ -278,22 +282,18 @@ export function VectorWindBarbLayer({
         // MapLibre can throw during teardown.
       }
       overlayRef.current = null
-      setDeckSamples([])
     }
   }, [isLoaded, map, visible])
 
   useEffect(() => {
-    if (!visible || !map || !isLoaded || !dataset) {
-      setDeckSamples([])
-      return
-    }
+    if (!visible || !map || !isLoaded || !dataset) return
 
     const mapInstance = map
     const windDataset = dataset
     let frameId: number | null = null
 
     function updateVisibleSamples() {
-      setDeckSamples(displayDeckSamplesForMap(mapInstance, windDataset))
+      setVisibleDeckSamples(displayDeckSamplesForMap(mapInstance, windDataset))
     }
 
     function scheduleUpdate() {

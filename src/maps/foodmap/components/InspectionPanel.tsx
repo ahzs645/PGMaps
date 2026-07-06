@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { assessViolationRisk, summarizeViolationRisk } from '../risk'
@@ -77,6 +77,19 @@ function getInspectionViolationDetailMismatch(inspection: Inspection): Violation
   }
 }
 
+function getInspectionKey(inspection: Inspection, index: number): string {
+  return [
+    inspection.inspection_date || inspection.date || '',
+    inspection.inspection_type || inspection.type || '',
+    inspection.hazard_rating,
+    inspection.critical_violations_count,
+    inspection.non_critical_violations_count,
+    inspection.follow_up_required || '',
+    inspection.violations?.length || 0,
+    index,
+  ].join('|')
+}
+
 export function InspectionPanel({ restaurant, periodLabel, useFilteredInspections = false, onClose }: InspectionPanelProps) {
   const inspections = useMemo(() => {
     const source = useFilteredInspections ? restaurant.filteredInspections : restaurant.inspections
@@ -127,12 +140,14 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
   // Master-detail navigation: the panel shows a list of inspection cards, and
   // opening one drills into a dedicated detail view of its violations. With a
   // single inspection there is nothing to choose, so open it directly.
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(inspections.length === 1 ? 0 : null)
-  useEffect(() => {
-    setSelectedIndex(inspections.length === 1 ? 0 : null)
-  }, [inspections])
-
-  const selectedInspection = selectedIndex !== null ? inspections[selectedIndex] ?? null : null
+  const inspectionKeys = useMemo(() => inspections.map(getInspectionKey), [inspections])
+  const [selectedInspectionKey, setSelectedInspectionKey] = useState<string | null>(null)
+  const selectedInspection =
+    inspections.length === 1
+      ? inspections[0]
+      : selectedInspectionKey
+        ? inspections[inspectionKeys.indexOf(selectedInspectionKey)] ?? null
+        : null
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
@@ -241,7 +256,7 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
             <InspectionDetailView
               inspection={selectedInspection}
               showBack={inspections.length > 1}
-              onBack={() => setSelectedIndex(null)}
+              onBack={() => setSelectedInspectionKey(null)}
             />
           ) : (
             <div className="space-y-3 sm:space-y-4">
@@ -250,9 +265,9 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
               </p>
               {inspections.map((inspection, index) => (
                 <InspectionSummaryCard
-                  key={index}
+                  key={inspectionKeys[index]}
                   inspection={inspection}
-                  onOpen={() => setSelectedIndex(index)}
+                  onOpen={() => setSelectedInspectionKey(inspectionKeys[index])}
                 />
               ))}
             </div>

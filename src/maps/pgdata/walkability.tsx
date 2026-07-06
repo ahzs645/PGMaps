@@ -411,17 +411,6 @@ export function useWalkabilityData(
       })
     }
 
-    setLiveHeatmap((current) =>
-      current.requestKey === requestKey && current.status === 'ready'
-        ? current
-        : {
-            status: 'loading',
-            requestKey,
-            progress: 'Preparing live heat map recalculation',
-            grid: current.grid,
-            error: null,
-          },
-    )
     if (liveHeatmapDebounceRef.current !== null) window.clearTimeout(liveHeatmapDebounceRef.current)
     liveHeatmapDebounceRef.current = window.setTimeout(() => {
       liveHeatmapDebounceRef.current = null

@@ -187,10 +187,11 @@ export function AqMapDeckOverlay({
   const fireDangerTooltipRef = useRef<maplibregl.Popup | null>(null)
   const pm25TooltipRef = useRef<maplibregl.Popup | null>(null)
   const suppressHoverPopupsRef = useRef(suppressHoverPopups)
-  const [pm25NativeVector, setPm25NativeVector] = useState<Pm25DeckFeatureCollection | null>(null)
+  const [pm25NativeVectorData, setPm25NativeVectorData] = useState<Pm25DeckFeatureCollection | null>(null)
   const rebuildRef = useRef<() => void>(() => {})
   const tileKey = [...tileKeys].sort().join(',')
   const pm25DeckActive = tileKeys.includes('modelledPm25')
+  const pm25NativeVector = pm25DeckActive ? pm25NativeVectorData : null
   const pm25OrderedVector = useMemo<Pm25DeckFeatureCollection | null>(() => {
     if (!pm25NativeVector) return null
     return {
@@ -294,18 +295,15 @@ export function AqMapDeckOverlay({
   }, [suppressHoverPopups])
 
   useEffect(() => {
-    if (!pm25DeckActive) {
-      setPm25NativeVector(null)
-      return
-    }
+    if (!pm25DeckActive || pm25NativeVectorData) return
     const controller = new AbortController()
     fetchGzipJson<Pm25DeckFeatureCollection>(PM25_NATIVE_VECTOR_URL, controller.signal)
-      .then(setPm25NativeVector)
+      .then(setPm25NativeVectorData)
       .catch((error) => {
         if ((error as Error).name !== 'AbortError') console.error('PM2.5 native vector failed', error)
       })
     return () => controller.abort()
-  }, [pm25DeckActive])
+  }, [pm25DeckActive, pm25NativeVectorData])
 
   // Stable per-layer WMS tile config (re-render existing GetMap tiles via deck).
   const tileConfigs = useMemo(() => {

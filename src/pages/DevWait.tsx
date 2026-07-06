@@ -306,6 +306,8 @@ function WaitMarkers({
   }, [map])
 
   const clusters = useMemo(() => {
+    void version
+
     if (!map) {
       return hospitals.map((hospitalItem) => ({
         id: hospitalItem.id,
