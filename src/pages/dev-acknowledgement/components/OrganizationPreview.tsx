@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, Copy, ExternalLink, MapPin, Quote } from 'lucide-react'
 
 import { Map as PgMap, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
@@ -67,6 +67,10 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
   const [regionName, setRegionName] = useState('British Columbia')
   const [wordingOptions, setWordingOptions] = useState(defaultWordingOptions)
   const [copied, setCopied] = useState(false)
+  const copiedTimeoutRef = useRef<number | null>(null)
+  useEffect(() => () => {
+    if (copiedTimeoutRef.current !== null) window.clearTimeout(copiedTimeoutRef.current)
+  }, [])
 
   if (!org) {
     return (
@@ -86,12 +90,17 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
   const normalizeList = (value: string) => value.toLowerCase().replace(/\band\b/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
   const noteIsJustNames = org.note != null && normalizeList(org.note) === normalizeList(org.acknowledges.join(' '))
 
-  const copyStatement = () => {
+  const copyStatement = async () => {
     if (!statement) return
-    navigator.clipboard.writeText(statement).then(() => {
+    try {
+      // navigator.clipboard is undefined in non-secure contexts.
+      await navigator.clipboard.writeText(statement)
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    }).catch(() => undefined)
+      if (copiedTimeoutRef.current !== null) window.clearTimeout(copiedTimeoutRef.current)
+      copiedTimeoutRef.current = window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
   }
 
   const toggleOption = (option: WordingToggle) => setWordingOptions((current) => ({ ...current, [option]: !current[option] }))
@@ -103,6 +112,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
           <LocalMapBoundary result={null}>
             <PgMap
               className="h-full min-h-[16rem]"
+              theme="light"
               center={[org.campuses[0].longitude, org.campuses[0].latitude]}
               zoom={8}
               pitch={0}
@@ -112,7 +122,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
               <FitToCampuses campuses={org.campuses} />
               <MapControls position="top-right" showFullscreen />
               {org.campuses.map((campus, index) => (
-                <MapMarker key={`${campus.name}-${campus.latitude}`} longitude={campus.longitude} latitude={campus.latitude} anchor="bottom">
+                <MapMarker key={`${campus.name}-${index}`} longitude={campus.longitude} latitude={campus.latitude} anchor="bottom">
                   <MarkerContent>
                     <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-teal-700 text-xs font-semibold text-white shadow-lg">{index + 1}</span>
                   </MarkerContent>
@@ -214,7 +224,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
               {org.campuses.map((campus, index) => {
                 const locationType = campus.type ?? inferLocationType(campus.name, org.sector)
                 return (
-                  <div key={`${campus.name}-${campus.latitude}`} className="flex items-start gap-2 rounded-md border p-2 text-xs">
+                  <div key={`${campus.name}-${index}`} className="flex items-start gap-2 rounded-md border p-2 text-xs">
                     <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-slate-100 font-semibold text-slate-700">{index + 1}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">

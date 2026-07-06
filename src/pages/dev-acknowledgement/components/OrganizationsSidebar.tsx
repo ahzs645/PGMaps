@@ -22,7 +22,9 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
     if (!needle) return organizations
     return organizations.filter((org) => (
       org.name.toLowerCase().includes(needle)
-      || org.sector.includes(needle)
+      // The id slug catches common acronyms ("unbc", "sfu", "bcit", "icbc").
+      || org.id.replace(/-/g, ' ').includes(needle.replace(/-/g, ' '))
+      || humanize(org.sector).includes(needle)
       || org.acknowledges.some((name) => name.toLowerCase().includes(needle))
     ))
   }, [query])

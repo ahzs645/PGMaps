@@ -14,13 +14,19 @@ export function effectiveSelectedCandidateIds(
   selectedIds: string[],
 ) {
   if (visibleCandidates.length === 0) return []
+  // An explicitly empty selection stays empty — the user unchecked everything.
+  if (selectedIds.length === 0) return []
 
   const available = new Set(visibleCandidates.map((candidate) => candidate.id))
   const kept = selectedIds.filter((id) => available.has(id))
   if (kept.length > 0) return kept
 
+  // The prior selection is stale (e.g. the address moved to a new region). Only
+  // auto-select a candidate we are confident in; naming a weak single-source
+  // overlap (like an oversized Native Land polygon) by default is worse than
+  // asking the user to choose.
   const strong = visibleCandidates.find((candidate) => candidate.confidence === 'strong')
-  return [strong?.id ?? visibleCandidates[0].id]
+  return strong ? [strong.id] : []
 }
 
 export function selectedCandidateNames(
@@ -37,12 +43,4 @@ export function toggleMatchTypeState(
   matchType: MatchType,
 ) {
   return { ...current, [matchType]: !current[matchType] }
-}
-
-export function nextDraftWording(
-  currentDraft: string,
-  previousGeneratedWording: string,
-  nextGeneratedWording: string,
-) {
-  return currentDraft === previousGeneratedWording ? nextGeneratedWording : currentDraft
 }

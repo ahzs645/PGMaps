@@ -67,7 +67,6 @@ export const NATIVE_LAND_LAYERS = [
 // community-geo is community points (205).
 export const FPCC_DATA_BASE = `${import.meta.env.BASE_URL}data/fpcc/`
 export const FPCC_LANGUAGES_DATA = `${FPCC_DATA_BASE}language-geo.geojson`
-export const FPCC_COMMUNITIES_DATA = `${FPCC_DATA_BASE}community-geo.geojson`
 export const LOCAL_COMMUNITY_MAX_KM = 120
 
 export const initialLookupState: Record<SourceKey, SourceLookupState> = {
@@ -225,12 +224,8 @@ export const localLanguageResources: LocalLanguageResource[] = [
 ]
 
 const pronunciationDatabase: Record<string, PronunciationInfo> = {
-  [normalizeName("Lheidli-T'enneh Band")]: {
-    phonetic: 'clayt-clay den-ay',
-    sourceLabel: 'BC pronunciation guide',
-    sourceUrl: PRONUNCIATION_GUIDE_URL,
-    caveat: 'Approximation only; verify with Lheidli T’enneh First Nation or local guidance before public use.',
-  },
+  // "Lheidli-T'enneh Band" and "Lheidli T'enneh First Nation" normalize to the
+  // same key, so one entry covers both (the Nation-local source wins).
   [normalizeName("Lheidli T'enneh First Nation")]: {
     phonetic: 'clayt-clay den-ay',
     sourceLabel: 'Lheidli language resources',

@@ -33,6 +33,9 @@ type FeatureProperties = Record<string, unknown>
 const geojsonCache = new Map<string, Promise<GeoJSON.FeatureCollection>>()
 const relationshipGraphCache = new Map<string, Promise<RelationshipGraph>>()
 
+// Layer fetches are deliberately not abortable: the promise is cached and shared
+// across consumers, so cancelling one lookup must not kill another's load. Stale
+// results are discarded by the callers' run-id / token guards instead.
 export async function loadGeoJsonLayer(url: string): Promise<GeoJSON.FeatureCollection> {
   const cached = geojsonCache.get(url)
   if (cached) return cached

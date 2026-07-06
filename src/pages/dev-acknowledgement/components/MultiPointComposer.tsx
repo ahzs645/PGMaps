@@ -42,10 +42,14 @@ function MapClickLayer({ onAdd }: { onAdd: (lat: number, lng: number) => void })
 /** Recenters the map on the active point so the focused location stays in view. */
 function FlyToActive({ point }: { point: { latitude: number; longitude: number } | null }) {
   const { map, isLoaded } = useMap()
+  // Key on coordinates, not object identity: the point object is recreated every
+  // time a lookup settles, and re-flying then would yank the camera back mid-pan.
+  const key = point ? `${point.latitude},${point.longitude}` : null
   useEffect(() => {
-    if (!map || !isLoaded || !point) return
-    map.flyTo({ center: [point.longitude, point.latitude], zoom: Math.max(map.getZoom(), 9), duration: 700 })
-  }, [map, isLoaded, point])
+    if (!map || !isLoaded || !key) return
+    const [latitude, longitude] = key.split(',').map(Number)
+    map.flyTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 9), duration: 700 })
+  }, [map, isLoaded, key])
   return null
 }
 
@@ -68,8 +72,10 @@ function Chips({ label, names, tone }: { label: string; names: string[]; tone: '
 
 type MultiPointComposerProps = {
   graph: RelationshipGraph | null
-  /** Called when the focused point changes, so the page can run the full source breakdown for it. */
-  onActivePoint?: (latitude: number, longitude: number) => void
+  /** Called when the focused point changes, so the page can run the full source
+   *  breakdown for it. `label` carries the point's own name (address or campus)
+   *  when it has one, so the header address isn't clobbered with raw coordinates. */
+  onActivePoint?: (latitude: number, longitude: number, label?: string) => void
   /** The single-location geocode/drop result, mirrored onto the map as the active point. */
   addressPoint?: GeocodeResult | null
   /** Org id to load as campus points (set from the Organizations tab). */
@@ -103,6 +109,9 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
   const [gisFeatures, setGisFeatures] = useState<GeoJSON.Feature[] | undefined>(undefined)
   const counter = useRef(0)
   const syncedAddressKey = useRef<string | null>(null)
+  // Per-point resolve token: relocating a point starts a new lookup, and only the
+  // newest lookup for that point id may write its result (last-writer-wins race).
+  const resolveTokens = useRef(new globalThis.Map<string, number>())
 
   // Load the BC First Nation Community Locations GIS dataset to validate/enrich Nation names.
   useEffect(() => {
@@ -116,13 +125,34 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
   const selectedOrg = organizations.find((org) => org.id === selectedOrgId) ?? null
 
   const resolve = useCallback((pt: MappedPoint) => {
+    const token = (resolveTokens.current.get(pt.id) ?? 0) + 1
+    resolveTokens.current.set(pt.id, token)
+    const isCurrent = () => resolveTokens.current.get(pt.id) === token
     Promise.all([
       resolveNationsAtPoint(pt.latitude, pt.longitude, graph),
       resolveFpccLanguagesAtPoint(pt.latitude, pt.longitude),
     ])
-      .then(([nationNames, languages]) => setPoints((current) => current.map((p) => (p.id === pt.id ? { ...p, status: 'done', nationNames, languages } : p))))
-      .catch(() => setPoints((current) => current.map((p) => (p.id === pt.id ? { ...p, status: 'error', nationNames: [], languages: [] } : p))))
+      .then(([nationNames, languages]) => {
+        if (!isCurrent()) return
+        setPoints((current) => current.map((p) => (p.id === pt.id ? { ...p, status: 'done', nationNames, languages } : p)))
+      })
+      .catch(() => {
+        if (!isCurrent()) return
+        setPoints((current) => current.map((p) => (p.id === pt.id ? { ...p, status: 'error', nationNames: [], languages: [] } : p)))
+      })
   }, [graph])
+
+  // The alias index that canonicalizes Native Land names lives in the graph, which
+  // loads async. Points resolved before it arrives keep raw names, so re-resolve
+  // everything when `resolve` picks up a new graph.
+  const pointsRef = useRef(points)
+  pointsRef.current = points
+  useEffect(() => {
+    const existing = pointsRef.current
+    if (existing.length === 0) return
+    setPoints((current) => current.map((p) => ({ ...p, status: 'loading' as const })))
+    existing.forEach(resolve)
+  }, [resolve])
 
   const addPoint = useCallback((latitude: number, longitude: number) => {
     const pt: MappedPoint = { id: `p${counter.current++}`, latitude, longitude, status: 'loading', nationNames: [] }
@@ -135,7 +165,7 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
 
   const selectPoint = useCallback((pt: MappedPoint) => {
     setActiveId(pt.id)
-    onActivePoint?.(pt.latitude, pt.longitude)
+    onActivePoint?.(pt.latitude, pt.longitude, pt.name)
   }, [onActivePoint])
 
   // Map click: in add mode (or with no points yet) drop a new point; otherwise
@@ -168,7 +198,7 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
     const first = next[0]
     if (first) {
       setActiveId(first.id)
-      onActivePoint?.(first.latitude, first.longitude)
+      onActivePoint?.(first.latitude, first.longitude, first.name)
     }
   }, [resolve, onActivePoint])
 
@@ -266,7 +296,8 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
           <div className="space-y-4 text-sm lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
             <div className="relative min-h-[18rem] overflow-hidden rounded-md border">
             <LocalMapBoundary result={null}>
-              <PgMap className="h-full min-h-[18rem]" center={[-124.5, 54.5]} zoom={4} pitch={0} bearing={0} showStyleLoadingOverlay={false}>
+              {/* The page is light-only, so pin the basemap to the light style. */}
+              <PgMap className="h-full min-h-[18rem]" theme="light" center={[-124.5, 54.5]} zoom={4} pitch={0} bearing={0} showStyleLoadingOverlay={false}>
                 <MapClickLayer onAdd={handleMapClick} />
                 <FlyToActive point={activePoint} />
                 <MapControls position="top-right" showFullscreen />
@@ -334,47 +365,52 @@ export function MultiPointComposer({ graph, onActivePoint, addressPoint, orgToLo
                 {points.map((point, index) => (
                   <div
                     key={point.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => selectPoint(point)}
-                    onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectPoint(point) } }}
                     className={cn(
-                      'flex cursor-pointer items-start gap-2 rounded-md border p-2 text-xs transition',
+                      'flex items-start gap-2 rounded-md border p-2 text-xs transition',
                       point.id === activeId ? 'border-rose-300 bg-rose-50/50' : 'hover:border-teal-300',
                     )}
                   >
-                    <span className={cn(
-                      'flex h-5 w-5 flex-none items-center justify-center rounded-full font-semibold',
-                      point.id === activeId ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-700',
-                    )}>{index + 1}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        {point.name && <span className="font-medium text-slate-900">{point.name}</span>}
-                        <span className="font-mono text-[10px] text-slate-500">{point.latitude.toFixed(3)}, {point.longitude.toFixed(3)}</span>
-                      </div>
-                      <div className="mt-0.5 text-slate-800">
-                        {point.status === 'loading' && 'Resolving…'}
-                        {point.status === 'error' && 'Lookup failed'}
-                        {point.status === 'done' && (
-                          <>
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Native Land</span>{' '}
-                            {point.nationNames.length ? point.nationNames.join(', ') : 'no territory match'}
-                          </>
-                        )}
-                      </div>
-                      {point.status === 'done' && point.languages && point.languages.length > 0 && (() => {
-                        const langNations = fpccLanguageNations(point.languages)
-                        return (
-                          <div className="mt-0.5 text-[10px] leading-4 text-teal-800">
-                            <span className="font-semibold uppercase tracking-wide text-slate-400">FPCC</span> · {point.languages.join(', ')}
-                            {langNations.length > 0 && <span className="text-teal-900"> → {langNations.join(', ')}</span>}
-                          </div>
-                        )
-                      })()}
-                    </div>
+                    {/* The focus action is its own button (not a role="button" row wrapping
+                        the remove button) so interactive controls don't nest. */}
                     <button
                       type="button"
-                      onClick={(event) => { event.stopPropagation(); removePoint(point.id) }}
+                      onClick={() => selectPoint(point)}
+                      aria-pressed={point.id === activeId}
+                      className="flex min-w-0 flex-1 cursor-pointer items-start gap-2 text-left"
+                    >
+                      <span className={cn(
+                        'flex h-5 w-5 flex-none items-center justify-center rounded-full font-semibold',
+                        point.id === activeId ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-700',
+                      )}>{index + 1}</span>
+                      <span className="block min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          {point.name && <span className="font-medium text-slate-900">{point.name}</span>}
+                          <span className="font-mono text-[10px] text-slate-500">{point.latitude.toFixed(3)}, {point.longitude.toFixed(3)}</span>
+                        </span>
+                        <span className="mt-0.5 block text-slate-800">
+                          {point.status === 'loading' && 'Resolving…'}
+                          {point.status === 'error' && 'Lookup failed'}
+                          {point.status === 'done' && (
+                            <>
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Native Land</span>{' '}
+                              {point.nationNames.length ? point.nationNames.join(', ') : 'no territory match'}
+                            </>
+                          )}
+                        </span>
+                        {point.status === 'done' && point.languages && point.languages.length > 0 && (() => {
+                          const langNations = fpccLanguageNations(point.languages)
+                          return (
+                            <span className="mt-0.5 block text-[10px] leading-4 text-teal-800">
+                              <span className="font-semibold uppercase tracking-wide text-slate-400">FPCC</span> · {point.languages.join(', ')}
+                              {langNations.length > 0 && <span className="text-teal-900"> → {langNations.join(', ')}</span>}
+                            </span>
+                          )
+                        })()}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removePoint(point.id)}
                       aria-label="Remove point"
                       className="flex-none text-slate-400 hover:text-slate-700"
                     >

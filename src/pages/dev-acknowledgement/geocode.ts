@@ -48,9 +48,9 @@ export async function geocodeAddress(address: string, signal?: AbortSignal): Pro
   }
 }
 
-export function locationFromCoordinates({ latitude, longitude }: DroppedLocation): GeocodeResult {
+export function locationFromCoordinates({ latitude, longitude, label }: DroppedLocation): GeocodeResult {
   return {
-    fullAddress: `Dropped map point (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`,
+    fullAddress: label ?? `Dropped map point (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`,
     latitude,
     longitude,
     score: 0,

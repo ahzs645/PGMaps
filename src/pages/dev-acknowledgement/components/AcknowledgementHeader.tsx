@@ -30,7 +30,9 @@ export function AcknowledgementHeader({
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Acknowledgement Builder</h1>
           </div>
-          <Button variant="outline" onClick={onCopy} className="w-full sm:w-auto">
+          {/* The page is light-only, so pin the button colors — the outline variant's
+              theme tokens would render black-on-black when the app theme is dark. */}
+          <Button variant="outline" onClick={onCopy} className="w-full border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:text-slate-900 sm:w-auto">
             {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
             {copied ? 'Copied' : 'Copy wording'}
           </Button>
@@ -46,9 +48,9 @@ export function AcknowledgementHeader({
               aria-label="Address"
             />
           </label>
-          <Button type="submit" variant="outline" className="min-h-12 justify-center" disabled={geocodeStatus === 'loading'}>
+          <Button type="submit" variant="outline" className="min-h-12 justify-center border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:text-slate-900" disabled={geocodeStatus === 'loading'}>
             <Search className="h-4 w-4 lg:hidden" />
-            <span>{geocodeStatus === 'loading' ? 'Geocoding address' : 'Run source comparison'}</span>
+            <span>{geocodeStatus === 'loading' ? 'Geocoding address' : 'Search address'}</span>
             <ChevronRight className="hidden h-4 w-4 lg:block" />
           </Button>
         </form>

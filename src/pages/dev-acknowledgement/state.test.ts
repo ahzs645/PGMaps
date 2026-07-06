@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import type { CandidateNation, MatchType, SourceKey } from './types'
 import {
   effectiveSelectedCandidateIds,
-  nextDraftWording,
   selectedCandidateNames,
   toggleMatchTypeState,
   visibleAcknowledgementCandidates,
@@ -65,6 +64,21 @@ describe('acknowledgement source/selection state', () => {
     expect(effectiveSelectedCandidateIds([], ['hidden'])).toEqual([])
     expect(selectedCandidateNames([], ['hidden'])).toEqual([])
   })
+
+  it('does not auto-select weak candidates when the prior selection is stale', () => {
+    const visible = [
+      candidate('cayuse', { nativeLand: 'Native Land match' }),
+      candidate('musqueam', { nativeLand: 'Native Land match' }),
+    ]
+
+    expect(effectiveSelectedCandidateIds(visible, ['hidden'])).toEqual([])
+  })
+
+  it('respects an explicitly empty selection', () => {
+    const visible = [candidate('strong', { reserve: 'Reserve match' }, 'strong')]
+
+    expect(effectiveSelectedCandidateIds(visible, [])).toEqual([])
+  })
 })
 
 describe('acknowledgement match-type state', () => {
@@ -86,23 +100,5 @@ describe('acknowledgement match-type state', () => {
     const next = toggleMatchTypeState(toggleMatchTypeState(current, 'place'), 'place')
 
     expect(next).toEqual(current)
-  })
-})
-
-describe('acknowledgement wording draft state', () => {
-  it('syncs an empty initial draft with generated wording', () => {
-    expect(nextDraftWording('', '', 'Generated')).toBe('Generated')
-  })
-
-  it('updates a clean draft when generated wording changes', () => {
-    expect(nextDraftWording('Old generated', 'Old generated', 'New generated')).toBe('New generated')
-  })
-
-  it('preserves a manually edited draft when generated wording changes', () => {
-    expect(nextDraftWording('Manual edit', 'Old generated', 'New generated')).toBe('Manual edit')
-  })
-
-  it('treats manually clearing the draft as an edit', () => {
-    expect(nextDraftWording('', 'Old generated', 'New generated')).toBe('')
   })
 })

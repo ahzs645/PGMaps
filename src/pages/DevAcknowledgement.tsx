@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 import { defaultWordingOptions } from './dev-acknowledgement/data'
@@ -162,7 +162,9 @@ export default function DevAcknowledgement() {
   const toggleMatchType = (matchType: MatchType) => {
     const next = toggleMatchTypeState(enabledMatchTypes, matchType)
     setEnabledMatchTypes(next)
-    if (geocodeResult) void runSourceLookups(geocodeResult, next)
+    // Re-match against the geocoded address, not the input text — the user may
+    // have typed something new that was never submitted.
+    if (geocodeResult) void runSourceLookups(geocodeResult, next, geocodeResult.fullAddress)
   }
 
   const toggleWordingOption = (option: WordingToggle) => {
@@ -180,13 +182,19 @@ export default function DevAcknowledgement() {
     })
   }
 
+  const copiedTimeoutRef = useRef<number | null>(null)
+  useEffect(() => () => {
+    if (copiedTimeoutRef.current !== null) window.clearTimeout(copiedTimeoutRef.current)
+  }, [])
+
   const handleCopyWording = useCallback(async () => {
     const text = customWording.trim()
     if (!text) return
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
+      if (copiedTimeoutRef.current !== null) window.clearTimeout(copiedTimeoutRef.current)
+      copiedTimeoutRef.current = window.setTimeout(() => setCopied(false), 2000)
     } catch {
       setCopied(false)
     }
@@ -213,13 +221,14 @@ export default function DevAcknowledgement() {
       />
 
       <div className="border-b bg-white">
-        <div className="mx-auto flex max-w-7xl gap-1 px-3 sm:px-6 lg:px-8">
+        <div role="tablist" aria-label="Acknowledgement builder sections" className="mx-auto flex max-w-7xl gap-1 px-3 sm:px-6 lg:px-8">
           {([['mapNations', 'Map & Nations'], ['wording', 'Wording'], ['organizations', 'Organizations']] as const).map(([value, label]) => (
             <button
               key={value}
               type="button"
+              role="tab"
               onClick={() => setActiveTab(value)}
-              aria-current={activeTab === value}
+              aria-selected={activeTab === value}
               className={cn(
                 '-mb-px border-b-2 px-4 py-3 text-sm font-medium transition',
                 activeTab === value ? 'border-teal-700 text-teal-800' : 'border-transparent text-slate-500 hover:text-slate-800',
@@ -231,11 +240,13 @@ export default function DevAcknowledgement() {
         </div>
       </div>
 
-      {activeTab === 'mapNations' && (
+      {/* Hidden rather than unmounted on tab switch: unmounting would destroy the
+          composer's points/org state while the parent's wording context lived on. */}
+      <div className={activeTab === 'mapNations' ? undefined : 'hidden'}>
         <MultiPointComposer
           graph={relationshipGraph}
           addressPoint={geocodeResult}
-          onActivePoint={(latitude, longitude) => dropLocation({ latitude, longitude })}
+          onActivePoint={(latitude, longitude, label) => dropLocation({ latitude, longitude, label })}
           orgToLoad={orgToLoad}
           onOrgLoaded={() => setOrgToLoad(null)}
           onOrgChange={handleOrgChange}
@@ -294,10 +305,10 @@ export default function DevAcknowledgement() {
           <MatchTypesPanel enabledMatchTypes={enabledMatchTypes} onToggle={toggleMatchType} />
           <DataProvenancePanel automatedSources={automatedManifestSources} manualSources={manualManifestSources} />
         </MultiPointComposer>
-      )}
+      </div>
 
       {activeTab === 'wording' && (
-        <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:px-8">
+        <div className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:px-8">
           <VariantControls
             wordingMode={wordingMode}
             onWordingModeChange={setWordingMode}
@@ -320,14 +331,14 @@ export default function DevAcknowledgement() {
             <TemplatePrompts />
             <LanguageReferences />
           </aside>
-        </main>
+        </div>
       )}
 
       {activeTab === 'organizations' && (
-        <main className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-5 lg:px-8">
+        <div className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-5 lg:px-8">
           <OrganizationsSidebar selectedId={orgPreset} onSelect={setOrgPreset} />
           <OrganizationPreview key={orgPreset ?? 'none'} orgId={orgPreset} onPreviewOnMap={previewOnMap} />
-        </main>
+        </div>
       )}
     </div>
   )

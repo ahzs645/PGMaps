@@ -91,6 +91,8 @@ export type GeocodeResult = {
 export type DroppedLocation = {
   latitude: number
   longitude: number
+  /** Display name for the location (address or campus name), when it has one. */
+  label?: string
 }
 
 export type BcGeocoderFeature = {

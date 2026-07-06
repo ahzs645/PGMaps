@@ -46,6 +46,9 @@ export function useAcknowledgementLookups(
   const [sourceLookups, setSourceLookups] = useState<Record<SourceKey, SourceLookupState>>(initialLookupState)
   const sourceLookupRunRef = useRef(0)
   const sourceLookupAbortRef = useRef<AbortController | null>(null)
+  // Monotonic id shared by every way a geocode can start (initial sample, form
+  // submit, map drop). A slow response only lands if no newer request superseded it.
+  const geocodeRunRef = useRef(0)
 
   const candidates = useMemo(() => buildCandidatesFromLookups(sourceLookups, relationshipGraph), [sourceLookups, relationshipGraph])
 
@@ -137,6 +140,7 @@ export function useAcknowledgementLookups(
   useEffect(() => {
     return () => {
       sourceLookupRunRef.current += 1
+      geocodeRunRef.current += 1
       sourceLookupAbortRef.current?.abort()
       sourceLookupAbortRef.current = null
     }
@@ -174,22 +178,27 @@ export function useAcknowledgementLookups(
     }
   }, [])
 
-  useEffect(() => {
-    const controller = new AbortController()
+  const runGeocode = useCallback(async (addressToGeocode: string, signal?: AbortSignal) => {
+    const runId = ++geocodeRunRef.current
     setGeocodeStatus('loading')
     setGeocodeError(null)
-    geocodeAddress(address, controller.signal)
-      .then((result) => {
-        setGeocodeResult(result)
-        setGeocodeStatus('success')
-        void runSourceLookups(result)
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        setGeocodeResult(null)
-        setGeocodeStatus('error')
-        setGeocodeError(error instanceof Error ? error.message : 'Unable to geocode this address')
-      })
+    try {
+      const result = await geocodeAddress(addressToGeocode, signal)
+      if (geocodeRunRef.current !== runId) return
+      setGeocodeResult(result)
+      setGeocodeStatus('success')
+      void runSourceLookups(result, enabledMatchTypes, addressToGeocode)
+    } catch (error) {
+      if (geocodeRunRef.current !== runId || signal?.aborted) return
+      setGeocodeResult(null)
+      setGeocodeStatus('error')
+      setGeocodeError(error instanceof Error ? error.message : 'Unable to geocode this address')
+    }
+  }, [enabledMatchTypes, runSourceLookups])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void runGeocode(address, controller.signal)
     return () => controller.abort()
     // Run once to populate the default sample address.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -204,22 +213,12 @@ export function useAcknowledgementLookups(
       setGeocodeResult(null)
       return
     }
-
-    setGeocodeStatus('loading')
-    setGeocodeError(null)
-    try {
-      const result = await geocodeAddress(trimmedAddress)
-      setGeocodeResult(result)
-      setGeocodeStatus('success')
-      void runSourceLookups(result, enabledMatchTypes, trimmedAddress)
-    } catch (error) {
-      setGeocodeResult(null)
-      setGeocodeStatus('error')
-      setGeocodeError(error instanceof Error ? error.message : 'Unable to geocode this address')
-    }
+    await runGeocode(trimmedAddress)
   }
 
   const dropLocation = useCallback((location: DroppedLocation) => {
+    // A drop supersedes any in-flight geocode.
+    geocodeRunRef.current += 1
     const result = locationFromCoordinates(location)
     setGeocodeResult(result)
     setGeocodeStatus('success')
