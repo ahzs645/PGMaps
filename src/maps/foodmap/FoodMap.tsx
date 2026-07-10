@@ -371,6 +371,7 @@ export default function FoodMap() {
           restaurants={geocodedRestaurants}
           selectedRestaurant={selectedRestaurant}
           visualizationMode={visualizationMode}
+          markerStyle={filters.markerStyle}
           loading={loading}
           onRestaurantClick={handleMapRestaurantClick}
           onViewInspections={handleMapViewInspections}

@@ -5,7 +5,8 @@ import { AppSelect } from '@/components/ui/select'
 import { FilterChipGroup, MapSidebarShell, SearchInput, SelectedItemCard } from '@/components/ui/map-panels'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useToggleArray } from '@/hooks/useToggleArray'
-import type { FoodMapFilters, FoodMapFilterActions } from '../hooks/useFoodMapFilters'
+import { MARKER_STYLE_OPTIONS, type FoodMapFilters, type FoodMapFilterActions } from '../hooks/useFoodMapFilters'
+import type { MarkerStyle } from '../types'
 import type {
   RestaurantWithStats,
   RestaurantStats,
@@ -160,6 +161,18 @@ export function Sidebar({
             Hazard Rating
           </button>
         </div>
+      </div>
+
+      {/* Experimental dot style selector */}
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2">
+        <span className="text-xs text-muted-foreground">Dot style</span>
+        <AppSelect
+          value={filters.markerStyle}
+          onValueChange={(value) => filterActions.setMarkerStyle(value as MarkerStyle)}
+          options={MARKER_STYLE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+          className="w-40"
+          triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
+        />
       </div>
 
       {/* Map count + Time selector */}
