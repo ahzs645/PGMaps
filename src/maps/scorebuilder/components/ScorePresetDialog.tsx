@@ -213,10 +213,10 @@ export function ScorePresetDialog({
           {filteredProjects.length > 0 && (
             <section>
               <div className="mb-2">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Projects
                 </div>
-                <div className="text-[11px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   Guided project packages. Opening one loads its full recipe and pins it as the comparison baseline.
                 </div>
               </div>
@@ -232,16 +232,16 @@ export function ScorePresetDialog({
                       <div className="text-sm font-semibold text-foreground">{pkg.title}</div>
                       <FolderKanban className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </div>
-                    <div className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{pkg.summary}</div>
+                    <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{pkg.summary}</div>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                         {pkg.lab?.boundaryLevel.toUpperCase()}
                       </span>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                         {Object.keys(pkg.lab?.weights ?? {}).length} metrics
                       </span>
                       {pkg.local && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                           Local
                         </span>
                       )}
@@ -255,10 +255,10 @@ export function ScorePresetDialog({
           {groupedPresets.map((group) => (
             <section key={group.key}>
               <div className="mb-2">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {group.label}
                 </div>
-                <div className="text-[11px] text-muted-foreground">{group.description}</div>
+                <div className="text-xs text-muted-foreground">{group.description}</div>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {group.presets.map((preset) => {
@@ -280,13 +280,13 @@ export function ScorePresetDialog({
                       <div className="flex items-start justify-between gap-2">
                         <div className="text-sm font-semibold text-foreground">{preset.label}</div>
                         {active && (
-                          <span className="rounded bg-cyan-100 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-100">
+                          <span className="rounded bg-cyan-100 px-1.5 py-0.5 text-xs font-semibold text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-100">
                             Active
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{preset.description}</div>
-                      <div className="mt-2 grid gap-1 text-[10px] text-muted-foreground">
+                      <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{preset.description}</div>
+                      <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
                         <div>
                           <span className="font-semibold text-foreground">Purpose:</span> {methodology.purpose}
                         </div>
@@ -308,7 +308,7 @@ export function ScorePresetDialog({
                         {sources.map((source) => (
                           <span
                             key={source}
-                            className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                            className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
                           >
                             {getDataSourceLabel(source)}
                           </span>

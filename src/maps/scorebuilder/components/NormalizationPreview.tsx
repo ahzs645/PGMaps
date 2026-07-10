@@ -35,10 +35,10 @@ export function NormalizationPreview({
     <div className="rounded-lg border border-border bg-background p-3">
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Normalization</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Normalization</div>
           <div className="mt-0.5 text-sm font-semibold text-foreground">{metric?.label || metricKey}</div>
         </div>
-        <div className="text-right font-mono text-[10px] text-muted-foreground">
+        <div className="text-right font-mono text-xs text-muted-foreground">
           <div>{formatMetricValue(metricKey, range.min, true)}</div>
           <div>{formatMetricValue(metricKey, range.max, true)}</div>
         </div>
@@ -57,12 +57,12 @@ export function NormalizationPreview({
         ))}
       </div>
       <div className="mt-2 h-2 rounded-full bg-gradient-to-r from-rose-600 via-amber-100 to-emerald-700" />
-      <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+      <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
         <span>0</span>
         <span>normalized score</span>
         <span>100</span>
       </div>
-      <div className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+      <div className="mt-2 text-xs leading-relaxed text-muted-foreground">
         Raw values are scaled against the current region set before weights are applied.
       </div>
     </div>

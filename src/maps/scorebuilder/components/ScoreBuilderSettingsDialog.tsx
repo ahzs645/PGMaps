@@ -154,7 +154,7 @@ export function ScoreBuilderSettingsDialog({
               <div className="space-y-4 p-4" data-score-builder-saved-indexes="true">
                 <div className="rounded-lg border border-border bg-muted/20 p-3">
                   <div className="text-xs font-semibold text-foreground">Save current index</div>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     Stores the boundary, data sources, weights, custom metrics, and method settings on this device.
                   </p>
                   <div className="mt-2 flex gap-2">
@@ -188,7 +188,7 @@ export function ScoreBuilderSettingsDialog({
                     )}
                   </div>
                   {onExportProjectPackage && (
-                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    <p className="mt-1.5 text-xs text-muted-foreground">
                       A package file can be imported on the Projects page or shared with someone else.
                     </p>
                   )}
@@ -207,7 +207,7 @@ export function ScoreBuilderSettingsDialog({
                       >
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-foreground">{entry.label}</div>
-                          <div className="text-[11px] text-muted-foreground">
+                          <div className="text-xs text-muted-foreground">
                             Saved {new Date(entry.savedAt).toLocaleDateString()} ·{' '}
                             {entry.state.enabledDataSources.length} sources
                           </div>

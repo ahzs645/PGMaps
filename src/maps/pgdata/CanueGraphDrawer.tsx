@@ -125,7 +125,7 @@ export function CanueGraphDrawer({
             <BarChart3 className="h-4 w-4 shrink-0 text-cyan-600" />
             <h3 className="truncate text-sm font-semibold text-foreground">CANUE graphs</h3>
           </div>
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {rows.length.toLocaleString()} {boundaryLevelLabel} areas
             {selectedBoundaryName ? ` | selected: ${selectedBoundaryName}` : ''}
           </p>
@@ -151,7 +151,7 @@ export function CanueGraphDrawer({
                   type="button"
                   onClick={() => onToggleVariable(option.key)}
                   className={cn(
-                    'shrink-0 rounded-md border px-2.5 py-1.5 text-left text-[11px] leading-4 transition-colors md:shrink',
+                    'shrink-0 rounded-md border px-2.5 py-1.5 text-left text-xs leading-4 transition-colors md:shrink',
                     active
                       ? 'border-cyan-600 bg-cyan-50 text-cyan-950 dark:bg-cyan-950/30 dark:text-cyan-100'
                       : 'border-input text-muted-foreground hover:text-foreground',
@@ -162,7 +162,7 @@ export function CanueGraphDrawer({
               )
             })}
           </div>
-          <div className="mt-2 text-[10px] text-muted-foreground">Pick up to four variables.</div>
+          <div className="mt-2 text-xs text-muted-foreground">Pick up to four variables.</div>
         </div>
         <div className="min-h-0 p-3 md:overflow-y-auto md:p-4">
           {loading && <div className="text-xs text-muted-foreground">Loading graph values...</div>}
@@ -196,7 +196,7 @@ export function CanueGraphDrawer({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h4 className="line-clamp-2 text-xs font-semibold leading-4 text-foreground">{item.label}</h4>
-                      <div className="mt-1 text-[10px] text-muted-foreground">
+                      <div className="mt-1 text-xs text-muted-foreground">
                         mean {formatNullableNumber(item.mean)} | {formatNullableNumber(item.min)}-
                         {formatNullableNumber(item.max)}
                       </div>
@@ -226,13 +226,13 @@ export function CanueGraphDrawer({
                       />
                     )}
                   </div>
-                  <div className="mt-2 flex justify-between gap-3 text-[10px] text-muted-foreground">
+                  <div className="mt-2 flex justify-between gap-3 text-xs text-muted-foreground">
                     <span>{formatNullableNumber(item.min)}</span>
                     <span>{formatNullableNumber(item.max)}</span>
                   </div>
                   <div className="mt-3 space-y-1.5">
                     {topPoints.map((point) => (
-                      <div key={point.id} className="grid grid-cols-[1fr_auto] items-center gap-2 text-[11px]">
+                      <div key={point.id} className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs">
                         <span className="truncate text-muted-foreground">{point.name}</span>
                         <span className="font-medium tabular-nums text-foreground">
                           {formatNullableNumber(point.value)}

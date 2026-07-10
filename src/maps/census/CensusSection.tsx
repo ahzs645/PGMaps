@@ -180,14 +180,14 @@ export default function CensusSection() {
           <div className="truncate text-xs font-semibold text-foreground">
             Census | {filteredUnits.length.toLocaleString()} units
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">
+          <div className="truncate text-xs text-muted-foreground">
             {selectedHierarchyLabel} | {selectedUnit?.name || selectedMetricLabel}
           </div>
         </div>
       )}
       sidebar={(
         <CensusSidebar
-          className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
+          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
           units={allUnits}
           filteredUnits={filteredUnits}
           selectedUnit={selectedUnit}
@@ -231,7 +231,7 @@ export default function CensusSection() {
           collapsible
         >
           {variableLoading && (
-            <div className="mb-2 text-[10px] text-amber-600">Loading variable data...</div>
+            <div className="mb-2 text-xs text-amber-600">Loading variable data...</div>
           )}
           <MapGradientLegendItem colors={LEGEND_SWATCHES} minLabel="Low" maxLabel="High" />
         </MapLegendPanel>
@@ -283,7 +283,7 @@ function MobileCensusFeatureCard({
     >
       {isVariableMode ? (
         <div>
-          <div className="text-[10px] text-amber-700 dark:text-amber-300">{variableCategoryName}</div>
+          <div className="text-xs text-amber-700 dark:text-amber-300">{variableCategoryName}</div>
           <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
             {formatValue(variableValue)}
           </div>

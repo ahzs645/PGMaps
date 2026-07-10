@@ -67,7 +67,7 @@ export function WaterLegend({ water }: { water: WaterState }) {
               color={WATER_HAZARD_DOT_COLORS[rating] ?? WATER_HAZARD_DOT_COLORS.Unknown}
               label={rating}
               value={(water.hazardCounts[rating] ?? 0).toLocaleString()}
-              className="text-[11px]"
+              className="text-xs"
             />
           ))}
         </div>

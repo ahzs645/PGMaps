@@ -274,7 +274,7 @@ function FireDangerCompactStripLegend() {
             title={`Fire Danger: ${band.label}`}
             aria-label={`Fire Danger: ${band.label}`}
             aria-pressed={selectedIndex === index}
-            className="block h-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+            className="block h-11 min-w-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             style={{ backgroundColor: band.color }}
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
@@ -284,12 +284,12 @@ function FireDangerCompactStripLegend() {
           />
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-1 text-[9px] text-muted-foreground sm:text-[10px]">
+      <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground sm:text-xs">
         <span>Low</span>
         <span className="text-center">High</span>
         <span className="text-right">Extreme</span>
       </div>
-      <div className="min-h-4 text-[10px] font-medium text-foreground" aria-live="polite">
+      <div className="min-h-4 text-xs font-medium text-foreground" aria-live="polite">
         {activeBand ? `Fire Danger: ${activeBand.label}` : null}
       </div>
     </div>
@@ -315,7 +315,7 @@ function FireDangerTiltedStripLegend() {
             title={`Fire Danger: ${band.label}`}
             aria-label={`Fire Danger: ${band.label}`}
             aria-pressed={selectedIndex === index}
-            className="block h-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+            className="block h-11 min-w-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             style={{ backgroundColor: band.color }}
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
@@ -325,7 +325,7 @@ function FireDangerTiltedStripLegend() {
           />
         ))}
       </div>
-      <div className="relative mt-1 min-h-14 overflow-visible text-[9px] leading-none text-muted-foreground sm:text-[10px]">
+      <div className="relative mt-1 min-h-14 overflow-visible text-xs leading-none text-muted-foreground sm:text-xs">
         {FIRE_DANGER_LEGEND_BANDS.map((band, index) => (
           <span
             key={band.label}
@@ -338,7 +338,7 @@ function FireDangerTiltedStripLegend() {
           </span>
         ))}
       </div>
-      <div className="min-h-4 text-[10px] font-medium text-foreground" aria-live="polite">
+      <div className="min-h-4 text-xs font-medium text-foreground" aria-live="polite">
         {activeBand ? `Fire Danger: ${activeBand.label}` : null}
       </div>
     </div>
@@ -348,7 +348,7 @@ function FireDangerTiltedStripLegend() {
 function Pm25AqhiLegend({ locale }: { locale: AqmapLocale }) {
   return (
     <div className="space-y-2">
-      <div className="text-[10px] text-muted-foreground">
+      <div className="text-xs text-muted-foreground">
         AQHI+ · PM2.5 {translate('aqhi.unit', locale)}
       </div>
       <MapSteppedLegend
@@ -370,7 +370,7 @@ function WindLegendContent({ locale }: { locale: AqmapLocale }) {
         className="h-2 w-full rounded"
         style={{ backgroundImage: `linear-gradient(to right, ${WIND_LEGEND_COLORS.join(', ')})` }}
       />
-      <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+      <div className="mt-1 flex justify-between text-xs text-muted-foreground">
         <span>{translate('wind.legend.min', locale)}</span>
         <span>{translate('wind.legend.max', locale)}</span>
       </div>
@@ -387,7 +387,7 @@ function VectorWindBarbLegendContent({ locale }: { locale: AqmapLocale }) {
           <span>{translate(item.labelKey, locale)}</span>
         </div>
       ))}
-      <div className="text-[10px] leading-3 text-muted-foreground">
+      <div className="text-xs leading-3 text-muted-foreground">
         {translate('windBarbs.legend.note', locale)}
       </div>
     </div>
@@ -418,7 +418,7 @@ function SmokeLegendContent({ layer, locale }: { layer: SmokeLayerDefinition; lo
 function ModelledSmokeStripLegend({ layer }: { layer: SmokeLayerDefinition }) {
   return (
     <div className="space-y-2">
-      <div className="text-[10px] text-muted-foreground">
+      <div className="text-xs text-muted-foreground">
         PM2.5 µg m<sup>-3</sup>
       </div>
       <MapSteppedLegend
@@ -454,14 +454,14 @@ function ActiveFiresLegendContent({ locale: _locale }: { locale: AqmapLocale }) 
   return (
     <div className="space-y-2">
       <div className="space-y-1">
-        <div className="text-[11px] font-medium text-foreground">Stage of Control</div>
+        <div className="text-xs font-medium text-foreground">Stage of Control</div>
         <ActiveFireStageLegendItem color="#ef4444" label="Out of Control" />
         <ActiveFireStageLegendItem color="#facc15" label="Being Held" />
         <ActiveFireStageLegendItem color="#0ea5e9" label="Under Control" />
         <ActiveFireStageLegendItem color="#d946ef" label="Out of Control (Monitored)" />
       </div>
       <div className="space-y-1">
-        <div className="text-[11px] font-medium text-foreground">Fire Size</div>
+        <div className="text-xs font-medium text-foreground">Fire Size</div>
         <ActiveFireSizeLegendItem size="size-2" label="0 - 100ha" />
         <ActiveFireSizeLegendItem size="size-3" label="100 - 1000ha" />
         <ActiveFireSizeLegendItem size="size-4" label="> 1000ha" />

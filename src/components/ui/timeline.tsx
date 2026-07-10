@@ -587,7 +587,7 @@ export function Timeline({
                     key={opt.value}
                     onClick={() => windowMode.onSizeChange(opt.value)}
                     className={cn(
-                      'whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-medium transition-colors',
+                      'whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium transition-colors',
                       windowMode.size === opt.value
                         ? 'bg-primary text-primary-foreground'
                         : 'text-muted-foreground hover:text-foreground',
@@ -605,7 +605,7 @@ export function Timeline({
                   key={opt.value}
                   onClick={() => setSpeed(opt.value)}
                   className={cn(
-                    'rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors',
+                    'rounded px-1.5 py-0.5 text-xs font-medium transition-colors',
                     speed === opt.value
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:text-foreground',
@@ -732,11 +732,11 @@ export function Timeline({
                   >
                     {isPeriodStart &&
                       (isMobile ? (
-                        <span className="text-[10px] leading-none text-muted-foreground">
+                        <span className="text-xs leading-none text-muted-foreground">
                           {granularity === 'week' ? MONTH_NAMES[bucket.start.getMonth()] : bucket.start.getFullYear()}
                         </span>
                       ) : (
-                        <span className="text-[9px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {granularity === 'week' ? bucket.shortLabel : bucket.start.getFullYear()}
                         </span>
                       ))}
@@ -780,7 +780,7 @@ export function Timeline({
               aria-label="Timeline date"
             />
 
-            <div className="hidden text-[10px] text-muted-foreground sm:block">{buckets[currentIndex]?.shortLabel}</div>
+            <div className="hidden text-xs text-muted-foreground sm:block">{buckets[currentIndex]?.shortLabel}</div>
           </div>
         )}
       </div>

@@ -751,7 +751,7 @@ export function OpenLitterMapSidebar({
             <button
               type="button"
               onClick={() => litter.setSelectedObject(ALL_OBJECTS)}
-              className="text-[11px] font-medium text-rose-600 hover:underline dark:text-rose-400"
+              className="text-xs font-medium text-rose-600 hover:underline dark:text-rose-400"
             >
               Clear object filter
             </button>
@@ -782,7 +782,7 @@ export function OpenLitterMapSidebar({
                 <span className="min-w-0 truncate font-medium text-foreground">{contributor.name}</span>
                 <span className="shrink-0 text-right">
                   {contributor.litter.toLocaleString()} items
-                  {contributor.team ? <span className="block max-w-36 truncate text-[10px]">{contributor.team}</span> : null}
+                  {contributor.team ? <span className="block max-w-36 truncate text-xs">{contributor.team}</span> : null}
                 </span>
               </li>
             ))}
@@ -1028,10 +1028,10 @@ export function MobileOpenLitterMapFeatureCard({ litter }: { litter: OpenLitterM
 
 export function OpenLitterMapLegend({ litter }: { litter: OpenLitterMapState }) {
   return (
-    <div className="w-full space-y-1.5 text-[11px] text-muted-foreground md:w-56 md:space-y-2 md:text-xs">
+    <div className="w-full space-y-1.5 text-xs text-muted-foreground md:w-56 md:space-y-2 md:text-xs">
       {litter.showHeatmap && (
         <div className="space-y-1 border-b border-border pb-2">
-          <div className="px-1 text-[10px] font-medium text-foreground">Litter density</div>
+          <div className="px-1 text-xs font-medium text-foreground">Litter density</div>
           <MapGradientLegendItem
             className="px-1"
             colors={['#fde68a', '#fb923c', '#ef4444', '#7f1d1d']}
@@ -1042,7 +1042,7 @@ export function OpenLitterMapLegend({ litter }: { litter: OpenLitterMapState }) 
       )}
       {litter.showHexes && (
         <div className="space-y-1 border-b border-border pb-2">
-          <div className="px-1 text-[10px] font-medium text-foreground">Hex item count</div>
+          <div className="px-1 text-xs font-medium text-foreground">Hex item count</div>
           <MapGradientLegendItem
             className="px-1"
             colors={['#fef2f2', '#fb923c', '#b91c1c']}

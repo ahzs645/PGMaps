@@ -87,7 +87,7 @@ export function ScoreBuilderLeftPanel({
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Layers className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold text-foreground">Index Inputs</h2>
-        <span className="ml-auto text-[11px] text-muted-foreground">{regionCount} regions</span>
+        <span className="ml-auto text-xs text-muted-foreground">{regionCount} regions</span>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
@@ -117,7 +117,7 @@ export function ScoreBuilderLeftPanel({
           className="p-4"
           data-score-builder-section="filters"
         >
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Data sources
           </h3>
 
@@ -151,7 +151,7 @@ export function ScoreBuilderLeftPanel({
 
                   {ds.id === 'airQuality' && active && (
                     <div className="ml-2 mt-1 space-y-1 border-l-2 border-cyan-200 pl-2 dark:border-cyan-900">
-                      <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">
                           {selectedNetworks.length} networks
                         </span>
@@ -177,7 +177,7 @@ export function ScoreBuilderLeftPanel({
                             data-score-builder-network={network}
                             onClick={() => onToggleNetwork(network)}
                             className={cn(
-                              'flex w-full items-center justify-between rounded px-2 py-1 text-[11px] transition-colors',
+                              'flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors',
                               selectedNetworkSet.has(network)
                                 ? 'bg-cyan-50 text-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-100'
                                 : 'text-muted-foreground hover:text-foreground',
@@ -331,7 +331,7 @@ export function CustomMetricBuilder({
         className="mb-2 flex w-full items-center justify-between gap-2 text-left"
         data-score-builder-uploads-toggle="true"
       >
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Your data (this device){userDatasets.length > 0 ? ` · ${userDatasets.length}` : ''}
         </span>
         {uploadsOpen ? (
@@ -342,7 +342,7 @@ export function CustomMetricBuilder({
       </button>
       {uploadsOpen && (
       <div className="space-y-2 rounded-md border border-border bg-card p-3" data-score-builder-user-uploads="true">
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Upload GeoJSON or CSV (with lat/lon columns) point data to use in custom metrics. Files are stored in this
           browser only and are not included in shared URLs.
         </p>
@@ -371,7 +371,7 @@ export function CustomMetricBuilder({
         {uploadStatus && (
           <div
             className={cn(
-              'rounded border p-2 text-[11px]',
+              'rounded border p-2 text-xs',
               uploadStatus.tone === 'error'
                 ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300'
                 : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200',
@@ -389,7 +389,7 @@ export function CustomMetricBuilder({
               >
                 <div className="min-w-0">
                   <div className="truncate font-medium text-foreground">{entry.label}</div>
-                  <div className="truncate text-[11px] text-muted-foreground">
+                  <div className="truncate text-xs text-muted-foreground">
                     {entry.featureCount.toLocaleString()} points · {entry.fileName}
                   </div>
                 </div>
@@ -415,7 +415,7 @@ export function CustomMetricBuilder({
         className="mb-2 mt-4 flex w-full items-center justify-between gap-2 text-left"
         data-score-builder-recipe-toggle="true"
       >
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Custom metric recipe
         </span>
         {builderOpen ? (
@@ -456,14 +456,14 @@ export function CustomMetricBuilder({
           triggerClassName={metricSelectTriggerClass}
           triggerAriaLabel="Metric data source"
         />
-        <div className="text-[10px] text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           {selectedUserDataset
             ? `Uploaded ${selectedUserDataset.fileName} — stored on this device; recipes built from it compute locally and are not reproducible from a shared URL.`
             : dataset?.description}
         </div>
 
         {profile && source !== 'custom' && (
-          <div className="rounded border border-border bg-muted/30 p-2 text-[10px] text-muted-foreground">
+          <div className="rounded border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
             <div>
               {profile.rowCount.toLocaleString()} rows · {profile.pointCount.toLocaleString()} points ·{' '}
               {profile.coordinateValidity.validPoints.toLocaleString()} valid coordinates
@@ -491,7 +491,7 @@ export function CustomMetricBuilder({
               triggerClassName={metricSelectTriggerClass}
               triggerAriaLabel="Census preset"
             />
-            <div className="rounded border border-border bg-muted/30 p-2 text-[10px] text-muted-foreground">
+            <div className="rounded border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
               {selectedCensusPreset?.description}
             </div>
           </>
@@ -595,7 +595,7 @@ export function CustomMetricBuilder({
             <button
               type="button"
               onClick={() => setExtraFilters((current) => [...current, { field: '', operator: 'equals', value: '' }])}
-              className="text-left text-[11px] font-medium text-cyan-700 hover:text-cyan-800 dark:text-cyan-300"
+              className="text-left text-xs font-medium text-cyan-700 hover:text-cyan-800 dark:text-cyan-300"
             >
               Add another filter
             </button>
@@ -685,7 +685,7 @@ export function CustomMetricBuilder({
             <div key={recipe.id} className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1.5 text-xs">
               <div className="min-w-0">
                 <div className="truncate font-medium text-foreground">{recipe.label}</div>
-                <div className="truncate text-[10px] text-muted-foreground">{recipe.id}</div>
+                <div className="truncate text-xs text-muted-foreground">{recipe.id}</div>
               </div>
               <button
                 type="button"

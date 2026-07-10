@@ -34,7 +34,7 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
     <aside className="flex max-h-96 flex-col overflow-hidden rounded-lg border bg-white shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start">
       <div className="border-b p-3">
         <h2 className="text-sm font-semibold">Organizations</h2>
-        <p className="mt-0.5 text-[11px] leading-4 text-slate-500">
+        <p className="mt-0.5 text-xs leading-4 text-slate-500">
           {organizations.length} presets · click one to preview on the map
         </p>
         <label className="mt-2 flex min-h-9 items-center gap-2 rounded-md border bg-white px-2.5">
@@ -61,7 +61,7 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
             )}
           >
             <div className="truncate text-xs font-medium text-slate-900">{org.name}</div>
-            <div className="truncate text-[10px] text-slate-500">
+            <div className="truncate text-xs text-slate-500">
               {humanize(org.sector)} ·{' '}
               {org.acknowledges.length
                 ? `${org.acknowledges.length} Nation${org.acknowledges.length === 1 ? '' : 's'}`

@@ -498,7 +498,7 @@ function DevInteract() {
 
   const sidebar = (
     <DevInteractSidebar
-      className="h-full w-full border-0 shadow-none md:w-[320px] md:border-r md:shadow-xl"
+      className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
       visibleLayers={visibleLayers}
       measurementMode={measurementMode}
       measurementStats={currentMeasurementStats}
@@ -556,7 +556,7 @@ function DevInteract() {
             <span className="block truncate text-xs font-semibold text-foreground">
               {selectedFeature && mobileControlsExpanded ? selectedFeature.properties.name : 'Interactive map controls'}
             </span>
-            <span className="block truncate text-[11px] text-muted-foreground">
+            <span className="block truncate text-xs text-muted-foreground">
               {selectedFeature && mobileControlsExpanded
                 ? layerLabel(selectedFeature.properties.layer)
                 : measurementMode === 'drawing' ? `${measurementPoints.length} measurement points` : 'Legend, actions, and popup cards'}
@@ -652,7 +652,7 @@ function DevInteract() {
                 <button
                   type="button"
                   className={cn(
-                    'flex size-5 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-[10px] font-semibold text-white shadow-lg transition-transform',
+                    'flex size-5 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-xs font-semibold text-white shadow-lg transition-transform',
                     measurementShape === 'polygon' && measurementMode === 'drawing' && index === 0 && measurementCanClose(measurementPoints) && 'size-6 cursor-pointer ring-4 ring-orange-500/20 hover:scale-110',
                   )}
                   onClick={(event) => {

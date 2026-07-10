@@ -83,6 +83,14 @@ export function Navbar() {
     setMobileSubmenu(null)
   }, [])
 
+  const toggleMobileMenu = useCallback(() => {
+    if (mobileMenuOpen) {
+      closeMobileMenu()
+    } else {
+      setMobileMenuOpen(true)
+    }
+  }, [closeMobileMenu, mobileMenuOpen])
+
   // Close mobile menu on outside click
   useEffect(() => {
     if (!mobileMenuOpen) return
@@ -98,6 +106,26 @@ export function Navbar() {
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
+  }, [closeMobileMenu, mobileMenuOpen])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    const focusFirstItem = requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLElement>('a, button')?.focus()
+    })
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      closeMobileMenu()
+      menuButtonRef.current?.focus()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      cancelAnimationFrame(focusFirstItem)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [closeMobileMenu, mobileMenuOpen])
 
   useEffect(() => {
@@ -121,10 +149,10 @@ export function Navbar() {
     ? createPortal(
         <div
           ref={menuRef}
+          id="mobile-navigation"
           data-testid="mobile-nav-menu"
           className={cn(
             "fixed left-3 top-[calc(env(safe-area-inset-top)+3.75rem)] z-[1000] max-h-[calc(100dvh-env(safe-area-inset-top)-4.75rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur md:hidden",
-            isHomePage && 'left-8 top-[calc(env(safe-area-inset-top)+4.5rem)] max-h-[calc(100dvh-env(safe-area-inset-top)-5.5rem)]',
           )}
         >
           {activeMobileSubmenu ? (
@@ -143,6 +171,7 @@ export function Navbar() {
                   key={tabPath}
                   to={tabPath}
                   onClick={closeMobileMenu}
+                  aria-current={activeMobileSubmenu.isActive(tabPath) ? 'page' : undefined}
                   className={cn(
                     "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
                     activeMobileSubmenu.isActive(tabPath)
@@ -180,6 +209,7 @@ export function Navbar() {
                     key={path}
                     to={path}
                     onClick={closeMobileMenu}
+                    aria-current={isNavActive(path) ? 'page' : undefined}
                     className={cn(
                       "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
                       isNavActive(path)
@@ -203,13 +233,12 @@ export function Navbar() {
     <header className="fixed inset-x-0 top-0 z-[1100] h-0 border-b border-transparent bg-transparent md:relative md:h-14 md:border-border md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/60">
       <div
         className={cn(
-          'pointer-events-none flex h-12 items-center justify-between gap-2 px-3 pt-1 md:pointer-events-auto md:h-full md:px-4 md:pt-0',
-          isHomePage && 'px-8 pt-4',
+          'pointer-events-none flex h-[calc(env(safe-area-inset-top)+3.5rem)] items-center justify-between gap-2 px-[calc(env(safe-area-inset-left)+0.75rem)] pb-1 pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.25rem)] md:pointer-events-auto md:h-full md:px-4 md:py-0',
           mobileToolbarHidden && !isHomePage && 'hidden md:flex',
         )}
         data-map-mobile-toolbar="true"
       >
-        <div className="flex min-w-0 items-center gap-2.5 xl:gap-6">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 xl:gap-6">
           {showProjectBackButton && (
             <Link
               to="/dev/projects"
@@ -232,18 +261,16 @@ export function Navbar() {
           <button
             ref={menuButtonRef}
             type="button"
-            onPointerDown={(event) => {
+            onClick={toggleMobileMenu}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return
               event.preventDefault()
-              event.stopPropagation()
-              if (mobileMenuOpen) {
-                closeMobileMenu()
-              } else {
-                setMobileMenuOpen(true)
-              }
+              toggleMobileMenu()
             }}
             aria-label="Main menu"
             aria-haspopup="menu"
             aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation"
             className={cn(
               'pointer-events-auto flex h-11 shrink-0 items-center gap-1.5 rounded-md border px-3 transition-colors md:hidden',
               mobileGlassButtonClass,
@@ -254,29 +281,30 @@ export function Navbar() {
             <ChevronDown className={cn('size-3.5 transition-transform', mobileMenuOpen && 'rotate-180')} />
           </button>
 
-          <nav className="hidden min-w-0 items-center gap-1 md:flex">
+          <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] md:flex [&::-webkit-scrollbar]:hidden" aria-label="Primary navigation">
             {navLinks.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
                 to={path}
                 aria-label={label}
+                aria-current={isNavActive(path) ? 'page' : undefined}
                 title={label}
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors xl:px-3",
+                  "flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-sm font-medium transition-colors xl:px-3",
                   isNavActive(path)
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span className="hidden xl:inline">{label}</span>
+                <span>{label}</span>
               </Link>
             ))}
           </nav>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-1">
+        <div className="flex shrink-0 items-center gap-2 md:gap-1">
           <GlobalSearch className={cn('pointer-events-auto h-11 w-11 rounded-md md:h-10 md:w-10 md:border-input md:bg-background/80 md:text-muted-foreground md:shadow-none md:backdrop-blur-none md:hover:bg-accent md:hover:text-foreground', mobileGlassButtonClass)} />
           <div id="dataset-info-toolbar-slot" className="contents" />
           <Button

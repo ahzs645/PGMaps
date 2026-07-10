@@ -156,11 +156,11 @@ export function AqMapSidebar({
       <div className="space-y-5 overflow-y-auto p-4">
         <section className="grid grid-cols-2 gap-2">
           <div className="rounded-md border border-border bg-secondary/30 p-3">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{translate('sidebar.visible', locale)}</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{translate('sidebar.visible', locale)}</div>
             <div className="mt-1 text-xl font-semibold text-foreground">{visibleCount.toLocaleString(numberLocale)}</div>
           </div>
           <div className="rounded-md border border-border bg-secondary/30 p-3">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{translate('sidebar.pm25Count', locale)}</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{translate('sidebar.pm25Count', locale)}</div>
             <div className="mt-1 text-xl font-semibold text-foreground">{recentCount.toLocaleString(numberLocale)}</div>
           </div>
         </section>
@@ -377,7 +377,7 @@ export function AqMapSidebar({
                         ]}
                       />
                       <div className="space-y-1">
-                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           Legend
                         </div>
                         <SegmentedControl

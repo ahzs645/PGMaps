@@ -32,7 +32,7 @@ export function SectionTabsBar<Id extends string>({
             type="button"
             onClick={() => onTabChange(id)}
             className={cn(
-              'inline-flex h-6 shrink-0 items-center gap-1 rounded px-2 text-[10px] font-medium transition-colors sm:h-7 sm:gap-1.5 sm:px-2.5 sm:text-xs md:h-8 md:rounded-md md:px-3',
+              'inline-flex h-6 shrink-0 items-center gap-1 rounded px-2 text-xs font-medium transition-colors sm:h-7 sm:gap-1.5 sm:px-2.5 sm:text-xs md:h-8 md:rounded-md md:px-3',
               activeTab === id
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',

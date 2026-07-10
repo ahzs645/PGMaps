@@ -23,7 +23,7 @@ export function EquationComposer({
   return (
     <div className="mt-3" data-score-builder-equation-composer="true">
       <div className="mb-2 flex justify-end">
-        <span className="rounded bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+        <span className="rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
           {activeTerms.length} term{activeTerms.length === 1 ? '' : 's'}
         </span>
       </div>
@@ -105,7 +105,7 @@ function ScoreEquationTerm({
         </button>
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-semibold text-foreground">{metric.shortLabel}</div>
-          <div className="text-[10px] text-muted-foreground">{share}% of weight</div>
+          <div className="text-xs text-muted-foreground">{share}% of weight</div>
         </div>
         <button
           type="button"
@@ -150,7 +150,7 @@ export function WeightDistribution({
           })
         )}
       </div>
-      <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
         <span>{activeMetrics.length} active metrics</span>
         <span>Total influence {totalAbsoluteWeight.toLocaleString()}</span>
       </div>
@@ -199,7 +199,7 @@ export function PriorityMode({
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-background">
                 <div className={cn('h-full', getCategoryTone(metric.category))} style={{ width: `${projected}%` }} />
               </div>
-              <div className="mt-1 text-[10px] text-muted-foreground">
+              <div className="mt-1 text-xs text-muted-foreground">
                 {metric.directionLabel} · current {Math.abs(value)} · ranked {projected}
               </div>
             </div>
@@ -255,7 +255,7 @@ function SignedWeightSlider({
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+      <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
         <span>Low</span>
         <span>{getWeightIntent(clamped)}</span>
         <span>High</span>
@@ -289,7 +289,7 @@ function SignedWeightSlider({
           style={{ left: `${percent}%` }}
         />
       </div>
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>-100</span>
         <input
           type="number"
@@ -302,7 +302,7 @@ function SignedWeightSlider({
             const parsed = Number.parseFloat(event.target.value)
             if (Number.isFinite(parsed)) onChange(clampWeight(parsed))
           }}
-          className="w-14 rounded border border-input bg-background px-1 py-0.5 text-right text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          className="w-14 rounded border border-input bg-background px-1 py-0.5 text-right text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
         />
         <span>100</span>
       </div>

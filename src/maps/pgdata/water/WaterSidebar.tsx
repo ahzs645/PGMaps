@@ -70,7 +70,7 @@ export function WaterSidebar({ water }: { water: WaterState }) {
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h3 className="text-xs font-medium text-foreground">Hazard rating</h3>
-                <span className="text-[10px] text-muted-foreground">{selectedHazardRatings.length} of {water.hazardOptions.length}</span>
+                <span className="text-xs text-muted-foreground">{selectedHazardRatings.length} of {water.hazardOptions.length}</span>
               </div>
               <FilterChipGroup
                 items={water.hazardOptions.map((rating) => ({
@@ -88,7 +88,7 @@ export function WaterSidebar({ water }: { water: WaterState }) {
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h3 className="text-xs font-medium text-foreground">Connection size</h3>
-                <span className="text-[10px] text-muted-foreground">{selectedFacilityTypes.length} of {water.facilityTypeOptions.length}</span>
+                <span className="text-xs text-muted-foreground">{selectedFacilityTypes.length} of {water.facilityTypeOptions.length}</span>
               </div>
               <FilterChipGroup
                 items={water.facilityTypeOptions.map((facilityType) => ({
@@ -136,14 +136,14 @@ export function WaterSidebar({ water }: { water: WaterState }) {
 
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded border border-border bg-background p-2">
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Beaker className="h-3 w-3" />
                   Bacteriological
                 </div>
                 <div className="mt-1 text-sm font-semibold text-foreground">{water.sampleKindCounts.bacteriological.toLocaleString()}</div>
               </div>
               <div className="rounded border border-border bg-background p-2">
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <FlaskConical className="h-3 w-3" />
                   Chemical
                 </div>
@@ -170,7 +170,7 @@ function WaterLayerTabs({
 }) {
   return (
     <section className="border-b border-border p-4">
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Water view</h3>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Water view</h3>
       <div
         role="tablist"
         aria-label="Water data view"
@@ -227,7 +227,7 @@ function WaterBoundarySummary({ water }: { water: WaterState }) {
 
   return (
     <div className="rounded-md border border-sky-200 bg-sky-50/80 p-3 text-xs text-sky-950 dark:border-sky-900/60 dark:bg-sky-950/25 dark:text-sky-50">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">{scopeLabel}</div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">{scopeLabel}</div>
       <div className="mt-1 font-semibold">{properties.boundaryName}</div>
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
         {scopeRows.map((row) => (
@@ -239,7 +239,7 @@ function WaterBoundarySummary({ water }: { water: WaterState }) {
       </div>
       <button
         type="button"
-        className="mt-2 text-[11px] font-medium text-sky-700 hover:text-sky-950 dark:text-sky-300 dark:hover:text-sky-100"
+        className="mt-2 text-xs font-medium text-sky-700 hover:text-sky-950 dark:text-sky-300 dark:hover:text-sky-100"
         onClick={() => water.setSelectedBoundaryId(null)}
       >
         Clear scope
@@ -270,7 +270,7 @@ function WaterFacilityDetailCard({ water }: { water: WaterState }) {
         </div>
         <button
           type="button"
-          className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+          className="text-xs font-medium text-muted-foreground hover:text-foreground"
           onClick={() => water.setSelectedFacilityId(null)}
         >
           Clear

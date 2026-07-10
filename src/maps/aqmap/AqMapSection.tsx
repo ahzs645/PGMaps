@@ -1268,7 +1268,7 @@ function MobileForecastZoneFeatureCard({
     >
       <div className="space-y-3 text-xs text-foreground">
         <div className="overflow-x-auto rounded-md border border-border bg-background p-3">
-          <table className="w-full min-w-[18rem] border-collapse text-[11px]">
+          <table className="w-full min-w-[18rem] border-collapse text-xs">
             <thead>
               <tr>
                 <th className="whitespace-nowrap py-1 pr-3 text-left font-medium text-muted-foreground" />
@@ -1343,7 +1343,7 @@ function MobileAqMonitorFeatureCard({
         <div className="rounded-md border border-border bg-background p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span
-              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold text-foreground"
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold text-foreground"
               style={{ backgroundColor: `${aqColor}26` }}
             >
               <span className="size-2 rounded-full" style={{ backgroundColor: aqColor }} aria-hidden="true" />
@@ -1353,7 +1353,7 @@ function MobileAqMonitorFeatureCard({
                 {formatAqmapPm25Localized(pm25, locale)} {unit}
               </span>
             </span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {formatLocalizedDate(monitor.dateObserved, locale)}
             </span>
           </div>
@@ -1370,7 +1370,7 @@ function MobileAqMonitorFeatureCard({
         </div>
 
         <div className="rounded-md border border-border bg-background p-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {translate('popup.readings', locale)}
           </div>
           <div className="space-y-1.5">
@@ -1393,7 +1393,7 @@ function MobileAqMonitorFeatureCard({
 
         <div className="rounded-md border border-border bg-muted/40 p-3">
           <div
-            className="text-[11px] font-semibold leading-snug text-foreground"
+            className="text-xs font-semibold leading-snug text-foreground"
             title={translate('popup.healthMessage', locale)}
           >
             {health.heading}

@@ -347,7 +347,7 @@ export function MobileFeatureCard({
               {canDockBehindControls ? (
                 <button
                   type="button"
-                  className="group min-w-0 flex-1 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60"
+                  className="group min-h-11 min-w-0 flex-1 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={handleDockClick}
                   aria-label="Dock selected feature behind map controls"
                 >
@@ -375,7 +375,7 @@ export function MobileFeatureCard({
               {canDockBehindControls ? (
                 <button
                   type="button"
-                  className="shrink-0 rounded-md p-2 hover:bg-muted"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label="Dock selected feature behind map controls"
                   data-mobile-feature-card-action="true"
                   onClick={dockBehindControls}
@@ -383,7 +383,7 @@ export function MobileFeatureCard({
                   <ChevronDown className="size-4" />
                 </button>
               ) : null}
-              <button type="button" className="shrink-0 rounded-md p-2 hover:bg-muted" aria-label="Close feature card" data-mobile-feature-card-action="true" onClick={closeWithAnimation}>
+              <button type="button" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Close feature card" data-mobile-feature-card-action="true" onClick={closeWithAnimation}>
                 <X className="size-4" />
               </button>
             </div>

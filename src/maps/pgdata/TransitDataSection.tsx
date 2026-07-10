@@ -273,13 +273,13 @@ export default function TransitDataSection() {
           <div className="truncate text-xs font-semibold text-foreground">
             Transit | {stops.length.toLocaleString()} stops
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">
+          <div className="truncate text-xs text-muted-foreground">
             {activeLayers.join(', ')} | {routeCounts.routes.toLocaleString()} routes
           </div>
         </div>
       }
       sidebar={
-        <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden border-0 bg-background shadow-none md:w-[350px] md:border-r md:shadow-xl">
+        <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden border-0 bg-background shadow-none md:border-r md:shadow-xl">
           <div className="border-b border-border p-4">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300">
@@ -408,7 +408,7 @@ export default function TransitDataSection() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="line-clamp-1 text-sm font-medium text-foreground">{stop.name}</span>
-                      <span className="shrink-0 text-[10px] text-muted-foreground">{stop.id}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{stop.id}</span>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {subtypeLabel(stop.subtype)}
@@ -479,7 +479,7 @@ export default function TransitDataSection() {
                 <button
                   type="button"
                   onClick={toggleAllRoutes}
-                  className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                  className="text-xs font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
                 >
                   {allRoutesHidden ? 'Show all' : 'Hide all'}
                 </button>

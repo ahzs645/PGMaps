@@ -51,9 +51,9 @@ export function PathFlyout({
               title="Path color"
               swatches={swatches}
             />
-            <span className="ml-auto text-[11px] text-muted-foreground">{activePathId ? "drawing…" : "idle"}</span>
+            <span className="ml-auto text-xs text-muted-foreground">{activePathId ? "drawing…" : "idle"}</span>
           </div>
-          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+          <p className="mt-2 text-xs leading-snug text-muted-foreground">
             Pick a style, then click the map to add points.
           </p>
           <button

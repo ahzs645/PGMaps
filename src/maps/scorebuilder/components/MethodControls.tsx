@@ -119,7 +119,7 @@ export function MethodControls({ className, weights, methodSettings, onMethodSet
               triggerClassName="h-8 rounded border-amber-300 text-xs focus:ring-1 focus:ring-amber-500 dark:border-amber-900"
             />
           </label>
-          <p className="text-[10px] leading-snug text-amber-900 dark:text-amber-100/85">
+          <p className="text-xs leading-snug text-amber-900 dark:text-amber-100/85">
             This applies the HealthyPlan threshold to the selected pair; it is a screening mode, not a weighted
             composite score.
           </p>
@@ -161,7 +161,7 @@ export function MethodControls({ className, weights, methodSettings, onMethodSet
               className="h-8 rounded border border-emerald-300 bg-background px-2 text-xs dark:border-emerald-900"
             />
           </label>
-          <p className="text-[10px] leading-snug text-emerald-900 dark:text-emerald-100/85">
+          <p className="text-xs leading-snug text-emerald-900 dark:text-emerald-100/85">
             Counts access indicators at or above the threshold, then scores against the required number of hits.
           </p>
         </div>
@@ -172,7 +172,7 @@ export function MethodControls({ className, weights, methodSettings, onMethodSet
           <div className="font-medium text-cyan-950 dark:text-cyan-100">Module editor</div>
           {SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).map((metric) => (
             <label key={metric.key} className="grid gap-1">
-              <span className="text-[10px] font-medium text-cyan-950 dark:text-cyan-100">{metric.shortLabel}</span>
+              <span className="text-xs font-medium text-cyan-950 dark:text-cyan-100">{metric.shortLabel}</span>
               <AppSelect
                 value={methodSettings.metricModuleOverrides[metric.key] || metric.indexModule || 'localContext'}
                 onValueChange={(value) =>
@@ -214,7 +214,7 @@ export function MethodControls({ className, weights, methodSettings, onMethodSet
       >
         <span>
           <span className="block font-semibold">Sensitivity test</span>
-          <span className="block text-[10px] text-muted-foreground">
+          <span className="block text-xs text-muted-foreground">
             Perturb active weights by 15% across 24 trials.
           </span>
         </span>

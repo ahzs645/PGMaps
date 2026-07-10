@@ -276,7 +276,7 @@ export function ScoreBuilderSidebar({
   return (
     <div
       className={cn(
-        'z-10 flex h-full min-h-0 w-[360px] flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur',
+        'z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur',
         className,
       )}
     >
@@ -399,15 +399,15 @@ export function ScoreBuilderSidebar({
               <div className="mx-4 mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-md bg-muted/40 p-2">
                   <div className="text-base font-semibold text-foreground">{regions.length}</div>
-                  <div className="text-[11px] text-muted-foreground">regions</div>
+                  <div className="text-xs text-muted-foreground">regions</div>
                 </div>
                 <div className="rounded-md bg-muted/40 p-2">
                   <div className="text-base font-semibold text-foreground">{enabledDataSources.length}</div>
-                  <div className="text-[11px] text-muted-foreground">sources</div>
+                  <div className="text-xs text-muted-foreground">sources</div>
                 </div>
                 <div className="rounded-md bg-muted/40 p-2">
                   <div className="text-base font-semibold text-foreground">{formatScore(scoreSpread.average)}</div>
-                  <div className="text-[11px] text-muted-foreground">avg score</div>
+                  <div className="text-xs text-muted-foreground">avg score</div>
                 </div>
               </div>
             </div>
@@ -448,7 +448,7 @@ export function ScoreBuilderSidebar({
                     {/* Network sub-filters for Air Quality */}
                     {ds.id === 'airQuality' && active && (
                       <div className="ml-2 mt-1 space-y-1 border-l-2 border-cyan-200 pl-2 dark:border-cyan-900">
-                        <div className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">{selectedNetworks.length} networks</span>
                           <div className="flex gap-2">
                             <button
@@ -468,7 +468,7 @@ export function ScoreBuilderSidebar({
                               key={network}
                               onClick={() => onToggleNetwork(network)}
                               className={cn(
-                                'flex w-full items-center justify-between rounded px-2 py-1 text-[11px] transition-colors',
+                                'flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors',
                                 selectedNetworkSet.has(network)
                                   ? 'bg-cyan-50 text-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-100'
                                   : 'text-muted-foreground hover:text-foreground',
@@ -501,7 +501,7 @@ export function ScoreBuilderSidebar({
               <div className="rounded-lg border border-border bg-background p-3">
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Preset
                     </div>
                     <div className="mt-0.5 text-sm font-semibold text-foreground">
@@ -537,7 +537,7 @@ export function ScoreBuilderSidebar({
                   <div className="text-xs font-semibold text-foreground">
                     {showAllEquationMetrics ? 'All metrics' : 'Active terms'}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-xs text-muted-foreground">
                     {activeMetricCount} active · {totalAbsoluteWeight.toLocaleString()} total influence
                   </div>
                 </div>
@@ -554,7 +554,7 @@ export function ScoreBuilderSidebar({
                 {Object.entries(SCORE_METRICS_BY_CATEGORY).map(([category, metrics]) => (
                   <div key={category}>
                     {(showAllEquationMetrics || metrics.some((metric) => weights[metric.key] !== 0)) && (
-                      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
                       </div>
                     )}
@@ -574,7 +574,7 @@ export function ScoreBuilderSidebar({
                             <div className="mb-2 flex items-start justify-between gap-2">
                               <div>
                                 <div className="text-xs font-semibold text-foreground">{metric.label}</div>
-                                <div className="text-[11px] text-muted-foreground">{metric.description}</div>
+                                <div className="text-xs text-muted-foreground">{metric.description}</div>
                               </div>
                               <input
                                 type="number"
@@ -611,19 +611,19 @@ export function ScoreBuilderSidebar({
 
               <div className="rounded-md border border-border bg-background p-2">
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Equation</span>
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">Equation</span>
                   <button
                     type="button"
                     onClick={handleCopyEquation}
                     title="Copy equation to clipboard"
-                    className="inline-flex items-center gap-1 rounded border border-input px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    className="inline-flex items-center gap-1 rounded border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                   >
                     {equationCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     {equationCopied ? 'Copied' : 'Copy'}
                   </button>
                 </div>
-                <div className="font-mono text-[11px] text-foreground">{equationPreview}</div>
-                <div className="mt-1 text-[11px] text-muted-foreground">
+                <div className="font-mono text-xs text-foreground">{equationPreview}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
                   |weights| sum: {totalAbsoluteWeight.toLocaleString()}
                 </div>
               </div>

@@ -602,7 +602,7 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
       <div className="rounded-lg border border-border bg-background p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Model</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Model</div>
             <div className="mt-0.5 text-sm font-semibold text-foreground">
               {activePreset?.label ?? 'Custom walkability index'}
             </div>
@@ -610,14 +610,14 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
           <button
             type="button"
             onClick={() => applyPreset(WALKABILITY_MODEL_PRESETS[0])}
-            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-input px-2 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-input px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
             title="Reset to report fidelity model"
           >
             <RotateCcw className="h-3 w-3" />
             Reset
           </button>
         </div>
-        <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
+        <div className="mt-1 text-xs leading-4 text-muted-foreground">
           {activePreset?.description ?? 'Custom factor weights and source rules are recalculated directly on the map.'}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-1.5">
@@ -643,16 +643,16 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
       <div className="rounded-lg border border-border bg-background p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Equation</div>
-            <div className="mt-0.5 break-words font-mono text-[11px] leading-5 text-foreground">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Equation</div>
+            <div className="mt-0.5 break-words font-mono text-xs leading-5 text-foreground">
               MI(cell) = SUM(weight_ref x term_ref)
             </div>
           </div>
-          <span className="shrink-0 rounded bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+          <span className="shrink-0 rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
             {activeFactors.length} active terms
           </span>
         </div>
-        <div className="mt-2 text-[10px] leading-4 text-muted-foreground">
+        <div className="mt-2 text-xs leading-4 text-muted-foreground">
           Proximity terms use cumulative 400m / 250m / 100m buffers. Area and line terms use report points inside
           source buffers.
         </div>
@@ -666,10 +666,10 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
           aria-expanded={sourceRulesOpen}
         >
           <span className="min-w-0">
-            <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Source Rules
             </span>
-            <span className="block truncate text-[10px] text-muted-foreground">
+            <span className="block truncate text-xs text-muted-foreground">
               {activeRuleCount} active; open to change included logic.
             </span>
           </span>
@@ -692,7 +692,7 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
                     onClick={() => walkability.setHeatmapOption(option.key, !active)}
                     aria-pressed={active}
                     className={cn(
-                      'rounded-full border px-2 py-1 text-[10px] font-medium transition-colors',
+                      'rounded-full border px-2 py-1 text-xs font-medium transition-colors',
                       active
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100'
                         : 'border-input text-muted-foreground hover:text-foreground',
@@ -724,10 +724,10 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
           aria-expanded={factorTermsOpen}
         >
           <span className="min-w-0">
-            <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Factor Weights
             </span>
-            <span className="block truncate text-[10px] text-muted-foreground">
+            <span className="block truncate text-xs text-muted-foreground">
               {activeFactors.length} active terms; open to tune A0-G5.
             </span>
           </span>
@@ -741,13 +741,13 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
         {factorTermsOpen && (
           <div className="border-t border-border px-3 py-3">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-[10px] leading-4 text-muted-foreground">
+              <div className="text-xs leading-4 text-muted-foreground">
                 0 disables a factor; 1 is report weight; 2 doubles it.
               </div>
               <button
                 type="button"
                 onClick={() => setShowDisabledTerms((current) => !current)}
-                className="shrink-0 rounded-full border border-input px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                className="shrink-0 rounded-full border border-input px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 {showDisabledTerms ? 'Hide off' : 'Show off'}
               </button>
@@ -767,7 +767,7 @@ function WalkabilityBuilderControls({ walkability }: { walkability: WalkabilityS
                           {factor.group} · {factor.method}
                         </span>
                       </span>
-                      <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                      <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-xs text-foreground">
                         {dropped ? 'off' : `${value.toFixed(2)}x`}
                       </span>
                     </div>
@@ -894,10 +894,10 @@ export function WalkabilitySidebar({
         ) : (
           <div className="space-y-2 text-xs">
             <div className="rounded border border-border bg-background px-2.5 py-2">
-              <div className="break-words font-mono text-[11px] leading-5 text-foreground">
+              <div className="break-words font-mono text-xs leading-5 text-foreground">
                 score(community) = SUM(weight_metric x normalized_metric) / SUM(weight_metric)
               </div>
-              <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
+              <div className="mt-1 text-xs leading-4 text-muted-foreground">
                 Community polygons are a planning summary; switch to Raw MI heat map for the report-style live equation.
               </div>
             </div>

@@ -38,7 +38,7 @@ export function DesktopFeaturePopup({
         <div className="border-b border-border px-3 py-2">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-[11px] font-medium uppercase text-muted-foreground">{layerLabel(feature.properties.layer)}</div>
+              <div className="text-xs font-medium uppercase text-muted-foreground">{layerLabel(feature.properties.layer)}</div>
               <div className="mt-1 truncate text-sm font-semibold">{feature.properties.name}</div>
             </div>
             <div className="flex shrink-0 items-center gap-1">

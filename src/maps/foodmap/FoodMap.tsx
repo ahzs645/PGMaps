@@ -332,7 +332,7 @@ export default function FoodMap() {
             <div className="truncate text-xs font-semibold text-foreground">
               Food Safety | {geocodedRestaurants.length.toLocaleString()} on map
             </div>
-            <div className="truncate text-[11px] text-muted-foreground">
+            <div className="truncate text-xs text-muted-foreground">
               {selectedRestaurant?.name || `${visualizationMode} | ${timelineMonths || 'all'} months`}
             </div>
           </div>
@@ -343,7 +343,7 @@ export default function FoodMap() {
         } : undefined}
         sidebar={(
           <Sidebar
-            className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
+            className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
             data={{
               restaurants: filteredRestaurants,
               geocodedRestaurants,

@@ -28,7 +28,7 @@ export function MobileExplorerFeatureCard({ item, onClose }: MobileExplorerFeatu
         {item.summary}
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-cyan-800 dark:text-cyan-300">
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-cyan-800 dark:text-cyan-300">
         {item.details.slice(0, 8).map((detail) => (
           <div key={`${item.id}-${detail.label}`}>
             <span className="font-medium">{detail.label}:</span> {detail.value}

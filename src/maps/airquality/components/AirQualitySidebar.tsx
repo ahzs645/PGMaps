@@ -176,23 +176,23 @@ export function AirQualitySidebar({
               <>
                 <div className="grid grid-cols-2 gap-2 rounded-md border border-border bg-muted/25 p-3 text-xs">
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Corrected PM2.5</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Corrected PM2.5</div>
                     <div className="text-base font-semibold text-foreground">
                       {formatAveragePm25(areaStats.correctedPm25Average)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Raw PM2.5</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Raw PM2.5</div>
                     <div className="text-base font-semibold text-foreground">
                       {formatAveragePm25(areaStats.rawPm25Average)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">PM2.5 sensors</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">PM2.5 sensors</div>
                     <div className="font-medium text-foreground">{areaStats.pm25MonitorCount}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Networks</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Networks</div>
                     <div className="font-medium text-foreground">{areaStats.networkCount}</div>
                   </div>
                 </div>
@@ -220,7 +220,7 @@ export function AirQualitySidebar({
                 {formatDensityValue(densityStats.overall, densityStats.totalCount)}
               </span>
             </div>
-            <div className="pt-1 text-[10px] text-muted-foreground">{densityScopeLabel}</div>
+            <div className="pt-1 text-xs text-muted-foreground">{densityScopeLabel}</div>
             <div className="space-y-1 text-xs text-muted-foreground">
               <div className="flex items-center justify-between">
                 <span>Search area:</span>
@@ -304,7 +304,7 @@ export function AirQualitySidebar({
             clearLabel="Clear selected monitor"
             badges={
               <>
-                <span className="flex items-center gap-1 rounded border border-sky-300/60 bg-sky-100/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-900 dark:border-sky-800/60 dark:bg-sky-900/50 dark:text-sky-100">
+                <span className="flex items-center gap-1 rounded border border-sky-300/60 bg-sky-100/70 px-1.5 py-0.5 text-xs font-medium text-sky-900 dark:border-sky-800/60 dark:bg-sky-900/50 dark:text-sky-100">
                   <span
                     className="h-2 w-2 rounded-full"
                     style={{ backgroundColor: getNetworkColor(selectedMonitor.network) }}
@@ -312,14 +312,14 @@ export function AirQualitySidebar({
                   {selectedMonitor.network}
                 </span>
                 {selectedMonitor.status && (
-                  <span className="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-medium uppercase dark:bg-sky-900/60">
+                  <span className="rounded bg-sky-100 px-2 py-0.5 text-xs font-medium uppercase dark:bg-sky-900/60">
                     {selectedMonitor.status}
                   </span>
                 )}
                 {selectedMonitorParameters.map((parameter) => (
                   <span
                     key={`${selectedMonitor.id}-${parameter}`}
-                    className="rounded border border-sky-300/60 bg-sky-100/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-900 dark:border-sky-800/60 dark:bg-sky-900/50 dark:text-sky-100"
+                    className="rounded border border-sky-300/60 bg-sky-100/70 px-1.5 py-0.5 text-xs font-medium text-sky-900 dark:border-sky-800/60 dark:bg-sky-900/50 dark:text-sky-100"
                   >
                     {parameter}
                   </span>
@@ -334,23 +334,23 @@ export function AirQualitySidebar({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Raw PM2.5</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Raw PM2.5</div>
                     <div className="font-medium text-foreground">{formatPm25(selectedMonitorCorrection.rawPm25)}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Corrected</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Corrected</div>
                     <div className="font-medium text-foreground">
                       {formatPm25(selectedMonitorCorrection.correctedPm25)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">RH</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">RH</div>
                     <div className="font-medium text-foreground">
                       {formatNumber(selectedMonitorCorrection.humidity, '%')}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Uncertainty</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Uncertainty</div>
                     <div className="font-medium text-foreground">
                       {selectedMonitorCorrection.uncertainty === null
                         ? 'No data'
@@ -358,7 +358,7 @@ export function AirQualitySidebar({
                     </div>
                   </div>
                 </div>
-                <p className="mt-2 text-[10px] leading-snug text-muted-foreground">{selectedMonitorCorrection.note}</p>
+                <p className="mt-2 text-xs leading-snug text-muted-foreground">{selectedMonitorCorrection.note}</p>
               </div>
             )}
           </SelectedItemCard>
@@ -415,13 +415,13 @@ export function AirQualitySidebar({
                       {visibleParameters.map((parameter) => (
                         <span
                           key={`${monitor.id}-${parameter}`}
-                          className="rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                          className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground"
                         >
                           {parameter}
                         </span>
                       ))}
                       {hiddenParameterCount > 0 && (
-                        <span className="text-[10px] text-muted-foreground">+{hiddenParameterCount} more</span>
+                        <span className="text-xs text-muted-foreground">+{hiddenParameterCount} more</span>
                       )}
                     </div>
                   )}

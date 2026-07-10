@@ -155,7 +155,7 @@ export function RadarChart({ regions, weights, className }: RadarChartProps) {
       </svg>
 
       {/* Legend */}
-      <div className="mt-2 flex flex-wrap justify-center gap-3 text-[11px]">
+      <div className="mt-2 flex flex-wrap justify-center gap-3 text-xs">
         {polygons.map((p, i) => (
           <div key={p.region.region.id} className="flex items-center gap-1.5">
             <span

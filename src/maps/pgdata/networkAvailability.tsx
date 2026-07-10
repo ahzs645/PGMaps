@@ -218,7 +218,7 @@ export function NetworkAvailabilitySidebar({
                 </div>
               </div>
               {dataset.notes && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{dataset.notes}</p>}
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 <a
                   className="font-medium text-primary hover:underline"
                   href={dataset.url}
@@ -259,7 +259,7 @@ export function NetworkAvailabilitySidebar({
             <article key={finding.provider} className="rounded border border-border bg-card p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-medium text-foreground">{finding.provider}</div>
-                <div className="text-[11px] font-medium text-muted-foreground">
+                <div className="text-xs font-medium text-muted-foreground">
                   {formatVectorStatus(finding.vectorStatus)}
                 </div>
               </div>

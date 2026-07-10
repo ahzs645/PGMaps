@@ -70,7 +70,7 @@ function ControlButton({
       aria-label={label}
       type="button"
       className={cn(
-        "flex items-center justify-center size-8 hover:bg-accent dark:hover:bg-accent/40 transition-colors",
+        "flex size-11 items-center justify-center transition-colors hover:bg-accent dark:hover:bg-accent/40 md:size-10",
         disabled && "opacity-50 pointer-events-none cursor-not-allowed"
       )}
       disabled={disabled}

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Search, X, UtensilsCrossed, Trees, BarChart3, ShieldAlert, Wind, MapPin, Database, Building2, PawPrint, Droplets } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 
 interface SearchItem {
   id: string
@@ -250,7 +250,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
   const [index, setIndex] = useState<SearchItem[]>([])
   const [selectedIdx, setSelectedIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
   const useMapSearch = mapSearchPaths.has(location.pathname)
@@ -275,7 +275,6 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
   useEffect(() => {
     if (open) {
       buildIndex().then(setIndex)
-      setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [open])
 
@@ -298,23 +297,10 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
           setOpen((o) => !o)
         }
       }
-      if (e.key === 'Escape') setOpen(false)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [location.pathname, useMapSearch])
-
-  // Click outside to close
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -366,32 +352,59 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     return groups
   }, [results])
 
-  const searchOverlay = open && typeof document !== 'undefined'
-    ? createPortal(
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-3 pt-[15vh] backdrop-blur-sm">
-          <div
-            ref={panelRef}
-            className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
-          >
+  const activeResultId = results[selectedIdx] ? `global-search-result-${selectedIdx}` : undefined
+
+  const searchOverlay = (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent
+        elevated
+        showClose={false}
+        className="top-[15vh] max-h-[min(32rem,calc(100dvh-2rem))] translate-y-0 gap-0 overflow-hidden p-0 sm:top-[15vh] sm:translate-y-0"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          inputRef.current?.focus()
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          triggerRef.current?.focus()
+        }}
+      >
+            <DialogTitle className="sr-only">Search PGMaps</DialogTitle>
+            <DialogDescription className="sr-only">
+              Search maps, datasets, restaurants, parks, and properties.
+            </DialogDescription>
             <div className="flex items-center gap-3 border-b border-border px-4 py-3">
               <Search className="h-5 w-5 text-muted-foreground" />
+              <label htmlFor="global-search-input" className="sr-only">Search PGMaps</label>
               <input
+                id="global-search-input"
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search restaurants, parks, maps..."
+                aria-label="Search PGMaps"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={open}
+                aria-controls="global-search-results"
+                aria-activedescendant={activeResultId}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none"
               />
               {query && (
-                <button onClick={() => setQuery('')} aria-label="Clear search">
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  aria-label="Clear search"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted"
+                >
                   <X className="h-4 w-4 text-muted-foreground" />
                 </button>
               )}
             </div>
 
-            <div className="max-h-80 overflow-y-auto p-2">
+            <div id="global-search-results" role="listbox" aria-label="Search results" className="min-h-0 max-h-80 overflow-y-auto p-2">
               {Object.entries(grouped).length === 0 && (
                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">No results found.</div>
               )}
@@ -400,7 +413,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                 let flatIdx = 0
                 return Object.entries(grouped).map(([section, items]) => (
                   <div key={section}>
-                    <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {section}
                     </div>
                     {items.map((item) => {
@@ -409,6 +422,10 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                       return (
                         <button
                           key={item.id}
+                          id={`global-search-result-${idx}`}
+                          type="button"
+                          role="option"
+                          aria-selected={idx === selectedIdx}
                           onClick={() => navigateTo(item)}
                           onMouseEnter={() => setSelectedIdx(idx)}
                           className={cn(
@@ -429,9 +446,9 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
               })()}
             </div>
 
-            <div className="flex items-center justify-between border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
+            <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
               <span>{results.length} results</span>
-              <div className="flex items-center gap-2">
+              <div className="hidden items-center gap-2 sm:flex">
                 <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono">↑↓</kbd>
                 <span>Navigate</span>
                 <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono">↵</kbd>
@@ -440,15 +457,15 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                 <span>Close</span>
               </div>
             </div>
-          </div>
-        </div>,
-        document.body,
-      )
-    : null
+      </DialogContent>
+    </Dialog>
+  )
 
   return (
     <>
       <button
+        ref={triggerRef}
+        type="button"
         aria-label="Open search"
         title="Search (⌘K)"
         onClick={openSearch}

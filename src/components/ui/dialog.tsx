@@ -67,7 +67,11 @@ const DialogContent = React.forwardRef<
   const layer = elevated ? 'z-[1200]' : 'z-50'
   return (
     <DialogPortal>
-      {elevated && <MobileToolbarAutoHide />}
+      {elevated && (
+        <span hidden>
+          <MobileToolbarAutoHide />
+        </span>
+      )}
       <DialogOverlay className={cn(layer, overlayClassName)} />
       <DialogPrimitive.Content
         ref={ref}

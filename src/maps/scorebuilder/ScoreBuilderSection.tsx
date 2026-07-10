@@ -569,7 +569,7 @@ export default function ScoreBuilderSection() {
             <div className="truncate text-xs font-semibold text-foreground">
               Index Lab | {results.scoredRegions.length.toLocaleString()} regions
             </div>
-            <div className="truncate text-[11px] text-muted-foreground">
+            <div className="truncate text-xs text-muted-foreground">
               {results.selectedRegion?.region.name || activeRecipeLabel}
             </div>
           </div>

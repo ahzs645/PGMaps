@@ -115,7 +115,7 @@ export function RegionsTab({
               onClick={() => onExport('geojson')}
               title="Export GeoJSON"
               aria-label="Export GeoJSON"
-              className="rounded-md border border-input px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-md border border-input px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               .geo
             </button>
@@ -131,7 +131,7 @@ export function RegionsTab({
               onClick={() => onExport('pdf')}
               title="Export PDF report"
               aria-label="Export PDF report"
-              className="rounded-md border border-input px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-md border border-input px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               PDF
             </button>
@@ -143,7 +143,7 @@ export function RegionsTab({
           </span>
           {filteredRegions.length > visibleRows.length && <span>Showing {visibleRows.length}</span>}
         </div>
-        <div className="flex items-center justify-between text-[11px]">
+        <div className="flex items-center justify-between text-xs">
           <span>
             Score range {formatScore(scoreSpread.min)} - {formatScore(scoreSpread.max)}
           </span>
@@ -181,7 +181,7 @@ export function RegionsTab({
             )}
           </button>
           {equityOpen && (
-            <div className="px-3 pb-3 text-[11px] text-cyan-800/80 dark:text-cyan-200/80">
+            <div className="px-3 pb-3 text-xs text-cyan-800/80 dark:text-cyan-200/80">
               {populationEquitySummary.priorityPopulation.toLocaleString()} of{' '}
               {populationEquitySummary.totalPopulation.toLocaleString()} people ·{' '}
               {populationEquitySummary.priorityRegionCount} regions
@@ -207,14 +207,14 @@ export function RegionsTab({
             </span>
             <button
               onClick={onClearComparison}
-              className="text-[11px] text-amber-700 hover:text-amber-900 dark:text-amber-300"
+              className="text-xs text-amber-700 hover:text-amber-900 dark:text-amber-300"
             >
               Clear
             </button>
           </div>
           <div className="space-y-1">
             {comparisonRegions.map((r) => (
-              <div key={r.region.id} className="flex items-center justify-between text-[11px]">
+              <div key={r.region.id} className="flex items-center justify-between text-xs">
                 <span className="truncate text-amber-900 dark:text-amber-100">
                   #{r.rank} {r.region.name}
                 </span>
@@ -226,7 +226,7 @@ export function RegionsTab({
             <>
               <RadarChart regions={comparisonRegions} weights={weights} className="mt-2" />
               <div className="mt-2 overflow-x-auto">
-                <table className="w-full text-[10px]">
+                <table className="w-full text-xs">
                   <thead>
                     <tr className="text-amber-700 dark:text-amber-300">
                       <th className="pr-2 text-left font-medium">Metric</th>
@@ -265,13 +265,13 @@ export function RegionsTab({
             <div className="text-xs text-cyan-700 dark:text-cyan-300">
               Rank #{selectedRegion.rank} | Score {formatScore(selectedRegion.score)}
             </div>
-            <div className="mt-0.5 text-[11px] font-medium text-cyan-800 dark:text-cyan-200">
+            <div className="mt-0.5 text-xs font-medium text-cyan-800 dark:text-cyan-200">
               {selectedRegion.rankConfidence} · rank #{selectedRegion.rankInterval[0]}-#
               {selectedRegion.rankInterval[1]} · score {formatScore(selectedRegion.scoreInterval[0])}-
               {formatScore(selectedRegion.scoreInterval[1])}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-cyan-800 dark:text-cyan-200">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-cyan-800 dark:text-cyan-200">
             <div>Area: {selectedRegion.region.areaKm2.toFixed(1)} km²</div>
             <div>Sensors: {selectedRegion.counts.monitorCount.toLocaleString()}</div>
             <div>Parks: {selectedRegion.counts.parkCount.toLocaleString()}</div>
@@ -279,7 +279,7 @@ export function RegionsTab({
             <div>Coverage: {(selectedRegion.dataCoverageScore * 100).toFixed(0)}%</div>
           </div>
           {selectedRegionDrivers.length > 0 && (
-            <div className="mt-2 text-[11px] text-cyan-800 dark:text-cyan-200">
+            <div className="mt-2 text-xs text-cyan-800 dark:text-cyan-200">
               Top drivers:{' '}
               {selectedRegionDrivers
                 .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
@@ -353,7 +353,7 @@ export function RegionsTab({
                         )}
                       </span>
                       {entry.dataCoverageScore < 0.6 && (
-                        <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                        <span className="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
                           Thin data
                         </span>
                       )}
@@ -361,7 +361,7 @@ export function RegionsTab({
                     {selected && (
                       <>
                         {topDrivers.length > 0 && (
-                          <div className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
+                          <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">
                             Top:{' '}
                             {topDrivers
                               .map((driver) => `${driver.intentLabel} ${formatDriverDelta(driver.scoreDelta)}`)
@@ -369,7 +369,7 @@ export function RegionsTab({
                             pts
                           </div>
                         )}
-                        <div className="mt-1 text-[11px] text-muted-foreground">
+                        <div className="mt-1 text-xs text-muted-foreground">
                           {entry.rankConfidence} · rank #{entry.rankInterval[0]}-#{entry.rankInterval[1]} · score{' '}
                           {formatScore(entry.scoreInterval[0])}-{formatScore(entry.scoreInterval[1])}
                         </div>
@@ -383,7 +383,7 @@ export function RegionsTab({
                     <button
                       data-score-builder-region-insight={entry.region.id}
                       onClick={() => onOpenRegionInsight(entry.region.id)}
-                      className="rounded border border-input px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                      className="rounded border border-input px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                     >
                       Insight
                     </button>

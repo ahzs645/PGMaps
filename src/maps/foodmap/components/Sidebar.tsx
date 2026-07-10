@@ -184,7 +184,7 @@ export function Sidebar({
             <button
               onClick={() => filterActions.setViolationTimelineMode('period')}
               className={cn(
-                'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+                'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
                 violationTimelineMode === 'period'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
@@ -195,7 +195,7 @@ export function Sidebar({
             <button
               onClick={() => filterActions.setViolationTimelineMode('cumulative')}
               className={cn(
-                'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+                'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
                 violationTimelineMode === 'cumulative'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
@@ -204,7 +204,7 @@ export function Sidebar({
               Cumulative
             </button>
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">{violationTimelineLabel}</div>
+          <div className="truncate text-xs text-muted-foreground">{violationTimelineLabel}</div>
         </div>
       )}
 
@@ -214,21 +214,21 @@ export function Sidebar({
           <div className="flex items-center justify-around text-center">
             <div>
               <div className="text-lg font-bold text-red-600">{timelineStats?.totalViolations || 0}</div>
-              <div className="text-[10px] text-muted-foreground">violations</div>
+              <div className="text-xs text-muted-foreground">violations</div>
             </div>
             <div>
               <div className="text-lg font-bold text-orange-600">{timelineStats?.criticalViolations || 0}</div>
-              <div className="text-[10px] text-muted-foreground">critical</div>
+              <div className="text-xs text-muted-foreground">critical</div>
             </div>
             <div>
               <div className="text-lg font-bold text-sky-600 dark:text-sky-400">
                 {timelineStats?.totalInspections || 0}
               </div>
-              <div className="text-[10px] text-muted-foreground">inspections</div>
+              <div className="text-xs text-muted-foreground">inspections</div>
             </div>
             <div>
               <div className="text-lg font-bold text-foreground">{timelineStats?.restaurantsWithViolations || 0}</div>
-              <div className="text-[10px] text-muted-foreground">with violations</div>
+              <div className="text-xs text-muted-foreground">with violations</div>
             </div>
           </div>
         </div>
@@ -237,15 +237,15 @@ export function Sidebar({
           <div className="flex items-center justify-around text-center">
             <div>
               <div className="text-lg font-bold text-green-600">{hazardStatsAtDate?.Low || 0}</div>
-              <div className="text-[10px] text-muted-foreground">low</div>
+              <div className="text-xs text-muted-foreground">low</div>
             </div>
             <div>
               <div className="text-lg font-bold text-amber-600">{hazardStatsAtDate?.Moderate || 0}</div>
-              <div className="text-[10px] text-muted-foreground">moderate</div>
+              <div className="text-xs text-muted-foreground">moderate</div>
             </div>
             <div>
               <div className="text-lg font-bold text-muted-foreground">{hazardStatsAtDate?.Unknown || 0}</div>
-              <div className="text-[10px] text-muted-foreground">unknown</div>
+              <div className="text-xs text-muted-foreground">unknown</div>
             </div>
           </div>
         </div>

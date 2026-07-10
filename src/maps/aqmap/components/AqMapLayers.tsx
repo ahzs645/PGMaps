@@ -197,7 +197,7 @@ function formatForecastZoneSummaryPopup(
   return `
     <div class="text-xs text-gray-700">
       <div class="font-semibold text-gray-900">Forecast Zone: ${escapeHtml(getForecastZoneName(zone.properties))}</div>
-      <table class="mt-2 w-full border-collapse text-[11px]">
+      <table class="mt-2 w-full border-collapse text-xs">
         <thead>
           <tr>
             <th class="${labelCellClass}"></th>

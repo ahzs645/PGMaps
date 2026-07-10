@@ -31,7 +31,7 @@ export function ExplorerLegend({
       contentClassName={cn('mt-2 space-y-1 md:mt-0 md:block', showMobileLegend ? 'block' : 'hidden')}
       actions={
         <div className="flex items-center gap-2">
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground md:hidden">
+          <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground md:hidden">
             {legendDatasets.length}
           </span>
           <button
@@ -45,7 +45,7 @@ export function ExplorerLegend({
           </button>
           <button
             onClick={onToggleHeatmap}
-            className={`inline-flex rounded border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+            className={`inline-flex rounded border px-2 py-0.5 text-xs font-medium transition-colors ${
               showHeatmap
                 ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
                 : 'border-input text-muted-foreground hover:text-foreground'
@@ -76,7 +76,7 @@ export function ExplorerLegend({
         )}
       </MapLegendSection>
       {selectedItem && (
-        <div className="mt-2 border-t border-border pt-2 text-[11px] text-muted-foreground">
+        <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
           Selected: <span className="font-medium text-foreground">{selectedItem.name}</span>
           <div>
             {datasetById(selectedItem.datasetId).label} | relevance {Math.round(selectedItem.relevance)}

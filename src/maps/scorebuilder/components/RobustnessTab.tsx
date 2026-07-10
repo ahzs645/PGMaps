@@ -37,14 +37,14 @@ export function RobustnessTab({ className = 'p-4', robustnessResults, scenarioCo
                 <div className="font-semibold text-foreground">
                   #{result.baseRank} {result.regionName}
                 </div>
-                <div className="text-[11px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   median rank {result.medianRank.toFixed(1)} · interval #{result.rankInterval[0]}-#
                   {result.rankInterval[1]}
                 </div>
               </div>
               <span
                 className={cn(
-                  'rounded px-2 py-0.5 text-[10px] font-semibold',
+                  'rounded px-2 py-0.5 text-xs font-semibold',
                   result.stability === 'stable'
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
                     : result.stability === 'moderate'
@@ -55,10 +55,10 @@ export function RobustnessTab({ className = 'p-4', robustnessResults, scenarioCo
                 {result.stability}
               </span>
             </div>
-            <div className="mt-2 text-[11px] text-muted-foreground">
+            <div className="mt-2 text-xs text-muted-foreground">
               Score interval {formatScore(result.scoreInterval[0])}-{formatScore(result.scoreInterval[1])}
             </div>
-            <div className="mt-1 text-[10px] text-muted-foreground">
+            <div className="mt-1 text-xs text-muted-foreground">
               Drivers: {result.topDrivers.map(getMetricLabel).join(', ')}
             </div>
           </div>

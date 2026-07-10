@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -155,10 +155,30 @@ function SidebarResizeHandle({
       role="separator"
       aria-orientation="vertical"
       aria-label={side === 'left' ? 'Resize sidebar' : 'Resize right sidebar'}
+      aria-valuemin={DESKTOP_SIDEBAR_MIN_WIDTH}
+      aria-valuemax={DESKTOP_SIDEBAR_MAX_WIDTH}
+      aria-valuenow={width}
+      tabIndex={0}
       className={cn(
-        'absolute inset-y-0 z-30 hidden w-1.5 cursor-col-resize touch-none transition-colors hover:bg-cyan-500/40 md:block',
+        'absolute inset-y-0 z-30 hidden w-2 cursor-col-resize touch-none transition-colors hover:bg-cyan-500/40 focus-visible:bg-cyan-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 md:block',
         side === 'left' ? 'right-0' : 'left-0',
       )}
+      onKeyDown={(event) => {
+        const direction = side === 'left' ? 1 : -1
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault()
+          onWidthChange(Math.max(DESKTOP_SIDEBAR_MIN_WIDTH, width - 10 * direction))
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault()
+          onWidthChange(Math.min(DESKTOP_SIDEBAR_MAX_WIDTH, width + 10 * direction))
+        } else if (event.key === 'Home') {
+          event.preventDefault()
+          onWidthChange(DESKTOP_SIDEBAR_MIN_WIDTH)
+        } else if (event.key === 'End') {
+          event.preventDefault()
+          onWidthChange(DESKTOP_SIDEBAR_MAX_WIDTH)
+        }
+      }}
       onPointerDown={(event) => {
         dragState.current = { pointerId: event.pointerId, startX: event.clientX, startWidth: width }
         event.currentTarget.setPointerCapture(event.pointerId)
@@ -631,6 +651,25 @@ export function MapSectionLayout({
     snapTo(resolveSnap(curY.current, vel.current, getSheetHeight(), getFullSnapOffset(), mobileCollapsedVisibleHeight))
   }, [getFullSnapOffset, getSheetHeight, mobileCollapsedVisibleHeight, snapTo])
 
+  const handleMobileSheetKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return
+    const states: MobileSheetState[] = ['collapsed', 'half', 'full']
+    const currentIndex = states.indexOf(mobileSheetState)
+    let nextState: MobileSheetState | undefined
+
+    if (event.key === 'ArrowUp') nextState = states[Math.min(states.length - 1, currentIndex + 1)]
+    if (event.key === 'ArrowDown') nextState = states[Math.max(0, currentIndex - 1)]
+    if (event.key === 'Home') nextState = 'collapsed'
+    if (event.key === 'End') nextState = 'full'
+    if (event.key === 'Enter' || event.key === ' ') {
+      nextState = mobileSheetState === 'collapsed' ? 'half' : mobileSheetState === 'half' ? 'full' : 'collapsed'
+    }
+    if (!nextState) return
+
+    event.preventDefault()
+    snapTo(nextState)
+  }, [mobileSheetState, snapTo])
+
   useEffect(() => {
     const collapse = () => {
       if (!isMobileViewport()) return
@@ -719,7 +758,7 @@ export function MapSectionLayout({
       <span className="block truncate text-xs font-semibold text-foreground">
         {mobileFeaturePeek.title || selectedFeatureMobilePeek?.title || 'Selected feature'}
       </span>
-      <span className="block truncate text-[11px] text-muted-foreground">
+      <span className="block truncate text-xs text-muted-foreground">
         {mobileFeaturePeek.subtitle || selectedFeatureMobilePeek?.subtitle || 'Tap to show selected feature'}
       </span>
     </button>
@@ -741,7 +780,7 @@ export function MapSectionLayout({
           'pointer-events-none absolute inset-0 md:pointer-events-auto md:relative md:inset-auto md:z-10 md:h-full md:shrink-0',
           mobileControlsInFront ? 'z-[60]' : 'z-30',
           suppressMobileSheet && 'hidden md:block',
-          showDesktopSidebar ? 'md:block md:w-[var(--desktop-sidebar-width)]' : 'md:hidden',
+          showDesktopSidebar ? 'md:block md:w-[clamp(17.5rem,34vw,var(--desktop-sidebar-width))] xl:w-[var(--desktop-sidebar-width)]' : 'md:hidden',
         )}
         style={{ '--desktop-sidebar-width': `${desktopSidebarWidth}px` } as CSSProperties}
         data-map-sidebar-wrapper="true"
@@ -774,10 +813,17 @@ export function MapSectionLayout({
           {/* Drag handle */}
           <div
             ref={handleRef}
-            className="relative flex shrink-0 cursor-grab touch-none flex-col select-none active:cursor-grabbing md:hidden"
+            className="relative flex shrink-0 cursor-grab touch-none flex-col select-none rounded-t-lg active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:hidden"
             role="separator"
+            aria-orientation="horizontal"
             aria-label="Drag to resize sheet"
+            aria-valuemin={0}
+            aria-valuemax={2}
+            aria-valuenow={mobileSheetState === 'collapsed' ? 0 : mobileSheetState === 'half' ? 1 : 2}
+            aria-valuetext={`${mobileSheetState} panel`}
+            tabIndex={0}
             data-map-mobile-sheet-handle="true"
+            onKeyDown={handleMobileSheetKeyDown}
             onPointerDown={startHandlePointerDrag}
             onPointerMove={moveHandlePointerDrag}
             onPointerUp={endHandlePointerDrag}
@@ -802,7 +848,7 @@ export function MapSectionLayout({
                 event.stopPropagation()
                 snapTo(mobileSheetState === 'collapsed' ? 'half' : 'collapsed')
               }}
-              className="absolute right-3 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:right-4 sm:h-8 sm:w-8"
+              className="absolute right-2 top-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-3"
               aria-label={mobileSheetState === 'collapsed' ? 'Show panel' : 'Hide panel'}
             >
               {mobileSheetState === 'collapsed' ? (
@@ -848,7 +894,7 @@ export function MapSectionLayout({
         type="button"
         onClick={onToggleDesktopSidebar}
         aria-label={showDesktopSidebar ? 'Hide sidebar' : 'Show sidebar'}
-        style={{ left: showDesktopSidebar ? desktopSidebarWidth : 0 }}
+        style={{ left: showDesktopSidebar ? `clamp(17.5rem, 34vw, ${desktopSidebarWidth}px)` : 0 }}
         className="absolute top-1/2 z-20 hidden h-16 w-8 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-[left,background-color,color,border-color] hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
       >
         {showDesktopSidebar ? <ChevronsLeft className="h-4 w-4" /> : <ChevronsRight className="h-4 w-4" />}
@@ -863,8 +909,8 @@ export function MapSectionLayout({
         <>
           <div
             className={cn(
-              'hidden md:block md:relative md:h-full md:shrink-0 md:overflow-visible',
-              showDesktopRightSidebar ? 'md:w-[var(--desktop-right-sidebar-width)]' : 'md:w-0',
+              'hidden lg:block lg:relative lg:h-full lg:shrink-0 lg:overflow-visible',
+              showDesktopRightSidebar ? 'lg:w-[var(--desktop-right-sidebar-width)]' : 'lg:w-0',
             )}
             style={{ '--desktop-right-sidebar-width': `${desktopRightSidebarWidth}px` } as CSSProperties}
             data-map-right-sidebar="true"
@@ -879,7 +925,7 @@ export function MapSectionLayout({
                       type="button"
                       onClick={onToggleDesktopRightSidebar}
                       aria-label="Hide right sidebar"
-                      className="absolute left-0 top-0 z-20 hidden h-[4.35rem] w-8 -translate-x-full items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-colors hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
+                      className="absolute left-0 top-0 z-20 hidden h-[4.35rem] w-8 -translate-x-full items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-colors hover:bg-muted dark:border-slate-700 dark:text-slate-200 lg:flex"
                     >
                       <ChevronsRight className="h-4 w-4" />
                     </button>
@@ -905,7 +951,7 @@ export function MapSectionLayout({
               onClick={onToggleDesktopRightSidebar}
               aria-label="Show right sidebar"
               style={{ right: 0 }}
-              className="absolute top-0 z-20 hidden h-[4.35rem] w-8 items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-[right,background-color,color,border-color] hover:bg-muted dark:border-slate-700 dark:text-slate-200 md:flex"
+              className="absolute top-0 z-20 hidden h-[4.35rem] w-8 items-center justify-center rounded-l-xl border border-r-0 border-slate-300/80 bg-background/95 text-slate-600 shadow-sm backdrop-blur transition-[right,background-color,color,border-color] hover:bg-muted dark:border-slate-700 dark:text-slate-200 lg:flex"
             >
               <ChevronsLeft className="h-4 w-4" />
             </button>

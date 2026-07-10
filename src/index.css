@@ -63,7 +63,8 @@
   * {
     @apply border-border;
   }
-  html, body {
+  html,
+  body {
     @apply bg-background text-foreground;
     margin: 0;
     padding: 0;
@@ -82,7 +83,9 @@
 }
 
 /* Mobile touch optimizations */
-button, a, [role="button"] {
+button,
+a,
+[role='button'] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -98,12 +101,23 @@ button, a, [role="button"] {
 /* Keep map controls compact enough for small mobile map viewports. */
 @media (max-width: 767px) {
   .maplibregl-ctrl-group button {
-    width: 34px !important;
-    height: 34px !important;
+    width: 44px !important;
+    height: 44px !important;
   }
   .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
-    width: 34px !important;
-    height: 34px !important;
+    width: 44px !important;
+    height: 44px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -172,7 +186,7 @@ button, a, [role="button"] {
 }
 
 /* Keep the close button clear of the AQHI accent bar at the very top. */
-.aqmap-popup > button[aria-label="Close popup"] {
+.aqmap-popup > button[aria-label='Close popup'] {
   top: 0.75rem;
   right: 0.75rem;
 }
@@ -256,10 +270,7 @@ button, a, [role="button"] {
   }
   72% {
     opacity: 1;
-    transform: translate(
-      calc(var(--wait-reveal-x, 0px) * 1.06),
-      calc(var(--wait-reveal-y, 0px) * 1.06)
-    ) scale(1.05);
+    transform: translate(calc(var(--wait-reveal-x, 0px) * 1.06), calc(var(--wait-reveal-y, 0px) * 1.06)) scale(1.05);
   }
   100% {
     opacity: 1;

@@ -78,7 +78,7 @@ export function WordingOptionsControls({
       </div>
       {showVoice && (
         <div>
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Voice</div>
           <div className="grid grid-cols-3 gap-2">
             {PERSPECTIVES.map(({ value, label }) => (
               <button
@@ -106,7 +106,7 @@ export function WordingOptionsControls({
         </div>
       )}
       <div>
-        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Scope</div>
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Scope</div>
         <div className="grid grid-cols-2 gap-2">
           {SCOPES.map(({ value, label }) => (
             <button

@@ -355,14 +355,14 @@ export default function DevAcknowledgement() {
             // An org is loaded: the voice is unambiguously this organization, so
             // show a read-only indicator instead of the voice picker.
             <section className="rounded-lg border bg-white p-3 shadow-sm">
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Voice</div>
               <div className="rounded-md border border-teal-700 bg-teal-700 px-3 py-1.5 text-xs font-medium text-white">
                 Organization · {loadedOrg.name}
               </div>
             </section>
           ) : (
             <section className="rounded-lg border bg-white p-3 shadow-sm">
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Voice</div>
               <div className="grid grid-cols-3 gap-2">
                 {(
                   [

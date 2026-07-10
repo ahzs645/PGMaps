@@ -17,12 +17,12 @@ export function ExamplesTab({ className, activeExampleKey, onApplyExample, child
   return (
     <div className={cn('space-y-3 p-4', className)} data-score-builder-section="examples">
       <div className="rounded-lg border border-border bg-background p-3">
-        <div className="mb-3 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+        <div className="mb-3 flex items-center gap-2 text-xs font-medium text-muted-foreground">
           {['Goal', 'Data', 'Tune', 'Results'].map((step, index) => (
             <div key={step} className="flex items-center gap-2">
               <span
                 className={cn(
-                  'flex h-5 w-5 items-center justify-center rounded-full border text-[10px]',
+                  'flex h-5 w-5 items-center justify-center rounded-full border text-xs',
                   index === 0
                     ? 'border-cyan-500 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-200'
                     : 'border-border',
@@ -45,7 +45,7 @@ export function ExamplesTab({ className, activeExampleKey, onApplyExample, child
               {selectedExample.dataSources.map((ds) => (
                 <span
                   key={ds}
-                  className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                  className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
                 >
                   {getDataSourceLabel(ds)}
                 </span>
@@ -70,7 +70,7 @@ export function ExamplesTab({ className, activeExampleKey, onApplyExample, child
         if (!group.length) return null
         return (
           <div key={source}>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {title}
             </div>
             <div className="space-y-2">
@@ -92,17 +92,17 @@ export function ExamplesTab({ className, activeExampleKey, onApplyExample, child
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-sm font-semibold text-foreground">{example.label}</div>
-                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
                         {levelLabel}
                       </span>
                     </div>
                     <div className="mt-1 text-xs font-medium text-cyan-700 dark:text-cyan-300">{example.question}</div>
-                    <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">{example.description}</div>
+                    <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{example.description}</div>
                     <div className="mt-2 flex flex-wrap gap-1">
                       {example.dataSources.map((ds) => (
                         <span
                           key={ds}
-                          className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                          className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
                         >
                           {getDataSourceLabel(ds)}
                         </span>

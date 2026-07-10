@@ -563,7 +563,7 @@ export default function DevNetworks() {
                 <Layers className="h-3.5 w-3.5" />
                 TELUS MVT
               </h2>
-              <span className="text-[11px] text-muted-foreground">{visibleTelusLayerIds.length} visible</span>
+              <span className="text-xs text-muted-foreground">{visibleTelusLayerIds.length} visible</span>
             </div>
             <div className="space-y-1.5">
               {TELUS_LAYERS.map((layer) => {
@@ -576,7 +576,7 @@ export default function DevNetworks() {
                       <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
                       <span className="min-w-0">
                         <span className="block truncate font-medium">{layer.label}</span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
+                        <span className="block truncate text-xs text-muted-foreground">
                           {stats?.stats?.saved ?? 'unknown'} saved tiles · {formatBytes(archiveBytes ?? stats?.stats?.bytes)}
                         </span>
                       </span>
@@ -594,7 +594,7 @@ export default function DevNetworks() {
                 <Layers className="h-3.5 w-3.5" />
                 Rogers PNG
               </h2>
-              <span className="text-[11px] text-muted-foreground">{visibleRogersLayerIds.length} visible</span>
+              <span className="text-xs text-muted-foreground">{visibleRogersLayerIds.length} visible</span>
             </div>
             <div className="space-y-1.5">
               {ROGERS_LAYERS.map((layer) => {
@@ -609,10 +609,10 @@ export default function DevNetworks() {
                       <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
                       <span className="min-w-0">
                         <span className="block truncate font-medium">{layer.label}</span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
+                        <span className="block truncate text-xs text-muted-foreground">
                           {stats?.stats?.downloaded?.toLocaleString() ?? 'unknown'} saved tiles · {formatBytes(stats?.stats?.bytesSaved)}
                         </span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
+                        <span className="block truncate text-xs text-muted-foreground">
                           pulled z{rogersManifest?.requested?.minZoom ?? ROGERS_RASTER_MIN_ZOOM}-z{rogersManifest?.requested?.maxZoom ?? ROGERS_RASTER_MAX_ZOOM} · {sourceZooms}
                         </span>
                       </span>
@@ -630,7 +630,7 @@ export default function DevNetworks() {
                 <Layers className="h-3.5 w-3.5" />
                 Bell PNG
               </h2>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {bellRenderMode === 'polygon' && visibleBellLoadingCount ? `${visibleBellLoadingCount} loading` : `${visibleBellLayerIds.length} visible`}
               </span>
             </div>
@@ -667,14 +667,14 @@ export default function DevNetworks() {
                       <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: rgbaCss(layer.color) }} />
                       <span className="min-w-0">
                         <span className="block truncate font-medium">{layer.label}</span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
+                        <span className="block truncate text-xs text-muted-foreground">
                           {bellRenderMode === 'raster'
                             ? `PNG tiles · z${BELL_RASTER_MIN_ZOOM}-z${BELL_RASTER_MAX_ZOOM}`
                             : state?.loading
                             ? 'loading'
                             : `${stats?.stats?.featureCount?.toLocaleString() ?? 'unknown'} features · ${formatBytes(stats?.outputBytes)}`}
                         </span>
-                        {bellRenderMode === 'polygon' && state?.error && <span className="block truncate text-[11px] text-destructive">{state.error}</span>}
+                        {bellRenderMode === 'polygon' && state?.error && <span className="block truncate text-xs text-destructive">{state.error}</span>}
                       </span>
                     </span>
                     {active ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}

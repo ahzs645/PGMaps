@@ -49,7 +49,7 @@ export function MetricPickerDialog({
             if (!metrics.length) return null
             return (
               <div key={category}>
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -76,8 +76,8 @@ export function MetricPickerDialog({
                             <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
                           )}
                         </div>
-                        <div className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{metric.description}</div>
-                        <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                        <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{metric.description}</div>
+                        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                           <span>{metric.format}</span>
                           <span className="inline-flex items-center gap-1">
                             <FlipHorizontal className="h-3 w-3" />

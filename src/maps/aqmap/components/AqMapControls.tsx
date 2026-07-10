@@ -98,7 +98,7 @@ export function RangeField({
 }) {
   return (
     <label className="block space-y-1">
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{label}</span>
         <span className="font-medium text-foreground">{value}{unit ? `� ${unit}` : ''}</span>
       </div>
@@ -141,7 +141,7 @@ export function RevealClusterControls({
   return (
     <div className="space-y-2 rounded-md border border-border bg-secondary/30 p-2.5">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-medium text-foreground">{translate('reveal.tuning', locale)}</span>
+        <span className="text-xs font-medium text-foreground">{translate('reveal.tuning', locale)}</span>
         <button
           type="button"
           onClick={() => {
@@ -149,13 +149,13 @@ export function RevealClusterControls({
             onClusterMaxZoomChange(REVEAL_CLUSTER_DEFAULTS.maxZoom)
           }}
           disabled={isDefault}
-          className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-40 disabled:no-underline"
+          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-40 disabled:no-underline"
         >
           {translate('reveal.reset', locale)}
         </button>
       </div>
       <div className="space-y-1">
-        <span className="text-[11px] text-muted-foreground">{translate('reveal.clusterColors', locale)}</span>
+        <span className="text-xs text-muted-foreground">{translate('reveal.clusterColors', locale)}</span>
         <SegmentedControl
           value={clusterColorScheme}
           onChange={onClusterColorSchemeChange}
@@ -182,7 +182,7 @@ export function RevealClusterControls({
         step={REVEAL_CLUSTER_BOUNDS.maxZoom.step}
         onChange={onClusterMaxZoomChange}
       />
-      <label className="flex cursor-pointer items-start gap-2 text-[11px] text-muted-foreground">
+      <label className="flex cursor-pointer items-start gap-2 text-xs text-muted-foreground">
         <input
           type="checkbox"
           checked={tightClusters}
@@ -211,9 +211,9 @@ export function RingStyleControls({
 }) {
   return (
     <div className="space-y-2 rounded-md border border-border bg-secondary/30 p-2">
-      <div className="text-[11px] font-medium text-foreground">{translate('ring.style', locale)}</div>
+      <div className="text-xs font-medium text-foreground">{translate('ring.style', locale)}</div>
       <div className="space-y-1">
-        <div className="text-[11px] text-muted-foreground">{translate('ring.shape', locale)}</div>
+        <div className="text-xs text-muted-foreground">{translate('ring.shape', locale)}</div>
         <SegmentedControl
           value={ringStyle.shape}
           onChange={(shape: AqRingShape) => onRingStyleChange({ ...ringStyle, shape })}
@@ -224,7 +224,7 @@ export function RingStyleControls({
         />
       </div>
       <div className="space-y-1">
-        <div className="text-[11px] text-muted-foreground">{translate('ring.number', locale)}</div>
+        <div className="text-xs text-muted-foreground">{translate('ring.number', locale)}</div>
         <SegmentedControl
           value={ringStyle.showNumber ? 'on' : 'off'}
           onChange={(value: 'on' | 'off') => onRingStyleChange({ ...ringStyle, showNumber: value === 'on' })}
@@ -235,7 +235,7 @@ export function RingStyleControls({
         />
       </div>
       <div className="space-y-1">
-        <div className="text-[11px] text-muted-foreground">{translate('ring.shadow', locale)}</div>
+        <div className="text-xs text-muted-foreground">{translate('ring.shadow', locale)}</div>
         <SegmentedControl
           value={ringStyle.showShadow ? 'on' : 'off'}
           onChange={(value: 'on' | 'off') => onRingStyleChange({ ...ringStyle, showShadow: value === 'on' })}
@@ -247,7 +247,7 @@ export function RingStyleControls({
       </div>
       {ringStyle.shape === 'donut' && (
         <div className="space-y-1">
-          <div className="text-[11px] text-muted-foreground">{translate('ring.center', locale)}</div>
+          <div className="text-xs text-muted-foreground">{translate('ring.center', locale)}</div>
           <SegmentedControl
             value={ringStyle.center}
             onChange={(center: AqRingCenter) => onRingStyleChange({ ...ringStyle, center })}
@@ -389,7 +389,7 @@ export function FloatingLayerControl({
             <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
               <span className="truncate">{localizeSmokeLabel(layer.key, locale)}</span>
               {layer.key === 'modelledSmoke' && (
-                <span className="shrink-0 text-[10px] font-medium uppercase text-muted-foreground">
+                <span className="shrink-0 text-xs font-medium uppercase text-muted-foreground">
                   {translate('overlay.vector', locale)}
                 </span>
               )}
@@ -413,7 +413,7 @@ export function FloatingLayerControl({
                     { value: 'deckgl', label: translate('overlay.deckgl', locale) },
                   ]}
                 />
-                <div className="pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="pt-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Legend
                 </div>
                 <SegmentedControl
@@ -640,7 +640,7 @@ export function MainLayerControl({
 
 function LayerControlHeading({ children }: { children: ReactNode }) {
   return (
-    <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
+    <div className="text-xs font-semibold uppercase tracking-wide text-foreground">
       {children}
     </div>
   )
@@ -648,7 +648,7 @@ function LayerControlHeading({ children }: { children: ReactNode }) {
 
 function LayerControlSubheading({ children }: { children: ReactNode }) {
   return (
-    <div className="pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="pt-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
       {children}
     </div>
   )
@@ -830,7 +830,7 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
         >
           <Info className="size-4" />
         </summary>
-        <div className="absolute bottom-full left-0 mb-2 w-64 max-w-[calc(100vw-1.5rem)] rounded border border-border bg-background/95 px-2 py-1.5 text-[11px] leading-snug text-foreground shadow-md">
+        <div className="absolute bottom-full left-0 mb-2 w-64 max-w-[calc(100vw-1.5rem)] rounded border border-border bg-background/95 px-2 py-1.5 text-xs leading-snug text-foreground shadow-md">
           <div>{translate('app.lastUpdated', locale)} {formatLocalizedDate(latestDate, locale)}</div>
           <div className="mt-1 text-muted-foreground">
             ©{' '}
@@ -848,7 +848,7 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
       </details>
       <details
         data-aqmap-status-time="true"
-        className="group hidden min-w-0 rounded border border-border bg-background/95 text-[11px] text-foreground shadow-md md:block"
+        className="group hidden min-w-0 rounded border border-border bg-background/95 text-xs text-foreground shadow-md md:block"
       >
         <summary
           aria-label="Toggle map information"
@@ -873,7 +873,7 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
           </div>
         </div>
       </details>
-      <div data-aqmap-scale-bar="true" className="flex h-8 shrink-0 flex-col justify-center rounded border border-border bg-background/95 px-2 text-[11px] leading-none text-foreground shadow-md">
+      <div data-aqmap-scale-bar="true" className="flex h-8 shrink-0 flex-col justify-center rounded border border-border bg-background/95 px-2 text-xs leading-none text-foreground shadow-md">
         <div className="h-1 border-x border-b border-foreground" style={{ width: scale.width }} />
         <div className="mt-1 text-center">{scale.label}</div>
       </div>

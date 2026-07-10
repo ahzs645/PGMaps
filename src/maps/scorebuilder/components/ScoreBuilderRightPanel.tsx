@@ -215,7 +215,7 @@ export function ScoreBuilderRightPanel({
             <h1 className="text-base font-bold text-foreground">
               {activeExample?.label || activePreset?.label || 'Custom index'}
             </h1>
-            <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
               {activeExample
                 ? activeExample.question
                 : activePreset
@@ -227,7 +227,7 @@ export function ScoreBuilderRightPanel({
             type="button"
             data-score-builder-share="true"
             onClick={handleShare}
-            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             {shareStatus === 'copied' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             {shareStatus === 'copying'
@@ -279,7 +279,7 @@ export function ScoreBuilderRightPanel({
         {!hasActiveBoundarySurface && (
           <div className="m-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
             <p className="font-medium">Source grid mode</p>
-            <p className="mt-1 text-[11px] leading-4">
+            <p className="mt-1 text-xs leading-4">
               The map is showing the walkability source grid. Choose a study area to turn boundary rankings back on.
             </p>
           </div>

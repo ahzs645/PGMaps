@@ -146,7 +146,7 @@ export function CrimeSidebar({
                   <span className="text-muted-foreground">Showing:</span>
                   <span className="font-medium">{filteredIncidents.length.toLocaleString()}</span>
                 </div>
-                <div className="pt-1 text-[10px] text-muted-foreground">Updated biweekly by City of Prince George</div>
+                <div className="pt-1 text-xs text-muted-foreground">Updated biweekly by City of Prince George</div>
               </div>
             </SidebarSection>
           )}
@@ -244,7 +244,7 @@ export function CrimeSidebar({
             onClear={onClearSelection}
             clearLabel="Clear selected incident"
             badges={
-              <span className="flex items-center gap-1 rounded border border-sky-300/60 bg-sky-100/70 px-1.5 py-0.5 text-[10px] font-medium text-sky-900 dark:border-sky-800/60 dark:bg-sky-900/50 dark:text-sky-100">
+              <span className="flex items-center gap-1 rounded border border-sky-300/60 bg-sky-100/70 px-1.5 py-0.5 text-xs font-medium text-sky-900 dark:border-sky-800/60 dark:bg-sky-900/50 dark:text-sky-100">
                 <span
                   className="h-2 w-2 rounded-full"
                   style={{ backgroundColor: getCrimeCategoryColor(selectedIncident.crimeType) }}
@@ -256,7 +256,7 @@ export function CrimeSidebar({
             <div className="mt-1 text-xs text-sky-700 dark:text-sky-300">
               {formatDate(selectedIncident.date)} &middot; {selectedIncident.community}
             </div>
-            <div className="mt-1 text-[10px] text-sky-600 dark:text-sky-400">File: {selectedIncident.fileNumber}</div>
+            <div className="mt-1 text-xs text-sky-600 dark:text-sky-400">File: {selectedIncident.fileNumber}</div>
           </SelectedItemCard>
         </SidebarSection>
       )}

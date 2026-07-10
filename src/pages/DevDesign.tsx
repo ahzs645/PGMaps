@@ -1511,7 +1511,7 @@ export default function DevDesign() {
                     type="button"
                     onClick={() => updateMarker(selectedMarker.id, { variant })}
                     className={cn(
-                      'rounded-md border px-2 py-1 text-[11px] capitalize transition-colors',
+                      'rounded-md border px-2 py-1 text-xs capitalize transition-colors',
                       selectedMarker.variant === variant
                         ? 'border-primary text-primary'
                         : 'border-input text-muted-foreground hover:bg-accent',

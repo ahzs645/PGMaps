@@ -114,7 +114,7 @@ export function ProjectScoreMapPreview({
             minLabel={palette.legend.low}
             maxLabel={palette.legend.high}
           />
-          <div className="text-[10px] leading-snug text-muted-foreground">
+          <div className="text-xs leading-snug text-muted-foreground">
             {results.scoredRegions.length.toLocaleString()} regions scored with the project recipe.
           </div>
         </div>

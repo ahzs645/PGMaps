@@ -257,14 +257,14 @@ export default function BcAssessmentSection() {
           <div className="truncate text-xs font-semibold text-foreground">
             BC Assessment | {filteredProperties.length.toLocaleString()} parcels
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">
+          <div className="truncate text-xs text-muted-foreground">
             {visibleSelectedProperty?.address || selectedBoundaryId || colorMetric}
           </div>
         </div>
       )}
       sidebar={(
         <BcAssessmentSidebar
-          className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
+          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
           properties={properties}
           filteredProperties={filteredProperties}
           selectedCategories={selectedCategories}

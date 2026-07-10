@@ -250,7 +250,7 @@ export function CanueSidebar({
           <div className="mb-4 space-y-3 rounded-md border border-border bg-muted/15 p-3">
             <div>
               <div className="text-xs font-semibold text-foreground">R2 PMTiles Grid</div>
-              <div className="mt-1 text-[11px] text-muted-foreground">
+              <div className="mt-1 text-xs text-muted-foreground">
                 {canueV2Catalog.data
                   ? `${canueV2Catalog.data.families.length} families from Cloudflare R2`
                   : 'Loading R2 catalog...'}
@@ -411,14 +411,14 @@ export function CanueSidebar({
                 <div className="text-sm font-bold text-foreground">
                   {selectedCanueV2Layer.features.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-muted-foreground">grid cells</div>
+                <div className="text-xs text-muted-foreground">grid cells</div>
               </div>
               <div className="rounded border border-border p-2">
                 <div className="text-sm font-bold text-foreground">
                   {formatNullableNumber(selectedCanueV2Selection.min)}-
                   {formatNullableNumber(selectedCanueV2Selection.max)}
                 </div>
-                <div className="text-[10px] text-muted-foreground">tile range</div>
+                <div className="text-xs text-muted-foreground">tile range</div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-center">
@@ -426,7 +426,7 @@ export function CanueSidebar({
                 <div className="text-sm font-bold text-foreground">
                   {activeCanueBoundaryData.validBoundaryCount.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-muted-foreground">areas with values</div>
+                <div className="text-xs text-muted-foreground">areas with values</div>
               </div>
               <div className="rounded border border-border p-2">
                 <div className="text-sm font-bold text-foreground">
@@ -436,7 +436,7 @@ export function CanueSidebar({
                       ? '-'
                       : `z${canuePmtilesBoundaryData.zoom}`}
                 </div>
-                <div className="text-[10px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   {canueV2AggregateData.validBoundaryCount > 0
                     ? 'aggregate'
                     : `${canuePmtilesBoundaryData.tileCount.toLocaleString()} tiles${canuePmtilesBoundaryData.capped ? ' capped' : ''}`}
@@ -617,14 +617,14 @@ export function CanueSidebar({
                 <div className="text-sm font-bold text-foreground">
                   {activeCanueBoundaryData.validBoundaryCount.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-muted-foreground">with values</div>
+                <div className="text-xs text-muted-foreground">with values</div>
               </div>
               <div className="rounded border border-border p-2">
                 <div className="text-sm font-bold text-foreground">
                   {formatNullableNumber(activeCanueBoundaryData.minValue)}-
                   {formatNullableNumber(activeCanueBoundaryData.maxValue)}
                 </div>
-                <div className="text-[10px] text-muted-foreground">sample range</div>
+                <div className="text-xs text-muted-foreground">sample range</div>
               </div>
             </div>
             {activeCanueBoundaryData.loading && (

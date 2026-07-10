@@ -52,7 +52,7 @@ export function CandidateNations({
             onClick={() => setShowRelations((value) => !value)}
             aria-pressed={showRelations}
             className={cn(
-              'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition',
+              'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition',
               showRelations ? 'border-teal-300 bg-teal-50 text-teal-800' : 'text-slate-500 hover:border-teal-300',
             )}
           >
@@ -155,14 +155,14 @@ function CandidateRow({
             />
           </span>
           {showRelations && relations.length > 0 && (
-            <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">part of {relations.join(', ')}</span>
+            <span className="mt-0.5 block text-xs leading-4 text-slate-500">part of {relations.join(', ')}</span>
           )}
           {showSignals && matchedSources.length > 0 && (
             <span className="mt-1.5 flex flex-wrap gap-1.5">
               {matchedSources.map((source) => (
                 <span
                   key={source}
-                  className="inline-flex items-center gap-1 rounded border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[11px] font-medium text-teal-800"
+                  className="inline-flex items-center gap-1 rounded border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-xs font-medium text-teal-800"
                 >
                   <Check className="h-3 w-3" />
                   {SOURCE_CHIP_LABEL[source]}

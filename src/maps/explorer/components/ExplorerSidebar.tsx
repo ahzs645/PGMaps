@@ -91,7 +91,7 @@ export function ExplorerSidebar({
 
   return (
     <MapSidebarShell
-      className={cn('w-[370px]', className)}
+      className={cn('w-full', className)}
       title="Explorer"
       subtitle="Showcase all point, line, and polygon datasets in one map."
       dataset={DATASETS.explorer}
@@ -110,7 +110,7 @@ export function ExplorerSidebar({
           selectedClassName="border-cyan-500 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100"
           chipClassName="justify-center rounded border px-2 py-1.5 font-medium"
         />
-        <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[10px] text-muted-foreground">
+        <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground">
           <div>{geometryCounts.point.toLocaleString()} points</div>
           <div>{geometryCounts.line.toLocaleString()} lines</div>
           <div>{geometryCounts.polygon.toLocaleString()} polygons</div>
@@ -155,7 +155,7 @@ export function ExplorerSidebar({
                   </div>
                   <span>{active ? stat.count.toLocaleString() : 'Off'}</span>
                 </div>
-                <div className="flex items-center justify-between text-[10px]">
+                <div className="flex items-center justify-between text-xs">
                   <span>{GEOMETRY_TYPE_LABEL[stat.dataset.geometryType]}</span>
                   <span>{active ? `avg relevance ${formatRelevance(stat.averageRelevance)}` : 'click to load'}</span>
                 </div>
@@ -224,7 +224,7 @@ export function ExplorerSidebar({
 
         {/* Export + relevance info */}
         <div className="flex items-center justify-between">
-          <div className="line-clamp-2 min-w-0 text-[11px] text-muted-foreground" title={RELEVANCE_DESCRIPTION}>
+          <div className="line-clamp-2 min-w-0 text-xs text-muted-foreground" title={RELEVANCE_DESCRIPTION}>
             {RELEVANCE_DESCRIPTION}
           </div>
           <div className="flex gap-1">
@@ -238,7 +238,7 @@ export function ExplorerSidebar({
             <button
               onClick={() => onExport('geojson')}
               title="Export GeoJSON"
-              className="rounded border border-input px-1.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded border border-input px-1.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               .geo
             </button>
@@ -261,14 +261,14 @@ export function ExplorerSidebar({
                 Relevance {formatRelevance(selectedItem.relevance)} / 100
               </div>
               <div className="absolute left-0 top-full z-30 mt-1 hidden w-56 rounded-lg border border-border bg-background p-2 shadow-lg group-hover:block">
-                <div className="text-[10px] font-semibold text-foreground mb-1">Score Breakdown</div>
+                <div className="text-xs font-semibold text-foreground mb-1">Score Breakdown</div>
                 {selectedItem.relevanceBreakdown.map((entry, i) => (
-                  <div key={i} className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <div key={i} className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{entry.label}</span>
                     <span className="font-medium text-foreground">+{entry.points}</span>
                   </div>
                 ))}
-                <div className="mt-1 border-t border-border pt-1 flex items-center justify-between text-[10px] font-semibold">
+                <div className="mt-1 border-t border-border pt-1 flex items-center justify-between text-xs font-semibold">
                   <span>Total</span>
                   <span>{formatRelevance(selectedItem.relevance)}</span>
                 </div>
@@ -277,7 +277,7 @@ export function ExplorerSidebar({
 
             <div className="mb-2 text-xs text-cyan-800 dark:text-cyan-200">{selectedItem.summary}</div>
 
-            <div className="grid grid-cols-2 gap-2 text-[11px] text-cyan-800 dark:text-cyan-300">
+            <div className="grid grid-cols-2 gap-2 text-xs text-cyan-800 dark:text-cyan-300">
               {selectedItem.details.slice(0, 8).map((detail) => (
                 <div key={`${selectedItem.id}-${detail.label}`}>
                   <span className="font-medium">{detail.label}:</span> {detail.value}
@@ -299,7 +299,7 @@ export function ExplorerSidebar({
           </div>
 
           {errors.length > 0 && (
-            <div className="border-b border-border bg-amber-50 p-2 text-[11px] text-amber-800 dark:bg-amber-950/25 dark:text-amber-200">
+            <div className="border-b border-border bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/25 dark:text-amber-200">
               {errors.map((error, index) => (
                 <div key={`${error}-${index}`}>{error}</div>
               ))}
@@ -324,7 +324,7 @@ export function ExplorerSidebar({
                       {formatRelevance(item.relevance)}
                       <span className="absolute right-0 top-full z-30 mt-1 hidden w-48 rounded border border-border bg-background p-2 shadow-lg group-hover/rel:block">
                         {item.relevanceBreakdown.map((e, i) => (
-                          <span key={i} className="flex justify-between text-[10px] text-muted-foreground">
+                          <span key={i} className="flex justify-between text-xs text-muted-foreground">
                             <span>{e.label}</span>
                             <span className="font-medium text-foreground">+{e.points}</span>
                           </span>

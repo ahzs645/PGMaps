@@ -245,7 +245,7 @@ export function CensusSidebar({
             {isVariableMode && (
               <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 dark:border-amber-800/60 dark:bg-amber-950/25">
                 <div className="min-w-0">
-                  <div className="text-[10px] font-medium text-amber-700 dark:text-amber-300">{activeCategoryName}</div>
+                  <div className="text-xs font-medium text-amber-700 dark:text-amber-300">{activeCategoryName}</div>
                   <div className="truncate text-xs font-semibold text-amber-900 dark:text-amber-200">
                     {activeVariableLabel}
                   </div>
@@ -294,7 +294,7 @@ export function CensusSidebar({
             <div>
               {categoryGroups.map((group) => (
                 <div key={group.name}>
-                  <div className="sticky top-0 z-10 bg-muted/80 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur">
+                  <div className="sticky top-0 z-10 bg-muted/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur">
                     {group.name}
                   </div>
                   {group.categories.map((cat) => (
@@ -348,7 +348,7 @@ export function CensusSidebar({
                       key={t}
                       onClick={() => setTypeFilter(t)}
                       className={cn(
-                        'rounded px-2 py-0.5 text-[10px] font-medium transition-colors',
+                        'rounded px-2 py-0.5 text-xs font-medium transition-colors',
                         typeFilter === t ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground hover:bg-accent',
                       )}
                     >
@@ -375,12 +375,12 @@ export function CensusSidebar({
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-foreground">{v.label}</span>
                         {v.type && (
-                          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">
+                          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                             {v.type}
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">{v.id}</div>
+                      <div className="text-xs text-muted-foreground">{v.id}</div>
                     </button>
                   )
                 })}
@@ -423,7 +423,7 @@ export function CensusSidebar({
           >
             {isVariableMode ? (
               <div>
-                <div className="text-[10px] text-amber-700 dark:text-amber-300">{activeCategoryName}</div>
+                <div className="text-xs text-amber-700 dark:text-amber-300">{activeCategoryName}</div>
                 <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
                   {formatValue(getUnitVariableValue(selectedUnit))}
                 </div>

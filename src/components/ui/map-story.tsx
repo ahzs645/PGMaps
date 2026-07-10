@@ -132,7 +132,7 @@ export function MapStoryPanel({
           <div className="min-w-0">
             {eyebrow ? (
               <div
-                className="text-[11px] font-semibold uppercase tracking-wide"
+                className="text-xs font-semibold uppercase tracking-wide"
                 style={{ color: mutedColor ?? accentColor }}
               >
                 {eyebrow}

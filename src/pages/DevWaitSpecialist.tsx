@@ -149,7 +149,7 @@ function DevWaitSpecialist() {
   }, [facilities.length, filteredFacilities, filter])
 
   const sidebar = (
-    <aside className="flex h-full w-full flex-col bg-background/95 md:w-[380px] md:border-r md:shadow-xl">
+    <aside className="flex h-full w-full flex-col bg-background/95 md:border-r md:shadow-xl">
       <div className="border-b border-border px-4 py-3">
         <div className="flex items-start gap-3">
           <div className="rounded-md border bg-muted p-2">
@@ -169,7 +169,7 @@ function DevWaitSpecialist() {
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <section className="space-y-2">
-          <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground" htmlFor="specialist-search">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="specialist-search">
             Search
           </label>
           <div className="relative">
@@ -186,7 +186,7 @@ function DevWaitSpecialist() {
 
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Filters</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Filters</div>
             {filterActive && (
               <button
                 type="button"
@@ -195,7 +195,7 @@ function DevWaitSpecialist() {
                   setPatientType('all')
                   setBand('all')
                 }}
-                className="text-[11px] font-medium text-sky-700 hover:underline"
+                className="text-xs font-medium text-sky-700 hover:underline"
               >
                 Clear
               </button>
@@ -230,7 +230,7 @@ function DevWaitSpecialist() {
         </section>
 
         <section className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Patient type</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Patient type</div>
           <div className="grid grid-cols-3 gap-1">
             {PATIENT_OPTIONS.map((option) => (
               <button
@@ -252,7 +252,7 @@ function DevWaitSpecialist() {
         </section>
 
         <section className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">P90 wait band</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">P90 wait band</div>
           <div className="grid grid-cols-5 gap-1">
             {BAND_OPTIONS.map((option) => (
               <button
@@ -261,7 +261,7 @@ function DevWaitSpecialist() {
                 onClick={() => setBand(option.id)}
                 aria-pressed={band === option.id}
                 className={cn(
-                  'flex flex-col items-center gap-1 rounded-md border px-1 py-1.5 text-[10px] font-medium transition-colors',
+                  'flex flex-col items-center gap-1 rounded-md border px-1 py-1.5 text-xs font-medium transition-colors',
                   band === option.id
                     ? 'border-sky-500 bg-sky-500/10 text-sky-700'
                     : 'border-border bg-background text-muted-foreground hover:bg-muted',
@@ -272,13 +272,13 @@ function DevWaitSpecialist() {
               </button>
             ))}
           </div>
-          <p className="text-[11px] leading-4 text-muted-foreground">
+          <p className="text-xs leading-4 text-muted-foreground">
             Marker color and value reflect the median 90th-percentile wait{procedureName !== 'all' ? ` for ${procedureName}` : ''}.
           </p>
         </section>
 
         <section className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Sort facilities</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sort facilities</div>
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as SpecialistSort)}
@@ -298,7 +298,7 @@ function DevWaitSpecialist() {
             <Stat label="Known cases" value={formatCases(stats.knownCases)} />
             <Stat label="Median P90" value={formatWeeks(stats.medianP90)} />
           </div>
-          <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-[11px] leading-4 text-muted-foreground">
+          <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs leading-4 text-muted-foreground">
             Latest scrape run: {metadata?.latest_run_id ?? '--'}. {metadata?.procedure_count ?? '--'} procedures. {stats.rollups} Greater Victoria roll-up points.
           </div>
         </section>
@@ -323,7 +323,7 @@ function DevWaitSpecialist() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="min-w-0 truncate text-sm font-medium">{facility.facility_name}</span>
-                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold">
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
                       {facility.specialist_count}
                     </span>
                   </div>
@@ -349,7 +349,7 @@ function DevWaitSpecialist() {
       mobilePeek={(
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">{stats.visible} specialist facilities</div>
-          <div className="truncate text-[11px] text-muted-foreground">BC surgery wait-time source</div>
+          <div className="truncate text-xs text-muted-foreground">BC surgery wait-time source</div>
         </div>
       )}
       sidebar={sidebar}
@@ -598,7 +598,7 @@ function SpecialistFacilityMarker({
           >
             {markerText}
             {facility.is_rollup_child && (
-              <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-amber-950">
+              <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-amber-950">
                 R
               </span>
             )}
@@ -629,7 +629,7 @@ function SpecialistFacilityPopup({ facility, filter, onClose }: { facility: Spec
     <div className="w-80 overflow-hidden rounded-md bg-popover text-popover-foreground">
       <div className="flex items-start justify-between gap-2 border-b border-border px-3 py-2">
         <div className="min-w-0">
-          <div className="text-[11px] font-medium uppercase text-muted-foreground">
+          <div className="text-xs font-medium uppercase text-muted-foreground">
             {facility.is_rollup_child ? 'Roll-up child point' : 'Surgery facility'}
           </div>
           <div className="mt-0.5 text-sm font-semibold leading-5">{facility.facility_name}</div>
@@ -711,7 +711,7 @@ function SpecialistRow({ specialist, filter }: { specialist: FacilitySpecialist;
         </div>
       </div>
       {firstProcedure && (
-        <div className="mt-1.5 grid grid-cols-3 gap-1 text-[11px] text-muted-foreground">
+        <div className="mt-1.5 grid grid-cols-3 gap-1 text-xs text-muted-foreground">
           <span>Cases {firstProcedure.cases_waiting_raw ?? formatCases(firstProcedure.cases_waiting)}</span>
           <span>P50 {formatWeeks(firstProcedure.p50_weeks)}</span>
           <span>P90 {formatWeeks(firstProcedure.p90_weeks)}</span>
@@ -726,7 +726,7 @@ function PopupStat({ icon, label, value }: { icon: ReactNode; label: string; val
     <div className="rounded-md border border-border bg-muted/30 px-2.5 py-2">
       <div className="flex items-center gap-1.5 text-muted-foreground">
         {icon}
-        <span className="text-[10px] uppercase">{label}</span>
+        <span className="text-xs uppercase">{label}</span>
       </div>
       <div className="mt-1 text-sm font-semibold">{value}</div>
     </div>
@@ -736,7 +736,7 @@ function PopupStat({ icon, label, value }: { icon: ReactNode; label: string; val
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-sm font-semibold">{value}</div>
     </div>
   )
@@ -746,7 +746,7 @@ function FacilityListMetrics({ facility, filter }: { facility: SpecialistFacilit
   const metrics = facilityWaitMetrics(facility, filter)
 
   return (
-    <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-muted-foreground">
+    <div className="mt-2 grid grid-cols-3 gap-1 text-xs text-muted-foreground">
       <span>P50 {formatWeeks(metrics.p50MedianWeeks)}</span>
       <span>P90 {formatWeeks(metrics.p90MedianWeeks)}</span>
       <span>Cases {formatCases(metrics.knownCases)}</span>

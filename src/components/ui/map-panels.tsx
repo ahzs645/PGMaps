@@ -50,7 +50,7 @@ export function MapOverlayHeader({ className, ...props }: ComponentPropsWithoutR
 }
 
 export function MapOverlayTitle({ className, ...props }: ComponentPropsWithoutRef<'p'>) {
-  return <p className={cn('text-[10px] font-medium text-foreground', className)} {...props} />
+  return <p className={cn('text-xs font-medium text-foreground', className)} {...props} />
 }
 
 export function MapOverlayContent({ className, ...props }: ComponentPropsWithoutRef<'div'>) {
@@ -105,7 +105,7 @@ export function MapFloatingButton({
     <button
       type={type}
       className={cn(
-        'absolute flex size-9 cursor-pointer items-center justify-center rounded-lg shadow-lg backdrop-blur-sm transition-colors',
+        'absolute flex size-11 cursor-pointer items-center justify-center rounded-lg shadow-lg backdrop-blur-sm transition-colors md:size-10',
         MAP_OVERLAY_Z.controls,
         overlayPositions[position],
         active ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-background/95 hover:bg-accent',
@@ -132,7 +132,7 @@ export function MapToolbarButton({
     <button
       type={type}
       className={cn(
-        'flex size-9 cursor-pointer items-center justify-center border border-border transition-colors',
+        'flex size-11 cursor-pointer items-center justify-center border border-border transition-colors md:size-10',
         shape === 'circle' ? 'rounded-full' : 'rounded-md',
         active ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted',
         className,
@@ -155,7 +155,7 @@ export function MapStat({ icon, label, value, inline = false, className, ...prop
       {icon}
       <div className={cn(inline && 'contents')}>
         <div className={cn('font-medium', inline ? 'text-muted-foreground' : 'text-foreground')}>{value}</div>
-        {label ? <div className="text-[10px]">{label}</div> : null}
+        {label ? <div className="text-xs">{label}</div> : null}
       </div>
     </div>
   )
@@ -253,7 +253,7 @@ export function MapLegendItem({
       type="button"
       disabled={disabled}
       className={cn(
-        'flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[10px] transition-colors hover:bg-accent disabled:pointer-events-none',
+        'flex min-h-11 w-full items-center gap-1.5 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent disabled:pointer-events-none md:min-h-0 md:px-1 md:py-0.5',
         className,
       )}
       {...props}
@@ -287,7 +287,7 @@ export function MapGradientLegendItem({
           ...style,
         }}
       />
-      <div className="flex items-center justify-between gap-3 text-[9px] text-muted-foreground">
+      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <span>{minLabel}</span>
         <span>{maxLabel}</span>
       </div>
@@ -304,7 +304,7 @@ type MapLayerToggleProps = ComponentPropsWithoutRef<'label'> & {
 
 export function MapLayerToggle({ color, label, checked, onCheckedChange, className, ...props }: MapLayerToggleProps) {
   return (
-    <label className={cn('flex cursor-pointer items-center gap-1.5 text-[10px]', className)} {...props}>
+    <label className={cn('flex cursor-pointer items-center gap-1.5 text-xs', className)} {...props}>
       <input
         type="checkbox"
         checked={checked}
@@ -340,7 +340,7 @@ export function MapNumberedMarker({ color, label, className, style, ...props }: 
   return (
     <div
       className={cn(
-        'flex size-4 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold text-white shadow-lg',
+        'flex size-4 items-center justify-center rounded-full border-2 border-white text-xs font-bold text-white shadow-lg',
         className,
       )}
       style={{ backgroundColor: color, ...style }}
@@ -470,7 +470,7 @@ export function StatTile({ label, value, loading = false, className, valueClassN
   return (
     <div className={cn('rounded border border-border bg-background p-2 text-center', className)}>
       <div className={cn('text-sm font-bold text-foreground', valueClassName)}>{loading ? '...' : value}</div>
-      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   )
 }
@@ -529,7 +529,7 @@ export function ToggleChip({ active, onClick, children, tone = 'sky', className,
       aria-pressed={active}
       disabled={disabled}
       className={cn(
-        'rounded border px-2 py-1 text-[11px] transition-colors disabled:pointer-events-none disabled:opacity-50',
+        'rounded border px-2 py-1 text-xs transition-colors disabled:pointer-events-none disabled:opacity-50',
         active ? toggleChipToneClasses[tone] : 'border-input text-muted-foreground hover:text-foreground',
         className,
       )}
@@ -740,7 +740,8 @@ export function SelectedItemCard({
     <div
       className={cn(
         'rounded-md border p-3 text-xs',
-        onClick && 'cursor-pointer transition-colors hover:bg-green-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:hover:bg-green-950/50',
+        onClick &&
+          'cursor-pointer transition-colors hover:bg-green-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:hover:bg-green-950/50',
         selectedItemToneClasses[tone],
         className,
       )}
@@ -749,7 +750,7 @@ export function SelectedItemCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {eyebrow && (
-            <div className={cn('mb-0.5 text-[10px] font-medium', selectedItemSubtleTextClasses[tone])}>{eyebrow}</div>
+            <div className={cn('mb-0.5 text-xs font-medium', selectedItemSubtleTextClasses[tone])}>{eyebrow}</div>
           )}
           <div className="font-semibold leading-5">{title}</div>
           {subtitle && <div className={cn('text-xs', selectedItemSubtleTextClasses[tone])}>{subtitle}</div>}
@@ -827,7 +828,10 @@ export function MapLegendPanel({
     if (!root) return
 
     const syncLegendHeight = () => {
-      root.style.setProperty('--map-legend-panel-visible-height', `${Math.ceil(panel.getBoundingClientRect().height) + 12}px`)
+      root.style.setProperty(
+        '--map-legend-panel-visible-height',
+        `${Math.ceil(panel.getBoundingClientRect().height) + 12}px`,
+      )
     }
     syncLegendHeight()
 
@@ -873,7 +877,7 @@ export function MapLegendPanel({
                 </span>
               </button>
               <span className="flex shrink-0 items-center gap-2">
-                {actions ? <span className="text-[10px]">{actions}</span> : null}
+                {actions ? <span className="text-xs">{actions}</span> : null}
                 <button
                   type="button"
                   aria-label={isCollapsed ? 'Expand legend' : 'Collapse legend'}
@@ -896,7 +900,7 @@ export function MapLegendPanel({
                   <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</div>
                 ) : null}
               </div>
-              {actions ? <div className="shrink-0 text-[10px]">{actions}</div> : null}
+              {actions ? <div className="shrink-0 text-xs">{actions}</div> : null}
             </div>
           )}
         </div>
@@ -933,17 +937,17 @@ export function MapLegendSection({
           <div className="min-w-0">
             {title ? <span className="block truncate font-medium text-foreground">{title}</span> : null}
             {description ? (
-              <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground">{description}</span>
+              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{description}</span>
             ) : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {actions ? <div className="flex items-center gap-2 text-[10px]">{actions}</div> : null}
-            {value ? <span className="tabular-nums text-[10px] text-muted-foreground">{value}</span> : null}
+            {actions ? <div className="flex items-center gap-2 text-xs">{actions}</div> : null}
+            {value ? <span className="tabular-nums text-xs text-muted-foreground">{value}</span> : null}
           </div>
         </div>
       )}
       {!title && !value && !actions && description ? (
-        <div className="text-[10px] leading-snug text-muted-foreground">{description}</div>
+        <div className="text-xs leading-snug text-muted-foreground">{description}</div>
       ) : null}
       <div
         className={cn(
@@ -995,7 +999,7 @@ export function LegendItem({
         />
         <span className={cn('truncate', !active && 'line-through')}>{label}</span>
       </div>
-      {value && <span className="shrink-0 tabular-nums text-[10px]">{value}</span>}
+      {value && <span className="shrink-0 tabular-nums text-xs">{value}</span>}
     </>
   )
 
@@ -1006,7 +1010,7 @@ export function LegendItem({
         onClick={onClick}
         aria-pressed={active}
         className={cn(
-          'flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'flex min-h-11 w-full items-center justify-between gap-2 rounded px-2 py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:px-1 md:py-0.5',
           !active && 'text-muted-foreground',
           className,
         )}
@@ -1077,19 +1081,18 @@ export function MapSteppedLegend({
   const footerLabels = labels ?? bands.map((band) => band.label)
 
   if (variant === 'gradient') {
-    const gradient = `linear-gradient(to right, ${bands.map((band, index) => {
-      const position = bands.length <= 1 ? 0 : (index / (bands.length - 1)) * 100
-      return `${band.color} ${position}%`
-    }).join(', ')})`
+    const gradient = `linear-gradient(to right, ${bands
+      .map((band, index) => {
+        const position = bands.length <= 1 ? 0 : (index / (bands.length - 1)) * 100
+        return `${band.color} ${position}%`
+      })
+      .join(', ')})`
 
     return (
       <div className={cn('space-y-1.5', className)} {...props}>
-        <div
-          className="h-4 rounded-sm border border-border"
-          style={{ background: gradient }}
-        />
+        <div className="h-4 rounded-sm border border-border" style={{ background: gradient }} />
         {footerLabels.length > 0 && (
-          <div className="flex items-center justify-between gap-2 text-[9px] tabular-nums text-muted-foreground sm:text-[10px]">
+          <div className="flex items-center justify-between gap-2 text-xs tabular-nums text-muted-foreground sm:text-xs">
             {footerLabels.map((label, index) => (
               <span key={`${String(label)}-${index}`}>{label}</span>
             ))}
@@ -1110,7 +1113,7 @@ export function MapSteppedLegend({
         ))}
       </div>
       {footerLabels.length > 0 && (
-        <div className="flex items-center justify-between gap-1 text-[9px] tabular-nums text-muted-foreground sm:text-[10px]">
+        <div className="flex items-center justify-between gap-1 text-xs tabular-nums text-muted-foreground sm:text-xs">
           {footerLabels.map((label, index) => (
             <span key={`${String(label)}-${index}`}>{label}</span>
           ))}
@@ -1178,7 +1181,7 @@ export function MapLegendNote({ tone = 'muted', className, ...props }: MapLegend
   return (
     <div
       className={cn(
-        'px-1 text-[10px] leading-snug',
+        'px-1 text-xs leading-snug',
         tone === 'muted' && 'text-muted-foreground',
         tone === 'warning' &&
           'rounded border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200',

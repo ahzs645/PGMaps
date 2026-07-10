@@ -37,7 +37,7 @@ function ScatterTooltip({
   if (!active || !point) return null
   const unit = translate('aqhi.unit', locale)
   return (
-    <div className="rounded border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] shadow-sm">
+    <div className="rounded border border-gray-200 bg-white px-2.5 py-1.5 text-xs shadow-sm">
       {point.series && <div className="font-medium text-gray-900">{point.series}</div>}
       <div className="text-gray-600">
         {xLabel}: <b className="text-gray-900">{point.x.toFixed(1)}</b> {unit}
@@ -61,7 +61,7 @@ export function MonitorScatterLegend({ mode, locale }: { mode: 'xy' | 'xy_cor'; 
       ]
 
   return (
-    <div className="flex h-[22px] shrink-0 items-center justify-end gap-3 text-[10px] leading-none text-muted-foreground">
+    <div className="flex h-[22px] shrink-0 items-center justify-end gap-3 text-xs leading-none text-muted-foreground">
       {items.map((entry) => (
         <span key={entry.name} className="inline-flex items-center gap-1 whitespace-nowrap">
           <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} aria-hidden="true" />
@@ -149,7 +149,7 @@ export function MonitorScatterChart({
       aria-label={mode === 'xy' ? translate('plot.ab.title', locale) : translate('plot.fem.title', locale)}
     >
       {loading || !hasData ? (
-        <div className="flex h-full items-center justify-center px-3 text-center text-[11px] text-gray-500">
+        <div className="flex h-full items-center justify-center px-3 text-center text-xs text-gray-500">
           {loading ? translate('plot.loading', locale) : translate('plot.noData', locale)}
         </div>
       ) : (

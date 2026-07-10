@@ -601,7 +601,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
 
 export function WarsLegend({ wars }: { wars: WarsState }) {
   return (
-    <div className="w-full space-y-1.5 text-[11px] text-muted-foreground md:w-56 md:space-y-2 md:text-xs">
+    <div className="w-full space-y-1.5 text-xs text-muted-foreground md:w-56 md:space-y-2 md:text-xs">
       {wars.showPoints && (
         <>
           {wars.speciesLegendBreakdown.length === 0 ? (
@@ -633,7 +633,7 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
       {wars.showHeatmap && (
         <div className={cn(wars.showPoints && 'border-t border-border pt-2')}>
           <MapGradientLegendItem colors={['#67e8f9', '#fde047', '#dc2626']} minLabel="Lower density" maxLabel="Higher density" />
-          <div className="mt-2 text-[10px]">Heatmap aggregates all selected species.</div>
+          <div className="mt-2 text-xs">Heatmap aggregates all selected species.</div>
         </div>
       )}
       {!wars.showPoints && !wars.showHeatmap && (

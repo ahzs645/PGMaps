@@ -71,7 +71,7 @@ export default function ExplorerSection() {
           <div className="truncate text-xs font-semibold text-foreground">
             Explorer | {filteredItems.length.toLocaleString()} visible
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">
+          <div className="truncate text-xs text-muted-foreground">
             {activeDatasetIds.length === ALL_DATASET_IDS.length
               ? 'All datasets'
               : `${activeDatasetIds.length} datasets`}
@@ -81,7 +81,7 @@ export default function ExplorerSection() {
       }
       sidebar={
         <ExplorerSidebar
-          className="h-full w-full border-0 shadow-none md:w-[370px] md:border-r md:shadow-xl"
+          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
           loading={loading}
           errors={errors}
           geometryFilters={geometryFilters}

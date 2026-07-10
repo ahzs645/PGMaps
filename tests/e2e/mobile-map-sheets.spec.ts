@@ -83,6 +83,32 @@ test.describe('mobile map sidebars', () => {
     expect(measurements.sheetTop).toBeGreaterThanOrEqual(measurements.toolbarBottom + 7)
   })
 
+  test('mobile sheet supports keyboard snap positions and accessible touch targets', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/airquality', { waitUntil: 'domcontentloaded' })
+
+    const handle = page.locator('[data-map-mobile-sheet-handle="true"]')
+    await expect(handle).toBeVisible({ timeout: 30_000 })
+    await handle.focus()
+    await handle.press('End')
+    await expect(handle).toHaveAttribute('aria-valuenow', '2')
+    await handle.press('Home')
+    await expect(handle).toHaveAttribute('aria-valuenow', '0')
+
+    const panelToggle = page.getByRole('button', { name: 'Show panel' })
+    const toggleBox = await panelToggle.boundingBox()
+    expect(toggleBox).not.toBeNull()
+    expect(toggleBox!.width).toBeGreaterThanOrEqual(44)
+    expect(toggleBox!.height).toBeGreaterThanOrEqual(44)
+
+    const zoomIn = page.getByRole('button', { name: 'Zoom in' })
+    await expect(zoomIn).toBeVisible({ timeout: 30_000 })
+    const zoomBox = await zoomIn.boundingBox()
+    expect(zoomBox).not.toBeNull()
+    expect(zoomBox!.width).toBeGreaterThanOrEqual(44)
+    expect(zoomBox!.height).toBeGreaterThanOrEqual(44)
+  })
+
   test('mobile food map deep-linked restaurant card can be dismissed', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/foodmap?restaurant=A+%26+W+Restaurant-+5th+Avenue', { waitUntil: 'domcontentloaded' })

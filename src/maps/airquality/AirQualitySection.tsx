@@ -547,14 +547,14 @@ export default function AirQualitySection() {
           <div className="truncate text-xs font-semibold text-foreground">
             Air Quality | {sidebarMonitors.length.toLocaleString()} {sidebarMonitorCountLabel}
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">
+          <div className="truncate text-xs text-muted-foreground">
             {selectedMonitor?.name || `${selectedNetworks.length} networks selected`}
           </div>
         </div>
       )}
       sidebar={(
         <AirQualitySidebar
-          className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
+          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
           state={state}
           actions={actions}
           monitors={monitorsInRegionScope}

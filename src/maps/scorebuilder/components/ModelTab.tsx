@@ -85,17 +85,17 @@ export function ModelTab({
             Active weights are normalized by total influence, so a useful model can use any total.
           </p>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
           <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Influence</div>
+            <div className="text-xs uppercase text-muted-foreground">Influence</div>
             <div className="font-semibold text-foreground">{totalAbsoluteWeight.toLocaleString()}</div>
           </div>
           <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Metrics</div>
+            <div className="text-xs uppercase text-muted-foreground">Metrics</div>
             <div className="font-semibold text-foreground">{activeMetricCount}</div>
           </div>
           <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Average</div>
+            <div className="text-xs uppercase text-muted-foreground">Average</div>
             <div className="font-semibold text-foreground">{formatScore(scoreSpread.average)}</div>
           </div>
         </div>
@@ -182,7 +182,7 @@ export function ModelTab({
             <Filter className="h-4 w-4 text-muted-foreground" />
             <div className="text-sm font-semibold text-foreground">Hard filters</div>
           </div>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {regions.length} of {totalRegionCount} eligible
           </span>
         </div>
@@ -204,7 +204,7 @@ export function ModelTab({
               >
                 <span>
                   <span className="block text-xs font-semibold">{filter.label}</span>
-                  <span className="mt-0.5 block text-[10px] text-muted-foreground">{filter.description}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{filter.description}</span>
                 </span>
                 <span className={cn('shrink-0 text-xs font-bold', active ? 'text-cyan-600' : 'text-muted-foreground')}>
                   {active ? 'ON' : 'OFF'}
@@ -213,7 +213,7 @@ export function ModelTab({
             )
           })}
         </div>
-        <div className="mt-2 text-[11px] text-muted-foreground">
+        <div className="mt-2 text-xs text-muted-foreground">
           {activeFilters.length
             ? `${excludedRegionCount} region${excludedRegionCount === 1 ? '' : 's'} excluded before ranking.`
             : 'No hard filters are active; all loaded regions remain eligible.'}
@@ -228,7 +228,7 @@ export function ModelTab({
         <div className="space-y-2">
           {scoreBands.map((band) => (
             <div key={band.key}>
-              <div className="mb-1 flex items-center justify-between text-[11px]">
+              <div className="mb-1 flex items-center justify-between text-xs">
                 <span className="font-semibold text-foreground">{band.label}</span>
                 <span className="text-muted-foreground">{band.count} regions</span>
               </div>
@@ -247,7 +247,7 @@ export function ModelTab({
                   style={{ width: `${Math.max(3, (band.count / maxBandCount) * 100)}%` }}
                 />
               </div>
-              <div className="mt-0.5 text-[10px] text-muted-foreground">
+              <div className="mt-0.5 text-xs text-muted-foreground">
                 {band.min}-{band.max} · {band.description}
               </div>
             </div>
@@ -258,19 +258,19 @@ export function ModelTab({
       {scenarioComparison && (
         <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/20">
           <div className="mb-2 text-sm font-semibold text-amber-950 dark:text-amber-100">Scenario compare</div>
-          <div className="grid grid-cols-2 gap-2 text-[11px] text-amber-900 dark:text-amber-100">
+          <div className="grid grid-cols-2 gap-2 text-xs text-amber-900 dark:text-amber-100">
             <div className="rounded border border-amber-200/70 bg-white/50 p-2 dark:border-amber-900 dark:bg-amber-950/20">
-              <div className="text-[10px] uppercase text-amber-700 dark:text-amber-300">Current top</div>
+              <div className="text-xs uppercase text-amber-700 dark:text-amber-300">Current top</div>
               <div className="font-semibold">{scenarioComparison.currentTopName || 'None'}</div>
               <div>{formatScore(scenarioComparison.currentTopScore)}</div>
             </div>
             <div className="rounded border border-amber-200/70 bg-white/50 p-2 dark:border-amber-900 dark:bg-amber-950/20">
-              <div className="text-[10px] uppercase text-amber-700 dark:text-amber-300">{scenarioComparison.label}</div>
+              <div className="text-xs uppercase text-amber-700 dark:text-amber-300">{scenarioComparison.label}</div>
               <div className="font-semibold">{scenarioComparison.referenceTopName || 'None'}</div>
               <div>{formatScore(scenarioComparison.referenceTopScore)}</div>
             </div>
           </div>
-          <div className="mt-2 text-[11px] text-amber-800 dark:text-amber-200">
+          <div className="mt-2 text-xs text-amber-800 dark:text-amber-200">
             Average delta vs {scenarioComparison.label}:{' '}
             <span className="font-semibold">
               {scenarioComparison.averageDelta >= 0 ? '+' : ''}
@@ -281,7 +281,7 @@ export function ModelTab({
             Sensitivity: top area held in {(scenarioComparison.stableTopShare * 100).toFixed(0)}% of trials · avg rank
             shift {scenarioComparison.averageRankShift.toFixed(1)}
           </div>
-          <div className="mt-2 grid gap-2 text-[11px] text-amber-900 dark:text-amber-100 sm:grid-cols-3">
+          <div className="mt-2 grid gap-2 text-xs text-amber-900 dark:text-amber-100 sm:grid-cols-3">
             <div>
               <div className="font-semibold">Changed most</div>
               {scenarioComparison.changedMost.slice(0, 3).map((entry) => (

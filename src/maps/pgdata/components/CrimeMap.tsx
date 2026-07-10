@@ -228,7 +228,7 @@ export function CrimeMap({
                       className="h-2.5 w-2.5 rounded-full"
                       style={{ backgroundColor: getCrimeCategoryColor(selectedIncident.crimeType) }}
                     />
-                    <span className="text-[10px] font-medium text-foreground">
+                    <span className="text-xs font-medium text-foreground">
                       {getCrimeCategory(selectedIncident.crimeType)}
                     </span>
                   </div>

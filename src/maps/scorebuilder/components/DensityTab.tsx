@@ -46,7 +46,7 @@ export function DensityTab({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs font-semibold text-foreground">Build score from heat map</div>
-            <div className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+            <div className="mt-0.5 text-xs leading-snug text-muted-foreground">
               Use the selected metric as a one-layer score so the map, rankings, exports, and share URL all follow this
               dataset.
             </div>
@@ -67,7 +67,7 @@ export function DensityTab({
           <div className="grid grid-cols-2 gap-2 text-xs">
             {(['median', 'average', 'min', 'max'] as const).map((stat) => (
               <div key={stat} className="rounded border border-border bg-muted/30 p-2">
-                <div className="text-[10px] capitalize text-muted-foreground">{stat}</div>
+                <div className="text-xs capitalize text-muted-foreground">{stat}</div>
                 <div className="font-semibold text-foreground">
                   {formatMetricValue(densityMetric, densitySummary[stat], true)}
                 </div>
@@ -91,7 +91,7 @@ export function DensityTab({
               </button>
             ))}
           </div>
-          <div className="text-[10px] text-muted-foreground">{getMetricDescription(densityMetric)}</div>
+          <div className="text-xs text-muted-foreground">{getMetricDescription(densityMetric)}</div>
         </>
       ) : (
         <div className="text-xs text-muted-foreground">No values available for this density lens.</div>

@@ -181,7 +181,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
       <div className="truncate text-xs font-semibold text-foreground">
         Drought Levels | {selectedYear}
       </div>
-      <div className="truncate text-[11px] text-muted-foreground">
+      <div className="truncate text-xs text-muted-foreground">
         {filledBasinCount.toLocaleString()} filled basins
       </div>
     </div>
@@ -194,7 +194,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
       mobilePeek={mobilePeek}
       sidebar={(
         <DroughtSidebar
-          className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
+          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
           manifest={manifest}
           selectedYear={selectedYear}
           availableYears={availableYears}
@@ -219,7 +219,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
           loading={loading}
         />
 
-        <div className="absolute right-14 top-16 z-10 rounded-md border border-border bg-background/95 px-2 py-1.5 text-[11px] shadow-lg backdrop-blur sm:right-16 sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs md:right-16 md:top-4">
+        <div className="absolute right-14 top-16 z-10 rounded-md border border-border bg-background/95 px-2 py-1.5 text-xs shadow-lg backdrop-blur sm:right-16 sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs md:right-16 md:top-4">
           <div className="font-semibold leading-tight text-foreground">{selectedYear}</div>
           <div className="leading-tight text-muted-foreground">
             {formatDate(effectiveTimelineDate, { fallback: '' })}

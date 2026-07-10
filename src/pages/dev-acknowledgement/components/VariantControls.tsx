@@ -57,7 +57,7 @@ export function VariantControls({
       </div>
       {!showVoice && lockedOrganizationName && (
         <div className="mb-3">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Voice</div>
           <div className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-medium text-teal-900">
             Organization · {lockedOrganizationName}
           </div>

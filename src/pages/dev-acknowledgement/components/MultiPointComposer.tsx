@@ -63,9 +63,9 @@ function Chips({ label, names, tone }: { label: string; names: string[]; tone: '
         : 'border-slate-200 bg-slate-50 text-slate-600'
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>
       {names.map((name) => (
-        <span key={name} className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium', cls)}>
+        <span key={name} className={cn('rounded border px-1.5 py-0.5 text-xs font-medium', cls)}>
           {name}
         </span>
       ))}
@@ -437,12 +437,12 @@ export function MultiPointComposer({
 
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Locations ({points.length})
                 </span>
                 <div className="flex items-center gap-2">
                   {summary.pointCount > 1 && (
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       {summary.distinctNationCount} Nations · ~{Math.round(summary.maxSpreadKm)} km
                     </span>
                   )}
@@ -451,7 +451,7 @@ export function MultiPointComposer({
                     onClick={() => setAddMode((value) => !value)}
                     aria-pressed={addMode}
                     className={cn(
-                      'inline-flex min-h-8 items-center gap-1 rounded px-1 text-[10px] font-medium transition',
+                      'inline-flex min-h-8 items-center gap-1 rounded px-1 text-xs font-medium transition',
                       addMode ? 'text-teal-700' : 'text-slate-500 hover:text-slate-800',
                     )}
                   >
@@ -462,7 +462,7 @@ export function MultiPointComposer({
                     <button
                       type="button"
                       onClick={() => loadOrg(null)}
-                      className="inline-flex min-h-8 items-center gap-1 rounded px-1 text-[10px] font-medium text-slate-500 transition hover:text-slate-800"
+                      className="inline-flex min-h-8 items-center gap-1 rounded px-1 text-xs font-medium text-slate-500 transition hover:text-slate-800"
                     >
                       <Trash2 className="h-3 w-3" />
                       Clear
@@ -503,7 +503,7 @@ export function MultiPointComposer({
                       <span className="block min-w-0 flex-1">
                         <span className="flex items-center gap-2">
                           {point.name && <span className="font-medium text-slate-900">{point.name}</span>}
-                          <span className="font-mono text-[10px] text-slate-500">
+                          <span className="font-mono text-xs text-slate-500">
                             {point.latitude.toFixed(3)}, {point.longitude.toFixed(3)}
                           </span>
                         </span>
@@ -512,7 +512,7 @@ export function MultiPointComposer({
                           {point.status === 'error' && 'Lookup failed'}
                           {point.status === 'done' && (
                             <>
-                              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                                 Native Land
                               </span>{' '}
                               {point.nationNames.length ? point.nationNames.join(', ') : 'no territory match'}
@@ -525,7 +525,7 @@ export function MultiPointComposer({
                           (() => {
                             const langNations = fpccLanguageNations(point.languages)
                             return (
-                              <span className="mt-0.5 block text-[10px] leading-4 text-teal-800">
+                              <span className="mt-0.5 block text-xs leading-4 text-teal-800">
                                 <span className="font-semibold uppercase tracking-wide text-slate-400">FPCC</span> ·{' '}
                                 {point.languages.join(', ')}
                                 {langNations.length > 0 && (
@@ -578,18 +578,18 @@ export function MultiPointComposer({
                 <span className="font-medium text-slate-700">
                   Mapped to our database: {coverage.length - unlistedNations.length}/{coverage.length}
                 </span>
-                <span className="text-[10px] text-slate-500">
+                <span className="text-xs text-slate-500">
                   ({graphBackedCount} in verified graph · {gisVerifiedCount} GIS-verified)
                 </span>
                 {unlistedNations.length > 0 && (
                   <span className="flex flex-wrap items-center gap-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                       not in our DB yet
                     </span>
                     {unlistedNations.map((entry) => (
                       <span
                         key={entry.input}
-                        className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-800"
+                        className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800"
                       >
                         {entry.canonical}
                       </span>
@@ -600,7 +600,7 @@ export function MultiPointComposer({
             )}
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div className="rounded-md border bg-white p-3">
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
                   They name ({selectedOrg.acknowledges.length})
                 </div>
                 <div className="text-xs leading-5 text-slate-800">
@@ -610,7 +610,7 @@ export function MultiPointComposer({
                 </div>
               </div>
               <div className="rounded-md border bg-white p-3">
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Our engine resolved ({summary.distinctNationCount})
                 </div>
                 <div className="text-xs leading-5 text-slate-800">

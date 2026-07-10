@@ -120,11 +120,11 @@ export function Scale({
       )}
       aria-label="Map scale and attribution"
     >
-      <div className="relative h-7 text-[11px] font-medium text-slate-950" style={{ width: MAX_SCALE_WIDTH }}>
+      <div className="relative h-7 text-xs font-medium text-slate-950" style={{ width: MAX_SCALE_WIDTH }}>
         <button
           type="button"
           tabIndex={-1}
-          className="absolute top-1 h-5 -translate-x-full rounded-sm bg-white/80 px-1 text-left text-[11px] font-medium leading-5 shadow-sm backdrop-blur"
+          className="absolute top-1 h-5 -translate-x-full rounded-sm bg-white/80 px-1 text-left text-xs font-medium leading-5 shadow-sm backdrop-blur"
           style={{ left: `calc(${scale.width / 2}px - 4px)` }}
           data-status="idle"
           data-tint="paneBg"
@@ -136,17 +136,17 @@ export function Scale({
         <div className="absolute left-0 top-[14px] h-2.5 w-px bg-slate-950/90" />
         <div className="absolute top-[14px] h-2.5 w-px bg-slate-950/90" style={{ left: scale.width }} />
 
-        <div className="absolute top-1 rounded-sm bg-white/80 px-1 text-[11px] leading-5 shadow-sm backdrop-blur" style={{ left: `calc(${scale.width / 2}px + 4px)` }}>
+        <div className="absolute top-1 rounded-sm bg-white/80 px-1 text-xs leading-5 shadow-sm backdrop-blur" style={{ left: `calc(${scale.width / 2}px + 4px)` }}>
           {scale.label}
         </div>
         {rightDistanceLabel && (
-          <div className="absolute right-0 top-1 rounded-sm bg-white/80 px-1 text-[11px] leading-5 shadow-sm backdrop-blur">
+          <div className="absolute right-0 top-1 rounded-sm bg-white/80 px-1 text-xs leading-5 shadow-sm backdrop-blur">
             {rightDistanceLabel}
           </div>
         )}
       </div>
 
-      <div className="max-w-[min(92vw,680px)] rounded-sm bg-white/80 px-1.5 py-0.5 text-center text-[11px] leading-4 text-slate-950 shadow-sm backdrop-blur">
+      <div className="max-w-[min(92vw,680px)] rounded-sm bg-white/80 px-1.5 py-0.5 text-center text-xs leading-4 text-slate-950 shadow-sm backdrop-blur">
         <a className="pointer-events-auto font-medium underline-offset-2 hover:underline" href="https://felt.com" title="Made with Felt." target="_blank" rel="noopener noreferrer">
           Made with Felt.
         </a>{' '}

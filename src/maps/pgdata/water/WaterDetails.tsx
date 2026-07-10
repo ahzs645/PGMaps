@@ -9,7 +9,7 @@ export function WaterDetailSection({ title, count, children }: { title: string; 
     <div className="mt-3 border-t border-border pt-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="font-semibold text-foreground">{title}</div>
-        <div className="text-[10px] tabular-nums text-muted-foreground">{count.toLocaleString()}</div>
+        <div className="text-xs tabular-nums text-muted-foreground">{count.toLocaleString()}</div>
       </div>
       <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
         {children}
@@ -35,7 +35,7 @@ export function WaterNoticeCard({ notice, compact = false }: { notice: WaterNoti
     <div className={cn('rounded border border-border bg-background', compact ? 'p-2' : 'p-3 text-sm')}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="font-medium text-foreground">{notice.type}</div>
-        <div className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-900/50 dark:text-red-200">
+        <div className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/50 dark:text-red-200">
           Active
         </div>
       </div>
@@ -44,7 +44,7 @@ export function WaterNoticeCard({ notice, compact = false }: { notice: WaterNoti
         <span>Started {formatDate(notice.date?.toISOString())}</span>
       </div>
       {(underlyingProblems || stepsTaken || correctiveActions || waterTodayDetails || detailsUrl) && (
-        <div className={cn('mt-2 space-y-2 border-t border-border pt-2', compact ? 'text-[11px]' : 'text-xs')}>
+        <div className={cn('mt-2 space-y-2 border-t border-border pt-2', compact ? 'text-xs' : 'text-xs')}>
           {underlyingProblems && (
             <div>
               <div className="font-medium text-foreground">Underlying problems</div>
@@ -74,7 +74,7 @@ export function WaterNoticeCard({ notice, compact = false }: { notice: WaterNoti
               href={detailsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex text-[11px] font-medium text-sky-700 hover:text-sky-950 dark:text-sky-300 dark:hover:text-sky-100"
+              className="inline-flex text-xs font-medium text-sky-700 hover:text-sky-950 dark:text-sky-300 dark:hover:text-sky-100"
             >
               View source
             </a>

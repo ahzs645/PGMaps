@@ -1763,7 +1763,7 @@ function DevBoundaries() {
 
   const sidebar = (
     <MapSidebarShell
-      className="h-full w-full min-w-0 border-0 shadow-none md:w-[410px] md:border-r md:shadow-xl"
+      className="h-full w-full min-w-0 border-0 shadow-none md:border-r md:shadow-xl"
       title="Boundaries"
       subtitle="Compare study-area layers"
       titleClassName="text-base"
@@ -1772,7 +1772,7 @@ function DevBoundaries() {
         <div className="space-y-3">
           {Object.entries(sourceGroups).map(([group, options]) => (
             <div key={group} className="space-y-1.5">
-              <div className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+              <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
                 {group}
               </div>
               {options.map((option) => {
@@ -1793,7 +1793,7 @@ function DevBoundaries() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="truncate text-xs font-medium">{option.label}</div>
-                        <div className="mt-0.5 text-[10px] leading-4 text-muted-foreground">{option.description}</div>
+                        <div className="mt-0.5 text-xs leading-4 text-muted-foreground">{option.description}</div>
                       </div>
                       {active && <Check className="size-3.5 shrink-0 text-primary" />}
                     </div>
@@ -1817,7 +1817,7 @@ function DevBoundaries() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-xs font-semibold text-foreground">Layer diff</div>
-                  <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                  <div className="mt-0.5 truncate text-xs text-muted-foreground">
                     {layerDiffLayers.map((layer) => layer.label).join(' vs ')}
                   </div>
                 </div>
@@ -1838,7 +1838,7 @@ function DevBoundaries() {
                 </button>
               </div>
               {layerDiffBlockedReason && (
-                <div className="mt-2 text-[10px] leading-4 text-muted-foreground">{layerDiffBlockedReason}</div>
+                <div className="mt-2 text-xs leading-4 text-muted-foreground">{layerDiffBlockedReason}</div>
               )}
             </div>
           )}
@@ -1884,7 +1884,7 @@ function DevBoundaries() {
                   </span>
                   <span className="size-2.5 rounded-full" style={{ backgroundColor: SOURCE_COLORS[source].fill }} />
                   <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{sourceLabel(source)}</span>
-                  <span className="rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
                     {index === activeSources.length - 1 ? 'Top' : `Layer ${index + 1}`}
                   </span>
                   <button
@@ -1909,7 +1909,7 @@ function DevBoundaries() {
                   </button>
                 </div>
                 <div className="mb-2 rounded-md border bg-background p-2">
-                  <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                  <div className="mb-1.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span>Transparency</span>
                     <span>{Math.round(opacity * 100)}% fill</span>
                   </div>
@@ -1964,7 +1964,7 @@ function DevBoundaries() {
                       >
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-xs font-medium">{option.label}</span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             {optionChunkedLevel === BC_DB_CHUNKED_LEVEL
                               ? 'PMTiles'
                               : optionChunkedLevel
@@ -1976,7 +1976,7 @@ function DevBoundaries() {
                               : (entry ? `${formatNumber(entry.regions.length)} areas` : 'Not loaded')}
                           </span>
                         </div>
-                        <div className="mt-1 text-[10px] text-muted-foreground">
+                        <div className="mt-1 text-xs text-muted-foreground">
                           {optionChunkedLevel && optionDetailLevel
                             ? `Detail: ${optionDetailLevel.label} · Chunks: ${formatNumber(chunkCount)} / ${formatNumber(totalChunkCount)} · ${formatGzipMiB(optionDetailLevel.gzipBytes) ?? '--'} total`
                             : `Area range: ${entry && entry.regions.length > 0 ? `${formatArea(range.min)} - ${formatArea(range.max)}` : '--'}`}
@@ -2118,20 +2118,20 @@ function DevBoundaries() {
                           <span>{formatArea(region.areaKm2)}</span>
                         </div>
                         {region.source === 'census' && censusParentSummary(region.feature.properties ?? {}) && (
-                          <div className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">
+                          <div className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
                             {censusParentSummary(region.feature.properties ?? {})}
                           </div>
                         )}
                       </button>
                       <div className="mt-2 flex items-center justify-between gap-2">
-                        <span className="rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
                           {sourceLabel(region.source)} · {getStudyAreaLevelLabel(region.level)}
                         </span>
                         <button
                           type="button"
                           onClick={() => toggleCompare(region.id)}
                           className={cn(
-                            'rounded border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                            'rounded border px-2 py-0.5 text-xs font-medium transition-colors',
                             comparing ? 'border-primary bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground',
                           )}
                         >
@@ -2358,15 +2358,15 @@ function DevBoundaries() {
               )}
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded border bg-muted/30 p-2">
-                  <div className="text-[10px] text-muted-foreground">Study area</div>
+                  <div className="text-xs text-muted-foreground">Study area</div>
                   <div className="font-medium text-foreground">{sourceLabel(selectedRegion.source)}</div>
                 </div>
                 <div className="rounded border bg-muted/30 p-2">
-                  <div className="text-[10px] text-muted-foreground">Hierarchy / variant</div>
+                  <div className="text-xs text-muted-foreground">Hierarchy / variant</div>
                   <div className="font-medium text-foreground">{getStudyAreaLevelLabel(selectedRegion.level)}</div>
                 </div>
                 <div className="rounded border bg-muted/30 p-2">
-                  <div className="text-[10px] text-muted-foreground">Area</div>
+                  <div className="text-xs text-muted-foreground">Area</div>
                   <div className="font-medium text-foreground">{formatArea(selectedRegion.areaKm2)}</div>
                 </div>
               </div>
@@ -2432,15 +2432,15 @@ function DevBoundaries() {
 	              )}
 	              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
 	                <div className="rounded border bg-muted/30 p-2">
-	                  <div className="text-[10px] text-muted-foreground">Study area</div>
+	                  <div className="text-xs text-muted-foreground">Study area</div>
 	                  <div className="font-medium text-foreground">Census boundaries</div>
 	                </div>
 	                <div className="rounded border bg-muted/30 p-2">
-	                  <div className="text-[10px] text-muted-foreground">Hierarchy / variant</div>
+	                  <div className="text-xs text-muted-foreground">Hierarchy / variant</div>
 	                  <div className="font-medium text-foreground">{getStudyAreaLevelLabel(BC_DB_CHUNKED_LEVEL)}</div>
 	                </div>
 	                <div className="rounded border bg-muted/30 p-2">
-	                  <div className="text-[10px] text-muted-foreground">Area</div>
+	                  <div className="text-xs text-muted-foreground">Area</div>
 	                  <div className="font-medium text-foreground">{formatArea(pmtilesFeatureAreaKm2(selectedPmtilesFeature.properties))}</div>
 	                </div>
 	              </div>
@@ -2471,11 +2471,11 @@ function DevBoundaries() {
               <div className="mt-1 text-xs text-muted-foreground">{selectedParentBoundary.code}</div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded border bg-muted/30 p-2">
-                  <div className="text-[10px] text-muted-foreground">Boundary</div>
+                  <div className="text-xs text-muted-foreground">Boundary</div>
                   <div className="font-medium text-foreground">{selectedParentBoundary.label}</div>
                 </div>
                 <div className="rounded border bg-muted/30 p-2">
-                  <div className="text-[10px] text-muted-foreground">Area</div>
+                  <div className="text-xs text-muted-foreground">Area</div>
                   <div className="font-medium text-foreground">{formatArea(selectedParentBoundary.areaKm2)}</div>
                 </div>
               </div>
@@ -2591,7 +2591,7 @@ function DevBoundaries() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-xs font-semibold text-foreground">Layer diff</div>
-                <div className="text-[10px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   {layerDifferenceMode
                     ? 'Shows overlap and area unique to each whole active layer.'
                     : 'Shows overlap and area unique to each selected boundary.'}
@@ -2612,29 +2612,29 @@ function DevBoundaries() {
               </button>
             </div>
             {!layerDifferenceMode && compareRegions.length !== 2 && (
-              <div className="mt-2 text-[10px] text-muted-foreground">Select exactly two areas to enable surface difference mode.</div>
+              <div className="mt-2 text-xs text-muted-foreground">Select exactly two areas to enable surface difference mode.</div>
             )}
             {layerDifferenceMode && !layerSurfaceDifference && (
-              <div className="mt-2 text-[10px] text-muted-foreground">{layerDiffBlockedReason ?? 'Unable to dissolve one of the selected layers.'}</div>
+              <div className="mt-2 text-xs text-muted-foreground">{layerDiffBlockedReason ?? 'Unable to dissolve one of the selected layers.'}</div>
             )}
             {activeSurfaceDifference && activeDifferenceSurfaces && (
               <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
                 <div className="rounded border bg-amber-500/10 p-2">
-                  <div className="text-[10px] text-muted-foreground">Overlap</div>
+                  <div className="text-xs text-muted-foreground">Overlap</div>
                   <div className="font-semibold text-foreground">{formatArea(activeSurfaceDifference.overlapKm2)}</div>
-                  <div className="mt-1 text-[10px] text-muted-foreground">
+                  <div className="mt-1 text-xs text-muted-foreground">
                     {Math.round(activeSurfaceDifference.aShare * 100)}% of A · {Math.round(activeSurfaceDifference.bShare * 100)}% of B
                   </div>
                 </div>
                 <div className="rounded border bg-green-500/10 p-2">
-                  <div className="text-[10px] text-muted-foreground">Only A</div>
+                  <div className="text-xs text-muted-foreground">Only A</div>
                   <div className="font-semibold text-foreground">{formatArea(activeSurfaceDifference.onlyAKm2)}</div>
-                  <div className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{activeDifferenceSurfaces[0].name}</div>
+                  <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{activeDifferenceSurfaces[0].name}</div>
                 </div>
                 <div className="rounded border bg-sky-500/10 p-2">
-                  <div className="text-[10px] text-muted-foreground">Only B</div>
+                  <div className="text-xs text-muted-foreground">Only B</div>
                   <div className="font-semibold text-foreground">{formatArea(activeSurfaceDifference.onlyBKm2)}</div>
-                  <div className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">{activeDifferenceSurfaces[1].name}</div>
+                  <div className="mt-1 line-clamp-1 text-xs text-muted-foreground">{activeDifferenceSurfaces[1].name}</div>
                 </div>
               </div>
             )}

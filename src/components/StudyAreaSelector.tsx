@@ -87,7 +87,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
         )}
       >
         <div className="text-xs font-medium">{option.label}</div>
-        <div className="text-[10px] text-muted-foreground">{option.description}</div>
+        <div className="text-xs text-muted-foreground">{option.description}</div>
       </button>
     )
   }
@@ -97,7 +97,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
       className={cn('border-b border-border p-4', sectionClassName)}
       data-score-builder-section={dataPrefix === 'score-builder' ? 'setup' : undefined}
     >
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {hasSourceList ? title : levelLabel}
       </h3>
       {hasSourceList && sourceOptions && (
@@ -105,7 +105,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
           {sourceGroups.map((group, index) => (
             <div key={group.label ?? `ungrouped-${index}`} className="space-y-1.5">
               {showSourceGroupLabels && group.label && (
-                <div className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+                <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
                   {group.label}
                 </div>
               )}
@@ -117,7 +117,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
       {showInlineRow && (
         <div className={cn('flex items-center justify-between gap-2', hasSourceList && 'mt-3')}>
           {showInlineLevelLabel ? (
-            <label htmlFor={levelSelectId} className="text-[11px] font-medium text-muted-foreground">
+            <label htmlFor={levelSelectId} className="text-xs font-medium text-muted-foreground">
               {levelLabel}
             </label>
           ) : (
@@ -129,7 +129,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
                 type="button"
                 onClick={onTogglePoints}
                 className={cn(
-                  'rounded border px-2 py-1 text-[11px] transition-colors',
+                  'rounded border px-2 py-1 text-xs transition-colors',
                   showPoints
                     ? 'border-sky-500 text-sky-600 dark:text-sky-400'
                     : 'border-input text-muted-foreground hover:text-foreground'

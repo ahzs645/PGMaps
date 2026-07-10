@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   ArrowRight,
   Database,
+  Trees,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -93,6 +94,14 @@ const mapProjects: MapCardProps[] = [
     icon: Wind,
     href: '/airquality',
     color: 'bg-sky-500',
+    status: 'available',
+  },
+  {
+    title: 'Parks & Trails',
+    description: 'Explore Prince George parks, trails, recreation amenities, and nearby outdoor spaces.',
+    icon: Trees,
+    href: '/pgdata?tab=parks',
+    color: 'bg-emerald-600',
     status: 'available',
   },
   {

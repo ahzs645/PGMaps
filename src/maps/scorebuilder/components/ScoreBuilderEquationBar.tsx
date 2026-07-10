@@ -401,14 +401,14 @@ export function ScoreBuilderEquationBar({
 
         {(isHealthyPlanMode || activeTerms.length > 0) && formulaOpen && equationOpen && (
           <div className="mt-3 flex items-start gap-2 rounded-md bg-muted px-3 py-2">
-            <div className="min-w-0 flex-1 overflow-x-auto font-mono text-[11px] text-muted-foreground">
+            <div className="min-w-0 flex-1 overflow-x-auto font-mono text-xs text-muted-foreground">
               {formulaText}
             </div>
             <button
               type="button"
               onClick={handleCopyEquation}
               title="Copy equation to clipboard"
-              className="inline-flex shrink-0 items-center gap-1 rounded border border-input bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-input bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               {equationCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
               {equationCopied ? 'Copied' : 'Copy'}
@@ -491,7 +491,7 @@ function EquationMetricPickerDialog({
             if (!metrics.length) return null
             return (
               <div key={category}>
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -518,8 +518,8 @@ function EquationMetricPickerDialog({
                             <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
                           )}
                         </div>
-                        <div className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{metric.description}</div>
-                        <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                        <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{metric.description}</div>
+                        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                           <span>{metric.format}</span>
                           <span className="inline-flex items-center gap-1">
                             <FlipHorizontal className="h-3 w-3" />

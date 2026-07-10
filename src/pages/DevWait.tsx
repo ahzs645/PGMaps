@@ -124,7 +124,7 @@ function DevWait() {
   }, [filteredHospitals.length, hospitals])
 
   const sidebar = (
-    <aside className="flex h-full w-full flex-col bg-background/95 md:w-[360px] md:border-r md:shadow-xl">
+    <aside className="flex h-full w-full flex-col bg-background/95 md:border-r md:shadow-xl">
       <div className="border-b border-border px-4 py-3">
         <div className="flex items-start gap-3">
           <div className="rounded-md border bg-muted p-2">
@@ -144,7 +144,7 @@ function DevWait() {
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <section className="space-y-2">
-          <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground" htmlFor="wait-search">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="wait-search">
             Search
           </label>
           <div className="relative">
@@ -160,7 +160,7 @@ function DevWait() {
         </section>
 
         <section className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Province</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Province</div>
           <select
             value={province}
             onChange={(event) => setProvince(event.target.value)}
@@ -174,7 +174,7 @@ function DevWait() {
         </section>
 
         <section className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Markers</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Markers</div>
           <div className="grid grid-cols-2 gap-1">
             {[
               ['all', 'All'],
@@ -211,7 +211,7 @@ function DevWait() {
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+          <p className="mt-2 text-xs leading-4 text-muted-foreground">
             Green, orange, and red are live wait thresholds. Gray pills are predicted or no-data markers. Dense areas collapse to dark count bubbles; click one to zoom in and split it into sub-clusters.
           </p>
         </section>
@@ -224,7 +224,7 @@ function DevWait() {
             <Stat label="Closed" value={String(stats.closed)} />
           </div>
           {stats.newest && (
-            <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-[11px] leading-4 text-muted-foreground">
+            <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs leading-4 text-muted-foreground">
               Latest timestamp: {stats.newest}
             </div>
           )}
@@ -242,7 +242,7 @@ function DevWait() {
       mobilePeek={(
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">{stats.visible} ER markers</div>
-          <div className="truncate text-[11px] text-muted-foreground">Wait-time labels and ER status</div>
+          <div className="truncate text-xs text-muted-foreground">Wait-time labels and ER status</div>
         </div>
       )}
       sidebar={sidebar}
@@ -456,7 +456,7 @@ function WaitMarker({
         >
           {hospitalItem.waitLabel}
           {(hospitalItem.advisory_status === 'disruption' || hospitalItem.advisory_status === 'advisory') && (
-            <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+            <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">
               !
             </span>
           )}
@@ -493,7 +493,7 @@ function HospitalPopup({ hospitalItem, onClose }: { hospitalItem: WaitHospital; 
     <div className="w-72 overflow-hidden rounded-md bg-popover text-popover-foreground">
       <div className="flex items-start justify-between gap-2 border-b border-border px-3 py-2">
         <div className="min-w-0">
-          <div className="text-[11px] font-medium uppercase text-muted-foreground">Emergency department</div>
+          <div className="text-xs font-medium uppercase text-muted-foreground">Emergency department</div>
           <div className="mt-0.5 text-sm font-semibold leading-5">{hospitalItem.name}</div>
           <div className="mt-0.5 truncate text-xs text-muted-foreground">
             {[hospitalItem.city, hospitalItem.province].filter(Boolean).join(', ')}
@@ -505,7 +505,7 @@ function HospitalPopup({ hospitalItem, onClose }: { hospitalItem: WaitHospital; 
       </div>
       <div className="space-y-3 px-3 py-3">
         <div className={cn('rounded-md px-3 py-2 text-white', STATUS_META[hospitalItem.status].marker)}>
-          <div className="text-[11px] uppercase tracking-wide opacity-80">{sourceLabel(hospitalItem.source)}</div>
+          <div className="text-xs uppercase tracking-wide opacity-80">{sourceLabel(hospitalItem.source)}</div>
           <div className="mt-0.5 text-xl font-semibold">{hospitalItem.waitLabel}</div>
         </div>
 
@@ -539,7 +539,7 @@ function PopupRow({ label, value }: { label: string; value: string }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-sm font-semibold">{value}</div>
     </div>
   )

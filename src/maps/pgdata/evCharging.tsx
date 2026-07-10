@@ -117,7 +117,7 @@ function EvSummarySection({
         {onClear && (
           <button
             type="button"
-            className="shrink-0 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground"
             onClick={onClear}
           >
             Clear
@@ -243,7 +243,7 @@ export function EvChargingSidebar({
                 </div>
               </div>
               <a
-                className="mt-2 inline-block text-[11px] font-medium text-primary hover:underline"
+                className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
                 href={resource.url}
                 target="_blank"
                 rel="noreferrer"

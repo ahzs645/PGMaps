@@ -46,7 +46,7 @@ export function SewageLegend({
                     }}
                   />
                 </span>
-                <span className="text-[11px] tabular-nums text-muted-foreground">{formatCompact(value)}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{formatCompact(value)}</span>
               </div>
             )
           })}

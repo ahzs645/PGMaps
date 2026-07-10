@@ -61,7 +61,7 @@ export function WaterSamplingReportModal({ water, onClose }: { water: WaterState
         <div className="shrink-0 border-b border-border bg-background/90 p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{reportLabel}</div>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{reportLabel}</div>
               <DialogTitle className="truncate text-xl font-bold text-foreground">{facility.name}</DialogTitle>
               <DialogDescription className="mt-1 text-sm text-muted-foreground">{facility.community || facility.address || facility.geocodedAddress || 'No locality provided'}</DialogDescription>
               {facility.geocodedAddress && (
@@ -84,7 +84,7 @@ export function WaterSamplingReportModal({ water, onClose }: { water: WaterState
             {modalStats.map((stat) => (
               <div key={stat.label} className="rounded-lg border border-border bg-muted/40 px-3 py-2">
                 <div className={cn('font-bold text-foreground', stat.compact ? 'text-lg' : 'text-2xl')}>{stat.value}</div>
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{stat.label}</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -235,7 +235,7 @@ function WaterSamplingGrid({ samples }: { samples: WaterSampleRow[] }) {
     <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
       <div className="max-h-[58vh] overflow-auto">
         <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-muted/90 text-[10px] uppercase tracking-wide text-muted-foreground backdrop-blur">
+          <thead className="sticky top-0 z-10 bg-muted/90 text-xs uppercase tracking-wide text-muted-foreground backdrop-blur">
             <tr>
               <th className="border-b border-border px-3 py-2 font-semibold">Date</th>
               <th className="border-b border-border px-3 py-2 font-semibold">Type</th>
@@ -277,7 +277,7 @@ function WaterSamplingGridRow({ sample }: { sample: WaterSampleRow }) {
       </td>
       <td className="border-b border-border/70 px-3 py-2">
         <span className={cn(
-          'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium capitalize',
+          'inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize',
           sample.kind === 'chemical'
             ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-200'
             : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',

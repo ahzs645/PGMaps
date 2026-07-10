@@ -226,14 +226,14 @@ export default function ParksSection() {
           <div className="truncate text-xs font-semibold text-foreground">
             Parks & Trails | {filteredParks.length + filteredTrails.length} visible
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">
+          <div className="truncate text-xs text-muted-foreground">
             {visibleSelectedPark?.name || visibleSelectedTrail?.name || `${activeLayers.length} layers active`}
           </div>
         </div>
       )}
       sidebar={(
         <ParksSidebar
-          className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
+          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
           parks={parks}
           trails={trails}
           amenities={amenities}

@@ -13,15 +13,15 @@ export function WaterFacilityPopupCard({ facility, onOpenReport }: { facility: W
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div className="rounded border border-border p-2">
           <div className="font-semibold text-foreground">{sampleRows.toLocaleString()}</div>
-          <div className="text-[10px] text-muted-foreground">samples</div>
+          <div className="text-xs text-muted-foreground">samples</div>
         </div>
         <div className="rounded border border-border p-2">
           <div className="font-semibold text-foreground">{facility.activeNotices.toLocaleString()}</div>
-          <div className="text-[10px] text-muted-foreground">notices</div>
+          <div className="text-xs text-muted-foreground">notices</div>
         </div>
         <div className="rounded border border-border p-2">
           <div className="font-semibold text-foreground">{formatDate(facility.lastSampleDate?.toISOString())}</div>
-          <div className="text-[10px] text-muted-foreground">latest</div>
+          <div className="text-xs text-muted-foreground">latest</div>
         </div>
       </div>
       <button
@@ -55,15 +55,15 @@ export function MobileWaterFacilityFeatureCard({
       <div className="grid grid-cols-3 gap-2 text-center text-xs">
         <div className="rounded border border-border p-2">
           <div className="font-semibold text-foreground">{sampleRows.toLocaleString()}</div>
-          <div className="text-[10px] text-muted-foreground">samples</div>
+          <div className="text-xs text-muted-foreground">samples</div>
         </div>
         <div className="rounded border border-border p-2">
           <div className="font-semibold text-foreground">{facility.activeNotices.toLocaleString()}</div>
-          <div className="text-[10px] text-muted-foreground">notices</div>
+          <div className="text-xs text-muted-foreground">notices</div>
         </div>
         <div className="rounded border border-border p-2">
           <div className="font-semibold text-foreground">{formatDate(facility.lastSampleDate?.toISOString())}</div>
-          <div className="text-[10px] text-muted-foreground">latest</div>
+          <div className="text-xs text-muted-foreground">latest</div>
         </div>
       </div>
       <button

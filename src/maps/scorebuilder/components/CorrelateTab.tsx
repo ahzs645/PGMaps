@@ -61,7 +61,7 @@ export function CorrelateTab({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs font-semibold text-foreground">Correlation mode</div>
-            <div className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+            <div className="mt-0.5 text-xs leading-snug text-muted-foreground">
               Repaints regions by the relationship between two metrics. The current scoring map is hidden while this is
               on.
             </div>
@@ -84,7 +84,7 @@ export function CorrelateTab({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <label className="text-[11px] font-medium text-muted-foreground">Metric X</label>
+          <label className="text-xs font-medium text-muted-foreground">Metric X</label>
           <AppSelect
             aria-label="Correlation metric X"
             value={metricX}
@@ -95,7 +95,7 @@ export function CorrelateTab({
           />
         </div>
         <div className="flex items-center justify-between gap-2">
-          <label className="text-[11px] font-medium text-muted-foreground">Metric Y</label>
+          <label className="text-xs font-medium text-muted-foreground">Metric Y</label>
           <AppSelect
             aria-label="Correlation metric Y"
             value={metricY}
@@ -109,7 +109,7 @@ export function CorrelateTab({
           <button
             type="button"
             onClick={flipAxes}
-            className="inline-flex items-center gap-1 rounded border border-input px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded border border-input px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <FlipHorizontal className="h-3 w-3" /> Swap X / Y
           </button>
@@ -118,13 +118,13 @@ export function CorrelateTab({
 
       <div className="rounded-lg border border-border p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-semibold uppercase text-muted-foreground">Map style</span>
+          <span className="text-xs font-semibold uppercase text-muted-foreground">Map style</span>
           <div className="inline-flex overflow-hidden rounded border border-input">
             <button
               type="button"
               onClick={() => onVisStyleChange('bivariate')}
               className={cn(
-                'px-2 py-1 text-[11px] font-medium transition-colors',
+                'px-2 py-1 text-xs font-medium transition-colors',
                 visStyle === 'bivariate'
                   ? 'bg-cyan-500 text-white'
                   : 'bg-background text-muted-foreground hover:bg-accent',
@@ -136,7 +136,7 @@ export function CorrelateTab({
               type="button"
               onClick={() => onVisStyleChange('residual')}
               className={cn(
-                'px-2 py-1 text-[11px] font-medium transition-colors',
+                'px-2 py-1 text-xs font-medium transition-colors',
                 visStyle === 'residual'
                   ? 'bg-cyan-500 text-white'
                   : 'bg-background text-muted-foreground hover:bg-accent',
@@ -146,7 +146,7 @@ export function CorrelateTab({
             </button>
           </div>
         </div>
-        <div className="text-[10px] leading-snug text-muted-foreground">
+        <div className="text-xs leading-snug text-muted-foreground">
           {visStyle === 'bivariate'
             ? 'Each region is colored by its (X tertile, Y tertile) cell in the 3x3 grid. Top-right of the grid = high on both.'
             : 'Each region is colored by its residual from a least-squares line of Y on X. Red = above the line; blue = below.'}
@@ -159,7 +159,7 @@ export function CorrelateTab({
         <StatTile label="n" value={stats ? String(stats.n) : '-'} />
       </div>
       {stats && (stats.xMin === stats.xMax || stats.yMin === stats.yMax) && (
-        <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] leading-snug text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+        <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs leading-snug text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
           {stats.xMin === stats.xMax
             ? `${getMetricLabel(metricX)} has the same value for every region - likely the data source is off in the left panel.`
             : `${getMetricLabel(metricY)} has the same value for every region - likely the data source is off in the left panel.`}
@@ -173,7 +173,7 @@ export function CorrelateTab({
       <CorrelationScatter result={result} xLabel={xLabel} yLabel={yLabel} active={correlateMode} />
 
       <div>
-        <div className="mb-1 text-[11px] font-semibold uppercase text-muted-foreground">Strongest pairs (|r|)</div>
+        <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Strongest pairs (|r|)</div>
         {topPairs.length === 0 ? (
           <div className="text-xs text-muted-foreground">
             {correlateMode
@@ -213,7 +213,7 @@ export function CorrelateTab({
 function StatTile({ label, value }: { label: ReactNode; value: string }) {
   return (
     <div className="rounded border border-border bg-muted/20 p-2">
-      <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
+      <div className="text-xs uppercase text-muted-foreground">{label}</div>
       <div className="text-sm font-semibold text-foreground">{value}</div>
     </div>
   )
@@ -242,7 +242,7 @@ function CorrelationScatter({
   const { stats, points } = result
   if (!stats || points.length === 0) {
     return (
-      <div className="rounded border border-dashed border-border p-4 text-center text-[11px] text-muted-foreground">
+      <div className="rounded border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
         {active
           ? 'No region has finite values for both metrics in the current boundary level.'
           : 'Turn correlation mode on to plot the scatter and load statistics.'}
@@ -359,7 +359,7 @@ function CorrelationScatter({
           {yLabel}
         </text>
       </svg>
-      <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+      <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
         <span>Cells shaded by region count - dashed line = least-squares fit</span>
         <span>{points.length} regions</span>
       </div>

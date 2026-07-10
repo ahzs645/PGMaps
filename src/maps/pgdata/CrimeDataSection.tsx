@@ -169,14 +169,14 @@ export default function CrimeDataSection() {
           <div className="truncate text-xs font-semibold text-foreground">
             PG Data | {filteredIncidents.length.toLocaleString()} incidents
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">
+          <div className="truncate text-xs text-muted-foreground">
             {visibleSelectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}
           </div>
         </div>
       )}
       sidebar={
         <CrimeSidebar
-          className="h-full w-full border-0 shadow-none md:w-[350px] md:border-r md:shadow-xl"
+          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
           incidents={incidents}
           filteredIncidents={filteredIncidents}
           selectedIncident={visibleSelectedIncident}

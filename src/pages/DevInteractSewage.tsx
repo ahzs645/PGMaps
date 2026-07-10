@@ -24,7 +24,7 @@ function DevInteractSewage() {
   const domain = useMemo(() => attributeDomain(attribute), [attribute])
 
   const sidebar = (
-    <aside className="flex h-full w-full flex-col bg-background/95 md:w-[320px] md:border-r md:shadow-xl">
+    <aside className="flex h-full w-full flex-col bg-background/95 md:border-r md:shadow-xl">
       <div className="border-b border-border px-4 py-3">
         <div className="flex items-start gap-3">
           <div className="rounded-md border bg-muted p-2">
@@ -41,7 +41,7 @@ function DevInteractSewage() {
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <section>
-          <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Size circles by</div>
+          <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Size circles by</div>
           <div className="grid grid-cols-2 gap-1">
             {SEWAGE_ATTRIBUTES.map((item) => (
               <button
@@ -73,7 +73,7 @@ function DevInteractSewage() {
               onToggleVisible={() => setVisible((current) => !current)}
             />
           </div>
-          <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+          <p className="mt-2 text-xs leading-4 text-muted-foreground">
             Circle area is proportional to the value. Click a site for details.
           </p>
         </section>
@@ -97,7 +97,7 @@ function DevInteractSewage() {
       mobilePeek={(
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">{siteFeatures.features.length} monitoring sites</div>
-          <div className="truncate text-[11px] text-muted-foreground">{activeAttribute.caption}</div>
+          <div className="truncate text-xs text-muted-foreground">{activeAttribute.caption}</div>
         </div>
       )}
       sidebar={sidebar}
@@ -156,7 +156,7 @@ function SitePopup({ site, onClose }: { site: SewageSite; onClose: () => void })
     <div className="w-60 overflow-hidden rounded-md bg-popover text-popover-foreground">
       <div className="flex items-start justify-between gap-2 border-b border-border px-3 py-2">
         <div className="min-w-0">
-          <div className="text-[11px] font-medium uppercase text-muted-foreground">Monitoring site</div>
+          <div className="text-xs font-medium uppercase text-muted-foreground">Monitoring site</div>
           <div className="mt-0.5 truncate text-sm font-semibold">{site.properties.name}</div>
         </div>
         <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-muted" aria-label="Close popup">
@@ -178,7 +178,7 @@ function SitePopup({ site, onClose }: { site: SewageSite; onClose: () => void })
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-sm font-semibold">{value}</div>
     </div>
   )

@@ -87,7 +87,7 @@ export function ScoreBuilderWalkabilitySurfacePanel({
           <Footprints className="h-4 w-4 shrink-0 text-emerald-600" />
           <span className="min-w-0">
             <span className="block truncate text-xs font-semibold text-foreground">Walkability MI factors</span>
-            <span className="block truncate text-[10px] text-muted-foreground">
+            <span className="block truncate text-xs text-muted-foreground">
               {tuning.enabled ? 'Direct 44-factor control' : 'Following equation weights'}
             </span>
           </span>
@@ -122,12 +122,12 @@ export function ScoreBuilderWalkabilitySurfacePanel({
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-medium text-foreground">Report variant options</div>
-                  <div className="text-[10px] leading-4 text-muted-foreground">Toggle the factors dropped/narrowed for report fidelity.</div>
+                  <div className="text-xs leading-4 text-muted-foreground">Toggle the factors dropped/narrowed for report fidelity.</div>
                 </div>
                 <button
                   type="button"
                   onClick={loadReportDefaults}
-                  className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-input px-2 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-input px-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   title="Reset all factors to 1 and report-fidelity options"
                 >
                   <RotateCcw className="h-3 w-3" />
@@ -157,7 +157,7 @@ export function ScoreBuilderWalkabilitySurfacePanel({
 
               <div>
                 <div className="font-medium text-foreground">Factor weights</div>
-                <div className="text-[10px] leading-4 text-muted-foreground">0 disables a factor; 1 is report weight; 2 doubles it.</div>
+                <div className="text-xs leading-4 text-muted-foreground">0 disables a factor; 1 is report weight; 2 doubles it.</div>
               </div>
               <div className="space-y-1.5 pr-1">
                 {WALKABILITY_FACTOR_GROUPS.map((factor) => {
@@ -174,7 +174,7 @@ export function ScoreBuilderWalkabilitySurfacePanel({
                             {factor.group} · {factor.method}
                           </span>
                         </span>
-                        <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                        <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-xs text-foreground">
                           {dropped ? 'off' : `${value.toFixed(2)}x`}
                         </span>
                       </div>

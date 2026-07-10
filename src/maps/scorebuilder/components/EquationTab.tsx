@@ -24,7 +24,7 @@ function WeightTotalStatus({
   return (
     <div
       className={cn(
-        'mt-3 rounded-md border px-2 py-1.5 text-[11px]',
+        'mt-3 rounded-md border px-2 py-1.5 text-xs',
         empty
           ? 'border-amber-300/60 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200'
           : balanced
@@ -37,7 +37,7 @@ function WeightTotalStatus({
         <span className="font-semibold">{label}</span>
         <span className="font-mono">{totalAbsoluteWeight.toLocaleString()}</span>
       </div>
-      <div className="mt-0.5 text-[10px] opacity-80">
+      <div className="mt-0.5 text-xs opacity-80">
         PGMaps divides each active weight by total influence, so weights do not need to equal 100.
       </div>
     </div>
@@ -119,7 +119,7 @@ export function EquationTab({
       <div className="rounded-lg border border-border bg-background p-3" data-score-builder-results-preview="true">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Live Results</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live Results</div>
             <div className="mt-1 text-sm font-semibold text-foreground">
               {topRegions[0] ? `#1 ${topRegions[0].region.name}` : 'No ranked regions yet'}
             </div>
@@ -128,20 +128,20 @@ export function EquationTab({
             <div className="text-2xl font-bold leading-none text-cyan-700 dark:text-cyan-300">
               {topRegions[0] ? formatScore(topRegions[0].score) : '0.0'}
             </div>
-            <div className="mt-1 text-[10px] text-muted-foreground">Avg {formatScore(scoreSpread.average)}</div>
+            <div className="mt-1 text-xs text-muted-foreground">Avg {formatScore(scoreSpread.average)}</div>
           </div>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
           <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Low</div>
+            <div className="text-xs uppercase text-muted-foreground">Low</div>
             <div className="font-semibold text-foreground">{formatScore(scoreSpread.min)}</div>
           </div>
           <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground">High</div>
+            <div className="text-xs uppercase text-muted-foreground">High</div>
             <div className="font-semibold text-foreground">{formatScore(scoreSpread.max)}</div>
           </div>
           <div className="rounded border border-border bg-muted/20 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Active</div>
+            <div className="text-xs uppercase text-muted-foreground">Active</div>
             <div className="font-semibold text-foreground">{activeWeightCount} terms</div>
           </div>
         </div>
@@ -149,7 +149,7 @@ export function EquationTab({
         {topRegions.length > 1 && (
           <div className="mt-3 space-y-1">
             {topRegions.map((region) => (
-              <div key={region.region.id} className="flex items-center gap-2 text-[11px]">
+              <div key={region.region.id} className="flex items-center gap-2 text-xs">
                 <span className="w-6 shrink-0 font-semibold text-muted-foreground">#{region.rank}</span>
                 <span className="min-w-0 flex-1 truncate text-foreground">{region.region.name}</span>
                 <span className="font-semibold text-cyan-700 dark:text-cyan-300">{formatScore(region.score)}</span>
@@ -162,7 +162,7 @@ export function EquationTab({
       <div className="rounded-lg border border-border bg-background p-3">
         <div className="mb-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Preset</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preset</div>
             <div className="mt-0.5 text-sm font-semibold text-foreground">
               {activePreset?.label || activeExample?.label || 'Custom index'}
             </div>
@@ -190,7 +190,7 @@ export function EquationTab({
                 type="button"
                 onClick={() => onApplyPreset(preset.key)}
                 className={cn(
-                  'rounded-full border px-2 py-0.5 text-[10px] transition-colors',
+                  'rounded-full border px-2 py-0.5 text-xs transition-colors',
                   activePresetKey === preset.key
                     ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100'
                     : 'border-input text-muted-foreground hover:text-foreground',
@@ -204,7 +204,7 @@ export function EquationTab({
               <button
                 type="button"
                 onClick={() => setPresetDialogOpen(true)}
-                className="rounded-full border border-dashed border-input px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                className="rounded-full border border-dashed border-input px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 +{visiblePresets.length - 3} more
               </button>
@@ -233,7 +233,7 @@ export function EquationTab({
         <div className="space-y-4">
           <div className="rounded-lg border border-border bg-background p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Builder mode
               </div>
               <div className="inline-flex rounded-md border border-input bg-muted/20 p-0.5">
@@ -246,7 +246,7 @@ export function EquationTab({
                     type="button"
                     onClick={() => setBuilderMode(mode as 'formula' | 'priority')}
                     className={cn(
-                      'rounded px-2 py-1 text-[11px] font-medium transition-colors',
+                      'rounded px-2 py-1 text-xs font-medium transition-colors',
                       builderMode === mode
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground',
@@ -264,10 +264,10 @@ export function EquationTab({
           <div className="rounded-lg border border-border bg-background p-3">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {builderMode === 'formula' ? 'Equation' : 'Priority ranking'}
                 </div>
-                <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                <div className="mt-0.5 font-mono text-xs text-muted-foreground">
                   {builderMode === 'formula'
                     ? `|weights| sum: ${totalAbsoluteWeight.toLocaleString()}`
                     : 'Top metrics get stronger weights'}
@@ -320,9 +320,9 @@ export function EquationTab({
       )}
 
       <div className="rounded-md border border-border bg-background p-2">
-        <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Equation</div>
-        <div className="font-mono text-[11px] text-foreground">{equationPreview}</div>
-        <div className="mt-1 text-[10px] text-muted-foreground">
+        <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Equation</div>
+        <div className="font-mono text-xs text-foreground">{equationPreview}</div>
+        <div className="mt-1 text-xs text-muted-foreground">
           |weights| sum: {totalAbsoluteWeight.toLocaleString()}
         </div>
       </div>

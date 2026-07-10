@@ -195,7 +195,7 @@ function EvChargingLegend({
       )}
       {showHeatmap && (
         <div className="space-y-1 border-t border-border pt-2 first:border-t-0 first:pt-0">
-          <div className="px-1 text-[10px] font-medium text-foreground">Station density</div>
+          <div className="px-1 text-xs font-medium text-foreground">Station density</div>
           <MapGradientLegendItem
             className="px-1"
             colors={['#67e8f9', '#22c55e', '#fde047', '#f97316']}
@@ -206,7 +206,7 @@ function EvChargingLegend({
       )}
       {showBoundaries && (
         <div className="space-y-1 border-t border-border pt-2 first:border-t-0 first:pt-0">
-          <div className="px-1 text-[10px] font-medium text-foreground">Regional station density</div>
+          <div className="px-1 text-xs font-medium text-foreground">Regional station density</div>
           <MapGradientLegendItem
             className="px-1"
             colors={['#e0f2fe', '#38bdf8', '#0369a1']}
@@ -976,15 +976,15 @@ export default function MiscDataSection() {
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-md border border-border p-2">
                   <div className="text-lg font-bold text-foreground">{trees.length.toLocaleString()}</div>
-                  <div className="text-[10px] text-muted-foreground">tree points</div>
+                  <div className="text-xs text-muted-foreground">tree points</div>
                 </div>
                 <div className="rounded-md border border-border p-2">
                   <div className="text-lg font-bold text-foreground">{forests.length.toLocaleString()}</div>
-                  <div className="text-[10px] text-muted-foreground">forest areas</div>
+                  <div className="text-xs text-muted-foreground">forest areas</div>
                 </div>
                 <div className="rounded-md border border-border p-2">
                   <div className="text-lg font-bold text-foreground">{facilities.length.toLocaleString()}</div>
-                  <div className="text-[10px] text-muted-foreground">facilities</div>
+                  <div className="text-xs text-muted-foreground">facilities</div>
                 </div>
               </div>
               <p className="mt-3 text-xs leading-5 text-muted-foreground">
@@ -1161,7 +1161,7 @@ export default function MiscDataSection() {
                                     ? 'BCER'
                                     : 'Heat/shade'}
               </div>
-              <div className="truncate text-[11px] text-muted-foreground">
+              <div className="truncate text-xs text-muted-foreground">
                 {activeTab === 'canue'
                   ? `${selectedCanueDataset?.label || 'Dataset'} | ${canuePeriodLabel}`
                   : activeTab === 'network'
@@ -1583,7 +1583,7 @@ export default function MiscDataSection() {
                 {activeTab === 'canue' && (
                   <div className="w-full space-y-2 text-xs text-muted-foreground md:w-56">
                     <div>
-                      <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-[10px]">
+                      <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-xs">
                         <span className="truncate text-foreground">
                           {selectedCanueV2Selection
                             ? renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection))
@@ -1612,7 +1612,7 @@ export default function MiscDataSection() {
                 )}
                 {activeTab === 'network' && (
                   <div className="w-full space-y-1 text-xs text-muted-foreground md:w-56">
-                    <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-[10px]">
+                    <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-xs">
                       <span className="truncate text-foreground">
                         {networkAvailabilityLayer.data
                           ? `${networkAvailabilityLayer.data.features.length.toLocaleString()} coverage features loaded`

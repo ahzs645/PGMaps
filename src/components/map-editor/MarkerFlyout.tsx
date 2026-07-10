@@ -223,7 +223,7 @@ export function MarkerFlyout({
             )}
 
             <div className="mt-3">
-              <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+              <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Size</span>
                 <span>{markerDraft.size}px</span>
               </div>
@@ -236,7 +236,7 @@ export function MarkerFlyout({
                 className="w-full accent-primary"
               />
             </div>
-            <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+            <p className="mt-2 text-xs leading-snug text-muted-foreground">
               Pick a type to drop a marker at the map center, or click the map.
             </p>
           </MapEditorPanel>

@@ -13,7 +13,7 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
   return (
     <CollapsiblePanel title="Data Provenance" icon={<Database className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
       <div className="space-y-3 text-xs leading-5 text-slate-600">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Automated</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automated</div>
         {automatedSources.map((source) => {
           const href = source.sourceUrl ?? source.url ?? source.output ?? INDIGENOUS_MANIFEST_DATA
           return (
@@ -28,7 +28,7 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
                 <span className="font-semibold text-slate-900">{source.title}</span>
                 <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-none text-slate-400" />
               </span>
-              <span className="mt-1 inline-flex rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-800">
+              <span className="mt-1 inline-flex rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-emerald-800">
                 {source.access ?? 'automated'}{source.featureCount ? ` · ${source.featureCount} features` : ''}
               </span>
               <span className="mt-2 block">
@@ -43,7 +43,7 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
             bcdatamapper manifest not loaded yet.
           </div>
         )}
-        <div className="pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Manual</div>
+        <div className="pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Manual</div>
         {manualSources.map((source) => {
           const href = source.url ?? source.sourceUrl ?? INDIGENOUS_MANIFEST_DATA
           return (
@@ -58,7 +58,7 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
                 <span className="font-semibold text-slate-900">{source.title}</span>
                 <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-none text-slate-400" />
               </span>
-              <span className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+              <span className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">
                 {source.access ?? 'manual'}
               </span>
               <span className="mt-2 block">
@@ -73,7 +73,7 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
             Manual bcdatamapper source metadata not loaded yet.
           </div>
         )}
-        <div className="flex items-center gap-1.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+        <div className="flex items-center gap-1.5 pt-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
           <AlertTriangle className="h-3.5 w-3.5" />
           Gaps
         </div>
@@ -89,7 +89,7 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
               <span className="font-semibold text-slate-900">{gap.name}</span>
               <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-none text-slate-400" />
             </span>
-            <span className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+            <span className="mt-1 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">
               {gap.status}
             </span>
             <span className="mt-2 block">{gap.use}</span>

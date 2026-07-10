@@ -47,7 +47,7 @@ export function SourceLayersPanel({ sourceLookups, enabledSources, onToggle }: S
                   <span className="block text-sm font-medium">{sourceMeta[source].label}</span>
                   <span
                     className={cn(
-                      'rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase',
+                      'rounded px-1.5 py-0.5 text-xs font-semibold uppercase',
                       sourceLookups[source].status === 'success' && 'bg-emerald-100 text-emerald-800',
                       sourceLookups[source].status === 'loading' && 'bg-sky-100 text-sky-800',
                       sourceLookups[source].status === 'error' && 'bg-red-100 text-red-800',

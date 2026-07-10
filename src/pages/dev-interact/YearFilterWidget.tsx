@@ -129,12 +129,12 @@ export function YearFilterWidget({
               x={barCenterX(hoveredBin.year)}
               y={Math.max(-8, 42 - Math.max(5, (hoveredBin.count / maxCount) * 41) - 5)}
               textAnchor="middle"
-              className="pointer-events-none fill-foreground text-[10px] font-semibold"
+              className="pointer-events-none fill-foreground text-xs font-semibold"
             >
               {hoveredBin.count.toLocaleString()}
             </text>
           ) : (
-            <text x={(yearToX(value[0], minYear, maxYear) + yearToX(value[1], minYear, maxYear)) / 2} y="-6" textAnchor="middle" className="fill-foreground text-[10px] font-semibold">
+            <text x={(yearToX(value[0], minYear, maxYear) + yearToX(value[1], minYear, maxYear)) / 2} y="-6" textAnchor="middle" className="fill-foreground text-xs font-semibold">
               {selectedCount.toLocaleString()}
             </text>
           )}
@@ -142,7 +142,7 @@ export function YearFilterWidget({
       </svg>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <label className="grid gap-1 text-[11px] font-medium text-muted-foreground">
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
           From
           <AppSelect
             value={String(value[0])}
@@ -152,7 +152,7 @@ export function YearFilterWidget({
             triggerAriaLabel="From year"
           />
         </label>
-        <label className="grid gap-1 text-[11px] font-medium text-muted-foreground">
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
           To
           <AppSelect
             value={String(value[1])}

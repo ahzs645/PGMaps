@@ -18,7 +18,7 @@ type PlotMode = 'ts' | 'xy' | 'xy_cor'
 
 function plotButtonClass(active: boolean, disabled = false): string {
   const base =
-    'inline-flex whitespace-nowrap items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-colors'
+    'inline-flex whitespace-nowrap items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium shadow-sm transition-colors'
   if (disabled) return `${base} cursor-not-allowed border-border bg-muted/40 text-muted-foreground/60`
   if (active) return `${base} border-border bg-muted text-foreground`
   return `${base} border-border bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground`
@@ -132,7 +132,7 @@ export function MonitorPlotPanel({
 
       {showPlot && (
         <div className={cn('mt-2.5 rounded-md border border-border bg-muted/40 p-2', panelClassName)}>
-          <div className="mb-2 flex items-center justify-between gap-2 text-[11px]">
+          <div className="mb-2 flex items-center justify-between gap-2 text-xs">
             <span className="min-w-0 truncate font-semibold text-foreground">
               {plotMode === 'ts'
                 ? translate('popup.hourlyPm25', locale)
@@ -141,7 +141,7 @@ export function MonitorPlotPanel({
                   : translate('plot.fem.title', locale)}
             </span>
             {plotMode === 'ts' ? (
-              <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground">
                 {plotSource === 'endpoint'
                   ? translate('popup.plotSource.endpoint', locale)
                   : translate('popup.plotSource.fallback', locale)}
@@ -171,7 +171,7 @@ export function MonitorPlotPanel({
                 loading={plotLoading}
               />
               {nearbyFem && (
-                <div className="mt-1 text-[10px] text-muted-foreground">
+                <div className="mt-1 text-xs text-muted-foreground">
                   {translate('plot.fem.comparedWith', locale)
                     .replace('{name}', nearbyFem.monitor.name)
                     .replace('{dist}', nearbyFem.distanceKm.toFixed(1))}

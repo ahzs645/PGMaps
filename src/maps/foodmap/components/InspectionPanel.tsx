@@ -186,21 +186,21 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
           <div className="mt-3 grid grid-cols-4 gap-1.5 sm:mt-4 sm:gap-3">
             <div className="rounded-lg border border-border bg-muted/40 px-2 py-2 sm:px-3">
               <div className="text-lg font-bold text-foreground sm:text-2xl">{inspections.length}</div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground sm:text-xs">
                 <span className="sm:hidden">Insp.</span>
                 <span className="hidden sm:inline">Inspections</span>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-muted/40 px-2 py-2 sm:px-3">
               <div className="text-lg font-bold text-foreground sm:text-2xl">{totalViolations}</div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground sm:text-xs">
                 <span className="sm:hidden">Total</span>
                 <span className="hidden sm:inline">Total Violations</span>
               </div>
             </div>
             <div className="rounded-lg border border-border bg-muted/40 px-2 py-2 sm:px-3">
               <div className="text-lg font-bold text-red-600 dark:text-red-400 sm:text-2xl">{totalCritical}</div>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground sm:text-xs">
                 <span className="sm:hidden">HS Critical</span>
                 <span className="hidden sm:inline">HealthSpace Critical</span>
               </div>
@@ -209,7 +209,7 @@ export function InspectionPanel({ restaurant, periodLabel, useFilteredInspection
               <div className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium sm:px-2.5 sm:py-1 sm:text-sm', getHazardColor(currentRating))}>
                 {currentRating || 'Unknown'}
               </div>
-              <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+              <div className="mt-1 text-xs uppercase tracking-wide text-muted-foreground sm:text-xs">
                 <span className="sm:hidden">Rating</span>
                 <span className="hidden sm:inline">Current Rating</span>
               </div>

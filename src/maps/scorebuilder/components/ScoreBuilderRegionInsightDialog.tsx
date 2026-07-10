@@ -317,46 +317,46 @@ export function ScoreBuilderRegionInsightDialog({
             {/* Stats grid */}
             <div className="grid grid-cols-2 gap-2 pt-2 text-xs sm:grid-cols-3">
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[11px] uppercase text-muted-foreground">Rank</div>
+                <div className="text-xs uppercase text-muted-foreground">Rank</div>
                 <div className="text-sm font-semibold text-foreground">#{region.rank}</div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[11px] uppercase text-muted-foreground">Score</div>
+                <div className="text-xs uppercase text-muted-foreground">Score</div>
                 <div className="text-sm font-semibold text-foreground">{formatScore(region.score)}</div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[11px] uppercase text-muted-foreground">Area</div>
+                <div className="text-xs uppercase text-muted-foreground">Area</div>
                 <div className="text-sm font-semibold text-foreground">{region.region.areaKm2.toFixed(1)} km²</div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[11px] uppercase text-muted-foreground">Sensors</div>
+                <div className="text-xs uppercase text-muted-foreground">Sensors</div>
                 <div className="text-sm font-semibold text-foreground">
                   {region.counts.monitorCount.toLocaleString()}
                 </div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[11px] uppercase text-muted-foreground">Data coverage</div>
+                <div className="text-xs uppercase text-muted-foreground">Data coverage</div>
                 <div className={cn('text-sm font-semibold', coverage?.tone)}>
                   {(region.dataCoverageScore * 100).toFixed(0)}%
                 </div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2">
-                <div className="text-[11px] uppercase text-muted-foreground">Normalization</div>
+                <div className="text-xs uppercase text-muted-foreground">Normalization</div>
                 <div className="text-sm font-semibold text-foreground">
                   {formatNormalizationMethod(methodSettings.normalization)}
                 </div>
               </div>
               <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
-                <div className="text-[11px] uppercase text-muted-foreground">Rank confidence</div>
+                <div className="text-xs uppercase text-muted-foreground">Rank confidence</div>
                 <div className="text-sm font-semibold text-foreground">{region.rankConfidence}</div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                <div className="mt-0.5 text-xs text-muted-foreground">
                   Rank #{region.rankInterval[0]}-#{region.rankInterval[1]} · score{' '}
                   {formatScore(region.scoreInterval[0])}-{formatScore(region.scoreInterval[1])}
                 </div>
               </div>
               {region.scoreMethodLabel && (
                 <div className="rounded-md border border-border bg-muted/30 p-2 sm:col-span-3">
-                  <div className="text-[11px] uppercase text-muted-foreground">Score method</div>
+                  <div className="text-xs uppercase text-muted-foreground">Score method</div>
                   <div className="text-sm font-semibold text-foreground">{region.scoreMethodLabel}</div>
                 </div>
               )}
@@ -392,7 +392,7 @@ export function ScoreBuilderRegionInsightDialog({
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Top positive drivers
                   </div>
                   <div className="space-y-1">
@@ -407,7 +407,7 @@ export function ScoreBuilderRegionInsightDialog({
                   </div>
                 </div>
                 <div>
-                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Top pressure drivers
                   </div>
                   <div className="space-y-1">
@@ -437,7 +437,7 @@ export function ScoreBuilderRegionInsightDialog({
                 <div className="space-y-2">
                   {componentRows.map((component) => (
                     <div key={component.category}>
-                      <div className="mb-1 flex items-center justify-between text-[11px]">
+                      <div className="mb-1 flex items-center justify-between text-xs">
                         <span className="font-semibold text-foreground">{component.label}</span>
                         <span className="text-muted-foreground">
                           {formatScore(component.score)} · {component.points.toFixed(1)} pts
@@ -464,7 +464,7 @@ export function ScoreBuilderRegionInsightDialog({
                           {formatScore(domain.score)}
                         </span>
                       </div>
-                      <div className="mt-0.5 text-[10px] text-muted-foreground">
+                      <div className="mt-0.5 text-xs text-muted-foreground">
                         {domain.activeMetricCount} indicator{domain.activeMetricCount === 1 ? '' : 's'} · {domain.module}
                       </div>
                     </div>
@@ -548,19 +548,19 @@ export function ScoreBuilderRegionInsightDialog({
             <div className="rounded-lg border border-border bg-background p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-foreground">Weighted Metric Drivers</h3>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {visibleContributionRows.length} of {contributionRows.length}
                 </span>
               </div>
               {topDriverSummary && (
-                <div className="mb-2 rounded border border-border bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground">
+                <div className="mb-2 rounded border border-border bg-muted/20 px-2 py-1.5 text-xs text-muted-foreground">
                   Strongest drivers for this score:{' '}
                   <span className="font-medium text-foreground">{topDriverSummary} pts</span>
                 </div>
               )}
 
               {isMobile && contributionRows.length > MOBILE_MAX_CONTRIBUTIONS && (
-                <div className="mb-2 rounded border border-cyan-200/60 bg-cyan-50 px-2 py-1 text-[11px] text-cyan-800 dark:border-cyan-900/70 dark:bg-cyan-950/30 dark:text-cyan-200">
+                <div className="mb-2 rounded border border-cyan-200/60 bg-cyan-50 px-2 py-1 text-xs text-cyan-800 dark:border-cyan-900/70 dark:bg-cyan-950/30 dark:text-cyan-200">
                   Compact mobile view showing top {MOBILE_MAX_CONTRIBUTIONS} drivers.
                 </div>
               )}
@@ -568,7 +568,7 @@ export function ScoreBuilderRegionInsightDialog({
               <div className="space-y-3">
                 {Object.entries(groupedRows).map(([category, rows]) => (
                   <div key={category}>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
                     </div>
                     <div className="space-y-1.5">
@@ -590,13 +590,13 @@ export function ScoreBuilderRegionInsightDialog({
                                 {row.scoreDelta.toFixed(2)} pts
                               </span>
                             </div>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                               <span>weight {row.weight}</span>
                               <span>norm {(row.normalizedValue * 100).toFixed(1)}%</span>
                               <span>{formatMetricValue(row.key, row.metricValue, true)}</span>
                             </div>
                             {!isMobile && (
-                              <div className="mt-0.5 text-[10px] text-muted-foreground">{getMetricLabel(row.key)}</div>
+                              <div className="mt-0.5 text-xs text-muted-foreground">{getMetricLabel(row.key)}</div>
                             )}
                           </div>
                         )

@@ -114,11 +114,11 @@ export function MonitorPopup({
           <div className="line-clamp-2 text-sm font-semibold leading-snug text-foreground" title={monitor.name}>
             {monitor.name}
           </div>
-          <div className="mt-0.5 text-[11px] italic text-muted-foreground">
+          <div className="mt-0.5 text-xs italic text-muted-foreground">
             {monitorTypeLabel} {translate('popup.monitor', locale)}
           </div>
           {monitor.forecastZoneName && (
-            <div className="mt-1 text-[11px] text-muted-foreground">
+            <div className="mt-1 text-xs text-muted-foreground">
               {translate('popup.forecastZone', locale)}:{' '}
               <span className="font-medium text-foreground">{monitor.forecastZoneName}</span>
             </div>
@@ -128,7 +128,7 @@ export function MonitorPopup({
         {/* Status chip + observation timestamp */}
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3">
           <span
-            className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold text-foreground"
             style={{ backgroundColor: hexToRgba(aqColor, 0.16) }}
           >
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: aqColor }} aria-hidden="true" />
@@ -138,7 +138,7 @@ export function MonitorPopup({
               {formatAqmapPm25Localized(pm25, locale)} {unit}
             </span>
           </span>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {translate('popup.observedAsOf', locale)} {formatLocalizedDate(monitor.dateObserved, locale)}
           </span>
         </div>
@@ -147,7 +147,7 @@ export function MonitorPopup({
 
         {/* PM2.5 averages */}
         <div className="px-3 py-2">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {translate('popup.readings', locale)}
           </div>
           <div className="space-y-1">
@@ -174,7 +174,7 @@ export function MonitorPopup({
         {/* Health advice keyed to AQHI+ category */}
         <div className="mx-3 mb-2 rounded-md border border-border bg-muted/40 p-2">
           <div
-            className="text-[11px] font-semibold leading-snug text-foreground"
+            className="text-xs font-semibold leading-snug text-foreground"
             title={translate('popup.healthMessage', locale)}
           >
             {health.heading}
@@ -241,20 +241,20 @@ export function MonitorTooltip({ monitor, locale }: { monitor: AirMonitor; local
     >
       <div className="text-xs">
         <div className="tooltip_title truncate font-semibold text-foreground">{monitor.name}</div>
-        <div className="mt-0.5 text-[11px] italic text-muted-foreground">
+        <div className="mt-0.5 text-xs italic text-muted-foreground">
           {monitorTypeLabel} {translate('popup.monitor', locale)}
         </div>
         {monitor.forecastZoneName && (
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
+          <div className="mt-0.5 text-xs text-muted-foreground">
             {translate('popup.forecastZone', locale)}:{' '}
             <span className="font-medium text-foreground">{monitor.forecastZoneName}</span>
           </div>
         )}
-        <div className="mt-1 text-[11px] text-muted-foreground">
+        <div className="mt-1 text-xs text-muted-foreground">
           <span dangerouslySetInnerHTML={{ __html: translate('popup.observedAsOf', locale) }} />{' '}
           {formatLocalizedDate(monitor.dateObserved, locale)}
         </div>
-        <table className="mt-1 w-full text-[11px]">
+        <table className="mt-1 w-full text-xs">
           <tbody>
             {rows.map((row) => (
               <tr key={row.key}>

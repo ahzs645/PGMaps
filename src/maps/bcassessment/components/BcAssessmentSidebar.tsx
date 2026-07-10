@@ -160,7 +160,7 @@ export function HistorySparkline({ values }: { values: number[] }) {
           </button>
         ))}
       </div>
-      <div className="mt-0.5 flex justify-between text-[10px] text-blue-500 dark:text-blue-400">
+      <div className="mt-0.5 flex justify-between text-xs text-blue-500 dark:text-blue-400">
         <span>{ASSESSMENT_HISTORY_START_YEAR}</span>
         <span>{ASSESSMENT_HISTORY_START_YEAR + values.length - 1}</span>
       </div>
@@ -209,7 +209,7 @@ function BoundaryHistorySparkline({ values }: { values: number[] }) {
           </button>
         ))}
       </div>
-      <div className="mt-0.5 flex justify-between text-[10px] text-orange-500 dark:text-orange-400">
+      <div className="mt-0.5 flex justify-between text-xs text-orange-500 dark:text-orange-400">
         <span>{ASSESSMENT_HISTORY_START_YEAR}</span>
         <span>{ASSESSMENT_HISTORY_START_YEAR + values.length - 1}</span>
       </div>
@@ -379,7 +379,7 @@ export function BcAssessmentSidebar({
                     return (
                       <span
                         key={cat}
-                        className="flex items-center gap-1 rounded-full border border-orange-300/60 px-2 py-0.5 text-[10px] text-orange-800 dark:border-orange-700/60 dark:text-orange-300"
+                        className="flex items-center gap-1 rounded-full border border-orange-300/60 px-2 py-0.5 text-xs text-orange-800 dark:border-orange-700/60 dark:text-orange-300"
                       >
                         <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getCategoryColor(cat) }} />
                         {CATEGORY_LABELS[cat]} {pct}%

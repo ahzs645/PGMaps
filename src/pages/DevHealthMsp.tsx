@@ -188,7 +188,7 @@ function DevHealthMsp() {
 
   const sidebar = (
     <MapSidebarShell
-      className="h-full w-full min-w-0 border-0 shadow-none md:w-[380px] md:border-r md:shadow-xl"
+      className="h-full w-full min-w-0 border-0 shadow-none md:border-r md:shadow-xl"
       title="MSP payments"
       subtitle="Blue Book facility locations"
       titleClassName="text-base"
@@ -400,7 +400,7 @@ function SelectedPanel({
     <div className="absolute left-3 right-3 z-20 rounded-md border border-border bg-background/95 shadow-xl backdrop-blur bottom-[calc(var(--map-timeline-height,0px)+0.75rem)] md:left-auto md:right-4 md:w-[360px]">
       <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
-          <div className="text-[11px] font-medium uppercase text-muted-foreground">{TYPE_META[props.payeeType].label}</div>
+          <div className="text-xs font-medium uppercase text-muted-foreground">{TYPE_META[props.payeeType].label}</div>
           <h2 className="mt-0.5 text-sm font-semibold leading-5">{props.payeeName}</h2>
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <MapPin className="size-3" />
@@ -413,7 +413,7 @@ function SelectedPanel({
       </div>
       <div className="space-y-3 px-4 py-3">
         <div className="rounded-md border bg-muted/35 px-3 py-2">
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">MSP payments</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">MSP payments</div>
           <div className="mt-0.5 text-xl font-semibold">{formatCurrency(amount)}</div>
           <div className="mt-1 text-xs text-muted-foreground">{periodLabel}</div>
         </div>

@@ -129,7 +129,7 @@ function SelectedMonitorDetails({
         />
         <span className="font-medium text-foreground">{monitor.network}</span>
         {monitor.status && (
-          <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase text-secondary-foreground">
+          <span className="rounded bg-secondary px-2 py-0.5 text-xs font-semibold uppercase text-secondary-foreground">
             {monitor.status}
           </span>
         )}
@@ -139,7 +139,7 @@ function SelectedMonitorDetails({
           {parameters.map((parameter) => (
             <span
               key={`${monitorEntryKey(monitor)}:${parameter}`}
-              className="rounded border bg-secondary/40 px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground"
+              className="rounded border bg-secondary/40 px-1.5 py-0.5 text-xs font-medium text-secondary-foreground"
             >
               {parameter}
             </span>
@@ -575,7 +575,7 @@ function SelectedMonitorStack({
   return (
     <div>
       {showLocationCount && monitors.length > 1 && (
-        <div className="mb-2 pr-5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="mb-2 pr-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {monitors.length} sensors at this location
         </div>
       )}
@@ -618,7 +618,7 @@ function MobileAirQualityFeatureCard({
       onClose={onClose}
     >
       {monitorsAtLocation.length > 1 && (
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {monitorsAtLocation.length} sensors at this location
         </div>
       )}

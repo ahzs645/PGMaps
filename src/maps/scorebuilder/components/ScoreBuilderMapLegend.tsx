@@ -76,7 +76,7 @@ export function ScoreBuilderMapLegend({
           {showWalkabilitySourceSurface || canUseWalkabilitySourceSurface ? (
             <>
               <MapSteppedLegend bands={WALKABILITY_REPORT_MI_BANDS} />
-              <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+              <div className="mt-2 text-xs leading-snug text-muted-foreground">
                 {showWalkabilitySourceSurface
                   ? 'Showing the report-style citywide source grid. Click a boundary, or switch Map surface to Boundary map in Study area, to map the Index Lab equation by selected regions.'
                   : 'Boundary polygons use the same report-style Mobility Index bands as the source grid while mapping the Index Lab equation by selected regions.'}
@@ -96,7 +96,7 @@ export function ScoreBuilderMapLegend({
                 }))}
                 labels={['Rank gap 1', 'Rank gap 9']}
               />
-              <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+              <div className="mt-2 text-xs leading-snug text-muted-foreground">
                 Colored regions meet vulnerability decile &gt; 5 and environment benefit decile &lt; 6.
                 Uncolored regions do not meet the HealthyPlan threshold.
               </div>
@@ -140,11 +140,11 @@ export function ScoreBuilderMapLegend({
                 />
               )}
               {methodSettings.visualOutput === 'binned' ? (
-                <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                <div className="mt-1 text-xs leading-snug text-muted-foreground">
                   Map output uses five fixed score classes: 0-20, 20-40, 40-60, 60-80, 80-100.
                 </div>
               ) : (
-                <div className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                <div className="mt-1 text-xs leading-snug text-muted-foreground">
                   {methodSettings.mapColorScale === 'absolute'
                     ? 'Colors map to a fixed 0–100 score, so they stay put as you adjust the model.'
                     : 'Colors stretch between the current lowest and highest scores, so they shift on every edit.'}
@@ -152,7 +152,7 @@ export function ScoreBuilderMapLegend({
               )}
             </>
           )}
-          <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
+          <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
             <div>
               <div className="uppercase">Min</div>
               <div className="font-medium text-foreground">{scoreSpread.min.toFixed(1)}</div>
@@ -166,11 +166,11 @@ export function ScoreBuilderMapLegend({
               <div className="font-medium text-foreground">{scoreSpread.max.toFixed(1)}</div>
             </div>
           </div>
-          <div className="mt-2 text-[10px] text-muted-foreground">
+          <div className="mt-2 text-xs text-muted-foreground">
             {enabledDataSourceCount} data source(s) active across {regionCount} regions.
           </div>
           {thinCoverageCount > 0 && (
-            <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+            <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
               {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'} have thin active-data coverage.
             </div>
           )}
@@ -211,7 +211,7 @@ function CorrelationMapLegend({
                 row.map((color, colIdx) => <div key={`bv-${rowIdx}-${colIdx}`} style={{ backgroundColor: color }} />),
               )}
           </div>
-          <div className="text-[10px] leading-tight text-muted-foreground">
+          <div className="text-xs leading-tight text-muted-foreground">
             <div className="font-medium text-foreground">Y · {yLabel}</div>
             <div>up the grid = higher</div>
             <div className="mt-1 font-medium text-foreground">X · {xLabel}</div>
@@ -225,12 +225,12 @@ function CorrelationMapLegend({
             minLabel="Y below fit"
             maxLabel="Y above fit"
           />
-          <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+          <div className="mt-2 text-xs leading-snug text-muted-foreground">
             Color = residual from a least-squares line of {yLabel} on {xLabel}.
           </div>
         </>
       )}
-      <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-muted-foreground">
+      <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
         <div>
           <div className="uppercase">r</div>
           <div className="font-medium text-foreground">{stats ? stats.pearson.toFixed(2) : '–'}</div>
@@ -245,7 +245,7 @@ function CorrelationMapLegend({
         </div>
       </div>
       {stats && (
-        <div className="mt-1 text-[10px] text-muted-foreground">
+        <div className="mt-1 text-xs text-muted-foreground">
           Spearman ρ {stats.spearman.toFixed(2)} · within current boundary level.
         </div>
       )}
@@ -268,7 +268,7 @@ function DensityMapLegend({
       <h4 className="mb-2 text-xs font-semibold text-foreground">Density · {label}</h4>
       <MapGradientLegendItem colors={colors} minLabel="Lower" maxLabel="Higher" />
       {range && (
-        <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
           <div>
             <div className="uppercase">Min</div>
             <div className="font-medium text-foreground">
@@ -283,7 +283,7 @@ function DensityMapLegend({
           </div>
         </div>
       )}
-      <div className="mt-2 text-[10px] leading-snug text-muted-foreground">
+      <div className="mt-2 text-xs leading-snug text-muted-foreground">
         Each region colored by its raw value of {label} within the current boundary level.
       </div>
     </>

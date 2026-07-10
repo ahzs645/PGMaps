@@ -138,8 +138,8 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-slate-900">{org.name}</h2>
             <div className="mt-1 flex flex-wrap gap-1">
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">{humanize(org.sector)}</span>
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">{humanize(org.framing)}</span>
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">{humanize(org.sector)}</span>
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">{humanize(org.framing)}</span>
             </div>
           </div>
           <button
@@ -155,7 +155,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
         {org.note && !noteIsJustNames && <p className="mt-3 text-sm leading-6 text-slate-600">{org.note}</p>}
 
         <div className="mt-3">
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Names ({org.acknowledges.length})</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Names ({org.acknowledges.length})</div>
           <div className="mt-1 text-sm leading-6 text-slate-800">
             {org.acknowledges.length ? org.acknowledges.join(', ') : <span className="text-slate-400">Region-wide — no specific Nations</span>}
           </div>
@@ -168,7 +168,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
                 <Quote className="h-4 w-4 text-slate-500" />
                 Official source wording
               </h3>
-              <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">
+              <span className="rounded bg-white px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-500">
                 {statementKindLabel(org.statementKind)}
               </span>
             </div>
@@ -219,7 +219,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
 
         {org.campuses.length > 0 && (
           <div className="mt-4">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Locations ({org.campuses.length})</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Locations ({org.campuses.length})</div>
             <div className="mt-1 space-y-1.5">
               {org.campuses.map((campus, index) => {
                 const locationType = campus.type ?? inferLocationType(campus.name, org.sector)
@@ -231,10 +231,10 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
                         <span className="flex min-w-0 items-center gap-1.5">
                           <span className="truncate font-medium text-slate-900">{campus.name}</span>
                           {locationType && (
-                            <span className="flex-none rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-600">{locationType}</span>
+                            <span className="flex-none rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600">{locationType}</span>
                           )}
                         </span>
-                        <span className="flex-none font-mono text-[10px] text-slate-500">{campus.latitude.toFixed(3)}, {campus.longitude.toFixed(3)}</span>
+                        <span className="flex-none font-mono text-xs text-slate-500">{campus.latitude.toFixed(3)}, {campus.longitude.toFixed(3)}</span>
                       </div>
                       {campus.acknowledges.length > 0 && (
                         <div className="mt-0.5 text-slate-600">{campus.acknowledges.join(', ')}</div>

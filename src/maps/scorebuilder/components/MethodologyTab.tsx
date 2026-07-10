@@ -92,7 +92,7 @@ export function MethodologyTab({
           <div className="space-y-2">
             {componentSummaries.map((component) => (
               <div key={component.key}>
-                <div className="mb-1 flex items-center justify-between text-[11px]">
+                <div className="mb-1 flex items-center justify-between text-xs">
                   <span className="font-semibold text-foreground">{component.label}</span>
                   <span className="text-muted-foreground">
                     {formatScore(component.score)} · {(component.weightShare * 100).toFixed(0)}%
@@ -114,18 +114,18 @@ export function MethodologyTab({
             <div key={metric.key} className="rounded border border-border bg-muted/15 p-2 text-xs">
               <div className="flex items-start justify-between gap-2">
                 <div className="font-semibold text-foreground">{metric.label}</div>
-                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                   {metric.uncertainty} uncertainty
                 </span>
               </div>
-              <div className="mt-1 text-[11px] text-muted-foreground">
+              <div className="mt-1 text-xs text-muted-foreground">
                 {metric.directionLabel} · weight {weights[metric.key]} · {metric.dataSourceLabel} ·{' '}
                 {metric.spatialMethod}
               </div>
-              <div className="mt-1 text-[10px] text-muted-foreground">
+              <div className="mt-1 text-xs text-muted-foreground">
                 {metric.freshnessLabel} · {metric.comparisonBasis}
               </div>
-              <div className="mt-1 text-[10px] text-muted-foreground">
+              <div className="mt-1 text-xs text-muted-foreground">
                 Module{' '}
                 {
                   SCORE_INDEX_MODULE_LABELS[
@@ -135,7 +135,7 @@ export function MethodologyTab({
                 · domain {metric.indexDomain || 'local context'} · {metric.proxyLevel || 'proxy'} metric
               </div>
               {metric.caveat && (
-                <div className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">{metric.caveat}</div>
+                <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{metric.caveat}</div>
               )}
             </div>
           ))}

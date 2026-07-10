@@ -1,9 +1,10 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { Routes, Route, Navigate, Link } from 'react-router-dom'
+import { Loader2, MapPinned } from 'lucide-react'
 import { Shell } from '@/components/layout/Shell'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SharedMapLayout } from '@/components/layout/SharedMapLayout'
+import { Button } from '@/components/ui/button'
 import Home from '@/pages/Home'
 
 const FoodMap = lazy(() => import('@/maps/foodmap').then(m => ({ default: m.FoodMap })))
@@ -30,7 +31,7 @@ const AqMapSection = lazy(() => import('@/maps/aqmap').then(m => ({ default: m.A
 
 function RouteLoadingFallback() {
   return (
-    <div className="flex h-screen items-center justify-center bg-background">
+    <div className="flex h-full min-h-64 items-center justify-center bg-background" role="status" aria-live="polite">
       <div className="relative flex h-28 w-28 items-center justify-center">
         <span className="absolute h-24 w-24 rounded-full border border-sky-500/20" />
         <span className="absolute h-20 w-20 animate-ping rounded-full border border-sky-500/25" />
@@ -42,6 +43,24 @@ function RouteLoadingFallback() {
       <span className="absolute translate-y-20 rounded-md border border-border bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
         Loading map
       </span>
+    </div>
+  )
+}
+
+function NotFound() {
+  return (
+    <div className="flex min-h-full items-center justify-center bg-gradient-to-b from-background to-muted/30 px-6 py-16 text-center">
+      <div className="max-w-md">
+        <MapPinned className="mx-auto mb-5 h-12 w-12 text-muted-foreground" aria-hidden="true" />
+        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">404</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight">Map not found</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          This page may have moved, or the address may be incomplete.
+        </p>
+        <Button asChild className="mt-6">
+          <Link to="/">Return to PGMaps</Link>
+        </Button>
+      </div>
     </div>
   )
 }
@@ -82,6 +101,7 @@ function App() {
           <Route path="/dev/aqmap" element={<AqMapSection />} />
           <Route path="/dev/aqmap/main" element={<AqMapSection variant="main" />} />
           <Route path="/dev/aqmap/ring" element={<AqMapSection variant="ring" />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
       </ErrorBoundary>

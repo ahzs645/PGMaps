@@ -206,7 +206,7 @@ function SearchBody({
       <div className={cn('min-h-0 flex-1 overflow-y-auto py-2', mobilePrimary && 'pt-1')}>
         {groupedRows.map((group) => (
           <div key={group.layer} className="pb-2">
-            <div className={cn('px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground', mobilePrimary && 'px-3')}>
+            <div className={cn('px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground', mobilePrimary && 'px-3')}>
               {layerLabel(group.layer)}
             </div>
             {group.rows.map((feature) => (

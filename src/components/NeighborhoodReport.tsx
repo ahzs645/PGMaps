@@ -144,7 +144,7 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
         </button>
       </div>
 
-      <div className="px-4 py-1 text-[11px] text-muted-foreground">
+      <div className="px-4 py-1 text-xs text-muted-foreground">
         {lat.toFixed(4)}, {lng.toFixed(4)}
       </div>
 
@@ -207,12 +207,12 @@ function ReportSection({
       <div className="flex items-center gap-2 mb-1">
         <Icon className={cn('h-3.5 w-3.5', iconColor)} />
         <span className="text-xs font-semibold text-foreground">{title}</span>
-        <span className="ml-auto text-[11px] text-muted-foreground">{stat}</span>
+        <span className="ml-auto text-xs text-muted-foreground">{stat}</span>
       </div>
-      {detail && <div className="ml-5 text-[10px] text-muted-foreground mb-1">{detail}</div>}
+      {detail && <div className="ml-5 text-xs text-muted-foreground mb-1">{detail}</div>}
       <div className="ml-5 space-y-0.5">
         {items.map((item, i) => (
-          <div key={i} className="flex items-center justify-between text-[11px]">
+          <div key={i} className="flex items-center justify-between text-xs">
             <span className="truncate text-foreground">{item.name}</span>
             <span className="ml-2 shrink-0 text-muted-foreground">{item.distance.toFixed(1)} km</span>
           </div>
