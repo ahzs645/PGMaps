@@ -7,8 +7,10 @@ import {
   MarkerTooltip,
   useMap
 } from '@/components/ui/map'
+import maplibregl from 'maplibre-gl'
+import type { ExpressionSpecification } from 'maplibre-gl'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { MapClusterLayer } from '@/components/ui/map-routes'
+import { dispatchMobileMapFeatureClick } from '@/components/ui/map-context'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -87,8 +89,215 @@ const SELECTED_RING_CLASS =
 /** Zoom level at which the 'heat' style trades the heatmap for individual dots. */
 const HEAT_REVEAL_ZOOM = 13
 
-/** Zoom level at which the 'cluster' style trades count bubbles for individual dots. */
+/** Zoom level at which the 'cluster' style trades donut charts for individual dots. */
 const CLUSTER_REVEAL_ZOOM = 13.5
+
+// ---------------------------------------------------------------------------
+// Pie-donut cluster mode ('cluster' dot style)
+//
+// Adapted from the dev aqmap ring mode: a cluster renders as a donut chart
+// whose arcs show the split of its restaurants across the legend's color
+// bands (violation buckets or hazard ratings), with the total count in the
+// hollow centre. Unclustered restaurants show as small dots in their marker
+// color. Clicking a donut zooms to the cluster's expansion zoom; past
+// CLUSTER_REVEAL_ZOOM the regular DOM markers take over.
+// ---------------------------------------------------------------------------
+
+/** Wedge colors per violation bucket: 0, 1-2, 3-5, 6+ (matches the legend). */
+const VIOLATION_BAND_COLORS: readonly string[] = ['#22c55e', '#eab308', '#f97316', '#ef4444']
+
+/** Wedge colors per hazard rating: Low, Moderate, Unknown (matches the legend). */
+const HAZARD_BAND_COLORS: readonly string[] = ['#22c55e', '#f59e0b', '#6b7280']
+
+function getViolationBandIndex(count: number): number {
+  if (count === 0) return 0
+  if (count <= 2) return 1
+  if (count <= 5) return 2
+  return 3
+}
+
+function getHazardBandIndex(rating: HazardRating): number {
+  if (rating === 'Low') return 0
+  if (rating === 'Moderate') return 1
+  return 2
+}
+
+/**
+ * SVG path for one donut wedge spanning [start, end] (fractions of the circle).
+ * Stroke matches the fill so neighbouring arcs seal into one continuous ring.
+ */
+function donutSegment(start: number, end: number, r: number, r0: number, color: string): string {
+  if (end - start >= 1) end -= 0.0001
+  const a0 = 2 * Math.PI * (start - 0.25)
+  const a1 = 2 * Math.PI * (end - 0.25)
+  const x0 = Math.cos(a0)
+  const y0 = Math.sin(a0)
+  const x1 = Math.cos(a1)
+  const y1 = Math.sin(a1)
+  const largeArc = end - start > 0.5 ? 1 : 0
+  const d =
+    `M ${r + r0 * x0} ${r + r0 * y0} L ${r + r * x0} ${r + r * y0} ` +
+    `A ${r} ${r} 0 ${largeArc} 1 ${r + r * x1} ${r + r * y1} ` +
+    `L ${r + r0 * x1} ${r + r0 * y1} A ${r0} ${r0} 0 ${largeArc} 0 ${r + r0 * x0} ${r + r0 * y0}`
+  return `<path d="${d}" fill="${color}" stroke="${color}" stroke-width="0.75" stroke-linejoin="round"/>`
+}
+
+/** Build the donut marker element for a cluster from its aggregated band counts. */
+function createDonutElement(props: Record<string, unknown>, bandColors: readonly string[]): HTMLDivElement {
+  const counts = bandColors.map((_, index) => Number(props[`band${index}`]) || 0)
+  const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
+  const r = total >= 50 ? 24 : total >= 25 ? 21 : total >= 10 ? 18 : 15
+  const r0 = Math.round(r * 0.62)
+  const w = r * 2
+  const fontSize = total >= 50 ? 13 : total >= 10 ? 12 : 11
+  const n = Math.max(total, 1)
+  const segments: string[] = []
+  let placed = 0
+  counts.forEach((count, band) => {
+    if (count <= 0) return
+    segments.push(donutSegment(placed / n, (placed + count) / n, r, r0, bandColors[band]))
+    placed += count
+  })
+  const element = document.createElement('div')
+  element.innerHTML =
+    `<svg width="${w}" height="${w}" viewBox="0 0 ${w} ${w}" text-anchor="middle" ` +
+    `style="display:block;font:700 ${fontSize}px system-ui,sans-serif;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));">` +
+    `<circle cx="${r}" cy="${r}" r="${r}" fill="#ffffff"/>` +
+    segments.join('') +
+    `<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>` +
+    `<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a">${total}</text>` +
+    '</svg>'
+  element.style.cursor = 'pointer'
+  element.style.width = `${w}px`
+  element.style.height = `${w}px`
+  return element
+}
+
+interface PieClusterLayerProps {
+  data: GeoJSON.FeatureCollection<GeoJSON.Point>
+  bandColors: readonly string[]
+  clusterMaxZoom: number
+  clusterRadius: number
+  isDarkMode: boolean
+  onPointClick: (detailsUrl: string) => void
+}
+
+function PieClusterLayer({ data, bandColors, clusterMaxZoom, clusterRadius, isDarkMode, onPointClick }: PieClusterLayerProps) {
+  const { map, isLoaded } = useMap()
+  const sourceId = 'foodmap-pie-cluster-src'
+  const pointLayerId = 'foodmap-pie-cluster-points'
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    const currentMap = map
+    let cancelled = false
+    const markers: Record<string, maplibregl.Marker> = {}
+    let markersOnScreen: Record<string, maplibregl.Marker> = {}
+
+    const clusterProperties: Record<string, ExpressionSpecification> = {}
+    bandColors.forEach((_, index) => {
+      clusterProperties[`band${index}`] = ['+', ['case', ['==', ['get', 'bandIndex'], index], 1, 0]]
+    })
+
+    const handlePointClick = (event: maplibregl.MapMouseEvent) => {
+      const rendered = currentMap.queryRenderedFeatures(event.point, { layers: [pointLayerId] })
+      const detailsUrl = String(rendered[0]?.properties?.details_url ?? '')
+      if (!detailsUrl) return
+      event.preventDefault()
+      event.originalEvent?.preventDefault()
+      dispatchMobileMapFeatureClick()
+      onPointClick(detailsUrl)
+    }
+    const handlePointEnter = () => { currentMap.getCanvas().style.cursor = 'pointer' }
+    const handlePointLeave = () => { currentMap.getCanvas().style.cursor = '' }
+
+    const updateMarkers = () => {
+      const newMarkers: Record<string, maplibregl.Marker> = {}
+      for (const feature of currentMap.querySourceFeatures(sourceId)) {
+        const props = feature.properties as Record<string, unknown> | null
+        if (!props || !props.cluster) continue
+        const id = `cluster-${props.cluster_id}`
+        let marker = markers[id]
+        if (!marker) {
+          const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
+          const clusterId = props.cluster_id as number
+          const element = createDonutElement(props, bandColors)
+          element.addEventListener('click', (domEvent) => {
+            domEvent.stopPropagation()
+            const source = currentMap.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+            if (!source) return
+            dispatchMobileMapFeatureClick()
+            void source.getClusterExpansionZoom(clusterId).then((zoom) => {
+              currentMap.easeTo({ center: coordinates, zoom, duration: 450 })
+            })
+          })
+          marker = markers[id] = new maplibregl.Marker({ element }).setLngLat(coordinates)
+        }
+        newMarkers[id] = marker
+        if (!markersOnScreen[id]) marker.addTo(currentMap)
+      }
+      for (const id of Object.keys(markersOnScreen)) {
+        if (!newMarkers[id]) markersOnScreen[id].remove()
+      }
+      markersOnScreen = newMarkers
+    }
+
+    const handleRender = () => {
+      if (cancelled || !currentMap.isSourceLoaded(sourceId)) return
+      updateMarkers()
+    }
+
+    if (!currentMap.getSource(sourceId)) {
+      currentMap.addSource(sourceId, {
+        type: 'geojson',
+        data,
+        cluster: true,
+        clusterMaxZoom,
+        clusterRadius,
+        clusterProperties,
+      })
+    }
+    if (!currentMap.getLayer(pointLayerId)) {
+      currentMap.addLayer({
+        id: pointLayerId,
+        type: 'circle',
+        source: sourceId,
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-color': ['get', 'color'] as ExpressionSpecification,
+          'circle-radius': 6,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': isDarkMode ? '#0f172a' : '#ffffff',
+        },
+      })
+    }
+    currentMap.on('render', handleRender)
+    currentMap.on('click', pointLayerId, handlePointClick)
+    currentMap.on('mouseenter', pointLayerId, handlePointEnter)
+    currentMap.on('mouseleave', pointLayerId, handlePointLeave)
+    if (currentMap.isSourceLoaded(sourceId)) updateMarkers()
+
+    return () => {
+      cancelled = true
+      currentMap.off('render', handleRender)
+      currentMap.off('click', pointLayerId, handlePointClick)
+      currentMap.off('mouseenter', pointLayerId, handlePointEnter)
+      currentMap.off('mouseleave', pointLayerId, handlePointLeave)
+      Object.values(markersOnScreen).forEach((marker) => marker.remove())
+      Object.values(markers).forEach((marker) => marker.remove())
+      markersOnScreen = {}
+      try {
+        currentMap.getCanvas().style.cursor = ''
+        if (currentMap.getLayer(pointLayerId)) currentMap.removeLayer(pointLayerId)
+        if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId)
+      } catch {
+        // MapLibre can throw during style teardown.
+      }
+    }
+  }, [isLoaded, map, data, bandColors, clusterMaxZoom, clusterRadius, isDarkMode, onPointClick])
+
+  return null
+}
 
 /** Experimental marker dot renderers, switched by the `dots` URL param / sidebar select. */
 function MarkerDot({
@@ -267,8 +476,9 @@ export function RestaurantMap({
   }), [geocodedRestaurants, markerStyle, visualizationMode])
 
   // Clustered source data: per-feature color matches what the DOM marker would
-  // show, so the unclustered layer dots look continuous with the revealed dots.
-  // Emptied once dots are revealed so the two renderings never double-draw.
+  // show, and bandIndex feeds the donut wedge tallies. Emptied once dots are
+  // revealed so the two renderings never double-draw.
+  const clusterBandColors = visualizationMode === 'violations' ? VIOLATION_BAND_COLORS : HAZARD_BAND_COLORS
   const clusterData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
     type: 'FeatureCollection',
     features: markerStyle !== 'cluster' || dotsRevealed ? [] : geocodedRestaurants.map(r => ({
@@ -276,15 +486,16 @@ export function RestaurantMap({
       geometry: { type: 'Point' as const, coordinates: [r.longitude!, r.latitude!] },
       properties: {
         color: getMarkerColor(r, visualizationMode, isDarkMode),
+        bandIndex: visualizationMode === 'violations'
+          ? getViolationBandIndex(r.violationStats?.total || 0)
+          : getHazardBandIndex(getHazardRating(r, { atDate: true })),
         details_url: r.details_url,
       },
     })),
   }), [geocodedRestaurants, markerStyle, dotsRevealed, visualizationMode, isDarkMode])
 
-  const handleClusterPointClick = useCallback((feature: GeoJSON.Feature<GeoJSON.Point>) => {
-    const restaurant = geocodedRestaurants.find(
-      (r) => r.details_url === feature.properties?.details_url
-    )
+  const handleClusterPointClick = useCallback((detailsUrl: string) => {
+    const restaurant = geocodedRestaurants.find((r) => r.details_url === detailsUrl)
     if (restaurant) onRestaurantClick(restaurant)
   }, [geocodedRestaurants, onRestaurantClick])
 
@@ -304,16 +515,12 @@ export function RestaurantMap({
   return (
     <SharedMap loading={loading} loadingLabel="Loading food safety data">
       {markerStyle === 'cluster' && (
-        <MapClusterLayer
+        <PieClusterLayer
           data={clusterData}
+          bandColors={clusterBandColors}
           clusterMaxZoom={CLUSTER_REVEAL_ZOOM - 0.5}
           clusterRadius={46}
-          clusterColors={isDarkMode ? ['#64748b', '#546579', '#3f4d61'] : ['#8aa0b5', '#6e879d', '#42566a']}
-          clusterThresholds={[20, 60]}
-          clusterSizes={[15, 21, 28]}
-          circleOpacity={0.92}
-          circleStrokeWidth={2}
-          pointColor={['get', 'color']}
+          isDarkMode={isDarkMode}
           onPointClick={handleClusterPointClick}
         />
       )}
