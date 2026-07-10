@@ -32,10 +32,7 @@ import type {
  * source lookup into `sourceLookups` / `candidates`. The page supplies the
  * `enabledMatchTypes` filter and consumes the results for selection + wording.
  */
-export function useAcknowledgementLookups(
-  initialAddress: string,
-  enabledMatchTypes: Record<MatchType, boolean>,
-) {
+export function useAcknowledgementLookups(initialAddress: string, enabledMatchTypes: Record<MatchType, boolean>) {
   const [address, setAddress] = useState(initialAddress)
   const [geocodeResult, setGeocodeResult] = useState<GeocodeResult | null>(null)
   const [geocodeStatus, setGeocodeStatus] = useState<GeocodeStatus>('idle')
@@ -50,92 +47,135 @@ export function useAcknowledgementLookups(
   // submit, map drop). A slow response only lands if no newer request superseded it.
   const geocodeRunRef = useRef(0)
 
-  const candidates = useMemo(() => buildCandidatesFromLookups(sourceLookups, relationshipGraph), [sourceLookups, relationshipGraph])
+  const candidates = useMemo(
+    () => buildCandidatesFromLookups(sourceLookups, relationshipGraph),
+    [sourceLookups, relationshipGraph],
+  )
 
-  const runSourceLookups = useCallback(async (result: GeocodeResult, matchTypes = enabledMatchTypes, addressForMatch = address) => {
-    const runId = sourceLookupRunRef.current + 1
-    sourceLookupRunRef.current = runId
-    sourceLookupAbortRef.current?.abort()
+  const runSourceLookups = useCallback(
+    async (result: GeocodeResult, matchTypes = enabledMatchTypes, addressForMatch = address) => {
+      const runId = sourceLookupRunRef.current + 1
+      sourceLookupRunRef.current = runId
+      sourceLookupAbortRef.current?.abort()
 
-    const controller = new AbortController()
-    sourceLookupAbortRef.current = controller
-    const isActiveLookup = () => sourceLookupRunRef.current === runId && !controller.signal.aborted
+      const controller = new AbortController()
+      sourceLookupAbortRef.current = controller
+      const isActiveLookup = () => sourceLookupRunRef.current === runId && !controller.signal.aborted
 
-    setSourceLookups({
-      verified: { status: 'loading', matches: [] },
-      nativeLand: { status: 'loading', matches: [] },
-      treaty: { status: 'loading', matches: [] },
-      reserve: { status: 'loading', matches: [] },
-      local: { status: 'loading', matches: [] },
-      cad: initialLookupState.cad,
-    })
-    setMatchedRelationshipPlace(null)
-
-    const settle = (source: SourceKey, state: SourceLookupState) => {
-      if (!isActiveLookup()) return
-      setSourceLookups((current) => {
-        if (!isActiveLookup()) return current
-        return { ...current, [source]: state }
+      setSourceLookups({
+        verified: { status: 'loading', matches: [] },
+        nativeLand: { status: 'loading', matches: [] },
+        treaty: { status: 'loading', matches: [] },
+        reserve: { status: 'loading', matches: [] },
+        local: { status: 'loading', matches: [] },
+        cad: initialLookupState.cad,
       })
-    }
+      setMatchedRelationshipPlace(null)
 
-    const verifiedLookup = loadRelationshipGraph()
-      .then(async (graph) => {
+      const settle = (source: SourceKey, state: SourceLookupState) => {
         if (!isActiveLookup()) return
-        setRelationshipGraph((current) => (isActiveLookup() ? graph : current))
-        const match = matchRelationshipPlace(graph, result, addressForMatch, matchTypes)
-          ?? (matchTypes.boundary ? await matchBoundaryRelationshipPlace(graph, result) : null)
-        if (!isActiveLookup()) return
-        setMatchedRelationshipPlace((current) => (isActiveLookup() ? match : current))
-        settle('verified', {
-          status: 'success',
-          matches: match ? relationshipMatches(graph, match) : [],
-          message: match ? `Matched ${match.place.name}` : 'No curated place or boundary relationship matched this address.',
+        setSourceLookups((current) => {
+          if (!isActiveLookup()) return current
+          return { ...current, [source]: state }
         })
-      })
-      .catch((error: unknown) => settle('verified', {
-        status: 'error',
-        matches: [],
-        message: error instanceof Error ? error.message : 'Relationship graph lookup failed.',
-      }))
+      }
 
-    const nativeLandLookup = queryNativeLandSource(result.latitude, result.longitude, controller.signal)
-      .then((matches) => settle('nativeLand', { status: 'success', matches, message: matches.length ? undefined : 'No Native Land Digital overlaps returned.' }))
-      .catch((error: unknown) => settle('nativeLand', {
-        status: 'error',
-        matches: [],
-        message: error instanceof Error ? error.message : 'Native Land Digital lookup failed.',
-      }))
+      const verifiedLookup = loadRelationshipGraph()
+        .then(async (graph) => {
+          if (!isActiveLookup()) return
+          setRelationshipGraph((current) => (isActiveLookup() ? graph : current))
+          const match =
+            matchRelationshipPlace(graph, result, addressForMatch, matchTypes) ??
+            (matchTypes.boundary ? await matchBoundaryRelationshipPlace(graph, result) : null)
+          if (!isActiveLookup()) return
+          setMatchedRelationshipPlace((current) => (isActiveLookup() ? match : current))
+          settle('verified', {
+            status: 'success',
+            matches: match ? relationshipMatches(graph, match) : [],
+            message: match
+              ? `Matched ${match.place.name}`
+              : 'No curated place or boundary relationship matched this address.',
+          })
+        })
+        .catch((error: unknown) =>
+          settle('verified', {
+            status: 'error',
+            matches: [],
+            message: error instanceof Error ? error.message : 'Relationship graph lookup failed.',
+          }),
+        )
 
-    const treatyLookup = queryTreatySources(result.latitude, result.longitude)
-      .then((matches) => settle('treaty', { status: 'success', matches, message: matches.length ? undefined : 'No treaty land or treaty area intersection at this point.' }))
-      .catch((error: unknown) => settle('treaty', {
-        status: 'error',
-        matches: [],
-        message: error instanceof Error ? error.message : 'Treaty layer lookup failed.',
-      }))
+      const nativeLandLookup = queryNativeLandSource(result.latitude, result.longitude, controller.signal)
+        .then((matches) =>
+          settle('nativeLand', {
+            status: 'success',
+            matches,
+            message: matches.length ? undefined : 'No Native Land Digital overlaps returned.',
+          }),
+        )
+        .catch((error: unknown) =>
+          settle('nativeLand', {
+            status: 'error',
+            matches: [],
+            message: error instanceof Error ? error.message : 'Native Land Digital lookup failed.',
+          }),
+        )
 
-    const reserveLookup = queryReserveSource(result.latitude, result.longitude)
-      .then((matches) => settle('reserve', { status: 'success', matches, message: matches.length ? undefined : 'No reserve boundary intersection at this point.' }))
-      .catch((error: unknown) => settle('reserve', {
-        status: 'error',
-        matches: [],
-        message: error instanceof Error ? error.message : 'Reserve layer lookup failed.',
-      }))
+      const treatyLookup = queryTreatySources(result.latitude, result.longitude)
+        .then((matches) =>
+          settle('treaty', {
+            status: 'success',
+            matches,
+            message: matches.length ? undefined : 'No treaty land or treaty area intersection at this point.',
+          }),
+        )
+        .catch((error: unknown) =>
+          settle('treaty', {
+            status: 'error',
+            matches: [],
+            message: error instanceof Error ? error.message : 'Treaty layer lookup failed.',
+          }),
+        )
 
-    const localLookup = localVerifiedMatches(result)
-      .then((matches) => settle('local', { status: 'success', matches, message: matches.length ? undefined : 'No First Nation community within range of this point.' }))
-      .catch((error: unknown) => settle('local', {
-        status: 'error',
-        matches: [],
-        message: error instanceof Error ? error.message : 'Community reference lookup failed.',
-      }))
+      const reserveLookup = queryReserveSource(result.latitude, result.longitude)
+        .then((matches) =>
+          settle('reserve', {
+            status: 'success',
+            matches,
+            message: matches.length ? undefined : 'No reserve boundary intersection at this point.',
+          }),
+        )
+        .catch((error: unknown) =>
+          settle('reserve', {
+            status: 'error',
+            matches: [],
+            message: error instanceof Error ? error.message : 'Reserve layer lookup failed.',
+          }),
+        )
 
-    await Promise.allSettled([verifiedLookup, nativeLandLookup, treatyLookup, reserveLookup, localLookup])
-    if (sourceLookupRunRef.current === runId) {
-      sourceLookupAbortRef.current = null
-    }
-  }, [address, enabledMatchTypes])
+      const localLookup = localVerifiedMatches(result)
+        .then((matches) =>
+          settle('local', {
+            status: 'success',
+            matches,
+            message: matches.length ? undefined : 'No First Nation community within range of this point.',
+          }),
+        )
+        .catch((error: unknown) =>
+          settle('local', {
+            status: 'error',
+            matches: [],
+            message: error instanceof Error ? error.message : 'Community reference lookup failed.',
+          }),
+        )
+
+      await Promise.allSettled([verifiedLookup, nativeLandLookup, treatyLookup, reserveLookup, localLookup])
+      if (sourceLookupRunRef.current === runId) {
+        sourceLookupAbortRef.current = null
+      }
+    },
+    [address, enabledMatchTypes],
+  )
 
   useEffect(() => {
     return () => {
@@ -178,23 +218,26 @@ export function useAcknowledgementLookups(
     }
   }, [])
 
-  const runGeocode = useCallback(async (addressToGeocode: string, signal?: AbortSignal) => {
-    const runId = ++geocodeRunRef.current
-    setGeocodeStatus('loading')
-    setGeocodeError(null)
-    try {
-      const result = await geocodeAddress(addressToGeocode, signal)
-      if (geocodeRunRef.current !== runId) return
-      setGeocodeResult(result)
-      setGeocodeStatus('success')
-      void runSourceLookups(result, enabledMatchTypes, addressToGeocode)
-    } catch (error) {
-      if (geocodeRunRef.current !== runId || signal?.aborted) return
-      setGeocodeResult(null)
-      setGeocodeStatus('error')
-      setGeocodeError(error instanceof Error ? error.message : 'Unable to geocode this address')
-    }
-  }, [enabledMatchTypes, runSourceLookups])
+  const runGeocode = useCallback(
+    async (addressToGeocode: string, signal?: AbortSignal) => {
+      const runId = ++geocodeRunRef.current
+      setGeocodeStatus('loading')
+      setGeocodeError(null)
+      try {
+        const result = await geocodeAddress(addressToGeocode, signal)
+        if (geocodeRunRef.current !== runId) return
+        setGeocodeResult(result)
+        setGeocodeStatus('success')
+        void runSourceLookups(result, enabledMatchTypes, addressToGeocode)
+      } catch (error) {
+        if (geocodeRunRef.current !== runId || signal?.aborted) return
+        setGeocodeResult(null)
+        setGeocodeStatus('error')
+        setGeocodeError(error instanceof Error ? error.message : 'Unable to geocode this address')
+      }
+    },
+    [enabledMatchTypes, runSourceLookups],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -216,16 +259,31 @@ export function useAcknowledgementLookups(
     await runGeocode(trimmedAddress)
   }
 
-  const dropLocation = useCallback((location: DroppedLocation) => {
-    // A drop supersedes any in-flight geocode.
+  const dropLocation = useCallback(
+    (location: DroppedLocation) => {
+      // A drop supersedes any in-flight geocode.
+      geocodeRunRef.current += 1
+      const result = locationFromCoordinates(location)
+      setGeocodeResult(result)
+      setGeocodeStatus('success')
+      setGeocodeError(null)
+      setAddress(result.fullAddress)
+      void runSourceLookups(result, enabledMatchTypes, result.fullAddress)
+    },
+    [enabledMatchTypes, runSourceLookups],
+  )
+
+  const clearLocation = useCallback(() => {
     geocodeRunRef.current += 1
-    const result = locationFromCoordinates(location)
-    setGeocodeResult(result)
-    setGeocodeStatus('success')
+    sourceLookupRunRef.current += 1
+    sourceLookupAbortRef.current?.abort()
+    sourceLookupAbortRef.current = null
+    setGeocodeResult(null)
+    setGeocodeStatus('idle')
     setGeocodeError(null)
-    setAddress(result.fullAddress)
-    void runSourceLookups(result, enabledMatchTypes, result.fullAddress)
-  }, [enabledMatchTypes, runSourceLookups])
+    setMatchedRelationshipPlace(null)
+    setSourceLookups(initialLookupState)
+  }, [])
 
   return {
     address,
@@ -241,5 +299,6 @@ export function useAcknowledgementLookups(
     runSourceLookups,
     geocodeAddressInput,
     dropLocation,
+    clearLocation,
   }
 }

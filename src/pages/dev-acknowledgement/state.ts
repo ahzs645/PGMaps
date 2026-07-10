@@ -4,15 +4,12 @@ export function visibleAcknowledgementCandidates(
   candidates: CandidateNation[],
   enabledSources: Record<SourceKey, boolean>,
 ) {
-  return candidates.filter((candidate) => (
-    Object.keys(candidate.sources).some((source) => enabledSources[source as SourceKey])
-  ))
+  return candidates.filter((candidate) =>
+    Object.keys(candidate.sources).some((source) => enabledSources[source as SourceKey]),
+  )
 }
 
-export function effectiveSelectedCandidateIds(
-  visibleCandidates: CandidateNation[],
-  selectedIds: string[],
-) {
+export function effectiveSelectedCandidateIds(visibleCandidates: CandidateNation[], selectedIds: string[]) {
   if (visibleCandidates.length === 0) return []
   // An explicitly empty selection stays empty — the user unchecked everything.
   if (selectedIds.length === 0) return []
@@ -25,22 +22,21 @@ export function effectiveSelectedCandidateIds(
   // auto-select a candidate we are confident in; naming a weak single-source
   // overlap (like an oversized Native Land polygon) by default is worse than
   // asking the user to choose.
-  const strong = visibleCandidates.find((candidate) => candidate.confidence === 'strong')
+  // Only a reviewed relationship may become wording without an explicit user
+  // choice. Administrative, proximity, and educational layers can corroborate
+  // context, but they do not establish traditional territory on their own.
+  const strong = visibleCandidates.find(
+    (candidate) => candidate.confidence === 'strong' && Boolean(candidate.sources.verified),
+  )
   return strong ? [strong.id] : []
 }
 
-export function selectedCandidateNames(
-  visibleCandidates: CandidateNation[],
-  selectedIds: string[],
-) {
+export function selectedCandidateNames(visibleCandidates: CandidateNation[], selectedIds: string[]) {
   return visibleCandidates
     .filter((candidate) => selectedIds.includes(candidate.id))
     .map((candidate) => candidate.preferredName)
 }
 
-export function toggleMatchTypeState(
-  current: Record<MatchType, boolean>,
-  matchType: MatchType,
-) {
+export function toggleMatchTypeState(current: Record<MatchType, boolean>, matchType: MatchType) {
   return { ...current, [matchType]: !current[matchType] }
 }

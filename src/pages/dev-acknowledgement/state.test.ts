@@ -54,7 +54,7 @@ describe('acknowledgement source/selection state', () => {
   it('selects the strongest visible candidate when selected ids become hidden', () => {
     const visible = [
       candidate('moderate', { treaty: 'Treaty match' }, 'moderate'),
-      candidate('strong', { reserve: 'Reserve match' }, 'strong'),
+      candidate('strong', { verified: 'Curated relationship' }, 'strong'),
     ]
 
     expect(effectiveSelectedCandidateIds(visible, ['hidden'])).toEqual(['strong'])
@@ -70,6 +70,12 @@ describe('acknowledgement source/selection state', () => {
       candidate('cayuse', { nativeLand: 'Native Land match' }),
       candidate('musqueam', { nativeLand: 'Native Land match' }),
     ]
+
+    expect(effectiveSelectedCandidateIds(visible, ['hidden'])).toEqual([])
+  })
+
+  it('does not auto-select a strong administrative or proximity-only candidate', () => {
+    const visible = [candidate('administrative', { reserve: 'Reserve boundary match' }, 'strong')]
 
     expect(effectiveSelectedCandidateIds(visible, ['hidden'])).toEqual([])
   })

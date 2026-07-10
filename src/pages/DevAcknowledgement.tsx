@@ -3,10 +3,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { defaultWordingOptions } from './dev-acknowledgement/data'
 import { useAcknowledgementLookups } from './dev-acknowledgement/hooks/useAcknowledgementLookups'
-import { buildFallbackAcknowledgement as buildAcknowledgement, buildMultiPointAcknowledgement, buildRegionalAcknowledgement, buildRelationshipAcknowledgement, peopleGroupName } from '@/lib/acknowledgement/engine'
+import {
+  buildFallbackAcknowledgement as buildAcknowledgement,
+  buildMultiPointAcknowledgement,
+  buildRegionalAcknowledgement,
+  buildRelationshipAcknowledgement,
+  peopleGroupName,
+} from '@/lib/acknowledgement/engine'
 import type { MatchType, SourceKey, SpeakerPerspective, WordingMode, WordingOptions } from './dev-acknowledgement/types'
 import type { OrgRecord } from './dev-acknowledgement/organizations'
-import { effectiveSelectedCandidateIds, selectedCandidateNames, toggleMatchTypeState, visibleAcknowledgementCandidates } from './dev-acknowledgement/state'
+import {
+  effectiveSelectedCandidateIds,
+  selectedCandidateNames,
+  toggleMatchTypeState,
+  visibleAcknowledgementCandidates,
+} from './dev-acknowledgement/state'
 import { AcknowledgementHeader } from './dev-acknowledgement/components/AcknowledgementHeader'
 import { CandidateNations } from './dev-acknowledgement/components/CandidateNations'
 import { DataProvenancePanel } from './dev-acknowledgement/components/DataProvenancePanel'
@@ -17,8 +28,20 @@ import { OrganizationPreview } from './dev-acknowledgement/components/Organizati
 import { OrganizationsSidebar } from './dev-acknowledgement/components/OrganizationsSidebar'
 import { SourceLayersPanel } from './dev-acknowledgement/components/SourceLayersPanel'
 import { TemplatePrompts } from './dev-acknowledgement/components/TemplatePrompts'
-import { VariantControls, type AcknowledgementScope, type WordingToggle } from './dev-acknowledgement/components/VariantControls'
+import {
+  VariantControls,
+  type AcknowledgementScope,
+  type WordingToggle,
+} from './dev-acknowledgement/components/VariantControls'
 import { WordingPreview } from './dev-acknowledgement/components/WordingPreview'
+
+const TABS = [
+  ['mapNations', 'Map & Nations'],
+  ['wording', 'Wording'],
+  ['organizations', 'Organizations'],
+] as const
+
+type ActiveTab = (typeof TABS)[number][0]
 
 export default function DevAcknowledgement() {
   const [enabledMatchTypes, setEnabledMatchTypes] = useState<Record<MatchType, boolean>>(() => ({
@@ -29,7 +52,7 @@ export default function DevAcknowledgement() {
   const [enabledSources, setEnabledSources] = useState<Record<SourceKey, boolean>>(() => ({
     verified: true,
     nativeLand: true,
-    cad: true,
+    cad: false,
     treaty: true,
     reserve: true,
     local: true,
@@ -45,7 +68,7 @@ export default function DevAcknowledgement() {
   const [regionName, setRegionName] = useState('British Columbia')
   const [customWordingOverride, setCustomWordingOverride] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [activeTab, setActiveTab] = useState<'mapNations' | 'wording' | 'organizations'>('mapNations')
+  const [activeTab, setActiveTab] = useState<ActiveTab>('mapNations')
   const [orgToLoad, setOrgToLoad] = useState<string | null>(null)
   const [orgPreset, setOrgPreset] = useState<string | null>(null)
   const [multiPointContext, setMultiPointContext] = useState<MultiPointWordingContext | null>(null)
@@ -56,6 +79,7 @@ export default function DevAcknowledgement() {
 
   // From the Organizations tab: load the selected org onto the map and jump there.
   const previewOnMap = useCallback((id: string) => {
+    setCustomWordingOverride(null)
     setOrgToLoad(id)
     setActiveTab('mapNations')
   }, [])
@@ -83,6 +107,7 @@ export default function DevAcknowledgement() {
     runSourceLookups,
     geocodeAddressInput,
     dropLocation,
+    clearLocation,
   } = useAcknowledgementLookups('3333 University Way, Prince George, BC', enabledMatchTypes)
 
   const automatedManifestSources = indigenousManifest?.automated ?? []
@@ -128,7 +153,11 @@ export default function DevAcknowledgement() {
   // match. If the selection adds non-verified candidates (Native Land overlaps, etc.),
   // fall back to wording built from the full selected list so the extra Nations show.
   const allSelectedVerified = useMemo(() => {
-    return enabledSources.verified && selectedCandidates.length > 0 && selectedCandidates.every((candidate) => Boolean(candidate.sources.verified))
+    return (
+      enabledSources.verified &&
+      selectedCandidates.length > 0 &&
+      selectedCandidates.every((candidate) => Boolean(candidate.sources.verified))
+    )
   }, [enabledSources.verified, selectedCandidates])
 
   const generatedWording = useMemo(() => {
@@ -148,12 +177,38 @@ export default function DevAcknowledgement() {
     }
 
     return relationshipGraph && matchedRelationshipPlace && enabledSources.verified && allSelectedVerified
-      ? buildRelationshipAcknowledgement(wordingMode, relationshipGraph, matchedRelationshipPlace, effectiveSelectedIds, { ...wordingOptions, perspective, organizationName })
+      ? buildRelationshipAcknowledgement(
+          wordingMode,
+          relationshipGraph,
+          matchedRelationshipPlace,
+          effectiveSelectedIds,
+          { ...wordingOptions, perspective, organizationName },
+        )
       : buildAcknowledgement(wordingMode, selectedNames, { perspective, organizationName })
-  }, [allSelectedVerified, effectiveSelectedIds, enabledSources.verified, matchedRelationshipPlace, multiPointContext, organizationName, perspective, regionName, relationshipGraph, scope, selectedNames, wordingMode, wordingOptions])
+  }, [
+    allSelectedVerified,
+    effectiveSelectedIds,
+    enabledSources.verified,
+    matchedRelationshipPlace,
+    multiPointContext,
+    organizationName,
+    perspective,
+    regionName,
+    relationshipGraph,
+    scope,
+    selectedNames,
+    wordingMode,
+    wordingOptions,
+  ])
 
   const customWording = customWordingOverride ?? generatedWording
   const customWordingDirty = customWordingOverride !== null
+  const selectionDisabledReason =
+    scope === 'regional'
+      ? 'Regional wording does not use individual Nation selections.'
+      : multiPointContext
+        ? 'Multi-point wording uses the combined Nations resolved across all mapped locations.'
+        : undefined
 
   const toggleSource = (source: SourceKey) => {
     setEnabledSources((current) => ({ ...current, [source]: !current[source] }))
@@ -176,16 +231,44 @@ export default function DevAcknowledgement() {
       const available = new Set(visibleCandidates.map((candidate) => candidate.id))
       const currentVisible = current.filter((id) => available.has(id))
       const base = currentVisible.length > 0 ? currentVisible : effectiveSelectedIds
-      return base.includes(candidateId)
-        ? base.filter((id) => id !== candidateId)
-        : [...base, candidateId]
+      return base.includes(candidateId) ? base.filter((id) => id !== candidateId) : [...base, candidateId]
     })
   }
 
+  const handleActivePoint = useCallback(
+    (latitude: number, longitude: number, label?: string) => {
+      setCustomWordingOverride(null)
+      dropLocation({ latitude, longitude, label })
+    },
+    [dropLocation],
+  )
+
+  const handleClearActivePoint = useCallback(() => {
+    setCustomWordingOverride(null)
+    clearLocation()
+  }, [clearLocation])
+
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, tab: ActiveTab) => {
+    const currentIndex = TABS.findIndex(([value]) => value === tab)
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % TABS.length
+    if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + TABS.length) % TABS.length
+    if (event.key === 'Home') nextIndex = 0
+    if (event.key === 'End') nextIndex = TABS.length - 1
+    if (nextIndex === null) return
+    event.preventDefault()
+    const nextTab = TABS[nextIndex][0]
+    setActiveTab(nextTab)
+    document.getElementById(`acknowledgement-tab-${nextTab}`)?.focus()
+  }
+
   const copiedTimeoutRef = useRef<number | null>(null)
-  useEffect(() => () => {
-    if (copiedTimeoutRef.current !== null) window.clearTimeout(copiedTimeoutRef.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (copiedTimeoutRef.current !== null) window.clearTimeout(copiedTimeoutRef.current)
+    },
+    [],
+  )
 
   const handleCopyWording = useCallback(async () => {
     const text = customWording.trim()
@@ -221,17 +304,27 @@ export default function DevAcknowledgement() {
       />
 
       <div className="border-b bg-white">
-        <div role="tablist" aria-label="Acknowledgement builder sections" className="mx-auto flex max-w-7xl gap-1 px-3 sm:px-6 lg:px-8">
-          {([['mapNations', 'Map & Nations'], ['wording', 'Wording'], ['organizations', 'Organizations']] as const).map(([value, label]) => (
+        <div
+          role="tablist"
+          aria-label="Acknowledgement builder sections"
+          className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 sm:px-6 lg:px-8"
+        >
+          {TABS.map(([value, label]) => (
             <button
               key={value}
+              id={`acknowledgement-tab-${value}`}
               type="button"
               role="tab"
               onClick={() => setActiveTab(value)}
+              onKeyDown={(event) => handleTabKeyDown(event, value)}
               aria-selected={activeTab === value}
+              aria-controls={`acknowledgement-panel-${value}`}
+              tabIndex={activeTab === value ? 0 : -1}
               className={cn(
-                '-mb-px border-b-2 px-4 py-3 text-sm font-medium transition',
-                activeTab === value ? 'border-teal-700 text-teal-800' : 'border-transparent text-slate-500 hover:text-slate-800',
+                '-mb-px flex-none whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition sm:px-4',
+                activeTab === value
+                  ? 'border-teal-700 text-teal-800'
+                  : 'border-transparent text-slate-500 hover:text-slate-800',
               )}
             >
               {label}
@@ -242,11 +335,17 @@ export default function DevAcknowledgement() {
 
       {/* Hidden rather than unmounted on tab switch: unmounting would destroy the
           composer's points/org state while the parent's wording context lived on. */}
-      <div className={activeTab === 'mapNations' ? undefined : 'hidden'}>
+      <div
+        id="acknowledgement-panel-mapNations"
+        role="tabpanel"
+        aria-labelledby="acknowledgement-tab-mapNations"
+        hidden={activeTab !== 'mapNations'}
+      >
         <MultiPointComposer
           graph={relationshipGraph}
           addressPoint={geocodeResult}
-          onActivePoint={(latitude, longitude, label) => dropLocation({ latitude, longitude, label })}
+          onActivePoint={handleActivePoint}
+          onClearActivePoint={handleClearActivePoint}
           orgToLoad={orgToLoad}
           onOrgLoaded={() => setOrgToLoad(null)}
           onOrgChange={handleOrgChange}
@@ -265,14 +364,22 @@ export default function DevAcknowledgement() {
             <section className="rounded-lg border bg-white p-3 shadow-sm">
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
               <div className="grid grid-cols-3 gap-2">
-                {([['collective', 'Community'], ['individual', 'Individual'], ['organization', 'Organization']] as const).map(([value, voiceLabel]) => (
+                {(
+                  [
+                    ['collective', 'Community'],
+                    ['individual', 'Individual'],
+                    ['organization', 'Organization'],
+                  ] as const
+                ).map(([value, voiceLabel]) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => setPerspective(value)}
                     className={cn(
                       'rounded-md border px-2 py-1.5 text-xs font-medium',
-                      perspective === value ? 'border-teal-700 bg-teal-700 text-white' : 'bg-white hover:border-teal-300',
+                      perspective === value
+                        ? 'border-teal-700 bg-teal-700 text-white'
+                        : 'bg-white hover:border-teal-300',
                     )}
                   >
                     {voiceLabel}
@@ -299,6 +406,8 @@ export default function DevAcknowledgement() {
             enabledSources={enabledSources}
             onToggle={toggleCandidate}
             peopleGroups={peopleGroupsByCandidate}
+            showSignals
+            selectionDisabledReason={selectionDisabledReason}
           />
 
           <SourceLayersPanel sourceLookups={sourceLookups} enabledSources={enabledSources} onToggle={toggleSource} />
@@ -308,7 +417,12 @@ export default function DevAcknowledgement() {
       </div>
 
       {activeTab === 'wording' && (
-        <div className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:px-8">
+        <div
+          id="acknowledgement-panel-wording"
+          role="tabpanel"
+          aria-labelledby="acknowledgement-tab-wording"
+          className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-5 lg:px-8"
+        >
           <VariantControls
             wordingMode={wordingMode}
             onWordingModeChange={setWordingMode}
@@ -326,6 +440,9 @@ export default function DevAcknowledgement() {
             onCustomWordingChange={updateCustomWording}
             customWordingDirty={customWordingDirty}
             onResetCustomWording={resetCustomWording}
+            showVoice={!loadedOrg}
+            lockedOrganizationName={loadedOrg?.name}
+            showContextToggles={!multiPointContext && enabledSources.verified && allSelectedVerified}
           />
           <aside className="space-y-4">
             <TemplatePrompts />
@@ -335,7 +452,12 @@ export default function DevAcknowledgement() {
       )}
 
       {activeTab === 'organizations' && (
-        <div className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-5 lg:px-8">
+        <div
+          id="acknowledgement-panel-organizations"
+          role="tabpanel"
+          aria-labelledby="acknowledgement-tab-organizations"
+          className="mx-auto grid max-w-7xl gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-5 lg:px-8"
+        >
           <OrganizationsSidebar selectedId={orgPreset} onSelect={setOrgPreset} />
           <OrganizationPreview key={orgPreset ?? 'none'} orgId={orgPreset} onPreviewOnMap={previewOnMap} />
         </div>

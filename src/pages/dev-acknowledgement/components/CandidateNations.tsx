@@ -26,9 +26,19 @@ type CandidateNationsProps = {
   showSignals?: boolean
   /** People-group names per candidate id (e.g. Lheidli T'enneh → Dakelh (Carrier)). */
   peopleGroups?: Record<string, string[]>
+  /** Explains why Nation checkboxes cannot affect the current wording branch. */
+  selectionDisabledReason?: string
 }
 
-export function CandidateNations({ candidates, selectedIds, enabledSources, onToggle, showSignals = false, peopleGroups = {} }: CandidateNationsProps) {
+export function CandidateNations({
+  candidates,
+  selectedIds,
+  enabledSources,
+  onToggle,
+  showSignals = false,
+  peopleGroups = {},
+  selectionDisabledReason,
+}: CandidateNationsProps) {
   const [showRelations, setShowRelations] = useState(false)
   const hasRelations = candidates.some((candidate) => (peopleGroups[candidate.id]?.length ?? 0) > 0)
 
@@ -50,10 +60,16 @@ export function CandidateNations({ candidates, selectedIds, enabledSources, onTo
           </button>
         )}
       </div>
+      {selectionDisabledReason && (
+        <p className="border-b bg-amber-50 px-4 py-2 text-xs leading-5 text-amber-900">
+          {selectionDisabledReason} Candidate details below remain available for review.
+        </p>
+      )}
       <div className="divide-y">
         {candidates.length === 0 && (
           <div className="p-4 text-sm leading-6 text-slate-600">
-            No candidate Nations have been returned from the enabled live sources yet. Try a B.C. address, enable a source with data, or add local verified wording.
+            No candidate Nations have been returned from the enabled live sources yet. Try a B.C. address, enable a
+            source with data, or add local verified wording.
           </div>
         )}
         {candidates.map((candidate) => (
@@ -66,6 +82,7 @@ export function CandidateNations({ candidates, selectedIds, enabledSources, onTo
             showSignals={showSignals}
             showRelations={showRelations}
             relations={peopleGroups[candidate.id] ?? []}
+            selectionDisabled={Boolean(selectionDisabledReason)}
           />
         ))}
       </div>
@@ -81,9 +98,19 @@ type CandidateRowProps = {
   showSignals: boolean
   showRelations: boolean
   relations: string[]
+  selectionDisabled: boolean
 }
 
-function CandidateRow({ candidate, selected, enabledSources, onToggle, showSignals, showRelations, relations }: CandidateRowProps) {
+function CandidateRow({
+  candidate,
+  selected,
+  enabledSources,
+  onToggle,
+  showSignals,
+  showRelations,
+  relations,
+  selectionDisabled,
+}: CandidateRowProps) {
   // Collapsed by default — the row shows the name, confidence, and matched-source
   // chips; click to expand the full breakdown.
   const [expanded, setExpanded] = useState(false)
@@ -95,11 +122,13 @@ function CandidateRow({ candidate, selected, enabledSources, onToggle, showSigna
         <button
           type="button"
           onClick={() => onToggle(candidate.id)}
+          disabled={selectionDisabled}
           className={cn(
-            'mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded border',
+            'mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-50',
             selected ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300',
           )}
           aria-label={`Include ${candidate.name}`}
+          aria-pressed={selected}
         >
           {selected && <Check className="h-4 w-4" />}
         </button>
@@ -112,11 +141,18 @@ function CandidateRow({ candidate, selected, enabledSources, onToggle, showSigna
           <span className="flex flex-wrap items-center gap-2">
             <span className="min-w-0 flex-1 text-sm font-semibold sm:text-base">{candidate.name}</span>
             {showSignals && (
-              <span className={cn('rounded-md border px-2 py-0.5 text-xs font-medium', confidenceStyles[candidate.confidence])}>
+              <span
+                className={cn(
+                  'rounded-md border px-2 py-0.5 text-xs font-medium',
+                  confidenceStyles[candidate.confidence],
+                )}
+              >
                 {confidenceLabels[candidate.confidence]}
               </span>
             )}
-            <ChevronDown className={cn('h-4 w-4 flex-none text-slate-400 transition-transform', expanded && 'rotate-180')} />
+            <ChevronDown
+              className={cn('h-4 w-4 flex-none text-slate-400 transition-transform', expanded && 'rotate-180')}
+            />
           </span>
           {showRelations && relations.length > 0 && (
             <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">part of {relations.join(', ')}</span>

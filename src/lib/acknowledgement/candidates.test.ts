@@ -51,7 +51,10 @@ describe('buildCandidates confidence', () => {
   const opts = { sourceLabel }
 
   it('reads verified confidence from the relationship verificationStatus', () => {
-    const strong = buildCandidates(lookups([m('verified', 'A', { verificationStatus: 'verified_institutional' })]), opts)
+    const strong = buildCandidates(
+      lookups([m('verified', 'A', { verificationStatus: 'verified_institutional' })]),
+      opts,
+    )
     const moderate = buildCandidates(lookups([m('verified', 'B', { verificationStatus: 'boundary_context' })]), opts)
     const review = buildCandidates(lookups([m('verified', 'C', { verificationStatus: 'template_context' })]), opts)
 
@@ -61,10 +64,13 @@ describe('buildCandidates confidence', () => {
   })
 
   it('keeps the strongest verification level when several relationships resolve to one Nation', () => {
-    const [candidate] = buildCandidates(lookups([
-      m('verified', 'Y', { verificationStatus: 'boundary_context', label: 'a' }),
-      m('verified', 'Y', { verificationStatus: 'verified_institutional', label: 'b' }),
-    ]), opts)
+    const [candidate] = buildCandidates(
+      lookups([
+        m('verified', 'Y', { verificationStatus: 'boundary_context', label: 'a' }),
+        m('verified', 'Y', { verificationStatus: 'verified_institutional', label: 'b' }),
+      ]),
+      opts,
+    )
 
     expect(candidate.confidence).toBe('strong')
   })
@@ -72,7 +78,7 @@ describe('buildCandidates confidence', () => {
   it('falls back to source corroboration when no verified match is present', () => {
     expect(buildCandidates(lookups([m('nativeLand', 'X')]), opts)[0].confidence).toBe('review_required')
     expect(buildCandidates(lookups([m('nativeLand', 'X'), m('treaty', 'X')]), opts)[0].confidence).toBe('strong')
-    expect(buildCandidates(lookups([m('reserve', 'X')]), opts)[0].confidence).toBe('strong')
+    expect(buildCandidates(lookups([m('reserve', 'X')]), opts)[0].confidence).toBe('review_required')
     expect(buildCandidates(lookups([m('treaty', 'X')]), opts)[0].confidence).toBe('moderate')
   })
 })
@@ -90,18 +96,22 @@ describe('buildCandidates identity (nation.id + alternateNames)', () => {
   const opts = { sourceLabel, graph }
 
   it('keys candidate id on the stable nation.id (not the normalized name)', () => {
-    const [candidate] = buildCandidates(lookups([
-      m('verified', 'Musqueam Indian Band', { verificationStatus: 'verified_institutional' }),
-    ]), opts)
+    const [candidate] = buildCandidates(
+      lookups([m('verified', 'Musqueam Indian Band', { verificationStatus: 'verified_institutional' })]),
+      opts,
+    )
     expect(candidate.id).toBe('musqueam')
     expect(candidate.preferredName).toBe('Musqueam Indian Band')
   })
 
   it('merges differently-named matches for one Nation via alternateNames', () => {
-    const candidates = buildCandidates(lookups([
-      m('verified', 'Musqueam Indian Band', { verificationStatus: 'verified_institutional', label: 'v' }),
-      m('nativeLand', 'xʷməθkʷəy̓əm', { label: 'nl' }),
-    ]), opts)
+    const candidates = buildCandidates(
+      lookups([
+        m('verified', 'Musqueam Indian Band', { verificationStatus: 'verified_institutional', label: 'v' }),
+        m('nativeLand', 'xʷməθkʷəy̓əm', { label: 'nl' }),
+      ]),
+      opts,
+    )
     expect(candidates).toHaveLength(1)
     expect(candidates[0].id).toBe('musqueam')
     expect(candidates[0].sources.verified).toBeDefined()

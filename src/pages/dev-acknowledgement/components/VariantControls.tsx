@@ -22,6 +22,9 @@ type VariantControlsProps = {
   onCustomWordingChange: (value: string) => void
   customWordingDirty?: boolean
   onResetCustomWording?: () => void
+  showVoice?: boolean
+  lockedOrganizationName?: string
+  showContextToggles?: boolean
 }
 
 export function VariantControls({
@@ -29,6 +32,9 @@ export function VariantControls({
   onCustomWordingChange,
   customWordingDirty = false,
   onResetCustomWording,
+  showVoice = true,
+  lockedOrganizationName,
+  showContextToggles = true,
   ...controls
 }: VariantControlsProps) {
   return (
@@ -49,7 +55,20 @@ export function VariantControls({
           </button>
         )}
       </div>
-      <WordingOptionsControls {...controls} />
+      {!showVoice && lockedOrganizationName && (
+        <div className="mb-3">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Voice</div>
+          <div className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-medium text-teal-900">
+            Organization · {lockedOrganizationName}
+          </div>
+        </div>
+      )}
+      <WordingOptionsControls {...controls} showVoice={showVoice} showContextToggles={showContextToggles} />
+      {customWordingDirty && (
+        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+          Manual edit active. Generator controls will be reflected after you reset the wording.
+        </p>
+      )}
       <textarea
         value={customWording}
         onChange={(event) => onCustomWordingChange(event.target.value)}

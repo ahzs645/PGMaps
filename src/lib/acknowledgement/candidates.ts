@@ -70,7 +70,6 @@ export function verificationConfidence(status: string | undefined): Confidence {
 function sourceConfidence(sources: Partial<Record<SourceKey, string>>): Confidence {
   const sourceCount = SOURCE_ORDER.filter((source) => sources[source]).length
   if (sourceCount >= 2) return 'strong'
-  if (sources.reserve) return 'strong'
   if (sources.treaty) return 'moderate'
   return 'review_required'
 }
@@ -91,46 +90,46 @@ export function buildCandidates(
   const byKey = new Map<string, CandidateNation>()
   const verifiedStatusByKey = new Map<string, { status?: string; rank: number }>()
 
-  Object.values(lookups).flatMap((lookup) => lookup.matches).forEach((match) => {
-    // Resolve every source's free-text Nation name to a stable nation.id when we
-    // can, so differently-named matches for one Nation merge into one candidate.
-    const nationId = aliasIndex ? resolveNationId(match.name, aliasIndex) : undefined
-    const displayName = nationId && graph ? nationName(graph, nationId) : match.name
-    const key = nationId ?? (normalizeName(match.name) || match.name)
-    const existing = byKey.get(key)
-    const nextSources = {
-      ...(existing?.sources ?? {}),
-      [match.source]: match.detail ? `${match.label}: ${match.detail}` : match.label,
-    }
+  Object.values(lookups)
+    .flatMap((lookup) => lookup.matches)
+    .forEach((match) => {
+      // Resolve every source's free-text Nation name to a stable nation.id when we
+      // can, so differently-named matches for one Nation merge into one candidate.
+      const nationId = aliasIndex ? resolveNationId(match.name, aliasIndex) : undefined
+      const displayName = nationId && graph ? nationName(graph, nationId) : match.name
+      const key = nationId ?? (normalizeName(match.name) || match.name)
+      const existing = byKey.get(key)
+      const nextSources = {
+        ...(existing?.sources ?? {}),
+        [match.source]: match.detail ? `${match.label}: ${match.detail}` : match.label,
+      }
 
-    if (match.source === 'verified') {
-      const rank = VERIFICATION_RANK[match.verificationStatus ?? ''] ?? 0
-      const prev = verifiedStatusByKey.get(key)
-      if (!prev || rank < prev.rank) verifiedStatusByKey.set(key, { status: match.verificationStatus, rank })
-    }
-    const verifiedStatus = verifiedStatusByKey.get(key)?.status
-    const confidence = nextSources.verified ? verificationConfidence(verifiedStatus) : sourceConfidence(nextSources)
+      if (match.source === 'verified') {
+        const rank = VERIFICATION_RANK[match.verificationStatus ?? ''] ?? 0
+        const prev = verifiedStatusByKey.get(key)
+        if (!prev || rank < prev.rank) verifiedStatusByKey.set(key, { status: match.verificationStatus, rank })
+      }
+      const verifiedStatus = verifiedStatusByKey.get(key)?.status
+      const confidence = nextSources.verified ? verificationConfidence(verifiedStatus) : sourceConfidence(nextSources)
 
-    const name = existing?.name ?? displayName
-    const sourceLabels = SOURCE_ORDER
-      .filter((source) => nextSources[source])
-      .map((source) => sourceLabel(source))
+      const name = existing?.name ?? displayName
+      const sourceLabels = SOURCE_ORDER.filter((source) => nextSources[source]).map((source) => sourceLabel(source))
 
-    byKey.set(key, {
-      id: existing?.id ?? nationId ?? candidateId(match.name),
-      name,
-      preferredName: existing?.preferredName ?? displayName,
-      confidence,
-      pronunciation: existing?.pronunciation ?? findPronunciation?.(displayName),
-      reason: `${name} appears in ${sourceLabels.join(', ')} for this location.`,
-      sources: nextSources,
-      notes: nextSources.verified
-        ? 'Curated relationship facts matched this place. Generated variants still need review before publication.'
-        : confidence === 'strong'
-        ? 'Multiple source signals are present. Final wording should still be reviewed.'
-        : 'Single-source match. Keep as context and confirm before using in final wording.',
+      byKey.set(key, {
+        id: existing?.id ?? nationId ?? candidateId(match.name),
+        name,
+        preferredName: existing?.preferredName ?? displayName,
+        confidence,
+        pronunciation: existing?.pronunciation ?? findPronunciation?.(displayName),
+        reason: `${name} appears in ${sourceLabels.join(', ')} for this location.`,
+        sources: nextSources,
+        notes: nextSources.verified
+          ? 'Curated relationship facts matched this place. Generated variants still need review before publication.'
+          : confidence === 'strong'
+            ? 'Multiple source signals are present. Final wording should still be reviewed.'
+            : 'Single-source match. Keep as context and confirm before using in final wording.',
+      })
     })
-  })
 
   return Array.from(byKey.values()).sort((left, right) => {
     const rank: Record<Confidence, number> = { strong: 0, moderate: 1, review_required: 2 }

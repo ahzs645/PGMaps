@@ -5,8 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.douglascollege.ca/about-douglas/college-initiatives/indigenous-initiatives",
   "note": "Coast Salish: Katzie, Kwantlen, Kwikwetlem, Musqueam, Qayqayt, Squamish, Tsawwassen, Tsleil-Waututh.",
-  "statement": "Douglas College respectfully acknowledges that our campuses are located on the unceded traditional and ancestral lands of the Coast Salish Peoples",
-  "statementKind": "exact_excerpt",
+  "statement": "Douglas College respectfully acknowledges that our campuses are located on the unceded traditional and ancestral lands of the Coast Salish Peoples, including the territories of the q̓íc̓əy̓ (Katzie), qʼʷa:n̓ƛʼən̓ (Kwantlen), kʷikʷəƛ̓əm (Kwikwetlem), xʷməθkʷəy̓əm (Musqueam), qiqéyt (Qayqayt), Skwxwú7mesh (Squamish), scəw̓aθən (Tsawwassen) and səlilwətaɬ (Tsleil-Waututh) Peoples.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Katzie",
     "Kwantlen",

@@ -5,8 +5,8 @@
   "framing": "single_specific",
   "sourceUrl": "https://www.saanich.ca/",
   "note": "lək̓ʷəŋən (Songhees, Esquimalt) and W̱SÁNEĆ (Tsartlip, Pauquachin, Tsawout, Tseycum, Malahat) peoples.",
-  "statement": "We acknowledge that the District of Saanich lies within the territories of the lək ̓ ʷəŋən peoples",
-  "statementKind": "exact_excerpt",
+  "statement": "We acknowledge that the District of Saanich lies within the territories of the lək ̓ ʷəŋən peoples represented by the Songhees and Esquimalt Nations and the W̱ SÁNEĆ peoples represented by the W̱ JOȽEȽP (Tsartlip), BOḰEĆEN (Pauquachin), SȾÁUTW̱ (Tsawout), W̱ SIḴEM (Tseycum) and MÁLEXEȽ (Malahat) Nations.",
+  "statementKind": "exact_statement",
   "acknowledges": [
     "Songhees Nation",
     "Esquimalt Nation",
@@ -25,7 +25,12 @@
       "acknowledges": [
         "Songhees Nation",
         "Esquimalt Nation",
-        "W̱SÁNEĆ Peoples"
+        "W̱SÁNEĆ Peoples",
+        "Tsartlip",
+        "Pauquachin",
+        "Tsawout",
+        "Tseycum",
+        "Malahat"
       ]
     }
   ]
