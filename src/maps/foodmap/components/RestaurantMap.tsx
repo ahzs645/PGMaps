@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import {
   MapMarker,
@@ -7,17 +7,19 @@ import {
   MarkerTooltip,
   useMap
 } from '@/components/ui/map'
+import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { getHazardRating, HAZARD_HEX_COLORS, HAZARD_TAILWIND } from '../hazard'
-import type { RestaurantWithStats, VisualizationMode } from '../types'
+import type { HazardRating, MarkerStyle, RestaurantWithStats, VisualizationMode } from '../types'
 
 interface RestaurantMapProps {
   restaurants: RestaurantWithStats[]
   selectedRestaurant: RestaurantWithStats | null
   visualizationMode: VisualizationMode
+  markerStyle?: MarkerStyle
   loading?: boolean
   onRestaurantClick: (restaurant: RestaurantWithStats) => void
   onViewInspections: (restaurant: RestaurantWithStats) => void
@@ -57,10 +59,164 @@ function getMarkerSize(violationCount: number, mode: VisualizationMode): number 
   return baseRadius + (maxRadius - baseRadius) * scale
 }
 
+/** Dark text on light marker fills (yellows), white text otherwise. */
+function getContrastTextColor(hex: string): string {
+  const value = hex.replace('#', '')
+  const r = parseInt(value.slice(0, 2), 16)
+  const g = parseInt(value.slice(2, 4), 16)
+  const b = parseInt(value.slice(4, 6), 16)
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000
+  return yiq >= 160 ? '#3b2f00' : '#ffffff'
+}
+
+interface MarkerDotProps {
+  markerStyle: MarkerStyle
+  color: string
+  size: number
+  violationCount: number
+  criticalCount: number
+  rating: HazardRating
+  visualizationMode: VisualizationMode
+  isSelected: boolean
+}
+
+const SELECTED_RING_CLASS =
+  'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-sky-300 dark:ring-offset-slate-950'
+
+/** Zoom level at which the 'heat' style trades the heatmap for individual dots. */
+const HEAT_REVEAL_ZOOM = 13
+
+/** Experimental marker dot renderers, switched by the `dots` URL param / sidebar select. */
+function MarkerDot({
+  markerStyle,
+  color,
+  size,
+  violationCount,
+  criticalCount,
+  rating,
+  visualizationMode,
+  isSelected,
+}: MarkerDotProps) {
+  // "Quiet" markers: nothing to flag, so they recede and let problem spots pop.
+  const isQuiet = visualizationMode === 'violations' ? violationCount === 0 : rating === 'Low'
+
+  if (markerStyle === 'rings') {
+    return (
+      <div
+        className={cn(
+          'cursor-pointer rounded-full transition-transform hover:scale-110',
+          'shadow-[0_1px_4px_rgba(0,0,0,0.35)] dark:shadow-[0_0_0_1px_rgba(0,0,0,0.6),0_1px_5px_rgba(0,0,0,0.6)]',
+          isSelected && SELECTED_RING_CLASS
+        )}
+        style={{
+          width: Math.max(size, 12),
+          height: Math.max(size, 12),
+          border: `2.5px solid ${color}`,
+          backgroundColor: `${color}2e`,
+        }}
+      />
+    )
+  }
+
+  if (markerStyle === 'glow') {
+    if (isQuiet) {
+      return (
+        <div
+          className={cn(
+            'cursor-pointer rounded-full transition-transform hover:scale-125',
+            isSelected && SELECTED_RING_CLASS
+          )}
+          style={{ width: 7, height: 7, backgroundColor: color, opacity: 0.55 }}
+        />
+      )
+    }
+    const glowSize = Math.max(size, 13)
+    const pulse = visualizationMode === 'violations' ? violationCount >= 6 : false
+    return (
+      <div className="relative" style={{ width: glowSize, height: glowSize }}>
+        {pulse && (
+          <span
+            className="absolute inset-0 animate-ping rounded-full"
+            style={{ backgroundColor: color, opacity: 0.4 }}
+          />
+        )}
+        <div
+          className={cn(
+            'absolute inset-0 cursor-pointer rounded-full border border-white/90 transition-transform hover:scale-110 dark:border-black/60',
+            isSelected && SELECTED_RING_CLASS
+          )}
+          style={{
+            backgroundColor: color,
+            boxShadow: `0 0 10px 2px ${color}80, 0 1px 3px rgba(0,0,0,0.4)`,
+          }}
+        />
+      </div>
+    )
+  }
+
+  if (markerStyle === 'badges') {
+    if (isQuiet) {
+      return (
+        <div
+          className={cn(
+            'cursor-pointer rounded-full border border-white/80 shadow-sm transition-transform hover:scale-125 dark:border-black/50',
+            isSelected && SELECTED_RING_CLASS
+          )}
+          style={{ width: 8, height: 8, backgroundColor: color, opacity: 0.8 }}
+        />
+      )
+    }
+    const label = visualizationMode === 'violations'
+      ? String(violationCount)
+      : rating === 'Unknown' ? '?' : rating.charAt(0)
+    const badgeSize = visualizationMode === 'violations'
+      ? 17 + Math.min(violationCount, 10)
+      : 18
+    return (
+      <div
+        className={cn(
+          'relative flex cursor-pointer items-center justify-center rounded-full border-2 border-white font-bold leading-none shadow-md transition-transform hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_6px_rgba(0,0,0,0.8)]',
+          isSelected && SELECTED_RING_CLASS
+        )}
+        style={{
+          width: badgeSize,
+          height: badgeSize,
+          backgroundColor: color,
+          color: getContrastTextColor(color),
+          fontSize: 10,
+        }}
+      >
+        {label}
+        {criticalCount > 0 && visualizationMode === 'violations' && (
+          <span
+            className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-white bg-red-600 dark:border-slate-950"
+          />
+        )}
+      </div>
+    )
+  }
+
+  // classic (current production style)
+  return (
+    <div
+      className={cn(
+        'cursor-pointer rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.95),0_8px_18px_rgba(0,0,0,0.6),0_0_12px_rgba(255,255,255,0.35)]',
+        isSelected && SELECTED_RING_CLASS
+      )}
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: color
+      }}
+    />
+  )
+}
+
 export function RestaurantMap({
   restaurants,
   selectedRestaurant,
   visualizationMode,
+  markerStyle = 'classic',
   loading = false,
   onRestaurantClick,
   onViewInspections,
@@ -73,6 +229,34 @@ export function RestaurantMap({
   const geocodedRestaurants = useMemo(() => {
     return restaurants.filter(r => r.latitude != null && r.longitude != null)
   }, [restaurants])
+
+  // 'heat' style: aggregate heatmap at city zoom, individual dots revealed on zoom-in.
+  const [dotsRevealed, setDotsRevealed] = useState(true)
+  useEffect(() => {
+    if (!map || markerStyle !== 'heat') {
+      setDotsRevealed(true)
+      return
+    }
+    const update = () => setDotsRevealed(map.getZoom() >= HEAT_REVEAL_ZOOM)
+    update()
+    map.on('zoom', update)
+    return () => { map.off('zoom', update) }
+  }, [map, markerStyle])
+
+  const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
+    type: 'FeatureCollection',
+    features: markerStyle !== 'heat' ? [] : geocodedRestaurants.map(r => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [r.longitude!, r.latitude!] },
+      properties: {
+        weight: visualizationMode === 'violations'
+          ? 0.3 + (r.violationStats?.total || 0)
+          : getHazardRating(r, { atDate: true }) === 'Moderate' ? 1.5 : 0.3,
+      },
+    })),
+  }), [geocodedRestaurants, markerStyle, visualizationMode])
+
+  const showMarkers = markerStyle !== 'heat' || dotsRevealed
 
   // Fly to selected restaurant
   useEffect(() => {
@@ -87,11 +271,21 @@ export function RestaurantMap({
 
   return (
     <SharedMap loading={loading} loadingLabel="Loading food safety data">
-      {geocodedRestaurants.map(restaurant => (
+      {markerStyle === 'heat' && (
+        <MapHeatmapLayer
+          data={heatmapData}
+          colorRamp="air"
+          intensityStops={[[10, 0.32], [13, 0.85]]}
+          radiusStops={[[10, 15], [13, 34]]}
+          opacity={[[0, 0.85], [HEAT_REVEAL_ZOOM - 1, 0.7], [HEAT_REVEAL_ZOOM + 0.8, 0]]}
+        />
+      )}
+      {showMarkers && geocodedRestaurants.map(restaurant => (
         <RestaurantMarker
           key={restaurant.details_url}
           restaurant={restaurant}
           visualizationMode={visualizationMode}
+          markerStyle={markerStyle}
           isSelected={selectedRestaurant?.details_url === restaurant.details_url}
           isMobileViewport={isMobileViewport}
           onClick={(event) => {
@@ -117,13 +311,14 @@ export function RestaurantMap({
 interface RestaurantMarkerProps {
   restaurant: RestaurantWithStats
   visualizationMode: VisualizationMode
+  markerStyle: MarkerStyle
   isSelected: boolean
   isMobileViewport: boolean
   onClick: (event: MouseEvent) => void
   onViewInspections: () => void
 }
 
-function RestaurantMarker({ restaurant, visualizationMode, isSelected, isMobileViewport, onClick, onViewInspections }: RestaurantMarkerProps) {
+function RestaurantMarker({ restaurant, visualizationMode, markerStyle, isSelected, isMobileViewport, onClick, onViewInspections }: RestaurantMarkerProps) {
   const { resolvedTheme } = useTheme()
   const isDarkMode = resolvedTheme === 'dark'
   const stats = restaurant.violationStats || {
@@ -151,16 +346,15 @@ function RestaurantMarker({ restaurant, visualizationMode, isSelected, isMobileV
       onClick={onClick}
     >
       <MarkerContent>
-        <div
-          className={cn(
-            'rounded-full border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.95),0_8px_18px_rgba(0,0,0,0.6),0_0_12px_rgba(255,255,255,0.35)]',
-            isSelected && 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-sky-300 dark:ring-offset-slate-950'
-          )}
-          style={{
-            width: size,
-            height: size,
-            backgroundColor: color
-          }}
+        <MarkerDot
+          markerStyle={markerStyle}
+          color={color}
+          size={size}
+          violationCount={stats.total}
+          criticalCount={stats.critical}
+          rating={getHazardRating(restaurant, { atDate: visualizationMode === 'hazard' })}
+          visualizationMode={visualizationMode}
+          isSelected={isSelected}
         />
       </MarkerContent>
 
