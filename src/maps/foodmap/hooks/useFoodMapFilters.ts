@@ -39,6 +39,7 @@ export const MARKER_STYLE_OPTIONS: readonly { value: MarkerStyle; label: string 
   { value: 'glow', label: 'Severity glow' },
   { value: 'badges', label: 'Count badges' },
   { value: 'heat', label: 'Heatmap reveal' },
+  { value: 'cluster', label: 'Cluster reveal' },
 ]
 const VIOLATION_TIMELINE_MODES: readonly ViolationTimelineMode[] = ['period', 'cumulative']
 

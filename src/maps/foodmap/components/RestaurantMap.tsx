@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo, useEffect, useState, useCallback } from 'react'
 import { useTheme } from 'next-themes'
 import {
   MapMarker,
@@ -8,6 +8,7 @@ import {
   useMap
 } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
+import { MapClusterLayer } from '@/components/ui/map-routes'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -85,6 +86,9 @@ const SELECTED_RING_CLASS =
 
 /** Zoom level at which the 'heat' style trades the heatmap for individual dots. */
 const HEAT_REVEAL_ZOOM = 13
+
+/** Zoom level at which the 'cluster' style trades count bubbles for individual dots. */
+const CLUSTER_REVEAL_ZOOM = 13.5
 
 /** Experimental marker dot renderers, switched by the `dots` URL param / sidebar select. */
 function MarkerDot({
@@ -230,18 +234,24 @@ export function RestaurantMap({
     return restaurants.filter(r => r.latitude != null && r.longitude != null)
   }, [restaurants])
 
-  // 'heat' style: aggregate heatmap at city zoom, individual dots revealed on zoom-in.
+  const { resolvedTheme } = useTheme()
+  const isDarkMode = resolvedTheme === 'dark'
+
+  // 'heat' and 'cluster' styles: aggregate view at city zoom, individual dots
+  // revealed on zoom-in.
+  const isRevealStyle = markerStyle === 'heat' || markerStyle === 'cluster'
+  const revealZoom = markerStyle === 'cluster' ? CLUSTER_REVEAL_ZOOM : HEAT_REVEAL_ZOOM
   const [dotsRevealed, setDotsRevealed] = useState(true)
   useEffect(() => {
-    if (!map || markerStyle !== 'heat') {
+    if (!map || !isRevealStyle) {
       setDotsRevealed(true)
       return
     }
-    const update = () => setDotsRevealed(map.getZoom() >= HEAT_REVEAL_ZOOM)
+    const update = () => setDotsRevealed(map.getZoom() >= revealZoom)
     update()
     map.on('zoom', update)
     return () => { map.off('zoom', update) }
-  }, [map, markerStyle])
+  }, [map, isRevealStyle, revealZoom])
 
   const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
     type: 'FeatureCollection',
@@ -256,7 +266,29 @@ export function RestaurantMap({
     })),
   }), [geocodedRestaurants, markerStyle, visualizationMode])
 
-  const showMarkers = markerStyle !== 'heat' || dotsRevealed
+  // Clustered source data: per-feature color matches what the DOM marker would
+  // show, so the unclustered layer dots look continuous with the revealed dots.
+  // Emptied once dots are revealed so the two renderings never double-draw.
+  const clusterData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
+    type: 'FeatureCollection',
+    features: markerStyle !== 'cluster' || dotsRevealed ? [] : geocodedRestaurants.map(r => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [r.longitude!, r.latitude!] },
+      properties: {
+        color: getMarkerColor(r, visualizationMode, isDarkMode),
+        details_url: r.details_url,
+      },
+    })),
+  }), [geocodedRestaurants, markerStyle, dotsRevealed, visualizationMode, isDarkMode])
+
+  const handleClusterPointClick = useCallback((feature: GeoJSON.Feature<GeoJSON.Point>) => {
+    const restaurant = geocodedRestaurants.find(
+      (r) => r.details_url === feature.properties?.details_url
+    )
+    if (restaurant) onRestaurantClick(restaurant)
+  }, [geocodedRestaurants, onRestaurantClick])
+
+  const showMarkers = !isRevealStyle || dotsRevealed
 
   // Fly to selected restaurant
   useEffect(() => {
@@ -271,6 +303,20 @@ export function RestaurantMap({
 
   return (
     <SharedMap loading={loading} loadingLabel="Loading food safety data">
+      {markerStyle === 'cluster' && (
+        <MapClusterLayer
+          data={clusterData}
+          clusterMaxZoom={CLUSTER_REVEAL_ZOOM - 0.5}
+          clusterRadius={46}
+          clusterColors={isDarkMode ? ['#64748b', '#546579', '#3f4d61'] : ['#8aa0b5', '#6e879d', '#42566a']}
+          clusterThresholds={[20, 60]}
+          clusterSizes={[15, 21, 28]}
+          circleOpacity={0.92}
+          circleStrokeWidth={2}
+          pointColor={['get', 'color']}
+          onPointClick={handleClusterPointClick}
+        />
+      )}
       {markerStyle === 'heat' && (
         <MapHeatmapLayer
           data={heatmapData}
