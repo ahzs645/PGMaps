@@ -1005,9 +1005,9 @@ function ProjectCatalogPage({
         <section className="flex min-h-0 flex-col rounded-lg border bg-background shadow-sm">
           <header className="border-b p-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-              <div className="min-w-0">
+              <div className="hidden min-w-0 sm:block">
                 <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-                <p className="mt-1 hidden max-w-2xl text-sm leading-6 text-muted-foreground sm:block">
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
                   Open a project to explore its map and story, or send its recipe to Index Lab and play with the
                   weights yourself.
                 </p>

@@ -253,7 +253,7 @@ export function MapLegendItem({
       type="button"
       disabled={disabled}
       className={cn(
-        'flex min-h-11 w-full items-center gap-1.5 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent disabled:pointer-events-none md:min-h-0 md:px-1 md:py-0.5',
+        'flex min-h-8 w-full items-center gap-1.5 rounded px-2 py-0.5 text-left text-xs transition-colors hover:bg-accent disabled:pointer-events-none md:min-h-0 md:px-1',
         className,
       )}
       {...props}
@@ -1010,7 +1010,7 @@ export function LegendItem({
         onClick={onClick}
         aria-pressed={active}
         className={cn(
-          'flex min-h-11 w-full items-center justify-between gap-2 rounded px-2 py-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:px-1 md:py-0.5',
+          'flex min-h-8 w-full items-center justify-between gap-2 rounded px-2 py-0.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:px-1',
           !active && 'text-muted-foreground',
           className,
         )}
