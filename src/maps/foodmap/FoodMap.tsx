@@ -436,7 +436,7 @@ export default function FoodMap() {
           >
             {/* Violations legend */}
             {visualizationMode === 'violations' && (
-              <div className="space-y-1">
+              <div className="space-y-0.5 md:space-y-1">
                 <div className="pb-0.5 text-xs leading-snug text-muted-foreground">{violationTimelineLabel}</div>
                 {violationBucketRows.map((bucket) => (
                   <LegendItem
@@ -453,7 +453,7 @@ export default function FoodMap() {
 
             {/* Hazard rating legend with counts */}
             {visualizationMode === 'hazard' && (
-              <div className="space-y-1">
+              <div className="space-y-0.5 md:space-y-1">
                 <LegendItem
                   color="#22c55e"
                   label="Low"

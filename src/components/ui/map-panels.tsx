@@ -951,7 +951,7 @@ export function MapLegendSection({
       ) : null}
       <div
         className={cn(
-          columns === 2 ? 'grid grid-cols-2 gap-x-3 gap-y-1' : 'space-y-1',
+          columns === 2 ? 'grid grid-cols-2 gap-x-3 gap-y-0.5 md:gap-y-1' : 'space-y-0.5 md:space-y-1',
           scroll && 'max-h-44 overflow-y-auto pr-1',
         )}
       >
@@ -1010,7 +1010,7 @@ export function LegendItem({
         onClick={onClick}
         aria-pressed={active}
         className={cn(
-          'flex min-h-7 w-full items-center justify-between gap-2 rounded px-2 py-0.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:px-1',
+          'flex w-full items-center justify-between gap-2 rounded px-2 py-0.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:px-1',
           !active && 'text-muted-foreground',
           className,
         )}
