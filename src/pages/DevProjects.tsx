@@ -799,15 +799,17 @@ function ProjectDetailSections({
   )
 }
 
-function ProjectBadges({ project }: { project: ProjectPackage }) {
+function ProjectBadges({ project, compact = false }: { project: ProjectPackage; compact?: boolean }) {
   return (
     <div className="mb-2 flex flex-wrap items-center gap-2">
       <span className={cn('rounded-md border px-2 py-0.5 text-xs font-semibold', accentClass(project))}>
         {KIND_LABELS[project.kind]}
       </span>
-      <span className="rounded-md border bg-muted/30 px-2 py-0.5 text-xs font-medium text-muted-foreground">
-        {project.status}
-      </span>
+      {!compact && (
+        <span className="rounded-md border bg-muted/30 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          {project.status}
+        </span>
+      )}
       {project.local && (
         <span className="rounded-md border border-dashed bg-muted/30 px-2 py-0.5 text-xs font-medium text-muted-foreground">
           Local
@@ -862,22 +864,24 @@ function ProjectCatalogMobileCard({
 
   return (
     <article className="overflow-hidden rounded-lg border bg-background shadow-sm">
-      <div className="p-4">
+      <div className="p-3">
         <div className="flex items-start gap-3">
           <span
-            className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white', iconClass(project))}
+            className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white', iconClass(project))}
           >
-            <FolderKanban className="h-5 w-5" />
+            <FolderKanban className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
-            <ProjectBadges project={project} />
-            <h2 className="text-base font-bold leading-tight text-foreground">{project.title}</h2>
+            <ProjectBadges project={project} compact />
+            <h2 className="text-sm font-bold leading-tight text-foreground">{project.title}</h2>
           </div>
         </div>
 
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">{project.summary}</p>
+        <p className={cn('mt-2 text-sm leading-6 text-muted-foreground', !expanded && 'line-clamp-2')}>
+          {project.summary}
+        </p>
 
-        <div className={cn('mt-3 grid grid-cols-2 gap-2', labUrl && 'sm:grid-cols-3')}>
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <Button type="button" size="sm" onClick={onOpen}>
             Enter Project
             <ArrowRight className="h-4 w-4" />
@@ -888,22 +892,24 @@ function ProjectCatalogMobileCard({
             aria-expanded={expanded}
             className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border bg-muted/20 px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50"
           >
-            {expanded ? 'Hide details' : 'Project details'}
+            {expanded ? 'Hide details' : 'Details'}
             <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')} />
           </button>
-          {labUrl && (
-            <Button asChild variant="outline" size="sm" className="col-span-2 sm:col-span-1">
-              <Link to={labUrl}>
-                <Settings2 className="h-4 w-4" />
-                Index Lab
-              </Link>
-            </Button>
-          )}
         </div>
       </div>
 
       {expanded && (
         <div className="border-t">
+          {labUrl && (
+            <div className="border-b p-3">
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link to={labUrl}>
+                  <Settings2 className="h-4 w-4" />
+                  Open in Index Lab
+                </Link>
+              </Button>
+            </div>
+          )}
           <ProjectDetailSections project={project} onRemove={onRemove} />
         </div>
       )}
@@ -1001,7 +1007,7 @@ function ProjectCatalogPage({
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div className="min-w-0">
                 <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                <p className="mt-1 hidden max-w-2xl text-sm leading-6 text-muted-foreground sm:block">
                   Open a project to explore its map and story, or send its recipe to Index Lab and play with the
                   weights yourself.
                 </p>
