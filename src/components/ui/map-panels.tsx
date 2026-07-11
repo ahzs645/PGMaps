@@ -253,7 +253,7 @@ export function MapLegendItem({
       type="button"
       disabled={disabled}
       className={cn(
-        'flex min-h-8 w-full items-center gap-1.5 rounded px-2 py-0.5 text-left text-xs transition-colors hover:bg-accent disabled:pointer-events-none md:min-h-0 md:px-1',
+        'flex w-full items-center gap-1.5 rounded px-2 py-0.5 text-left text-xs transition-colors hover:bg-accent disabled:pointer-events-none md:px-1',
         className,
       )}
       {...props}
