@@ -4,13 +4,14 @@ import difference from '@turf/difference'
 import intersect from '@turf/intersect'
 import union from '@turf/union'
 import createWebShareEngine from '@firstform/json-url/web-share'
-import { ArrowDown, ArrowUp, Check, ChevronUp, ChevronsUpDown, EyeOff, Focus, GitCompareArrows, GripVertical, Layers, Loader2, RotateCcw, Search, SquareStack, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronUp, ChevronsUpDown, Eye, EyeOff, Focus, GitCompareArrows, GripVertical, Layers, Loader2, Plus, RotateCcw, Search, SquareStack, X } from 'lucide-react'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Map, MapControls, MapPopup, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MapSidebarShell, SidebarSection, StatGrid } from '@/components/ui/map-panels'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import {
   BOUNDARY_SOURCE_OPTIONS,
   getDefaultLevelForSource,
@@ -25,6 +26,7 @@ import {
 } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { BC_CENTER } from '@/components/ui/map-styles'
 
 type LoadState = 'loading' | 'ready' | 'error'
@@ -943,6 +945,260 @@ function TrackMapBounds({
   return null
 }
 
+const STUDY_AREA_GROUP_ORDER = Array.from(
+  new Set(BOUNDARY_EXPLORER_SOURCE_OPTIONS.map((option) => option.group ?? 'Other')),
+)
+
+function StudyAreaPickerSearch({
+  value,
+  onChange,
+  className,
+}: {
+  value: string
+  onChange: (value: string) => void
+  className?: string
+}) {
+  return (
+    <div className={cn('relative', className)}>
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Search sources, categories, levels"
+        className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+      />
+    </div>
+  )
+}
+
+function StudyAreaPickerRows({
+  pickerQuery,
+  activeSources,
+  onToggleSource,
+  previewSource,
+  previewLoading = false,
+  onTogglePreview,
+}: {
+  pickerQuery: string
+  activeSources: BoundarySource[]
+  onToggleSource: (source: BoundarySource) => void
+  previewSource?: BoundarySource | null
+  previewLoading?: boolean
+  onTogglePreview?: (source: BoundarySource) => void
+}) {
+  const filteredGroups = useMemo(() => {
+    const normalized = pickerQuery.trim().toLowerCase()
+    return STUDY_AREA_GROUP_ORDER.map((group) => ({
+      group,
+      options: BOUNDARY_EXPLORER_SOURCE_OPTIONS.filter((option) => {
+        if ((option.group ?? 'Other') !== group) return false
+        if (!normalized) return true
+        const levelLabels = getLevelOptionsForSource(option.value).map((level) => level.label)
+        return [option.label, option.description, group, ...levelLabels]
+          .join(' ')
+          .toLowerCase()
+          .includes(normalized)
+      }),
+    })).filter(({ options }) => options.length > 0)
+  }, [pickerQuery])
+
+  if (filteredGroups.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+        No sources match "{pickerQuery}".
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {filteredGroups.map(({ group, options }) => (
+        <div key={group} className="space-y-1.5">
+          <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+            {group}
+          </div>
+          {options.map((option) => {
+            const active = activeSources.includes(option.value)
+            const levelCount = getLevelOptionsForSource(option.value).length
+            const previewed = previewSource === option.value
+            return (
+              <div key={option.value} className="flex items-stretch gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onToggleSource(option.value)}
+                  aria-pressed={active}
+                  className={cn(
+                    'min-w-0 flex-1 rounded-md border px-3 py-2 text-left transition-colors',
+                    active
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-input bg-background text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: SOURCE_COLORS[option.value].fill }}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium">{option.label}</span>
+                    <span className="shrink-0 rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
+                      {levelCount} level{levelCount === 1 ? '' : 's'}
+                    </span>
+                    {active && <Check className="size-3.5 shrink-0 text-primary" />}
+                  </div>
+                  <div className="mt-0.5 pl-[1.125rem] text-xs leading-4 text-muted-foreground">
+                    {option.description}
+                  </div>
+                </button>
+                {onTogglePreview && (
+                  <button
+                    type="button"
+                    onClick={() => onTogglePreview(option.value)}
+                    disabled={active}
+                    aria-pressed={previewed}
+                    aria-label={`Preview ${option.label} on the map`}
+                    title={active ? 'Already on the map' : previewed ? 'Hide map preview' : 'Preview on the map'}
+                    className={cn(
+                      'flex w-9 shrink-0 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+                      previewed
+                        ? 'border-sky-500 bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300'
+                        : 'border-input bg-background text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {previewed && previewLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : previewed ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function StudyAreaSourcePicker({
+  open,
+  onOpenChange,
+  activeSources,
+  onToggleSource,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  activeSources: BoundarySource[]
+  onToggleSource: (source: BoundarySource) => void
+}) {
+  const [pickerQuery, setPickerQuery] = useState('')
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      onOpenChange(nextOpen)
+      if (!nextOpen) setPickerQuery('')
+    },
+    [onOpenChange],
+  )
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent variant="sheet" elevated className="sm:max-w-md">
+        <div className="border-b border-border p-4 pb-3">
+          <DialogTitle className="text-base font-semibold text-foreground">Add study areas</DialogTitle>
+          <DialogDescription className="mt-0.5 text-xs text-muted-foreground">
+            Pick the boundary sets to layer on the map. Sources with a hierarchy let you switch levels after adding.
+          </DialogDescription>
+          <StudyAreaPickerSearch value={pickerQuery} onChange={setPickerQuery} className="mt-3" />
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <StudyAreaPickerRows
+            pickerQuery={pickerQuery}
+            activeSources={activeSources}
+            onToggleSource={onToggleSource}
+          />
+        </div>
+
+        <div className="border-t border-border p-3">
+          <button
+            type="button"
+            onClick={() => handleOpenChange(false)}
+            className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Done{activeSources.length > 0 ? ` · ${activeSources.length} active` : ''}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function StudyAreaPickerSidebarPanel({
+  onClose,
+  activeSources,
+  onToggleSource,
+  previewSource,
+  previewLoading,
+  onTogglePreview,
+}: {
+  onClose: () => void
+  activeSources: BoundarySource[]
+  onToggleSource: (source: BoundarySource) => void
+  previewSource: BoundarySource | null
+  previewLoading: boolean
+  onTogglePreview: (source: BoundarySource) => void
+}) {
+  const [pickerQuery, setPickerQuery] = useState('')
+
+  return (
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col bg-background md:border-r">
+      <div className="border-b border-border p-4 pb-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Back to study areas"
+            title="Back"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
+          <h2 className="text-sm font-semibold text-foreground">Add study areas</h2>
+        </div>
+        <p className="mt-2 text-xs leading-4 text-muted-foreground">
+          Pick the boundary sets to layer on the map. Use the eye to preview a source on the map before adding it.
+        </p>
+        <StudyAreaPickerSearch value={pickerQuery} onChange={setPickerQuery} className="mt-3" />
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <StudyAreaPickerRows
+          pickerQuery={pickerQuery}
+          activeSources={activeSources}
+          onToggleSource={onToggleSource}
+          previewSource={previewSource}
+          previewLoading={previewLoading}
+          onTogglePreview={onTogglePreview}
+        />
+      </div>
+
+      <div className="border-t border-border p-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Done{activeSources.length > 0 ? ` · ${activeSources.length} active` : ''}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function DevBoundaries() {
   const [searchParams] = useSearchParams()
   const initialShareTokenValue = searchParams.get('s')
@@ -982,6 +1238,9 @@ function DevBoundaries() {
     }, {} as Record<BoundarySource, number>)
   ))
   const [draggedSource, setDraggedSource] = useState<BoundarySource | null>(null)
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(false)
+  const [previewSource, setPreviewSource] = useState<BoundarySource | null>(null)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const token = initialShareToken.current
@@ -1054,6 +1313,17 @@ function DevBoundaries() {
     })
   ), [activeSources, sourceLevels])
 
+  // Picker map preview: a non-committed layer at the source's default level.
+  // Chunked census levels go through a different pipeline, so they are not
+  // previewable (the census default level 'ct' is not chunked).
+  const previewLayer = useMemo<ActiveLayer | null>(() => {
+    if (!previewSource || activeSources.includes(previewSource)) return null
+    const level = getDefaultLevelForSource(previewSource)
+    if (isChunkedCensusLevel(level)) return null
+    return { source: previewSource, level, key: cacheKey(previewSource, level) }
+  }, [activeSources, previewSource])
+  const previewEntry = previewLayer ? cache[previewLayer.key] : undefined
+
   const activeCensusChunkLevel = useMemo<ChunkedCensusLevel | null>(() => (
     activeLayers.find((layer): layer is ActiveLayer & { level: ChunkedCensusLevel } => (
       isChunkedCensusLayer(layer) && !isDbPmtilesLayer(layer)
@@ -1109,7 +1379,8 @@ function DevBoundaries() {
   const parentBoundaryOptions = useMemo(() => bcDaManifest?.parentBoundaries ?? [], [bcDaManifest])
 
   useEffect(() => {
-    const layersToLoad = activeLayers.filter((layer) => !isChunkedCensusLayer(layer) && !cache[layer.key])
+    const layersToLoad = [...activeLayers, ...(previewLayer ? [previewLayer] : [])]
+      .filter((layer) => !isChunkedCensusLayer(layer) && !cache[layer.key])
     if (layersToLoad.length === 0) return
 
     queueMicrotask(() => {
@@ -1143,7 +1414,7 @@ function DevBoundaries() {
           }))
         })
     })
-  }, [activeLayers, cache])
+  }, [activeLayers, cache, previewLayer])
 
   useEffect(() => {
     if (!activeCensusChunkLevel) return
@@ -1463,15 +1734,6 @@ function DevBoundaries() {
     }
   }, [boundariesShareState, shareStateReady])
 
-  const sourceGroups = useMemo(() => (
-    BOUNDARY_EXPLORER_SOURCE_OPTIONS.reduce<Record<string, typeof BOUNDARY_EXPLORER_SOURCE_OPTIONS>>((groups, option) => {
-      const group = option.group ?? 'Other'
-      groups[group] = groups[group] ?? []
-      groups[group].push(option)
-      return groups
-    }, {})
-  ), [])
-
   const clearPolygonFocusForScopes = useCallback((scopes: Set<string>) => {
     setSelectedPolygonFocuses((current) => current.filter((focus) => !scopes.has(focus.scope)))
     setIsolatedPolygonFocuses((current) => current.filter((focus) => !scopes.has(focus.scope)))
@@ -1503,6 +1765,20 @@ function DevBoundaries() {
     setCompareIds([])
     setLayerDifferenceMode(false)
   }, [activeSources, clearPolygonFocusForScopes, sourceLevels])
+
+  const handleSourcePickerOpenChange = useCallback((open: boolean) => {
+    setSourcePickerOpen(open)
+    if (!open) setPreviewSource(null)
+  }, [])
+
+  const handleTogglePreview = useCallback((source: BoundarySource) => {
+    setPreviewSource((current) => (current === source ? null : source))
+  }, [])
+
+  const handlePickerToggleSource = useCallback((source: BoundarySource) => {
+    toggleSource(source)
+    setPreviewSource((current) => (current === source ? null : current))
+  }, [toggleSource])
 
   const moveSource = useCallback((source: BoundarySource, direction: -1 | 1) => {
     setActiveSources((current) => {
@@ -1768,41 +2044,76 @@ function DevBoundaries() {
       subtitle="Compare study-area layers"
       titleClassName="text-base"
     >
-      <SidebarSection title="Study areas">
-        <div className="space-y-3">
-          {Object.entries(sourceGroups).map(([group, options]) => (
-            <div key={group} className="space-y-1.5">
-              <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
-                {group}
-              </div>
-              {options.map((option) => {
-                const active = activeSources.includes(option.value)
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => toggleSource(option.value)}
-                    className={cn(
-                      'w-full rounded-md border px-3 py-2 text-left transition-colors',
-                      active
-                        ? 'border-primary bg-primary/10 text-foreground'
-                        : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                    )}
-                    aria-pressed={active}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate text-xs font-medium">{option.label}</div>
-                        <div className="mt-0.5 text-xs leading-4 text-muted-foreground">{option.description}</div>
-                      </div>
-                      {active && <Check className="size-3.5 shrink-0 text-primary" />}
-                    </div>
-                  </button>
-                )
-              })}
+      <SidebarSection
+        title="Study areas"
+        actions={
+          <button
+            type="button"
+            onClick={() => handleSourcePickerOpenChange(true)}
+            className="inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Plus className="size-3.5" />
+            Add
+          </button>
+        }
+      >
+        {activeSources.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => handleSourcePickerOpenChange(true)}
+            className="w-full rounded-md border border-dashed bg-muted/20 p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
+          >
+            <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+              <Plus className="size-3.5 text-muted-foreground" />
+              Choose study areas
             </div>
-          ))}
-        </div>
+            <div className="mt-1 text-xs leading-4 text-muted-foreground">
+              {BOUNDARY_EXPLORER_SOURCE_OPTIONS.length} boundary sources across {STUDY_AREA_GROUP_ORDER.length}{' '}
+              categories.
+            </div>
+          </button>
+        ) : (
+          <div className="space-y-1.5">
+            {activeSources.map((source) => {
+              const option = BOUNDARY_EXPLORER_SOURCE_OPTIONS.find((candidate) => candidate.value === source)
+              const levelOptions = getLevelOptionsForSource(source)
+              const selectedLevel = sourceLevels[source] ?? getDefaultLevelForSource(source)
+              return (
+                <div
+                  key={source}
+                  className="flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5"
+                >
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: SOURCE_COLORS[source].fill }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-medium text-foreground">{option?.label ?? source}</div>
+                    <div className="truncate text-xs leading-4 text-muted-foreground">
+                      {getStudyAreaLevelLabel(selectedLevel)}
+                      {levelOptions.length > 1 && ` · ${levelOptions.length} levels`}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleSource(source)}
+                    aria-label={`Remove ${option?.label ?? source}`}
+                    title="Remove study area"
+                    className="flex size-6 shrink-0 items-center justify-center rounded border bg-background text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        <StudyAreaSourcePicker
+          open={sourcePickerOpen}
+          onOpenChange={handleSourcePickerOpenChange}
+          activeSources={activeSources}
+          onToggleSource={handlePickerToggleSource}
+        />
       </SidebarSection>
 
       <SidebarSection title="Hierarchy / variant" icon={SquareStack}>
@@ -2154,9 +2465,24 @@ function DevBoundaries() {
     </MapSidebarShell>
   )
 
+  // On desktop the picker takes over the sidebar instead of opening a modal,
+  // so the map stays visible for source previews. Mobile keeps the sheet dialog.
+  const sidebarContent = !isMobile && sourcePickerOpen ? (
+    <StudyAreaPickerSidebarPanel
+      onClose={() => handleSourcePickerOpenChange(false)}
+      activeSources={activeSources}
+      onToggleSource={handlePickerToggleSource}
+      previewSource={previewSource}
+      previewLoading={previewEntry?.state === 'loading'}
+      onTogglePreview={handleTogglePreview}
+    />
+  ) : (
+    sidebar
+  )
+
   return (
     <MapSectionLayout
-      sidebar={sidebar}
+      sidebar={sidebarContent}
       showDesktopSidebar={showSidebar}
       onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={410}
@@ -2281,6 +2607,19 @@ function DevBoundaries() {
             </Fragment>
           )
         })}
+        {previewLayer && (
+          <MapFillLayer
+            data={previewEntry && previewEntry.regions.length > 0
+              ? studyAreaRegionsToFeatureCollection(previewEntry.regions)
+              : EMPTY_COLLECTION}
+            fillColor={SOURCE_COLORS[previewLayer.source].fill}
+            fillOpacity={0.14}
+            lineColor={SOURCE_COLORS[previewLayer.source].line}
+            lineOpacity={0.9}
+            lineWidth={1.4}
+            idProperty="boundaryId"
+          />
+        )}
         {activeSurfaceDifference && activeDifferenceSurfaces && (
           <>
             <MapFillLayer

@@ -35,6 +35,26 @@ const pgDataTabLinks = PG_DATA_TABS.map(({ id, label, icon }) => ({
   icon,
 }))
 
+// Pages outside the primary nav still get a compact mobile title.
+const EXTRA_PAGE_LABELS: Record<string, string> = {
+  '/socioeconomic': 'Census',
+  '/dev': 'Dev Library',
+  '/dev/projects': 'Projects',
+  '/dev/boundaries': 'Boundaries',
+  '/dev/design': 'Design',
+  '/dev/interact': 'Interact',
+  '/dev/interact/sewage': 'Sewage',
+  '/dev/health/wait': 'Wait Times',
+  '/dev/health/wait/specialist': 'Wait Times',
+  '/dev/health/msp': 'MSP',
+  '/dev/fallout': 'Fallout',
+  '/dev/acknowledgement': 'Acknowledgement',
+  '/dev/networks': 'Networks',
+  '/dev/aqmap': 'AQ Map',
+  '/dev/aqmap/main': 'AQ Map',
+  '/dev/aqmap/ring': 'AQ Map',
+}
+
 export function Navbar() {
   const location = useLocation()
   const isHomePage = location.pathname === '/'
@@ -138,6 +158,12 @@ export function Navbar() {
     window.addEventListener('pgmaps:mobile-toolbar-visibility', handleToolbarVisibility)
     return () => window.removeEventListener('pgmaps:mobile-toolbar-visibility', handleToolbarVisibility)
   }, [closeMobileMenu])
+
+  const activeNavLabel =
+    navLinks.find(({ path }) => path !== '/' && isNavActive(path))?.label ??
+    EXTRA_PAGE_LABELS[location.pathname] ??
+    null
+  const mobileMenuLabel = activeNavLabel ?? 'PGMaps'
 
   const activeMobileSubmenu = mobileSubmenu === 'pgdata'
     ? { label: 'PG Data', links: pgDataTabLinks, isActive: isPgDataTabActive }
@@ -272,13 +298,13 @@ export function Navbar() {
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-navigation"
             className={cn(
-              'pointer-events-auto flex h-11 shrink-0 items-center gap-1.5 rounded-md border px-3 transition-colors md:hidden',
+              'pointer-events-auto flex h-11 min-w-0 items-center gap-1.5 rounded-md border px-3 transition-colors md:hidden',
               mobileGlassButtonClass,
               mobileMenuOpen && 'bg-white dark:bg-zinc-900',
             )}
           >
-            <span className="text-[22px] font-bold leading-none tracking-[-0.02em]">PGMaps</span>
-            <ChevronDown className={cn('size-3.5 transition-transform', mobileMenuOpen && 'rotate-180')} />
+            <span className="truncate text-[22px] font-bold leading-none tracking-[-0.02em]">{mobileMenuLabel}</span>
+            <ChevronDown className={cn('size-3.5 shrink-0 transition-transform', mobileMenuOpen && 'rotate-180')} />
           </button>
 
           <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] md:flex [&::-webkit-scrollbar]:hidden" aria-label="Primary navigation">
