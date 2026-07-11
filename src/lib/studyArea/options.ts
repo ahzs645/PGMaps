@@ -251,7 +251,9 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
 }
 
 export function getDefaultLevelForSource(source: BoundarySource): RegionLevel {
-  if (source === 'census') return 'ct'
+  // The default is the top of each source's hierarchy (the coarsest level),
+  // which is the first entry in every level list — including census, whose
+  // top level is the Census Division.
   return getLevelOptionsForSource(source)[0].value
 }
 
