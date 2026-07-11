@@ -200,11 +200,16 @@ export function ScoreBuilderMapLegend({
               </div>
             </>
           )}
-          {thinCoverageCount > 0 && (
-            <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-              {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'} have thin active-data coverage.
-            </div>
-          )}
+          {thinCoverageCount > 0 &&
+            (compact ? (
+              <div className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                Thin data in {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'}.
+              </div>
+            ) : (
+              <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                {thinCoverageCount} region{thinCoverageCount === 1 ? '' : 's'} have thin active-data coverage.
+              </div>
+            ))}
         </>
       )}
     </MapLegendPanel>
