@@ -48,7 +48,7 @@ const hazardCodec = emptyAwareArrayCodec(HAZARD_RATING_OPTIONS, HAZARD_RATING_OP
 const facilityCodec = emptyAwareArrayCodec(FACILITY_TYPE_OPTIONS, FACILITY_TYPE_OPTIONS)
 const searchCodec = stringCodec('')
 const modeCodec = stringUnionCodec(VISUALIZATION_MODES, 'violations')
-const markerStyleCodec = stringUnionCodec(MARKER_STYLE_OPTIONS.map((opt) => opt.value), 'classic')
+const markerStyleCodec = stringUnionCodec(MARKER_STYLE_OPTIONS.map((opt) => opt.value), 'cluster')
 const monthsCodec = numberCodec(12)
 const timelineModeCodec = stringUnionCodec(VIOLATION_TIMELINE_MODES, 'period')
 
