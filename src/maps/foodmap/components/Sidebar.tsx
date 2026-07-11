@@ -56,6 +56,11 @@ const hazardChipColors: Record<HazardRating, string> = {
   Unknown: '#6b7280',
 }
 
+// The dot style selector is experimental and hidden for now. Cluster reveal is
+// the default (see useFoodMapFilters). Keep the selector wired up so we can
+// expose the other marker styles again in the future.
+const SHOW_DOT_STYLE_SELECTOR = false
+
 export function Sidebar({
   className,
   data,
@@ -163,61 +168,64 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Experimental dot style selector */}
-      <div className="flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2">
-        <span className="text-xs text-muted-foreground">Dot style</span>
-        <AppSelect
-          value={filters.markerStyle}
-          onValueChange={(value) => filterActions.setMarkerStyle(value as MarkerStyle)}
-          options={MARKER_STYLE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
-          className="w-40"
-          triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
-        />
-      </div>
+      {/* Experimental dot style selector (hidden for now, kept for future use) */}
+      {SHOW_DOT_STYLE_SELECTOR && (
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-2">
+          <span className="text-xs text-muted-foreground">Dot style</span>
+          <AppSelect
+            value={filters.markerStyle}
+            onValueChange={(value) => filterActions.setMarkerStyle(value as MarkerStyle)}
+            options={MARKER_STYLE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+            className="w-40"
+            triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
+          />
+        </div>
+      )}
 
-      {/* Map count + Time selector */}
+      {/* Map count */}
       <div className="flex items-center justify-between border-b border-border bg-background/95 px-4 py-2">
         <span className="text-xs text-muted-foreground">
           {geocodedRestaurants?.length || 0} of {restaurants?.length || 0} on map
         </span>
-        {visualizationMode === 'violations' && (
-          <AppSelect
-            value={String(timelineMonths)}
-            onValueChange={(value) => filterActions.setTimelineMonths(parseInt(value))}
-            options={timelineOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
-            className="w-32"
-            triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
-          />
-        )}
       </div>
 
+      {/* Time window: Period/Cumulative toggle + range selector combined */}
       {visualizationMode === 'violations' && (
         <div className="border-b border-border bg-background/95 px-4 py-2">
-          <div className="mb-2 flex rounded-md bg-secondary p-0.5">
-            <button
-              onClick={() => filterActions.setViolationTimelineMode('period')}
-              className={cn(
-                'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
-                violationTimelineMode === 'period'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Period
-            </button>
-            <button
-              onClick={() => filterActions.setViolationTimelineMode('cumulative')}
-              className={cn(
-                'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
-                violationTimelineMode === 'cumulative'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Cumulative
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 rounded-md bg-secondary p-0.5">
+              <button
+                onClick={() => filterActions.setViolationTimelineMode('period')}
+                className={cn(
+                  'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                  violationTimelineMode === 'period'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                Period
+              </button>
+              <button
+                onClick={() => filterActions.setViolationTimelineMode('cumulative')}
+                className={cn(
+                  'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                  violationTimelineMode === 'cumulative'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                Cumulative
+              </button>
+            </div>
+            <AppSelect
+              value={String(timelineMonths)}
+              onValueChange={(value) => filterActions.setTimelineMonths(parseInt(value))}
+              options={timelineOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
+              className="w-28"
+              triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
+            />
           </div>
-          <div className="truncate text-xs text-muted-foreground">{violationTimelineLabel}</div>
+          <div className="mt-2 truncate text-xs text-muted-foreground">{violationTimelineLabel}</div>
         </div>
       )}
 

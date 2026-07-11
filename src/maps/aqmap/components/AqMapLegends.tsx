@@ -223,7 +223,7 @@ function StructuredWmsLegendContent({
 function FireDangerLegendContent({ variant = 'compact' }: { variant?: FireDangerLegendVariant }) {
   if (variant === 'rows') {
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-0.5 md:space-y-1.5">
         {FIRE_DANGER_LEGEND_BANDS.map((band) => (
           <div key={band.label} className="flex items-center gap-2 text-xs text-muted-foreground">
             <span
@@ -400,7 +400,7 @@ function SmokeLegendContent({ layer, locale }: { layer: SmokeLayerDefinition; lo
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-0.5 md:space-y-1.5">
       {layer.legend.map((band) => (
         <div key={band.label} className="flex items-center gap-2 text-xs">
           <span
@@ -453,14 +453,14 @@ function ActiveFiresLegend({
 function ActiveFiresLegendContent({ locale: _locale }: { locale: AqmapLocale }) {
   return (
     <div className="space-y-2">
-      <div className="space-y-1">
+      <div className="space-y-0.5 md:space-y-1">
         <div className="text-xs font-medium text-foreground">Stage of Control</div>
         <ActiveFireStageLegendItem color="#ef4444" label="Out of Control" />
         <ActiveFireStageLegendItem color="#facc15" label="Being Held" />
         <ActiveFireStageLegendItem color="#0ea5e9" label="Under Control" />
         <ActiveFireStageLegendItem color="#d946ef" label="Out of Control (Monitored)" />
       </div>
-      <div className="space-y-1">
+      <div className="space-y-0.5 md:space-y-1">
         <div className="text-xs font-medium text-foreground">Fire Size</div>
         <ActiveFireSizeLegendItem size="size-2" label="0 - 100ha" />
         <ActiveFireSizeLegendItem size="size-3" label="100 - 1000ha" />
