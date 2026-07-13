@@ -108,13 +108,8 @@ export function ScoreBuilderBuildView({
   onExportProjectPackage,
 }: ScoreBuilderBuildViewProps) {
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
-  const [studyAreaOpen, setStudyAreaOpen] = useState(false)
   const activeTerms = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0), [weights])
   const topRegions = scoredRegions.slice(0, 5)
-  const boundarySourceLabel =
-    SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS.find((option) => option.value === boundarySource)?.label ?? boundarySource
-  const boundaryLevelLabel =
-    boundaryLevelOptions.find((option) => option.value === selectedRegionLevel)?.label ?? selectedRegionLevel
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-muted/30">
@@ -137,42 +132,16 @@ export function ScoreBuilderBuildView({
         />
 
         <div className="order-1 space-y-3 border-b border-border p-4 lg:order-none lg:min-h-0 lg:overflow-y-auto lg:border-b-0">
-          <section className="rounded-lg border border-border bg-background p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Study area
-                </div>
-                <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
-                  {boundarySourceLabel === boundaryLevelLabel
-                    ? boundarySourceLabel
-                    : `${boundarySourceLabel} · ${boundaryLevelLabel}`}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setStudyAreaOpen((current) => !current)}
-                aria-expanded={studyAreaOpen}
-                className="shrink-0 rounded-md border border-input px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {studyAreaOpen ? 'Done' : 'Change'}
-              </button>
-            </div>
-            {studyAreaOpen && (
-              <div className="mt-3 border-t border-border pt-3">
-                <StudyAreaSelector<BoundarySource, RegionLevel>
-                  source={boundarySource}
-                  sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
-                  level={selectedRegionLevel}
-                  levelOptions={boundaryLevelOptions}
-                  onSourceChange={onBoundarySourceChange}
-                  onLevelChange={onRegionLevelChange}
-                  title=""
-                  dataPrefix="score-builder-build"
-                />
-              </div>
-            )}
-          </section>
+          <StudyAreaSelector<BoundarySource, RegionLevel>
+            source={boundarySource}
+            sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
+            level={selectedRegionLevel}
+            levelOptions={boundaryLevelOptions}
+            onSourceChange={onBoundarySourceChange}
+            onLevelChange={onRegionLevelChange}
+            sectionClassName="rounded-lg border border-border bg-background p-3"
+            dataPrefix="score-builder-build"
+          />
 
           <section className="rounded-lg border border-border bg-background p-3">
             <div className="mb-2">

@@ -103,6 +103,7 @@ const REGION_SOURCE_OPTIONS: Array<StudyAreaSourceOption<AssessmentBoundarySourc
     value: option.value as AssessmentBoundarySource,
     label: option.label,
     description: option.description,
+    group: option.group,
   }
 })
 

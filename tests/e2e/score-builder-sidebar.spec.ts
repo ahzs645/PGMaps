@@ -74,6 +74,12 @@ async function selectLevel(page: Page, label: string) {
   await page.getByRole('option', { name: label }).click()
 }
 
+async function chooseBoundarySource(page: Page, source: keyof typeof boundaryMatrix | 'cityCommunity') {
+  const studyArea = page.locator('[data-score-builder-left-panel="true"]')
+  await studyArea.getByRole('button', { name: 'Add', exact: true }).click()
+  await page.locator(`[data-score-builder-boundary-source="${source}"]`).click()
+}
+
 /** Loading a URL with weights collapses both side panels; reopen them so controls are reachable. */
 async function openPanels(page: Page) {
   for (const name of ['Show sidebar', 'Show right sidebar']) {
@@ -195,7 +201,7 @@ test.describe('Score Builder desktop interface', () => {
     // Cold start lands on the 31 CityPG community polygons.
     await expect(regionStats).toContainText('31 of 31 regions', { timeout: 20_000 })
 
-    await page.locator('[data-score-builder-boundary-source="census"]').click()
+    await chooseBoundarySource(page, 'census')
     await expect(regionStats).toContainText('23 of 23 regions', { timeout: 20_000 })
     await expectLevelOptions(page, ['Census Division', 'Census Subdivision', 'Census Tract', 'Dissemination Area', 'Dissemination Block'])
 
@@ -205,7 +211,7 @@ test.describe('Score Builder desktop interface', () => {
     await expect(errorMessage).toHaveCount(0)
     await expect(regionStats).toContainText('135 of 135 regions')
 
-    await page.locator('[data-score-builder-boundary-source="bcHealth"]').click()
+    await chooseBoundarySource(page, 'bcHealth')
     await expectLevelOptions(page, ['Health Authority', 'HSDA', 'LHA', 'CHSA'])
     await expect(levelTrigger).toContainText('CHSA')
     await expect(loadingMessage).toBeHidden({ timeout: 30_000 })
@@ -223,7 +229,7 @@ test.describe('Score Builder desktop interface', () => {
     await page.locator('[data-score-builder-tab="regions"]').click()
 
     for (const [source, levels] of Object.entries(boundaryMatrix)) {
-      await page.locator(`[data-score-builder-boundary-source="${source}"]`).click()
+      await chooseBoundarySource(page, source)
       await expectLevelOptions(page, levels.map((entry) => entry.label))
 
       for (const entry of levels) {
@@ -390,7 +396,7 @@ test.describe('Score Builder desktop interface', () => {
   })
 
   test('chsa mode only offers air-monitoring presets', async ({ page }) => {
-    await page.locator('[data-score-builder-boundary-source="bcHealth"]').click()
+    await chooseBoundarySource(page, 'bcHealth')
     await expect(levelSelectTrigger(page)).toContainText('CHSA')
     await expect(page).toHaveURL(/src=bcHealth/)
 

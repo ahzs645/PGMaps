@@ -29,6 +29,7 @@ export const CANUE_BOUNDARY_SOURCE_OPTIONS: Array<StudyAreaSourceOption<string>>
       value: option.value,
       label: option.label,
       description: option.description,
+      group: option.group,
       disabled: !supported,
       disabledReason: supported
         ? undefined

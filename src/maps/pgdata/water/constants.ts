@@ -102,6 +102,7 @@ export const WATER_SOURCE_OPTIONS: Array<StudyAreaSourceOption<WaterBoundarySour
         value: option.value,
         label: option.label,
         description: option.description,
+        group: option.group,
       },
     ]
   })
