@@ -74,7 +74,7 @@ async function selectLevel(page: Page, label: string) {
   await page.getByRole('option', { name: label }).click()
 }
 
-async function chooseBoundarySource(page: Page, source: keyof typeof boundaryMatrix | 'cityCommunity') {
+async function chooseBoundarySource(page: Page, source: string) {
   const studyArea = page.locator('[data-score-builder-left-panel="true"]')
   await studyArea.getByRole('button', { name: 'Add', exact: true }).click()
   await page.locator(`[data-score-builder-boundary-source="${source}"]`).click()
