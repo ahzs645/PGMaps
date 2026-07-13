@@ -14,9 +14,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { MapLoader, type MapLoaderVariant } from "./map-loader";
 import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from "./map-styles";
 import { MapContext, MapControls } from "./map";
 import { MapOverlayRoot } from "./map-overlays";
@@ -182,31 +182,12 @@ export function PersistentMapProvider({
   );
 }
 
-const PersistentMapLoader = ({ label = "Loading map data" }: { label?: string }) => (
-  <div
-    className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-background/45 backdrop-blur-[2px]"
-    role="status"
-    aria-live="polite"
-    aria-label={label}
-  >
-    <div className="relative flex h-28 w-28 items-center justify-center">
-      <span className="absolute h-24 w-24 rounded-full border border-sky-500/20" />
-      <span className="absolute h-20 w-20 animate-ping rounded-full border border-sky-500/25" />
-      <span className="absolute h-16 w-16 rounded-full border-2 border-sky-500/45 border-t-transparent animate-spin" />
-      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-background/95 shadow-lg">
-        <Loader2 className="h-5 w-5 animate-spin text-sky-600 dark:text-sky-400" aria-hidden="true" />
-      </div>
-    </div>
-    <span className="absolute translate-y-20 rounded-md border border-border bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
-      {label}
-    </span>
-  </div>
-);
-
 type PersistentMapHostProps = {
   className?: string;
   loading?: boolean;
   loadingLabel?: string;
+  /** Loading animation to show: "spinner" (default) or the ASCII "globe". */
+  loader?: MapLoaderVariant;
 };
 
 /**
@@ -215,7 +196,7 @@ type PersistentMapHostProps = {
  * on unmount it releases the container (the next host re-claims it), so the
  * MapLibre instance survives the route change.
  */
-export function PersistentMapHost({ className, loading = false, loadingLabel }: PersistentMapHostProps) {
+export function PersistentMapHost({ className, loading = false, loadingLabel, loader }: PersistentMapHostProps) {
   const { container, map, isLoaded, routeLoadingKey } = usePersistentMap();
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -306,9 +287,9 @@ export function PersistentMapHost({ className, loading = false, loadingLabel }: 
         }}
       />
       {routeLoading ? (
-        <PersistentMapLoader label="Switching map" />
+        <MapLoader label="Switching map" variant={loader} />
       ) : (!isLoaded || loading) ? (
-        <PersistentMapLoader label={loadingLabel} />
+        <MapLoader label={loadingLabel} variant={loader} />
       ) : null}
     </div>
   );
@@ -335,6 +316,8 @@ type SharedMapProps = {
   className?: string;
   loading?: boolean;
   loadingLabel?: string;
+  /** Loading animation to show: "spinner" (default) or the ASCII "globe". */
+  loader?: MapLoaderVariant;
   /**
    * Map controls to render. Defaults to zoom + compass at top-right. Pass
    * `null` to render none, or your own element to customize.
@@ -355,13 +338,14 @@ export function SharedMap({
   className,
   loading,
   loadingLabel,
+  loader,
   controls,
 }: SharedMapProps) {
   useMapBasemap(styles ?? MAP_STYLES);
 
   return (
     <MapOverlayRoot className={className} initializeVariables={false}>
-      <PersistentMapHost loading={loading} loadingLabel={loadingLabel} />
+      <PersistentMapHost loading={loading} loadingLabel={loadingLabel} loader={loader} />
       {controls === undefined ? (
         <MapControls
           position="top-right"
