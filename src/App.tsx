@@ -1,10 +1,11 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, Link } from 'react-router-dom'
-import { Loader2, MapPinned } from 'lucide-react'
+import { MapPinned } from 'lucide-react'
 import { Shell } from '@/components/layout/Shell'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SharedMapLayout } from '@/components/layout/SharedMapLayout'
 import { Button } from '@/components/ui/button'
+import { MapLoader } from '@/components/ui/map-loader'
 import Home from '@/pages/Home'
 
 const FoodMap = lazy(() => import('@/maps/foodmap').then(m => ({ default: m.FoodMap })))
@@ -18,6 +19,7 @@ const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then(m => (
 const DevLibrary = lazy(() => import('@/pages/DevLibrary'))
 const DevBoundaries = lazy(() => import('@/pages/DevBoundaries'))
 const DevDesign = lazy(() => import('@/pages/DevDesign'))
+const DevLoad = lazy(() => import('@/pages/DevLoad'))
 const DevInteract = lazy(() => import('@/pages/DevInteract'))
 const DevInteractSewage = lazy(() => import('@/pages/DevInteractSewage'))
 const DevWait = lazy(() => import('@/pages/DevWait'))
@@ -31,18 +33,8 @@ const AqMapSection = lazy(() => import('@/maps/aqmap').then(m => ({ default: m.A
 
 function RouteLoadingFallback() {
   return (
-    <div className="flex h-full min-h-64 items-center justify-center bg-background" role="status" aria-live="polite">
-      <div className="relative flex h-28 w-28 items-center justify-center">
-        <span className="absolute h-24 w-24 rounded-full border border-sky-500/20" />
-        <span className="absolute h-20 w-20 animate-ping rounded-full border border-sky-500/25" />
-        <span className="absolute h-16 w-16 rounded-full border-2 border-sky-500/45 border-t-transparent animate-spin" />
-        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-background shadow-lg">
-          <Loader2 className="h-5 w-5 animate-spin text-sky-600 dark:text-sky-400" aria-hidden="true" />
-        </div>
-      </div>
-      <span className="absolute translate-y-20 rounded-md border border-border bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
-        Loading map
-      </span>
+    <div className="relative h-full min-h-64 bg-background">
+      <MapLoader label="Loading map" />
     </div>
   )
 }
@@ -87,6 +79,7 @@ function App() {
           <Route path="/dev" element={<DevLibrary />} />
           <Route path="/dev/boundaries" element={<DevBoundaries />} />
           <Route path="/dev/design" element={<DevDesign />} />
+          <Route path="/dev/load" element={<DevLoad />} />
           <Route path="/dev/interact" element={<DevInteract />} />
           <Route path="/dev/interact/sewage" element={<DevInteractSewage />} />
           <Route path="/dev/wait" element={<Navigate to="/dev/health/wait" replace />} />

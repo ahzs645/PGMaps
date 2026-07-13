@@ -186,7 +186,7 @@ type PersistentMapHostProps = {
   className?: string;
   loading?: boolean;
   loadingLabel?: string;
-  /** Loading animation to show: "spinner" (default) or the ASCII "globe". */
+  /** Loading animation to show: the ASCII "globe" (default) or "spinner". */
   loader?: MapLoaderVariant;
 };
 
@@ -286,11 +286,11 @@ export function PersistentMapHost({ className, loading = false, loadingLabel, lo
           pointerStartRef.current = null;
         }}
       />
-      {routeLoading ? (
-        <MapLoader label="Switching map" variant={loader} />
-      ) : (!isLoaded || loading) ? (
-        <MapLoader label={loadingLabel} variant={loader} />
-      ) : null}
+      <MapLoader
+        visible={routeLoading || !isLoaded || loading}
+        label={routeLoading ? "Switching map" : loadingLabel}
+        variant={loader}
+      />
     </div>
   );
 }
@@ -316,7 +316,7 @@ type SharedMapProps = {
   className?: string;
   loading?: boolean;
   loadingLabel?: string;
-  /** Loading animation to show: "spinner" (default) or the ASCII "globe". */
+  /** Loading animation to show: the ASCII "globe" (default) or "spinner". */
   loader?: MapLoaderVariant;
   /**
    * Map controls to render. Defaults to zoom + compass at top-right. Pass

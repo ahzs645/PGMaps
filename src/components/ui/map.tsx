@@ -71,7 +71,7 @@ type MapProps = {
   onViewportChange?: (viewport: MapViewport) => void;
   /** Show a loading indicator on the map */
   loading?: boolean;
-  /** Loading animation to show: "spinner" (default) or the ASCII "globe". */
+  /** Loading animation to show: the ASCII "globe" (default) or "spinner". */
   loader?: MapLoaderVariant;
   /** Show the loading indicator during style swaps after the initial map load. */
   showStyleLoadingOverlay?: boolean;
@@ -302,7 +302,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
           pointerStartRef.current = null;
         }}
       >
-        {isLoading && <MapLoader variant={loader} />}
+        <MapLoader visible={isLoading} variant={loader} />
         {/* SSR-safe: children render only when map is loaded on client */}
         {mapInstance && children}
       </div>

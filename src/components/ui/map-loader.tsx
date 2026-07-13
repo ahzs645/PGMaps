@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { Loader2 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+
 export type MapLoaderVariant = "spinner" | "globe";
 
-/** Loader used when a map doesn't specify one. Flip to "globe" to change every map at once. */
-export const DEFAULT_MAP_LOADER: MapLoaderVariant = "spinner";
+/** Default loader for every map unless a specific map explicitly requests another variant. */
+export const DEFAULT_MAP_LOADER: MapLoaderVariant = "globe";
 
 // Rough land-mass ellipses [centerLat, centerLon, latRadius, lonRadius] — enough
 // silhouette for a thumbnail-sized globe without shipping real coastline data.
@@ -30,10 +32,17 @@ const LAND_CHARS = ["░", "▒", "▓", "█"];
 const OCEAN_CHARS = [" ", "·", ".", ":", "░"];
 
 /** Spinning ASCII globe rendered on canvas. Static frame under prefers-reduced-motion. */
-function AsciiGlobe() {
+const MAP_LOADER_EXIT_DURATION = 1700;
+
+function AsciiGlobe({ exiting }: { exiting: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const exitingRef = useRef(exiting);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+
+  useEffect(() => {
+    exitingRef.current = exiting;
+  }, [exiting]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -49,6 +58,8 @@ function AsciiGlobe() {
     let raf = 0;
     let rotation = 0.6;
     let last = performance.now();
+    let exitStartedAt = 0;
+    let wasExiting = exitingRef.current;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -72,6 +83,10 @@ function AsciiGlobe() {
       const cx = width / 2;
       const cy = height / 2;
       const tilt = (16 * Math.PI) / 180;
+      const exitProgress = exitingRef.current
+        ? Math.min(1, (performance.now() - exitStartedAt) / MAP_LOADER_EXIT_DURATION)
+        : 0;
+      const cut = exitProgress * 2;
 
       ctx.clearRect(0, 0, width, height);
       ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
@@ -87,6 +102,8 @@ function AsciiGlobe() {
           const nx = (px - cx) / radius;
           const r2 = nx * nx + ny * ny;
           if (r2 > 1) continue;
+          const edge = Math.sqrt(r2);
+          if (cut > 0 && edge < cut - 0.035) continue;
           const z = Math.sqrt(1 - r2);
           const latY = -ny * Math.cos(tilt) + z * Math.sin(tilt);
           const depth = ny * Math.sin(tilt) + z * Math.cos(tilt);
@@ -111,6 +128,9 @@ function AsciiGlobe() {
     const frame = (time: number) => {
       const dt = Math.min(0.05, (time - last) / 1000);
       last = time;
+      if (exitingRef.current && !wasExiting) exitStartedAt = time;
+      if (!exitingRef.current) exitStartedAt = 0;
+      wasExiting = exitingRef.current;
       rotation += (Math.PI / 6) * dt;
       draw();
       raf = requestAnimationFrame(frame);
@@ -141,23 +161,93 @@ function AsciiGlobe() {
 type MapLoaderProps = {
   label?: string;
   variant?: MapLoaderVariant;
+  /** Keep the loader mounted long enough to play its completion transition. */
+  visible?: boolean;
 };
 
 /** Full-map loading overlay shared by Map and the persistent shared map. */
-export function MapLoader({ label = "Loading map data", variant = DEFAULT_MAP_LOADER }: MapLoaderProps) {
+export function MapLoader({
+  label = "Loading map data",
+  variant = DEFAULT_MAP_LOADER,
+  visible = true,
+}: MapLoaderProps) {
+  const [phase, setPhase] = useState<"hidden" | "visible" | "exiting">(visible ? "visible" : "hidden");
+  const hasShownRef = useRef(visible);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    if (visible) {
+      hasShownRef.current = true;
+      frameRef.current = requestAnimationFrame(() => {
+        setPhase("visible");
+        frameRef.current = null;
+      });
+      return () => {
+        if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      };
+    }
+
+    if (!hasShownRef.current) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduceMotion) {
+      frameRef.current = requestAnimationFrame(() => {
+        setPhase("exiting");
+        frameRef.current = null;
+      });
+    }
+    timeoutRef.current = setTimeout(() => {
+      setPhase("hidden");
+      timeoutRef.current = null;
+    }, reduceMotion ? 0 : MAP_LOADER_EXIT_DURATION);
+
+    return () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [visible]);
+
+  if (phase === "hidden") return null;
+
+  const exiting = phase === "exiting";
+
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-background/45 backdrop-blur-[2px]"
-      role="status"
-      aria-live="polite"
-      aria-label={label}
+      className={cn(
+        "pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden transition-[background-color,backdrop-filter] duration-[1700ms] ease-in-out",
+        exiting ? "bg-background/0 backdrop-blur-0" : "bg-background/45 backdrop-blur-[2px]",
+      )}
+      role={visible ? "status" : undefined}
+      aria-live={visible ? "polite" : undefined}
+      aria-label={visible ? label : undefined}
+      aria-hidden={exiting || undefined}
     >
+      {exiting && (
+        <svg className="map-loader-bloom" aria-hidden="true">
+          <circle cx="50%" cy="50%" />
+        </svg>
+      )}
       {variant === "globe" ? (
         <div className="h-28 w-28">
-          <AsciiGlobe />
+          <AsciiGlobe exiting={exiting} />
         </div>
       ) : (
-        <div className="relative flex h-28 w-28 items-center justify-center">
+        <div
+          className={cn(
+            "relative flex h-28 w-28 items-center justify-center transition-[opacity,transform] duration-700",
+            exiting && "scale-125 opacity-0",
+          )}
+        >
           <span className="absolute h-24 w-24 rounded-full border border-sky-500/20" />
           <span className="absolute h-20 w-20 animate-ping rounded-full border border-sky-500/25" />
           <span className="absolute h-16 w-16 rounded-full border-2 border-sky-500/45 border-t-transparent animate-spin" />
@@ -166,7 +256,12 @@ export function MapLoader({ label = "Loading map data", variant = DEFAULT_MAP_LO
           </div>
         </div>
       )}
-      <span className="absolute translate-y-20 rounded-md border border-border bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
+      <span
+        className={cn(
+          "absolute translate-y-20 rounded-md border border-border bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-[opacity,transform] duration-300",
+          exiting && "translate-y-16 opacity-0",
+        )}
+      >
         {label}
       </span>
     </div>

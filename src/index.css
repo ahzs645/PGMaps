@@ -2,6 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes map-loader-bloom-out {
+  0% {
+    opacity: 0;
+    r: 0;
+  }
+  10% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.85;
+    r: 3.5rem;
+  }
+  100% {
+    opacity: 0;
+    r: 110vmax;
+  }
+}
+
+.map-loader-bloom {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.map-loader-bloom circle {
+  r: 0;
+  fill: none;
+  stroke: rgb(56 189 248 / 0.82);
+  stroke-width: 4;
+  vector-effect: non-scaling-stroke;
+  animation: map-loader-bloom-out 1700ms linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-loader-bloom {
+    animation: none;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

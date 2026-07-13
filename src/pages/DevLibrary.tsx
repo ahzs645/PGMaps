@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, FolderKanban, Handshake, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, FolderKanban, Handshake, Loader2, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Wind } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -46,6 +46,14 @@ const devEntries: DevEntry[] = [
     icon: Palette,
     color: 'bg-violet-600',
     label: '/dev/design',
+  },
+  {
+    title: 'Loading Screen',
+    description: 'Interactive preview for map loading animations, labels, visibility, and timing.',
+    href: '/dev/load',
+    icon: Loader2,
+    color: 'bg-sky-600',
+    label: '/dev/load',
   },
   {
     title: 'Interaction Lab',

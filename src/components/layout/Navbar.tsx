@@ -42,6 +42,7 @@ const EXTRA_PAGE_LABELS: Record<string, string> = {
   '/dev/projects': 'Projects',
   '/dev/boundaries': 'Boundaries',
   '/dev/design': 'Design',
+  '/dev/load': 'Map Loader',
   '/dev/interact': 'Interact',
   '/dev/interact/sewage': 'Sewage',
   '/dev/health/wait': 'Wait Times',
