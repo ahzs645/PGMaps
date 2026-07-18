@@ -486,9 +486,9 @@ export function WarsSourceNotes({ wars }: { wars: WarsState }) {
 }
 
 export function WarsLayer({ wars }: { wars: WarsState }) {
-  // Clusters render as species-split donut charts (shared MapPieClusterLayer,
-  // as on the food map) with no count in the centre; wedge order follows the
-  // speciesBreakdown so it matches the legend.
+  // Clusters render as species-split donut charts with the record count in
+  // the centre (shared MapPieClusterLayer, as on the food map); wedge order
+  // follows the speciesBreakdown so it matches the legend.
   const bandColors = useMemo(() => wars.speciesBreakdown.map((entry) => entry.color), [wars.speciesBreakdown])
 
   const clusterData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => {
@@ -538,7 +538,6 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
         <MapPieClusterLayer
           data={clusterData}
           bandColors={bandColors}
-          showCount={false}
           onPointClick={(properties) => {
             const featureKey = String(properties.featureKey ?? '')
             if (featureKey) wars.setSelectedId(wars.selectedId === featureKey ? null : featureKey)

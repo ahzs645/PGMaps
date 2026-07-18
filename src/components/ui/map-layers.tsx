@@ -777,12 +777,15 @@ function formatClusterCount(total: number): string {
 
 /**
  * Build the donut marker element for a cluster from its aggregated band
- * counts, with the total in the hollow centre when showCount is set.
+ * counts, with the total in the hollow centre when showCount is set. With a
+ * transparent centerStyle the hole shows the map through it and the count
+ * gets a white halo to stay legible.
  */
 function createDonutElement(
   props: Record<string, unknown>,
   bandColors: readonly string[],
   showCount: boolean,
+  centerStyle: 'white' | 'transparent',
 ): HTMLDivElement {
   const counts = bandColors.map((_, index) => Number(props[`band${index}`]) || 0)
   const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
@@ -798,14 +801,19 @@ function createDonutElement(
     segments.push(donutSegment(placed / n, (placed + count) / n, r, r0, bandColors[band]))
     placed += count
   })
+  const isWhiteCenter = centerStyle === 'white'
   const element = document.createElement('div')
   element.innerHTML =
     `<svg width="${w}" height="${w}" viewBox="0 0 ${w} ${w}" text-anchor="middle" ` +
     `style="display:block;font:700 ${fontSize}px system-ui,sans-serif;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));">` +
-    `<circle cx="${r}" cy="${r}" r="${r}" fill="#ffffff"/>` +
+    (isWhiteCenter ? `<circle cx="${r}" cy="${r}" r="${r}" fill="#ffffff"/>` : '') +
     segments.join('') +
-    `<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>` +
-    (showCount ? `<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a">${formatClusterCount(total)}</text>` : '') +
+    (isWhiteCenter ? `<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>` : '') +
+    (showCount
+      ? `<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a"` +
+        (isWhiteCenter ? '' : ' stroke="#ffffff" stroke-width="3" paint-order="stroke" stroke-linejoin="round"') +
+        `>${formatClusterCount(total)}</text>`
+      : '') +
     '</svg>'
   element.style.cursor = 'pointer'
   element.style.width = `${w}px`
@@ -824,6 +832,8 @@ type MapPieClusterLayerProps = {
   clusterRadius?: number
   /** Show the total point count in the hollow donut centre (default: true). */
   showCount?: boolean
+  /** Donut hole fill: solid 'white' disc or 'transparent' so the map shows through (default: 'white'). */
+  centerStyle?: 'white' | 'transparent'
   /** Stroke color around unclustered dots (default: '#ffffff'). */
   pointStrokeColor?: string
   /** Callback when an unclustered point is clicked — receives the feature's properties. */
@@ -836,6 +846,7 @@ function MapPieClusterLayer({
   clusterMaxZoom = 14,
   clusterRadius = 46,
   showCount = true,
+  centerStyle = 'white',
   pointStrokeColor = '#ffffff',
   onPointClick,
 }: MapPieClusterLayerProps) {
@@ -883,7 +894,7 @@ function MapPieClusterLayer({
         if (!marker) {
           const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
           const clusterId = props.cluster_id as number
-          const element = createDonutElement(props, bandColors, showCount)
+          const element = createDonutElement(props, bandColors, showCount, centerStyle)
           element.addEventListener('click', (domEvent) => {
             domEvent.stopPropagation()
             const source = currentMap.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
@@ -956,7 +967,7 @@ function MapPieClusterLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [isLoaded, map, data, bandColors, clusterMaxZoom, clusterRadius, showCount, pointStrokeColor, sourceId, pointLayerId])
+  }, [isLoaded, map, data, bandColors, clusterMaxZoom, clusterRadius, showCount, centerStyle, pointStrokeColor, sourceId, pointLayerId])
 
   return null
 }
