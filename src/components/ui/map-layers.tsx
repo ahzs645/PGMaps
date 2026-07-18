@@ -739,6 +739,219 @@ function MapHeatmapLayer({
   return null
 }
 
+// =============================================================================
+// MapPieClusterLayer
+// =============================================================================
+// Clusters render as donut charts whose arcs show the split of their points
+// across the caller's color bands; unclustered points show as dots in their
+// feature's marker color. Each feature must carry a numeric `bandIndex` into
+// `bandColors` plus a `color` string for its unclustered dot. Clicking a donut
+// zooms to the cluster's expansion zoom. Extracted from the food map's
+// pie-donut cluster mode (itself adapted from the dev aqmap ring mode).
+
+/**
+ * SVG path for one donut wedge spanning [start, end] (fractions of the circle).
+ * Stroke matches the fill so neighbouring arcs seal into one continuous ring.
+ */
+function donutSegment(start: number, end: number, r: number, r0: number, color: string): string {
+  if (end - start >= 1) end -= 0.0001
+  const a0 = 2 * Math.PI * (start - 0.25)
+  const a1 = 2 * Math.PI * (end - 0.25)
+  const x0 = Math.cos(a0)
+  const y0 = Math.sin(a0)
+  const x1 = Math.cos(a1)
+  const y1 = Math.sin(a1)
+  const largeArc = end - start > 0.5 ? 1 : 0
+  const d =
+    `M ${r + r0 * x0} ${r + r0 * y0} L ${r + r * x0} ${r + r * y0} ` +
+    `A ${r} ${r} 0 ${largeArc} 1 ${r + r * x1} ${r + r * y1} ` +
+    `L ${r + r0 * x1} ${r + r0 * y1} A ${r0} ${r0} 0 ${largeArc} 0 ${r + r0 * x0} ${r + r0 * y0}`
+  return `<path d="${d}" fill="${color}" stroke="${color}" stroke-width="0.75" stroke-linejoin="round"/>`
+}
+
+/** Build the donut marker element for a cluster from its aggregated band counts. */
+function createDonutElement(
+  props: Record<string, unknown>,
+  bandColors: readonly string[],
+  showCount: boolean,
+): HTMLDivElement {
+  const counts = bandColors.map((_, index) => Number(props[`band${index}`]) || 0)
+  const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
+  const r = total >= 50 ? 24 : total >= 25 ? 21 : total >= 10 ? 18 : 15
+  const r0 = Math.round(r * 0.62)
+  const w = r * 2
+  const fontSize = total >= 50 ? 13 : total >= 10 ? 12 : 11
+  const n = Math.max(total, 1)
+  const segments: string[] = []
+  let placed = 0
+  counts.forEach((count, band) => {
+    if (count <= 0) return
+    segments.push(donutSegment(placed / n, (placed + count) / n, r, r0, bandColors[band]))
+    placed += count
+  })
+  const element = document.createElement('div')
+  element.innerHTML =
+    `<svg width="${w}" height="${w}" viewBox="0 0 ${w} ${w}" text-anchor="middle" ` +
+    `style="display:block;font:700 ${fontSize}px system-ui,sans-serif;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));">` +
+    `<circle cx="${r}" cy="${r}" r="${r}" fill="#ffffff"/>` +
+    segments.join('') +
+    `<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>` +
+    (showCount ? `<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a">${total}</text>` : '') +
+    '</svg>'
+  element.style.cursor = 'pointer'
+  element.style.width = `${w}px`
+  element.style.height = `${w}px`
+  return element
+}
+
+type MapPieClusterLayerProps = {
+  /** GeoJSON points carrying `bandIndex` (wedge tally) and `color` (unclustered dot) properties. */
+  data: GeoJSON.FeatureCollection<GeoJSON.Point>
+  /** Wedge color per band, indexed by each feature's `bandIndex`. */
+  bandColors: readonly string[]
+  /** Maximum zoom level to cluster points on (default: 14). */
+  clusterMaxZoom?: number
+  /** Cluster radius in pixels (default: 46). */
+  clusterRadius?: number
+  /** Show the total point count in the donut centre (default: true). */
+  showCount?: boolean
+  /** Stroke color around unclustered dots (default: '#ffffff'). */
+  pointStrokeColor?: string
+  /** Callback when an unclustered point is clicked — receives the feature's properties. */
+  onPointClick?: (properties: Record<string, unknown>) => void
+}
+
+function MapPieClusterLayer({
+  data,
+  bandColors,
+  clusterMaxZoom = 14,
+  clusterRadius = 46,
+  showCount = true,
+  pointStrokeColor = '#ffffff',
+  onPointClick,
+}: MapPieClusterLayerProps) {
+  const { map, isLoaded } = useMap()
+  const uid = useId().replace(/:/g, '')
+  const sourceId = `pie-cluster-src-${uid}`
+  const pointLayerId = `pie-cluster-points-${uid}`
+  const onPointClickRef = useRef(onPointClick)
+
+  useEffect(() => {
+    onPointClickRef.current = onPointClick
+  }, [onPointClick])
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    const currentMap = map
+    let cancelled = false
+    const markers: Record<string, MapLibreGL.Marker> = {}
+    let markersOnScreen: Record<string, MapLibreGL.Marker> = {}
+
+    const clusterProperties: Record<string, MapLibreGL.ExpressionSpecification> = {}
+    bandColors.forEach((_, index) => {
+      clusterProperties[`band${index}`] = ['+', ['case', ['==', ['get', 'bandIndex'], index], 1, 0]]
+    })
+
+    const handlePointClick = (event: MapLibreGL.MapMouseEvent) => {
+      const rendered = currentMap.queryRenderedFeatures(event.point, { layers: [pointLayerId] })
+      const properties = rendered[0]?.properties
+      if (!properties) return
+      event.preventDefault()
+      event.originalEvent?.preventDefault()
+      dispatchMobileMapFeatureClick()
+      onPointClickRef.current?.(properties)
+    }
+    const handlePointEnter = () => { currentMap.getCanvas().style.cursor = 'pointer' }
+    const handlePointLeave = () => { currentMap.getCanvas().style.cursor = '' }
+
+    const updateMarkers = () => {
+      const newMarkers: Record<string, MapLibreGL.Marker> = {}
+      for (const feature of currentMap.querySourceFeatures(sourceId)) {
+        const props = feature.properties as Record<string, unknown> | null
+        if (!props || !props.cluster) continue
+        const id = `cluster-${props.cluster_id}`
+        let marker = markers[id]
+        if (!marker) {
+          const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
+          const clusterId = props.cluster_id as number
+          const element = createDonutElement(props, bandColors, showCount)
+          element.addEventListener('click', (domEvent) => {
+            domEvent.stopPropagation()
+            const source = currentMap.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
+            if (!source) return
+            dispatchMobileMapFeatureClick()
+            void source.getClusterExpansionZoom(clusterId).then((zoom) => {
+              currentMap.easeTo({ center: coordinates, zoom, duration: 450 })
+            })
+          })
+          marker = markers[id] = new MapLibreGLRuntime.Marker({ element }).setLngLat(coordinates)
+        }
+        newMarkers[id] = marker
+        if (!markersOnScreen[id]) marker.addTo(currentMap)
+      }
+      for (const id of Object.keys(markersOnScreen)) {
+        if (!newMarkers[id]) markersOnScreen[id].remove()
+      }
+      markersOnScreen = newMarkers
+    }
+
+    const handleRender = () => {
+      if (cancelled || !currentMap.isSourceLoaded(sourceId)) return
+      updateMarkers()
+    }
+
+    if (!currentMap.getSource(sourceId)) {
+      currentMap.addSource(sourceId, {
+        type: 'geojson',
+        data,
+        cluster: true,
+        clusterMaxZoom,
+        clusterRadius,
+        clusterProperties,
+      })
+    }
+    if (!currentMap.getLayer(pointLayerId)) {
+      currentMap.addLayer({
+        id: pointLayerId,
+        type: 'circle',
+        source: sourceId,
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-color': ['get', 'color'] as MapLibreGL.ExpressionSpecification,
+          'circle-radius': 6,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': pointStrokeColor,
+        },
+      })
+    }
+    currentMap.on('render', handleRender)
+    currentMap.on('click', pointLayerId, handlePointClick)
+    currentMap.on('mouseenter', pointLayerId, handlePointEnter)
+    currentMap.on('mouseleave', pointLayerId, handlePointLeave)
+    if (currentMap.isSourceLoaded(sourceId)) updateMarkers()
+
+    return () => {
+      cancelled = true
+      currentMap.off('render', handleRender)
+      currentMap.off('click', pointLayerId, handlePointClick)
+      currentMap.off('mouseenter', pointLayerId, handlePointEnter)
+      currentMap.off('mouseleave', pointLayerId, handlePointLeave)
+      Object.values(markersOnScreen).forEach((marker) => marker.remove())
+      Object.values(markers).forEach((marker) => marker.remove())
+      markersOnScreen = {}
+      try {
+        currentMap.getCanvas().style.cursor = ''
+        if (currentMap.getLayer(pointLayerId)) currentMap.removeLayer(pointLayerId)
+        if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId)
+      } catch {
+        // MapLibre can throw during style teardown.
+      }
+    }
+  }, [isLoaded, map, data, bandColors, clusterMaxZoom, clusterRadius, showCount, pointStrokeColor, sourceId, pointLayerId])
+
+  return null
+}
+
 type MapPmtilesFillLayerProps = {
   url: string
   sourceLayer: string
@@ -1014,11 +1227,12 @@ function MapPmtilesFillLayer({
   return null
 }
 
-export { MapFillLayer, MapLineLayer, MapRasterLayer, MapHeatmapLayer, MapPmtilesFillLayer }
+export { MapFillLayer, MapLineLayer, MapRasterLayer, MapHeatmapLayer, MapPieClusterLayer, MapPmtilesFillLayer }
 export type {
   MapFillLayerProps,
   MapLineLayerProps,
   MapRasterLayerProps,
   MapHeatmapLayerProps,
+  MapPieClusterLayerProps,
   MapPmtilesFillLayerProps,
 }

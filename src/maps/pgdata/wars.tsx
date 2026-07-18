@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { PawPrint } from 'lucide-react'
-import { MapClusterLayer, MapMarker, MarkerContent } from '@/components/ui/map'
-import { MapHeatmapLayer } from '@/components/ui/map-layers'
+import { MapMarker, MarkerContent } from '@/components/ui/map'
+import { MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
@@ -59,10 +59,6 @@ interface WarsCrashProperties {
   sourceFile: string
 }
 
-type WarsPointProperties = WarsCrashProperties & {
-  featureKey: string
-}
-
 type WarsFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, WarsCrashProperties>
 
 const ALL_SPECIES = 'all'
@@ -96,18 +92,6 @@ function hashSpeciesName(name: string): number {
 function getSpeciesColor(species: string): string {
   if (SPECIES_COLORS[species]) return SPECIES_COLORS[species]
   return SPECIES_FALLBACK_COLORS[hashSpeciesName(species) % SPECIES_FALLBACK_COLORS.length]
-}
-
-function hexToRgba(hex: string, alpha: number): string {
-  const cleaned = hex.replace('#', '')
-  const full = cleaned.length === 3
-    ? cleaned.split('').map((char) => char + char).join('')
-    : cleaned
-
-  const r = parseInt(full.slice(0, 2), 16)
-  const g = parseInt(full.slice(2, 4), 16)
-  const b = parseInt(full.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function getWarsMarkerSize(quantity: number): number {
@@ -502,30 +486,29 @@ export function WarsSourceNotes({ wars }: { wars: WarsState }) {
 }
 
 export function WarsLayer({ wars }: { wars: WarsState }) {
-  const collectionsBySpecies = useMemo(() => {
-    const grouped = new Map<string, GeoJSON.FeatureCollection<GeoJSON.Point, WarsPointProperties>>()
+  // Clusters render as species-split donut charts (shared MapPieClusterLayer,
+  // as on the food map) with no count in the centre; wedge order follows the
+  // speciesBreakdown so it matches the legend.
+  const bandColors = useMemo(() => wars.speciesBreakdown.map((entry) => entry.color), [wars.speciesBreakdown])
 
-    wars.filteredFeatures.forEach((feature, index) => {
-      const species = feature.properties.species || 'Unknown'
-      if (!grouped.has(species)) {
-        grouped.set(species, {
-          type: 'FeatureCollection',
-          features: [],
-        })
-      }
-
-      grouped.get(species)?.features.push({
-        ...feature,
-        properties: {
-          ...feature.properties,
-          species,
-          featureKey: getWarsFeatureKey(feature, index),
-        },
-      })
-    })
-
-    return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [wars.filteredFeatures])
+  const clusterData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => {
+    const bandIndexBySpecies = new Map(wars.speciesBreakdown.map((entry, index) => [entry.name, index]))
+    return {
+      type: 'FeatureCollection',
+      features: wars.filteredFeatures.map((feature, index) => {
+        const species = feature.properties.species || 'Unknown'
+        return {
+          type: 'Feature' as const,
+          geometry: feature.geometry,
+          properties: {
+            color: getSpeciesColor(species),
+            bandIndex: bandIndexBySpecies.get(species) ?? 0,
+            featureKey: getWarsFeatureKey(feature, index),
+          },
+        }
+      }),
+    }
+  }, [wars.filteredFeatures, wars.speciesBreakdown])
 
   return (
     <>
@@ -551,28 +534,17 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
         />
       )}
 
-      {wars.showPoints && collectionsBySpecies.map(([species, collection]) => {
-        const color = getSpeciesColor(species)
-        const clusterColors: [string, string, string] = [
-          hexToRgba(color, 0.65),
-          hexToRgba(color, 0.8),
-          color,
-        ]
-
-        return (
-          <MapClusterLayer<WarsPointProperties>
-            key={species}
-            data={collection}
-            pointColor={color}
-            clusterColors={clusterColors}
-            clusterThresholds={[25, 100]}
-            onPointClick={(feature) => {
-              const featureKey = feature.properties?.featureKey
-              if (featureKey) wars.setSelectedId(wars.selectedId === featureKey ? null : featureKey)
-            }}
-          />
-        )
-      })}
+      {wars.showPoints && (
+        <MapPieClusterLayer
+          data={clusterData}
+          bandColors={bandColors}
+          showCount={false}
+          onPointClick={(properties) => {
+            const featureKey = String(properties.featureKey ?? '')
+            if (featureKey) wars.setSelectedId(wars.selectedId === featureKey ? null : featureKey)
+          }}
+        />
+      )}
 
       {wars.showPoints && wars.selectedCrash && (() => {
         const [longitude, latitude] = wars.selectedCrash.geometry.coordinates
