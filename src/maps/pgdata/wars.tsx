@@ -65,6 +65,32 @@ const ALL_SPECIES = 'all'
 const ALL_YEARS = 'all'
 const RECENT_YEARS = 'recent'
 
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
+
+// ~1 km bins at Prince George's latitude, used to find recurrent-strike sites.
+const HOTSPOT_LAT_BIN = 0.009
+const HOTSPOT_LON_BIN = 0.0153
+const HOTSPOT_MIN_YEARS = 3
+
+interface WarsHotspotCell {
+  key: string
+  longitude: number
+  latitude: number
+  recordCount: number
+  yearCount: number
+}
+
+function getHotspotColor(yearCount: number): string {
+  if (yearCount >= 10) return '#dc2626'
+  if (yearCount >= 5) return '#ea580c'
+  return '#f59e0b'
+}
+
+function getHotspotSize(yearCount: number): number {
+  return 18 + Math.min(yearCount, 20) * 1.2
+}
+
 const SPECIES_COLORS: Record<string, string> = {
   Moose: '#92400e',
   Deer: '#d97706',
@@ -114,16 +140,31 @@ function parseAccidentDate(properties: WarsCrashProperties): Date | null {
   return null
 }
 
+/**
+ * Month (0-11) read from the ISO date string. Parsing via `new Date()` and
+ * `getMonth()` would shift first-of-month records into the previous month in
+ * timezones west of UTC, so the string is the source of truth.
+ */
+function getAccidentMonth(properties: WarsCrashProperties): number | null {
+  const match = /^\d{4}-(\d{2})/.exec(properties.accidentDate ?? '')
+  if (!match) return null
+  const month = Number(match[1]) - 1
+  return month >= 0 && month <= 11 ? month : null
+}
+
 export function useWarsData(
   active: boolean,
   initialSpecies: string | null,
   initialShowPoints: string | null = null,
   initialShowHeatmap: string | null = null,
+  initialShowHotspots: string | null = null,
 ) {
   const [selectedSpecies, setSelectedSpeciesState] = useState<string>(initialSpecies || ALL_SPECIES)
   const [hiddenSpecies, setHiddenSpecies] = useState<string[]>([])
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
+  const [showHotspots, setShowHotspots] = useState<boolean>(initialShowHotspots === '1')
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([])
   const [yearMode, setYearModeState] = useState<string>(ALL_YEARS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [timelineEnabled, setTimelineEnabled] = useState(false)
@@ -140,6 +181,16 @@ export function useWarsData(
   }, [])
   const setYearMode = useCallback((mode: string) => {
     setYearModeState(mode)
+    setSelectedId(null)
+  }, [])
+  const toggleMonth = useCallback((month: number) => {
+    setSelectedMonths((current) => (
+      current.includes(month) ? current.filter((item) => item !== month) : [...current, month]
+    ))
+    setSelectedId(null)
+  }, [])
+  const clearMonths = useCallback(() => {
+    setSelectedMonths([])
     setSelectedId(null)
   }, [])
   const yearEnd = manifest.data?.yearEnd ?? null
@@ -194,7 +245,9 @@ export function useWarsData(
     }
   }, [timelineEnabled, effectiveTimelineDate, timelineWindowSize, accidentDateRange.start])
 
-  const filteredFeatures = useMemo(() => {
+  // Timeline-filtered but month-agnostic, so the monthly chart keeps showing
+  // the full seasonal distribution while a month filter is active.
+  const timelineFilteredFeatures = useMemo(() => {
     if (!timelineFilterRange) return baseFilteredFeatures
     const { start, end } = timelineFilterRange
     return baseFilteredFeatures.filter((feature) => {
@@ -205,20 +258,41 @@ export function useWarsData(
     })
   }, [baseFilteredFeatures, timelineFilterRange])
 
+  const filteredFeatures = useMemo(() => {
+    if (selectedMonths.length === 0) return timelineFilteredFeatures
+    return timelineFilteredFeatures.filter((feature) => {
+      const month = getAccidentMonth(feature.properties)
+      return month != null && selectedMonths.includes(month)
+    })
+  }, [timelineFilteredFeatures, selectedMonths])
+
+  const monthlyBreakdown = useMemo(() => {
+    const counts = new Array<number>(12).fill(0)
+    for (const feature of timelineFilteredFeatures) {
+      const month = getAccidentMonth(feature.properties)
+      if (month != null) counts[month] += 1
+    }
+    return counts
+  }, [timelineFilteredFeatures])
+
   const speciesLegendFeatures = useMemo(() => {
     const yearFiltered = features.filter((feature) => {
       if (yearMode === RECENT_YEARS && recentYearStart != null) return feature.properties.year >= recentYearStart
       return true
     })
-    if (!timelineFilterRange) return yearFiltered
+    const monthFiltered = selectedMonths.length === 0 ? yearFiltered : yearFiltered.filter((feature) => {
+      const month = getAccidentMonth(feature.properties)
+      return month != null && selectedMonths.includes(month)
+    })
+    if (!timelineFilterRange) return monthFiltered
     const { start, end } = timelineFilterRange
-    return yearFiltered.filter((feature) => {
+    return monthFiltered.filter((feature) => {
       const date = parseAccidentDate(feature.properties)
       if (!date) return false
       const t = date.getTime()
       return t >= start && t <= end
     })
-  }, [features, recentYearStart, timelineFilterRange, yearMode])
+  }, [features, recentYearStart, selectedMonths, timelineFilterRange, yearMode])
 
   const handleTimelineDisable = useCallback(() => {
     setTimelineEnabled(false)
@@ -275,6 +349,35 @@ export function useWarsData(
     return counts
   }, [baseFilteredFeatures])
 
+  // Recurrent-strike sites: ~1 km cells with records from several distinct
+  // years. Sorted ascending so the most recurrent sites render on top.
+  const hotspotCells = useMemo<WarsHotspotCell[]>(() => {
+    const cells = new Map<string, { lonSum: number; latSum: number; recordCount: number; years: Set<number> }>()
+    for (const feature of filteredFeatures) {
+      const [longitude, latitude] = feature.geometry.coordinates
+      const key = `${Math.round(longitude / HOTSPOT_LON_BIN)}:${Math.round(latitude / HOTSPOT_LAT_BIN)}`
+      let cell = cells.get(key)
+      if (!cell) {
+        cell = { lonSum: 0, latSum: 0, recordCount: 0, years: new Set() }
+        cells.set(key, cell)
+      }
+      cell.lonSum += longitude
+      cell.latSum += latitude
+      cell.recordCount += 1
+      if (Number.isFinite(feature.properties.year)) cell.years.add(feature.properties.year)
+    }
+    return Array.from(cells.entries())
+      .filter(([, cell]) => cell.years.size >= HOTSPOT_MIN_YEARS)
+      .map(([key, cell]) => ({
+        key,
+        longitude: cell.lonSum / cell.recordCount,
+        latitude: cell.latSum / cell.recordCount,
+        recordCount: cell.recordCount,
+        yearCount: cell.years.size,
+      }))
+      .sort((a, b) => a.yearCount - b.yearCount)
+  }, [filteredFeatures])
+
   const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
     type: 'FeatureCollection',
     features: filteredFeatures.map((feature) => ({
@@ -297,6 +400,13 @@ export function useWarsData(
     setShowPoints,
     showHeatmap,
     setShowHeatmap,
+    showHotspots,
+    setShowHotspots,
+    selectedMonths,
+    toggleMonth,
+    clearMonths,
+    monthlyBreakdown,
+    hotspotCells,
     yearMode,
     setYearMode,
     selectedId,
@@ -340,6 +450,65 @@ export function WarsLayerControls({ wars }: { wars: WarsState }) {
       >
         Heatmap
       </ToggleChip>
+      <ToggleChip
+        active={wars.showHotspots}
+        onClick={() => wars.setShowHotspots(!wars.showHotspots)}
+        tone="rose"
+      >
+        Hotspots
+      </ToggleChip>
+    </div>
+  )
+}
+
+function WarsMonthChart({ wars }: { wars: WarsState }) {
+  const maxMonthly = Math.max(...wars.monthlyBreakdown, 1)
+  const hasMonthFilter = wars.selectedMonths.length > 0
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-foreground">Records by month</span>
+        {hasMonthFilter && (
+          <button
+            type="button"
+            onClick={wars.clearMonths}
+            className="text-[11px] font-medium text-sky-600 hover:underline dark:text-sky-400"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <div className="mt-1.5 flex h-16 items-end gap-[3px]">
+        {wars.monthlyBreakdown.map((count, month) => {
+          const dimmed = hasMonthFilter && !wars.selectedMonths.includes(month)
+          const height = Math.max(count > 0 ? 8 : 2, (count / maxMonthly) * 100)
+          return (
+            <button
+              key={month}
+              type="button"
+              onClick={() => wars.toggleMonth(month)}
+              aria-pressed={wars.selectedMonths.includes(month)}
+              title={`${MONTH_NAMES[month]}: ${count.toLocaleString()} record${count === 1 ? '' : 's'}`}
+              className="flex h-full flex-1 items-end"
+            >
+              <span
+                className={cn(
+                  'block w-full rounded-sm bg-amber-600 transition-opacity hover:opacity-70 dark:bg-amber-500',
+                  dimmed && 'opacity-30',
+                )}
+                style={{ height: `${height}%` }}
+              />
+            </button>
+          )
+        })}
+      </div>
+      <div className="mt-1 flex gap-[3px] text-center text-[10px] text-muted-foreground">
+        {MONTH_INITIALS.map((initial, month) => (
+          <span key={month} className="flex-1">{initial}</span>
+        ))}
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">Click months to filter the map.</p>
     </div>
   )
 }
@@ -413,6 +582,8 @@ export function WarsSidebar({
               { label: 'period', value: yearLabel },
             ]}
           />
+
+          <WarsMonthChart wars={wars} />
 
           {wars.crashes.error && <InlineAlert tone="error">{wars.crashes.error}</InlineAlert>}
           {wars.manifest.error && <InlineAlert tone="error">{wars.manifest.error}</InlineAlert>}
@@ -545,6 +716,31 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
         />
       )}
 
+      {wars.showHotspots && wars.hotspotCells.map((cell) => {
+        const color = getHotspotColor(cell.yearCount)
+        const size = getHotspotSize(cell.yearCount)
+        return (
+          <MapMarker key={cell.key} longitude={cell.longitude} latitude={cell.latitude}>
+            <MarkerContent>
+              {/* pointer-events-none keeps cluster and point clicks working underneath */}
+              <div
+                className="pointer-events-none flex items-center justify-center rounded-full border-2 text-[10px] font-bold"
+                style={{
+                  width: size,
+                  height: size,
+                  borderColor: color,
+                  backgroundColor: `${color}2a`,
+                  color,
+                  textShadow: '0 0 3px rgba(255,255,255,0.9), 0 0 1px rgba(255,255,255,0.9)',
+                }}
+              >
+                {cell.yearCount}
+              </div>
+            </MarkerContent>
+          </MapMarker>
+        )
+      })}
+
       {wars.showPoints && wars.selectedCrash && (() => {
         const [longitude, latitude] = wars.selectedCrash.geometry.coordinates
         const size = getWarsMarkerSize(wars.selectedCrash.properties.quantity)
@@ -607,8 +803,27 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
           <div className="mt-2 text-xs">Heatmap aggregates all selected species.</div>
         </div>
       )}
-      {!wars.showPoints && !wars.showHeatmap && (
-        <MapLegendNote className="italic">Both layers are hidden.</MapLegendNote>
+      {wars.showHotspots && (
+        <div className={cn((wars.showPoints || wars.showHeatmap) && 'border-t border-border pt-2')}>
+          <div className="text-xs font-medium text-foreground">Recurrent sites</div>
+          <ul className="mt-1 space-y-1">
+            {([['3-4 years', 3], ['5-9 years', 5], ['10+ years', 10]] as const).map(([label, tier]) => (
+              <li key={label} className="flex items-center gap-2">
+                <span
+                  className="h-3.5 w-3.5 shrink-0 rounded-full border-2"
+                  style={{ borderColor: getHotspotColor(tier), backgroundColor: `${getHotspotColor(tier)}2a` }}
+                />
+                <span>{label}</span>
+              </li>
+            ))}
+          </ul>
+          <MapLegendNote className="mt-1.5">
+            Rings mark ~1 km sites with strikes in {HOTSPOT_MIN_YEARS}+ separate years; the number is how many years.
+          </MapLegendNote>
+        </div>
+      )}
+      {!wars.showPoints && !wars.showHeatmap && !wars.showHotspots && (
+        <MapLegendNote className="italic">All layers are hidden.</MapLegendNote>
       )}
     </div>
   )

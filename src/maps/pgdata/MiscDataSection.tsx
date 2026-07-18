@@ -457,6 +457,7 @@ export default function MiscDataSection() {
     searchParams.get('warsSpecies'),
     searchParams.get('warsPoints'),
     searchParams.get('warsHeatmap'),
+    searchParams.get('warsHotspots'),
   )
   const openLitterMap = useOpenLitterMapData(
     activeTab === 'openLitterMap',
