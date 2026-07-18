@@ -742,8 +742,9 @@ function MapHeatmapLayer({
 // =============================================================================
 // MapPieClusterLayer
 // =============================================================================
-// Clusters render as donut charts whose arcs show the split of their points
-// across the caller's color bands; unclustered points show as dots in their
+// Clusters render as donut charts (solid pies when showCount is off) whose
+// arcs show the split of their points across the caller's color bands;
+// unclustered points show as dots in their
 // feature's marker color. Each feature must carry a numeric `bandIndex` into
 // `bandColors` plus a `color` string for its unclustered dot. Clicking a donut
 // zooms to the cluster's expansion zoom. Extracted from the food map's
@@ -769,7 +770,17 @@ function donutSegment(start: number, end: number, r: number, r0: number, color: 
   return `<path d="${d}" fill="${color}" stroke="${color}" stroke-width="0.75" stroke-linejoin="round"/>`
 }
 
-/** Build the donut marker element for a cluster from its aggregated band counts. */
+/** Abbreviate cluster totals in the thousands, e.g. 4,200 → "4k". */
+function formatClusterCount(total: number): string {
+  if (total < 1000) return String(total)
+  return `${Math.round(total / 1000)}k`
+}
+
+/**
+ * Build the marker element for a cluster from its aggregated band counts:
+ * a donut with the total in the hollow centre when showCount is set,
+ * otherwise a solid pie chart.
+ */
 function createDonutElement(
   props: Record<string, unknown>,
   bandColors: readonly string[],
@@ -778,7 +789,7 @@ function createDonutElement(
   const counts = bandColors.map((_, index) => Number(props[`band${index}`]) || 0)
   const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
   const r = total >= 50 ? 24 : total >= 25 ? 21 : total >= 10 ? 18 : 15
-  const r0 = Math.round(r * 0.62)
+  const r0 = showCount ? Math.round(r * 0.62) : 0
   const w = r * 2
   const fontSize = total >= 50 ? 13 : total >= 10 ? 12 : 11
   const n = Math.max(total, 1)
@@ -795,8 +806,10 @@ function createDonutElement(
     `style="display:block;font:700 ${fontSize}px system-ui,sans-serif;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));">` +
     `<circle cx="${r}" cy="${r}" r="${r}" fill="#ffffff"/>` +
     segments.join('') +
-    `<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>` +
-    (showCount ? `<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a">${total}</text>` : '') +
+    (showCount
+      ? `<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>` +
+        `<text x="${r}" y="${r}" dominant-baseline="central" fill="#0f172a">${formatClusterCount(total)}</text>`
+      : '') +
     '</svg>'
   element.style.cursor = 'pointer'
   element.style.width = `${w}px`
@@ -813,7 +826,7 @@ type MapPieClusterLayerProps = {
   clusterMaxZoom?: number
   /** Cluster radius in pixels (default: 46). */
   clusterRadius?: number
-  /** Show the total point count in the donut centre (default: true). */
+  /** Show the total count in a hollow white donut centre; when false clusters render as solid pies (default: true). */
   showCount?: boolean
   /** Stroke color around unclustered dots (default: '#ffffff'). */
   pointStrokeColor?: string
