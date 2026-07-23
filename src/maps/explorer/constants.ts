@@ -54,7 +54,7 @@ export const EXPLORER_DATASETS: ExplorerDatasetDefinition[] = [
     label: 'Wildlife Accidents',
     geometryType: 'point',
     color: '#a16207',
-    description: 'Wildlife-vehicle collisions reported via WARS.',
+    description: 'Wildlife-vehicle collisions reported via WARS across the Ministry Northern Region.',
     source: 'BC WARS'
   },
   {

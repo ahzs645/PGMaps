@@ -32,6 +32,7 @@ export interface WarsManifest {
   sourceLicense: string
   sourceCitation: string
   coverage: string
+  serviceAreas: number[]
   generatedAt: string
   csv: string
   geojson: string
@@ -588,7 +589,7 @@ export function WarsSidebar({
           {wars.crashes.error && <InlineAlert tone="error">{wars.crashes.error}</InlineAlert>}
           {wars.manifest.error && <InlineAlert tone="error">{wars.manifest.error}</InlineAlert>}
           <InlineAlert>
-            Records are filtered to WARS rows whose nearest town is Prince George and include mapped coordinates from the source spreadsheets.
+            Records cover the Ministry's Northern Region service areas 18-28 and include mapped coordinates from the source spreadsheets.
           </InlineAlert>
         </div>
       </SidebarSection>
@@ -602,6 +603,7 @@ export function WarsSidebar({
               { label: 'Date', value: wars.selectedCrash.properties.accidentDate || 'Unknown' },
               { label: 'Quantity', value: wars.selectedCrash.properties.quantity.toLocaleString() },
               { label: 'Nearest town', value: wars.selectedCrash.properties.nearestTown },
+              { label: 'Service area', value: wars.selectedCrash.properties.serviceArea.toLocaleString() },
             ]}
           />
         </SidebarSection>
@@ -639,6 +641,12 @@ export function MobileWarsFeatureCard({ wars }: { wars: WarsState }) {
             <span className="text-muted-foreground">Nearest town</span>
             <span className="max-w-[12rem] text-right font-medium text-foreground">
               {crash.properties.nearestTown}
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Service area</span>
+            <span className="max-w-[12rem] text-right font-medium text-foreground">
+              {crash.properties.serviceArea.toLocaleString()}
             </span>
           </div>
         </div>

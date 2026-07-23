@@ -74,7 +74,7 @@ export function useExplorerItems(
     activeDatasetSet.has('icbcCrashes'),
   )
   const wildlifeState = useExplorerGeoJson<GeoJSON.Point, WildlifeAccidentProperties>(
-    '/data/wars/prince_george_wildlife_accidents.geojson',
+    '/data/wars/northern_region_wildlife_accidents.geojson.gz',
     activeDatasetSet.has('wildlifeAccidents'),
   )
   const bcAssessmentEnabled = activeDatasetIds.includes('bcAssessment')

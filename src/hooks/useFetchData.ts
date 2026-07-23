@@ -17,11 +17,27 @@ export interface UseFetchDataOptions<T> {
 
 const responseCache = new Map<string, unknown>()
 
+type DecompressionStreamConstructor = new (format: 'gzip') => TransformStream<Uint8Array, Uint8Array>
+
 async function fetchJson(url: string, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(url, { signal })
   if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`)
   const contentType = response.headers.get('content-type') ?? ''
-  const text = await response.text()
+  const buffer = await response.arrayBuffer()
+  const bytes = new Uint8Array(buffer)
+  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
+  let text: string
+  if (isGzip) {
+    const DecompressionStreamCtor = (
+      globalThis as typeof globalThis & { DecompressionStream?: DecompressionStreamConstructor }
+    ).DecompressionStream
+    if (!DecompressionStreamCtor) throw new Error('This browser cannot decompress gzip map data')
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStreamCtor('gzip'))
+    text = await new Response(stream).text()
+  } else {
+    // Some hosts transparently decompress `.gz` responses based on headers.
+    text = new TextDecoder().decode(bytes)
+  }
   // SPA hosts return index.html with a 200 for missing files under public/
   if (!contentType.includes('json') && text.trimStart().startsWith('<')) {
     console.warn(`Expected JSON from ${url}, but received ${contentType || 'unknown content type'}`)

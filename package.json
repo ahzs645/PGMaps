@@ -58,7 +58,7 @@
     "crown-tenures:sync": "npm --prefix vendor/bcdatamapper run crown-tenures:sync --",
     "range-tenures:sync": "npm --prefix vendor/bcdatamapper run range-tenures:sync --",
     "mineral-tenures:sync": "npm --prefix vendor/bcdatamapper run mineral-tenures:sync --",
-    "wars:sync": "npm --prefix vendor/bcdatamapper run wars:sync --",
+    "wars:sync": "npm --prefix vendor/bcdatamapper run wars:sync -- && npm run data:sync-from-bcdatamapper",
     "cell-coverage:sync": "npm --prefix vendor/bcdatamapper run cell-coverage:sync --",
     "ev-charging:sync": "npm --prefix vendor/bcdatamapper run ev-charging:sync --",
     "network-availability:sync": "npm --prefix vendor/bcdatamapper run network-availability:sync --",

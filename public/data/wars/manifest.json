@@ -3,240 +3,333 @@
   "sourcePage": "https://www2.gov.bc.ca/gov/content/transportation/transportation-infrastructure/engineering-standards-guidelines/environmental-management/wildlife-management/wildlife-accident-reporting-system",
   "sourceLicense": "WARS Data Use Licence Agreement 2026",
   "sourceCitation": "British Columbia Ministry of Transportation and Transit Wildlife Accident Reporting System, \u00a9 2025 Province of British Columbia. All rights reserved.",
-  "coverage": "Prince George nearest-town WARS records with coordinates",
-  "generatedAt": "2026-05-09T05:57:28.157298+00:00",
-  "csv": "/data/wars/prince_george_wildlife_accidents.csv",
-  "geojson": "/data/wars/prince_george_wildlife_accidents.geojson",
-  "rows": 1995,
-  "totalQuantity": 2022,
+  "coverage": "BC Ministry of Transportation and Transit Northern Region service areas 18-28 with coordinates",
+  "serviceAreas": [
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28
+  ],
+  "generatedAt": "2026-07-18T23:37:17.397462+00:00",
+  "csv": "/data/wars/northern_region_wildlife_accidents.csv.gz",
+  "geojson": "/data/wars/northern_region_wildlife_accidents.geojson.gz",
+  "rows": 43801,
+  "totalQuantity": 46759,
   "yearStart": 1978,
   "yearEnd": 2025,
   "species": [
     {
-      "name": "Moose",
-      "count": 1149
+      "name": "Deer",
+      "count": 25632
     },
     {
-      "name": "Deer",
-      "count": 594
+      "name": "Moose",
+      "count": 12491
     },
     {
       "name": "Bear",
-      "count": 164
-    },
-    {
-      "name": "Elk",
-      "count": 31
+      "count": 2331
     },
     {
       "name": "Porcupine",
-      "count": 25
+      "count": 2074
     },
     {
       "name": "Coyote",
-      "count": 25
+      "count": 868
     },
     {
-      "name": "Fox",
-      "count": 10
+      "name": "Elk",
+      "count": 714
     },
     {
       "name": "Unknown",
-      "count": 9
+      "count": 561
     },
     {
-      "name": "Wolf",
-      "count": 6
+      "name": "Mule Deer",
+      "count": 376
     },
     {
       "name": "Beaver",
-      "count": 6
+      "count": 300
+    },
+    {
+      "name": "Fox",
+      "count": 298
     },
     {
       "name": "Caribou",
-      "count": 1
+      "count": 294
     },
     {
       "name": "Buffalo",
-      "count": 1
+      "count": 279
+    },
+    {
+      "name": "Wolf",
+      "count": 119
+    },
+    {
+      "name": "White Tail Deer",
+      "count": 86
+    },
+    {
+      "name": "Sheep",
+      "count": 68
+    },
+    {
+      "name": "Rabbit",
+      "count": 59
+    },
+    {
+      "name": "Raccoon",
+      "count": 54
+    },
+    {
+      "name": "Skunk",
+      "count": 27
     },
     {
       "name": "Lynx",
-      "count": 1
+      "count": 23
+    },
+    {
+      "name": "Eagle",
+      "count": 18
+    },
+    {
+      "name": "Muskrat",
+      "count": 18
+    },
+    {
+      "name": "Otter",
+      "count": 17
+    },
+    {
+      "name": "Bobcat",
+      "count": 14
+    },
+    {
+      "name": "Horned Owl",
+      "count": 12
+    },
+    {
+      "name": "Marten",
+      "count": 11
+    },
+    {
+      "name": "Cougar",
+      "count": 6
+    },
+    {
+      "name": "Badger",
+      "count": 5
+    },
+    {
+      "name": "Grizzly Bear",
+      "count": 4
     }
   ],
   "years": [
     {
       "year": 1978,
-      "count": 6
-    },
-    {
-      "year": 1979,
-      "count": 10
-    },
-    {
-      "year": 1980,
-      "count": 4
-    },
-    {
-      "year": 1982,
-      "count": 10
-    },
-    {
-      "year": 1983,
-      "count": 22
-    },
-    {
-      "year": 1984,
-      "count": 7
-    },
-    {
-      "year": 1985,
-      "count": 14
-    },
-    {
-      "year": 1986,
-      "count": 36
-    },
-    {
-      "year": 1987,
-      "count": 29
-    },
-    {
-      "year": 1988,
-      "count": 78
-    },
-    {
-      "year": 1989,
-      "count": 42
-    },
-    {
-      "year": 1990,
-      "count": 32
-    },
-    {
-      "year": 1991,
-      "count": 13
-    },
-    {
-      "year": 1992,
-      "count": 31
-    },
-    {
-      "year": 1993,
-      "count": 47
-    },
-    {
-      "year": 1994,
-      "count": 70
-    },
-    {
-      "year": 1995,
-      "count": 40
-    },
-    {
-      "year": 1996,
-      "count": 9
-    },
-    {
-      "year": 1997,
-      "count": 11
-    },
-    {
-      "year": 2001,
-      "count": 1
-    },
-    {
-      "year": 2002,
-      "count": 25
-    },
-    {
-      "year": 2004,
-      "count": 19
-    },
-    {
-      "year": 2005,
-      "count": 72
-    },
-    {
-      "year": 2006,
-      "count": 79
-    },
-    {
-      "year": 2007,
-      "count": 58
-    },
-    {
-      "year": 2008,
-      "count": 112
-    },
-    {
-      "year": 2009,
-      "count": 24
-    },
-    {
-      "year": 2010,
-      "count": 42
-    },
-    {
-      "year": 2011,
-      "count": 49
-    },
-    {
-      "year": 2012,
       "count": 57
     },
     {
+      "year": 1979,
+      "count": 104
+    },
+    {
+      "year": 1980,
+      "count": 72
+    },
+    {
+      "year": 1981,
+      "count": 74
+    },
+    {
+      "year": 1982,
+      "count": 148
+    },
+    {
+      "year": 1983,
+      "count": 148
+    },
+    {
+      "year": 1984,
+      "count": 182
+    },
+    {
+      "year": 1985,
+      "count": 313
+    },
+    {
+      "year": 1986,
+      "count": 321
+    },
+    {
+      "year": 1987,
+      "count": 308
+    },
+    {
+      "year": 1988,
+      "count": 650
+    },
+    {
+      "year": 1989,
+      "count": 480
+    },
+    {
+      "year": 1990,
+      "count": 670
+    },
+    {
+      "year": 1991,
+      "count": 615
+    },
+    {
+      "year": 1992,
+      "count": 599
+    },
+    {
+      "year": 1993,
+      "count": 984
+    },
+    {
+      "year": 1994,
+      "count": 1212
+    },
+    {
+      "year": 1995,
+      "count": 1166
+    },
+    {
+      "year": 1996,
+      "count": 735
+    },
+    {
+      "year": 1997,
+      "count": 757
+    },
+    {
+      "year": 1998,
+      "count": 2228
+    },
+    {
+      "year": 1999,
+      "count": 1132
+    },
+    {
+      "year": 2000,
+      "count": 1068
+    },
+    {
+      "year": 2001,
+      "count": 1131
+    },
+    {
+      "year": 2002,
+      "count": 1235
+    },
+    {
+      "year": 2003,
+      "count": 1358
+    },
+    {
+      "year": 2004,
+      "count": 1322
+    },
+    {
+      "year": 2005,
+      "count": 1545
+    },
+    {
+      "year": 2006,
+      "count": 1776
+    },
+    {
+      "year": 2007,
+      "count": 1391
+    },
+    {
+      "year": 2008,
+      "count": 2462
+    },
+    {
+      "year": 2009,
+      "count": 1180
+    },
+    {
+      "year": 2010,
+      "count": 1424
+    },
+    {
+      "year": 2011,
+      "count": 1239
+    },
+    {
+      "year": 2012,
+      "count": 1239
+    },
+    {
       "year": 2013,
-      "count": 78
+      "count": 1282
     },
     {
       "year": 2014,
-      "count": 42
+      "count": 1193
     },
     {
       "year": 2015,
-      "count": 46
+      "count": 1161
     },
     {
       "year": 2016,
-      "count": 68
+      "count": 1195
     },
     {
       "year": 2017,
-      "count": 87
+      "count": 1359
     },
     {
       "year": 2018,
-      "count": 26
+      "count": 812
     },
     {
       "year": 2019,
-      "count": 56
+      "count": 931
     },
     {
       "year": 2020,
-      "count": 77
+      "count": 1055
     },
     {
       "year": 2021,
-      "count": 105
+      "count": 1149
     },
     {
       "year": 2022,
-      "count": 86
+      "count": 1313
     },
     {
       "year": 2023,
-      "count": 96
+      "count": 1383
     },
     {
       "year": 2024,
-      "count": 118
+      "count": 1319
     },
     {
       "year": 2025,
-      "count": 88
+      "count": 1282
     }
   ],
   "sourceFiles": [
@@ -244,31 +337,31 @@
       "id": "2018_2025",
       "title": "WARS 2018 to 2025",
       "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/environment/wars/historical-data/2018_to_2025_wars_historic_data.xlsx",
-      "rows": 637
+      "rows": 8608
     },
     {
       "id": "2008_2018",
       "title": "WARS 2008 to 2018",
       "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/environment/wars/historical-data/2008_to_2018_wars_historic_data.xlsx",
-      "rows": 557
+      "rows": 12562
     },
     {
       "id": "1998_2008",
       "title": "WARS 1998 to 2008",
       "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/environment/wars/historical-data/1998_to_2008_wars_historic_data.xlsx",
-      "rows": 303
+      "rows": 12675
     },
     {
       "id": "1988_1998",
       "title": "WARS 1988 to 1998",
       "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/environment/wars/historical-data/1988_to_1998_wars_historic_data.xlsx",
-      "rows": 326
+      "rows": 8031
     },
     {
       "id": "1978_1988",
       "title": "WARS 1978 to 1988",
       "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/environment/wars/historical-data/1978_to_1988_wars_historic_data.xlsx",
-      "rows": 172
+      "rows": 1925
     }
   ],
   "fields": [

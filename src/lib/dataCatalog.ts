@@ -74,14 +74,14 @@ export const DATASETS = {
   },
   wars: {
     title: 'Wildlife accident records',
-    description: 'Wildlife Accident Reporting System records filtered to Prince George nearest-town rows with source coordinates.',
+    description: 'Wildlife Accident Reporting System records from Ministry Northern Region service areas 18-28 with source coordinates.',
     source: 'BC Ministry of Transportation and Transit Wildlife Accident Reporting System',
-    coverage: 'Prince George nearest-town wildlife accident records',
+    coverage: 'Northern Region service areas 18-28',
     license: 'WARS Data Use Licence Agreement 2026',
-    formats: ['XLSX source', 'CSV', 'GeoJSON', 'JSON manifest'],
+    formats: ['XLSX source', 'CSV.GZ', 'GeoJSON.GZ', 'JSON manifest'],
     downloadUrl: '/data/wars/manifest.json',
     apiUrl: 'https://www2.gov.bc.ca/gov/content/transportation/transportation-infrastructure/engineering-standards-guidelines/environmental-management/wildlife-management/wildlife-accident-reporting-system',
-    fields: ['accidentDate', 'year', 'nearestTown', 'species', 'quantity', 'longitude', 'latitude'],
+    fields: ['accidentDate', 'year', 'nearestTown', 'species', 'quantity', 'longitude', 'latitude', 'serviceArea'],
   },
   openLitterMap: {
     title: 'OpenLitterMap litter records',
