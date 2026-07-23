@@ -821,6 +821,94 @@ function createDonutElement(
   return element
 }
 
+const SPIDERFY_LIMIT = 16
+const CLUSTER_LIST_PAGE_SIZE = 50
+
+function getClusterLeafProperties(feature: GeoJSON.Feature): Record<string, unknown> {
+  return (feature.properties ?? {}) as Record<string, unknown>
+}
+
+function getClusterLeafTitle(properties: Record<string, unknown>, fallbackIndex: number): string {
+  const label = String(properties.spiderTitle ?? '').trim()
+  return label || `Record ${fallbackIndex + 1}`
+}
+
+function createSpiderElement(
+  leaves: GeoJSON.Feature[],
+  onSelect: (properties: Record<string, unknown>) => void,
+): HTMLDivElement {
+  const root = document.createElement('div')
+  root.style.width = '1px'
+  root.style.height = '1px'
+  root.style.pointerEvents = 'none'
+
+  const svgNamespace = 'http://www.w3.org/2000/svg'
+  const lines = document.createElementNS(svgNamespace, 'svg')
+  lines.setAttribute('width', '1')
+  lines.setAttribute('height', '1')
+  lines.style.position = 'absolute'
+  lines.style.overflow = 'visible'
+  lines.style.pointerEvents = 'none'
+  root.appendChild(lines)
+
+  const count = leaves.length
+  const radius = count <= 8 ? 42 : 58
+  leaves.forEach((leaf, index) => {
+    const angle = -Math.PI / 2 + (index / count) * Math.PI * 2
+    const x = Math.cos(angle) * radius
+    const y = Math.sin(angle) * radius
+    const properties = getClusterLeafProperties(leaf)
+    const color = String(properties.color ?? '#92400e')
+    const title = getClusterLeafTitle(properties, index)
+    const subtitle = String(properties.spiderSubtitle ?? '').trim()
+
+    const halo = document.createElementNS(svgNamespace, 'line')
+    halo.setAttribute('x1', '0')
+    halo.setAttribute('y1', '0')
+    halo.setAttribute('x2', String(x))
+    halo.setAttribute('y2', String(y))
+    halo.setAttribute('stroke', '#ffffff')
+    halo.setAttribute('stroke-width', '4')
+    halo.setAttribute('stroke-linecap', 'round')
+    lines.appendChild(halo)
+
+    const line = document.createElementNS(svgNamespace, 'line')
+    line.setAttribute('x1', '0')
+    line.setAttribute('y1', '0')
+    line.setAttribute('x2', String(x))
+    line.setAttribute('y2', String(y))
+    line.setAttribute('stroke', '#64748b')
+    line.setAttribute('stroke-width', '1.5')
+    line.setAttribute('stroke-linecap', 'round')
+    lines.appendChild(line)
+
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.setAttribute('aria-label', subtitle ? `${title}, ${subtitle}` : title)
+    button.title = subtitle ? `${title}\n${subtitle}` : title
+    button.style.position = 'absolute'
+    button.style.left = `${x}px`
+    button.style.top = `${y}px`
+    button.style.width = '18px'
+    button.style.height = '18px'
+    button.style.padding = '0'
+    button.style.border = '2px solid #ffffff'
+    button.style.borderRadius = '9999px'
+    button.style.background = color
+    button.style.boxShadow = '0 1px 4px rgba(15,23,42,0.5)'
+    button.style.cursor = 'pointer'
+    button.style.pointerEvents = 'auto'
+    button.style.transform = 'translate(-50%, -50%)'
+    button.addEventListener('click', (event) => {
+      event.stopPropagation()
+      onSelect(properties)
+    })
+    root.appendChild(button)
+  })
+
+  return root
+}
+
 type MapPieClusterLayerProps = {
   /** GeoJSON points carrying `bandIndex` (wedge tally) and `color` (unclustered dot) properties. */
   data: GeoJSON.FeatureCollection<GeoJSON.Point>
@@ -836,6 +924,12 @@ type MapPieClusterLayerProps = {
   centerStyle?: 'white' | 'transparent'
   /** Stroke color around unclustered dots (default: '#ffffff'). */
   pointStrokeColor?: string
+  /**
+   * Keep terminal clusters interactive: small stacks spiderfy and large stacks
+   * open a paged record list instead of drawing coincident points on top of
+   * each other (default: false).
+   */
+  expandOverlappingPoints?: boolean
   /** Callback when an unclustered point is clicked — receives the feature's properties. */
   onPointClick?: (properties: Record<string, unknown>) => void
 }
@@ -848,6 +942,7 @@ function MapPieClusterLayer({
   showCount = true,
   centerStyle = 'white',
   pointStrokeColor = '#ffffff',
+  expandOverlappingPoints = false,
   onPointClick,
 }: MapPieClusterLayerProps) {
   const { map, isLoaded } = useMap()
@@ -866,16 +961,164 @@ function MapPieClusterLayer({
     let cancelled = false
     const markers: Record<string, MapLibreGL.Marker> = {}
     let markersOnScreen: Record<string, MapLibreGL.Marker> = {}
+    let spiderMarker: MapLibreGL.Marker | null = null
+    let clusterListPopup: MapLibreGL.Popup | null = null
 
     const clusterProperties: Record<string, MapLibreGL.ExpressionSpecification> = {}
     bandColors.forEach((_, index) => {
       clusterProperties[`band${index}`] = ['+', ['case', ['==', ['get', 'bandIndex'], index], 1, 0]]
     })
 
+    const clearExpandedCluster = () => {
+      spiderMarker?.remove()
+      clusterListPopup?.remove()
+      spiderMarker = null
+      clusterListPopup = null
+    }
+
+    const selectClusterLeaf = (properties: Record<string, unknown>) => {
+      clearExpandedCluster()
+      dispatchMobileMapFeatureClick()
+      onPointClickRef.current?.(properties)
+    }
+
+    const showSpider = (coordinates: [number, number], leaves: GeoJSON.Feature[]) => {
+      clearExpandedCluster()
+      const element = createSpiderElement(leaves, selectClusterLeaf)
+      spiderMarker = new MapLibreGLRuntime.Marker({ element, anchor: 'center' })
+        .setLngLat(coordinates)
+        .addTo(currentMap)
+    }
+
+    const showClusterList = (
+      source: MapLibreGL.GeoJSONSource,
+      clusterId: number,
+      coordinates: [number, number],
+      pointCount: number,
+    ) => {
+      clearExpandedCluster()
+      const panel = document.createElement('div')
+      panel.className = 'w-[min(19rem,calc(100vw-3rem))] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-xl'
+
+      const header = document.createElement('div')
+      header.className = 'flex items-center justify-between gap-3 border-b border-border px-3 py-2.5'
+      const heading = document.createElement('div')
+      heading.className = 'text-sm font-semibold'
+      heading.textContent = `${pointCount.toLocaleString()} overlapping records`
+      const closeButton = document.createElement('button')
+      closeButton.type = 'button'
+      closeButton.className = 'rounded px-1.5 py-0.5 text-lg leading-none text-muted-foreground hover:bg-accent hover:text-foreground'
+      closeButton.setAttribute('aria-label', 'Close overlapping records')
+      closeButton.textContent = '×'
+      closeButton.addEventListener('click', clearExpandedCluster)
+      header.append(heading, closeButton)
+
+      const list = document.createElement('div')
+      list.className = 'max-h-44 overflow-y-auto p-1.5'
+      const footer = document.createElement('div')
+      footer.className = 'border-t border-border p-2'
+      const loadMoreButton = document.createElement('button')
+      loadMoreButton.type = 'button'
+      loadMoreButton.className = 'w-full rounded-md bg-accent px-3 py-2 text-xs font-medium text-accent-foreground hover:opacity-80'
+      footer.appendChild(loadMoreButton)
+      panel.append(header, list, footer)
+
+      let loaded = 0
+      let loading = false
+      const loadNextPage = async () => {
+        if (loading || loaded >= pointCount) return
+        loading = true
+        loadMoreButton.disabled = true
+        loadMoreButton.textContent = 'Loading…'
+        try {
+          const leaves = await source.getClusterLeaves(
+            clusterId,
+            Math.min(CLUSTER_LIST_PAGE_SIZE, pointCount - loaded),
+            loaded,
+          )
+          if (cancelled) return
+          leaves.forEach((leaf, pageIndex) => {
+            const properties = getClusterLeafProperties(leaf)
+            const title = getClusterLeafTitle(properties, loaded + pageIndex)
+            const subtitle = String(properties.spiderSubtitle ?? '').trim()
+            const color = String(properties.color ?? '#92400e')
+            const row = document.createElement('button')
+            row.type = 'button'
+            row.className = 'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left hover:bg-accent'
+            const dot = document.createElement('span')
+            dot.className = 'mt-1 h-2.5 w-2.5 shrink-0 rounded-full border border-white shadow-sm'
+            dot.style.background = color
+            const copy = document.createElement('span')
+            copy.className = 'min-w-0'
+            const titleElement = document.createElement('span')
+            titleElement.className = 'block truncate text-xs font-medium text-foreground'
+            titleElement.textContent = title
+            copy.appendChild(titleElement)
+            if (subtitle) {
+              const subtitleElement = document.createElement('span')
+              subtitleElement.className = 'block truncate text-[11px] text-muted-foreground'
+              subtitleElement.textContent = subtitle
+              copy.appendChild(subtitleElement)
+            }
+            row.append(dot, copy)
+            row.addEventListener('click', (event) => {
+              event.stopPropagation()
+              selectClusterLeaf(properties)
+            })
+            list.appendChild(row)
+          })
+          loaded += leaves.length
+          if (loaded >= pointCount || leaves.length === 0) {
+            footer.remove()
+          } else {
+            loadMoreButton.disabled = false
+            loadMoreButton.textContent = `Show more (${(pointCount - loaded).toLocaleString()} remaining)`
+          }
+        } catch {
+          loadMoreButton.disabled = true
+          loadMoreButton.textContent = 'Could not load more records'
+        } finally {
+          loading = false
+        }
+      }
+      loadMoreButton.addEventListener('click', (event) => {
+        event.stopPropagation()
+        void loadNextPage()
+      })
+
+      clusterListPopup = new MapLibreGLRuntime.Popup({
+        className: 'mapcn-popup',
+        anchor: currentMap.project(coordinates).y < currentMap.getCanvas().clientHeight * 0.6 ? 'top' : 'bottom',
+        closeButton: false,
+        closeOnClick: false,
+        maxWidth: 'none',
+        offset: 18,
+      })
+        .setLngLat(coordinates)
+        .setDOMContent(panel)
+        .addTo(currentMap)
+      void loadNextPage()
+    }
+
+    const expandTerminalCluster = async (
+      source: MapLibreGL.GeoJSONSource,
+      clusterId: number,
+      coordinates: [number, number],
+      pointCount: number,
+    ) => {
+      if (pointCount > SPIDERFY_LIMIT) {
+        showClusterList(source, clusterId, coordinates, pointCount)
+        return
+      }
+      const leaves = await source.getClusterLeaves(clusterId, pointCount, 0)
+      if (!cancelled) showSpider(coordinates, leaves)
+    }
+
     const handlePointClick = (event: MapLibreGL.MapMouseEvent) => {
       const rendered = currentMap.queryRenderedFeatures(event.point, { layers: [pointLayerId] })
       const properties = rendered[0]?.properties
       if (!properties) return
+      clearExpandedCluster()
       event.preventDefault()
       event.originalEvent?.preventDefault()
       dispatchMobileMapFeatureClick()
@@ -901,6 +1144,11 @@ function MapPieClusterLayer({
             if (!source) return
             dispatchMobileMapFeatureClick()
             void source.getClusterExpansionZoom(clusterId).then((zoom) => {
+              if (expandOverlappingPoints && zoom > clusterMaxZoom) {
+                void expandTerminalCluster(source, clusterId, coordinates, Number(props.point_count) || 0)
+                return
+              }
+              clearExpandedCluster()
               currentMap.easeTo({ center: coordinates, zoom, duration: 450 })
             })
           })
@@ -948,6 +1196,7 @@ function MapPieClusterLayer({
     currentMap.on('click', pointLayerId, handlePointClick)
     currentMap.on('mouseenter', pointLayerId, handlePointEnter)
     currentMap.on('mouseleave', pointLayerId, handlePointLeave)
+    currentMap.on('movestart', clearExpandedCluster)
     if (currentMap.isSourceLoaded(sourceId)) updateMarkers()
 
     return () => {
@@ -956,6 +1205,8 @@ function MapPieClusterLayer({
       currentMap.off('click', pointLayerId, handlePointClick)
       currentMap.off('mouseenter', pointLayerId, handlePointEnter)
       currentMap.off('mouseleave', pointLayerId, handlePointLeave)
+      currentMap.off('movestart', clearExpandedCluster)
+      clearExpandedCluster()
       Object.values(markersOnScreen).forEach((marker) => marker.remove())
       Object.values(markers).forEach((marker) => marker.remove())
       markersOnScreen = {}
@@ -967,7 +1218,7 @@ function MapPieClusterLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [isLoaded, map, data, bandColors, clusterMaxZoom, clusterRadius, showCount, centerStyle, pointStrokeColor, sourceId, pointLayerId])
+  }, [isLoaded, map, data, bandColors, clusterMaxZoom, clusterRadius, showCount, centerStyle, pointStrokeColor, expandOverlappingPoints, sourceId, pointLayerId])
 
   return null
 }

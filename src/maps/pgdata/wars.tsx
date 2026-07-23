@@ -683,6 +683,8 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
             color: getSpeciesColor(species),
             bandIndex: bandIndexBySpecies.get(species) ?? 0,
             featureKey: getWarsFeatureKey(feature, index),
+            spiderTitle: `${species} · ${feature.properties.quantity.toLocaleString()} animal${feature.properties.quantity === 1 ? '' : 's'}`,
+            spiderSubtitle: [feature.properties.accidentDate, feature.properties.nearestTown].filter(Boolean).join(' · '),
           },
         }
       }),
@@ -717,6 +719,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
         <MapPieClusterLayer
           data={clusterData}
           bandColors={bandColors}
+          expandOverlappingPoints
           onPointClick={(properties) => {
             const featureKey = String(properties.featureKey ?? '')
             if (featureKey) wars.setSelectedId(wars.selectedId === featureKey ? null : featureKey)
