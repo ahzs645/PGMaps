@@ -219,7 +219,7 @@ const pm25RasterTiles = join(target, 'aqmap', 'modelled-pm25-raster-tiles')
 if (existsSync(pm25RasterArchive)) {
   rmSync(pm25RasterTiles, { recursive: true, force: true })
   mkdirSync(pm25RasterTiles, { recursive: true })
-  execFileSync('tar', ['-xUzf', pm25RasterArchive, '-C', pm25RasterTiles], { stdio: 'inherit' })
+  execFileSync('tar', ['-xzf', pm25RasterArchive, '-C', pm25RasterTiles], { stdio: 'inherit' })
 }
 
 restorePreservedCleanPaths()
