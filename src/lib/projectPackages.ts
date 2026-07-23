@@ -80,6 +80,31 @@ export interface ProjectLabRecipe {
   healthyPlanPriority?: Partial<ScoreMethodSettings['healthyPlanPriority']>
 }
 
+export interface ProjectDataPortalResourceTypeDef {
+  id: string
+  label: string
+  color: string
+}
+
+export interface ProjectDataPortalDef {
+  schema: 'research-portal-v1'
+  dataBaseUrl: string
+  files: {
+    overview: string
+    submissions: string
+    locations: string
+    decades: string
+  }
+  map: {
+    center: [number, number]
+    zoom: number
+    minZoom: number
+    maxZoom: number
+  }
+  resourceTypes: ProjectDataPortalResourceTypeDef[]
+  regionalLocationIds: string[]
+}
+
 export interface ProjectPackage {
   version: 1
   slug: string
@@ -102,6 +127,7 @@ export interface ProjectPackage {
   files: Array<{ label: string; detail: string }>
   lab?: ProjectLabRecipe
   portalMap?: ProjectPortalMapDef
+  dataPortal?: ProjectDataPortalDef
   /** Runtime flag: package came from this device (import or lab export), not the manifest. */
   local?: boolean
 }
@@ -161,6 +187,63 @@ function isLinkItem(item: unknown): item is { label: string; href: string } {
   return typeof candidate?.label === 'string' && typeof candidate?.href === 'string'
 }
 
+function isHttpsUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  try {
+    return new URL(value).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function normalizeDataPortal(value: unknown): ProjectDataPortalDef | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const candidate = value as Record<string, unknown>
+  if (candidate.schema !== 'research-portal-v1' || !isHttpsUrl(candidate.dataBaseUrl)) return undefined
+
+  const files = candidate.files as Record<string, unknown> | undefined
+  const map = candidate.map as Record<string, unknown> | undefined
+  const center = map?.center
+  if (
+    !Array.isArray(center) ||
+    center.length !== 2 ||
+    !isFiniteNumber(center[0]) ||
+    !isFiniteNumber(center[1]) ||
+    !isFiniteNumber(map?.zoom)
+  ) {
+    return undefined
+  }
+
+  const resourceTypes = asArray(candidate.resourceTypes, (item): item is ProjectDataPortalResourceTypeDef => {
+    const entry = item as Partial<ProjectDataPortalResourceTypeDef>
+    return typeof entry?.id === 'string' && typeof entry.label === 'string' && typeof entry.color === 'string'
+  })
+  if (resourceTypes.length === 0) return undefined
+
+  return {
+    schema: candidate.schema,
+    dataBaseUrl: candidate.dataBaseUrl.endsWith('/') ? candidate.dataBaseUrl : `${candidate.dataBaseUrl}/`,
+    files: {
+      overview: asString(files?.overview, 'overview.json'),
+      submissions: asString(files?.submissions, 'submissions.cleaned.json'),
+      locations: asString(files?.locations, 'locations.cleaned.json'),
+      decades: asString(files?.decades, 'decades.cleaned.json'),
+    },
+    map: {
+      center: [center[0], center[1]],
+      zoom: map.zoom,
+      minZoom: isFiniteNumber(map.minZoom) ? map.minZoom : 4,
+      maxZoom: isFiniteNumber(map.maxZoom) ? map.maxZoom : 15,
+    },
+    resourceTypes,
+    regionalLocationIds: asArray(candidate.regionalLocationIds, (item): item is string => typeof item === 'string'),
+  }
+}
+
 /** Accepts a parsed JSON value and returns a well-formed package, or null if it isn't one. */
 export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
   if (typeof raw !== 'object' || raw === null) return null
@@ -169,12 +252,8 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
   const title = asString(candidate.title).trim()
   if (!slug || !title) return null
 
-  const kind = PROJECT_KINDS.includes(candidate.kind as ProjectKind)
-    ? (candidate.kind as ProjectKind)
-    : 'index-preset'
-  const theme = PROJECT_THEMES.includes(candidate.theme as ProjectTheme)
-    ? (candidate.theme as ProjectTheme)
-    : 'slate'
+  const kind = PROJECT_KINDS.includes(candidate.kind as ProjectKind) ? (candidate.kind as ProjectKind) : 'index-preset'
+  const theme = PROJECT_THEMES.includes(candidate.theme as ProjectTheme) ? (candidate.theme as ProjectTheme) : 'slate'
 
   const image = candidate.image as { src?: unknown; alt?: unknown } | undefined
   const lab = candidate.lab as ProjectLabRecipe | undefined
@@ -216,6 +295,7 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
     files: asArray(candidate.files, isFileItem),
     lab: hasLab ? lab : undefined,
     portalMap: hasPortalMap ? portalMap : undefined,
+    dataPortal: normalizeDataPortal(candidate.dataPortal),
     local: candidate.local === true,
   }
 }
@@ -404,8 +484,7 @@ export function buildProjectPackageFromShareState(
 ): ProjectPackage {
   const nonZeroWeights = Object.fromEntries(
     Object.entries(share.weights).filter(
-      ([key, value]) =>
-        typeof value === 'number' && value !== 0 && SCORE_METRICS.some((metric) => metric.key === key),
+      ([key, value]) => typeof value === 'number' && value !== 0 && SCORE_METRICS.some((metric) => metric.key === key),
     ),
   ) as Record<string, number>
   const matchingPreset = SCORE_PRESETS.find((preset) => {

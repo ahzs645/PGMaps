@@ -4,7 +4,11 @@ import { buildProjectLabParams, type ProjectPackage } from '@/lib/projectPackage
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from './constants'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
-import { createInitialScoreBuilderState, getSelectedRegionLevel } from './hooks/scoreBuilderReducer'
+import {
+  createInitialScoreBuilderState,
+  getSelectedRegionLevel,
+  showsWalkabilitySourceSurface,
+} from './hooks/scoreBuilderReducer'
 import { useScoreBuilderDatasets } from './hooks/useScoreBuilderDatasets'
 import { useScoreBuilderMetricRows } from './hooks/useScoreBuilderMetricRows'
 import { useScoreBuilderPointRecords } from './hooks/useScoreBuilderPointRecords'
@@ -48,9 +52,7 @@ export function ProjectScoreMapPreview({
   }, [control.pendingNetworkSelectAll, control.selectedNetworks, datasets.monitors])
   const previewControl = useMemo(
     () =>
-      control.pendingNetworkSelectAll
-        ? { ...control, selectedNetworks, pendingNetworkSelectAll: false }
-        : control,
+      control.pendingNetworkSelectAll ? { ...control, selectedNetworks, pendingNetworkSelectAll: false } : control,
     [control, selectedNetworks],
   )
 
@@ -90,6 +92,7 @@ export function ProjectScoreMapPreview({
     if (showScoreSurface) return null
     return Object.fromEntries(results.scoredRegions.map((entry) => [entry.region.id, TRANSPARENT_FILL]))
   }, [results.scoredRegions, showScoreSurface])
+  const showWalkabilitySourceSurface = showScoreSurface && showsWalkabilitySourceSurface(previewControl)
 
   const handleRegionClick = useCallback(() => {}, [])
 
@@ -104,6 +107,9 @@ export function ProjectScoreMapPreview({
         showPoints={showPoints}
         onRegionClick={handleRegionClick}
         regionFillColors={hiddenFillColors}
+        walkabilitySourceSurface={showWalkabilitySourceSurface}
+        sourceGridWeights={previewControl.weights}
+        walkabilitySurfaceTuning={previewControl.walkabilitySurfaceTuning}
         loading={datasets.loading}
       />
 

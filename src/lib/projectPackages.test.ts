@@ -69,6 +69,55 @@ describe('normalizeProjectPackage', () => {
     expect(pkg).not.toBeNull()
     expect(pkg!.lab).toBeUndefined()
   })
+
+  it('normalizes a reusable research portal definition', () => {
+    const pkg = normalizeProjectPackage({
+      slug: 'research-project',
+      title: 'Research project',
+      dataPortal: {
+        schema: 'research-portal-v1',
+        dataBaseUrl: 'https://projects.example.com/map/data',
+        files: {
+          overview: 'summary.json',
+          submissions: 'records.json',
+          locations: 'places.json',
+          decades: 'periods.json',
+        },
+        map: { center: [-124.2, 54.1], zoom: 6.2 },
+        resourceTypes: [{ id: 'report', label: 'Reports', color: '#f59e0b' }],
+        regionalLocationIds: ['whole_region'],
+      },
+    })
+
+    expect(pkg?.dataPortal).toEqual({
+      schema: 'research-portal-v1',
+      dataBaseUrl: 'https://projects.example.com/map/data/',
+      files: {
+        overview: 'summary.json',
+        submissions: 'records.json',
+        locations: 'places.json',
+        decades: 'periods.json',
+      },
+      map: { center: [-124.2, 54.1], zoom: 6.2, minZoom: 4, maxZoom: 15 },
+      resourceTypes: [{ id: 'report', label: 'Reports', color: '#f59e0b' }],
+      regionalLocationIds: ['whole_region'],
+    })
+  })
+
+  it('drops research portal definitions with a non-HTTPS data URL', () => {
+    const pkg = normalizeProjectPackage({
+      slug: 'unsafe-research-project',
+      title: 'Unsafe research project',
+      dataPortal: {
+        schema: 'research-portal-v1',
+        dataBaseUrl: 'http://projects.example.com/map/data/',
+        map: { center: [-124.2, 54.1], zoom: 6.2 },
+        resourceTypes: [{ id: 'report', label: 'Reports', color: '#f59e0b' }],
+      },
+    })
+
+    expect(pkg?.dataPortal).toBeUndefined()
+  })
 })
 
 describe('buildProjectLabParams', () => {

@@ -55,6 +55,7 @@ import {
   type ProjectTheme,
 } from '@/lib/projectPackages'
 import { ProjectScoreMapPreview } from '@/maps/scorebuilder/ProjectScoreMapPreview'
+import { ResearchPortal } from '@/maps/research-portal/ResearchPortal'
 import healthAuthorityBoundaries from '../../public/data/boundaries/BCMoH/simplified/health_authorities.json'
 
 type ControllerTab = 'layers' | 'project'
@@ -1443,6 +1444,17 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
   )
 }
 
+function DataPortalProjectWorkspace({ project, onBack }: { project: ProjectPackage; onBack: () => void }) {
+  const dataPortal = project.dataPortal
+  if (!dataPortal) return null
+
+  return (
+    <div className="h-[100dvh] bg-background pt-[calc(env(safe-area-inset-top)+4rem)] md:h-[calc(100vh-4rem)] md:pt-0">
+      <ResearchPortal title={project.title} config={dataPortal} onBack={onBack} />
+    </div>
+  )
+}
+
 export default function DevProjects() {
   const { projects, loading, loadError, importProject, removeProject } = useProjectPackages()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1503,6 +1515,9 @@ export default function DevProjects() {
   }
 
   if (selectedProject) {
+    if (selectedProject.dataPortal) {
+      return <DataPortalProjectWorkspace key={selectedProject.slug} project={selectedProject} onBack={backToCatalog} />
+    }
     return <LoadedProjectWorkspace key={selectedProject.slug} project={selectedProject} onBack={backToCatalog} />
   }
 
