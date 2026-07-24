@@ -1,4 +1,4 @@
-export interface ResearchPortalOverview {
+export interface ResearchRecordsOverview {
   submissionsTotal: number
   linkedRowsTotal: number
   linkedUniquePairs: number
@@ -9,7 +9,7 @@ export interface ResearchPortalOverview {
   yearRange: { min: number; max: number } | null
 }
 
-export interface ResearchPortalSubmission {
+export interface ResearchRecord {
   id: number
   title: string | null
   resourceType: string
@@ -21,7 +21,7 @@ export interface ResearchPortalSubmission {
   locationIds: string[]
 }
 
-export interface ResearchPortalLocation {
+export interface ResearchRecordsLocation {
   id: string
   name: string
   coordinates: { lat: number; lon: number } | null
@@ -31,13 +31,13 @@ export interface ResearchPortalLocation {
   resourceTypes: Record<string, number>
 }
 
-export interface ResearchPortalDecadeSeries {
+export interface ResearchRecordsTimelineBucket {
   decade: number
   total: number
   byResourceType: Record<string, number>
 }
 
-export interface ResearchPortalLocationFeatureProperties {
+export interface ExplorerLocationFeatureProperties {
   id: string
   name: string
   count: number

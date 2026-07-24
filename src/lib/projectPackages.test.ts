@@ -70,53 +70,100 @@ describe('normalizeProjectPackage', () => {
     expect(pkg!.lab).toBeUndefined()
   })
 
-  it('normalizes a reusable research portal definition', () => {
+  it('normalizes a reusable map-explorer workspace with composable features', () => {
     const pkg = normalizeProjectPackage({
       slug: 'research-project',
       title: 'Research project',
-      dataPortal: {
-        schema: 'research-portal-v1',
-        dataBaseUrl: 'https://projects.example.com/map/data',
-        files: {
-          overview: 'summary.json',
-          submissions: 'records.json',
-          locations: 'places.json',
-          decades: 'periods.json',
+      workspace: {
+        type: 'map-explorer',
+        schema: 'map-explorer-v1',
+        data: {
+          adapter: 'research-records-v1',
+          baseUrl: 'https://projects.example.com/map/data',
+          files: {
+            overview: 'summary.json',
+            records: 'records.json',
+            locations: 'places.json',
+            timeline: 'periods.json',
+          },
+          categories: [{ id: 'report', label: 'Reports', color: '#f59e0b' }],
+          aggregateLocationIds: ['whole_region'],
         },
         map: { center: [-124.2, 54.1], zoom: 6.2 },
-        resourceTypes: [{ id: 'report', label: 'Reports', color: '#f59e0b' }],
-        regionalLocationIds: ['whole_region'],
+        labels: { recordPlural: 'publications' },
+        features: [
+          {
+            type: 'summary-stats',
+            items: [{ metric: 'records', label: 'Publications', icon: 'book-open' }],
+          },
+          { type: 'timeline', title: 'Timeline' },
+          { type: 'ranked-list', title: 'Places', limit: 20 },
+          { type: 'map-legend', title: 'Resource types', description: 'Circle size is count.' },
+        ],
       },
     })
 
-    expect(pkg?.dataPortal).toEqual({
-      schema: 'research-portal-v1',
-      dataBaseUrl: 'https://projects.example.com/map/data/',
-      files: {
-        overview: 'summary.json',
-        submissions: 'records.json',
-        locations: 'places.json',
-        decades: 'periods.json',
+    expect(pkg?.workspace).toEqual({
+      type: 'map-explorer',
+      schema: 'map-explorer-v1',
+      data: {
+        adapter: 'research-records-v1',
+        baseUrl: 'https://projects.example.com/map/data/',
+        files: {
+          overview: 'summary.json',
+          records: 'records.json',
+          locations: 'places.json',
+          timeline: 'periods.json',
+        },
+        categories: [{ id: 'report', label: 'Reports', color: '#f59e0b' }],
+        aggregateLocationIds: ['whole_region'],
       },
       map: { center: [-124.2, 54.1], zoom: 6.2, minZoom: 4, maxZoom: 15 },
-      resourceTypes: [{ id: 'report', label: 'Reports', color: '#f59e0b' }],
-      regionalLocationIds: ['whole_region'],
+      labels: {
+        recordSingular: 'record',
+        recordPlural: 'publications',
+        locationSingular: 'location',
+        locationPlural: 'locations',
+        yearPlural: 'years',
+        loading: 'Loading data…',
+        unavailable: 'Data unavailable',
+      },
+      features: [
+        {
+          type: 'summary-stats',
+          items: [{ metric: 'records', label: 'Publications', icon: 'book-open' }],
+        },
+        {
+          type: 'timeline',
+          title: 'Timeline',
+          granularity: 'decade',
+          showLabel: 'Show Timeline',
+          hideLabel: 'Hide Timeline',
+        },
+        { type: 'ranked-list', title: 'Places', limit: 20 },
+        { type: 'map-legend', title: 'Resource types', description: 'Circle size is count.' },
+      ],
     })
   })
 
-  it('drops research portal definitions with a non-HTTPS data URL', () => {
+  it('drops map-explorer workspaces with a non-HTTPS data URL', () => {
     const pkg = normalizeProjectPackage({
       slug: 'unsafe-research-project',
       title: 'Unsafe research project',
-      dataPortal: {
-        schema: 'research-portal-v1',
-        dataBaseUrl: 'http://projects.example.com/map/data/',
+      workspace: {
+        type: 'map-explorer',
+        schema: 'map-explorer-v1',
+        data: {
+          adapter: 'research-records-v1',
+          baseUrl: 'http://projects.example.com/map/data/',
+          categories: [{ id: 'report', label: 'Reports', color: '#f59e0b' }],
+        },
         map: { center: [-124.2, 54.1], zoom: 6.2 },
-        resourceTypes: [{ id: 'report', label: 'Reports', color: '#f59e0b' }],
+        features: [{ type: 'category-filter', title: 'Types' }],
       },
     })
 
-    expect(pkg?.dataPortal).toBeUndefined()
+    expect(pkg?.workspace).toBeUndefined()
   })
 })
 

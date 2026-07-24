@@ -80,20 +80,58 @@ export interface ProjectLabRecipe {
   healthyPlanPriority?: Partial<ScoreMethodSettings['healthyPlanPriority']>
 }
 
-export interface ProjectDataPortalResourceTypeDef {
+export interface ProjectExplorerCategoryDef {
   id: string
   label: string
   color: string
 }
 
-export interface ProjectDataPortalDef {
-  schema: 'research-portal-v1'
-  dataBaseUrl: string
-  files: {
-    overview: string
-    submissions: string
-    locations: string
-    decades: string
+export type ProjectExplorerSummaryMetric = 'records' | 'locations' | 'year-range'
+export type ProjectExplorerSummaryIcon = 'book-open' | 'map-pin' | 'calendar'
+export interface ProjectExplorerSummaryItemDef {
+  metric: ProjectExplorerSummaryMetric
+  label: string
+  icon: ProjectExplorerSummaryIcon
+}
+
+export type ProjectExplorerFeatureDef =
+  | {
+      type: 'summary-stats'
+      items: ProjectExplorerSummaryItemDef[]
+    }
+  | {
+      type: 'timeline'
+      title: string
+      granularity: 'decade'
+      showLabel: string
+      hideLabel: string
+    }
+  | { type: 'category-filter'; title: string }
+  | {
+      type: 'aggregate-records'
+      triggerTemplate: string
+      modalTitle: string
+      modalDescription: string
+    }
+  | { type: 'search'; placeholder: string; fields: Array<'title' | 'author' | 'tags'> }
+  | { type: 'ranked-list'; title: string; limit: number }
+  | { type: 'map-legend'; title: string; description: string }
+  | { type: 'location-popup'; maxCategories: number }
+
+export interface ProjectMapExplorerWorkspaceDef {
+  type: 'map-explorer'
+  schema: 'map-explorer-v1'
+  data: {
+    adapter: 'research-records-v1'
+    baseUrl: string
+    files: {
+      overview: string
+      records: string
+      locations: string
+      timeline: string
+    }
+    categories: ProjectExplorerCategoryDef[]
+    aggregateLocationIds: string[]
   }
   map: {
     center: [number, number]
@@ -101,9 +139,19 @@ export interface ProjectDataPortalDef {
     minZoom: number
     maxZoom: number
   }
-  resourceTypes: ProjectDataPortalResourceTypeDef[]
-  regionalLocationIds: string[]
+  labels: {
+    recordSingular: string
+    recordPlural: string
+    locationSingular: string
+    locationPlural: string
+    yearPlural: string
+    loading: string
+    unavailable: string
+  }
+  features: ProjectExplorerFeatureDef[]
 }
+
+export type ProjectWorkspaceDef = ProjectMapExplorerWorkspaceDef
 
 export interface ProjectPackage {
   version: 1
@@ -127,7 +175,7 @@ export interface ProjectPackage {
   files: Array<{ label: string; detail: string }>
   lab?: ProjectLabRecipe
   portalMap?: ProjectPortalMapDef
-  dataPortal?: ProjectDataPortalDef
+  workspace?: ProjectWorkspaceDef
   /** Runtime flag: package came from this device (import or lab export), not the manifest. */
   local?: boolean
 }
@@ -200,13 +248,85 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function normalizeDataPortal(value: unknown): ProjectDataPortalDef | undefined {
+function normalizeExplorerFeature(value: unknown): ProjectExplorerFeatureDef | null {
+  if (typeof value !== 'object' || value === null) return null
+  const candidate = value as Record<string, unknown>
+
+  switch (candidate.type) {
+    case 'summary-stats': {
+      const items = asArray(candidate.items, (item): item is ProjectExplorerSummaryItemDef => {
+        const entry = item as Record<string, unknown>
+        return (
+          ['records', 'locations', 'year-range'].includes(asString(entry.metric)) &&
+          typeof entry.label === 'string' &&
+          ['book-open', 'map-pin', 'calendar'].includes(asString(entry.icon))
+        )
+      })
+      return items.length > 0 ? { type: 'summary-stats', items } : null
+    }
+    case 'timeline':
+      return {
+        type: 'timeline',
+        title: asString(candidate.title, 'Timeline'),
+        granularity: 'decade',
+        showLabel: asString(candidate.showLabel, 'Show Timeline'),
+        hideLabel: asString(candidate.hideLabel, 'Hide Timeline'),
+      }
+    case 'category-filter':
+      return { type: 'category-filter', title: asString(candidate.title, 'Categories') }
+    case 'aggregate-records':
+      return {
+        type: 'aggregate-records',
+        triggerTemplate: asString(candidate.triggerTemplate, '{count} records tagged to the whole region'),
+        modalTitle: asString(candidate.modalTitle, 'Regional Records'),
+        modalDescription: asString(
+          candidate.modalDescription,
+          '{count} records tagged to the region without a specific location',
+        ),
+      }
+    case 'search': {
+      const allowedFields = ['title', 'author', 'tags']
+      const fields = asArray(candidate.fields, (item): item is 'title' | 'author' | 'tags' =>
+        allowedFields.includes(asString(item)),
+      )
+      return {
+        type: 'search',
+        placeholder: asString(candidate.placeholder, 'Search…'),
+        fields: fields.length > 0 ? fields : ['title', 'author', 'tags'],
+      }
+    }
+    case 'ranked-list':
+      return {
+        type: 'ranked-list',
+        title: asString(candidate.title, 'Locations'),
+        limit: isFiniteNumber(candidate.limit) ? Math.max(1, Math.floor(candidate.limit)) : 30,
+      }
+    case 'map-legend':
+      return {
+        type: 'map-legend',
+        title: asString(candidate.title, 'Legend'),
+        description: asString(candidate.description),
+      }
+    case 'location-popup':
+      return {
+        type: 'location-popup',
+        maxCategories: isFiniteNumber(candidate.maxCategories) ? Math.max(1, Math.floor(candidate.maxCategories)) : 5,
+      }
+    default:
+      return null
+  }
+}
+
+function normalizeWorkspace(value: unknown): ProjectWorkspaceDef | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const candidate = value as Record<string, unknown>
-  if (candidate.schema !== 'research-portal-v1' || !isHttpsUrl(candidate.dataBaseUrl)) return undefined
+  if (candidate.type !== 'map-explorer' || candidate.schema !== 'map-explorer-v1') return undefined
 
-  const files = candidate.files as Record<string, unknown> | undefined
+  const data = candidate.data as Record<string, unknown> | undefined
+  if (data?.adapter !== 'research-records-v1' || !isHttpsUrl(data.baseUrl)) return undefined
+  const files = data.files as Record<string, unknown> | undefined
   const map = candidate.map as Record<string, unknown> | undefined
+  const labels = candidate.labels as Record<string, unknown> | undefined
   const center = map?.center
   if (
     !Array.isArray(center) ||
@@ -218,20 +338,31 @@ function normalizeDataPortal(value: unknown): ProjectDataPortalDef | undefined {
     return undefined
   }
 
-  const resourceTypes = asArray(candidate.resourceTypes, (item): item is ProjectDataPortalResourceTypeDef => {
-    const entry = item as Partial<ProjectDataPortalResourceTypeDef>
+  const categories = asArray(data.categories, (item): item is ProjectExplorerCategoryDef => {
+    const entry = item as Partial<ProjectExplorerCategoryDef>
     return typeof entry?.id === 'string' && typeof entry.label === 'string' && typeof entry.color === 'string'
   })
-  if (resourceTypes.length === 0) return undefined
+  const features = Array.isArray(candidate.features)
+    ? candidate.features
+        .map(normalizeExplorerFeature)
+        .filter((item): item is ProjectExplorerFeatureDef => item !== null)
+    : []
+  if (categories.length === 0 || features.length === 0) return undefined
 
   return {
+    type: candidate.type,
     schema: candidate.schema,
-    dataBaseUrl: candidate.dataBaseUrl.endsWith('/') ? candidate.dataBaseUrl : `${candidate.dataBaseUrl}/`,
-    files: {
-      overview: asString(files?.overview, 'overview.json'),
-      submissions: asString(files?.submissions, 'submissions.cleaned.json'),
-      locations: asString(files?.locations, 'locations.cleaned.json'),
-      decades: asString(files?.decades, 'decades.cleaned.json'),
+    data: {
+      adapter: data.adapter,
+      baseUrl: data.baseUrl.endsWith('/') ? data.baseUrl : `${data.baseUrl}/`,
+      files: {
+        overview: asString(files?.overview, 'overview.json'),
+        records: asString(files?.records, 'records.json'),
+        locations: asString(files?.locations, 'locations.json'),
+        timeline: asString(files?.timeline, 'timeline.json'),
+      },
+      categories,
+      aggregateLocationIds: asArray(data.aggregateLocationIds, (item): item is string => typeof item === 'string'),
     },
     map: {
       center: [center[0], center[1]],
@@ -239,8 +370,16 @@ function normalizeDataPortal(value: unknown): ProjectDataPortalDef | undefined {
       minZoom: isFiniteNumber(map.minZoom) ? map.minZoom : 4,
       maxZoom: isFiniteNumber(map.maxZoom) ? map.maxZoom : 15,
     },
-    resourceTypes,
-    regionalLocationIds: asArray(candidate.regionalLocationIds, (item): item is string => typeof item === 'string'),
+    labels: {
+      recordSingular: asString(labels?.recordSingular, 'record'),
+      recordPlural: asString(labels?.recordPlural, 'records'),
+      locationSingular: asString(labels?.locationSingular, 'location'),
+      locationPlural: asString(labels?.locationPlural, 'locations'),
+      yearPlural: asString(labels?.yearPlural, 'years'),
+      loading: asString(labels?.loading, 'Loading data…'),
+      unavailable: asString(labels?.unavailable, 'Data unavailable'),
+    },
+    features,
   }
 }
 
@@ -295,7 +434,7 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
     files: asArray(candidate.files, isFileItem),
     lab: hasLab ? lab : undefined,
     portalMap: hasPortalMap ? portalMap : undefined,
-    dataPortal: normalizeDataPortal(candidate.dataPortal),
+    workspace: normalizeWorkspace(candidate.workspace),
     local: candidate.local === true,
   }
 }

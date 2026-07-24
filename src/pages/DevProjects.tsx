@@ -54,8 +54,8 @@ import {
   type ProjectPortalRasterLayerDef,
   type ProjectTheme,
 } from '@/lib/projectPackages'
+import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
 import { ProjectScoreMapPreview } from '@/maps/scorebuilder/ProjectScoreMapPreview'
-import { ResearchPortal } from '@/maps/research-portal/ResearchPortal'
 import healthAuthorityBoundaries from '../../public/data/boundaries/BCMoH/simplified/health_authorities.json'
 
 type ControllerTab = 'layers' | 'project'
@@ -1444,13 +1444,13 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
   )
 }
 
-function DataPortalProjectWorkspace({ project, onBack }: { project: ProjectPackage; onBack: () => void }) {
-  const dataPortal = project.dataPortal
-  if (!dataPortal) return null
+function ConfiguredProjectWorkspace({ project, onBack }: { project: ProjectPackage; onBack: () => void }) {
+  const workspace = project.workspace
+  if (!workspace) return null
 
   return (
     <div className="h-[100dvh] bg-background pt-[calc(env(safe-area-inset-top)+4rem)] md:h-[calc(100vh-4rem)] md:pt-0">
-      <ResearchPortal title={project.title} config={dataPortal} onBack={onBack} />
+      <ProjectMapExplorer title={project.title} config={workspace} onBack={onBack} />
     </div>
   )
 }
@@ -1515,8 +1515,8 @@ export default function DevProjects() {
   }
 
   if (selectedProject) {
-    if (selectedProject.dataPortal) {
-      return <DataPortalProjectWorkspace key={selectedProject.slug} project={selectedProject} onBack={backToCatalog} />
+    if (selectedProject.workspace) {
+      return <ConfiguredProjectWorkspace key={selectedProject.slug} project={selectedProject} onBack={backToCatalog} />
     }
     return <LoadedProjectWorkspace key={selectedProject.slug} project={selectedProject} onBack={backToCatalog} />
   }

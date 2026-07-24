@@ -7,24 +7,28 @@ import { Button } from '@/components/ui/button'
 import { Map, MapControls, MapPopup, useMap } from '@/components/ui/map'
 import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { Timeline } from '@/components/ui/timeline'
-import type { ProjectDataPortalDef } from '@/lib/projectPackages'
+import type {
+  ProjectExplorerFeatureDef,
+  ProjectExplorerSummaryIcon,
+  ProjectMapExplorerWorkspaceDef,
+} from '@/lib/projectPackages'
 import { cn } from '@/lib/utils'
 
-import type { ResearchPortalLocationFeatureProperties, ResearchPortalSubmission } from './types'
-import { type ResearchPortalData, useResearchPortalData } from './useResearchPortalData'
+import type { ExplorerLocationFeatureProperties, ResearchRecord } from './adapters/researchRecordsTypes'
+import { type ResearchRecordsAdapterData, useResearchRecordsAdapter } from './adapters/useResearchRecordsAdapter'
 
-export function ResearchPortal({
+export function ProjectMapExplorer({
   title,
   config,
   onBack,
 }: {
   title: string
-  config: ProjectDataPortalDef
+  config: ProjectMapExplorerWorkspaceDef
   onBack: () => void
 }) {
   const [showSidebar, setShowSidebar] = useState(true)
   const [timelineMode, setTimelineMode] = useState(false)
-  const data = useResearchPortalData(config)
+  const data = useResearchRecordsAdapter(config)
 
   if (data.loading) {
     return (
@@ -35,7 +39,7 @@ export function ResearchPortal({
             <span className="size-2 animate-pulse rounded-full bg-primary [animation-delay:150ms]" />
             <span className="size-2 animate-pulse rounded-full bg-primary [animation-delay:300ms]" />
           </div>
-          <span className="text-sm text-muted-foreground">Loading research data…</span>
+          <span className="text-sm text-muted-foreground">{config.labels.loading}</span>
         </div>
       </div>
     )
@@ -45,7 +49,7 @@ export function ResearchPortal({
     return (
       <div className="flex h-full items-center justify-center bg-background p-6">
         <div className="max-w-sm rounded-lg border bg-card p-5 text-center shadow-sm">
-          <h2 className="text-base font-semibold text-foreground">Research data unavailable</h2>
+          <h2 className="text-base font-semibold text-foreground">{config.labels.unavailable}</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{data.error}</p>
           <Button type="button" size="sm" className="mt-4" onClick={data.retry}>
             <RotateCcw className="h-4 w-4" />
@@ -59,9 +63,10 @@ export function ResearchPortal({
   return (
     <MapSectionLayout
       sidebar={
-        <ResearchSidebar
+        <ProjectExplorerSidebar
           title={title}
           onBack={onBack}
+          config={config}
           data={data}
           timelineMode={timelineMode}
           onToggleTimeline={() => {
@@ -79,13 +84,13 @@ export function ResearchPortal({
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">{title}</div>
           <div className="truncate text-xs text-muted-foreground">
-            {data.filteredStats.totalPublications.toLocaleString()} publications
+            {data.filteredStats.totalPublications.toLocaleString()} {config.labels.recordPlural}
           </div>
         </div>
       }
       showMobilePeek
     >
-      <ResearchMap
+      <ProjectExplorerMap
         config={config}
         data={data}
         timelineMode={timelineMode}
@@ -98,16 +103,18 @@ export function ResearchPortal({
   )
 }
 
-function ResearchSidebar({
+function ProjectExplorerSidebar({
   title,
   onBack,
+  config,
   data,
   timelineMode,
   onToggleTimeline,
 }: {
   title: string
   onBack: () => void
-  data: ResearchPortalData
+  config: ProjectMapExplorerWorkspaceDef
+  data: ResearchRecordsAdapterData
   timelineMode: boolean
   onToggleTimeline: () => void
 }) {
@@ -129,6 +136,8 @@ function ResearchSidebar({
   } = data
   const [showRegionalModal, setShowRegionalModal] = useState(false)
   const hasFilters = selectedDecade !== null || selectedTypes.size > 0 || searchQuery !== ''
+  const summaryFeature = config.features.find((feature) => feature.type === 'summary-stats')
+  const aggregateFeature = config.features.find((feature) => feature.type === 'aggregate-records')
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -146,160 +155,308 @@ function ResearchSidebar({
         </div>
       </div>
 
-      <div className="shrink-0 border-b border-border p-3">
-        <div className="grid grid-cols-3 gap-2">
-          <StatCard
-            icon={<BookOpen className="size-3.5" />}
-            value={filteredStats.totalPublications}
-            label="Publications"
-          />
-          <StatCard icon={<MapPin className="size-3.5" />} value={filteredStats.activeLocations} label="Locations" />
-          <StatCard
-            icon={<Calendar className="size-3.5" />}
-            value={overview?.yearRange ? `${overview.yearRange.min}–${overview.yearRange.max}` : '—'}
-            label="Years"
-          />
-        </div>
-        {hasFilters && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="mt-2 flex items-center gap-1 text-xs text-primary hover:underline"
-          >
-            <X className="size-3" />
-            Clear all filters
-          </button>
-        )}
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <section className="border-b border-border p-3">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timeline</h3>
-          <DecadeTimeline
-            decades={decades}
-            selectedDecade={selectedDecade}
-            onSelectDecade={(decade) => setSelectedDecade(decade === selectedDecade ? null : decade)}
-          />
-          <button
-            type="button"
-            onClick={onToggleTimeline}
-            aria-pressed={timelineMode}
-            className={cn(
-              'mt-2 flex w-full items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',
-              timelineMode
-                ? 'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10',
-            )}
-          >
-            <Play className="size-3" />
-            {timelineMode ? 'Hide Timeline' : 'Show Timeline'}
-          </button>
-        </section>
-
-        <section className="border-b border-border p-3">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resource Types</h3>
-          <div className="space-y-0.5">
-            {allResourceTypes.map(([type, count]) => {
-              const isSelected = selectedTypes.size === 0 || selectedTypes.has(type)
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => toggleResourceType(type)}
-                  className={cn(
-                    'flex w-full items-center gap-2 rounded px-2 py-1 text-xs transition-colors',
-                    isSelected ? 'hover:bg-muted' : 'opacity-40 hover:opacity-60',
-                  )}
-                >
-                  <span
-                    className="size-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: data.resourceTypeColors[type] ?? data.resourceTypeColors.other }}
-                  />
-                  <span className="flex-1 truncate text-left">{data.resourceTypeLabels[type] ?? type}</span>
-                  <span className="text-muted-foreground">{count}</span>
-                </button>
-              )
-            })}
+      {summaryFeature && (
+        <div className="shrink-0 border-b border-border p-3">
+          <div className={cn('grid gap-2', summaryFeature.items.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
+            {summaryFeature.items.map((item) => (
+              <StatCard
+                key={item.metric}
+                icon={summaryIcon(item.icon)}
+                value={summaryMetricValue(item.metric, overview, filteredStats)}
+                label={item.label}
+              />
+            ))}
           </div>
-        </section>
-
-        {regionalOnlySubmissions.length > 0 && (
-          <section className="border-b border-border p-3">
+          {hasFilters && (
             <button
               type="button"
-              onClick={() => setShowRegionalModal(true)}
-              className="flex w-full items-center gap-2 rounded-md border border-dashed border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/10"
+              onClick={clearFilters}
+              className="mt-2 flex items-center gap-1 text-xs text-primary hover:underline"
             >
-              <Globe className="size-3.5 shrink-0" />
-              <span className="flex-1 text-left">
-                <strong>{regionalOnlySubmissions.length}</strong> publications tagged to watershed region only
-              </span>
+              <X className="size-3" />
+              Clear all filters
             </button>
-          </section>
-        )}
+          )}
+        </div>
+      )}
 
-        <section className="p-3">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Locations</h3>
-          <div className="relative mb-2">
-            <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search titles, authors, tags…"
-              className="w-full rounded-md border border-input bg-background py-1.5 pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-                aria-label="Clear search"
-              >
-                <X className="size-3 text-muted-foreground" />
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-0.5">
-            {filteredLocations.slice(0, 30).map((location) => {
-              const maxCount = filteredLocations[0]?.filteredCount ?? 1
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {config.features.map((feature, index) => {
+          const key = `${feature.type}-${index}`
+          switch (feature.type) {
+            case 'timeline':
               return (
-                <button
-                  key={location.id}
-                  type="button"
-                  onClick={() => setSelectedLocationId(location.id)}
-                  className="group flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted"
-                >
-                  <span className="min-w-0 flex-1 truncate text-left transition-colors group-hover:text-primary">
-                    {formatLocationName(location.name)}
-                  </span>
-                  <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
-                    <span
-                      className="block h-full rounded-full bg-primary/50"
-                      style={{ width: `${(location.filteredCount / maxCount) * 100}%` }}
-                    />
-                  </span>
-                  <span className="w-6 shrink-0 text-right text-muted-foreground">{location.filteredCount}</span>
-                </button>
+                <TimelineFeature
+                  key={key}
+                  feature={feature}
+                  decades={decades}
+                  selectedDecade={selectedDecade}
+                  onSelectDecade={(decade) => setSelectedDecade(decade === selectedDecade ? null : decade)}
+                  timelineMode={timelineMode}
+                  onToggleTimeline={onToggleTimeline}
+                  recordPlural={config.labels.recordPlural}
+                />
               )
-            })}
-            {filteredLocations.length === 0 && (
-              <p className="py-4 text-center text-xs text-muted-foreground">No locations match filters</p>
-            )}
-          </div>
-        </section>
+            case 'category-filter':
+              return (
+                <CategoryFilterFeature
+                  key={key}
+                  feature={feature}
+                  categories={allResourceTypes}
+                  selectedCategories={selectedTypes}
+                  colors={data.resourceTypeColors}
+                  labels={data.resourceTypeLabels}
+                  onToggle={toggleResourceType}
+                />
+              )
+            case 'aggregate-records':
+              if (regionalOnlySubmissions.length === 0) return null
+              return (
+                <AggregateRecordsFeature
+                  key={key}
+                  feature={feature}
+                  count={regionalOnlySubmissions.length}
+                  onOpen={() => setShowRegionalModal(true)}
+                />
+              )
+            case 'search':
+              return <SearchFeature key={key} feature={feature} query={searchQuery} onQueryChange={setSearchQuery} />
+            case 'ranked-list':
+              return (
+                <RankedListFeature
+                  key={key}
+                  feature={feature}
+                  locations={filteredLocations}
+                  locationPlural={config.labels.locationPlural}
+                  onSelect={setSelectedLocationId}
+                />
+              )
+            default:
+              return null
+          }
+        })}
       </div>
 
-      {showRegionalModal && (
-        <RegionalSubmissionsModal
+      {showRegionalModal && aggregateFeature?.type === 'aggregate-records' && (
+        <AggregateRecordsModal
+          feature={aggregateFeature}
           submissions={regionalOnlySubmissions}
           resourceTypeLabels={data.resourceTypeLabels}
+          recordSingular={config.labels.recordSingular}
           onClose={() => setShowRegionalModal(false)}
         />
       )}
     </div>
   )
+}
+
+type ExplorerFeature<T extends ProjectExplorerFeatureDef['type']> = Extract<ProjectExplorerFeatureDef, { type: T }>
+
+function TimelineFeature({
+  feature,
+  decades,
+  selectedDecade,
+  onSelectDecade,
+  timelineMode,
+  onToggleTimeline,
+  recordPlural,
+}: {
+  feature: ExplorerFeature<'timeline'>
+  decades: ResearchRecordsAdapterData['decades']
+  selectedDecade: number | null
+  onSelectDecade: (decade: number) => void
+  timelineMode: boolean
+  onToggleTimeline: () => void
+  recordPlural: string
+}) {
+  return (
+    <section className="border-b border-border p-3">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{feature.title}</h3>
+      <DecadeTimeline
+        decades={decades}
+        selectedDecade={selectedDecade}
+        onSelectDecade={onSelectDecade}
+        recordPlural={recordPlural}
+      />
+      <button
+        type="button"
+        onClick={onToggleTimeline}
+        aria-pressed={timelineMode}
+        className={cn(
+          'mt-2 flex w-full items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',
+          timelineMode
+            ? 'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
+            : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10',
+        )}
+      >
+        <Play className="size-3" />
+        {timelineMode ? feature.hideLabel : feature.showLabel}
+      </button>
+    </section>
+  )
+}
+
+function CategoryFilterFeature({
+  feature,
+  categories,
+  selectedCategories,
+  colors,
+  labels,
+  onToggle,
+}: {
+  feature: ExplorerFeature<'category-filter'>
+  categories: Array<[string, number]>
+  selectedCategories: Set<string>
+  colors: Record<string, string>
+  labels: Record<string, string>
+  onToggle: (category: string) => void
+}) {
+  return (
+    <section className="border-b border-border p-3">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{feature.title}</h3>
+      <div className="space-y-0.5">
+        {categories.map(([category, count]) => {
+          const isSelected = selectedCategories.size === 0 || selectedCategories.has(category)
+          return (
+            <button
+              key={category}
+              type="button"
+              onClick={() => onToggle(category)}
+              className={cn(
+                'flex w-full items-center gap-2 rounded px-2 py-1 text-xs transition-colors',
+                isSelected ? 'hover:bg-muted' : 'opacity-40 hover:opacity-60',
+              )}
+            >
+              <span
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: colors[category] ?? colors.other }}
+              />
+              <span className="flex-1 truncate text-left">{labels[category] ?? category}</span>
+              <span className="text-muted-foreground">{count}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function AggregateRecordsFeature({
+  feature,
+  count,
+  onOpen,
+}: {
+  feature: ExplorerFeature<'aggregate-records'>
+  count: number
+  onOpen: () => void
+}) {
+  return (
+    <section className="border-b border-border p-3">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center gap-2 rounded-md border border-dashed border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/10"
+      >
+        <Globe className="size-3.5 shrink-0" />
+        <span className="flex-1 text-left">{applyCountTemplate(feature.triggerTemplate, count)}</span>
+      </button>
+    </section>
+  )
+}
+
+function SearchFeature({
+  feature,
+  query,
+  onQueryChange,
+}: {
+  feature: ExplorerFeature<'search'>
+  query: string
+  onQueryChange: (query: string) => void
+}) {
+  return (
+    <section className="border-b border-border p-3">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={feature.placeholder}
+          className="w-full rounded-md border border-input bg-background py-1.5 pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => onQueryChange('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2"
+            aria-label="Clear search"
+          >
+            <X className="size-3 text-muted-foreground" />
+          </button>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function RankedListFeature({
+  feature,
+  locations,
+  locationPlural,
+  onSelect,
+}: {
+  feature: ExplorerFeature<'ranked-list'>
+  locations: ResearchRecordsAdapterData['filteredLocations']
+  locationPlural: string
+  onSelect: (locationId: string) => void
+}) {
+  const maxCount = locations[0]?.filteredCount ?? 1
+  return (
+    <section className="p-3">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{feature.title}</h3>
+      <div className="space-y-0.5">
+        {locations.slice(0, feature.limit).map((location) => (
+          <button
+            key={location.id}
+            type="button"
+            onClick={() => onSelect(location.id)}
+            className="group flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted"
+          >
+            <span className="min-w-0 flex-1 truncate text-left transition-colors group-hover:text-primary">
+              {formatLocationName(location.name)}
+            </span>
+            <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
+              <span
+                className="block h-full rounded-full bg-primary/50"
+                style={{ width: `${(location.filteredCount / maxCount) * 100}%` }}
+              />
+            </span>
+            <span className="w-6 shrink-0 text-right text-muted-foreground">{location.filteredCount}</span>
+          </button>
+        ))}
+        {locations.length === 0 && (
+          <p className="py-4 text-center text-xs text-muted-foreground">No {locationPlural} match filters</p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function summaryIcon(icon: ProjectExplorerSummaryIcon) {
+  if (icon === 'map-pin') return <MapPin className="size-3" />
+  if (icon === 'calendar') return <Calendar className="size-3" />
+  return <BookOpen className="size-3" />
+}
+
+function summaryMetricValue(
+  metric: ExplorerFeature<'summary-stats'>['items'][number]['metric'],
+  overview: ResearchRecordsAdapterData['overview'],
+  filteredStats: ResearchRecordsAdapterData['filteredStats'],
+) {
+  if (metric === 'records') return filteredStats.totalPublications
+  if (metric === 'locations') return filteredStats.activeLocations
+  if (!overview?.yearRange) return '—'
+  return `${overview.yearRange.min}–${overview.yearRange.max}`
 }
 
 function StatCard({ icon, value, label }: { icon: React.ReactNode; value: string | number; label: string }) {
@@ -324,10 +481,12 @@ function DecadeTimeline({
   decades,
   selectedDecade,
   onSelectDecade,
+  recordPlural,
 }: {
-  decades: ResearchPortalData['decades']
+  decades: ResearchRecordsAdapterData['decades']
   selectedDecade: number | null
   onSelectDecade: (decade: number) => void
+  recordPlural: string
 }) {
   const maxTotal = Math.max(1, ...decades.map((item) => item.total))
   return (
@@ -343,7 +502,7 @@ function DecadeTimeline({
               'flex w-full items-center gap-2 rounded px-2 py-1 text-xs transition-colors',
               selected ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-muted',
             )}
-            title={`${item.decade}s: ${item.total} publications`}
+            title={`${item.decade}s: ${item.total} ${recordPlural}`}
           >
             <span className="w-10 text-right font-mono text-muted-foreground">{item.decade}s</span>
             <span className="h-3 flex-1 overflow-hidden rounded bg-muted">
@@ -363,13 +522,17 @@ function DecadeTimeline({
   )
 }
 
-function RegionalSubmissionsModal({
+function AggregateRecordsModal({
+  feature,
   submissions,
   resourceTypeLabels,
+  recordSingular,
   onClose,
 }: {
-  submissions: ResearchPortalSubmission[]
+  feature: ExplorerFeature<'aggregate-records'>
+  submissions: ResearchRecord[]
   resourceTypeLabels: Record<string, string>
+  recordSingular: string
   onClose: () => void
 }) {
   useEffect(() => {
@@ -386,14 +549,14 @@ function RegionalSubmissionsModal({
         type="button"
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
-        aria-label="Close regional publications"
+        aria-label={`Close ${recordSingular} collection`}
       />
       <div className="relative z-10 flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg border bg-background shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Regional Publications</h2>
+            <h2 className="text-sm font-semibold text-foreground">{feature.modalTitle}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {submissions.length} publications tagged to the watershed without a specific location
+              {applyCountTemplate(feature.modalDescription, submissions.length)}
             </p>
           </div>
           <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-muted" aria-label="Close">
@@ -404,7 +567,7 @@ function RegionalSubmissionsModal({
           {submissions.map((submission) => (
             <article key={submission.id} className="rounded-md border bg-muted/20 p-3">
               <h3 className="text-sm font-medium leading-5 text-foreground">
-                {submission.title || 'Untitled publication'}
+                {submission.title || `Untitled ${recordSingular}`}
               </h3>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {submission.author && <span>{submission.author}</span>}
@@ -419,18 +582,21 @@ function RegionalSubmissionsModal({
   )
 }
 
-function ResearchMap({
+function ProjectExplorerMap({
   config,
   data,
   timelineMode,
   onExitTimeline,
 }: {
-  config: ProjectDataPortalDef
-  data: ResearchPortalData
+  config: ProjectMapExplorerWorkspaceDef
+  data: ResearchRecordsAdapterData
   timelineMode: boolean
   onExitTimeline: () => void
 }) {
   const { locationGeoJSON, selectedLocation, setSelectedLocationId } = data
+  const timelineFeature = config.features.find((feature) => feature.type === 'timeline')
+  const legendFeature = config.features.find((feature) => feature.type === 'map-legend')
+  const popupFeature = config.features.find((feature) => feature.type === 'location-popup')
   const decadeValues = useMemo(() => data.decades.map((item) => item.decade), [data.decades])
   const firstDecade = decadeValues[0] ?? new Date().getFullYear()
   const lastDecade = decadeValues[decadeValues.length - 1] ?? firstDecade
@@ -460,8 +626,10 @@ function ResearchMap({
         onLocationClick={(properties) => setSelectedLocationId(properties.id)}
       />
       <MapControls position="top-right" showZoom showCompass showFullscreen />
-      <ResearchPortalLegend config={config} counts={legendCounts} elevated={timelineMode} />
-      {!timelineMode && selectedLocation?.coordinates && (
+      {legendFeature?.type === 'map-legend' && (
+        <ProjectExplorerLegend config={config} feature={legendFeature} counts={legendCounts} elevated={timelineMode} />
+      )}
+      {!timelineMode && popupFeature?.type === 'location-popup' && selectedLocation?.coordinates && (
         <MapPopup
           longitude={selectedLocation.coordinates.lon}
           latitude={selectedLocation.coordinates.lat}
@@ -475,10 +643,12 @@ function ResearchMap({
             resourceTypes={selectedLocation.resourceTypes}
             resourceTypeColors={data.resourceTypeColors}
             resourceTypeLabels={data.resourceTypeLabels}
+            recordPlural={config.labels.recordPlural}
+            maxCategories={popupFeature.maxCategories}
           />
         </MapPopup>
       )}
-      {timelineMode && selectedTimelineFeature && (
+      {timelineMode && popupFeature?.type === 'location-popup' && selectedTimelineFeature && (
         <MapPopup
           longitude={selectedTimelineFeature.geometry.coordinates[0]}
           latitude={selectedTimelineFeature.geometry.coordinates[1]}
@@ -489,12 +659,13 @@ function ResearchMap({
           <div>
             <h3 className="text-sm font-semibold">{formatLocationName(selectedTimelineFeature.properties.name)}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              {selectedTimelineFeature.properties.count.toLocaleString()} publications in the {currentDecade}s
+              {selectedTimelineFeature.properties.count.toLocaleString()} {config.labels.recordPlural} in the{' '}
+              {currentDecade}s
             </p>
           </div>
         </MapPopup>
       )}
-      {timelineMode && (
+      {timelineMode && timelineFeature?.type === 'timeline' && (
         <Timeline
           startDate={new Date(firstDecade, 0, 1)}
           endDate={new Date(lastDecade, 0, 1)}
@@ -505,9 +676,9 @@ function ResearchMap({
           }}
           onClose={onExitTimeline}
           bucketCounts={bucketCounts}
-          bucketValueLabel="publications"
-          statsLabel={`${decadeSummary?.total.toLocaleString() ?? 0} publications`}
-          granularity="decade"
+          bucketValueLabel={config.labels.recordPlural}
+          statsLabel={`${decadeSummary?.total.toLocaleString() ?? 0} ${config.labels.recordPlural}`}
+          granularity={timelineFeature.granularity}
         />
       )}
     </Map>
@@ -521,9 +692,9 @@ function ResearchLocationLayer({
   onLocationClick,
 }: {
   idPrefix: string
-  data: GeoJSON.FeatureCollection<GeoJSON.Point, ResearchPortalLocationFeatureProperties>
+  data: GeoJSON.FeatureCollection<GeoJSON.Point, ExplorerLocationFeatureProperties>
   fallbackColor: string
-  onLocationClick: (properties: ResearchPortalLocationFeatureProperties) => void
+  onLocationClick: (properties: ExplorerLocationFeatureProperties) => void
 }) {
   const { map, isLoaded } = useMap()
   const sourceId = `${idPrefix}-locations`
@@ -591,7 +762,7 @@ function ResearchLocationLayer({
 
     const handleClick = (event: MapLibreGL.MapMouseEvent & { features?: MapLibreGL.MapGeoJSONFeature[] }) => {
       const feature = event.features?.[0]
-      if (feature) onClickRef.current(feature.properties as unknown as ResearchPortalLocationFeatureProperties)
+      if (feature) onClickRef.current(feature.properties as unknown as ExplorerLocationFeatureProperties)
     }
     const handleMouseEnter = () => {
       map.getCanvas().style.cursor = 'pointer'
@@ -639,22 +810,28 @@ function LocationPopupContent({
   resourceTypes,
   resourceTypeColors,
   resourceTypeLabels,
+  recordPlural,
+  maxCategories,
 }: {
   name: string
   count: number
   resourceTypes: Record<string, number>
   resourceTypeColors: Record<string, string>
   resourceTypeLabels: Record<string, string>
+  recordPlural: string
+  maxCategories: number
 }) {
   const sorted = Object.entries(resourceTypes)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+    .slice(0, maxCategories)
   const maxTypeCount = sorted[0]?.[1] ?? 1
   return (
     <div className="space-y-2">
       <div>
         <h3 className="text-sm font-semibold">{formatLocationName(name)}</h3>
-        <p className="text-xs text-muted-foreground">{count} publications (filtered)</p>
+        <p className="text-xs text-muted-foreground">
+          {count} {recordPlural} (filtered)
+        </p>
       </div>
       <div className="space-y-1">
         {sorted.map(([type, typeCount]) => (
@@ -681,27 +858,29 @@ function LocationPopupContent({
   )
 }
 
-function ResearchPortalLegend({
+function ProjectExplorerLegend({
   config,
+  feature,
   counts,
   elevated = false,
 }: {
-  config: ProjectDataPortalDef
+  config: ProjectMapExplorerWorkspaceDef
+  feature: ExplorerFeature<'map-legend'>
   counts: Array<[string, number]>
   elevated?: boolean
 }) {
   const countMap = new globalThis.Map(counts)
   return (
     <MapLegendPanel
-      title="Resource types"
-      description="Circle size represents publication count."
+      title={feature.title}
+      description={feature.description}
       icon={<Layers className="size-3.5" />}
       collapsible
       elevated={elevated}
       width="sm"
       contentClassName="space-y-1"
     >
-      {config.resourceTypes.map((type) => (
+      {config.data.categories.map((type) => (
         <LegendItem
           key={type.id}
           color={type.color}
@@ -715,4 +894,8 @@ function ResearchPortalLegend({
 
 function formatLocationName(name: string) {
   return name.replace(/_/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function applyCountTemplate(template: string, count: number) {
+  return template.split('{count}').join(count.toLocaleString())
 }

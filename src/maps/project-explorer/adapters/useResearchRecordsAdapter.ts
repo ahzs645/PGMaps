@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { ProjectDataPortalDef } from '@/lib/projectPackages'
+import type { ProjectMapExplorerWorkspaceDef } from '@/lib/projectPackages'
 
 import type {
-  ResearchPortalDecadeSeries,
-  ResearchPortalLocation,
-  ResearchPortalLocationFeatureProperties,
-  ResearchPortalOverview,
-  ResearchPortalSubmission,
-} from './types'
+  ExplorerLocationFeatureProperties,
+  ResearchRecord,
+  ResearchRecordsLocation,
+  ResearchRecordsOverview,
+  ResearchRecordsTimelineBucket,
+} from './researchRecordsTypes'
 
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
   const response = await fetch(url, { signal })
@@ -16,11 +16,11 @@ async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function useResearchPortalData(config: ProjectDataPortalDef) {
-  const [overview, setOverview] = useState<ResearchPortalOverview | null>(null)
-  const [submissions, setSubmissions] = useState<ResearchPortalSubmission[]>([])
-  const [locations, setLocations] = useState<ResearchPortalLocation[]>([])
-  const [decades, setDecades] = useState<ResearchPortalDecadeSeries[]>([])
+export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef) {
+  const [overview, setOverview] = useState<ResearchRecordsOverview | null>(null)
+  const [submissions, setSubmissions] = useState<ResearchRecord[]>([])
+  const [locations, setLocations] = useState<ResearchRecordsLocation[]>([])
+  const [decades, setDecades] = useState<ResearchRecordsTimelineBucket[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -30,24 +30,31 @@ export function useResearchPortalData(config: ProjectDataPortalDef) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
   const resourceTypeColors = useMemo(
-    () => Object.fromEntries(config.resourceTypes.map((type) => [type.id, type.color])),
-    [config.resourceTypes],
+    () => Object.fromEntries(config.data.categories.map((type) => [type.id, type.color])),
+    [config.data.categories],
   )
   const resourceTypeLabels = useMemo(
-    () => Object.fromEntries(config.resourceTypes.map((type) => [type.id, type.label])),
-    [config.resourceTypes],
+    () => Object.fromEntries(config.data.categories.map((type) => [type.id, type.label])),
+    [config.data.categories],
   )
-  const regionalLocationIds = useMemo(() => new Set(config.regionalLocationIds), [config.regionalLocationIds])
+  const regionalLocationIds = useMemo(
+    () => new Set(config.data.aggregateLocationIds),
+    [config.data.aggregateLocationIds],
+  )
+  const searchFields = useMemo(
+    () => config.features.find((feature) => feature.type === 'search')?.fields ?? [],
+    [config.features],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
-    const base = config.dataBaseUrl
+    const base = config.data.baseUrl
 
     Promise.all([
-      fetchJson<ResearchPortalOverview>(`${base}${config.files.overview}`, controller.signal),
-      fetchJson<ResearchPortalSubmission[]>(`${base}${config.files.submissions}`, controller.signal),
-      fetchJson<ResearchPortalLocation[]>(`${base}${config.files.locations}`, controller.signal),
-      fetchJson<ResearchPortalDecadeSeries[]>(`${base}${config.files.decades}`, controller.signal),
+      fetchJson<ResearchRecordsOverview>(`${base}${config.data.files.overview}`, controller.signal),
+      fetchJson<ResearchRecord[]>(`${base}${config.data.files.records}`, controller.signal),
+      fetchJson<ResearchRecordsLocation[]>(`${base}${config.data.files.locations}`, controller.signal),
+      fetchJson<ResearchRecordsTimelineBucket[]>(`${base}${config.data.files.timeline}`, controller.signal),
     ])
       .then(([nextOverview, nextSubmissions, nextLocations, nextDecades]) => {
         setOverview(nextOverview)
@@ -63,7 +70,7 @@ export function useResearchPortalData(config: ProjectDataPortalDef) {
       })
 
     return () => controller.abort()
-  }, [config.dataBaseUrl, config.files, reloadKey])
+  }, [config.data.baseUrl, config.data.files, reloadKey])
 
   const filteredSubmissions = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
@@ -71,13 +78,9 @@ export function useResearchPortalData(config: ProjectDataPortalDef) {
       if (selectedDecade !== null && submission.decade !== selectedDecade) return false
       if (selectedTypes.size > 0 && !selectedTypes.has(submission.resourceTypeMain)) return false
       if (!normalizedQuery) return true
-      return (
-        submission.title?.toLowerCase().includes(normalizedQuery) ||
-        submission.author?.toLowerCase().includes(normalizedQuery) ||
-        submission.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
-      )
+      return recordMatchesQuery(submission, normalizedQuery, searchFields)
     })
-  }, [searchQuery, selectedDecade, selectedTypes, submissions])
+  }, [searchFields, searchQuery, selectedDecade, selectedTypes, submissions])
 
   const regionalOnlySubmissions = useMemo(
     () =>
@@ -112,10 +115,7 @@ export function useResearchPortalData(config: ProjectDataPortalDef) {
     [locationCountMap, locations, regionalLocationIds],
   )
 
-  const locationGeoJSON = useMemo((): GeoJSON.FeatureCollection<
-    GeoJSON.Point,
-    ResearchPortalLocationFeatureProperties
-  > => {
+  const locationGeoJSON = useMemo((): GeoJSON.FeatureCollection<GeoJSON.Point, ExplorerLocationFeatureProperties> => {
     const maxCount = Math.max(1, ...filteredLocations.map((location) => location.filteredCount))
     return {
       type: 'FeatureCollection',
@@ -159,18 +159,13 @@ export function useResearchPortalData(config: ProjectDataPortalDef) {
     const normalizedQuery = searchQuery.trim().toLowerCase()
     for (const submission of submissions) {
       if (selectedDecade !== null && submission.decade !== selectedDecade) continue
-      if (
-        normalizedQuery &&
-        !submission.title?.toLowerCase().includes(normalizedQuery) &&
-        !submission.author?.toLowerCase().includes(normalizedQuery) &&
-        !submission.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
-      ) {
+      if (normalizedQuery && !recordMatchesQuery(submission, normalizedQuery, searchFields)) {
         continue
       }
       types.set(submission.resourceTypeMain, (types.get(submission.resourceTypeMain) ?? 0) + 1)
     }
     return [...types.entries()].sort((a, b) => b[1] - a[1])
-  }, [searchQuery, selectedDecade, submissions])
+  }, [searchFields, searchQuery, selectedDecade, submissions])
 
   const selectedLocation = useMemo(
     () => filteredLocations.find((location) => location.id === selectedLocationId) ?? null,
@@ -193,7 +188,7 @@ export function useResearchPortalData(config: ProjectDataPortalDef) {
   }, [])
 
   const buildDecadeGeoJSON = useCallback(
-    (decade: number): GeoJSON.FeatureCollection<GeoJSON.Point, ResearchPortalLocationFeatureProperties> => {
+    (decade: number): GeoJSON.FeatureCollection<GeoJSON.Point, ExplorerLocationFeatureProperties> => {
       const mappable = locations.filter((location) => location.coordinates && !regionalLocationIds.has(location.id))
       const globalMax = Math.max(
         1,
@@ -261,4 +256,15 @@ export function useResearchPortalData(config: ProjectDataPortalDef) {
   }
 }
 
-export type ResearchPortalData = ReturnType<typeof useResearchPortalData>
+export type ResearchRecordsAdapterData = ReturnType<typeof useResearchRecordsAdapter>
+
+function recordMatchesQuery(
+  record: ResearchRecord,
+  normalizedQuery: string,
+  fields: Array<'title' | 'author' | 'tags'>,
+) {
+  return fields.some((field) => {
+    if (field === 'tags') return record.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))
+    return record[field]?.toLowerCase().includes(normalizedQuery) ?? false
+  })
+}
