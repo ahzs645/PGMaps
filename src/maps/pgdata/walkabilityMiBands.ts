@@ -1,33 +1,37 @@
 /**
- * Mobility Index (MI) band definitions shared by everything that draws the
- * walkability surface — the Walkability tab, the score-builder source raster,
- * and any project package whose recipe renders that raster.
+ * Mobility Index (MI) band scale, shared by everything that draws the
+ * walkability surface — the Walkability tab, the score-builder raster and its
+ * legend, and any project package whose recipe renders that raster.
  *
- * The generated citywide grid carries its own `bandColors` and `bandLabels`, so
- * legends resolve from the data first and fall back to the constants below only
- * when the grid has not loaded (or a rebuild drops the metadata). Regenerating
- * the grid with different colours or ranges therefore updates every legend
- * without a code change.
+ * Built on the generic {@link ValueBand} shape, so legends, ramps and lookups
+ * come from `@/lib/valueBands` and this module only owns what is specific to MI:
+ * the report-calibrated defaults and how a generated grid overrides them.
  *
- * The one part a rebuild cannot move on its own is `max`: the band *thresholds*
- * are also hardcoded in `scoreBand()` in `walkabilityLiveHeatmap.worker.js`,
- * which bins live recalculations. Changing the score ranges means changing both.
+ * The generated citywide grid carries its own `bandColors` and `bandLabels`, and
+ * the heatmap manifest carries the grid's path, so legends resolve from the data
+ * and fall back to the constants below only when the grid has not loaded.
+ * Regenerating the grid updates every legend without a code change.
+ *
+ * The one part a rebuild cannot move on its own is the band *ranges*: the
+ * thresholds are also hardcoded in `scoreBand()` in
+ * `walkabilityLiveHeatmap.worker.js`, which bins live recalculations. Changing
+ * the score ranges means changing both.
  */
 import { useMemo } from 'react'
 import { useFetchData } from '@/hooks/useFetchData'
+import {
+  mergeValueBandMetadata,
+  valueBandColorsById,
+  valueBandLegendItems,
+  type ValueBand,
+  type ValueBandMetadata,
+} from '@/lib/valueBands'
 
-export interface WalkabilityMiBand {
-  /** Band value 1-5, matching the values stored in the generated grid RLE. */
-  value: number
-  /** Exclusive upper bound of the band's MI score. */
-  max: number
-  /** Display label, e.g. `28-45`. */
-  label: string
-  color: string
-}
+/** `id` is the band value 1-5 stored in the generated grid's RLE. */
+export type WalkabilityMiBand = ValueBand<number>
 
 /** Band metadata as the generated grid carries it. */
-export interface WalkabilityMiBandSource {
+export type WalkabilityMiBandSource = {
   bandColors?: Record<string, string> | null
   bandLabels?: Record<string, string> | null
 }
@@ -39,35 +43,30 @@ export const WALKABILITY_MI_GRID_FALLBACK_PATH = '/data/walkability/heatmap/city
 
 /**
  * Report-calibrated defaults. Colours and labels mirror the generated grid;
- * thresholds mirror the worker's `scoreBand()`.
+ * ranges mirror the worker's `scoreBand()`.
  */
 export const WALKABILITY_MI_BANDS: readonly WalkabilityMiBand[] = [
-  { value: 1, max: 27.4, label: '1-27', color: '#4f9ad6' },
-  { value: 2, max: 45.7, label: '28-45', color: '#9ec99c' },
-  { value: 3, max: 63.9, label: '46-63', color: '#f5e451' },
-  { value: 4, max: 82.2, label: '64-82', color: '#e89c4a' },
-  { value: 5, max: Number.POSITIVE_INFINITY, label: '83+', color: '#d33b3b' },
+  { id: 1, min: 0, max: 27.4, label: '1-27', color: '#4f9ad6' },
+  { id: 2, min: 27.4, max: 45.7, label: '28-45', color: '#9ec99c' },
+  { id: 3, min: 45.7, max: 63.9, label: '46-63', color: '#f5e451' },
+  { id: 4, min: 63.9, max: 82.2, label: '64-82', color: '#e89c4a' },
+  { id: 5, min: 82.2, max: Number.POSITIVE_INFINITY, label: '83+', color: '#d33b3b' },
 ] as const
 
 /** Band colours keyed by grid value, for the raster's `bandColors` fallback. */
-export const WALKABILITY_MI_BAND_COLORS: Record<string, string> = Object.fromEntries(
-  WALKABILITY_MI_BANDS.map((band) => [String(band.value), band.color]),
-)
+export const WALKABILITY_MI_BAND_COLORS: Record<string, string> = valueBandColorsById(WALKABILITY_MI_BANDS)
 
 /**
  * The generator writes labels as `Component 28-45`; legends show the range on
  * its own. Any other wording is passed through untouched. Returns null for
- * anything blank or non-textual so the caller can fall back.
+ * anything blank so the band's own label is kept.
  */
-function formatBandLabel(rawLabel: unknown): string | null {
-  if (typeof rawLabel !== 'string') return null
-  const trimmed = rawLabel.replace(/^\s*component\s+/i, '').trim()
-  return trimmed || null
+function formatBandLabel(rawLabel: string): string | null {
+  return rawLabel.replace(/^\s*component\s+/i, '').trim() || null
 }
 
-function readBandColor(rawColor: unknown): string | null {
-  if (typeof rawColor !== 'string') return null
-  return rawColor.trim() || null
+function toBandMetadata(source?: WalkabilityMiBandSource | null): ValueBandMetadata {
+  return { colors: source?.bandColors, labels: source?.bandLabels }
 }
 
 /**
@@ -75,20 +74,11 @@ function readBandColor(rawColor: unknown): string | null {
  * defines only colours still gets labels (and vice versa).
  */
 export function resolveWalkabilityMiBands(source?: WalkabilityMiBandSource | null): WalkabilityMiBand[] {
-  return WALKABILITY_MI_BANDS.map((band) => {
-    const key = String(band.value)
-    return {
-      ...band,
-      color: readBandColor(source?.bandColors?.[key]) ?? band.color,
-      label: formatBandLabel(source?.bandLabels?.[key]) ?? band.label,
-    }
-  })
+  return mergeValueBandMetadata(WALKABILITY_MI_BANDS, toBandMetadata(source), { formatLabel: formatBandLabel })
 }
 
 /** Legend-shaped view of the bands, for `MapSteppedLegend`. */
-export function toWalkabilityMiLegendBands(bands: WalkabilityMiBand[]): Array<{ label: string; color: string }> {
-  return bands.map(({ label, color }) => ({ label, color }))
-}
+export const toWalkabilityMiLegendBands = valueBandLegendItems
 
 interface WalkabilityHeatmapManifest {
   citywideGrid?: { path?: string | null } | null

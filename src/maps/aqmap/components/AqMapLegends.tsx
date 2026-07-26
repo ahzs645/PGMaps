@@ -354,7 +354,7 @@ function Pm25AqhiLegend({ locale }: { locale: AqmapLocale }) {
       <MapSteppedLegend
         variant="strip"
         bands={AQHI_LEVELS.map((level) => ({
-          label: level.level === '+' ? '100+' : String(level.min),
+          label: level.id === '+' ? '100+' : String(level.min),
           color: level.color,
         }))}
         labels={['0', '30', '60', '100+']}
