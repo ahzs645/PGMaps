@@ -1,13 +1,14 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PawPrint } from 'lucide-react'
-import { MapMarker, MarkerContent } from '@/components/ui/map'
-import { MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
+import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
+import { MapFillLayer, MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 import { formatDate, useJsonManifest } from './shared'
+import { isInsideFootprint, isWithinFootprintExtent, useWarsWinterRange } from './warsWinterRange'
 
 export const WARS_TIMELINE_WINDOW_OPTIONS: TimelineWindowOption[] = [
   { value: 1, label: '1 yr' },
@@ -74,12 +75,19 @@ const HOTSPOT_LAT_BIN = 0.009
 const HOTSPOT_LON_BIN = 0.0153
 const HOTSPOT_MIN_YEARS = 3
 
+// How many recurrent sites the sidebar ranking lists before it stops.
+const HOTSPOT_LIST_LIMIT = 12
+
 interface WarsHotspotCell {
   key: string
   longitude: number
   latitude: number
   recordCount: number
   yearCount: number
+  firstYear: number | null
+  lastYear: number | null
+  nearestTown: string
+  topSpecies: string
 }
 
 function getHotspotColor(yearCount: number): string {
@@ -153,18 +161,57 @@ function getAccidentMonth(properties: WarsCrashProperties): number | null {
   return month >= 0 && month <= 11 ? month : null
 }
 
+/** Placeholders the source spreadsheets use where no town was recorded. */
+const UNKNOWN_TOWN_VALUES = new Set(['', 'NA', 'N A', 'NONE', 'UNKNOWN'])
+
+/**
+ * The five WARS spreadsheets spell towns inconsistently ("FT ST JOHN",
+ * "FORT ST JOHN", "Fort St. John"), which would otherwise split one site's
+ * records across several labels. Normalising to a single title-cased form keeps
+ * the recurrent-site ranking readable.
+ */
+function normaliseTownName(rawTown: string | null | undefined): string {
+  const cleaned = String(rawTown ?? '')
+    .toUpperCase()
+    .replace(/\./g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (UNKNOWN_TOWN_VALUES.has(cleaned)) return ''
+  return cleaned
+    .split(' ')
+    .map((word) => (word === 'FT' ? 'FORT' : word))
+    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
+/** Highest-count key in a tally, ties broken alphabetically for stable output. */
+function pickTopEntry(counts: Map<string, number>): string | null {
+  let bestKey: string | null = null
+  let bestCount = -1
+  for (const [key, count] of counts) {
+    if (count > bestCount || (count === bestCount && bestKey != null && key < bestKey)) {
+      bestKey = key
+      bestCount = count
+    }
+  }
+  return bestKey
+}
+
 export function useWarsData(
   active: boolean,
   initialSpecies: string | null,
   initialShowPoints: string | null = null,
   initialShowHeatmap: string | null = null,
   initialShowHotspots: string | null = null,
+  initialShowWinterRange: string | null = null,
 ) {
   const [selectedSpecies, setSelectedSpeciesState] = useState<string>(initialSpecies || ALL_SPECIES)
   const [hiddenSpecies, setHiddenSpecies] = useState<string[]>([])
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
   const [showHotspots, setShowHotspots] = useState<boolean>(initialShowHotspots === '1')
+  const [showWinterRange, setShowWinterRange] = useState<boolean>(initialShowWinterRange === '1')
+  const [focusTarget, setFocusTarget] = useState<{ longitude: number; latitude: number; key: string } | null>(null)
   const [selectedMonths, setSelectedMonths] = useState<number[]>([])
   const [yearMode, setYearModeState] = useState<string>(ALL_YEARS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -197,15 +244,18 @@ export function useWarsData(
   const yearEnd = manifest.data?.yearEnd ?? null
   const recentYearStart = yearEnd == null ? null : yearEnd - 9
 
-  const baseFilteredFeatures = useMemo(() => (
+  const speciesFilteredFeatures = useMemo(() => (
     features.filter((feature) => {
       const species = feature.properties.species || 'Unknown'
       if (hiddenSpecies.includes(species)) return false
-      if (selectedSpecies !== ALL_SPECIES && species !== selectedSpecies) return false
-      if (yearMode === RECENT_YEARS && recentYearStart != null) return feature.properties.year >= recentYearStart
-      return true
+      return selectedSpecies === ALL_SPECIES || species === selectedSpecies
     })
-  ), [features, hiddenSpecies, recentYearStart, selectedSpecies, yearMode])
+  ), [features, hiddenSpecies, selectedSpecies])
+
+  const baseFilteredFeatures = useMemo(() => {
+    if (yearMode !== RECENT_YEARS || recentYearStart == null) return speciesFilteredFeatures
+    return speciesFilteredFeatures.filter((feature) => feature.properties.year >= recentYearStart)
+  }, [speciesFilteredFeatures, recentYearStart, yearMode])
 
   const accidentDateRange = useMemo(() => {
     if (features.length === 0) {
@@ -275,6 +325,42 @@ export function useWarsData(
     }
     return counts
   }, [timelineFilteredFeatures])
+
+  // Species- and month-filtered but deliberately year-agnostic: the annual
+  // series stays whole while a year window is active, so the chart shows where
+  // the current selection sits in the record rather than collapsing to it.
+  const yearSeriesFeatures = useMemo(() => {
+    if (selectedMonths.length === 0) return speciesFilteredFeatures
+    return speciesFilteredFeatures.filter((feature) => {
+      const month = getAccidentMonth(feature.properties)
+      return month != null && selectedMonths.includes(month)
+    })
+  }, [speciesFilteredFeatures, selectedMonths])
+
+  const yearlyBreakdown = useMemo(() => {
+    const counts = new Map<number, number>()
+    for (const feature of yearSeriesFeatures) {
+      const year = feature.properties.year
+      if (Number.isFinite(year) && year > 0) counts.set(year, (counts.get(year) ?? 0) + 1)
+    }
+    return Array.from(counts.entries())
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => a.year - b.year)
+  }, [yearSeriesFeatures])
+
+  /** Year span currently kept by the year filter and the timeline scrub. */
+  const activeYearRange = useMemo(() => {
+    let start = yearMode === RECENT_YEARS && recentYearStart != null ? recentYearStart : null
+    let end: number | null = null
+    if (timelineFilterRange) {
+      const timelineStart = new Date(timelineFilterRange.start).getFullYear()
+      const timelineEnd = new Date(timelineFilterRange.end).getFullYear()
+      start = start == null ? timelineStart : Math.max(start, timelineStart)
+      end = timelineEnd
+    }
+    if (start == null && end == null) return null
+    return { start, end }
+  }, [recentYearStart, timelineFilterRange, yearMode])
 
   const speciesLegendFeatures = useMemo(() => {
     const yearFiltered = features.filter((feature) => {
@@ -353,31 +439,60 @@ export function useWarsData(
   // Recurrent-strike sites: ~1 km cells with records from several distinct
   // years. Sorted ascending so the most recurrent sites render on top.
   const hotspotCells = useMemo<WarsHotspotCell[]>(() => {
-    const cells = new Map<string, { lonSum: number; latSum: number; recordCount: number; years: Set<number> }>()
+    interface HotspotAccumulator {
+      lonSum: number
+      latSum: number
+      recordCount: number
+      years: Set<number>
+      towns: Map<string, number>
+      species: Map<string, number>
+    }
+    const cells = new Map<string, HotspotAccumulator>()
     for (const feature of filteredFeatures) {
       const [longitude, latitude] = feature.geometry.coordinates
       const key = `${Math.round(longitude / HOTSPOT_LON_BIN)}:${Math.round(latitude / HOTSPOT_LAT_BIN)}`
       let cell = cells.get(key)
       if (!cell) {
-        cell = { lonSum: 0, latSum: 0, recordCount: 0, years: new Set() }
+        cell = { lonSum: 0, latSum: 0, recordCount: 0, years: new Set(), towns: new Map(), species: new Map() }
         cells.set(key, cell)
       }
       cell.lonSum += longitude
       cell.latSum += latitude
       cell.recordCount += 1
       if (Number.isFinite(feature.properties.year)) cell.years.add(feature.properties.year)
+      // Town spellings vary between source spreadsheets ("FT ST JOHN" vs
+      // "Fort St. John"), so the label is normalised before it is tallied.
+      const town = normaliseTownName(feature.properties.nearestTown)
+      if (town) cell.towns.set(town, (cell.towns.get(town) ?? 0) + 1)
+      const species = feature.properties.species || 'Unknown'
+      cell.species.set(species, (cell.species.get(species) ?? 0) + 1)
     }
     return Array.from(cells.entries())
       .filter(([, cell]) => cell.years.size >= HOTSPOT_MIN_YEARS)
-      .map(([key, cell]) => ({
-        key,
-        longitude: cell.lonSum / cell.recordCount,
-        latitude: cell.latSum / cell.recordCount,
-        recordCount: cell.recordCount,
-        yearCount: cell.years.size,
-      }))
+      .map(([key, cell]) => {
+        const years = Array.from(cell.years)
+        return {
+          key,
+          longitude: cell.lonSum / cell.recordCount,
+          latitude: cell.latSum / cell.recordCount,
+          recordCount: cell.recordCount,
+          yearCount: cell.years.size,
+          firstYear: years.length > 0 ? Math.min(...years) : null,
+          lastYear: years.length > 0 ? Math.max(...years) : null,
+          nearestTown: pickTopEntry(cell.towns) ?? 'Unknown location',
+          topSpecies: pickTopEntry(cell.species) ?? 'Unknown',
+        }
+      })
       .sort((a, b) => a.yearCount - b.yearCount)
   }, [filteredFeatures])
+
+  // Descending copy for the sidebar ranking; `hotspotCells` stays ascending so
+  // the most recurrent rings draw on top of the quieter ones.
+  const rankedHotspots = useMemo(() => (
+    [...hotspotCells]
+      .sort((a, b) => (b.yearCount - a.yearCount) || (b.recordCount - a.recordCount))
+      .slice(0, HOTSPOT_LIST_LIMIT)
+  ), [hotspotCells])
 
   const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(() => ({
     type: 'FeatureCollection',
@@ -390,9 +505,45 @@ export function useWarsData(
     })),
   }), [filteredFeatures])
 
+  const winterRange = useWarsWinterRange(active && showWinterRange)
+
+  /**
+   * Designated winter range is a legal forestry boundary, not a habitat model,
+   * and the snapshot only covers part of the WARS extent. The readout is
+   * therefore scored against the records that fall inside the polygons' own
+   * envelope, so the denominator matches where the layer can actually say
+   * anything.
+   */
+  const winterRangeOverlap = useMemo(() => {
+    const footprint = winterRange.mooseFootprint
+    if (!showWinterRange || !footprint) return null
+    let withinExtent = 0
+    let insideRange = 0
+    for (const feature of filteredFeatures) {
+      const [longitude, latitude] = feature.geometry.coordinates
+      if (!isWithinFootprintExtent(longitude, latitude, footprint)) continue
+      withinExtent += 1
+      if (isInsideFootprint(longitude, latitude, footprint)) insideRange += 1
+    }
+    return { withinExtent, insideRange }
+  }, [filteredFeatures, showWinterRange, winterRange.mooseFootprint])
+
+  const focusHotspot = useCallback((cell: WarsHotspotCell) => {
+    setFocusTarget({ longitude: cell.longitude, latitude: cell.latitude, key: cell.key })
+  }, [])
+
   return {
     manifest,
     crashes,
+    winterRange,
+    winterRangeOverlap,
+    showWinterRange,
+    setShowWinterRange,
+    focusTarget,
+    focusHotspot,
+    yearlyBreakdown,
+    activeYearRange,
+    rankedHotspots,
     selectedSpecies,
     setSelectedSpecies,
     hiddenSpecies,
@@ -458,6 +609,13 @@ export function WarsLayerControls({ wars }: { wars: WarsState }) {
       >
         Hotspots
       </ToggleChip>
+      <ToggleChip
+        active={wars.showWinterRange}
+        onClick={() => wars.setShowWinterRange(!wars.showWinterRange)}
+        tone="green"
+      >
+        Winter range
+      </ToggleChip>
     </div>
   )
 }
@@ -511,6 +669,124 @@ function WarsMonthChart({ wars }: { wars: WarsState }) {
       </div>
       <p className="mt-1 text-[11px] text-muted-foreground">Click months to filter the map.</p>
     </div>
+  )
+}
+
+function WarsYearChart({ wars }: { wars: WarsState }) {
+  const series = wars.yearlyBreakdown
+  if (series.length === 0) return null
+
+  const maxYearly = Math.max(...series.map((entry) => entry.count), 1)
+  const range = wars.activeYearRange
+  const isInActiveRange = (year: number) => {
+    if (!range) return true
+    if (range.start != null && year < range.start) return false
+    if (range.end != null && year > range.end) return false
+    return true
+  }
+  const firstYear = series[0].year
+  const lastYear = series[series.length - 1].year
+  const monthNote = wars.selectedMonths.length > 0
+    ? ` (${wars.selectedMonths.slice().sort((a, b) => a - b).map((month) => MONTH_INITIALS[month]).join('')} only)`
+    : ''
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-foreground">Records by year{monthNote}</span>
+        <span className="text-[11px] text-muted-foreground">{firstYear}-{lastYear}</span>
+      </div>
+      <div className="mt-1.5 flex h-16 items-end gap-px">
+        {series.map((entry) => {
+          const dimmed = !isInActiveRange(entry.year)
+          const height = Math.max(entry.count > 0 ? 6 : 2, (entry.count / maxYearly) * 100)
+          return (
+            <span
+              key={entry.year}
+              title={`${entry.year}: ${entry.count.toLocaleString()} record${entry.count === 1 ? '' : 's'}`}
+              className="flex h-full flex-1 items-end"
+            >
+              <span
+                className={cn(
+                  'block w-full rounded-sm bg-sky-600 dark:bg-sky-500',
+                  dimmed && 'opacity-25',
+                )}
+                style={{ height: `${height}%` }}
+              />
+            </span>
+          )
+        })}
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Counts follow reporting effort as well as collision rates, so read year-to-year changes as trends in what was recorded.
+      </p>
+    </div>
+  )
+}
+
+function WarsHotspotList({ wars }: { wars: WarsState }) {
+  const sites = wars.rankedHotspots
+  if (!wars.showHotspots) return null
+
+  return (
+    <div>
+      <span className="text-xs font-medium text-foreground">Most recurrent sites</span>
+      {sites.length === 0 ? (
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          No ~1 km site has strikes in {HOTSPOT_MIN_YEARS}+ separate years under the current filters.
+        </p>
+      ) : (
+        <>
+          <ol className="mt-1.5 space-y-1">
+            {sites.map((cell, index) => (
+              <li key={cell.key}>
+                <button
+                  type="button"
+                  onClick={() => wars.focusHotspot(cell)}
+                  className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left transition-colors hover:border-sky-500"
+                >
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                    style={{ backgroundColor: getHotspotColor(cell.yearCount) }}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[11px] font-medium text-foreground">{cell.nearestTown}</span>
+                    <span className="block truncate text-[10px] text-muted-foreground">
+                      {cell.topSpecies} · {cell.recordCount.toLocaleString()} records
+                      {cell.firstYear != null && cell.lastYear != null ? ` · ${cell.firstYear}-${cell.lastYear}` : ''}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[10px] font-medium text-muted-foreground">{cell.yearCount} yr</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-1 text-[11px] text-muted-foreground">Click a site to zoom the map to it.</p>
+        </>
+      )}
+    </div>
+  )
+}
+
+function WarsWinterRangeSummary({ wars }: { wars: WarsState }) {
+  if (!wars.showWinterRange) return null
+  if (wars.winterRange.source.error) {
+    return <InlineAlert tone="error">{wars.winterRange.source.error}</InlineAlert>
+  }
+  const overlap = wars.winterRangeOverlap
+  if (!overlap) return null
+
+  const share = overlap.withinExtent > 0 ? (overlap.insideRange / overlap.withinExtent) * 100 : 0
+
+  return (
+    <InlineAlert>
+      Of {overlap.withinExtent.toLocaleString()} filtered records inside the mapped moose winter-range extent,{' '}
+      {overlap.insideRange.toLocaleString()} ({share.toFixed(1)}%) fall within a designated polygon. Winter range is a
+      forestry designation that excludes highway corridors, so this measures overlap with the legal boundary, not habitat
+      suitability.
+    </InlineAlert>
   )
 }
 
@@ -586,10 +862,19 @@ export function WarsSidebar({
 
           <WarsMonthChart wars={wars} />
 
+          <WarsYearChart wars={wars} />
+
+          <WarsHotspotList wars={wars} />
+
+          <WarsWinterRangeSummary wars={wars} />
+
           {wars.crashes.error && <InlineAlert tone="error">{wars.crashes.error}</InlineAlert>}
           {wars.manifest.error && <InlineAlert tone="error">{wars.manifest.error}</InlineAlert>}
           <InlineAlert>
-            Records cover the Ministry's Northern Region service areas 18-28 and include mapped coordinates from the source spreadsheets.
+            Records cover the Ministry's whole Northern Region (service areas 18-28), not just the Prince George area:
+            Haida Gwaii, Prince Rupert and Stewart in the west, east to the Alberta border past Dawson Creek, north to
+            Atlin and Dease Lake, and south to Williams Lake, Blue River and Avola. Only records carrying mapped
+            coordinates in the source spreadsheets are shown.
           </InlineAlert>
         </div>
       </SidebarSection>
@@ -664,6 +949,22 @@ export function WarsSourceNotes({ wars }: { wars: WarsState }) {
   )
 }
 
+/**
+ * Lives inside the map so the sidebar's recurrent-site list can recentre the
+ * view without the section having to thread a map ref down to it.
+ */
+function WarsHotspotFocus({ wars }: { wars: WarsState }) {
+  const { map, isLoaded } = useMap()
+  const focusTarget = wars.focusTarget
+
+  useEffect(() => {
+    if (!map || !isLoaded || !focusTarget) return
+    map.flyTo({ center: [focusTarget.longitude, focusTarget.latitude], zoom: 12, duration: 800 })
+  }, [map, isLoaded, focusTarget])
+
+  return null
+}
+
 export function WarsLayer({ wars }: { wars: WarsState }) {
   // Clusters render as species-split donut charts with the record count in
   // the centre (shared MapPieClusterLayer, as on the food map); wedge order
@@ -693,6 +994,28 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
 
   return (
     <>
+      <WarsHotspotFocus wars={wars} />
+
+      {/* Rendered before the heatmap and points so the polygons stay underneath. */}
+      {wars.showWinterRange && wars.winterRange.data.features.length > 0 && (
+        <MapFillLayer
+          data={wars.winterRange.data}
+          idProperty="key"
+          fillColor={['get', 'color']}
+          fillOpacity={0.28}
+          lineColor={['get', 'color']}
+          lineWidth={1}
+          lineOpacity={0.85}
+          hoverHtml={(properties) => {
+            const label = String(properties.label ?? 'Ungulate winter range')
+            const species = String(properties.speciesLabel ?? '')
+            const hectares = Number(properties.hectares)
+            const size = Number.isFinite(hectares) && hectares > 0 ? `${Math.round(hectares).toLocaleString()} ha` : ''
+            return `<strong>${species} winter range</strong><br/>${label}${size ? `<br/>${size}` : ''}`
+          }}
+        />
+      )}
+
       {wars.showHeatmap && (
         <MapHeatmapLayer
           data={wars.heatmapData}
@@ -833,7 +1156,31 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
           </MapLegendNote>
         </div>
       )}
-      {!wars.showPoints && !wars.showHeatmap && !wars.showHotspots && (
+      {wars.showWinterRange && (
+        <div className={cn((wars.showPoints || wars.showHeatmap || wars.showHotspots) && 'border-t border-border pt-2')}>
+          <div className="text-xs font-medium text-foreground">Ungulate winter range</div>
+          {wars.winterRange.legend.length === 0 ? (
+            <MapLegendNote className="mt-1 italic">Loading winter range boundaries...</MapLegendNote>
+          ) : (
+            <ul className="mt-1 space-y-1">
+              {wars.winterRange.legend.map((entry) => (
+                <li key={entry.label} className="flex items-center gap-2">
+                  <span
+                    className="h-3.5 w-3.5 shrink-0 rounded-sm border"
+                    style={{ borderColor: entry.color, backgroundColor: `${entry.color}47` }}
+                  />
+                  <span>{entry.label}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <MapLegendNote className="mt-1.5">
+            Legal winter range designations. The snapshot covers the Prince George area only, so blank map elsewhere
+            means no data rather than no habitat.
+          </MapLegendNote>
+        </div>
+      )}
+      {!wars.showPoints && !wars.showHeatmap && !wars.showHotspots && !wars.showWinterRange && (
         <MapLegendNote className="italic">All layers are hidden.</MapLegendNote>
       )}
     </div>

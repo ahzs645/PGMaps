@@ -4,8 +4,12 @@ import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { useMap } from '@/components/ui/map'
 import { useJsonManifest } from '@/maps/pgdata/shared'
+import {
+  WALKABILITY_HEATMAP_MANIFEST_PATH,
+  WALKABILITY_MI_BAND_COLORS,
+  WALKABILITY_MI_GRID_FALLBACK_PATH,
+} from '@/maps/pgdata/walkabilityMiBands'
 import type { AirMonitor } from '@/maps/airquality'
-import { WALKABILITY_REPORT_MI_COLORS } from '../constants'
 import {
   resolveWalkabilitySurfaceModel,
   type WalkabilitySurfaceTuning,
@@ -24,6 +28,10 @@ interface ScoreBuilderMapProps {
   walkabilitySurfaceTuning?: WalkabilitySurfaceTuning
   loading?: boolean
   onMapInstance?: (map: MapRef | null) => void
+}
+
+interface WalkabilityHeatmapManifest {
+  citywideGrid?: { path?: string | null } | null
 }
 
 interface WalkabilityGridData {
@@ -187,7 +195,12 @@ function ScoreBuilderWalkabilitySourceGrid({
   tuning?: WalkabilitySurfaceTuning
 }) {
   const { map, isLoaded } = useMap()
-  const grid = useJsonManifest<WalkabilityGridData>('/data/walkability/heatmap/citywide_mi_grid.json')
+  // Grid path follows the heatmap manifest, like the Walkability tab, so a
+  // regenerated grid is picked up without touching this component.
+  const heatmapManifest = useJsonManifest<WalkabilityHeatmapManifest>(WALKABILITY_HEATMAP_MANIFEST_PATH)
+  const grid = useJsonManifest<WalkabilityGridData>(
+    heatmapManifest.data?.citywideGrid?.path || WALKABILITY_MI_GRID_FALLBACK_PATH,
+  )
   const sourceId = 'score-builder-walkability-source-grid'
   const layerId = 'score-builder-walkability-source-grid-layer'
   const { factorWeights, options } = useMemo(
@@ -252,13 +265,7 @@ function ScoreBuilderWalkabilitySourceGrid({
     const context = canvas.getContext('2d')
     if (!context) return
 
-    const fallbackColors: Record<string, string> = {
-      1: WALKABILITY_REPORT_MI_COLORS[0],
-      2: WALKABILITY_REPORT_MI_COLORS[1],
-      3: WALKABILITY_REPORT_MI_COLORS[2],
-      4: WALKABILITY_REPORT_MI_COLORS[3],
-      5: WALKABILITY_REPORT_MI_COLORS[4],
-    }
+    const fallbackColors = WALKABILITY_MI_BAND_COLORS
     const colors = data.bandColors ?? fallbackColors
     const image = context.createImageData(cols, rows)
     let pixel = 0

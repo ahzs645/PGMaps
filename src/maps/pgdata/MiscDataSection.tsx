@@ -458,6 +458,7 @@ export default function MiscDataSection() {
     searchParams.get('warsPoints'),
     searchParams.get('warsHeatmap'),
     searchParams.get('warsHotspots'),
+    searchParams.get('warsWinterRange'),
   )
   const openLitterMap = useOpenLitterMapData(
     activeTab === 'openLitterMap',
@@ -528,6 +529,10 @@ export default function MiscDataSection() {
     else params.delete('warsPoints')
     if (activeTab === 'wars' && wars.showHeatmap) params.set('warsHeatmap', '1')
     else params.delete('warsHeatmap')
+    if (activeTab === 'wars' && wars.showHotspots) params.set('warsHotspots', '1')
+    else params.delete('warsHotspots')
+    if (activeTab === 'wars' && wars.showWinterRange) params.set('warsWinterRange', '1')
+    else params.delete('warsWinterRange')
     if (activeTab === 'openLitterMap' && openLitterMap.selectedCategory !== 'all') {
       params.set('litterCategory', openLitterMap.selectedCategory)
     } else {
@@ -597,6 +602,8 @@ export default function MiscDataSection() {
     icbc.selectedDatasetId,
     wars.showHeatmap,
     wars.showPoints,
+    wars.showHotspots,
+    wars.showWinterRange,
     wars.selectedSpecies,
     openLitterMap.selectedCategory,
     openLitterMap.selectedObject,

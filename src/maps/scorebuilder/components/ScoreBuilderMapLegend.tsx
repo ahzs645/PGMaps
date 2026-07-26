@@ -1,11 +1,8 @@
 import { MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
 import { HEALTHYPLAN_EQUITY_PRIORITY_RAMP } from '@/lib/healthyplan'
-import {
-  SCORE_METRICS,
-  WALKABILITY_REPORT_MI_BANDS,
-  type ScorePaletteProfile,
-} from '../constants'
+import { toWalkabilityMiLegendBands, useWalkabilityMiBands } from '@/maps/pgdata/walkabilityMiBands'
+import { SCORE_METRICS, type ScorePaletteProfile } from '../constants'
 import type { CorrelationResult } from '../lib/correlation'
 import { BIVARIATE_3X3_PALETTE } from '../lib/correlationColors'
 import type { ScoreSpread } from '../lib/scoreSummaries'
@@ -52,6 +49,9 @@ export function ScoreBuilderMapLegend({
   thinCoverageCount,
 }: ScoreBuilderMapLegendProps) {
   const compact = !isDesktop
+  // Same resolved MI bands the raster paints with, so a regenerated grid moves
+  // the legend too.
+  const miBands = useWalkabilityMiBands(showWalkabilitySourceSurface || canUseWalkabilitySourceSurface)
   return (
     <MapLegendPanel title="Legend" width={isDesktop ? 'md' : 'sm'} collapsible>
       {correlateMode ? (
@@ -77,7 +77,7 @@ export function ScoreBuilderMapLegend({
           </h4>
           {showWalkabilitySourceSurface || canUseWalkabilitySourceSurface ? (
             <>
-              <MapSteppedLegend bands={WALKABILITY_REPORT_MI_BANDS} />
+              <MapSteppedLegend bands={toWalkabilityMiLegendBands(miBands)} />
               {!compact && (
                 <div className="mt-2 text-xs leading-snug text-muted-foreground">
                   {showWalkabilitySourceSurface

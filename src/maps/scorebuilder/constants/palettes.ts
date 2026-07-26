@@ -1,3 +1,4 @@
+import { WALKABILITY_MI_BANDS } from '@/maps/pgdata/walkabilityMiBands'
 import type { ScoreVisualOutputMode } from '../types'
 import type { ScorePaletteKey, ScorePaletteProfile } from './paletteTypes'
 
@@ -157,15 +158,16 @@ export function getScorePaletteBinnedColor(score: number, profile: ScorePaletteP
   return profile.colors[getScorePaletteBinIndex(score)] || profile.colors[0]
 }
 
-export const WALKABILITY_REPORT_MI_COLORS = ['#4f9ad6', '#9ec99c', '#f5e451', '#e89c4a', '#d33b3b'] as const
+/**
+ * Re-exported from the shared MI band definitions so the score builder, the
+ * Walkability tab and project packages all read one source. Prefer
+ * `resolveWalkabilityMiBands`/`useWalkabilityMiBands` for anything user-facing:
+ * those follow the generated grid's own colours and labels, while these
+ * constants are the build-time defaults.
+ */
+export const WALKABILITY_REPORT_MI_COLORS = WALKABILITY_MI_BANDS.map((band) => band.color)
 
-export const WALKABILITY_REPORT_MI_BANDS = [
-  { label: '1-27', max: 27.4, color: WALKABILITY_REPORT_MI_COLORS[0] },
-  { label: '28-45', max: 45.7, color: WALKABILITY_REPORT_MI_COLORS[1] },
-  { label: '46-63', max: 63.9, color: WALKABILITY_REPORT_MI_COLORS[2] },
-  { label: '64-82', max: 82.2, color: WALKABILITY_REPORT_MI_COLORS[3] },
-  { label: '83+', max: Number.POSITIVE_INFINITY, color: WALKABILITY_REPORT_MI_COLORS[4] },
-] as const
+export const WALKABILITY_REPORT_MI_BANDS = WALKABILITY_MI_BANDS
 
 export function getWalkabilityReportMiColor(score: number): string {
   if (!Number.isFinite(score)) return WALKABILITY_REPORT_MI_COLORS[0]
