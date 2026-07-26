@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
+import { resolveWalkabilityMiBands, toWalkabilityMiLegendBands } from './walkabilityMiBands'
 import {
   HEATMAP_DEFAULT_FACTOR_WEIGHTS,
   HEATMAP_OPTIONS,
@@ -1065,13 +1066,9 @@ function WalkabilityHeatmapLayer({ walkability }: { walkability: WalkabilityStat
 
 export function WalkabilityLegend({ walkability }: { walkability: WalkabilityState }) {
   if (walkability.displayMode === 'heatmap') {
-    const bands = [
-      { label: '1-27', color: '#4f9ad6' },
-      { label: '28-45', color: '#9ec99c' },
-      { label: '46-63', color: '#f5e451' },
-      { label: '64-82', color: '#e89c4a' },
-      { label: '83-170', color: '#d33b3b' },
-    ]
+    // Resolved from the grid the heatmap already loaded, so a regenerated grid
+    // brings its own band colours and ranges with it.
+    const bands = toWalkabilityMiLegendBands(resolveWalkabilityMiBands(walkability.gridHeatmap.data))
     return (
       <div className="w-full space-y-2 text-xs text-muted-foreground md:w-64">
         <MapSteppedLegend bands={bands} />

@@ -2,7 +2,8 @@ import { useCallback, useMemo } from 'react'
 import { MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { buildProjectLabParams, type ProjectPackage } from '@/lib/projectPackages'
 import { cn } from '@/lib/utils'
-import { SCORE_METRICS, WALKABILITY_REPORT_MI_BANDS } from './constants'
+import { toWalkabilityMiLegendBands, useWalkabilityMiBands } from '@/maps/pgdata/walkabilityMiBands'
+import { SCORE_METRICS } from './constants'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import {
   createInitialScoreBuilderState,
@@ -93,6 +94,9 @@ export function ProjectScoreMapPreview({
     return Object.fromEntries(results.scoredRegions.map((entry) => [entry.region.id, TRANSPARENT_FILL]))
   }, [results.scoredRegions, showScoreSurface])
   const showWalkabilitySourceSurface = showScoreSurface && showsWalkabilitySourceSurface(previewControl)
+  // Served from the fetch cache the raster already populated, so this is free
+  // whenever the surface it describes is on screen.
+  const miBands = useWalkabilityMiBands(showWalkabilitySourceSurface)
 
   const handleRegionClick = useCallback(() => {}, [])
 
@@ -123,7 +127,7 @@ export function ProjectScoreMapPreview({
           */}
           {showWalkabilitySourceSurface ? (
             <>
-              <MapSteppedLegend bands={WALKABILITY_REPORT_MI_BANDS.map(({ label, color }) => ({ label, color }))} />
+              <MapSteppedLegend bands={toWalkabilityMiLegendBands(miBands)} />
               <div className="text-xs leading-snug text-muted-foreground">
                 Mobility Index surface derived from the project recipe, over {results.scoredRegions.length.toLocaleString()}{' '}
                 scored regions.
