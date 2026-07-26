@@ -29,7 +29,10 @@ export interface WinterRangeProperties {
 }
 
 type WinterRangeSource = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, WinterRangeSourceProperties>
-export type WinterRangeCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, WinterRangeProperties>
+export type WinterRangeCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  WinterRangeProperties
+>
 
 /**
  * UWR `SPECIES_1` values are scientific-name codes, sometimes with a herd
@@ -52,11 +55,37 @@ function resolveSpecies(rawCode: string) {
   const code = rawCode.trim().toUpperCase()
   const match = WINTER_RANGE_SPECIES.find((entry) => code.startsWith(entry.code))
   if (match) return { speciesCode: match.code, speciesLabel: match.label, color: match.color }
-  return { speciesCode: code || 'UNKNOWN', speciesLabel: WINTER_RANGE_FALLBACK.label, color: WINTER_RANGE_FALLBACK.color }
+  return {
+    speciesCode: code || 'UNKNOWN',
+    speciesLabel: WINTER_RANGE_FALLBACK.label,
+    color: WINTER_RANGE_FALLBACK.color,
+  }
 }
 
 type Ring = GeoJSON.Position[]
 type PolygonRings = Ring[]
+
+function isFinitePosition(position: GeoJSON.Position | undefined): position is GeoJSON.Position {
+  return Array.isArray(position) && position.length >= 2 && Number.isFinite(position[0]) && Number.isFinite(position[1])
+}
+
+/** MapLibre requires non-empty polygons made from valid, closed linear rings. */
+export function isUsableWinterRangeGeometry(
+  geometry: GeoJSON.Geometry | null | undefined,
+): geometry is GeoJSON.Polygon | GeoJSON.MultiPolygon {
+  const isUsablePolygon = (coordinates: GeoJSON.Position[][] | undefined) =>
+    Array.isArray(coordinates) && coordinates.length > 0 && coordinates.every(isUsableRing)
+
+  if (geometry?.type === 'Polygon') return isUsablePolygon(geometry.coordinates)
+  if (geometry?.type === 'MultiPolygon') {
+    return (
+      Array.isArray(geometry.coordinates) &&
+      geometry.coordinates.length > 0 &&
+      geometry.coordinates.every(isUsablePolygon)
+    )
+  }
+  return false
+}
 
 function toPolygons(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon): PolygonRings[] {
   if (geometry.type === 'Polygon') return [geometry.coordinates]
@@ -66,7 +95,13 @@ function toPolygons(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon): PolygonRi
 
 /** A ring needs at least three distinct corners plus the closing vertex. */
 function isUsableRing(ring: Ring | undefined): ring is Ring {
-  return Array.isArray(ring) && ring.length >= 4
+  if (!Array.isArray(ring) || ring.length < 4 || !ring.every(isFinitePosition)) return false
+
+  const first = ring[0]
+  const last = ring[ring.length - 1]
+  if (first[0] !== last[0] || first[1] !== last[1]) return false
+
+  return new Set(ring.slice(0, -1).map(([lon, lat]) => `${lon},${lat}`)).size >= 3
 }
 
 interface IndexedPolygon {
@@ -128,7 +163,10 @@ export interface WinterRangeFootprint {
   maxLat: number
 }
 
-function buildFootprint(features: WinterRangeCollection['features'], speciesCode: string | null): WinterRangeFootprint | null {
+function buildFootprint(
+  features: WinterRangeCollection['features'],
+  speciesCode: string | null,
+): WinterRangeFootprint | null {
   const polygons: IndexedPolygon[] = []
   for (const feature of features) {
     if (speciesCode && feature.properties.speciesCode !== speciesCode) continue
@@ -167,7 +205,7 @@ export function useWarsWinterRange(enabled: boolean) {
   const source = useJsonManifest<WinterRangeSource>(enabled ? WARS_WINTER_RANGE_PATH : null)
 
   const data = useMemo<WinterRangeCollection>(() => {
-    const features = source.data?.features ?? []
+    const features = (source.data?.features ?? []).filter((feature) => isUsableWinterRangeGeometry(feature.geometry))
     return {
       type: 'FeatureCollection',
       features: features.map((feature, index) => {
