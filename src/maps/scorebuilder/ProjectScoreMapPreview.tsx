@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from 'react'
-import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { buildProjectLabParams, type ProjectPackage } from '@/lib/projectPackages'
 import { cn } from '@/lib/utils'
-import { SCORE_METRICS } from './constants'
+import { SCORE_METRICS, WALKABILITY_REPORT_MI_BANDS } from './constants'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
 import {
   createInitialScoreBuilderState,
@@ -115,14 +115,32 @@ export function ProjectScoreMapPreview({
 
       <MapLegendPanel title={project.title} width="sm" collapsible>
         <div className="space-y-2">
-          <MapGradientLegendItem
-            colors={[...palette.colors]}
-            minLabel={palette.legend.low}
-            maxLabel={palette.legend.high}
-          />
-          <div className="text-xs leading-snug text-muted-foreground">
-            {results.scoredRegions.length.toLocaleString()} regions scored with the project recipe.
-          </div>
+          {/*
+            The score palette only describes the boundary surface. When the
+            walkability source raster is drawn instead, the boundary fills are
+            transparent, so the legend has to describe the Mobility Index bands
+            the raster is actually painted with.
+          */}
+          {showWalkabilitySourceSurface ? (
+            <>
+              <MapSteppedLegend bands={WALKABILITY_REPORT_MI_BANDS.map(({ label, color }) => ({ label, color }))} />
+              <div className="text-xs leading-snug text-muted-foreground">
+                Mobility Index surface derived from the project recipe, over {results.scoredRegions.length.toLocaleString()}{' '}
+                scored regions.
+              </div>
+            </>
+          ) : (
+            <>
+              <MapGradientLegendItem
+                colors={[...palette.colors]}
+                minLabel={palette.legend.low}
+                maxLabel={palette.legend.high}
+              />
+              <div className="text-xs leading-snug text-muted-foreground">
+                {results.scoredRegions.length.toLocaleString()} regions scored with the project recipe.
+              </div>
+            </>
+          )}
         </div>
       </MapLegendPanel>
     </div>

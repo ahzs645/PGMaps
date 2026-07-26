@@ -7,8 +7,11 @@
  *
  * 1. Derived (default) — the eight coarse walkability *metric* weights are
  *    projected onto the 44 report factor references through
- *    `SCORE_METRIC_TO_REPORT_REFS`. This keeps the surface in lockstep with the
- *    score equation, but it is lossy: factors with no matching metric stay at 0.
+ *    `SCORE_METRIC_TO_REPORT_REFS`, then scaled to the report's per-factor
+ *    weight so the raster stays on the scale the MI bands are cut for. This
+ *    keeps the surface in lockstep with the score equation, but it is lossy:
+ *    factors with no matching metric stay at 0, so a recipe that maps only a
+ *    few factors still reads low against the report bands.
  * 2. Direct — the user tunes the 44 factor references (and the report variant
  *    config toggles) themselves, so the full report MI can be reproduced.
  */
@@ -51,7 +54,48 @@ export const SCORE_METRIC_TO_REPORT_REFS: Partial<Record<ScoreMetricKey, string[
   ],
 }
 
-/** Projects metric weights onto a 0–2 factor-weight map normalized to the strongest factor. */
+/**
+ * Weight the report itself assigns each factor. The MI band thresholds the
+ * worker bins against (27.4 / 45.7 / 63.9 / 82.2) are calibrated for a surface
+ * built at this per-factor weight, so a derived surface has to land on the same
+ * scale to spread across the bands.
+ */
+const REPORT_FACTOR_WEIGHT = 1
+
+/** Upper bound the factor sliders and the worker both clamp weights to. */
+const MAX_FACTOR_WEIGHT = 2
+
+/**
+ * Finds the multiplier that puts the clamped weight total on `target`. Clamping
+ * makes the total non-linear in the scale, so this bisects instead of dividing:
+ * scaling by `target / rawTotal` would overshoot as the strongest factors cap
+ * out at {@link MAX_FACTOR_WEIGHT}.
+ */
+function solveWeightScale(rawScores: number[], target: number): number {
+  const clampedTotal = (scale: number) =>
+    rawScores.reduce((total, score) => total + Math.min(MAX_FACTOR_WEIGHT, score * scale), 0)
+
+  let low = 0
+  let high = 1
+  // `target` never exceeds MAX_FACTOR_WEIGHT * count, so a bound always exists.
+  while (clampedTotal(high) < target && high < 1e6) high *= 2
+  for (let iteration = 0; iteration < 60; iteration += 1) {
+    const mid = (low + high) / 2
+    if (clampedTotal(mid) < target) low = mid
+    else high = mid
+  }
+  return high
+}
+
+/**
+ * Projects metric weights onto a 0–2 factor-weight map.
+ *
+ * Contributing factors are scaled to average {@link REPORT_FACTOR_WEIGHT} so the
+ * raster keeps the report's magnitude. Normalizing to the strongest factor
+ * instead would preserve the shape but shrink the total — a recipe whose
+ * strongest factor outweighs the rest drove every cell below the lowest band
+ * threshold, painting the whole surface a single colour.
+ */
 export function buildSourceGridFactorWeights(weights?: Partial<ScoreMetricWeightMap>): HeatmapFactorWeightState {
   const factorScores = Object.fromEntries(WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, 0])) as HeatmapFactorWeightState
   if (!weights) return factorScores
@@ -66,10 +110,19 @@ export function buildSourceGridFactorWeights(weights?: Partial<ScoreMetricWeight
     }
   }
 
-  const maxScore = Math.max(...Object.values(factorScores))
-  if (maxScore <= 0) return factorScores
+  // Factors with no matching metric stay at 0 by design, so the target covers
+  // only the ones actually carrying weight.
+  const contributingScores = WALKABILITY_REPORT_FACTOR_REFS
+    .map((ref) => factorScores[ref] ?? 0)
+    .filter((score) => score > 0)
+  if (contributingScores.length === 0) return factorScores
+
+  const scale = solveWeightScale(contributingScores, contributingScores.length * REPORT_FACTOR_WEIGHT)
   return Object.fromEntries(
-    WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [ref, Math.max(0, Math.min(2, (factorScores[ref] / maxScore) * 2))]),
+    WALKABILITY_REPORT_FACTOR_REFS.map((ref) => [
+      ref,
+      Math.max(0, Math.min(MAX_FACTOR_WEIGHT, (factorScores[ref] ?? 0) * scale)),
+    ]),
   )
 }
 
