@@ -54,6 +54,17 @@ interface MapSectionLayoutProps {
   suppressMobileSheet?: boolean
   /** Hides the left sidebar entirely (and its toggle / mobile bottom sheet). */
   disableSidebar?: boolean
+  /**
+   * Docked pane rendered across the full width below the map *and* the sidebars,
+   * taking real layout height so everything above it is shortened rather than
+   * overlaid. Used for the Felt-style data table.
+   */
+  bottomPane?: ReactNode
+  /**
+   * Height of `bottomPane` in px, reserved above the layout row on desktop.
+   * Must be px, not a percentage — percentage padding resolves against width.
+   */
+  bottomPaneHeight?: number
   children: ReactNode
   className?: string
 }
@@ -232,6 +243,8 @@ export function MapSectionLayout({
   onDesktopRightSidebarWidthChange,
   suppressMobileSheet = false,
   disableSidebar = false,
+  bottomPane,
+  bottomPaneHeight = 0,
   children,
   className,
 }: MapSectionLayoutProps) {
@@ -768,9 +781,17 @@ export function MapSectionLayout({
     <div
       ref={rootRef}
       data-map-layout-root="true"
-      className={cn('relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950', className)}
+      className={cn(
+        'relative flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950',
+        // Padding (not a wrapper element) keeps the existing flex row untouched
+        // for every page that does not use a bottom pane. Desktop only — the
+        // mobile table renders as a sheet instead.
+        bottomPane && 'md:pb-[var(--map-bottom-pane-height)]',
+        className,
+      )}
       style={{
         ...MAP_OVERLAY_ROOT_STYLE,
+        ...(bottomPane ? { '--map-bottom-pane-height': `${bottomPaneHeight}px` } : {}),
       } as CSSProperties}
     >
       {/* Sidebar wrapper */}
@@ -958,6 +979,9 @@ export function MapSectionLayout({
           )}
         </>
       )}
+
+      {/* Docked bottom pane — spans the full root width, under the sidebars too. */}
+      {bottomPane}
     </div>
   )
 }

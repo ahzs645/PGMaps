@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { PawPrint } from 'lucide-react'
+import { LoaderCircle, PawPrint } from 'lucide-react'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -11,8 +11,7 @@ import { formatDate, useJsonManifest } from './shared'
 import {
   formatWinterRangeHectares,
   getWinterRangeBounds,
-  isInsideFootprint,
-  isWithinFootprintExtent,
+  type WinterRangePoint,
   useWarsWinterRange,
   winterRangeTooltipHtml,
 } from './warsWinterRange'
@@ -519,7 +518,13 @@ export function useWarsData(
     })),
   }), [filteredFeatures])
 
-  const winterRange = useWarsWinterRange(active && showWinterRange)
+  const winterRangePoints = useMemo<WinterRangePoint[]>(() => (
+    filteredFeatures.map((feature) => {
+      const [longitude, latitude] = feature.geometry.coordinates
+      return [longitude, latitude]
+    })
+  ), [filteredFeatures])
+  const winterRange = useWarsWinterRange(active && showWinterRange, winterRangePoints)
 
   const selectedWinterRange = useMemo(() => {
     if (!selectedWinterRangeId) return null
@@ -532,24 +537,11 @@ export function useWarsData(
 
   /**
    * Designated winter range is a legal forestry boundary, not a habitat model,
-   * and the snapshot only covers part of the WARS extent. The readout is
-   * therefore scored against the records that fall inside the polygons' own
-   * envelope, so the denominator matches where the layer can actually say
-   * anything.
+   * so the readout is scored against records inside the polygons' own envelope.
+   * The worker retains the spatial index and recalculates this when filters
+   * change without cloning the provincial footprint back onto the main thread.
    */
-  const winterRangeOverlap = useMemo(() => {
-    const footprint = winterRange.mooseFootprint
-    if (!showWinterRange || !footprint) return null
-    let withinExtent = 0
-    let insideRange = 0
-    for (const feature of filteredFeatures) {
-      const [longitude, latitude] = feature.geometry.coordinates
-      if (!isWithinFootprintExtent(longitude, latitude, footprint)) continue
-      withinExtent += 1
-      if (isInsideFootprint(longitude, latitude, footprint)) insideRange += 1
-    }
-    return { withinExtent, insideRange }
-  }, [filteredFeatures, showWinterRange, winterRange.mooseFootprint])
+  const winterRangeOverlap = showWinterRange ? winterRange.overlap : null
 
   const focusHotspot = useCallback((cell: WarsHotspotCell) => {
     setFocusTarget({ longitude: cell.longitude, latitude: cell.latitude, key: cell.key })
@@ -804,9 +796,10 @@ function WarsHotspotList({ wars }: { wars: WarsState }) {
  */
 function WarsWinterRangeNotes({ wars }: { wars: WarsState }) {
   if (!wars.showWinterRange) return null
+  if (wars.winterRange.source.loading || wars.winterRange.source.error) return null
   const overlap = wars.winterRangeOverlap
   const share = overlap && overlap.withinExtent > 0 ? (overlap.insideRange / overlap.withinExtent) * 100 : 0
-  const { window: coverageWindow, clippedTo } = wars.winterRange.coverage
+  const { window: coverageWindow, clippedTo, isProvinceWide } = wars.winterRange.coverage
 
   return (
     <>
@@ -819,10 +812,19 @@ function WarsWinterRangeNotes({ wars }: { wars: WarsState }) {
         </p>
       )}
       <p>
-        Winter range polygons are legal designations, not a habitat model. The snapshot is clipped to{' '}
-        {coverageWindow ?? 'a regional window'}
-        {clippedTo ? ` (${clippedTo})` : ''} — a fraction of the WARS record extent — so blank map outside that window
-        means no data rather than no habitat.
+        Winter range polygons are legal designations, not a habitat model.{' '}
+        {isProvinceWide ? (
+          <>
+            The snapshot covers every designated range in British Columbia, so blank map means no designation rather
+            than no habitat.
+          </>
+        ) : (
+          <>
+            The snapshot is clipped to {coverageWindow ?? 'a regional window'}
+            {clippedTo ? ` (${clippedTo})` : ''} — a fraction of the WARS record extent — so blank map outside that
+            window means no data rather than no habitat.
+          </>
+        )}
       </p>
     </>
   )
@@ -906,8 +908,18 @@ export function WarsSidebar({
 
           {wars.crashes.error && <InlineAlert tone="error">{wars.crashes.error}</InlineAlert>}
           {wars.manifest.error && <InlineAlert tone="error">{wars.manifest.error}</InlineAlert>}
-          {wars.showWinterRange && wars.winterRange.source.error && (
-            <InlineAlert tone="error">{wars.winterRange.source.error}</InlineAlert>
+          {wars.showWinterRange && wars.winterRange.loading && (
+            <InlineAlert>
+              <span className="flex items-center gap-2">
+                <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+                {wars.winterRange.source.loading
+                  ? 'Loading and indexing winter range polygons...'
+                  : 'Updating winter range overlap...'}
+              </span>
+            </InlineAlert>
+          )}
+          {wars.showWinterRange && wars.winterRange.error && (
+            <InlineAlert tone="error">{wars.winterRange.error}</InlineAlert>
           )}
         </div>
       </SidebarSection>
@@ -1241,8 +1253,12 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
       {wars.showWinterRange && (
         <div className={cn((wars.showPoints || wars.showHeatmap || wars.showHotspots) && 'border-t border-border pt-2')}>
           <div className="text-xs font-medium text-foreground">Ungulate winter range</div>
-          {wars.winterRange.legend.length === 0 ? (
+          {wars.winterRange.source.loading ? (
             <MapLegendNote className="mt-1 italic">Loading winter range boundaries...</MapLegendNote>
+          ) : wars.winterRange.error ? (
+            <MapLegendNote className="mt-1 italic">Winter range boundaries are unavailable.</MapLegendNote>
+          ) : wars.winterRange.legend.length === 0 ? (
+            <MapLegendNote className="mt-1 italic">No winter range boundaries found.</MapLegendNote>
           ) : (
             <ul className="mt-1 space-y-1">
               {wars.winterRange.legend.map((entry) => (

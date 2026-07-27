@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { getWinterRangeBounds, isUsableWinterRangeGeometry, winterRangeTooltipHtml } from './warsWinterRange'
+import {
+  buildFootprint,
+  computeWinterRangeOverlap,
+  getWinterRangeBounds,
+  isInsideFootprint,
+  isUsableWinterRangeGeometry,
+  type WinterRangeCollection,
+  winterRangeTooltipHtml,
+} from './warsWinterRange'
 
 const validRing: GeoJSON.Position[] = [
   [-123, 53],
@@ -94,6 +102,81 @@ describe('getWinterRangeBounds', () => {
 
   it('returns null for geometry with no usable coordinates', () => {
     expect(getWinterRangeBounds({ type: 'MultiPolygon', coordinates: [] })).toBeNull()
+  })
+})
+
+describe('winter range footprint index', () => {
+  it('finds candidate polygons while respecting holes and the overall extent', () => {
+    const features: WinterRangeCollection['features'] = [
+      {
+        type: 'Feature',
+        properties: {
+          key: 'moose-1',
+          label: 'Moose unit',
+          speciesCode: 'M-ALAM',
+          speciesLabel: 'Moose',
+          color: '#92400e',
+          hectares: 10,
+          harvestCode: '',
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [-123, 53],
+              [-122, 53],
+              [-122, 54],
+              [-123, 54],
+              [-123, 53],
+            ],
+            [
+              [-122.6, 53.4],
+              [-122.4, 53.4],
+              [-122.4, 53.6],
+              [-122.6, 53.6],
+              [-122.6, 53.4],
+            ],
+          ],
+        },
+      },
+      {
+        type: 'Feature',
+        properties: {
+          key: 'moose-2',
+          label: 'Moose unit',
+          speciesCode: 'M-ALAM',
+          speciesLabel: 'Moose',
+          color: '#92400e',
+          hectares: 10,
+          harvestCode: '',
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-121, 55],
+            [-120, 55],
+            [-120, 56],
+            [-121, 56],
+            [-121, 55],
+          ]],
+        },
+      },
+    ]
+    const footprint = buildFootprint(features, 'M-ALAM')
+    expect(footprint).not.toBeNull()
+    if (!footprint) return
+
+    expect(isInsideFootprint(-122.75, 53.25, footprint)).toBe(true)
+    expect(isInsideFootprint(-122.5, 53.5, footprint)).toBe(false)
+    expect(isInsideFootprint(-120.5, 55.5, footprint)).toBe(true)
+    expect(isInsideFootprint(-121.5, 54.5, footprint)).toBe(false)
+    expect(computeWinterRangeOverlap([
+      [-122.75, 53.25],
+      [-122.5, 53.5],
+      [-120.5, 55.5],
+      [-121.5, 54.5],
+      [-130, 60],
+    ], footprint)).toEqual({ withinExtent: 4, insideRange: 2 })
   })
 })
 

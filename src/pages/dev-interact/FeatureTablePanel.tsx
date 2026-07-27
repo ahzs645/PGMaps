@@ -11,14 +11,16 @@ const tableLayers: Array<MapFeatureTableLayer<LayerId>> = [
 ]
 
 const columns: Array<MapFeatureTableColumn<InteractFeature>> = [
-  { id: 'name', header: 'Name', getValue: (feature) => feature.properties.name },
-  { id: 'layer', header: 'Layer', getValue: (feature) => layerLabel(feature.properties.layer) },
-  { id: 'description', header: 'Description', getValue: (feature) => feature.properties.description },
-  { id: 'value', header: 'Value', getValue: (feature) => feature.properties.value ?? '-' },
+  { id: 'name', header: 'Name', type: 'text', width: 200, getValue: (feature) => feature.properties.name },
+  { id: 'layer', header: 'Layer', type: 'text', getValue: (feature) => layerLabel(feature.properties.layer) },
+  { id: 'description', header: 'Description', type: 'text', width: 240, getValue: (feature) => feature.properties.description },
+  { id: 'issuedYear', header: 'Issued', type: 'numeric', width: 110, getValue: (feature) => feature.properties.issuedYear },
+  { id: 'value', header: 'Value', type: 'text', getValue: (feature) => feature.properties.value ?? '' },
   ...[0, 1, 2, 3].map((index) => ({
     id: `property-${index + 1}`,
     header: `Property ${index + 1}`,
-    getValue: (feature: InteractFeature) => feature.properties.properties[index]?.value ?? '-',
+    type: 'text' as const,
+    getValue: (feature: InteractFeature) => feature.properties.properties[index]?.value ?? '',
     getSearchValue: (feature: InteractFeature) => {
       const property = feature.properties.properties[index]
       return property ? `${property.label} ${property.value}` : ''
@@ -32,6 +34,9 @@ export function FeatureTablePanel({
   hiddenFeatureIds,
   isolatedFeatureId,
   yearRange,
+  selectedFeatureId = null,
+  height,
+  onHeightChange,
   onClose,
   onSelect,
 }: {
@@ -40,6 +45,9 @@ export function FeatureTablePanel({
   hiddenFeatureIds: Set<string>
   isolatedFeatureId: string | null
   yearRange: YearRange
+  selectedFeatureId?: string | null
+  height?: number
+  onHeightChange?: (height: number) => void
   onClose: () => void
   onSelect: (feature: InteractFeature) => void
 }) {
@@ -63,11 +71,17 @@ export function FeatureTablePanel({
       layers={tableLayers}
       selectedLayer={layer}
       getRowId={(feature) => feature.properties.id}
+      selectedRowId={selectedFeatureId}
+      height={height}
+      onHeightChange={onHeightChange}
       showOnlyInView={showOnlyInView}
       onShowOnlyInViewChange={setShowOnlyInView}
       onLayerChange={onLayerChange}
       onClose={onClose}
       onSelect={onSelect}
+      viewModeToggle
+      resizable
+      collapsibleSearch
     />
   )
 }

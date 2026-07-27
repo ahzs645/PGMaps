@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { CENTER, YEAR_FILTER_DOMAIN, neighbourhoodFeatures, parkFeatures, routeFeatures } from './dev-interact/data'
 import { DesktopFeaturePopup } from './dev-interact/DesktopFeaturePopup'
+import { DEFAULT_TABLE_PANE_HEIGHT } from '@/components/map/MapFeatureTable'
 import { FeatureTablePanel } from './dev-interact/FeatureTablePanel'
 import { MobileFeatureInspector } from './dev-interact/FeatureInspector'
 import { circleMeasurementStats, featureBounds, featureMatchesYearRange, filterCollection, layerLabel, measurementCanClose, measurementStats, relatedFeaturesAtPoint } from './dev-interact/geo'
@@ -131,6 +132,7 @@ function DevInteract() {
   const [hiddenFeatureIds, setHiddenFeatureIds] = useState<Set<string>>(() => new Set())
   const [isolatedFeatureId, setIsolatedFeatureId] = useState<string | null>(null)
   const [tableLayer, setTableLayer] = useState<LayerId | null>(null)
+  const [tableHeight, setTableHeight] = useState(DEFAULT_TABLE_PANE_HEIGHT)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchMounted, setSearchMounted] = useState(false)
   const [zoomFeature, setZoomFeature] = useState<{ feature: InteractFeature; nonce: number } | null>(null)
@@ -571,6 +573,24 @@ function DevInteract() {
       mobileScrimEnabled={false}
       onMobileSheetStateChange={(sheetState) => dispatchMobilePanel({ type: 'syncControlsSheet', sheetState })}
       sidebar={sidebar}
+      bottomPaneHeight={tableLayer ? tableHeight : 0}
+      bottomPane={tableLayer ? (
+        <FeatureTablePanel
+          layer={tableLayer}
+          onLayerChange={setTableLayer}
+          hiddenFeatureIds={hiddenFeatureIds}
+          isolatedFeatureId={isolatedFeatureId}
+          yearRange={yearRange}
+          selectedFeatureId={selectedFeature?.properties.id ?? null}
+          height={tableHeight}
+          onHeightChange={setTableHeight}
+          onClose={() => setTableLayer(null)}
+          onSelect={(feature) => {
+            const bounds = featureBounds(feature)
+            setSelection(feature, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
+          }}
+        />
+      ) : undefined}
     >
       <div className="relative h-full">
         <Map center={CENTER} zoom={11.1} attributionControl={false}>
@@ -720,21 +740,6 @@ function DevInteract() {
             onCollapse={() => dispatchMobilePanel({ type: 'collapseFeature' })}
             onDock={() => dispatchMobilePanel({ type: 'dockFeatureBehindControls' })}
             onClose={isMobileViewport ? dismissMobileSelection : clearSelection}
-          />
-        )}
-
-        {tableLayer && (
-          <FeatureTablePanel
-            layer={tableLayer}
-            onLayerChange={setTableLayer}
-            hiddenFeatureIds={hiddenFeatureIds}
-            isolatedFeatureId={isolatedFeatureId}
-            yearRange={yearRange}
-            onClose={() => setTableLayer(null)}
-            onSelect={(feature) => {
-              const bounds = featureBounds(feature)
-              setSelection(feature, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
-            }}
           />
         )}
 

@@ -94,7 +94,7 @@ export function DevInteractSidebar({
   }
 
   return (
-    <aside className={cn('flex flex-col bg-background/95', className)}>
+    <aside className={cn('flex h-full min-h-0 flex-col overflow-hidden bg-background/95', className)}>
       <div className="border-b border-border px-4 py-3">
         <div className="flex items-start gap-3">
           <div className="rounded-md border bg-muted p-2">

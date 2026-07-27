@@ -41,6 +41,12 @@ interface TimelineProps {
   compactBars?: boolean
   overflowBuckets?: boolean
   percentChangeMode?: TimelinePercentChangeMode
+  /**
+   * Room to reserve per tick label before thinning the axis. Raise it for a
+   * sparser axis, lower it for a denser one; labels stay evenly spaced and keep
+   * adapting to the strip's real width either way. Defaults per granularity.
+   */
+  minLabelPx?: number
 }
 
 const SPEED_OPTIONS = [
@@ -59,6 +65,18 @@ const DEFAULT_WINDOW_OPTIONS: TimelineWindowOption[] = [
 
 const COMPACT_BUCKET_WIDTH = 30
 const BAR_BUCKET_WIDTH = 8
+
+// Horizontal room a tick label needs before it starts crowding its neighbour:
+// the rendered text at text-xs plus a readable gutter.
+const MIN_LABEL_PX: Record<TimelineGranularity, number> = {
+  week: 40,
+  month: 40,
+  year: 40,
+  decade: 52,
+}
+// Strides that produce round tick years (1980, 1990, 2000…) instead of
+// arbitrary ones, so a thinned axis still reads as a calendar.
+const NICE_STRIDES = [1, 2, 5, 10, 20, 25, 50, 100]
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -191,6 +209,7 @@ export function Timeline({
   compactBars = false,
   overflowBuckets = false,
   percentChangeMode,
+  minLabelPx,
 }: TimelineProps) {
   const isMobile = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -234,14 +253,48 @@ export function Timeline({
   }, [maxPosition, currentIndex, onDateChange, buckets])
 
   const bucketWidth = usesCompactStrip ? COMPACT_BUCKET_WIDTH : BAR_BUCKET_WIDTH
-  const barStripWidth = Math.max(barViewportWidth, buckets.length * bucketWidth)
+  // Fixed-width buckets only earn their keep once there are enough of them to
+  // overflow; below that they'd huddle in the left corner while the slider
+  // underneath spans the full panel. Stretch to fill instead.
+  const useFixedBuckets = overflowBuckets && barViewportWidth > 0 && buckets.length * bucketWidth > barViewportWidth
+  const barStripWidth = useFixedBuckets ? buckets.length * bucketWidth : barViewportWidth
   const barScrollMax = Math.max(0, barStripWidth - barViewportWidth)
-  const barScrollLeft =
-    overflowBuckets && barViewportWidth > 0
-      ? Math.max(0, Math.min(barScrollMax, currentIndex * bucketWidth + bucketWidth / 2 - barViewportWidth / 2))
-      : 0
+  const barScrollLeft = useFixedBuckets
+    ? Math.max(0, Math.min(barScrollMax, currentIndex * bucketWidth + bucketWidth / 2 - barViewportWidth / 2))
+    : 0
+  const perBucketWidth = useFixedBuckets ? bucketWidth : barViewportWidth / Math.max(1, buckets.length)
   const showPercentChange = Boolean(percentChangeMode?.enabled && bucketCounts)
   const percentChangeOffset = Math.max(1, Math.floor(percentChangeMode?.previousOffset ?? 1))
+
+  const isPeriodStart = useCallback(
+    (bucket: Bucket) => (granularity === 'week' ? bucket.start.getDate() <= 7 : bucket.start.getMonth() === 0),
+    [granularity],
+  )
+
+  // Every period start wants a label, but at year granularity that is one label
+  // per bucket — at ~35px each they collide. Drop to every Nth label so the
+  // axis keeps a readable gutter at whatever width the strip actually has.
+  const labelKeys = useMemo(() => {
+    const periodStarts = buckets.filter(isPeriodStart)
+    const keys = new Set(periodStarts.map((b) => b.key))
+    if (!perBucketWidth || periodStarts.length <= 1) return keys
+
+    const spacing = (perBucketWidth * buckets.length) / periodStarts.length
+    const needed = Math.ceil((minLabelPx ?? MIN_LABEL_PX[granularity]) / spacing)
+    if (needed <= 1) return keys
+
+    const stride = NICE_STRIDES.find((s) => s >= needed) ?? needed
+    // Year-ish labels key off the year itself so ticks land on round numbers;
+    // weeks have no such anchor, so they fall back to positional counting.
+    const yearDivisor = stride * (granularity === 'decade' ? 10 : 1)
+    return new Set(
+      periodStarts
+        .filter((bucket, ordinal) =>
+          granularity === 'week' ? ordinal % stride === 0 : bucket.start.getFullYear() % yearDivisor === 0,
+        )
+        .map((bucket) => bucket.key),
+    )
+  }, [buckets, isPeriodStart, perBucketWidth, granularity, minLabelPx])
 
   const maxCount = useMemo(() => {
     if (!bucketCounts) return 1
@@ -368,14 +421,14 @@ export function Timeline({
       const viewport = barViewportRef.current
       if (!viewport || buckets.length === 0) return
       const rect = viewport.getBoundingClientRect()
-      const perBucket = overflowBuckets && barViewportWidth > 0 ? bucketWidth : rect.width / buckets.length
+      const perBucket = useFixedBuckets ? bucketWidth : rect.width / buckets.length
       const idx = Math.max(0, Math.min(maxPosition, Math.floor((clientX - rect.left + barScrollLeft) / perBucket)))
       if (buckets[idx] && idx !== currentIndex) {
         onDateChange(buckets[idx].start)
         setIsPlaying(false)
       }
     },
-    [buckets, overflowBuckets, barViewportWidth, bucketWidth, barScrollLeft, currentIndex, maxPosition, onDateChange],
+    [buckets, useFixedBuckets, bucketWidth, barScrollLeft, currentIndex, maxPosition, onDateChange],
   )
 
   const handleSliderChange = useCallback(
@@ -456,7 +509,7 @@ export function Timeline({
   if (buckets.length === 0) return null
 
   const barStripStyle = {
-    width: overflowBuckets && barStripWidth > 0 ? `${barStripWidth}px` : '100%',
+    width: useFixedBuckets ? `${barStripWidth}px` : '100%',
     transform: `translateX(-${barScrollLeft}px)`,
   } satisfies CSSProperties
   const controlButtonClass =
@@ -673,9 +726,9 @@ export function Timeline({
                 return (
                   <div
                     key={bucket.key}
-                    className={cn('cursor-pointer transition-colors', overflowBuckets ? 'shrink-0' : 'flex-1')}
+                    className={cn('cursor-pointer transition-colors', useFixedBuckets ? 'shrink-0' : 'flex-1')}
                     style={{
-                      width: overflowBuckets ? `${bucketWidth}px` : undefined,
+                      width: useFixedBuckets ? `${bucketWidth}px` : undefined,
                       height: `${height}%`,
                       backgroundColor: inWindow ? 'var(--color-primary)' : 'var(--color-muted-foreground)',
                       opacity: inWindow ? 1 : 0.2,
@@ -726,16 +779,19 @@ export function Timeline({
               }
             }}
             className={cn(
+              // Tall enough for a tick label stacked on the active bar: clipping
+              // one axis clips both, so `overflow-y-visible` cannot rescue an
+              // undersized box once overflow-x is hidden for scrolling.
               'touch-none overflow-y-visible',
-              isMobile ? 'h-10' : 'mb-1 h-6',
+              isMobile ? 'h-11' : 'mb-1 h-7',
               overflowBuckets ? 'overflow-x-hidden' : 'overflow-visible',
             )}
           >
             <div className="flex h-full items-end transition-transform duration-200 ease-out" style={barStripStyle}>
               {buckets.map((bucket, i) => {
                 const inWindow = isInWindow(i)
-                const isJanuary = bucket.start.getMonth() === 0
-                const isPeriodStart = granularity === 'week' ? bucket.start.getDate() <= 7 : isJanuary
+                const bucketIsPeriodStart = isPeriodStart(bucket)
+                const showLabel = labelKeys.has(bucket.key)
                 const count = bucketCounts?.get(bucket.key) ?? 0
                 const change = percentChanges.get(bucket.key)
                 const formattedCount = formatBucketValue(count)
@@ -751,17 +807,17 @@ export function Timeline({
                 return (
                   <div
                     key={bucket.key}
-                    className={cn('flex cursor-pointer flex-col items-center', overflowBuckets ? 'shrink-0' : 'flex-1')}
-                    style={{ width: overflowBuckets ? `${bucketWidth}px` : undefined }}
+                    className={cn('flex cursor-pointer flex-col items-center', useFixedBuckets ? 'shrink-0' : 'flex-1')}
+                    style={{ width: useFixedBuckets ? `${bucketWidth}px` : undefined }}
                     title={title}
                     onClick={() => {
                       onDateChange(bucket.start)
                       setIsPlaying(false)
                     }}
                   >
-                    {isPeriodStart &&
+                    {showLabel &&
                       (isMobile ? (
-                        <span className="text-xs leading-none text-muted-foreground">
+                        <span className="whitespace-nowrap text-xs leading-none tabular-nums text-muted-foreground">
                           {granularity === 'week'
                             ? MONTH_NAMES[bucket.start.getMonth()]
                             : granularity === 'decade'
@@ -769,7 +825,7 @@ export function Timeline({
                               : bucket.start.getFullYear()}
                         </span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
                           {granularity === 'week' || granularity === 'decade'
                             ? bucket.shortLabel
                             : bucket.start.getFullYear()}
@@ -784,7 +840,7 @@ export function Timeline({
                             : 'bg-muted-foreground/40'
                           : inWindow
                             ? cn('bg-primary', isMobile ? 'h-6' : 'h-3')
-                            : isPeriodStart
+                            : bucketIsPeriodStart
                               ? cn('bg-muted-foreground/30', isMobile ? 'h-4' : 'h-2')
                               : cn('bg-muted-foreground/15', isMobile ? 'h-2' : 'h-1'),
                       )}
