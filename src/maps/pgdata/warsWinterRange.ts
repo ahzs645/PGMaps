@@ -7,7 +7,7 @@ import { useJsonManifest } from './shared'
  * George area, not the full WARS extent, so anything derived from it has to be
  * reported against the polygons' own footprint rather than the whole region.
  */
-export const WARS_WINTER_RANGE_PATH = '/data/boundaries/BCUWR/ungulate_winter_range.geojson'
+export const WARS_WINTER_RANGE_PATH = '/data/boundaries/BCUWR/ungulate_winter_range.geojson.gz'
 
 interface WinterRangeSourceProperties {
   boundaryName?: string
