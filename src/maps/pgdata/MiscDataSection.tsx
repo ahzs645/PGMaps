@@ -1422,7 +1422,9 @@ export default function MiscDataSection() {
 
               {activeTab === 'wars' && <WarsLayer wars={wars} />}
 
-              {activeTab === 'wars' && isMobileViewport && wars.selectedCrash && <MobileWarsFeatureCard wars={wars} />}
+              {activeTab === 'wars' && isMobileViewport && (wars.selectedCrash || wars.selectedWinterRange) && (
+                <MobileWarsFeatureCard wars={wars} />
+              )}
 
               {activeTab === 'openLitterMap' && <OpenLitterMapLayer litter={openLitterMap} />}
 

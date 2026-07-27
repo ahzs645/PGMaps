@@ -8,7 +8,14 @@ import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 import { formatDate, useJsonManifest } from './shared'
-import { isInsideFootprint, isWithinFootprintExtent, useWarsWinterRange } from './warsWinterRange'
+import {
+  formatWinterRangeHectares,
+  getWinterRangeBounds,
+  isInsideFootprint,
+  isWithinFootprintExtent,
+  useWarsWinterRange,
+  winterRangeTooltipHtml,
+} from './warsWinterRange'
 
 export const WARS_TIMELINE_WINDOW_OPTIONS: TimelineWindowOption[] = [
   { value: 1, label: '1 yr' },
@@ -210,7 +217,8 @@ export function useWarsData(
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints !== '0')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
   const [showHotspots, setShowHotspots] = useState<boolean>(initialShowHotspots === '1')
-  const [showWinterRange, setShowWinterRange] = useState<boolean>(initialShowWinterRange === '1')
+  const [showWinterRange, setShowWinterRangeState] = useState<boolean>(initialShowWinterRange === '1')
+  const [selectedWinterRangeId, setSelectedWinterRangeId] = useState<string | null>(null)
   const [focusTarget, setFocusTarget] = useState<{ longitude: number; latitude: number; key: string } | null>(null)
   const [selectedMonths, setSelectedMonths] = useState<number[]>([])
   const [yearMode, setYearModeState] = useState<string>(ALL_YEARS)
@@ -230,6 +238,12 @@ export function useWarsData(
   const setYearMode = useCallback((mode: string) => {
     setYearModeState(mode)
     setSelectedId(null)
+  }, [])
+  // Hiding the layer has to drop its selection too, or re-enabling it would
+  // restore a highlight for a polygon the user can no longer see.
+  const setShowWinterRange = useCallback((next: boolean) => {
+    setShowWinterRangeState(next)
+    if (!next) setSelectedWinterRangeId(null)
   }, [])
   const toggleMonth = useCallback((month: number) => {
     setSelectedMonths((current) => (
@@ -507,6 +521,15 @@ export function useWarsData(
 
   const winterRange = useWarsWinterRange(active && showWinterRange)
 
+  const selectedWinterRange = useMemo(() => {
+    if (!selectedWinterRangeId) return null
+    return winterRange.data.features.find((feature) => feature.properties.key === selectedWinterRangeId) ?? null
+  }, [selectedWinterRangeId, winterRange.data])
+
+  const toggleWinterRangeSelection = useCallback((key: string) => {
+    setSelectedWinterRangeId((current) => (current === key ? null : key))
+  }, [])
+
   /**
    * Designated winter range is a legal forestry boundary, not a habitat model,
    * and the snapshot only covers part of the WARS extent. The readout is
@@ -539,6 +562,10 @@ export function useWarsData(
     winterRangeOverlap,
     showWinterRange,
     setShowWinterRange,
+    selectedWinterRangeId,
+    selectedWinterRange,
+    setSelectedWinterRangeId,
+    toggleWinterRangeSelection,
     focusTarget,
     focusHotspot,
     yearlyBreakdown,
@@ -770,23 +797,34 @@ function WarsHotspotList({ wars }: { wars: WarsState }) {
   )
 }
 
-function WarsWinterRangeSummary({ wars }: { wars: WarsState }) {
+/**
+ * Winter range caveats and the overlap readout live in the dataset info dialog
+ * rather than the sidebar: they explain how to read the layer, which is a
+ * once-per-session question, not something to re-read on every filter change.
+ */
+function WarsWinterRangeNotes({ wars }: { wars: WarsState }) {
   if (!wars.showWinterRange) return null
-  if (wars.winterRange.source.error) {
-    return <InlineAlert tone="error">{wars.winterRange.source.error}</InlineAlert>
-  }
   const overlap = wars.winterRangeOverlap
-  if (!overlap) return null
-
-  const share = overlap.withinExtent > 0 ? (overlap.insideRange / overlap.withinExtent) * 100 : 0
+  const share = overlap && overlap.withinExtent > 0 ? (overlap.insideRange / overlap.withinExtent) * 100 : 0
+  const { window: coverageWindow, clippedTo } = wars.winterRange.coverage
 
   return (
-    <InlineAlert>
-      Of {overlap.withinExtent.toLocaleString()} filtered records inside the mapped moose winter-range extent,{' '}
-      {overlap.insideRange.toLocaleString()} ({share.toFixed(1)}%) fall within a designated polygon. Winter range is a
-      forestry designation that excludes highway corridors, so this measures overlap with the legal boundary, not habitat
-      suitability.
-    </InlineAlert>
+    <>
+      {overlap && (
+        <p>
+          Of {overlap.withinExtent.toLocaleString()} filtered records inside the mapped moose winter-range extent,{' '}
+          {overlap.insideRange.toLocaleString()} ({share.toFixed(1)}%) fall within a designated polygon. Winter range is
+          a forestry designation that excludes highway corridors, so this measures overlap with the legal boundary, not
+          habitat suitability.
+        </p>
+      )}
+      <p>
+        Winter range polygons are legal designations, not a habitat model. The snapshot is clipped to{' '}
+        {coverageWindow ?? 'a regional window'}
+        {clippedTo ? ` (${clippedTo})` : ''} — a fraction of the WARS record extent — so blank map outside that window
+        means no data rather than no habitat.
+      </p>
+    </>
   )
 }
 
@@ -866,18 +904,28 @@ export function WarsSidebar({
 
           <WarsHotspotList wars={wars} />
 
-          <WarsWinterRangeSummary wars={wars} />
-
           {wars.crashes.error && <InlineAlert tone="error">{wars.crashes.error}</InlineAlert>}
           {wars.manifest.error && <InlineAlert tone="error">{wars.manifest.error}</InlineAlert>}
-          <InlineAlert>
-            Records cover the Ministry's whole Northern Region (service areas 18-28), not just the Prince George area:
-            Haida Gwaii, Prince Rupert and Stewart in the west, east to the Alberta border past Dawson Creek, north to
-            Atlin and Dease Lake, and south to Williams Lake, Blue River and Avola. Only records carrying mapped
-            coordinates in the source spreadsheets are shown.
-          </InlineAlert>
+          {wars.showWinterRange && wars.winterRange.source.error && (
+            <InlineAlert tone="error">{wars.winterRange.source.error}</InlineAlert>
+          )}
         </div>
       </SidebarSection>
+
+      {wars.selectedWinterRange && (
+        <SidebarSection title="Selected Winter Range">
+          <SelectedItemCard
+            title={`${wars.selectedWinterRange.properties.speciesLabel} winter range`}
+            subtitle={wars.selectedWinterRange.properties.label}
+            onClear={() => wars.setSelectedWinterRangeId(null)}
+            rows={[
+              { label: 'Area', value: formatWinterRangeHectares(wars.selectedWinterRange.properties.hectares) || 'Unknown' },
+              { label: 'Harvest zone', value: wars.selectedWinterRange.properties.harvestCode || 'Not recorded' },
+              { label: 'Species code', value: wars.selectedWinterRange.properties.speciesCode },
+            ]}
+          />
+        </SidebarSection>
+      )}
 
       {showSelectedRecord && wars.selectedCrash && (
         <SidebarSection title="Selected Record">
@@ -897,8 +945,43 @@ export function WarsSidebar({
   )
 }
 
+function MobileWarsDetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="max-w-[12rem] text-right font-medium text-foreground">{value}</span>
+    </div>
+  )
+}
+
 export function MobileWarsFeatureCard({ wars }: { wars: WarsState }) {
   const crash = wars.selectedCrash
+  const winterRange = wars.selectedWinterRange
+
+  // A record selection wins over a polygon selection: points sit above the
+  // winter range fill, so the record is what the tap was aimed at.
+  if (!crash && winterRange) {
+    return (
+      <MobileFeatureCard
+        cardKey={`winter-range-${winterRange.properties.key}`}
+        title={`${winterRange.properties.speciesLabel} winter range`}
+        subtitle={winterRange.properties.label}
+        onClose={() => wars.setSelectedWinterRangeId(null)}
+      >
+        <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
+          <div className="space-y-1">
+            <MobileWarsDetailRow
+              label="Area"
+              value={formatWinterRangeHectares(winterRange.properties.hectares) || 'Unknown'}
+            />
+            <MobileWarsDetailRow label="Harvest zone" value={winterRange.properties.harvestCode || 'Not recorded'} />
+            <MobileWarsDetailRow label="Species code" value={winterRange.properties.speciesCode} />
+          </div>
+        </div>
+      </MobileFeatureCard>
+    )
+  }
+
   if (!crash) return null
 
   return (
@@ -910,30 +993,10 @@ export function MobileWarsFeatureCard({ wars }: { wars: WarsState }) {
     >
       <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
         <div className="space-y-1">
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Date</span>
-            <span className="max-w-[12rem] text-right font-medium text-foreground">
-              {crash.properties.accidentDate || 'Unknown'}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Quantity</span>
-            <span className="max-w-[12rem] text-right font-medium text-foreground">
-              {crash.properties.quantity.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Nearest town</span>
-            <span className="max-w-[12rem] text-right font-medium text-foreground">
-              {crash.properties.nearestTown}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Service area</span>
-            <span className="max-w-[12rem] text-right font-medium text-foreground">
-              {crash.properties.serviceArea.toLocaleString()}
-            </span>
-          </div>
+          <MobileWarsDetailRow label="Date" value={crash.properties.accidentDate || 'Unknown'} />
+          <MobileWarsDetailRow label="Quantity" value={crash.properties.quantity.toLocaleString()} />
+          <MobileWarsDetailRow label="Nearest town" value={crash.properties.nearestTown} />
+          <MobileWarsDetailRow label="Service area" value={crash.properties.serviceArea.toLocaleString()} />
         </div>
       </div>
     </MobileFeatureCard>
@@ -945,22 +1008,44 @@ export function WarsSourceNotes({ wars }: { wars: WarsState }) {
     <>
       <p>WARS extracts updated {formatDate(wars.manifest.data?.generatedAt)}.</p>
       <p>{wars.manifest.data?.sourceCitation ?? 'BC Ministry of Transportation and Transit Wildlife Accident Reporting System.'}</p>
+      <p>
+        Records cover the Ministry's whole Northern Region (service areas 18-28), not just the Prince George area: Haida
+        Gwaii, Prince Rupert and Stewart in the west, east to the Alberta border past Dawson Creek, north to Atlin and
+        Dease Lake, and south to Williams Lake, Blue River and Avola. Only records carrying mapped coordinates in the
+        source spreadsheets are shown.
+      </p>
+      <WarsWinterRangeNotes wars={wars} />
     </>
   )
 }
 
 /**
- * Lives inside the map so the sidebar's recurrent-site list can recentre the
- * view without the section having to thread a map ref down to it.
+ * Lives inside the map so the sidebar's recurrent-site list and the winter range
+ * selection can recentre the view without the section having to thread a map ref
+ * down to them.
  */
-function WarsHotspotFocus({ wars }: { wars: WarsState }) {
+function WarsMapFocus({ wars }: { wars: WarsState }) {
   const { map, isLoaded } = useMap()
   const focusTarget = wars.focusTarget
+  const selectedWinterRange = wars.selectedWinterRange
 
   useEffect(() => {
     if (!map || !isLoaded || !focusTarget) return
     map.flyTo({ center: [focusTarget.longitude, focusTarget.latitude], zoom: 12, duration: 800 })
   }, [map, isLoaded, focusTarget])
+
+  // Winter range units span anything from a single hillside to hundreds of km²,
+  // so the selection frames the polygon's own bounds rather than a fixed zoom.
+  useEffect(() => {
+    if (!map || !isLoaded || !selectedWinterRange) return
+    const bounds = getWinterRangeBounds(selectedWinterRange.geometry)
+    if (!bounds) return
+    map.fitBounds(bounds, {
+      padding: { top: 72, right: 72, bottom: 72, left: 72 },
+      maxZoom: 13,
+      duration: 800,
+    })
+  }, [map, isLoaded, selectedWinterRange])
 
   return null
 }
@@ -994,7 +1079,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
 
   return (
     <>
-      <WarsHotspotFocus wars={wars} />
+      <WarsMapFocus wars={wars} />
 
       {/* Rendered before the heatmap and points so the polygons stay underneath. */}
       {wars.showWinterRange && wars.winterRange.data.features.length > 0 && (
@@ -1006,13 +1091,10 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
           lineColor={['get', 'color']}
           lineWidth={1}
           lineOpacity={0.85}
-          hoverHtml={(properties) => {
-            const label = String(properties.label ?? 'Ungulate winter range')
-            const species = String(properties.speciesLabel ?? '')
-            const hectares = Number(properties.hectares)
-            const size = Number.isFinite(hectares) && hectares > 0 ? `${Math.round(hectares).toLocaleString()} ha` : ''
-            return `<strong>${species} winter range</strong><br/>${label}${size ? `<br/>${size}` : ''}`
-          }}
+          selectedId={wars.selectedWinterRangeId}
+          selectionWidth={3}
+          onFeatureClick={(key) => wars.toggleWinterRangeSelection(key)}
+          hoverHtml={winterRangeTooltipHtml}
         />
       )}
 
@@ -1174,10 +1256,6 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
               ))}
             </ul>
           )}
-          <MapLegendNote className="mt-1.5">
-            Legal winter range designations. The snapshot covers the Prince George area only, so blank map elsewhere
-            means no data rather than no habitat.
-          </MapLegendNote>
         </div>
       )}
       {!wars.showPoints && !wars.showHeatmap && !wars.showHotspots && !wars.showWinterRange && (

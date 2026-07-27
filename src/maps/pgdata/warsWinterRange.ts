@@ -18,6 +18,13 @@ interface WinterRangeSourceProperties {
   HECTARES?: number
 }
 
+/** Clip window the upstream extract was cut to, carried on the FeatureCollection. */
+interface WinterRangeSourceMetadata {
+  bbox?: [number, number, number, number]
+  clippedTo?: string
+  sourceLayer?: string
+}
+
 export interface WinterRangeProperties {
   key: string
   label: string
@@ -28,7 +35,10 @@ export interface WinterRangeProperties {
   harvestCode: string
 }
 
-type WinterRangeSource = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, WinterRangeSourceProperties>
+type WinterRangeSource = GeoJSON.FeatureCollection<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  WinterRangeSourceProperties
+> & { metadata?: WinterRangeSourceMetadata }
 export type WinterRangeCollection = GeoJSON.FeatureCollection<
   GeoJSON.Polygon | GeoJSON.MultiPolygon,
   WinterRangeProperties
@@ -195,6 +205,89 @@ export function isWithinFootprintExtent(lon: number, lat: number, footprint: Win
   return lon >= footprint.minLon && lon <= footprint.maxLon && lat >= footprint.minLat && lat <= footprint.maxLat
 }
 
+/** `[[west, south], [east, north]]` for `map.fitBounds`, or null for empty geometry. */
+export function getWinterRangeBounds(
+  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon,
+): [[number, number], [number, number]] | null {
+  let minLon = Infinity
+  let minLat = Infinity
+  let maxLon = -Infinity
+  let maxLat = -Infinity
+  for (const rings of toPolygons(geometry)) {
+    for (const [lon, lat] of rings[0] ?? []) {
+      if (lon < minLon) minLon = lon
+      if (lon > maxLon) maxLon = lon
+      if (lat < minLat) minLat = lat
+      if (lat > maxLat) maxLat = lat
+    }
+  }
+  if (!Number.isFinite(minLon) || !Number.isFinite(minLat)) return null
+  return [
+    [minLon, minLat],
+    [maxLon, maxLat],
+  ]
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case '&':
+        return '&amp;'
+      case '<':
+        return '&lt;'
+      case '>':
+        return '&gt;'
+      case '"':
+        return '&quot;'
+      case "'":
+        return '&#39;'
+      default:
+        return char
+    }
+  })
+}
+
+export function formatWinterRangeHectares(hectares: number): string {
+  return Number.isFinite(hectares) && hectares > 0 ? `${Math.round(hectares).toLocaleString()} ha` : ''
+}
+
+/**
+ * `.mapcn-tooltip` strips the MapLibre popup's own chrome, so the tooltip has to
+ * bring its own popover card the way the boundary and network layers do —
+ * returning bare markup renders as unstyled text floating on the basemap.
+ */
+export function winterRangeTooltipHtml(properties: Record<string, unknown>): string {
+  const species = String(properties.speciesLabel ?? 'Ungulate')
+  const label = String(properties.label ?? 'Ungulate winter range')
+  const harvestCode = String(properties.harvestCode ?? '').trim()
+  const size = formatWinterRangeHectares(Number(properties.hectares))
+  return `
+    <div class="min-w-44 max-w-72 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
+      <div class="font-semibold leading-5">${escapeHtml(species)} winter range</div>
+      <div class="mt-1 text-muted-foreground">${escapeHtml(label)}</div>
+      ${harvestCode ? `<div class="mt-1 text-muted-foreground">${escapeHtml(harvestCode.toLowerCase())}</div>` : ''}
+      ${size ? `<div class="mt-2 font-semibold">${escapeHtml(size)}</div>` : ''}
+    </div>
+  `
+}
+
+function formatDegrees(value: number, positive: string, negative: string): string {
+  return `${Math.abs(value).toFixed(Number.isInteger(value) ? 0 : 1)}°${value < 0 ? negative : positive}`
+}
+
+/**
+ * Human-readable clip window, so the map can say where the snapshot actually
+ * stops instead of asserting a coverage area the file may no longer match.
+ */
+function formatCoverageWindow(metadata: WinterRangeSourceMetadata | undefined): string | null {
+  const bbox = metadata?.bbox
+  if (!Array.isArray(bbox) || bbox.length < 4 || !bbox.every((value) => Number.isFinite(value))) return null
+  const [west, south, east, north] = bbox
+  const lonSpan = `${formatDegrees(west, 'E', 'W')} to ${formatDegrees(east, 'E', 'W')}`
+  const latSpan = `${formatDegrees(south, 'N', 'S')} to ${formatDegrees(north, 'N', 'S')}`
+  return `${lonSpan}, ${latSpan}`
+}
+
 export interface WinterRangeLegendEntry {
   label: string
   color: string
@@ -240,7 +333,15 @@ export function useWarsWinterRange(enabled: boolean) {
 
   const mooseFootprint = useMemo(() => buildFootprint(data.features, WARS_WINTER_RANGE_MOOSE_CODE), [data])
 
-  return { source, data, legend, mooseFootprint }
+  const coverage = useMemo(() => {
+    const metadata = source.data?.metadata
+    return {
+      clippedTo: metadata?.clippedTo ?? null,
+      window: formatCoverageWindow(metadata),
+    }
+  }, [source.data])
+
+  return { source, data, legend, mooseFootprint, coverage }
 }
 
 export type WarsWinterRangeState = ReturnType<typeof useWarsWinterRange>
