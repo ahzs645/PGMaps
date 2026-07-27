@@ -2,7 +2,7 @@ import { CalendarDays, CaseSensitive, Check, ChevronDown, Hash, Maximize2, Minim
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { MobileMapCard } from './MapCard'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { cn } from '@/lib/utils'
 
 /** Row height in px. Fixed so the virtualizer can measure without a layout pass. */
@@ -194,9 +194,19 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
   return (
     <>
       {mobileCard ? (
-        <MobileMapCard id="map-feature-table" ariaLabel="Feature table" title={title} subtitle={activeLayer?.label === title ? undefined : activeLayer?.label} collapsed={false} controlsInFront={false} onClose={onClose}>
+        /* Rendered as a MobileFeatureCard so the table joins the same mobile card
+           stack as a focused feature, instead of colliding with it. */
+        <MobileFeatureCard
+          stackId="map-feature-table"
+          title={title}
+          /* No subtitle: the layer picker in the toolbar below already names the layer. */
+          contentClassName="px-0 py-0"
+          collapseOnMapInteraction={false}
+          closeOnBlankMapClick={false}
+          onClose={onClose}
+        >
           {renderBody()}
-        </MobileMapCard>
+        </MobileFeatureCard>
       ) : (
         <div role="dialog" aria-label={title} className="absolute inset-x-0 bottom-0 z-50 flex h-[calc(100%-74px)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.3)] md:hidden">
           <TableHeader title={title} onClose={onClose} />

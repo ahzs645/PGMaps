@@ -7,6 +7,7 @@ import type {
   WinterRangePoint,
 } from './warsWinterRangeCore'
 import type { WinterRangeWorkerRequest, WinterRangeWorkerResponse } from './warsWinterRange.worker'
+import { winterRangePropertiesFromSource } from './warsWinterRangeCore'
 
 export {
   buildFootprint,
@@ -16,12 +17,14 @@ export {
   isUsableWinterRangeGeometry,
   isWithinFootprintExtent,
 } from './warsWinterRangeCore'
+export { winterRangePropertiesFromSource }
 export type {
   WinterRangeCollection,
   WinterRangeCoverage,
   WinterRangeLegendEntry,
   WinterRangeOverlap,
   WinterRangePoint,
+  WinterRangeProperties,
 } from './warsWinterRangeCore'
 
 /**
@@ -36,13 +39,16 @@ export const WARS_WINTER_RANGE_PATH = '/data/boundaries/BCUWR/ungulate_winter_ra
 const EMPTY_COLLECTION: WinterRangeCollection = { type: 'FeatureCollection', features: [] }
 const EMPTY_COVERAGE: WinterRangeCoverage = { clippedTo: null, window: null, isProvinceWide: false }
 
+export type WarsWinterRangeMode = 'inline' | 'blob'
+type WinterRangeMapData = WinterRangeCollection | string
+
 interface WinterRangeState {
   source: {
-    data: WinterRangeCollection | null
+    data: WinterRangeMapData | null
     loading: boolean
     error: string | null
   }
-  data: WinterRangeCollection
+  data: WinterRangeMapData
   legend: WinterRangeLegendEntry[]
   coverage: WinterRangeCoverage
   overlap: WinterRangeOverlap | null
@@ -91,10 +97,13 @@ export function formatWinterRangeHectares(hectares: number): string {
  * returning bare markup renders as unstyled text floating on the basemap.
  */
 export function winterRangeTooltipHtml(properties: Record<string, unknown>): string {
-  const species = String(properties.speciesLabel ?? 'Ungulate')
-  const label = String(properties.label ?? 'Ungulate winter range')
-  const harvestCode = String(properties.harvestCode ?? '').trim()
-  const size = formatWinterRangeHectares(Number(properties.hectares))
+  const normalized = 'speciesLabel' in properties
+    ? properties
+    : winterRangePropertiesFromSource(properties, String(properties.UNGULATE_WINTER_RANGE_ID ?? ''))
+  const species = String(normalized.speciesLabel ?? 'Ungulate')
+  const label = String(normalized.label ?? 'Ungulate winter range')
+  const harvestCode = String(normalized.harvestCode ?? '').trim()
+  const size = formatWinterRangeHectares(Number(normalized.hectares))
   return `
     <div class="min-w-44 max-w-72 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
       <div class="font-semibold leading-5">${escapeHtml(species)} winter range</div>
@@ -105,16 +114,21 @@ export function winterRangeTooltipHtml(properties: Record<string, unknown>): str
   `
 }
 
-export function useWarsWinterRange(enabled: boolean, points: WinterRangePoint[]) {
+export function useWarsWinterRange(
+  enabled: boolean,
+  points: WinterRangePoint[],
+  mode: WarsWinterRangeMode,
+) {
   const workerRef = useRef<Worker | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
   const latestOverlapRequestRef = useRef(0)
   const [state, setState] = useState<WinterRangeState>(() => emptyState(enabled))
-  const [stateInputs, setStateInputs] = useState({ enabled, points })
-  if (stateInputs.enabled !== enabled || stateInputs.points !== points) {
-    const enabledChanged = stateInputs.enabled !== enabled
-    setStateInputs({ enabled, points })
+  const [stateInputs, setStateInputs] = useState({ enabled, mode, points })
+  if (stateInputs.enabled !== enabled || stateInputs.mode !== mode || stateInputs.points !== points) {
+    const sourceChanged = stateInputs.enabled !== enabled || stateInputs.mode !== mode
+    setStateInputs({ enabled, mode, points })
     setState((current) => (
-      enabledChanged
+      sourceChanged
         ? emptyState(enabled)
         : { ...current, overlap: null, overlapLoading: enabled, overlapError: null }
     ))
@@ -129,6 +143,10 @@ export function useWarsWinterRange(enabled: boolean, points: WinterRangePoint[])
     worker.onmessage = (event: MessageEvent<WinterRangeWorkerResponse>) => {
       const message = event.data
       if (message.type === 'loaded') {
+        if (objectUrlRef.current && objectUrlRef.current !== message.data) {
+          URL.revokeObjectURL(objectUrlRef.current)
+        }
+        objectUrlRef.current = typeof message.data === 'string' ? message.data : null
         setState((current) => ({
           ...current,
           source: { data: message.data, loading: false, error: null },
@@ -177,13 +195,18 @@ export function useWarsWinterRange(enabled: boolean, points: WinterRangePoint[])
     worker.postMessage({
       type: 'load',
       url: WARS_WINTER_RANGE_PATH,
+      mode,
     } satisfies WinterRangeWorkerRequest)
 
     return () => {
       worker.terminate()
       if (workerRef.current === worker) workerRef.current = null
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
+      }
     }
-  }, [enabled])
+  }, [enabled, mode])
 
   useEffect(() => {
     if (!enabled || !workerRef.current) return

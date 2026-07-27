@@ -36,8 +36,8 @@ function dispatchMobileMapFeatureClick() {
 // boundary (Air Quality) use cases with a single composable component.
 
 type MapFillLayerProps = {
-  /** GeoJSON FeatureCollection data */
-  data: GeoJSON.FeatureCollection
+  /** GeoJSON FeatureCollection data or a URL MapLibre can fetch */
+  data: GeoJSON.FeatureCollection | string
   /** Fill color — static string or MapLibre expression (e.g. ['get', 'color']) */
   fillColor: string | StyleExpression
   /** Fill opacity (default: 0.72) — number or MapLibre expression */
@@ -64,8 +64,12 @@ type MapFillLayerProps = {
   selectionFillOpacity?: number
   /** Whether the layer is visible (default: true) */
   visible?: boolean
-  /** Callback when a feature is clicked — receives the feature's idProperty value as a string */
-  onFeatureClick?: (id: string, event: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean }) => void
+  /** Callback when a feature is clicked — receives its ID, modifier keys, and properties */
+  onFeatureClick?: (
+    id: string,
+    event: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean },
+    properties: Record<string, unknown>,
+  ) => void
   /** Optional HTML tooltip for hoverable feature properties. Return null to hide. */
   hoverHtml?: (properties: Record<string, unknown>) => string | null
 }
@@ -111,7 +115,7 @@ function MapFillLayer({
 
     map.addSource(sourceId, {
       type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
+      data,
     })
 
     map.addLayer({
@@ -171,7 +175,8 @@ function MapFillLayer({
         }
         preventDefault?: () => void
       }
-      const id = e.features?.[0]?.properties?.[idPropRef.current]
+      const properties = e.features?.[0]?.properties
+      const id = properties?.[idPropRef.current]
       if (id != null) {
         e.preventDefault?.()
         e.originalEvent?.preventDefault()
@@ -182,7 +187,7 @@ function MapFillLayer({
           altKey: originalEvent?.altKey === true,
           ctrlKey: originalEvent?.ctrlKey === true,
           metaKey: originalEvent?.metaKey === true,
-        })
+        }, properties ?? {})
       }
     }
 

@@ -11,13 +11,13 @@ import {
 } from './warsWinterRangeCore'
 
 export type WinterRangeWorkerRequest =
-  | { type: 'load'; url: string }
+  | { type: 'load'; url: string; mode: 'inline' | 'blob' }
   | { type: 'overlap'; requestId: number; points: WinterRangePoint[] }
 
 export type WinterRangeWorkerResponse =
   | {
       type: 'loaded'
-      data: WinterRangeCollection
+      data: WinterRangeCollection | string
       legend: WinterRangeLegendEntry[]
       coverage: WinterRangeCoverage
     }
@@ -31,7 +31,13 @@ const workerScope = globalThis as unknown as {
   postMessage: (message: WinterRangeWorkerResponse) => void
 }
 
-let processedPromise: Promise<ProcessedWinterRange> | null = null
+interface LoadedWinterRange {
+  decompressedText: string
+  processed: ProcessedWinterRange
+}
+
+let loadedPromise: Promise<LoadedWinterRange> | null = null
+let objectUrl: string | null = null
 
 function isWinterRangeSource(value: unknown): value is WinterRangeSource {
   if (!value || typeof value !== 'object') return false
@@ -39,7 +45,7 @@ function isWinterRangeSource(value: unknown): value is WinterRangeSource {
   return candidate.type === 'FeatureCollection' && Array.isArray(candidate.features)
 }
 
-async function fetchWinterRange(url: string): Promise<WinterRangeSource> {
+async function fetchWinterRange(url: string): Promise<{ decompressedText: string; source: WinterRangeSource }> {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`)
   const contentType = response.headers.get('content-type') ?? ''
@@ -62,7 +68,7 @@ async function fetchWinterRange(url: string): Promise<WinterRangeSource> {
   }
   const parsed = JSON.parse(text) as unknown
   if (!isWinterRangeSource(parsed)) throw new Error('Winter range dataset is not valid GeoJSON')
-  return parsed
+  return { decompressedText: text, source: parsed }
 }
 
 function errorMessage(error: unknown): string {
@@ -72,10 +78,22 @@ function errorMessage(error: unknown): string {
 workerScope.onmessage = (event) => {
   const message = event.data
   if (message.type === 'load') {
-    processedPromise = fetchWinterRange(message.url).then(processWinterRangeSource)
-    processedPromise
-      .then(({ data, legend, coverage }) => {
-        workerScope.postMessage({ type: 'loaded', data, legend, coverage })
+    loadedPromise = fetchWinterRange(message.url).then(({ decompressedText, source }) => ({
+      decompressedText,
+      processed: processWinterRangeSource(source),
+    }))
+    loadedPromise
+      .then(({ decompressedText, processed }) => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl)
+        objectUrl = message.mode === 'blob'
+          ? URL.createObjectURL(new Blob([decompressedText], { type: 'application/json' }))
+          : null
+        workerScope.postMessage({
+          type: 'loaded',
+          data: objectUrl ?? processed.data,
+          legend: processed.legend,
+          coverage: processed.coverage,
+        })
       })
       .catch((error: unknown) => {
         workerScope.postMessage({ type: 'error', stage: 'load', error: errorMessage(error) })
@@ -83,7 +101,7 @@ workerScope.onmessage = (event) => {
     return
   }
 
-  const currentPromise = processedPromise
+  const currentPromise = loadedPromise
   if (!currentPromise) {
     workerScope.postMessage({
       type: 'error',
@@ -94,8 +112,8 @@ workerScope.onmessage = (event) => {
     return
   }
   currentPromise
-    .then(({ mooseFootprint }) => {
-      const overlap = computeWinterRangeOverlap(message.points, mooseFootprint)
+    .then(({ processed }) => {
+      const overlap = computeWinterRangeOverlap(message.points, processed.mooseFootprint)
       workerScope.postMessage({ type: 'overlap', requestId: message.requestId, overlap })
     })
     .catch((error: unknown) => {

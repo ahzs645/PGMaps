@@ -16,6 +16,7 @@ import {
   type DataLayerId,
 } from './dev-data/data'
 import { DataTablePanel } from './dev-data/DataTablePanel'
+import { DevDataFeatureCard } from './dev-data/FeatureCard'
 import { FlyToCenter, ViewportTracker } from './dev-data/MapBehaviors'
 import { DevDataSidebar } from './dev-data/Sidebar'
 import { useDataLayers, useStableLayerList, type ViewportBounds } from './dev-data/useDataLayers'
@@ -170,6 +171,14 @@ function DevData() {
         )}
 
       </div>
+
+      {selected && selectedLayerId && (
+        <DevDataFeatureCard
+          feature={selected.feature}
+          layerId={selectedLayerId}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </MapSectionLayout>
   )
 }

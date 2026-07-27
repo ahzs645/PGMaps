@@ -80,7 +80,6 @@ export function DataTablePanel({
       columns={columns}
       layers={tableLayers}
       selectedLayer={layerId}
-      title={definition?.label ?? 'Table'}
       getRowId={(feature) => feature.properties[FEATURE_ID_KEY]}
       selectedRowId={selectedFeatureId}
       emptyMessage={emptyMessage}

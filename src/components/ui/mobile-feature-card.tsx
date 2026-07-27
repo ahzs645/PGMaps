@@ -2,6 +2,7 @@ import { ChevronDown, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { MAP_OVERLAY_Z } from './map-overlay'
+import { MOBILE_CARD_STACK_PEEK, useMobileCardStack } from './mobile-card-stack'
 import { MOBILE_MEDIA_QUERY } from '@/hooks/useIsMobile'
 
 export const MOBILE_FEATURE_CARD_MEDIA_QUERY = MOBILE_MEDIA_QUERY
@@ -34,6 +35,7 @@ export function MobileFeatureCard({
   collapseOnMapInteraction = true,
   closeOnBlankMapClick = true,
   showDockAction = true,
+  stackId = 'feature',
   onClose,
 }: {
   title: ReactNode
@@ -47,6 +49,11 @@ export function MobileFeatureCard({
   collapseOnMapInteraction?: boolean
   closeOnBlankMapClick?: boolean
   showDockAction?: boolean
+  /**
+   * Identity in the mobile card stack. Cards with different ids stack instead of
+   * colliding — e.g. the data table (`table`) behind a focused feature.
+   */
+  stackId?: string
   onClose: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -59,9 +66,15 @@ export function MobileFeatureCard({
   const dragMovedRef = useRef(false)
   const lastGestureAtRef = useRef(0)
 
+  const { depth, isFront, hasCardsBehind, frontVisibleHeight, bringToFront, reportVisibleHeight } = useMobileCardStack(stackId, open)
+  /** Behind another *card* (not the controls sheet), so it peeks above it instead. */
+  const stackedBehind = !isFront && !controlsInFront
+  /** Front card of a stack sits flush, so only the thin edge of the card behind shows. */
+  const coversStack = isFront && hasCardsBehind && !controlsInFront
+
   const titleText = typeof title === 'string' ? title : undefined
   const subtitleText = typeof subtitle === 'string' ? subtitle : undefined
-  const canDockBehindControls = showDockAction && hasDockTarget
+  const canDockBehindControls = showDockAction && hasDockTarget && isFront
 
   useEffect(() => {
     const syncDockTarget = () => {
@@ -276,23 +289,46 @@ export function MobileFeatureCard({
       dragMovedRef.current = false
       return
     }
+    // Tapping the exposed top edge of a card behind brings it forward, so the
+    // stack can be flipped through without closing anything.
+    if (stackedBehind) {
+      bringToFront()
+      return
+    }
     if (collapsed) {
       setCollapsed(false)
       setExpanded(false)
       return
     }
     setExpanded((current) => !current)
-  }, [collapsed])
+  }, [bringToFront, collapsed, stackedBehind])
 
-  const visibleCardHeight = collapsed
+  // A card sent behind another one un-collapses so it can match the front card's
+  // height and peek above it, rather than hiding beneath a taller card.
+  const effectiveCollapsed = collapsed && !stackedBehind
+  const visibleCardHeight = effectiveCollapsed
     ? MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT
     : controlsInFront && controlsVisibleHeight != null
       ? Math.max(MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT, Math.min(height, controlsVisibleHeight))
-      : expanded ? height : initialVisibleHeight
+      : stackedBehind && frontVisibleHeight != null
+        ? Math.max(MOBILE_FEATURE_CARD_COLLAPSED_HEIGHT, Math.min(height, frontVisibleHeight))
+        : expanded ? height : initialVisibleHeight
+
+  // `open` is a dependency so this re-reports once the card has actually been
+  // registered in the stack — the first run happens before registration and is
+  // dropped, which would leave cards behind sized to nothing.
+  useEffect(() => {
+    reportVisibleHeight(visibleCardHeight)
+  }, [open, reportVisibleHeight, visibleCardHeight])
+
+  const stackOffset = stackedBehind ? MOBILE_CARD_STACK_PEEK * depth : 0
 
   return (
     <div
-      className={cn('pointer-events-none fixed inset-0 md:hidden', controlsInFront ? MAP_OVERLAY_Z.passiveOverlay : MAP_OVERLAY_Z.activeOverlay)}
+      className={cn('pointer-events-none fixed inset-0 md:hidden', controlsInFront && MAP_OVERLAY_Z.passiveOverlay)}
+      // Front card sits at the active overlay level; each card behind drops one
+      // step so they layer instead of colliding at the same z-index.
+      style={controlsInFront ? undefined : { zIndex: 50 - depth }}
       aria-label="Selected feature"
     >
       <div
@@ -311,13 +347,24 @@ export function MobileFeatureCard({
             'pointer-events-auto col-start-1 row-start-1 flex self-end flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[height,transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
             controlsInFront && 'pointer-events-none -translate-y-1.5 shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
             controlsInFront && !collapsed && expanded && 'h-full',
-            !controlsInFront && (collapsed ? 'translate-y-0' : expanded ? 'h-full translate-y-2' : 'translate-y-2'),
+            !controlsInFront && !stackedBehind && (
+              collapsed ? 'translate-y-0'
+                : coversStack ? (expanded ? 'h-full translate-y-0' : 'translate-y-0')
+                  : expanded ? 'h-full translate-y-2' : 'translate-y-2'
+            ),
+            stackedBehind && 'shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
             className,
           )}
-          style={collapsed || controlsInFront || !expanded ? {
-            alignSelf: 'end',
-            height: expanded && !collapsed && !controlsInFront ? undefined : `min(${visibleCardHeight}px, 100%)`,
-          } : undefined}
+          style={{
+            // Cards behind shift up so their rounded top edge shows above the front one.
+            ...(stackedBehind ? { transform: `translateY(-${stackOffset}px)` } : {}),
+            ...(effectiveCollapsed || controlsInFront || stackedBehind || !expanded ? {
+              alignSelf: 'end',
+              height: expanded && !effectiveCollapsed && !controlsInFront && !stackedBehind
+                ? undefined
+                : `min(${visibleCardHeight}px, 100%)`,
+            } : {}),
+          }}
         >
           <div
             className="flex cursor-grab touch-none justify-center py-2 active:cursor-grabbing"
@@ -344,7 +391,23 @@ export function MobileFeatureCard({
             }}
           >
             <div className="flex items-start justify-between gap-3">
-              {canDockBehindControls ? (
+              {stackedBehind ? (
+                <button
+                  type="button"
+                  className="group min-h-11 min-w-0 flex-1 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={bringToFront}
+                  aria-label={titleText ? `Bring ${titleText} to front` : 'Bring card to front'}
+                >
+                  <div className="truncate text-base font-semibold leading-tight text-foreground">
+                    {title}
+                  </div>
+                  {subtitle ? (
+                    <div className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground">
+                      {subtitle}
+                    </div>
+                  ) : null}
+                </button>
+              ) : canDockBehindControls ? (
                 <button
                   type="button"
                   className="group min-h-11 min-w-0 flex-1 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -391,10 +454,10 @@ export function MobileFeatureCard({
           <div
             className={cn(
               'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] transition-opacity duration-300',
-              collapsed ? 'pointer-events-none opacity-0' : 'opacity-100',
+              effectiveCollapsed || stackedBehind ? 'pointer-events-none opacity-0' : 'opacity-100',
               contentClassName,
             )}
-            aria-hidden={collapsed}
+            aria-hidden={effectiveCollapsed || stackedBehind}
           >
             {children}
           </div>

@@ -1,5 +1,6 @@
 import { ChevronDown, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { MOBILE_CARD_STACK_PEEK, useMobileCardStack } from '@/components/ui/mobile-card-stack'
 import { cn } from '@/lib/utils'
 
 type MobileMapCardState = 'frontExpanded' | 'frontCollapsed' | 'behindExpanded' | 'behindCollapsed'
@@ -34,6 +35,11 @@ export function MobileMapCard({
   const [open, setOpen] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const titleId = `${id}-title`
+  const { depth, isFront, hasCardsBehind, bringToFront } = useMobileCardStack(id, open)
+  /** Behind another card rather than behind the controls sheet. */
+  const stackedBehind = !isFront && !controlsInFront
+  /** Front card of a stack sits flush, so only the thin edge of the card behind shows. */
+  const coversStack = isFront && hasCardsBehind && !controlsInFront
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setOpen(true))
@@ -52,7 +58,8 @@ export function MobileMapCard({
       data-modal="false"
       data-sheet-open-state={open ? 'open' : 'closed'}
       data-sheet-detent={collapsed ? 'collapsed' : 'default'}
-      className={cn('pointer-events-none fixed inset-0 md:hidden', controlsInFront ? 'z-20' : 'z-50')}
+      className={cn('pointer-events-none fixed inset-0 md:hidden', controlsInFront && 'z-20')}
+      style={controlsInFront ? undefined : { zIndex: 50 - depth }}
     >
       <MobileMapCardDragArea
         cardRef={cardRef}
@@ -71,6 +78,10 @@ export function MobileMapCard({
           cardRef={cardRef}
           collapsed={collapsed}
           controlsInFront={controlsInFront}
+          stackedBehind={stackedBehind}
+          coversStack={coversStack}
+          stackOffset={stackedBehind ? MOBILE_CARD_STACK_PEEK * depth : 0}
+          onBringToFront={bringToFront}
           onDock={onDock}
           onClose={closeWithAnimation}
           actions={actions}
@@ -169,6 +180,10 @@ function MobileMapCardShell({
   cardRef,
   collapsed,
   controlsInFront,
+  stackedBehind,
+  coversStack,
+  stackOffset,
+  onBringToFront,
   onDock,
   onClose,
   actions,
@@ -180,6 +195,10 @@ function MobileMapCardShell({
   cardRef: RefObject<HTMLDivElement>
   collapsed: boolean
   controlsInFront: boolean
+  stackedBehind: boolean
+  coversStack: boolean
+  stackOffset: number
+  onBringToFront: () => void
   onDock?: () => void
   onClose: () => void
   actions?: ReactNode
@@ -189,11 +208,12 @@ function MobileMapCardShell({
     ? (collapsed ? 'behindCollapsed' : 'behindExpanded')
     : (collapsed ? 'frontCollapsed' : 'frontExpanded')
   const cardStateClasses: Record<MobileMapCardState, string> = {
-    frontExpanded: 'pointer-events-auto h-full self-end translate-y-2',
+    frontExpanded: cn('pointer-events-auto h-full self-end', coversStack ? 'translate-y-0' : 'translate-y-2'),
     frontCollapsed: 'pointer-events-auto h-[92px] self-end translate-y-0',
     behindExpanded: 'pointer-events-none h-full self-end -translate-y-1.5',
     behindCollapsed: 'pointer-events-none h-[92px] self-end -translate-y-1.5 shadow-[0_-3px_14px_rgba(0,0,0,0.24)]',
   }
+  const contentHidden = collapsed || stackedBehind
 
   return (
     <div
@@ -202,16 +222,27 @@ function MobileMapCardShell({
       ref={cardRef}
       className={cn(
         'col-start-1 row-start-1 flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.24)] transition-[height,transform,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-        cardStateClasses[cardState],
+        // A card behind another keeps pointer events so its exposed top edge can
+        // be tapped to bring it forward.
+        stackedBehind
+          ? 'pointer-events-auto h-full self-end shadow-[0_-3px_14px_rgba(0,0,0,0.24)]'
+          : cardStateClasses[cardState],
       )}
+      style={stackedBehind ? { transform: `translateY(-${stackOffset}px)` } : undefined}
     >
-      <SheetHandle />
+      <SheetHandle onClick={stackedBehind ? onBringToFront : undefined} />
       <header className="border-b border-border px-4 pb-3">
         <div className="flex items-start justify-between gap-3">
-          <button type="button" className="group flex min-w-0 items-center gap-1.5 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60" onClick={onDock} disabled={!onDock} aria-label="Dock card above map controls">
-            <span id={titleId} className="block truncate text-base font-semibold text-foreground">{title}</span>
-            {onDock && <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden="true" />}
-          </button>
+          {stackedBehind ? (
+            <button type="button" className="group flex min-w-0 items-center gap-1.5 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60" onClick={onBringToFront} aria-label="Bring card to front">
+              <span id={titleId} className="block truncate text-base font-semibold text-foreground">{title}</span>
+            </button>
+          ) : (
+            <button type="button" className="group flex min-w-0 items-center gap-1.5 rounded-md py-0.5 pr-1 text-left hover:bg-muted/60" onClick={onDock} disabled={!onDock} aria-label="Dock card above map controls">
+              <span id={titleId} className="block truncate text-base font-semibold text-foreground">{title}</span>
+              {onDock && <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden="true" />}
+            </button>
+          )}
           <div className="flex shrink-0 items-center gap-1">
             {actions}
             <button type="button" className="rounded-md p-2 hover:bg-muted" onClick={onClose} aria-label="Close card">
@@ -221,16 +252,16 @@ function MobileMapCardShell({
         </div>
         {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       </header>
-      <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] transition-opacity duration-300', collapsed ? 'opacity-0' : 'opacity-100')} aria-hidden={collapsed}>
+      <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] transition-opacity duration-300', contentHidden ? 'pointer-events-none opacity-0' : 'opacity-100')} aria-hidden={contentHidden}>
         {children}
       </div>
     </div>
   )
 }
 
-function SheetHandle() {
+function SheetHandle({ onClick }: { onClick?: () => void }) {
   return (
-    <div className="flex justify-center py-2" aria-hidden="true">
+    <div className="flex justify-center py-2" aria-hidden="true" onClick={onClick}>
       <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
     </div>
   )

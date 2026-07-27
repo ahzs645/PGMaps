@@ -11,7 +11,10 @@ import { formatDate, useJsonManifest } from './shared'
 import {
   formatWinterRangeHectares,
   getWinterRangeBounds,
+  winterRangePropertiesFromSource,
   type WinterRangePoint,
+  type WinterRangeProperties,
+  type WarsWinterRangeMode,
   useWarsWinterRange,
   winterRangeTooltipHtml,
 } from './warsWinterRange'
@@ -124,6 +127,22 @@ const SPECIES_COLORS: Record<string, string> = {
 
 const SPECIES_FALLBACK_COLORS = ['#0891b2', '#65a30d', '#db2777', '#0369a1', '#ca8a04', '#be185d', '#4338ca', '#059669']
 
+const WINTER_RANGE_SOURCE_COLOR = [
+  'match',
+  ['slice', ['upcase', ['to-string', ['get', 'SPECIES_1']]], 0, 6],
+  'M-ALAM', '#92400e',
+  'M-ODHE', '#d97706',
+  'M-RATA', '#0d9488',
+  'M-ORAM', '#0369a1',
+  'M-OVCA', '#7c3aed',
+  'M-CEEL', '#dc2626',
+  '#64748b',
+]
+
+function parseWinterRangeMode(value: string | null): WarsWinterRangeMode {
+  return value === 'blob' ? 'blob' : 'inline'
+}
+
 function hashSpeciesName(name: string): number {
   let hash = 0
   for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0
@@ -210,6 +229,7 @@ export function useWarsData(
   initialShowHeatmap: string | null = null,
   initialShowHotspots: string | null = null,
   initialShowWinterRange: string | null = null,
+  initialWinterRangeMode: string | null = null,
 ) {
   const [selectedSpecies, setSelectedSpeciesState] = useState<string>(initialSpecies || ALL_SPECIES)
   const [hiddenSpecies, setHiddenSpecies] = useState<string[]>([])
@@ -217,7 +237,6 @@ export function useWarsData(
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap === '1')
   const [showHotspots, setShowHotspots] = useState<boolean>(initialShowHotspots === '1')
   const [showWinterRange, setShowWinterRangeState] = useState<boolean>(initialShowWinterRange === '1')
-  const [selectedWinterRangeId, setSelectedWinterRangeId] = useState<string | null>(null)
   const [focusTarget, setFocusTarget] = useState<{ longitude: number; latitude: number; key: string } | null>(null)
   const [selectedMonths, setSelectedMonths] = useState<number[]>([])
   const [yearMode, setYearModeState] = useState<string>(ALL_YEARS)
@@ -225,6 +244,19 @@ export function useWarsData(
   const [timelineEnabled, setTimelineEnabled] = useState(false)
   const [timelineDate, setTimelineDate] = useState<Date | null>(null)
   const [timelineWindowSize, setTimelineWindowSize] = useState(1)
+  const winterRangeMode = parseWinterRangeMode(initialWinterRangeMode)
+  const [winterRangeSelection, setWinterRangeSelection] = useState<{
+    mode: WarsWinterRangeMode
+    id: string | null
+    properties: WinterRangeProperties | null
+  }>({ mode: winterRangeMode, id: null, properties: null })
+  const selectedWinterRangeId = winterRangeSelection.mode === winterRangeMode ? winterRangeSelection.id : null
+  const clickedWinterRangeProperties = winterRangeSelection.mode === winterRangeMode
+    ? winterRangeSelection.properties
+    : null
+  const setSelectedWinterRangeId = useCallback((id: string | null) => {
+    setWinterRangeSelection({ mode: winterRangeMode, id, properties: null })
+  }, [winterRangeMode])
   const manifest = useJsonManifest<WarsManifest>(active ? '/data/wars/manifest.json' : null)
   const crashes = useJsonManifest<WarsFeatureCollection>(active && manifest.data ? manifest.data.geojson : null)
   const features = useMemo(() => crashes.data?.features ?? [], [crashes.data])
@@ -242,8 +274,10 @@ export function useWarsData(
   // restore a highlight for a polygon the user can no longer see.
   const setShowWinterRange = useCallback((next: boolean) => {
     setShowWinterRangeState(next)
-    if (!next) setSelectedWinterRangeId(null)
-  }, [])
+    if (!next) {
+      setWinterRangeSelection({ mode: winterRangeMode, id: null, properties: null })
+    }
+  }, [winterRangeMode])
   const toggleMonth = useCallback((month: number) => {
     setSelectedMonths((current) => (
       current.includes(month) ? current.filter((item) => item !== month) : [...current, month]
@@ -524,16 +558,27 @@ export function useWarsData(
       return [longitude, latitude]
     })
   ), [filteredFeatures])
-  const winterRange = useWarsWinterRange(active && showWinterRange, winterRangePoints)
+  const winterRange = useWarsWinterRange(active && showWinterRange, winterRangePoints, winterRangeMode)
 
   const selectedWinterRange = useMemo(() => {
     if (!selectedWinterRangeId) return null
+    if (winterRangeMode === 'blob') {
+      return clickedWinterRangeProperties ? { properties: clickedWinterRangeProperties } : null
+    }
+    if (typeof winterRange.data === 'string') return null
     return winterRange.data.features.find((feature) => feature.properties.key === selectedWinterRangeId) ?? null
-  }, [selectedWinterRangeId, winterRange.data])
+  }, [clickedWinterRangeProperties, selectedWinterRangeId, winterRange.data, winterRangeMode])
 
-  const toggleWinterRangeSelection = useCallback((key: string) => {
-    setSelectedWinterRangeId((current) => (current === key ? null : key))
-  }, [])
+  const toggleWinterRangeSelection = useCallback((key: string, properties?: Record<string, unknown>) => {
+    const isSelecting = selectedWinterRangeId !== key
+    setWinterRangeSelection({
+      mode: winterRangeMode,
+      id: isSelecting ? key : null,
+      properties: isSelecting && winterRangeMode === 'blob' && properties
+        ? winterRangePropertiesFromSource(properties, key)
+        : null,
+    })
+  }, [selectedWinterRangeId, winterRangeMode])
 
   /**
    * Designated winter range is a legal forestry boundary, not a habitat model,
@@ -551,6 +596,7 @@ export function useWarsData(
     manifest,
     crashes,
     winterRange,
+    winterRangeMode,
     winterRangeOverlap,
     showWinterRange,
     setShowWinterRange,
@@ -1049,7 +1095,7 @@ function WarsMapFocus({ wars }: { wars: WarsState }) {
   // Winter range units span anything from a single hillside to hundreds of km²,
   // so the selection frames the polygon's own bounds rather than a fixed zoom.
   useEffect(() => {
-    if (!map || !isLoaded || !selectedWinterRange) return
+    if (!map || !isLoaded || !selectedWinterRange || !('geometry' in selectedWinterRange)) return
     const bounds = getWinterRangeBounds(selectedWinterRange.geometry)
     if (!bounds) return
     map.fitBounds(bounds, {
@@ -1094,18 +1140,24 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
       <WarsMapFocus wars={wars} />
 
       {/* Rendered before the heatmap and points so the polygons stay underneath. */}
-      {wars.showWinterRange && wars.winterRange.data.features.length > 0 && (
+      {wars.showWinterRange && (
+        typeof wars.winterRange.data === 'string' || wars.winterRange.data.features.length > 0
+      ) && (
         <MapFillLayer
           data={wars.winterRange.data}
-          idProperty="key"
-          fillColor={['get', 'color']}
+          idProperty={wars.winterRangeMode === 'blob' ? 'UNGULATE_WINTER_RANGE_ID' : 'key'}
+          fillColor={wars.winterRangeMode === 'blob' ? WINTER_RANGE_SOURCE_COLOR : ['get', 'color']}
           fillOpacity={0.28}
-          lineColor={['get', 'color']}
+          lineColor={wars.winterRangeMode === 'blob' ? WINTER_RANGE_SOURCE_COLOR : ['get', 'color']}
           lineWidth={1}
           lineOpacity={0.85}
-          selectedId={wars.selectedWinterRangeId}
+          selectedId={
+            wars.winterRangeMode === 'blob' && wars.selectedWinterRangeId
+              ? Number(wars.selectedWinterRangeId)
+              : wars.selectedWinterRangeId
+          }
           selectionWidth={3}
-          onFeatureClick={(key) => wars.toggleWinterRangeSelection(key)}
+          onFeatureClick={(key, _event, properties) => wars.toggleWinterRangeSelection(key, properties)}
           hoverHtml={winterRangeTooltipHtml}
         />
       )}

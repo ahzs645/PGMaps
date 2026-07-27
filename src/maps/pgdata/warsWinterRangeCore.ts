@@ -1,6 +1,6 @@
 import RBush, { type BBox } from 'rbush'
 
-export interface WinterRangeSourceProperties {
+export interface WinterRangeSourceProperties extends Record<string, unknown> {
   boundaryName?: string
   UWR_NUMBER?: string
   UWR_UNIT_NUMBER?: string
@@ -107,6 +107,21 @@ function resolveSpecies(rawCode: string) {
     speciesCode: code || 'UNKNOWN',
     speciesLabel: WINTER_RANGE_FALLBACK.label,
     color: WINTER_RANGE_FALLBACK.color,
+  }
+}
+
+export function winterRangePropertiesFromSource(
+  properties: Record<string, unknown>,
+  key: string,
+): WinterRangeProperties {
+  const species = resolveSpecies(String(properties.SPECIES_1 ?? ''))
+  const unit = [properties.UWR_NUMBER, properties.UWR_UNIT_NUMBER].filter(Boolean).join(' · ')
+  return {
+    key,
+    label: unit || String(properties.boundaryName ?? 'Ungulate winter range'),
+    hectares: Number(properties.HECTARES) || 0,
+    harvestCode: String(properties.TIMBER_HARVEST_CODE ?? '').trim(),
+    ...species,
   }
 }
 
@@ -278,22 +293,24 @@ export function processWinterRangeSource(source: WinterRangeSource): ProcessedWi
     const geometry = feature.geometry
     if (!isUsableWinterRangeGeometry(geometry)) continue
     const properties = feature.properties ?? {}
-    const species = resolveSpecies(String(properties.SPECIES_1 ?? ''))
-    const unit = [properties.UWR_NUMBER, properties.UWR_UNIT_NUMBER].filter(Boolean).join(' · ')
+    const normalizedProperties = winterRangePropertiesFromSource(
+      properties,
+      `${properties.UWR_NUMBER ?? 'uwr'}-${properties.UWR_UNIT_NUMBER ?? index}-${index}`,
+    )
     features.push({
       type: 'Feature',
       geometry,
-      properties: {
-        key: `${properties.UWR_NUMBER ?? 'uwr'}-${properties.UWR_UNIT_NUMBER ?? index}-${index}`,
-        label: unit || properties.boundaryName || 'Ungulate winter range',
-        hectares: Number(properties.HECTARES) || 0,
-        harvestCode: String(properties.TIMBER_HARVEST_CODE ?? '').trim(),
-        ...species,
-      },
+      properties: normalizedProperties,
     })
-    const entry = counts.get(species.speciesLabel)
+    const entry = counts.get(normalizedProperties.speciesLabel)
     if (entry) entry.count += 1
-    else counts.set(species.speciesLabel, { label: species.speciesLabel, color: species.color, count: 1 })
+    else {
+      counts.set(normalizedProperties.speciesLabel, {
+        label: normalizedProperties.speciesLabel,
+        color: normalizedProperties.color,
+        count: 1,
+      })
+    }
   }
 
   const data: WinterRangeCollection = { type: 'FeatureCollection', features }

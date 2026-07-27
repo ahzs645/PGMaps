@@ -459,6 +459,7 @@ export default function MiscDataSection() {
     searchParams.get('warsHeatmap'),
     searchParams.get('warsHotspots'),
     searchParams.get('warsWinterRange'),
+    searchParams.get('warsWinterRangeMode'),
   )
   const openLitterMap = useOpenLitterMapData(
     activeTab === 'openLitterMap',
@@ -533,6 +534,13 @@ export default function MiscDataSection() {
     else params.delete('warsHotspots')
     if (activeTab === 'wars' && wars.showWinterRange) params.set('warsWinterRange', '1')
     else params.delete('warsWinterRange')
+    if (
+      activeTab !== 'wars' ||
+      (searchParams.get('warsWinterRangeMode') !== 'inline' &&
+        searchParams.get('warsWinterRangeMode') !== 'blob')
+    ) {
+      params.delete('warsWinterRangeMode')
+    }
     if (activeTab === 'openLitterMap' && openLitterMap.selectedCategory !== 'all') {
       params.set('litterCategory', openLitterMap.selectedCategory)
     } else {
