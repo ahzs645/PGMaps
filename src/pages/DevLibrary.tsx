@@ -38,6 +38,7 @@ const devEntries: DevEntry[] = [
     icon: MapPinned,
     color: 'bg-teal-600',
     label: '/dev/boundaries',
+    subpages: [{ label: 'BCER raw vs optimized', href: '/dev/boundaries/bcer' }],
   },
   {
     title: 'Design Lab',

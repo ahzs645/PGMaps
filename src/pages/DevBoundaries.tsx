@@ -290,6 +290,7 @@ const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
   bcDrainage: { fill: '#0891b2', line: '#155e75' },
   bcWildfire: { fill: '#dc2626', line: '#991b1b' },
   bcRfc: { fill: '#38bdf8', line: '#075985' },
+  bcEr: { fill: '#6366f1', line: '#3730a3' },
   nrAdmin: { fill: '#64748b', line: '#334155' },
   uwr: { fill: '#84cc16', line: '#4d7c0f' },
   crownTenure: { fill: '#a855f7', line: '#7e22ce' },

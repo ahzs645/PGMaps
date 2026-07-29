@@ -18,6 +18,7 @@ const MiscDataSection = lazy(() => import('@/maps/pgdata/MiscDataSection'))
 const BcAssessmentSection = lazy(() => import('@/maps/bcassessment').then(m => ({ default: m.BcAssessmentSection })))
 const DevLibrary = lazy(() => import('@/pages/DevLibrary'))
 const DevBoundaries = lazy(() => import('@/pages/DevBoundaries'))
+const DevBcerBoundaries = lazy(() => import('@/pages/DevBcerBoundaries'))
 const DevDesign = lazy(() => import('@/pages/DevDesign'))
 const DevLoad = lazy(() => import('@/pages/DevLoad'))
 const DevData = lazy(() => import('@/pages/DevData'))
@@ -79,6 +80,7 @@ function App() {
           <Route path="/bc-assessment" element={<BcAssessmentSection />} />
           <Route path="/dev" element={<DevLibrary />} />
           <Route path="/dev/boundaries" element={<DevBoundaries />} />
+          <Route path="/dev/boundaries/bcer" element={<DevBcerBoundaries />} />
           <Route path="/dev/design" element={<DevDesign />} />
           <Route path="/dev/load" element={<DevLoad />} />
           <Route path="/dev/data" element={<DevData />} />

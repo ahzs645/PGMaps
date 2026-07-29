@@ -14,6 +14,7 @@ import type {
   BoundaryRegionRecord,
   BoundarySource,
   BcRfcBoundaryLevel,
+  BcerBoundaryLevel,
   CensusBoundaryLevel,
   CommunityBoundaryLevel,
   CityBoundaryLevel,
@@ -98,6 +99,9 @@ const NR_ADMIN_FILE_BY_LEVEL: Record<NrAdminBoundaryLevel, string> = {
 const UWR_FILE_BY_LEVEL: Record<UwrBoundaryLevel, string> = {
   ungulateWinterRange: '/data/boundaries/BCUWR/ungulate_winter_range.geojson',
 }
+const BCER_FILE_BY_LEVEL: Record<BcerBoundaryLevel, string> = {
+  bcerAdminZone: '/data/boundaries/BCER/admin_zones.geojson',
+}
 const CROWN_TENURE_FILE_BY_LEVEL: Record<CrownTenureBoundaryLevel, string> = {
   crownTenure: '/data/boundaries/BCTantalis/crown_tenures.geojson',
 }
@@ -126,6 +130,7 @@ const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
 const DRAINAGE_LEVEL_SET = new Set<DrainageBoundaryLevel>(['oceanDrainageArea', 'drainageRegion'])
 const FIRE_ZONE_LEVEL_SET = new Set<FireZoneBoundaryLevel>(['fireCentre', 'fireZone'])
 const BC_RFC_LEVEL_SET = new Set<BcRfcBoundaryLevel>(['rfcSnowBasin'])
+const BCER_LEVEL_SET = new Set<BcerBoundaryLevel>(['bcerAdminZone'])
 const NR_ADMIN_LEVEL_SET = new Set<NrAdminBoundaryLevel>(['nrArea', 'nrRegion', 'nrDistrict'])
 const UWR_LEVEL_SET = new Set<UwrBoundaryLevel>(['ungulateWinterRange'])
 const CROWN_TENURE_LEVEL_SET = new Set<CrownTenureBoundaryLevel>(['crownTenure'])
@@ -200,6 +205,10 @@ function isFireZoneBoundaryLevel(level: RegionLevel): level is FireZoneBoundaryL
 
 function isBcRfcBoundaryLevel(level: RegionLevel): level is BcRfcBoundaryLevel {
   return BC_RFC_LEVEL_SET.has(level as BcRfcBoundaryLevel)
+}
+
+function isBcerBoundaryLevel(level: RegionLevel): level is BcerBoundaryLevel {
+  return BCER_LEVEL_SET.has(level as BcerBoundaryLevel)
 }
 
 function isNrAdminBoundaryLevel(level: RegionLevel): level is NrAdminBoundaryLevel {
@@ -1011,6 +1020,13 @@ export async function loadStudyAreaRegions(
       throw new Error(`Invalid BC River Forecast Centre boundary level: ${level}`)
     }
     return loadBcRfcRegions(level, signal)
+  }
+
+  if (source === 'bcEr') {
+    if (!isBcerBoundaryLevel(level)) {
+      throw new Error(`Invalid BC Energy Regulator boundary level: ${level}`)
+    }
+    return loadStandardBoundaryRegions(source, level, BCER_FILE_BY_LEVEL[level], signal)
   }
 
   if (source === 'uwr') {

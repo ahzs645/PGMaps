@@ -41,6 +41,7 @@ const EXTRA_PAGE_LABELS: Record<string, string> = {
   '/dev': 'Dev Library',
   '/dev/projects': 'Projects',
   '/dev/boundaries': 'Boundaries',
+  '/dev/boundaries/bcer': 'BCER Compare',
   '/dev/design': 'Design',
   '/dev/load': 'Map Loader',
   '/dev/interact': 'Interact',

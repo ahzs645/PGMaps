@@ -3,6 +3,7 @@ import type {
   BoundaryLevel,
   BoundarySource,
   BcRfcBoundaryLevel,
+  BcerBoundaryLevel,
   CensusBoundaryLevel,
   CommunityBoundaryLevel,
   CityBoundaryLevel,
@@ -43,6 +44,12 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
     value: 'bcHealth',
     label: 'Health boundaries',
     description: 'Health Authority -> CHSA hierarchy',
+    group: 'Administrative',
+  },
+  {
+    value: 'bcEr',
+    label: 'BCER admin zones',
+    description: 'BC Energy Regulator application-processing regions',
     group: 'Administrative',
   },
   {
@@ -126,6 +133,7 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   fireCentre: 'Fire Centre',
   fireZone: 'Fire Zone',
   rfcSnowBasin: 'RFC Snow Basin',
+  bcerAdminZone: 'Administrative Zone',
   nrArea: 'NR Area',
   nrRegion: 'NR Region',
   nrDistrict: 'NR District',
@@ -190,6 +198,10 @@ export const BC_RFC_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<BcRfcBoundaryLev
   ...createStudyAreaLevelOptions(['rfcSnowBasin'] as const),
 ]
 
+export const BCER_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<BcerBoundaryLevel>[] = [
+  ...createStudyAreaLevelOptions(['bcerAdminZone'] as const),
+]
+
 export const NR_ADMIN_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<NrAdminBoundaryLevel>[] = [
   ...createStudyAreaLevelOptions(['nrArea', 'nrRegion', 'nrDistrict'] as const),
 ]
@@ -236,6 +248,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS
     case 'bcRfc':
       return BC_RFC_BOUNDARY_LEVEL_OPTIONS
+    case 'bcEr':
+      return BCER_BOUNDARY_LEVEL_OPTIONS
     case 'nrAdmin':
       return NR_ADMIN_BOUNDARY_LEVEL_OPTIONS
     case 'uwr':

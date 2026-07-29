@@ -25,6 +25,7 @@
     "drainage-basins:sync": "npm --prefix vendor/bcdatamapper run drainage-basins:sync --",
     "municipalities:sync": "npm --prefix vendor/bcdatamapper run municipalities:sync --",
     "nr-admin:sync": "npm --prefix vendor/bcdatamapper run nr-admin:sync --",
+    "bcer-admin-zones:sync": "npm --prefix vendor/bcdatamapper run bcer-admin-zones:sync --",
     "uwr:sync": "npm --prefix vendor/bcdatamapper run uwr:sync --",
     "fire-zones:sync": "npm --prefix vendor/bcdatamapper run fire-zones:sync --",
     "indigenous:sync": "npm --prefix vendor/bcdatamapper run indigenous:sync --",
