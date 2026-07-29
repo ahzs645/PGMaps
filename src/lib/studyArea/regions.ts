@@ -41,13 +41,11 @@ interface BoundaryFeatureCollection {
 }
 
 const BOUNDARY_INDEX_PATH = '/data/boundaries/BCMoH/index.json'
-// The picker levels stay scoped to the committed Prince George extracts: the
-// province-wide bc-da-simplified parents (844 CTs, ~7.8k DAs) freeze the scoring
-// pipeline and are only available after the vendor data sync anyway. The provincial
-// dataset remains reachable through the explicit `bcDaSimplified` level.
+const CANADA_CSD_BASE_PATH = '/data/census/canada-csd'
 const CENSUS_FILE_BY_LEVEL: Record<CensusBoundaryLevel, string> = {
   cd: '/data/census/prince_george_cd.geo.json',
-  csd: '/data/census/prince_george_csd.geo.json',
+  csd: `${CANADA_CSD_BASE_PATH}/manifest.json`,
+  northSouthCsd: `${CANADA_CSD_BASE_PATH}/manifest.json`,
   ct: '/data/census/prince_george_ct.geo.json',
   da: '/data/census/prince_george_da.geo.json',
   db: '/data/census/prince_george_db.geo.json',
@@ -117,7 +115,7 @@ const WALKABILITY_COMMUNITY_FILE_BY_LEVEL: Record<WalkabilityCommunityBoundaryLe
 const HEALTH_LEVEL_SET = new Set<BoundaryLevel>(['healthAuthority', 'hsda', 'lha', 'chsa'])
 const REGIONAL_DISTRICT_LEVEL_SET = new Set<RegionalDistrictBoundaryLevel>(['regionalDistrict'])
 const MUNICIPALITY_LEVEL_SET = new Set<MunicipalityBoundaryLevel>(['municipality'])
-const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'ct', 'da', 'db', 'bcDaSimplified'])
+const CENSUS_LEVEL_SET = new Set<CensusBoundaryLevel>(['cd', 'csd', 'northSouthCsd', 'ct', 'da', 'db', 'bcDaSimplified'])
 const COMMUNITY_LEVEL_SET = new Set<CommunityBoundaryLevel>(['communityPolygon'])
 const CITY_LEVEL_SET = new Set<CityBoundaryLevel>(['elementarySchoolCatchment', 'secondarySchoolCatchment'])
 const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
@@ -355,6 +353,29 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
+  if (level === 'northSouthCsd') {
+    const csdRegions = await loadCensusRegions('csd', signal)
+    const variantRegions = csdRegions.map((region) => {
+      const id = `census:${level}:${region.code}`
+      return {
+        ...region,
+        id,
+        level,
+        feature: {
+          ...region.feature,
+          properties: {
+            ...(region.feature.properties ?? {}),
+            id,
+            boundaryId: id,
+            boundaryLevel: level,
+          },
+        },
+      } satisfies StudyAreaRegion
+    })
+    boundaryRegionCache.set(cacheKey, variantRegions)
+    return variantRegions
+  }
+
   if (level === 'bcDaSimplified') {
     const manifest = await fetchJson<{
       chunks: Array<{ path: string }>
@@ -395,7 +416,40 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
     return sortedRegions
   }
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(CENSUS_FILE_BY_LEVEL[level], signal)
+  const geometry = level === 'csd'
+    ? await (async () => {
+        const manifest = await fetchJson<{
+          chunks: Array<{ path: string }>
+          classification: { path: string }
+        }>(CENSUS_FILE_BY_LEVEL[level], signal)
+        const [collections, classification] = await Promise.all([
+          Promise.all(
+            manifest.chunks.map((chunk) => (
+              fetchJson<BoundaryFeatureCollection>(`${CANADA_CSD_BASE_PATH}/${chunk.path}`, signal)
+            )),
+          ),
+          fetchJson<{
+            byCsdUid: Record<string, 'North' | 'South'>
+          }>(`${CANADA_CSD_BASE_PATH}/${manifest.classification.path}`, signal),
+        ])
+        return {
+          type: 'FeatureCollection',
+          features: collections.flatMap((collection) => collection.features).map((feature) => {
+            const properties = feature.properties ?? {}
+            const csdUid = String(properties.CSDUID ?? properties.boundaryCode ?? properties.id ?? '')
+            const northSouth = classification.byCsdUid[csdUid]
+            return {
+              ...feature,
+              properties: {
+                ...properties,
+                north_south: northSouth ?? null,
+                north_south_code: northSouth === 'North' ? 'N' : northSouth === 'South' ? 'S' : null,
+              },
+            }
+          }),
+        } satisfies BoundaryFeatureCollection
+      })()
+    : await fetchJson<BoundaryFeatureCollection>(CENSUS_FILE_BY_LEVEL[level], signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {

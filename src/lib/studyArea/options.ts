@@ -60,7 +60,7 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
   {
     value: 'census',
     label: 'Census boundaries',
-    description: 'Prince George census hierarchy, division to dissemination block',
+    description: 'Census hierarchy plus national North/South CSDs',
     group: 'Administrative',
   },
   {
@@ -110,6 +110,7 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   municipality: 'Municipality',
   cd: 'Census Division',
   csd: 'Census Subdivision',
+  northSouthCsd: 'North / South CSDs',
   ct: 'Census Tract',
   da: 'Dissemination Area',
   bcDaSimplified: 'BC-wide DA chunks',
@@ -162,7 +163,7 @@ export const MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<Municipali
 ]
 
 export const CENSUS_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CensusBoundaryLevel>[] = [
-  ...createStudyAreaLevelOptions(['cd', 'csd', 'ct', 'da', 'db'] as const),
+  ...createStudyAreaLevelOptions(['cd', 'csd', 'northSouthCsd', 'ct', 'da', 'db'] as const),
 ]
 
 export const COMMUNITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CommunityBoundaryLevel>[] = [

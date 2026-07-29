@@ -184,6 +184,7 @@ interface PolygonClickMeta {
 
 const BC_DA_SIMPLIFIED_LEVEL = 'da' satisfies RegionLevel
 const BC_DB_CHUNKED_LEVEL = 'db' satisfies RegionLevel
+const NORTH_SOUTH_CSD_LEVEL = 'northSouthCsd' satisfies RegionLevel
 type ChunkedCensusLevel = typeof BC_DA_SIMPLIFIED_LEVEL | typeof BC_DB_CHUNKED_LEVEL
 const BC_DA_CHUNK_BASE_PATH = '/data/census/bc-da-simplified'
 const BC_DA_CHUNK_MANIFEST_PATH = `${BC_DA_CHUNK_BASE_PATH}/manifest.json`
@@ -230,11 +231,36 @@ const CENSUS_PARENT_LAYER_STYLES: Record<CensusParentLevel, { fill: string; line
   ct: { fill: '#a78bfa', line: '#6d28d9', width: 1.2 },
 }
 
+const NORTH_SOUTH_CSD_COLORS = {
+  North: { fill: '#2563eb', line: '#1e3a8a' },
+  South: { fill: '#f59e0b', line: '#92400e' },
+} as const
+
+const NORTH_SOUTH_CSD_FILL_EXPRESSION = [
+  'match',
+  ['get', 'north_south'],
+  'North',
+  NORTH_SOUTH_CSD_COLORS.North.fill,
+  'South',
+  NORTH_SOUTH_CSD_COLORS.South.fill,
+  '#94a3b8',
+]
+
+const NORTH_SOUTH_CSD_LINE_EXPRESSION = [
+  'match',
+  ['get', 'north_south'],
+  'North',
+  NORTH_SOUTH_CSD_COLORS.North.line,
+  'South',
+  NORTH_SOUTH_CSD_COLORS.South.line,
+  '#475569',
+]
+
 const BOUNDARY_EXPLORER_SOURCE_OPTIONS = BOUNDARY_SOURCE_OPTIONS.map((option) => (
   option.value === 'census'
     ? {
         ...option,
-        description: 'BC-wide census hierarchy, division to dissemination block',
+        description: 'National North/South CSDs plus BC-wide hierarchy, division to dissemination block',
       }
     : option
 ))
@@ -298,6 +324,20 @@ function isChunkedCensusLayer(layer: ActiveLayer): layer is ActiveLayer & { leve
 
 function isDbPmtilesLayer(layer: ActiveLayer) {
   return layer.source === 'census' && layer.level === BC_DB_CHUNKED_LEVEL
+}
+
+function isNorthSouthCsdLayer(layer: ActiveLayer) {
+  return layer.source === 'census' && layer.level === NORTH_SOUTH_CSD_LEVEL
+}
+
+function northSouthValue(properties: Record<string, unknown>) {
+  const value = properties.north_south
+  return value === 'North' || value === 'South' ? value : null
+}
+
+function northSouthColor(properties: Record<string, unknown>) {
+  const value = northSouthValue(properties)
+  return value ? NORTH_SOUTH_CSD_COLORS[value].fill : '#94a3b8'
 }
 
 function layerVisibleCount(layer: ActiveLayerView, visibleLayerRegionsByKey: Record<string, StudyAreaRegion[]>) {
@@ -410,6 +450,7 @@ function regionSearchText(region: StudyAreaRegion) {
     properties.CDNAME,
     properties.CSDUID,
     properties.CSDNAME,
+    properties.north_south,
     properties.CTUID,
     properties.CTNAME,
   ].filter((value) => value != null).join(' ').toLowerCase()
@@ -601,7 +642,7 @@ function loadBoundaryExplorerStudyAreaRegions(
   level: RegionLevel,
   signal?: AbortSignal,
 ) {
-  if (source === 'census' && isCensusParentLevel(level)) {
+  if (source === 'census' && isCensusParentLevel(level) && level !== 'csd') {
     return loadBoundaryExplorerCensusParentRegions(level, signal)
   }
 
@@ -2332,6 +2373,19 @@ function DevBoundaries() {
                             <> · DA hidden by parent outline</>
                           )}
                         </div>
+                        {option.value === NORTH_SOUTH_CSD_LEVEL && selectedLevel === option.value && (
+                          <div className="mt-2 flex flex-wrap gap-3 border-t border-border/70 pt-2 text-xs text-muted-foreground">
+                            {(Object.keys(NORTH_SOUTH_CSD_COLORS) as Array<keyof typeof NORTH_SOUTH_CSD_COLORS>).map((classification) => (
+                              <span key={classification} className="inline-flex items-center gap-1.5">
+                                <span
+                                  className="size-2.5 rounded-sm"
+                                  style={{ backgroundColor: NORTH_SOUTH_CSD_COLORS[classification].fill }}
+                                />
+                                {classification}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </button>
                     )
                   })}
@@ -2456,7 +2510,14 @@ function DevBoundaries() {
                       >
                         <div className="mb-1 flex items-start justify-between gap-2">
                           <span className="line-clamp-1 text-sm font-medium text-foreground">{region.name}</span>
-                          <span className="mt-1 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: layer.colors.fill }} />
+                          <span
+                            className="mt-1 size-2.5 shrink-0 rounded-full"
+                            style={{
+                              backgroundColor: isNorthSouthCsdLayer(layer)
+                                ? northSouthColor(region.feature.properties ?? {})
+                                : layer.colors.fill,
+                            }}
+                          />
                         </div>
                         <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                           <span>{region.code}</span>
@@ -2552,6 +2613,7 @@ function DevBoundaries() {
             ? ['interpolate', ['linear'], ['zoom'], 5, 0.08, 7, 0.12, 9, 0.18, 11, 0.35, 13, 0.7]
             : activeLayerViews.length > 1 ? 1.1 : 0.9
           const lineOpacity = denseDbLayer ? 0.42 : 0.86
+          const northSouthLayer = isNorthSouthCsdLayer(layer)
           const hoverEnabled = layer.key === topLayerKey && layerVisible && (!denseDbLayer || focusedRegions.length <= 2500)
           return (
             <Fragment key={`${activeSources.join('|')}:${layer.key}`}>
@@ -2586,9 +2648,9 @@ function DevBoundaries() {
               ) : (
                 <MapFillLayer
                   data={focusedRegions.length > 0 ? studyAreaRegionsToFeatureCollection(focusedRegions) : EMPTY_COLLECTION}
-                  fillColor={layer.colors.fill}
+                  fillColor={northSouthLayer ? NORTH_SOUTH_CSD_FILL_EXPRESSION : layer.colors.fill}
                   fillOpacity={fillOpacity}
-                  lineColor={layer.colors.line}
+                  lineColor={northSouthLayer ? NORTH_SOUTH_CSD_LINE_EXPRESSION : layer.colors.line}
                   lineOpacity={lineOpacity}
                   lineWidth={lineWidth}
                   idProperty="boundaryId"
@@ -2600,10 +2662,12 @@ function DevBoundaries() {
                   hoverHtml={hoverEnabled
                     ? (properties) => {
                         const parents = censusParentSummary(properties)
+                        const northSouth = northSouthValue(properties)
                         return `<div class="min-w-48 max-w-80 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
                           <div class="font-semibold leading-5">${escapeHtml(String(properties.boundaryName ?? ''))}</div>
                           <div class="mt-1 text-muted-foreground">${escapeHtml(sourceLabel(String(properties.boundarySource ?? layer.source) as BoundarySource))} &middot; ${escapeHtml(getStudyAreaLevelLabel(String(properties.boundaryLevel ?? '')))}</div>
                           <div class="mt-1 text-muted-foreground">${escapeHtml(String(properties.boundaryCode ?? ''))}</div>
+                          ${northSouth ? `<div class="mt-2 font-semibold">${escapeHtml(northSouth)}</div>` : ''}
                           ${parents ? `<div class="mt-2 text-muted-foreground">${escapeHtml(parents)}</div>` : ''}
                           <div class="mt-2 font-semibold">${escapeHtml(formatArea(Number(properties.areaKm2 ?? 0)))}</div>
                         </div>`
@@ -2728,6 +2792,14 @@ function DevBoundaries() {
                   <div className="text-xs text-muted-foreground">Area</div>
                   <div className="font-medium text-foreground">{formatArea(selectedRegion.areaKm2)}</div>
                 </div>
+                {northSouthValue(selectedRegion.feature.properties ?? {}) && (
+                  <div className="rounded border bg-muted/30 p-2">
+                    <div className="text-xs text-muted-foreground">North / South</div>
+                    <div className="font-medium text-foreground">
+                      {northSouthValue(selectedRegion.feature.properties ?? {})}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button

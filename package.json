@@ -69,6 +69,7 @@
     "cimd:sync": "npm --prefix vendor/bcdatamapper run cimd:sync --",
     "census:sync": "npm --prefix vendor/bcdatamapper run census:sync --",
     "census:bc-da-simplified": "npm --prefix vendor/bcdatamapper run census:bc-da-simplified --",
+    "census:canada-csd": "npm --prefix vendor/bcdatamapper run census:canada-csd --",
     "census:bc-db-crosswalk": "npm --prefix vendor/bcdatamapper run census:bc-db-crosswalk --",
     "census:bc-db-chunks": "npm --prefix vendor/bcdatamapper run census:bc-db-chunks --",
     "census:bcenviroscreen-lha": "npm --prefix vendor/bcdatamapper run census:bcenviroscreen-lha --",
