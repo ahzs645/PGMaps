@@ -128,6 +128,7 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   majorWatershed: 'Major River Basin',
   watershedGroup: 'Watershed Group',
   assessmentWatershed: 'Assessment Watershed',
+  namedWatershed: 'Named Watershed',
   oceanDrainageArea: 'Ocean Drainage Area',
   drainageRegion: 'Drainage Region',
   fireCentre: 'Fire Centre',
@@ -183,7 +184,12 @@ export const CITY_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<CityBoundaryLevel>
 ]
 
 export const WATERSHED_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<WatershedBoundaryLevel>[] = [
-  ...createStudyAreaLevelOptions(['majorWatershed', 'watershedGroup', 'assessmentWatershed'] as const),
+  ...createStudyAreaLevelOptions([
+    'majorWatershed',
+    'watershedGroup',
+    'assessmentWatershed',
+    'namedWatershed',
+  ] as const),
 ]
 
 export const DRAINAGE_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<DrainageBoundaryLevel>[] = [

@@ -2,6 +2,7 @@ import area from '@turf/area'
 import bbox from '@turf/bbox'
 import union from '@turf/union'
 import { useEffect, useState } from 'react'
+import { fetchJson } from '@/lib/fetchJson'
 import {
   BOUNDARY_CODE_PROPERTY_BY_LEVEL,
   BOUNDARY_FILE_BY_LEVEL,
@@ -80,6 +81,7 @@ const WATERSHED_FILE_BY_LEVEL: Record<WatershedBoundaryLevel, string> = {
   majorWatershed: '/data/boundaries/BCFWA/major_watersheds_province_simplified.geojson',
   watershedGroup: '/data/boundaries/BCFWA/watershed_groups_province_simplified.geojson',
   assessmentWatershed: '/data/boundaries/BCFWA/assessment_watersheds.geojson',
+  namedWatershed: '/data/boundaries/BCFWA/named_watersheds_province_50m.geojson.gz',
 }
 const DRAINAGE_FILE_BY_LEVEL: Record<DrainageBoundaryLevel, string> = {
   oceanDrainageArea: '/data/boundaries/BCDrainage/drainage_basins.geojson',
@@ -126,6 +128,7 @@ const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
   'majorWatershed',
   'watershedGroup',
   'assessmentWatershed',
+  'namedWatershed',
 ])
 const DRAINAGE_LEVEL_SET = new Set<DrainageBoundaryLevel>(['oceanDrainageArea', 'drainageRegion'])
 const FIRE_ZONE_LEVEL_SET = new Set<FireZoneBoundaryLevel>(['fireCentre', 'fireZone'])
@@ -140,20 +143,6 @@ const WALKABILITY_COMMUNITY_LEVEL_SET = new Set<WalkabilityCommunityBoundaryLeve
 
 let boundaryIndexCache: BoundaryIndex | null = null
 const boundaryRegionCache = new Map<string, StudyAreaRegion[]>()
-
-async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(path, { signal })
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${path}: ${response.status}`)
-  }
-  // A missing file behind the SPA fallback comes back as 200 text/html; surface it
-  // as a missing-file error instead of letting JSON.parse choke on "<!DOCTYPE".
-  const contentType = response.headers.get('content-type') ?? ''
-  if (contentType.includes('text/html')) {
-    throw new Error(`Failed to fetch ${path}: file missing (got HTML fallback)`)
-  }
-  return response.json() as Promise<T>
-}
 
 function sortRegions(regions: StudyAreaRegion[]): StudyAreaRegion[] {
   return [...regions].sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
@@ -631,7 +620,10 @@ async function loadWatershedRegions(level: WatershedBoundaryLevel, signal?: Abor
       if (!code) return null
 
       const displayName = String(properties.boundaryName ?? code).trim() || code
-      const areaKm2 = area(feature) / 1_000_000
+      const sourceAreaKm2 = Number(properties.areaKm2)
+      const areaKm2 = Number.isFinite(sourceAreaKm2) && sourceAreaKm2 > 0
+        ? sourceAreaKm2
+        : area(feature) / 1_000_000
       const bounds = bbox(feature) as [number, number, number, number]
 
       return {
@@ -1071,6 +1063,9 @@ export async function loadStudyAreaRegions(
 }
 
 export function getWatershedLevelSourceNote(level: WatershedBoundaryLevel): string {
+  if (level === 'namedWatershed') {
+    return 'BC Freshwater Atlas named watersheds, province-wide 50 metre topology-preserved simplified geometry. Named drainage areas intentionally overlap and nest.'
+  }
   if (level === 'assessmentWatershed') {
     return 'BC Freshwater Atlas assessment watersheds clipped to the Prince George regional viewport.'
   }
