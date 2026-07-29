@@ -64,6 +64,7 @@ export type BoundarySource =
   | 'cityCommunity'
   | 'cityPG'
   | 'watershed'
+  | 'namedWatershed'
   | 'bcDrainage'
   | 'bcWildfire'
   | 'bcRfc'
@@ -84,7 +85,17 @@ export type WatershedBoundaryLevel =
   | 'majorWatershed'
   | 'watershedGroup'
   | 'assessmentWatershed'
-  | 'namedWatershed'
+export type NamedWatershedBoundaryLevel =
+  | 'namedWatershedOrder1'
+  | 'namedWatershedOrder2'
+  | 'namedWatershedOrder3'
+  | 'namedWatershedOrder4'
+  | 'namedWatershedOrder5'
+  | 'namedWatershedOrder6'
+  | 'namedWatershedOrder7'
+  | 'namedWatershedOrder8'
+  | 'namedWatershedOrder9'
+  | 'namedWatershedOrder10'
 export type DrainageBoundaryLevel = 'oceanDrainageArea' | 'drainageRegion'
 export type FireZoneBoundaryLevel = 'fireCentre' | 'fireZone'
 export type BcRfcBoundaryLevel = 'rfcSnowBasin'
@@ -103,6 +114,7 @@ export type RegionLevel =
   | CommunityBoundaryLevel
   | CityBoundaryLevel
   | WatershedBoundaryLevel
+  | NamedWatershedBoundaryLevel
   | DrainageBoundaryLevel
   | FireZoneBoundaryLevel
   | BcRfcBoundaryLevel

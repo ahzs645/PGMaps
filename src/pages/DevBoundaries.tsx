@@ -21,6 +21,7 @@ import {
   loadStudyAreaRegions,
   studyAreaRegionsToFeatureCollection,
   type BoundarySource,
+  type BoundarySourceOption,
   type RegionLevel,
   type StudyAreaRegion,
 } from '@/lib/studyArea'
@@ -256,14 +257,27 @@ const NORTH_SOUTH_CSD_LINE_EXPRESSION = [
   '#475569',
 ]
 
-const BOUNDARY_EXPLORER_SOURCE_OPTIONS = BOUNDARY_SOURCE_OPTIONS.map((option) => (
+const NAMED_WATERSHED_SOURCE_OPTION: BoundarySourceOption = {
+  value: 'namedWatershed',
+  label: 'Named watersheds',
+  description: 'Cumulative drainage areas separated by official FWA stream order',
+  group: 'Natural / resource',
+}
+
+const BOUNDARY_EXPLORER_SOURCE_OPTIONS = BOUNDARY_SOURCE_OPTIONS
+  .flatMap((option) => (
+    option.value === 'watershed'
+      ? [option, NAMED_WATERSHED_SOURCE_OPTION]
+      : [option]
+  ))
+  .map((option) => (
   option.value === 'census'
     ? {
         ...option,
         description: 'National North/South CSDs plus BC-wide hierarchy, division to dissemination block',
       }
     : option
-))
+  ))
 
 const DEFAULT_SOURCE_LEVELS = BOUNDARY_EXPLORER_SOURCE_OPTIONS.reduce<Record<BoundarySource, RegionLevel>>((acc, option) => {
   acc[option.value] = getDefaultLevelForSource(option.value)
@@ -287,6 +301,7 @@ const SOURCE_COLORS: Record<BoundarySource, { fill: string; line: string }> = {
   bcMunicipality: { fill: '#ec4899', line: '#be185d' },
   census: { fill: '#ef4444', line: '#b91c1c' },
   watershed: { fill: '#22c55e', line: '#15803d' },
+  namedWatershed: { fill: '#10b981', line: '#047857' },
   bcDrainage: { fill: '#0891b2', line: '#155e75' },
   bcWildfire: { fill: '#dc2626', line: '#991b1b' },
   bcRfc: { fill: '#38bdf8', line: '#075985' },
@@ -327,6 +342,10 @@ function isDbPmtilesLayer(layer: ActiveLayer) {
   return layer.source === 'census' && layer.level === BC_DB_CHUNKED_LEVEL
 }
 
+function isNamedWatershedLayer(layer: ActiveLayer) {
+  return layer.source === 'namedWatershed'
+}
+
 function isNorthSouthCsdLayer(layer: ActiveLayer) {
   return layer.source === 'census' && layer.level === NORTH_SOUTH_CSD_LEVEL
 }
@@ -345,10 +364,14 @@ function layerVisibleCount(layer: ActiveLayerView, visibleLayerRegionsByKey: Rec
   return visibleLayerRegionsByKey[layer.key]?.length ?? layer.filteredRegions.length
 }
 
+function layerReferenceCount(layer: ActiveLayerView) {
+  return layer.filteredRegions.length
+}
+
 function layerSummaryText(layer: ActiveLayerView, visibleLayerRegionsByKey: Record<string, StudyAreaRegion[]>, loadingChunkCount: number) {
   if (layer.loading) return 'Loading'
   if (isDbPmtilesLayer(layer)) return 'PMTiles on map'
-  return `${formatNumber(layerVisibleCount(layer, visibleLayerRegionsByKey))} / ${formatNumber(layer.filteredRegions.length)} ${layer.optionLabel}${isChunkedCensusLayer(layer) && loadingChunkCount > 0 ? ` · ${loadingChunkCount} loading` : ''}`
+  return `${formatNumber(layerVisibleCount(layer, visibleLayerRegionsByKey))} / ${formatNumber(layerReferenceCount(layer))} ${layer.optionLabel}${isChunkedCensusLayer(layer) && loadingChunkCount > 0 ? ` · ${loadingChunkCount} loading` : ''}`
 }
 
 function pmtilesFeatureName(properties: Record<string, unknown>) {
@@ -1682,6 +1705,7 @@ function DevBoundaries() {
   const selectedParentBoundaryFocuses = selectedParentBoundary
     ? selectedPolygonFocuses.filter((focus) => focus.scope === selectedParentBoundary.scope)
     : EMPTY_POLYGON_FOCUSES
+  const selectionPopupOpen = Boolean(selectedRegion || selectedParentBoundary || selectedPmtilesFeature)
   const compareRegions = useMemo(
     () => compareIds.map((id) => allRegions.find((region) => region.id === id)).filter((region): region is StudyAreaRegion => Boolean(region)),
     [allRegions, compareIds],
@@ -1693,9 +1717,10 @@ function DevBoundaries() {
       return regionsByKey
     }, {})
   ), [activeLayerViews, hiddenPolygonFocuses, isolatedPolygonFocuses])
+  const renderedLayerRegionsByKey = visibleLayerRegionsByKey
   const allMapVisibleRegions = useMemo(() => (
-    activeLayerViews.flatMap((layer) => visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions)
-  ), [activeLayerViews, visibleLayerRegionsByKey])
+    activeLayerViews.flatMap((layer) => renderedLayerRegionsByKey[layer.key] ?? layer.filteredRegions)
+  ), [activeLayerViews, renderedLayerRegionsByKey])
   const layerDiffLayers = useMemo(() => activeLayerViews.slice(-2), [activeLayerViews])
   const layerDiffRegionCounts = useMemo(() => (
     layerDiffLayers.map((layer) => (visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions).length)
@@ -1733,11 +1758,14 @@ function DevBoundaries() {
   const activeErrors = activeLayerViews.filter((layer) => layer.error)
   const topLayerKey = activeLayerViews[activeLayerViews.length - 1]?.key ?? null
   const hasDbPmtilesLayer = activeLayerViews.some(isDbPmtilesLayer)
+  const hasNamedWatershedLayer = activeLayerViews.some(isNamedWatershedLayer)
   const activeRange = useMemo(() => levelRange(allRegions), [allRegions])
   const visibleRange = useMemo(() => levelRange(allMapVisibleRegions), [allMapVisibleRegions])
   const fitRegions = useMemo(
-    () => allMapVisibleRegions.filter((region) => !(region.source === 'census' && isChunkedCensusLevel(region.level))),
-    [allMapVisibleRegions],
+    () => activeLayerViews
+      .flatMap((layer) => visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions)
+      .filter((region) => !(region.source === 'census' && isChunkedCensusLevel(region.level))),
+    [activeLayerViews, visibleLayerRegionsByKey],
   )
   const activeSubtitle = activeLayerViews.length === 0
     ? 'No study areas selected'
@@ -2233,6 +2261,10 @@ function DevBoundaries() {
             const selectedLevel = sourceLevels[source] ?? getDefaultLevelForSource(source)
             const options = getLevelOptionsForSource(source)
             const opacity = sourceOpacities[source] ?? 0.22
+            const selectedLayer = activeLayerViews.find((layer) => layer.key === cacheKey(source, selectedLevel))
+            const renderedCount = selectedLayer
+              ? layerVisibleCount(selectedLayer, renderedLayerRegionsByKey)
+              : 0
             return (
               <div
                 key={source}
@@ -2391,6 +2423,19 @@ function DevBoundaries() {
                     )
                   })}
                 </div>
+                {source === 'namedWatershed' && selectedLayer && !selectedLayer.loading && (
+                  <div className="mt-2 rounded-md border border-sky-200 bg-sky-50 p-2.5 text-xs leading-4 text-sky-950 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
+                    <div className="font-semibold">Nested cumulative drainage areas</div>
+                    <div className="mt-1 text-sky-800 dark:text-sky-200">
+                      These boundaries overlap by design; they are not a province-wide partition.
+                    </div>
+                    <div className="mt-1 text-sky-800 dark:text-sky-200">
+                      This selection loads {formatNumber(selectedLayer.regions.length)} official
+                      {' '}{getStudyAreaLevelLabel(selectedLevel).toLowerCase()} watersheds and shows
+                      {' '}{formatNumber(renderedCount)} after search or focus filters.
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -2402,11 +2447,16 @@ function DevBoundaries() {
           columns={2}
           stats={[
             { label: 'Study areas', value: formatNumber(activeLayerViews.length) },
-            { label: 'Visible boundaries', value: activeLoading ? '...' : `${formatNumber(allMapVisibleRegions.length)}${hasDbPmtilesLayer ? ' + PMTiles' : ''}` },
-            { label: 'Total area', value: activeLoading ? '...' : formatArea(visibleRange.total || activeRange.total) },
+            { label: 'Shown on map', value: activeLoading ? '...' : `${formatNumber(allMapVisibleRegions.length)}${hasDbPmtilesLayer ? ' + PMTiles' : ''}` },
+            { label: hasNamedWatershedLayer ? 'Area sum*' : 'Total area', value: activeLoading ? '...' : formatArea(visibleRange.total || activeRange.total) },
             { label: 'Largest', value: activeLoading ? '...' : formatArea(visibleRange.max || activeRange.max) },
           ]}
         />
+        {hasNamedWatershedLayer && (
+          <div className="mt-2 text-xs leading-4 text-muted-foreground">
+            * Named-watershed areas overlap and nest, so their displayed-area sum is not a unique land-area total.
+          </div>
+        )}
         <div className="mt-3 space-y-2 rounded-md border bg-muted/25 p-3 text-xs text-muted-foreground">
           {activeLayerViews.length === 0 && (
             <div>No boundary layers selected.</div>
@@ -2415,7 +2465,7 @@ function DevBoundaries() {
             <div key={layer.key} className="flex items-center justify-between gap-3">
               <span className="min-w-0 truncate">{layer.label}</span>
               <span className="shrink-0 font-medium text-foreground">
-                {layerSummaryText(layer, visibleLayerRegionsByKey, censusLoadingChunkIds.length)}
+                {layerSummaryText(layer, renderedLayerRegionsByKey, censusLoadingChunkIds.length)}
               </span>
             </div>
           ))}
@@ -2441,8 +2491,8 @@ function DevBoundaries() {
             {activeLoading
               ? 'Loading boundaries'
               : polygonFocusActive
-                ? `${allMapVisibleRegions.length.toLocaleString()} visible after filters${hasDbPmtilesLayer ? ' + PMTiles' : ''}`
-                : `${allMapVisibleRegions.length.toLocaleString()} visible boundaries${hasDbPmtilesLayer ? ' + PMTiles' : ''}`}
+                ? `${allMapVisibleRegions.length.toLocaleString()} shown after filters${hasDbPmtilesLayer ? ' + PMTiles' : ''}`
+                : `${allMapVisibleRegions.length.toLocaleString()} shown on map${hasDbPmtilesLayer ? ' + PMTiles' : ''}`}
           </span>
           {(compareIds.length > 0 || polygonFocusActive) && (
             <button
@@ -2472,9 +2522,9 @@ function DevBoundaries() {
                 <div className="sticky top-[33px] z-10 border-b border-border bg-muted/80 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur">
                   {isDbPmtilesLayer(layer)
                     ? `${layer.label} · ${layer.optionLabel} · PMTiles`
-                    : `${layer.label} · ${layer.optionLabel} · ${layerVisibleCount(layer, visibleLayerRegionsByKey).toLocaleString()}`}
-                  {polygonFocusActive && !isDbPmtilesLayer(layer) && layerVisibleCount(layer, visibleLayerRegionsByKey) !== layer.filteredRegions.length && (
-                    <span className="text-muted-foreground"> / {layer.filteredRegions.length.toLocaleString()}</span>
+                    : `${layer.label} · ${layer.optionLabel} · ${layerVisibleCount(layer, renderedLayerRegionsByKey).toLocaleString()}`}
+                  {!isDbPmtilesLayer(layer) && layerVisibleCount(layer, renderedLayerRegionsByKey) !== layerReferenceCount(layer) && (
+                    <span className="text-muted-foreground"> / {layerReferenceCount(layer).toLocaleString()}</span>
                   )}
                 </div>
                 {isDbPmtilesLayer(layer) && layer.filteredRegions.length === 0 && (
@@ -2603,19 +2653,27 @@ function DevBoundaries() {
           fitLayerRegions={!polygonFocusActive}
         />
         {activeLayerViews.map((layer) => {
-          const focusedRegions = visibleLayerRegionsByKey[layer.key] ?? layer.filteredRegions
+          const focusedRegions = renderedLayerRegionsByKey[layer.key] ?? layer.filteredRegions
           const layerHiddenForParentOutlines = hideBcDaChunksForParents && isBcDaSimplifiedLayer(layer)
           const layerVisible = !layerHiddenForParentOutlines || isolatedPolygonFocuses.some((focus) => focus.scope === layer.key)
           const denseDbLayer = layer.source === 'census' && layer.level === BC_DB_CHUNKED_LEVEL
+          const namedWatershedLayer = isNamedWatershedLayer(layer)
           const fillOpacity = denseDbLayer
             ? ['interpolate', ['linear'], ['zoom'], 5, 0.025, 7, 0.04, 9, 0.055, 11, Math.min(layer.opacity, 0.11), 13, Math.min(layer.opacity, 0.16)]
-            : layer.opacity
+            : namedWatershedLayer && focusedRegions.length > 1
+              ? Math.min(layer.opacity, 0.055)
+              : layer.opacity
           const lineWidth = denseDbLayer
             ? ['interpolate', ['linear'], ['zoom'], 5, 0.08, 7, 0.12, 9, 0.18, 11, 0.35, 13, 0.7]
-            : activeLayerViews.length > 1 ? 1.1 : 0.9
-          const lineOpacity = denseDbLayer ? 0.42 : 0.86
+            : namedWatershedLayer
+              ? ['interpolate', ['linear'], ['zoom'], 5, 0.45, 8, 0.65, 11, 0.9]
+              : activeLayerViews.length > 1 ? 1.1 : 0.9
+          const lineOpacity = denseDbLayer ? 0.42 : namedWatershedLayer ? 0.68 : 0.86
           const northSouthLayer = isNorthSouthCsdLayer(layer)
-          const hoverEnabled = layer.key === topLayerKey && layerVisible && (!denseDbLayer || focusedRegions.length <= 2500)
+          const hoverEnabled = !selectionPopupOpen
+            && layer.key === topLayerKey
+            && layerVisible
+            && (!denseDbLayer || focusedRegions.length <= 2500)
           return (
             <Fragment key={`${activeSources.join('|')}:${layer.key}`}>
               {denseDbLayer ? (
@@ -2767,6 +2825,11 @@ function DevBoundaries() {
             <div className="min-w-56 text-sm">
               <div className="font-semibold text-foreground">{selectedRegion.name}</div>
               <div className="mt-1 text-xs text-muted-foreground">{selectedRegion.code}</div>
+              {selectedRegion.source === 'namedWatershed' && (
+                <div className="mt-2 rounded border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs leading-4 text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
+                  Cumulative drainage area; may overlap and contain other named watersheds.
+                </div>
+              )}
               {selectedRegion.source === 'census' && censusParentRows(selectedRegion.feature.properties ?? {}).length > 0 && (
                 <div className="mt-3 space-y-1.5 rounded border bg-muted/30 p-2 text-xs">
                   {censusParentRows(selectedRegion.feature.properties ?? {}).map((row) => (

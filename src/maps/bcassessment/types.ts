@@ -16,7 +16,7 @@ export type AssessmentBoundaryLevel =
   | 'da'
   | 'db'
   | CityBoundaryLevel
-  | Exclude<WatershedBoundaryLevel, 'namedWatershed'>
+  | WatershedBoundaryLevel
 export type AssessmentBoundarySelection = AssessmentBoundaryLevel | 'none'
 export type AssessmentBoundarySource =
   | 'bcHealth'

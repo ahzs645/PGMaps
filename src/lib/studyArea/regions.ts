@@ -24,6 +24,7 @@ import type {
   FireZoneBoundaryLevel,
   MineralTenureBoundaryLevel,
   MunicipalityBoundaryLevel,
+  NamedWatershedBoundaryLevel,
   NrAdminBoundaryLevel,
   RangeTenureBoundaryLevel,
   RegionLevel,
@@ -81,7 +82,18 @@ const WATERSHED_FILE_BY_LEVEL: Record<WatershedBoundaryLevel, string> = {
   majorWatershed: '/data/boundaries/BCFWA/major_watersheds_province_simplified.geojson',
   watershedGroup: '/data/boundaries/BCFWA/watershed_groups_province_simplified.geojson',
   assessmentWatershed: '/data/boundaries/BCFWA/assessment_watersheds.geojson',
-  namedWatershed: '/data/boundaries/BCFWA/named_watersheds_province_50m.geojson.gz',
+}
+const NAMED_WATERSHED_FILE_BY_LEVEL: Record<NamedWatershedBoundaryLevel, string> = {
+  namedWatershedOrder1: '/data/boundaries/BCFWA/named_watersheds_stream_order_1_50m.geojson.gz',
+  namedWatershedOrder2: '/data/boundaries/BCFWA/named_watersheds_stream_order_2_50m.geojson.gz',
+  namedWatershedOrder3: '/data/boundaries/BCFWA/named_watersheds_stream_order_3_50m.geojson.gz',
+  namedWatershedOrder4: '/data/boundaries/BCFWA/named_watersheds_stream_order_4_50m.geojson.gz',
+  namedWatershedOrder5: '/data/boundaries/BCFWA/named_watersheds_stream_order_5_50m.geojson.gz',
+  namedWatershedOrder6: '/data/boundaries/BCFWA/named_watersheds_stream_order_6_50m.geojson.gz',
+  namedWatershedOrder7: '/data/boundaries/BCFWA/named_watersheds_stream_order_7_50m.geojson.gz',
+  namedWatershedOrder8: '/data/boundaries/BCFWA/named_watersheds_stream_order_8_50m.geojson.gz',
+  namedWatershedOrder9: '/data/boundaries/BCFWA/named_watersheds_stream_order_9_50m.geojson.gz',
+  namedWatershedOrder10: '/data/boundaries/BCFWA/named_watersheds_stream_order_10_50m.geojson.gz',
 }
 const DRAINAGE_FILE_BY_LEVEL: Record<DrainageBoundaryLevel, string> = {
   oceanDrainageArea: '/data/boundaries/BCDrainage/drainage_basins.geojson',
@@ -128,7 +140,18 @@ const WATERSHED_LEVEL_SET = new Set<WatershedBoundaryLevel>([
   'majorWatershed',
   'watershedGroup',
   'assessmentWatershed',
-  'namedWatershed',
+])
+const NAMED_WATERSHED_LEVEL_SET = new Set<NamedWatershedBoundaryLevel>([
+  'namedWatershedOrder1',
+  'namedWatershedOrder2',
+  'namedWatershedOrder3',
+  'namedWatershedOrder4',
+  'namedWatershedOrder5',
+  'namedWatershedOrder6',
+  'namedWatershedOrder7',
+  'namedWatershedOrder8',
+  'namedWatershedOrder9',
+  'namedWatershedOrder10',
 ])
 const DRAINAGE_LEVEL_SET = new Set<DrainageBoundaryLevel>(['oceanDrainageArea', 'drainageRegion'])
 const FIRE_ZONE_LEVEL_SET = new Set<FireZoneBoundaryLevel>(['fireCentre', 'fireZone'])
@@ -182,6 +205,10 @@ function isCityBoundaryLevel(level: RegionLevel): level is CityBoundaryLevel {
 
 function isWatershedBoundaryLevel(level: RegionLevel): level is WatershedBoundaryLevel {
   return WATERSHED_LEVEL_SET.has(level as WatershedBoundaryLevel)
+}
+
+function isNamedWatershedBoundaryLevel(level: RegionLevel): level is NamedWatershedBoundaryLevel {
+  return NAMED_WATERSHED_LEVEL_SET.has(level as NamedWatershedBoundaryLevel)
 }
 
 function isDrainageBoundaryLevel(level: RegionLevel): level is DrainageBoundaryLevel {
@@ -603,12 +630,17 @@ async function loadRegionalDistrictRegions(level: RegionalDistrictBoundaryLevel,
   return sortedRegions
 }
 
-async function loadWatershedRegions(level: WatershedBoundaryLevel, signal?: AbortSignal): Promise<StudyAreaRegion[]> {
-  const cacheKey = `watershed:${level}`
+async function loadFwaWatershedRegions(
+  source: 'watershed' | 'namedWatershed',
+  level: WatershedBoundaryLevel | NamedWatershedBoundaryLevel,
+  filePath: string,
+  signal?: AbortSignal,
+): Promise<StudyAreaRegion[]> {
+  const cacheKey = `${source}:${level}`
   const cached = boundaryRegionCache.get(cacheKey)
   if (cached) return cached
 
-  const geometry = await fetchJson<BoundaryFeatureCollection>(WATERSHED_FILE_BY_LEVEL[level], signal)
+  const geometry = await fetchJson<BoundaryFeatureCollection>(filePath, signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {
@@ -627,10 +659,10 @@ async function loadWatershedRegions(level: WatershedBoundaryLevel, signal?: Abor
       const bounds = bbox(feature) as [number, number, number, number]
 
       return {
-        id: `watershed:${level}:${code}`,
+        id: `${source}:${level}:${code}`,
         code,
         name: displayName,
-        source: 'watershed',
+        source,
         level,
         feature,
         bounds,
@@ -1056,16 +1088,30 @@ export async function loadStudyAreaRegions(
     return loadWalkabilityCommunityRegions(level, signal)
   }
 
+  if (source === 'namedWatershed') {
+    if (!isNamedWatershedBoundaryLevel(level)) {
+      throw new Error(`Invalid named watershed stream order: ${level}`)
+    }
+    return loadFwaWatershedRegions(
+      source,
+      level,
+      NAMED_WATERSHED_FILE_BY_LEVEL[level],
+      signal,
+    )
+  }
+
   if (!isWatershedBoundaryLevel(level)) {
     throw new Error(`Invalid Freshwater Atlas watershed level: ${level}`)
   }
-  return loadWatershedRegions(level, signal)
+  return loadFwaWatershedRegions(
+    source,
+    level,
+    WATERSHED_FILE_BY_LEVEL[level],
+    signal,
+  )
 }
 
 export function getWatershedLevelSourceNote(level: WatershedBoundaryLevel): string {
-  if (level === 'namedWatershed') {
-    return 'BC Freshwater Atlas named watersheds, province-wide 50 metre topology-preserved simplified geometry. Named drainage areas intentionally overlap and nest.'
-  }
   if (level === 'assessmentWatershed') {
     return 'BC Freshwater Atlas assessment watersheds clipped to the Prince George regional viewport.'
   }
@@ -1073,6 +1119,11 @@ export function getWatershedLevelSourceNote(level: WatershedBoundaryLevel): stri
     return 'BC Freshwater Atlas watershed groups, province-wide topology-preserved simplified geometry.'
   }
   return 'BC major watershed basins, province-wide topology-preserved simplified geometry.'
+}
+
+export function getNamedWatershedLevelSourceNote(level: NamedWatershedBoundaryLevel): string {
+  const streamOrder = level.replace('namedWatershedOrder', '')
+  return `BC Freshwater Atlas named watersheds, stream order ${streamOrder}, province-wide 50 metre topology-preserved simplified geometry. Named drainage areas intentionally overlap and nest.`
 }
 
 /*

@@ -13,6 +13,7 @@ export type {
   FireZoneBoundaryLevel,
   MineralTenureBoundaryLevel,
   MunicipalityBoundaryLevel,
+  NamedWatershedBoundaryLevel,
   NrAdminBoundaryLevel,
   RangeTenureBoundaryLevel,
   RegionLevel,

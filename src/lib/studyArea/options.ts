@@ -12,6 +12,7 @@ import type {
   FireZoneBoundaryLevel,
   MineralTenureBoundaryLevel,
   MunicipalityBoundaryLevel,
+  NamedWatershedBoundaryLevel,
   NrAdminBoundaryLevel,
   RangeTenureBoundaryLevel,
   RegionLevel,
@@ -73,7 +74,7 @@ export const BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = [
   {
     value: 'watershed',
     label: 'Watershed boundaries',
-    description: 'BC Freshwater Atlas hierarchy',
+    description: 'BC Freshwater Atlas major, group, and assessment hierarchy',
     group: 'Natural / resource',
   },
   {
@@ -128,7 +129,16 @@ export const STUDY_AREA_LEVEL_LABELS: Record<StudyAreaLevelWithDb, string> = {
   majorWatershed: 'Major River Basin',
   watershedGroup: 'Watershed Group',
   assessmentWatershed: 'Assessment Watershed',
-  namedWatershed: 'Named Watershed',
+  namedWatershedOrder1: 'Stream Order 1',
+  namedWatershedOrder2: 'Stream Order 2',
+  namedWatershedOrder3: 'Stream Order 3',
+  namedWatershedOrder4: 'Stream Order 4',
+  namedWatershedOrder5: 'Stream Order 5',
+  namedWatershedOrder6: 'Stream Order 6',
+  namedWatershedOrder7: 'Stream Order 7',
+  namedWatershedOrder8: 'Stream Order 8',
+  namedWatershedOrder9: 'Stream Order 9',
+  namedWatershedOrder10: 'Stream Order 10',
   oceanDrainageArea: 'Ocean Drainage Area',
   drainageRegion: 'Drainage Region',
   fireCentre: 'Fire Centre',
@@ -188,7 +198,21 @@ export const WATERSHED_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<WatershedBoun
     'majorWatershed',
     'watershedGroup',
     'assessmentWatershed',
-    'namedWatershed',
+  ] as const),
+]
+
+export const NAMED_WATERSHED_BOUNDARY_LEVEL_OPTIONS: BoundaryLevelOption<NamedWatershedBoundaryLevel>[] = [
+  ...createStudyAreaLevelOptions([
+    'namedWatershedOrder10',
+    'namedWatershedOrder9',
+    'namedWatershedOrder8',
+    'namedWatershedOrder7',
+    'namedWatershedOrder6',
+    'namedWatershedOrder5',
+    'namedWatershedOrder4',
+    'namedWatershedOrder3',
+    'namedWatershedOrder2',
+    'namedWatershedOrder1',
   ] as const),
 ]
 
@@ -248,6 +272,8 @@ export function getLevelOptionsForSource(source: BoundarySource): BoundaryLevelO
       return CITY_BOUNDARY_LEVEL_OPTIONS
     case 'watershed':
       return WATERSHED_BOUNDARY_LEVEL_OPTIONS
+    case 'namedWatershed':
+      return NAMED_WATERSHED_BOUNDARY_LEVEL_OPTIONS
     case 'bcDrainage':
       return DRAINAGE_BOUNDARY_LEVEL_OPTIONS
     case 'bcWildfire':
