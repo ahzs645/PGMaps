@@ -19,6 +19,7 @@ import {
   getStudyAreaLevelLabel,
   isValidLevelForSource,
   loadStudyAreaRegions,
+  regionCollator,
   studyAreaRegionsToFeatureCollection,
   type BoundarySource,
   type BoundarySourceOption,
@@ -94,7 +95,7 @@ type CensusParentLevel = 'cd' | 'csd' | 'ct'
 
 interface BcDaChunkManifest {
   generatedAt: string
-  tolerance: number
+  tolerance?: number
   features: number
   rawBytes: number
   gzipBytes: number
@@ -122,7 +123,7 @@ interface BcDaParentBoundary {
 interface BcDaChunkLevel {
   id: string
   label: string
-  tolerance: number
+  tolerance?: number
   minZoom: number
   maxZoom: number
   features: number
@@ -216,6 +217,21 @@ const EMPTY_POLYGON_FOCUSES: PolygonFocus[] = []
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> = {
   type: 'FeatureCollection',
   features: [],
+}
+// MapFillLayer calls source.setData whenever the `data` prop identity changes,
+// which makes MapLibre re-ingest and re-tile the entire collection. Building the
+// collection inline in JSX would do that on every render (pans, popups, search
+// keystrokes), so cache it per regions-array identity instead.
+const layerFeatureCollectionCache = new WeakMap<StudyAreaRegion[], GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon>>()
+
+function layerFeatureCollection(regions: StudyAreaRegion[]): GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon> {
+  if (regions.length === 0) return EMPTY_COLLECTION
+  let collection = layerFeatureCollectionCache.get(regions)
+  if (!collection) {
+    collection = studyAreaRegionsToFeatureCollection(regions)
+    layerFeatureCollectionCache.set(regions, collection)
+  }
+  return collection
 }
 const MAX_LAYER_DIFF_FEATURES = 500
 
@@ -330,11 +346,17 @@ function isBcDaSimplifiedLayer(layer: ActiveLayer) {
   return layer.source === 'census' && layer.level === BC_DA_SIMPLIFIED_LEVEL
 }
 
-function isChunkedCensusLevel(level: RegionLevel): level is ChunkedCensusLevel {
-  return level === BC_DA_SIMPLIFIED_LEVEL || level === BC_DB_CHUNKED_LEVEL
+/** Maps a census layer level to the chunk source that serves its geometry. */
+function chunkedCensusSource(level: RegionLevel): ChunkedCensusLevel | null {
+  if (level === BC_DA_SIMPLIFIED_LEVEL || level === BC_DB_CHUNKED_LEVEL) return level
+  return null
 }
 
-function isChunkedCensusLayer(layer: ActiveLayer): layer is ActiveLayer & { level: ChunkedCensusLevel } {
+function isChunkedCensusLevel(level: RegionLevel): boolean {
+  return chunkedCensusSource(level) !== null
+}
+
+function isChunkedCensusLayer(layer: ActiveLayer): boolean {
   return layer.source === 'census' && isChunkedCensusLevel(layer.level)
 }
 
@@ -448,9 +470,15 @@ function sourceLabel(source: BoundarySource) {
   return BOUNDARY_EXPLORER_SOURCE_OPTIONS.find((option) => option.value === source)?.label ?? source
 }
 
+// Region objects are stable once loaded, so their search text only needs to be
+// assembled once instead of on every keystroke for every region.
+const regionSearchTextCache = new WeakMap<StudyAreaRegion, string>()
+
 function regionSearchText(region: StudyAreaRegion) {
+  const cached = regionSearchTextCache.get(region)
+  if (cached != null) return cached
   const properties = region.feature.properties ?? {}
-  return [
+  const text = [
     region.name,
     region.code,
     sourceLabel(region.source),
@@ -478,6 +506,8 @@ function regionSearchText(region: StudyAreaRegion) {
     properties.CTUID,
     properties.CTNAME,
   ].filter((value) => value != null).join(' ').toLowerCase()
+  regionSearchTextCache.set(region, text)
+  return text
 }
 
 function censusParentRows(properties: Record<string, unknown>) {
@@ -655,7 +685,7 @@ async function loadBoundaryExplorerCensusParentRegions(
   const regions = collection.features
     .map((feature) => mapBcCensusParentFeatureToRegion(feature, level))
     .filter((region): region is StudyAreaRegion => region !== null)
-    .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
+    .sort((a, b) => regionCollator.compare(a.name, b.name) || regionCollator.compare(a.code, b.code))
 
   boundaryExplorerRegionCache.set(cacheKey, regions)
   return regions
@@ -957,7 +987,15 @@ function FitToRegions({
     if (fittedLayerRegionsKeyRef.current === layerRegionsKey) return
     fittedLayerRegionsKeyRef.current = layerRegionsKey
 
-    const bounds = bbox(studyAreaRegionsToFeatureCollection(regions) as never) as [number, number, number, number]
+    // Each region carries a precomputed bbox; merging them avoids rebuilding a
+    // FeatureCollection and rescanning every coordinate just to fit the view.
+    const bounds: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity]
+    for (const region of regions) {
+      bounds[0] = Math.min(bounds[0], region.bounds[0])
+      bounds[1] = Math.min(bounds[1], region.bounds[1])
+      bounds[2] = Math.max(bounds[2], region.bounds[2])
+      bounds[3] = Math.max(bounds[3], region.bounds[3])
+    }
     map.fitBounds(bounds, {
       padding: 48,
       duration: 650,
@@ -967,9 +1005,7 @@ function FitToRegions({
 
   useEffect(() => {
     if (!isLoaded || !map || !selectedRegion || !fitSelectedRegion) return
-    const target = selectedRegion.feature
-    const bounds = bbox(target as never) as [number, number, number, number]
-    map.fitBounds(bounds, {
+    map.fitBounds(selectedRegion.bounds, {
       padding: 96,
       duration: 650,
       maxZoom: 11,
@@ -1415,11 +1451,10 @@ function DevBoundaries() {
     })
   ), [activeSources, sourceLevels])
 
-  const activeCensusChunkLevel = useMemo<ChunkedCensusLevel | null>(() => (
-    activeLayers.find((layer): layer is ActiveLayer & { level: ChunkedCensusLevel } => (
-      isChunkedCensusLayer(layer) && !isDbPmtilesLayer(layer)
-    ))?.level ?? null
-  ), [activeLayers])
+  const activeCensusChunkLevel = useMemo<ChunkedCensusLevel | null>(() => {
+    const chunkedLayer = activeLayers.find((layer) => isChunkedCensusLayer(layer) && !isDbPmtilesLayer(layer))
+    return chunkedLayer ? chunkedCensusSource(chunkedLayer.level) : null
+  }, [activeLayers])
   const activeCensusChunkManifest = activeCensusChunkLevel ? censusChunkManifests[activeCensusChunkLevel] ?? null : null
   const activeCensusChunkError = activeCensusChunkLevel ? censusChunkErrors[activeCensusChunkLevel] ?? null : null
   const activeCensusChunkDetailLevel = useMemo(
@@ -1461,10 +1496,18 @@ function DevBoundaries() {
     if (!renderedCensusChunkDetailLevel || !mapBounds) return []
     return renderedCensusChunkDetailLevel.chunks.filter((chunk) => bboxesIntersect(chunk.bbox, mapBounds))
   }, [mapBounds, renderedCensusChunkDetailLevel])
-  const renderedVisibleCensusChunkKeys = useMemo(() => {
-    if (!activeCensusChunkLevel || !renderedCensusChunkDetailLevel) return new Set<string>()
-    return new Set(renderedVisibleCensusChunks.map((chunk) => censusChunkCacheKey(activeCensusChunkLevel, renderedCensusChunkDetailLevel.id, chunk.id)))
+  // Collapse the visible-chunk set to a sorted string so panning within the
+  // same chunk set keeps downstream memos (and the map source data) stable.
+  const renderedVisibleCensusChunkKeyString = useMemo(() => {
+    if (!activeCensusChunkLevel || !renderedCensusChunkDetailLevel) return ''
+    return renderedVisibleCensusChunks
+      .map((chunk) => censusChunkCacheKey(activeCensusChunkLevel, renderedCensusChunkDetailLevel.id, chunk.id))
+      .sort()
+      .join('\n')
   }, [activeCensusChunkLevel, renderedCensusChunkDetailLevel, renderedVisibleCensusChunks])
+  const renderedVisibleCensusChunkKeys = useMemo(() => (
+    new Set(renderedVisibleCensusChunkKeyString ? renderedVisibleCensusChunkKeyString.split('\n') : [])
+  ), [renderedVisibleCensusChunkKeyString])
   const bcDaActive = activeLayers.some(isBcDaSimplifiedLayer)
   const bcDaManifest = censusChunkManifests.da ?? null
   const parentBoundaryOptions = useMemo(() => bcDaManifest?.parentBoundaries ?? [], [bcDaManifest])
@@ -1562,7 +1605,7 @@ function DevBoundaries() {
           const regions = collection.features
             .map((feature) => mapBcDaChunkFeatureToRegion(feature, activeCensusChunkLevel))
             .filter((region): region is StudyAreaRegion => region !== null)
-            .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
+            .sort((a, b) => regionCollator.compare(a.name, b.name) || regionCollator.compare(a.code, b.code))
 
           setCensusChunkRegionsByKey((current) => ({ ...current, [chunkKey]: regions }))
         })
@@ -1625,7 +1668,7 @@ function DevBoundaries() {
     Object.entries(censusChunkRegionsByKey)
       .filter(([key]) => renderedVisibleCensusChunkKeys.has(key))
       .flatMap(([, regions]) => regions)
-      .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
+      .sort((a, b) => regionCollator.compare(a.name, b.name) || regionCollator.compare(a.code, b.code))
   ), [censusChunkRegionsByKey, renderedVisibleCensusChunkKeys])
 
   const activeLayerViews = useMemo<ActiveLayerView[]>(() => {
@@ -1688,6 +1731,12 @@ function DevBoundaries() {
       })
       .filter((view): view is ParentBoundaryView => Boolean(view))
   ), [enabledCensusParentLevels, parentBoundaryCache, parentBoundaryOptions])
+  const parentBoundaryCollectionsByLevel = useMemo(() => (
+    new globalThis.Map(enabledParentBoundaryViews.map((view) => [
+      view.level,
+      filterFeatureCollectionForPolygonFocus(view.data, `census-parent:${view.level}`, isolatedPolygonFocuses, hiddenPolygonFocuses),
+    ]))
+  ), [enabledParentBoundaryViews, hiddenPolygonFocuses, isolatedPolygonFocuses])
   const hideBcDaChunksForParents = bcDaActive && enabledCensusParentLevels.length > 0
 
   const allRegions = useMemo(() => activeLayerViews.flatMap((layer) => layer.regions), [activeLayerViews])
@@ -2354,10 +2403,7 @@ function DevBoundaries() {
                 <div className="grid gap-1.5">
                   {options.map((option) => {
                     const entry = cache[cacheKey(source, option.value)]
-                    const optionChunkedLevel =
-                      source === 'census' && isChunkedCensusLevel(option.value)
-                        ? option.value
-                        : null
+                    const optionChunkedLevel = source === 'census' ? chunkedCensusSource(option.value) : null
                     const optionIsActiveChunked = optionChunkedLevel != null && activeCensusChunkLevel === optionChunkedLevel
                     const optionManifest = optionChunkedLevel ? censusChunkManifests[optionChunkedLevel] ?? null : null
                     const optionDetailLevel = optionIsActiveChunked
@@ -2706,7 +2752,7 @@ function DevBoundaries() {
 	                />
               ) : (
                 <MapFillLayer
-                  data={focusedRegions.length > 0 ? studyAreaRegionsToFeatureCollection(focusedRegions) : EMPTY_COLLECTION}
+                  data={layerFeatureCollection(focusedRegions)}
                   fillColor={northSouthLayer ? NORTH_SOUTH_CSD_FILL_EXPRESSION : layer.colors.fill}
                   fillOpacity={fillOpacity}
                   lineColor={northSouthLayer ? NORTH_SOUTH_CSD_LINE_EXPRESSION : layer.colors.line}
@@ -2739,7 +2785,7 @@ function DevBoundaries() {
                 return (
                   <MapFillLayer
                     key={parentScope}
-                    data={filterFeatureCollectionForPolygonFocus(view.data, parentScope, isolatedPolygonFocuses, hiddenPolygonFocuses)}
+                    data={parentBoundaryCollectionsByLevel.get(view.level) ?? view.data}
                     fillColor={view.style.fill}
                     fillOpacity={0.035}
                     lineColor={view.style.line}

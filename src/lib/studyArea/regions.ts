@@ -44,11 +44,13 @@ interface BoundaryFeatureCollection {
 }
 
 const BOUNDARY_INDEX_PATH = '/data/boundaries/BCMoH/index.json'
-const CANADA_CSD_BASE_PATH = '/data/census/canada-csd'
+// Built by scripts/build-canada-csd-simplified.mjs during predev/prebuild from
+// the full-detail canada-csd province chunks; north_south comes baked in.
+const CANADA_CSD_SIMPLIFIED_PATH = '/data/census/canada-csd-simplified.geojson'
 const CENSUS_FILE_BY_LEVEL: Record<CensusBoundaryLevel, string> = {
   cd: '/data/census/prince_george_cd.geo.json',
-  csd: `${CANADA_CSD_BASE_PATH}/manifest.json`,
-  northSouthCsd: `${CANADA_CSD_BASE_PATH}/manifest.json`,
+  csd: CANADA_CSD_SIMPLIFIED_PATH,
+  northSouthCsd: CANADA_CSD_SIMPLIFIED_PATH,
   ct: '/data/census/prince_george_ct.geo.json',
   da: '/data/census/prince_george_da.geo.json',
   db: '/data/census/prince_george_db.geo.json',
@@ -167,8 +169,12 @@ const WALKABILITY_COMMUNITY_LEVEL_SET = new Set<WalkabilityCommunityBoundaryLeve
 let boundaryIndexCache: BoundaryIndex | null = null
 const boundaryRegionCache = new Map<string, StudyAreaRegion[]>()
 
+// Shared collator: localeCompare instantiates a collator per call, which is
+// noticeably slow when sorting thousands of regions.
+export const regionCollator = new Intl.Collator()
+
 function sortRegions(regions: StudyAreaRegion[]): StudyAreaRegion[] {
-  return [...regions].sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
+  return [...regions].sort((a, b) => regionCollator.compare(a.name, b.name) || regionCollator.compare(a.code, b.code))
 }
 
 function mapRecordsByCode(records: BoundaryRegionRecord[]): Map<string, string> {
@@ -441,40 +447,7 @@ async function loadCensusRegions(level: CensusBoundaryLevel, signal?: AbortSigna
     return sortedRegions
   }
 
-  const geometry = level === 'csd'
-    ? await (async () => {
-        const manifest = await fetchJson<{
-          chunks: Array<{ path: string }>
-          classification: { path: string }
-        }>(CENSUS_FILE_BY_LEVEL[level], signal)
-        const [collections, classification] = await Promise.all([
-          Promise.all(
-            manifest.chunks.map((chunk) => (
-              fetchJson<BoundaryFeatureCollection>(`${CANADA_CSD_BASE_PATH}/${chunk.path}`, signal)
-            )),
-          ),
-          fetchJson<{
-            byCsdUid: Record<string, 'North' | 'South'>
-          }>(`${CANADA_CSD_BASE_PATH}/${manifest.classification.path}`, signal),
-        ])
-        return {
-          type: 'FeatureCollection',
-          features: collections.flatMap((collection) => collection.features).map((feature) => {
-            const properties = feature.properties ?? {}
-            const csdUid = String(properties.CSDUID ?? properties.boundaryCode ?? properties.id ?? '')
-            const northSouth = classification.byCsdUid[csdUid]
-            return {
-              ...feature,
-              properties: {
-                ...properties,
-                north_south: northSouth ?? null,
-                north_south_code: northSouth === 'North' ? 'N' : northSouth === 'South' ? 'S' : null,
-              },
-            }
-          }),
-        } satisfies BoundaryFeatureCollection
-      })()
-    : await fetchJson<BoundaryFeatureCollection>(CENSUS_FILE_BY_LEVEL[level], signal)
+  const geometry = await fetchJson<BoundaryFeatureCollection>(CENSUS_FILE_BY_LEVEL[level], signal)
 
   const regions = geometry.features
     .map<StudyAreaRegion | null>((rawFeature) => {
