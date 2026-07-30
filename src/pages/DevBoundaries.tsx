@@ -1186,10 +1186,7 @@ function StudyAreaPickerRows({
                         <button
                           key={level.value}
                           type="button"
-                          onClick={() => {
-                            onSelectLevel(option.value, level.value)
-                            setExpandedSource(null)
-                          }}
+                          onClick={() => onSelectLevel(option.value, level.value)}
                           aria-pressed={levelActive}
                           className={cn(
                             'flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors',
@@ -1255,7 +1252,10 @@ function StudyAreaSourcePicker({
           <StudyAreaPickerSearch value={pickerQuery} onChange={setPickerQuery} className="mt-3" />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <div
+          data-testid="study-area-picker-scroll"
+          className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3"
+        >
           <StudyAreaPickerRows
             pickerQuery={pickerQuery}
             activeSources={activeSources}
@@ -1315,7 +1315,10 @@ function StudyAreaPickerSidebarPanel({
         <StudyAreaPickerSearch value={pickerQuery} onChange={setPickerQuery} className="mt-3" />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+      <div
+        data-testid="study-area-picker-scroll"
+        className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3"
+      >
         <StudyAreaPickerRows
           pickerQuery={pickerQuery}
           activeSources={activeSources}

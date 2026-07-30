@@ -55,6 +55,7 @@ import {
   type ProjectTheme,
 } from '@/lib/projectPackages'
 import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
+import { ProjectStoryMap } from '@/maps/project-story/ProjectStoryMap'
 import { ProjectScoreMapPreview } from '@/maps/scorebuilder/ProjectScoreMapPreview'
 import healthAuthorityBoundaries from '../../public/data/boundaries/BCMoH/simplified/health_authorities.json'
 
@@ -81,12 +82,14 @@ const THEME_ICON: Record<ProjectTheme, string> = {
 
 const FILTER_OPTIONS: Array<{ value: CatalogFilter; label: string }> = [
   { value: 'all', label: 'All projects' },
+  { value: 'map-story', label: 'Map stories' },
   { value: 'raster-story', label: 'Raster stories' },
   { value: 'index-preset', label: 'Index presets' },
   { value: 'research-pack', label: 'Research packs' },
 ]
 
 const KIND_LABELS: Record<ProjectKind, string> = {
+  'map-story': 'Map story',
   'raster-story': 'Raster story',
   'index-preset': 'Index preset',
   'research-pack': 'Research pack',
@@ -1447,6 +1450,14 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
 function ConfiguredProjectWorkspace({ project, onBack }: { project: ProjectPackage; onBack: () => void }) {
   const workspace = project.workspace
   if (!workspace) return null
+
+  if (workspace.type === 'story-map') {
+    return (
+      <div className="h-[100dvh] bg-background pt-[calc(env(safe-area-inset-top)+4rem)] md:h-[calc(100vh-4rem)] md:pt-0">
+        <ProjectStoryMap project={project} config={workspace} onBack={onBack} />
+      </div>
+    )
+  }
 
   return (
     <div className="h-[100dvh] bg-background pt-[calc(env(safe-area-inset-top)+4rem)] md:h-[calc(100vh-4rem)] md:pt-0">

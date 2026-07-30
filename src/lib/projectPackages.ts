@@ -12,7 +12,7 @@ import type { ScoreMetricWeightMap, ScoreMethodSettings } from '@/maps/scorebuil
  * workspace, and the Index Lab. Static packages live in public/data/projects/*.json;
  * user-imported and lab-exported packages persist in localStorage with `local: true`.
  */
-export type ProjectKind = 'raster-story' | 'index-preset' | 'research-pack'
+export type ProjectKind = 'map-story' | 'raster-story' | 'index-preset' | 'research-pack'
 export type ProjectTheme = 'cyan' | 'amber' | 'emerald' | 'blue' | 'slate'
 
 export interface ProjectLayerDef {
@@ -31,6 +31,14 @@ export interface ProjectSceneDef {
   text: string
   focus: string
   visibleLayerIds: string[]
+  kicker?: string
+  camera?: {
+    center: [number, number]
+    zoom: number
+    bearing?: number
+    pitch?: number
+  }
+  placeIds?: string[]
 }
 
 export interface ProjectPortalRasterLayerDef {
@@ -151,7 +159,46 @@ export interface ProjectMapExplorerWorkspaceDef {
   features: ProjectExplorerFeatureDef[]
 }
 
-export type ProjectWorkspaceDef = ProjectMapExplorerWorkspaceDef
+export interface ProjectStoryLayerDef {
+  id: string
+  data: string
+  idProperty: string
+  labelProperty: string
+  fillColor: string
+  fillOpacity: number
+  lineColor: string
+  lineOpacity: number
+  lineWidth: number
+  category?: {
+    property: string
+    colors: Record<string, string>
+    fallback: string
+  }
+  attribution?: string
+}
+
+export interface ProjectStoryPlaceDef {
+  id: string
+  label: string
+  coordinates: [number, number]
+  note?: string
+  color?: string
+}
+
+export interface ProjectStoryWorkspaceDef {
+  type: 'story-map'
+  schema: 'story-map-v1'
+  map: {
+    center: [number, number]
+    zoom: number
+    minZoom: number
+    maxZoom: number
+  }
+  layers: ProjectStoryLayerDef[]
+  places: ProjectStoryPlaceDef[]
+}
+
+export type ProjectWorkspaceDef = ProjectMapExplorerWorkspaceDef | ProjectStoryWorkspaceDef
 
 export interface ProjectPackage {
   version: 1
@@ -184,7 +231,7 @@ const MANIFEST_URL = '/data/projects/index.json'
 const LOCAL_STORAGE_KEY = 'pgmaps.projects.local'
 const MAX_LOCAL_PROJECTS = 30
 
-const PROJECT_KINDS: ProjectKind[] = ['raster-story', 'index-preset', 'research-pack']
+const PROJECT_KINDS: ProjectKind[] = ['map-story', 'raster-story', 'index-preset', 'research-pack']
 const PROJECT_THEMES: ProjectTheme[] = ['cyan', 'amber', 'emerald', 'blue', 'slate']
 
 function asString(value: unknown, fallback = ''): string {
@@ -216,8 +263,106 @@ function isSceneDef(item: unknown): item is ProjectSceneDef {
     typeof candidate?.label === 'string' &&
     typeof candidate?.title === 'string' &&
     typeof candidate?.text === 'string' &&
-    Array.isArray(candidate?.visibleLayerIds)
+    typeof candidate?.focus === 'string' &&
+    Array.isArray(candidate?.visibleLayerIds) &&
+    candidate.visibleLayerIds.every((layerId) => typeof layerId === 'string')
   )
+}
+
+function normalizeSceneDef(value: unknown): ProjectSceneDef | null {
+  if (!isSceneDef(value)) return null
+  const camera = value.camera
+  const hasCamera = Boolean(camera && isCoordinatePair(camera.center) && isFiniteNumber(camera.zoom))
+  return {
+    label: value.label,
+    title: value.title,
+    text: value.text,
+    focus: value.focus,
+    visibleLayerIds: value.visibleLayerIds,
+    kicker: typeof value.kicker === 'string' ? value.kicker : undefined,
+    camera: hasCamera
+      ? {
+          center: camera!.center,
+          zoom: camera!.zoom,
+          bearing: isFiniteNumber(camera!.bearing) ? camera!.bearing : undefined,
+          pitch: isFiniteNumber(camera!.pitch) ? camera!.pitch : undefined,
+        }
+      : undefined,
+    placeIds: Array.isArray(value.placeIds)
+      ? value.placeIds.filter((placeId): placeId is string => typeof placeId === 'string')
+      : undefined,
+  }
+}
+
+function isCoordinatePair(value: unknown): value is [number, number] {
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    isFiniteNumber(value[0]) &&
+    isFiniteNumber(value[1])
+  )
+}
+
+function isProjectDataUrl(value: unknown): value is string {
+  return typeof value === 'string' && ((value.startsWith('/') && !value.startsWith('//')) || isHttpsUrl(value))
+}
+
+function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWorkspaceDef | undefined {
+  if (value.type !== 'story-map' || value.schema !== 'story-map-v1') return undefined
+  const map = value.map as Record<string, unknown> | undefined
+  if (!map || !isCoordinatePair(map.center) || !isFiniteNumber(map.zoom)) return undefined
+
+  const layers = asArray(value.layers, (item): item is ProjectStoryLayerDef => {
+    const layer = item as Partial<ProjectStoryLayerDef>
+    return (
+      typeof layer?.id === 'string' &&
+      isProjectDataUrl(layer.data) &&
+      typeof layer.idProperty === 'string' &&
+      typeof layer.labelProperty === 'string' &&
+      typeof layer.fillColor === 'string' &&
+      isFiniteNumber(layer.fillOpacity) &&
+      typeof layer.lineColor === 'string' &&
+      isFiniteNumber(layer.lineOpacity) &&
+      isFiniteNumber(layer.lineWidth)
+    )
+  }).map((layer) => {
+    const category = layer.category
+    const colors = Object.fromEntries(
+      Object.entries(category?.colors ?? {}).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
+    )
+    const hasCategory =
+      typeof category?.property === 'string' &&
+      typeof category.fallback === 'string' &&
+      Object.keys(colors).length > 0
+    return {
+      ...layer,
+      fillOpacity: Math.max(0, Math.min(1, layer.fillOpacity)),
+      lineOpacity: Math.max(0, Math.min(1, layer.lineOpacity)),
+      lineWidth: Math.max(0, layer.lineWidth),
+      category: hasCategory ? { ...category, colors } : undefined,
+    }
+  })
+
+  const places = asArray(value.places, (item): item is ProjectStoryPlaceDef => {
+    const place = item as Partial<ProjectStoryPlaceDef>
+    return typeof place?.id === 'string' && typeof place.label === 'string' && isCoordinatePair(place.coordinates)
+  })
+  if (layers.length === 0) return undefined
+
+  return {
+    type: value.type,
+    schema: value.schema,
+    map: {
+      center: map.center,
+      zoom: map.zoom,
+      minZoom: isFiniteNumber(map.minZoom) ? map.minZoom : 3,
+      maxZoom: isFiniteNumber(map.maxZoom) ? map.maxZoom : 14,
+    },
+    layers,
+    places,
+  }
 }
 
 function isLegendItem(item: unknown): item is { label: string; color: string } {
@@ -320,6 +465,8 @@ function normalizeExplorerFeature(value: unknown): ProjectExplorerFeatureDef | n
 function normalizeWorkspace(value: unknown): ProjectWorkspaceDef | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const candidate = value as Record<string, unknown>
+  const storyWorkspace = normalizeStoryWorkspace(candidate)
+  if (storyWorkspace) return storyWorkspace
   if (candidate.type !== 'map-explorer' || candidate.schema !== 'map-explorer-v1') return undefined
 
   const data = candidate.data as Record<string, unknown> | undefined
@@ -430,7 +577,9 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
     catalogMetrics: asArray(candidate.catalogMetrics, isLabeledValue),
     layers: asArray(candidate.layers, isLayerDef),
     legend: asArray(candidate.legend, isLegendItem),
-    scenes: asArray(candidate.scenes, isSceneDef),
+    scenes: Array.isArray(candidate.scenes)
+      ? candidate.scenes.map(normalizeSceneDef).filter((scene): scene is ProjectSceneDef => scene !== null)
+      : [],
     files: asArray(candidate.files, isFileItem),
     lab: hasLab ? lab : undefined,
     portalMap: hasPortalMap ? portalMap : undefined,

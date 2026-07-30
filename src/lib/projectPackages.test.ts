@@ -45,6 +45,70 @@ const HEAT_PACKAGE: ProjectPackage = {
   },
 }
 
+function storyPackage(data = '/data/example.geojson') {
+  return {
+    version: 1,
+    slug: 'example-story',
+    title: 'Example story',
+    kind: 'map-story',
+    theme: 'emerald',
+    layers: [{ id: 'areas', label: 'Areas', type: 'boundary', checked: true }],
+    scenes: [
+      {
+        label: 'Start',
+        title: 'Start here',
+        text: 'A story card.',
+        focus: 'B.C.',
+        visibleLayerIds: ['areas'],
+        camera: { center: [-125, 54], zoom: 5 },
+        placeIds: ['place'],
+      },
+    ],
+    workspace: {
+      type: 'story-map',
+      schema: 'story-map-v1',
+      map: { center: [-125, 54], zoom: 5, minZoom: 3, maxZoom: 12 },
+      places: [{ id: 'place', label: 'Place', coordinates: [-122.7, 53.9] }],
+      layers: [
+        {
+          id: 'areas',
+          data,
+          idProperty: 'id',
+          labelProperty: 'name',
+          fillColor: '#047857',
+          fillOpacity: 0.4,
+          lineColor: '#0f172a',
+          lineOpacity: 0.9,
+          lineWidth: 1,
+        },
+      ],
+    },
+  }
+}
+
+describe('story project packages', () => {
+  it('normalizes a JSON-driven story workspace', () => {
+    const project = normalizeProjectPackage(storyPackage())
+    expect(project?.kind).toBe('map-story')
+    expect(project?.workspace?.type).toBe('story-map')
+    expect(project?.scenes[0].camera).toEqual({ center: [-125, 54], zoom: 5 })
+  })
+
+  it('allows HTTPS GeoJSON while rejecting insecure and protocol-relative sources', () => {
+    expect(normalizeProjectPackage(storyPackage('https://example.com/areas.geojson'))?.workspace).toBeDefined()
+    expect(normalizeProjectPackage(storyPackage('http://example.com/areas.geojson'))?.workspace).toBeUndefined()
+    expect(normalizeProjectPackage(storyPackage('//example.com/areas.geojson'))?.workspace).toBeUndefined()
+  })
+
+  it('drops malformed optional camera data without losing the scene', () => {
+    const raw = storyPackage()
+    raw.scenes[0].camera = { center: [999] as unknown as [number, number], zoom: 5 }
+    const project = normalizeProjectPackage(raw)
+    expect(project?.scenes).toHaveLength(1)
+    expect(project?.scenes[0].camera).toBeUndefined()
+  })
+})
+
 describe('normalizeProjectPackage', () => {
   it('rejects values that are not packages', () => {
     expect(normalizeProjectPackage(null)).toBeNull()

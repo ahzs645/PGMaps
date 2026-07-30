@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "slug": "where-is-north-bc",
+  "title": "Where Does Northern B.C. Begin?",
+  "kind": "map-story",
+  "theme": "emerald",
+  "owner": "PGMaps",
+  "updated": "2026-07-30",
+  "region": "British Columbia",
+  "status": "Story prototype",
+  "summary": "Prince George feels northern. Williams Lake often does too. But official maps draw the line in different places, because each boundary was made to answer a different question.",
+  "sourceNote": "This story uses repository snapshots from the B.C. Ministry of Health, B.C. Energy Regulator, Statistics Canada, and B.C. natural-resource administration. These are administrative and statistical definitions—not a survey of how people describe where they live.",
+  "details": [
+    "Northern B.C. looks obvious until a boundary has to be drawn. Health services, energy regulation, census geography, and natural-resource administration divide the same province for different purposes.",
+    "The story is intentionally encoded as data. Its cards declare a camera position, visible layers, and place markers; the reusable story-map workspace turns those declarations into a scrolling map narrative.",
+    "Local repository paths can be replaced with HTTPS GeoJSON URLs in another project package, provided the remote host permits browser access."
+  ],
+  "links": [
+    {
+      "label": "Statistics Canada North/South classification",
+      "href": "https://www23.statcan.gc.ca/imdb/p3VD.pl?Function=getVD&TVD=1372103"
+    },
+    {
+      "label": "Explore all boundary sources",
+      "href": "/dev/boundaries"
+    },
+    {
+      "label": "BCER boundary comparison",
+      "href": "/dev/boundaries/bcer"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Story cards",
+      "value": "8"
+    },
+    {
+      "label": "Boundary layers",
+      "value": "7"
+    },
+    {
+      "label": "Health levels",
+      "value": "4"
+    }
+  ],
+  "layers": [
+    {
+      "id": "health-authorities",
+      "label": "Health Authorities",
+      "type": "boundary",
+      "checked": true
+    },
+    {
+      "id": "health-service-delivery-areas",
+      "label": "Health Service Delivery Areas",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "local-health-areas",
+      "label": "Local Health Areas",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "community-health-service-areas",
+      "label": "Community Health Service Areas",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "bcer-admin-zones",
+      "label": "BC Energy Regulator Admin Zones",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "census-north-south",
+      "label": "Statistics Canada North / South CSDs",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "natural-resource-regions",
+      "label": "Natural Resource Regions",
+      "type": "boundary",
+      "checked": false
+    }
+  ],
+  "legend": [
+    {
+      "label": "North",
+      "color": "#2563eb"
+    },
+    {
+      "label": "South",
+      "color": "#f59e0b"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "The question",
+      "kicker": "01 · Start here",
+      "title": "A line everyone knows—until they try to draw it",
+      "text": "Ask where Northern B.C. begins and Prince George is an easy answer. Williams Lake is harder. Rather than choosing one true north, this story compares the boundaries institutions actually use.",
+      "focus": "British Columbia",
+      "visibleLayerIds": [
+        "health-authorities"
+      ],
+      "placeIds": [
+        "prince-george",
+        "williams-lake"
+      ],
+      "camera": {
+        "center": [
+          -125.2,
+          54.5
+        ],
+        "zoom": 4.45
+      }
+    },
+    {
+      "label": "Health hierarchy",
+      "kicker": "02 · Four nested levels",
+      "title": "Health boundaries zoom from province to community",
+      "text": "B.C.'s health geography nests four levels: Health Authority, Health Service Delivery Area, Local Health Area, and Community Health Service Area. Turning them on together reveals how a broad service region resolves into local planning units.",
+      "focus": "Health Authority → HSDA → LHA → CHSA",
+      "visibleLayerIds": [
+        "health-authorities",
+        "health-service-delivery-areas",
+        "local-health-areas",
+        "community-health-service-areas"
+      ],
+      "placeIds": [
+        "prince-george"
+      ],
+      "camera": {
+        "center": [
+          -122.73,
+          53.92
+        ],
+        "zoom": 7.2
+      }
+    },
+    {
+      "label": "Prince George",
+      "kicker": "03 · Health's answer",
+      "title": "Prince George is northern in the health system",
+      "text": "Prince George sits inside Northern Health. On this map, the everyday description and the service-delivery boundary reinforce each other: the city is clearly on the northern side of the institutional line.",
+      "focus": "Prince George · Northern Health",
+      "visibleLayerIds": [
+        "health-authorities"
+      ],
+      "placeIds": [
+        "prince-george"
+      ],
+      "camera": {
+        "center": [
+          -122.75,
+          53.92
+        ],
+        "zoom": 6.15
+      }
+    },
+    {
+      "label": "Williams Lake",
+      "kicker": "04 · A border town",
+      "title": "Williams Lake lands on the other side",
+      "text": "Williams Lake sits in Interior Health, close to the boundary with Northern Health. Many regional identities do not stop cleanly at a service boundary, so the health map can feel at odds with how people describe the Cariboo.",
+      "focus": "Williams Lake · Interior Health",
+      "visibleLayerIds": [
+        "health-authorities"
+      ],
+      "placeIds": [
+        "williams-lake"
+      ],
+      "camera": {
+        "center": [
+          -122.14,
+          52.13
+        ],
+        "zoom": 6.4
+      }
+    },
+    {
+      "label": "Energy",
+      "kicker": "05 · A different mandate",
+      "title": "For energy regulation, Prince George is southwest",
+      "text": "The B.C. Energy Regulator divides its operating geography into North, Central, South East, and South West zones. Under that administrative map, Prince George sits in South West—a useful reminder that a zone name describes an agency's operating territory, not a universal regional identity.",
+      "focus": "Prince George · BCER South West",
+      "visibleLayerIds": [
+        "bcer-admin-zones"
+      ],
+      "placeIds": [
+        "prince-george"
+      ],
+      "camera": {
+        "center": [
+          -123.2,
+          55.2
+        ],
+        "zoom": 5.15
+      }
+    },
+    {
+      "label": "Census",
+      "kicker": "06 · Statistical north",
+      "title": "Statistics Canada draws another north–south line",
+      "text": "The North/South variant of the 2021 census classification labels census subdivisions across Canada. Clipped to B.C., it places both Prince George and Williams Lake in the North. This is a statistical classification—not a measure of personal identity—but it produces a boundary closer to many broad regional descriptions.",
+      "focus": "North / South census subdivisions",
+      "visibleLayerIds": [
+        "census-north-south"
+      ],
+      "placeIds": [
+        "prince-george",
+        "williams-lake"
+      ],
+      "camera": {
+        "center": [
+          -125.2,
+          54.35
+        ],
+        "zoom": 4.45
+      }
+    },
+    {
+      "label": "Resources",
+      "kicker": "07 · Working regions",
+      "title": "Natural-resource administration redraws the province again",
+      "text": "Natural Resource Regions organize field operations around areas such as Omineca, Cariboo, Skeena, and the Northeast. These names avoid a single north–south split and instead describe a set of working regions shaped around a different mandate.",
+      "focus": "Eight Natural Resource Regions",
+      "visibleLayerIds": [
+        "natural-resource-regions"
+      ],
+      "placeIds": [
+        "prince-george",
+        "williams-lake"
+      ],
+      "camera": {
+        "center": [
+          -125.2,
+          54.4
+        ],
+        "zoom": 4.45
+      }
+    },
+    {
+      "label": "What gives?",
+      "kicker": "08 · Read the purpose",
+      "title": "The boundary is an argument about purpose",
+      "text": "None of these maps settles where Northern B.C. truly begins. Each makes a boundary useful for health delivery, regulation, statistics, or resource administration. The better question is not only “Where is north?” but “Who drew this line, and what did they need it to do?”",
+      "focus": "Compare health and census definitions",
+      "visibleLayerIds": [
+        "census-north-south",
+        "health-authorities"
+      ],
+      "placeIds": [
+        "prince-george",
+        "williams-lake"
+      ],
+      "camera": {
+        "center": [
+          -124.4,
+          53.7
+        ],
+        "zoom": 4.9
+      }
+    }
+  ],
+  "files": [
+    {
+      "label": "where-is-north-bc.json",
+      "detail": "Complete story, layer, camera, marker, and source configuration"
+    },
+    {
+      "label": "BCMoH simplified boundaries",
+      "detail": "Health Authority, HSDA, LHA, and CHSA repository snapshots"
+    },
+    {
+      "label": "BCER and Natural Resource boundaries",
+      "detail": "Repository GeoJSON snapshots used by the comparison scenes"
+    },
+    {
+      "label": "Statistics Canada B.C. CSDs",
+      "detail": "2021 census subdivisions with the North/South classification joined"
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": {
+      "center": [
+        -125.2,
+        54.5
+      ],
+      "zoom": 4.45,
+      "minZoom": 3.4,
+      "maxZoom": 12
+    },
+    "places": [
+      {
+        "id": "prince-george",
+        "label": "Prince George",
+        "coordinates": [
+          -122.7497,
+          53.9171
+        ],
+        "note": "Northern Health, BCER South West, and Statistics Canada North.",
+        "color": "#047857"
+      },
+      {
+        "id": "williams-lake",
+        "label": "Williams Lake",
+        "coordinates": [
+          -122.1417,
+          52.129
+        ],
+        "note": "Interior Health and Statistics Canada North, near the Northern Health boundary.",
+        "color": "#b45309"
+      }
+    ],
+    "layers": [
+      {
+        "id": "census-north-south",
+        "data": "/data/census/canada-csd/provinces/59.geojson",
+        "idProperty": "CSDUID",
+        "labelProperty": "CSDNAME",
+        "fillColor": "#2563eb",
+        "fillOpacity": 0.5,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.72,
+        "lineWidth": 0.55,
+        "category": {
+          "property": "north_south",
+          "colors": {
+            "North": "#2563eb",
+            "South": "#f59e0b"
+          },
+          "fallback": "#94a3b8"
+        },
+        "attribution": "Statistics Canada, 2021"
+      },
+      {
+        "id": "bcer-admin-zones",
+        "data": "/data/boundaries/BCER/admin_zones.geojson",
+        "idProperty": "boundaryCode",
+        "labelProperty": "boundaryName",
+        "fillColor": "#0f766e",
+        "fillOpacity": 0.54,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.9,
+        "lineWidth": 1.2,
+        "category": {
+          "property": "boundaryName",
+          "colors": {
+            "North": "#2563eb",
+            "Central": "#7c3aed",
+            "South East": "#d97706",
+            "South West": "#0f766e"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "B.C. Energy Regulator"
+      },
+      {
+        "id": "natural-resource-regions",
+        "data": "/data/boundaries/BCNR/nr_regions.geojson",
+        "idProperty": "boundaryCode",
+        "labelProperty": "boundaryName",
+        "fillColor": "#059669",
+        "fillOpacity": 0.28,
+        "lineColor": "#065f46",
+        "lineOpacity": 0.95,
+        "lineWidth": 1.4,
+        "attribution": "Province of British Columbia"
+      },
+      {
+        "id": "health-authorities",
+        "data": "/data/boundaries/BCMoH/simplified/health_authorities.json",
+        "idProperty": "HLTH_AUTHORITY_CODE",
+        "labelProperty": "HLTH_AUTHORITY_NAME",
+        "fillColor": "#047857",
+        "fillOpacity": 0.28,
+        "lineColor": "#0f172a",
+        "lineOpacity": 0.96,
+        "lineWidth": 2.3,
+        "category": {
+          "property": "HLTH_AUTHORITY_NAME",
+          "colors": {
+            "Northern": "#047857",
+            "Interior": "#d97706",
+            "Fraser": "#7c3aed",
+            "Vancouver Coastal": "#0284c7",
+            "Vancouver Island": "#be123c"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "B.C. Ministry of Health"
+      },
+      {
+        "id": "health-service-delivery-areas",
+        "data": "/data/boundaries/BCMoH/simplified/health_service_delivery_areas.json",
+        "idProperty": "HLTH_SERVICE_DLVR_AREA_CODE",
+        "labelProperty": "HLTH_SERVICE_DLVR_AREA_NAME",
+        "fillColor": "#38bdf8",
+        "fillOpacity": 0.08,
+        "lineColor": "#0369a1",
+        "lineOpacity": 0.9,
+        "lineWidth": 1.45,
+        "attribution": "B.C. Ministry of Health"
+      },
+      {
+        "id": "local-health-areas",
+        "data": "/data/boundaries/BCMoH/simplified/local_health_areas.json",
+        "idProperty": "LOCAL_HLTH_AREA_CODE",
+        "labelProperty": "LOCAL_HLTH_AREA_NAME",
+        "fillColor": "#a78bfa",
+        "fillOpacity": 0.055,
+        "lineColor": "#6d28d9",
+        "lineOpacity": 0.78,
+        "lineWidth": 0.9,
+        "attribution": "B.C. Ministry of Health"
+      },
+      {
+        "id": "community-health-service-areas",
+        "data": "/data/boundaries/BCMoH/simplified/community_health_service_areas.json",
+        "idProperty": "CMNTY_HLTH_SERV_AREA_CODE",
+        "labelProperty": "CMNTY_HLTH_SERV_AREA_NAME",
+        "fillColor": "#f472b6",
+        "fillOpacity": 0.035,
+        "lineColor": "#be185d",
+        "lineOpacity": 0.68,
+        "lineWidth": 0.55,
+        "attribution": "B.C. Ministry of Health"
+      }
+    ]
+  }
+}
