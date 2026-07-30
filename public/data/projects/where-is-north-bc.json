@@ -8,11 +8,11 @@
   "updated": "2026-07-30",
   "region": "British Columbia",
   "status": "Story prototype",
-  "summary": "Prince George feels northern. Williams Lake often does too. But official maps draw the line in different places, because each boundary was made to answer a different question.",
-  "sourceNote": "This story uses repository snapshots from the B.C. Ministry of Health, B.C. Energy Regulator, Statistics Canada, and B.C. natural-resource administration. These are administrative and statistical definitions—not a survey of how people describe where they live.",
+  "summary": "Prince George feels northern. Williams Lake often does too. But official maps draw the line in different places, because each boundary was built to answer a different question.",
+  "sourceNote": "This story uses repository snapshots from the B.C. Ministry of Health, B.C. Energy Regulator, Statistics Canada, and B.C. natural-resource administration. These are administrative and statistical definitions — not a survey of how people describe where they live.",
   "details": [
     "Northern B.C. looks obvious until a boundary has to be drawn. Health services, energy regulation, census geography, and natural-resource administration divide the same province for different purposes.",
-    "The story is intentionally encoded as data. Its cards declare a camera position, visible layers, and place markers; the reusable story-map workspace turns those declarations into a scrolling map narrative.",
+    "The story is intentionally encoded as data. Its cards declare a camera position, a visible layer set, feature highlights, and place markers; the reusable story-map workspace turns those declarations into a scrolling map narrative.",
     "Local repository paths can be replaced with HTTPS GeoJSON URLs in another project package, provided the remote host permits browser access."
   ],
   "links": [
@@ -32,14 +32,14 @@
   "catalogMetrics": [
     {
       "label": "Story cards",
-      "value": "8"
+      "value": "9"
     },
     {
       "label": "Boundary layers",
       "value": "7"
     },
     {
-      "label": "Health levels",
+      "label": "Definitions",
       "value": "4"
     }
   ],
@@ -101,8 +101,8 @@
     {
       "label": "The question",
       "kicker": "01 · Start here",
-      "title": "A line everyone knows—until they try to draw it",
-      "text": "Ask where Northern B.C. begins and Prince George is an easy answer. Williams Lake is harder. Rather than choosing one true north, this story compares the boundaries institutions actually use.",
+      "title": "A line everyone knows — until they try to draw it",
+      "text": "Ask where Northern B.C. begins and Prince George is an easy answer. Williams Lake is harder. Rather than picking one true north, this story compares the boundaries institutions actually use, and asks what each was built to do.",
       "focus": "British Columbia",
       "visibleLayerIds": [
         "health-authorities"
@@ -120,10 +120,85 @@
       }
     },
     {
-      "label": "Health hierarchy",
-      "kicker": "02 · Four nested levels",
+      "label": "Prince George",
+      "kicker": "02 · Health's answer",
+      "title": "Prince George is northern in the health system",
+      "text": "Prince George sits inside Northern Health, the largest of the five health authorities by area. Here the everyday description and the service-delivery boundary agree: the city is clearly on the northern side of the institutional line.",
+      "focus": "Prince George · Northern Health",
+      "visibleLayerIds": [
+        "health-authorities"
+      ],
+      "placeIds": [
+        "prince-george"
+      ],
+      "callout": {
+        "label": "Health Authority",
+        "value": "Northern Health",
+        "detail": "One of five authorities; covers roughly two-thirds of B.C.'s land area."
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Northern"
+          ],
+          "color": "#047857",
+          "dimOpacity": 0.07,
+          "label": "Northern Health"
+        }
+      ],
+      "camera": {
+        "center": [
+          -125.4,
+          55.2
+        ],
+        "zoom": 4.75
+      }
+    },
+    {
+      "label": "Williams Lake",
+      "kicker": "03 · A border town",
+      "title": "Williams Lake lands on the other side",
+      "text": "Williams Lake sits in Interior Health, not far from the Northern Health boundary. Many people there describe themselves as living in the north. Regional identity does not stop cleanly at a service boundary, so this map can feel at odds with how the Cariboo talks about itself.",
+      "focus": "Williams Lake · Interior Health",
+      "visibleLayerIds": [
+        "health-authorities"
+      ],
+      "placeIds": [
+        "prince-george",
+        "williams-lake"
+      ],
+      "callout": {
+        "label": "Health Authority",
+        "value": "Interior Health",
+        "detail": "Williams Lake is inside Interior Health, about 240 km south of Prince George."
+      },
+      "highlights": [
+        {
+          "layerId": "health-authorities",
+          "property": "HLTH_AUTHORITY_NAME",
+          "values": [
+            "Interior"
+          ],
+          "color": "#b45309",
+          "dimOpacity": 0.07,
+          "label": "Interior Health"
+        }
+      ],
+      "camera": {
+        "center": [
+          -122.9,
+          52.6
+        ],
+        "zoom": 5.35
+      }
+    },
+    {
+      "label": "Four levels",
+      "kicker": "04 · Nested health geography",
       "title": "Health boundaries zoom from province to community",
-      "text": "B.C.'s health geography nests four levels: Health Authority, Health Service Delivery Area, Local Health Area, and Community Health Service Area. Turning them on together reveals how a broad service region resolves into local planning units.",
+      "text": "B.C.'s health geography nests four levels: Health Authority, Health Service Delivery Area, Local Health Area, and Community Health Service Area. Turning them on together shows a broad service region resolving into local planning units — the same territory, described at four different resolutions.",
       "focus": "Health Authority → HSDA → LHA → CHSA",
       "visibleLayerIds": [
         "health-authorities",
@@ -134,79 +209,80 @@
       "placeIds": [
         "prince-george"
       ],
-      "camera": {
-        "center": [
-          -122.73,
-          53.92
-        ],
-        "zoom": 7.2
-      }
-    },
-    {
-      "label": "Prince George",
-      "kicker": "03 · Health's answer",
-      "title": "Prince George is northern in the health system",
-      "text": "Prince George sits inside Northern Health. On this map, the everyday description and the service-delivery boundary reinforce each other: the city is clearly on the northern side of the institutional line.",
-      "focus": "Prince George · Northern Health",
-      "visibleLayerIds": [
-        "health-authorities"
-      ],
-      "placeIds": [
-        "prince-george"
-      ],
-      "camera": {
-        "center": [
-          -122.75,
-          53.92
-        ],
-        "zoom": 6.15
-      }
-    },
-    {
-      "label": "Williams Lake",
-      "kicker": "04 · A border town",
-      "title": "Williams Lake lands on the other side",
-      "text": "Williams Lake sits in Interior Health, close to the boundary with Northern Health. Many regional identities do not stop cleanly at a service boundary, so the health map can feel at odds with how people describe the Cariboo.",
-      "focus": "Williams Lake · Interior Health",
-      "visibleLayerIds": [
-        "health-authorities"
-      ],
-      "placeIds": [
-        "williams-lake"
+      "callout": {
+        "label": "Nesting",
+        "value": "5 → 16 → 89 → 231",
+        "detail": "Health Authorities, HSDAs, Local Health Areas, then Community Health Service Areas."
+      },
+      "layerOverrides": {
+        "health-authorities": {
+          "fillOpacity": 0.12,
+          "lineWidth": 2.6
+        }
+      },
+      "highlights": [
+        {
+          "layerId": "health-service-delivery-areas",
+          "property": "HLTH_SERVICE_DLVR_AREA_NAME",
+          "values": [
+            "Northern Interior"
+          ],
+          "color": "#0369a1",
+          "dimOpacity": 0.04,
+          "label": "Northern Interior HSDA"
+        }
       ],
       "camera": {
         "center": [
-          -122.14,
-          52.13
+          -123.4,
+          54.1
         ],
-        "zoom": 6.4
+        "zoom": 6.1
       }
     },
     {
       "label": "Energy",
       "kicker": "05 · A different mandate",
       "title": "For energy regulation, Prince George is southwest",
-      "text": "The B.C. Energy Regulator divides its operating geography into North, Central, South East, and South West zones. Under that administrative map, Prince George sits in South West—a useful reminder that a zone name describes an agency's operating territory, not a universal regional identity.",
+      "text": "The B.C. Energy Regulator divides its operating geography into North, Central, South East, and South West zones. Under that map Prince George sits in South West, and Fort St. John — far to the northeast — sits in Central. The zone names describe an agency's operating territory, not a regional identity.",
       "focus": "Prince George · BCER South West",
       "visibleLayerIds": [
         "bcer-admin-zones"
       ],
       "placeIds": [
-        "prince-george"
+        "prince-george",
+        "fort-st-john"
+      ],
+      "callout": {
+        "label": "BCER zone",
+        "value": "South West",
+        "detail": "Prince George is South West here, while Fort St. John is Central."
+      },
+      "highlights": [
+        {
+          "layerId": "bcer-admin-zones",
+          "property": "boundaryName",
+          "values": [
+            "South West"
+          ],
+          "color": "#0f766e",
+          "dimOpacity": 0.12,
+          "label": "South West zone"
+        }
       ],
       "camera": {
         "center": [
-          -123.2,
-          55.2
+          -124.4,
+          55.6
         ],
-        "zoom": 5.15
+        "zoom": 4.6
       }
     },
     {
       "label": "Census",
       "kicker": "06 · Statistical north",
       "title": "Statistics Canada draws another north–south line",
-      "text": "The North/South variant of the 2021 census classification labels census subdivisions across Canada. Clipped to B.C., it places both Prince George and Williams Lake in the North. This is a statistical classification—not a measure of personal identity—but it produces a boundary closer to many broad regional descriptions.",
+      "text": "The North/South variant of the 2021 census classification labels every census subdivision in Canada using a set of measured variables rather than a single drawn line. Clipped to B.C., it places both Prince George and Williams Lake in the North — closer to how people in the Cariboo describe themselves.",
       "focus": "North / South census subdivisions",
       "visibleLayerIds": [
         "census-north-south"
@@ -215,6 +291,11 @@
         "prince-george",
         "williams-lake"
       ],
+      "callout": {
+        "label": "B.C. census subdivisions",
+        "value": "225 North · 526 South",
+        "detail": "Both Prince George and Williams Lake are classified North."
+      },
       "camera": {
         "center": [
           -125.2,
@@ -224,10 +305,58 @@
       }
     },
     {
+      "label": "Cariboo",
+      "kicker": "07 · Where they disagree",
+      "title": "The Cariboo is the gap between two answers",
+      "text": "Williams Lake is the clearest example of the disagreement. The health map puts it in the Interior; the census classification puts it in the North. Neither is wrong — they were built from different inputs for different jobs, and the Cariboo happens to sit exactly where those jobs diverge.",
+      "focus": "Williams Lake · North by census, Interior by health",
+      "visibleLayerIds": [
+        "census-north-south",
+        "health-authorities"
+      ],
+      "placeIds": [
+        "williams-lake"
+      ],
+      "callout": {
+        "label": "Same town, two answers",
+        "value": "North and Interior",
+        "detail": "Census says North. Health says Interior Health."
+      },
+      "layerOverrides": {
+        "health-authorities": {
+          "fillOpacity": 0,
+          "lineWidth": 2.8,
+          "lineOpacity": 1
+        }
+      },
+      "highlights": [
+        {
+          "layerId": "census-north-south",
+          "property": "CSDNAME",
+          "values": [
+            "Williams Lake",
+            "Williams Lake 1",
+            "Cariboo D",
+            "Cariboo E"
+          ],
+          "color": "#1d4ed8",
+          "dimOpacity": 0.22,
+          "label": "Williams Lake area CSDs"
+        }
+      ],
+      "camera": {
+        "center": [
+          -122.6,
+          52.6
+        ],
+        "zoom": 5.6
+      }
+    },
+    {
       "label": "Resources",
-      "kicker": "07 · Working regions",
+      "kicker": "08 · Working regions",
       "title": "Natural-resource administration redraws the province again",
-      "text": "Natural Resource Regions organize field operations around areas such as Omineca, Cariboo, Skeena, and the Northeast. These names avoid a single north–south split and instead describe a set of working regions shaped around a different mandate.",
+      "text": "Natural Resource Regions organize field operations around areas such as Omineca, Cariboo, Skeena, and the Northeast. This map avoids a single north–south split entirely, and its outer edges track the health authority boundaries more closely than either the energy or census maps do.",
       "focus": "Eight Natural Resource Regions",
       "visibleLayerIds": [
         "natural-resource-regions"
@@ -235,6 +364,24 @@
       "placeIds": [
         "prince-george",
         "williams-lake"
+      ],
+      "callout": {
+        "label": "Region",
+        "value": "Omineca",
+        "detail": "Prince George is the Omineca region's administrative centre."
+      },
+      "highlights": [
+        {
+          "layerId": "natural-resource-regions",
+          "property": "boundaryName",
+          "values": [
+            "Omineca Natural Resource Region",
+            "Cariboo Natural Resource Region"
+          ],
+          "color": "#065f46",
+          "dimOpacity": 0.08,
+          "label": "Omineca + Cariboo"
+        }
       ],
       "camera": {
         "center": [
@@ -246,7 +393,7 @@
     },
     {
       "label": "What gives?",
-      "kicker": "08 · Read the purpose",
+      "kicker": "09 · Read the purpose",
       "title": "The boundary is an argument about purpose",
       "text": "None of these maps settles where Northern B.C. truly begins. Each makes a boundary useful for health delivery, regulation, statistics, or resource administration. The better question is not only “Where is north?” but “Who drew this line, and what did they need it to do?”",
       "focus": "Compare health and census definitions",
@@ -258,19 +405,40 @@
         "prince-george",
         "williams-lake"
       ],
+      "legend": [
+        {
+          "label": "Census North",
+          "color": "#2563eb"
+        },
+        {
+          "label": "Census South",
+          "color": "#f59e0b"
+        },
+        {
+          "label": "Health Authority outline",
+          "color": "#0f172a"
+        }
+      ],
+      "layerOverrides": {
+        "health-authorities": {
+          "fillOpacity": 0,
+          "lineWidth": 2.6,
+          "lineOpacity": 1
+        }
+      },
       "camera": {
         "center": [
           -124.4,
-          53.7
+          53.9
         ],
-        "zoom": 4.9
+        "zoom": 4.6
       }
     }
   ],
   "files": [
     {
       "label": "where-is-north-bc.json",
-      "detail": "Complete story, layer, camera, marker, and source configuration"
+      "detail": "Complete story, layer, camera, highlight, marker, and source configuration"
     },
     {
       "label": "BCMoH simplified boundaries",
@@ -288,6 +456,7 @@
   "workspace": {
     "type": "story-map",
     "schema": "story-map-v1",
+    "accent": "#047857",
     "map": {
       "center": [
         -125.2,
@@ -295,7 +464,8 @@
       ],
       "zoom": 4.45,
       "minZoom": 3.4,
-      "maxZoom": 12
+      "maxZoom": 12,
+      "basemap": "light"
     },
     "places": [
       {
@@ -305,7 +475,7 @@
           -122.7497,
           53.9171
         ],
-        "note": "Northern Health, BCER South West, and Statistics Canada North.",
+        "note": "Northern Health, BCER South West, Statistics Canada North, Omineca resource region.",
         "color": "#047857"
       },
       {
@@ -315,8 +485,18 @@
           -122.1417,
           52.129
         ],
-        "note": "Interior Health and Statistics Canada North, near the Northern Health boundary.",
+        "note": "Interior Health, but Statistics Canada North — the clearest disagreement in this story.",
         "color": "#b45309"
+      },
+      {
+        "id": "fort-st-john",
+        "label": "Fort St. John",
+        "coordinates": [
+          -120.8529,
+          56.2465
+        ],
+        "note": "Far northeast, yet the B.C. Energy Regulator places it in the Central zone.",
+        "color": "#7c3aed"
       }
     ],
     "layers": [
@@ -380,7 +560,7 @@
         "idProperty": "HLTH_AUTHORITY_CODE",
         "labelProperty": "HLTH_AUTHORITY_NAME",
         "fillColor": "#047857",
-        "fillOpacity": 0.28,
+        "fillOpacity": 0.3,
         "lineColor": "#0f172a",
         "lineOpacity": 0.96,
         "lineWidth": 2.3,
@@ -403,7 +583,7 @@
         "idProperty": "HLTH_SERVICE_DLVR_AREA_CODE",
         "labelProperty": "HLTH_SERVICE_DLVR_AREA_NAME",
         "fillColor": "#38bdf8",
-        "fillOpacity": 0.08,
+        "fillOpacity": 0.1,
         "lineColor": "#0369a1",
         "lineOpacity": 0.9,
         "lineWidth": 1.45,

@@ -222,6 +222,26 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // MapLibre only auto-resizes on window resize, so a container that grows after
+  // the map is created (flex/grid settling, a sidebar collapsing, a bottom sheet
+  // snapping) leaves a stale, undersized canvas. Track the container directly.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!mapInstance || !container || typeof ResizeObserver === "undefined") return;
+
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => mapInstance.resize());
+    });
+    observer.observe(container);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [mapInstance]);
+
   useEffect(() => {
     if (!mapInstance || !isControlled || !viewport) return;
     if (mapInstance.isMoving()) return;

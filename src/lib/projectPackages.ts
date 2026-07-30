@@ -25,6 +25,30 @@ export interface ProjectLayerDef {
   role?: 'score' | 'points'
 }
 
+/**
+ * Spotlights a subset of a layer's features for one scene by matching a property
+ * against a value list. Non-matching features stay visible but are dimmed, which
+ * is how a story says "this boundary, these regions" without a second dataset.
+ */
+export interface ProjectSceneHighlightDef {
+  layerId: string
+  property: string
+  values: string[]
+  /** Outline colour for matched features. Defaults to the story accent. */
+  color?: string
+  /** Fill opacity applied to features that do not match (0 hides them). */
+  dimOpacity?: number
+  /** Legend caption describing what the spotlight means. */
+  label?: string
+}
+
+/** Per-scene paint tweaks for an already-visible layer. */
+export interface ProjectSceneLayerOverrideDef {
+  fillOpacity?: number
+  lineOpacity?: number
+  lineWidth?: number
+}
+
 export interface ProjectSceneDef {
   label: string
   title: string
@@ -39,6 +63,12 @@ export interface ProjectSceneDef {
     pitch?: number
   }
   placeIds?: string[]
+  highlights?: ProjectSceneHighlightDef[]
+  layerOverrides?: Record<string, ProjectSceneLayerOverrideDef>
+  /** Replaces the auto-derived legend while this scene is active. */
+  legend?: Array<{ label: string; color: string }>
+  /** Short pull-quote or statistic rendered beside the card body. */
+  callout?: { label: string; value: string; detail?: string }
 }
 
 export interface ProjectPortalRasterLayerDef {
@@ -193,7 +223,11 @@ export interface ProjectStoryWorkspaceDef {
     zoom: number
     minZoom: number
     maxZoom: number
+    /** Basemap to draw under the story. 'auto' follows the app's light/dark theme. */
+    basemap: 'auto' | 'light' | 'dark'
   }
+  /** Accent colour for scene chrome and default highlight outlines. */
+  accent: string
   layers: ProjectStoryLayerDef[]
   places: ProjectStoryPlaceDef[]
 }
@@ -269,10 +303,62 @@ function isSceneDef(item: unknown): item is ProjectSceneDef {
   )
 }
 
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value))
+}
+
+function normalizeSceneHighlights(value: unknown): ProjectSceneHighlightDef[] | undefined {
+  const highlights = asArray(value, (item): item is ProjectSceneHighlightDef => {
+    const candidate = item as Partial<ProjectSceneHighlightDef>
+    return (
+      typeof candidate?.layerId === 'string' &&
+      typeof candidate.property === 'string' &&
+      Array.isArray(candidate.values) &&
+      candidate.values.some((entry) => typeof entry === 'string')
+    )
+  }).map((highlight) => ({
+    layerId: highlight.layerId,
+    property: highlight.property,
+    values: highlight.values.filter((entry): entry is string => typeof entry === 'string'),
+    color: typeof highlight.color === 'string' ? highlight.color : undefined,
+    dimOpacity: isFiniteNumber(highlight.dimOpacity) ? clamp01(highlight.dimOpacity) : undefined,
+    label: typeof highlight.label === 'string' ? highlight.label : undefined,
+  }))
+  return highlights.length > 0 ? highlights : undefined
+}
+
+function normalizeSceneLayerOverrides(value: unknown): Record<string, ProjectSceneLayerOverrideDef> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const entries = Object.entries(value as Record<string, unknown>).flatMap(([layerId, raw]) => {
+    if (typeof raw !== 'object' || raw === null) return []
+    const override = raw as Partial<ProjectSceneLayerOverrideDef>
+    const normalized: ProjectSceneLayerOverrideDef = {
+      fillOpacity: isFiniteNumber(override.fillOpacity) ? clamp01(override.fillOpacity) : undefined,
+      lineOpacity: isFiniteNumber(override.lineOpacity) ? clamp01(override.lineOpacity) : undefined,
+      lineWidth: isFiniteNumber(override.lineWidth) ? Math.max(0, override.lineWidth) : undefined,
+    }
+    const hasValue = Object.values(normalized).some((entry) => entry !== undefined)
+    return hasValue ? ([[layerId, normalized]] as Array<[string, ProjectSceneLayerOverrideDef]>) : []
+  })
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined
+}
+
+function normalizeSceneCallout(value: unknown): ProjectSceneDef['callout'] {
+  if (typeof value !== 'object' || value === null) return undefined
+  const candidate = value as Record<string, unknown>
+  if (typeof candidate.label !== 'string' || typeof candidate.value !== 'string') return undefined
+  return {
+    label: candidate.label,
+    value: candidate.value,
+    detail: typeof candidate.detail === 'string' ? candidate.detail : undefined,
+  }
+}
+
 function normalizeSceneDef(value: unknown): ProjectSceneDef | null {
   if (!isSceneDef(value)) return null
   const camera = value.camera
   const hasCamera = Boolean(camera && isCoordinatePair(camera.center) && isFiniteNumber(camera.zoom))
+  const sceneLegend = asArray((value as { legend?: unknown }).legend, isLegendItem)
   return {
     label: value.label,
     title: value.title,
@@ -280,6 +366,10 @@ function normalizeSceneDef(value: unknown): ProjectSceneDef | null {
     focus: value.focus,
     visibleLayerIds: value.visibleLayerIds,
     kicker: typeof value.kicker === 'string' ? value.kicker : undefined,
+    highlights: normalizeSceneHighlights((value as { highlights?: unknown }).highlights),
+    layerOverrides: normalizeSceneLayerOverrides((value as { layerOverrides?: unknown }).layerOverrides),
+    legend: sceneLegend.length > 0 ? sceneLegend : undefined,
+    callout: normalizeSceneCallout((value as { callout?: unknown }).callout),
     camera: hasCamera
       ? {
           center: camera!.center,
@@ -351,6 +441,7 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
   })
   if (layers.length === 0) return undefined
 
+  const basemap = map.basemap
   return {
     type: value.type,
     schema: value.schema,
@@ -359,7 +450,9 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
       zoom: map.zoom,
       minZoom: isFiniteNumber(map.minZoom) ? map.minZoom : 3,
       maxZoom: isFiniteNumber(map.maxZoom) ? map.maxZoom : 14,
+      basemap: basemap === 'light' || basemap === 'dark' ? basemap : 'auto',
     },
+    accent: typeof value.accent === 'string' ? value.accent : '#0e7490',
     layers,
     places,
   }

@@ -1,39 +1,39 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type MapLibreGL from 'maplibre-gl'
 import {
   ArrowDown,
   ArrowLeft,
   BookOpen,
-  Check,
+  ChevronLeft,
+  ChevronRight,
   Download,
-  Eye,
-  EyeOff,
   Layers,
   MapPin,
-  X,
+  RotateCcw,
 } from 'lucide-react'
 
+import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
 import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
+import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   downloadProjectPackage,
   type ProjectPackage,
-  type ProjectStoryLayerDef,
+  type ProjectSceneDef,
   type ProjectStoryWorkspaceDef,
 } from '@/lib/projectPackages'
+import { buildLegend, resolveLayer, sameLayerSet } from './storyScene'
 
-type Viewport = {
-  center: [number, number]
-  zoom: number
-  bearing: number
-  pitch: number
-}
+const CAMERA_EASE_MS = 1150
+/** How long the scroll observer stays muted after the stepper starts a smooth scroll. */
+const PROGRAMMATIC_SCROLL_MS = 700
 
-const STORY_MAP_STYLES = {
-  light: MAP_STYLES.light,
-  dark: MAP_STYLES.light,
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 }
 
 function escapeHtml(value: unknown) {
@@ -45,103 +45,173 @@ function escapeHtml(value: unknown) {
     .replace(/'/g, '&#039;')
 }
 
-function layerFillColor(layer: ProjectStoryLayerDef) {
-  if (!layer.category) return layer.fillColor
-  const matches = Object.entries(layer.category.colors).flatMap(([value, color]) => [value, color])
-  return ['match', ['get', layer.category.property], ...matches, layer.category.fallback]
-}
 
-function sceneViewport(
-  workspace: ProjectStoryWorkspaceDef,
-  scene: ProjectPackage['scenes'][number] | undefined,
-): Viewport {
-  return {
-    center: scene?.camera?.center ?? workspace.map.center,
-    zoom: scene?.camera?.zoom ?? workspace.map.zoom,
-    bearing: scene?.camera?.bearing ?? 0,
-    pitch: scene?.camera?.pitch ?? 0,
-  }
-}
+/* -------------------------------------------------------------------------- */
+/* Narrative sidebar                                                          */
+/* -------------------------------------------------------------------------- */
 
-function LayerLegend({
+function StoryNarrative({
   project,
-  workspace,
-  visibleLayerIds,
-  onToggle,
-  onClose,
+  scenes,
+  activeSceneIndex,
+  accent,
+  scrollRef,
+  cardRefs,
+  onBack,
+  onSelectScene,
 }: {
   project: ProjectPackage
-  workspace: ProjectStoryWorkspaceDef
-  visibleLayerIds: Set<string>
-  onToggle: (layerId: string) => void
-  onClose: () => void
+  scenes: ProjectSceneDef[]
+  activeSceneIndex: number
+  accent: string
+  scrollRef: React.RefObject<HTMLDivElement>
+  cardRefs: React.MutableRefObject<Array<HTMLElement | null>>
+  onBack: () => void
+  onSelectScene: (index: number) => void
 }) {
+  const progress = scenes.length > 0 ? ((activeSceneIndex + 1) / scenes.length) * 100 : 0
+
   return (
-    <aside className="absolute left-3 top-3 z-20 w-[min(19rem,calc(100%-1.5rem))] overflow-hidden rounded-xl border border-slate-200/90 bg-white/95 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-950/95">
-      <div className="flex items-center justify-between border-b px-3 py-2.5">
-        <div>
-          <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Story layers</div>
-          <div className="mt-0.5 text-xs text-slate-500">Scene changes remain editable</div>
+    <aside className="flex h-full min-h-0 flex-col border-r bg-background">
+      <div className="shrink-0 border-b p-3">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            All projects
+          </button>
+          <Button type="button" variant="outline" size="sm" onClick={() => downloadProjectPackage(project)}>
+            <Download className="h-3.5 w-3.5" />
+            JSON
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-          aria-label="Close layer panel"
-        >
-          <X className="h-4 w-4" />
-        </button>
+
+        <div className="mt-3 flex items-start gap-3">
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white"
+            style={{ backgroundColor: accent }}
+          >
+            <BookOpen className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold leading-tight text-foreground">{project.title}</h1>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {project.region} · {scenes.length} scenes
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full transition-[width] duration-300"
+              style={{ width: `${progress}%`, backgroundColor: accent }}
+            />
+          </div>
+          <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+            {activeSceneIndex + 1}/{scenes.length}
+          </span>
+        </div>
       </div>
-      <div className="max-h-[min(32rem,calc(100vh-10rem))] overflow-y-auto p-2">
-        {workspace.layers.map((layer) => {
-          const definition = project.layers.find((item) => item.id === layer.id)
-          const visible = visibleLayerIds.has(layer.id)
-          return (
-            <button
-              key={layer.id}
-              type="button"
-              onClick={() => onToggle(layer.id)}
-              className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-              aria-pressed={visible}
-            >
-              <span
-                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border"
-                style={{
-                  borderColor: visible ? layer.lineColor : '#cbd5e1',
-                  backgroundColor: visible ? layer.fillColor : 'transparent',
+
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto scroll-smooth">
+        <header className="border-b bg-muted/20 px-4 py-5">
+          <div
+            className="text-xs font-semibold uppercase tracking-wide"
+            style={{ color: accent }}
+          >
+            Map story
+          </div>
+          <p className="mt-2 text-sm leading-6 text-foreground">{project.summary}</p>
+          {project.catalogMetrics.length > 0 && (
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {project.catalogMetrics.map((metric) => (
+                <div key={metric.label} className="rounded border bg-background p-2 text-center">
+                  <div className="text-sm font-bold text-foreground">{metric.value}</div>
+                  <div className="text-xs text-muted-foreground">{metric.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            Scroll to move through the story
+            <ArrowDown className="h-3.5 w-3.5" />
+          </div>
+        </header>
+
+        <div className="space-y-3 p-3 pb-[40vh]">
+          {scenes.map((scene, index) => {
+            const active = index === activeSceneIndex
+            return (
+              <article
+                key={`${scene.label}-${index}`}
+                ref={(node) => {
+                  cardRefs.current[index] = node
                 }}
+                data-scene-index={index}
+                className="scroll-m-4"
               >
-                {visible && <Check className="h-3 w-3 text-white drop-shadow" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {definition?.label ?? layer.id}
-                </span>
-                {layer.category ? (
-                  <span className="mt-1 flex flex-wrap gap-x-2 gap-y-1">
-                    {Object.entries(layer.category.colors).map(([label, color]) => (
-                      <span key={label} className="inline-flex items-center gap-1 text-[10px] text-slate-500">
-                        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: color }} />
-                        {label}
-                      </span>
-                    ))}
-                  </span>
-                ) : (
-                  <span className="block text-[11px] text-slate-500">{layer.attribution ?? 'GeoJSON layer'}</span>
-                )}
-              </span>
-              {visible ? (
-                <Eye className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-              ) : (
-                <EyeOff className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-              )}
-            </button>
-          )
-        })}
+                <button
+                  type="button"
+                  onClick={() => onSelectScene(index)}
+                  aria-current={active ? 'step' : undefined}
+                  className={cn(
+                    'w-full rounded-lg border bg-background p-4 text-left shadow-sm transition-colors',
+                    active ? 'border-primary bg-primary/5' : 'hover:border-primary/50 hover:bg-muted/50',
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="truncate text-xs font-semibold uppercase tracking-wide"
+                      style={{ color: active ? accent : undefined }}
+                    >
+                      <span className={cn(!active && 'text-muted-foreground')}>{scene.kicker ?? scene.label}</span>
+                    </span>
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+
+                  <h2 className="mt-2 text-sm font-bold leading-snug text-foreground">{scene.title}</h2>
+                  <p className="mt-2 text-xs leading-6 text-muted-foreground">{scene.text}</p>
+
+                  {scene.callout && (
+                    <div className="mt-3 rounded-md border bg-muted/30 p-2.5">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {scene.callout.label}
+                      </div>
+                      <div className="mt-0.5 text-sm font-bold text-foreground">{scene.callout.value}</div>
+                      {scene.callout.detail && (
+                        <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{scene.callout.detail}</div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center gap-1.5 border-t pt-2.5 text-xs font-medium text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
+                    <span className="truncate">{scene.focus}</span>
+                  </div>
+                </button>
+              </article>
+            )
+          })}
+
+          <div className="rounded-md border bg-muted/20 p-3">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Source note</div>
+            <p className="text-xs leading-5 text-muted-foreground">{project.sourceNote}</p>
+          </div>
+        </div>
       </div>
     </aside>
   )
 }
+
+/* -------------------------------------------------------------------------- */
+/* Story map                                                                  */
+/* -------------------------------------------------------------------------- */
 
 export function ProjectStoryMap({
   project,
@@ -152,35 +222,90 @@ export function ProjectStoryMap({
   config: ProjectStoryWorkspaceDef
   onBack: () => void
 }) {
-  const narrativeRef = useRef<HTMLDivElement>(null)
-  const cardRefs = useRef<Array<HTMLElement | null>>([])
-  const [activeSceneIndex, setActiveSceneIndex] = useState(0)
-  const [layerPanelOpen, setLayerPanelOpen] = useState(false)
-  const [visibleLayerIds, setVisibleLayerIds] = useState(
-    () => new Set(project.scenes[0]?.visibleLayerIds ?? project.layers.filter((layer) => layer.checked).map((layer) => layer.id)),
-  )
-  const [viewport, setViewport] = useState<Viewport>(() => sceneViewport(config, project.scenes[0]))
+  const scenes = project.scenes
+  const accent = config.accent
+  const isMobile = useIsMobile()
 
-  const activeScene = project.scenes[activeSceneIndex]
-  const activePlaces = (() => {
+  const mapRef = useRef<MapLibreGL.Map | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const cardRefs = useRef<Array<HTMLElement | null>>([])
+  const programmaticScrollUntilRef = useRef(0)
+
+  const [activeSceneIndex, setActiveSceneIndex] = useState(0)
+  const [visibleLayerIds, setVisibleLayerIds] = useState(
+    () =>
+      new Set(
+        scenes[0]?.visibleLayerIds ?? project.layers.filter((layer) => layer.checked).map((layer) => layer.id),
+      ),
+  )
+  const [showSidebar, setShowSidebar] = useState(true)
+  const [sidebarWidth, setSidebarWidth] = useState(380)
+
+  const activeScene = scenes[activeSceneIndex]
+
+  // NB: `Map` here is the map component, so use a record rather than a global Map.
+  const layerLabels = useMemo(
+    () => Object.fromEntries(project.layers.map((layer) => [layer.id, layer.label])) as Record<string, string>,
+    [project.layers],
+  )
+
+  const resolvedLayers = useMemo(
+    () => config.layers.map((layer) => resolveLayer(layer, layerLabels[layer.id] ?? layer.id, activeScene, accent)),
+    [accent, activeScene, config.layers, layerLabels],
+  )
+
+  const legendEntries = useMemo(
+    () => buildLegend(activeScene, resolvedLayers, visibleLayerIds, accent),
+    [accent, activeScene, resolvedLayers, visibleLayerIds],
+  )
+
+  const activePlaces = useMemo(() => {
     if (!activeScene?.placeIds) return []
     const ids = new Set(activeScene.placeIds)
     return config.places.filter((place) => ids.has(place.id))
-  })()
+  }, [activeScene, config.places])
 
-  const applyScene = useCallback((index: number) => {
-    const scene = project.scenes[index]
-    if (!scene) return
-    setActiveSceneIndex(index)
-    setVisibleLayerIds(new Set(scene.visibleLayerIds))
-    setViewport(sceneViewport(config, scene))
-  }, [config, project.scenes])
+  // Opening on the first scene's camera means no post-load jump when the story starts.
+  const initialCamera = scenes[0]?.camera ?? { center: config.map.center, zoom: config.map.zoom }
 
+  const mapStyles = useMemo(() => {
+    if (config.map.basemap === 'light') return { light: MAP_STYLES.light, dark: MAP_STYLES.light }
+    if (config.map.basemap === 'dark') return { light: MAP_STYLES.dark, dark: MAP_STYLES.dark }
+    return MAP_STYLES
+  }, [config.map.basemap])
+
+  const sceneOverridden = activeScene ? !sameLayerSet(visibleLayerIds, activeScene.visibleLayerIds) : false
+
+  const applyScene = useCallback(
+    (index: number) => {
+      const scene = scenes[index]
+      if (!scene) return
+      setActiveSceneIndex(index)
+      setVisibleLayerIds(new Set(scene.visibleLayerIds))
+
+      const map = mapRef.current
+      if (!map || !scene.camera) return
+      const camera = {
+        center: scene.camera.center,
+        zoom: scene.camera.zoom,
+        bearing: scene.camera.bearing ?? 0,
+        pitch: scene.camera.pitch ?? 0,
+      }
+      if (prefersReducedMotion()) map.jumpTo(camera)
+      else map.easeTo({ ...camera, duration: CAMERA_EASE_MS })
+    },
+    [scenes],
+  )
+
+  // Scroll position drives the active scene; the card nearest the reading line wins.
   useEffect(() => {
-    const root = narrativeRef.current
+    const root = scrollRef.current
     if (!root) return
     const observer = new IntersectionObserver(
       (entries) => {
+        // A smooth scroll started by the stepper sweeps past intermediate cards.
+        // Honouring those would drag the story back and fight rapid clicks.
+        if (performance.now() < programmaticScrollUntilRef.current) return
         const visible = entries
           .filter((entry) => entry.isIntersecting)
           .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0]
@@ -188,16 +313,25 @@ export function ProjectStoryMap({
         const index = Number((visible.target as HTMLElement).dataset.sceneIndex)
         if (Number.isInteger(index)) applyScene(index)
       },
-      { root, rootMargin: '-22% 0px -38% 0px', threshold: [0.25, 0.55, 0.8] },
+      { root, rootMargin: '-20% 0px -40% 0px', threshold: [0.25, 0.55, 0.8] },
     )
     cardRefs.current.forEach((card) => card && observer.observe(card))
     return () => observer.disconnect()
-  }, [applyScene, project.scenes.length])
+  }, [applyScene, scenes.length])
 
-  function selectScene(index: number) {
-    applyScene(index)
-    cardRefs.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }
+  const goToScene = useCallback(
+    (index: number) => {
+      const clamped = Math.max(0, Math.min(scenes.length - 1, index))
+      const smooth = !prefersReducedMotion()
+      programmaticScrollUntilRef.current = performance.now() + (smooth ? PROGRAMMATIC_SCROLL_MS : 0)
+      applyScene(clamped)
+      cardRefs.current[clamped]?.scrollIntoView({
+        behavior: smooth ? 'smooth' : 'auto',
+        block: 'center',
+      })
+    },
+    [applyScene, scenes.length],
+  )
 
   function toggleLayer(layerId: string) {
     setVisibleLayerIds((current) => {
@@ -209,179 +343,164 @@ export function ProjectStoryMap({
   }
 
   return (
-    <div className="grid h-full min-h-0 bg-slate-950 md:grid-cols-[minmax(22rem,42%)_minmax(0,1fr)]">
-      <section className="order-2 flex min-h-0 flex-col bg-[#f4f1e9] text-slate-950 md:order-1">
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-900/10 bg-[#f4f1e9]/95 px-4 py-3 backdrop-blur sm:px-6">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex h-9 items-center gap-2 rounded-full border border-slate-900/15 bg-white/70 px-3 text-xs font-bold transition-colors hover:bg-white"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Projects
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="hidden text-xs font-semibold text-slate-500 sm:block">
-              {activeSceneIndex + 1} / {project.scenes.length}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-full border-slate-900/15 bg-white/70 text-xs hover:bg-white"
-              onClick={() => downloadProjectPackage(project)}
-            >
-              <Download className="h-3.5 w-3.5" />
-              JSON
-            </Button>
+    <MapSectionLayout
+      sidebar={
+        <StoryNarrative
+          project={project}
+          scenes={scenes}
+          activeSceneIndex={activeSceneIndex}
+          accent={accent}
+          scrollRef={scrollRef}
+          cardRefs={cardRefs}
+          onBack={onBack}
+          onSelectScene={goToScene}
+        />
+      }
+      showDesktopSidebar={showSidebar}
+      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
+      desktopSidebarWidth={sidebarWidth}
+      onDesktopSidebarWidthChange={setSidebarWidth}
+      mobileInitialSheetState="half"
+      mobileCollapsedVisibleHeight={68}
+      showMobilePeek
+      mobilePeek={
+        <div className="min-w-0 text-left">
+          <div className="truncate text-xs font-semibold text-foreground">
+            {activeScene?.title ?? project.title}
+          </div>
+          <div className="truncate text-xs text-muted-foreground">
+            {activeSceneIndex + 1}/{scenes.length} · {activeScene?.focus ?? project.region}
           </div>
         </div>
+      }
+    >
+      <Map
+        ref={mapRef}
+        className="h-full w-full"
+        center={initialCamera.center}
+        zoom={initialCamera.zoom}
+        minZoom={config.map.minZoom}
+        maxZoom={config.map.maxZoom}
+        styles={mapStyles}
+      >
+        <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
-        <div ref={narrativeRef} className="min-h-0 flex-1 snap-y snap-proximity overflow-y-auto scroll-smooth">
-          <header className="flex min-h-[min(38rem,82vh)] flex-col justify-end px-5 pb-12 pt-10 sm:px-8">
-            <div className="mb-auto flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-emerald-800">
-              <BookOpen className="h-4 w-4" />
-              PGMaps boundary story
-            </div>
-            <p className="mb-4 max-w-lg font-serif text-lg italic leading-7 text-slate-600">
-              One province. Several official answers.
-            </p>
-            <h1 className="max-w-xl font-serif text-4xl font-semibold leading-[0.98] tracking-tight sm:text-6xl">
-              {project.title}
-            </h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-slate-700">{project.summary}</p>
-            <div className="mt-8 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-              Scroll to compare
-              <ArrowDown className="h-4 w-4 animate-bounce" />
-            </div>
-          </header>
+        {resolvedLayers.map((resolved) => (
+          <MapFillLayer
+            key={resolved.layer.id}
+            data={resolved.layer.data}
+            idProperty={resolved.layer.idProperty}
+            fillColor={resolved.fillColor}
+            fillOpacity={resolved.fillOpacity}
+            lineColor={resolved.lineColor}
+            lineOpacity={resolved.lineOpacity}
+            lineWidth={resolved.lineWidth}
+            visible={visibleLayerIds.has(resolved.layer.id)}
+            hoverHtml={(properties) =>
+              `<div class="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md">
+                <div class="font-semibold">${escapeHtml(properties[resolved.layer.labelProperty])}</div>
+                <div class="mt-0.5 text-muted-foreground">${escapeHtml(resolved.label)}</div>
+              </div>`
+            }
+          />
+        ))}
 
-          <div className="space-y-[18vh] px-4 pb-[36vh] sm:px-7">
-            {project.scenes.map((scene, index) => (
-              <article
-                key={`${scene.label}-${index}`}
-                ref={(node) => {
-                  cardRefs.current[index] = node
-                }}
-                data-scene-index={index}
-                className="snap-center scroll-m-8"
-              >
-                <button
-                  type="button"
-                  onClick={() => selectScene(index)}
-                  className={cn(
-                    'w-full rounded-2xl border bg-white/92 p-5 text-left shadow-[0_18px_60px_rgba(15,23,42,0.10)] transition-all sm:p-7',
-                    index === activeSceneIndex
-                      ? 'border-emerald-700/40 ring-1 ring-emerald-700/20'
-                      : 'border-slate-900/10 opacity-75 hover:opacity-100',
-                  )}
-                  aria-current={index === activeSceneIndex ? 'step' : undefined}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-800">
-                      {scene.kicker ?? scene.label}
-                    </span>
-                    <span className="font-mono text-xs text-slate-400">{String(index + 1).padStart(2, '0')}</span>
-                  </div>
-                  <h2 className="mt-4 font-serif text-2xl font-semibold leading-tight sm:text-3xl">{scene.title}</h2>
-                  <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">{scene.text}</p>
-                  <div className="mt-5 flex items-center gap-2 border-t border-slate-900/10 pt-4 text-xs font-semibold text-slate-500">
-                    <MapPin className="h-3.5 w-3.5 text-emerald-700" />
-                    {scene.focus}
-                  </div>
-                </button>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+        {activePlaces.map((place) => (
+          <MapMarker key={place.id} longitude={place.coordinates[0]} latitude={place.coordinates[1]} anchor="bottom">
+            <MarkerContent>
+              <div className="flex flex-col items-center">
+                <div className="mb-1 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs font-semibold text-background shadow-lg">
+                  {place.label}
+                </div>
+                <div
+                  className="h-3.5 w-3.5 rounded-full border-2 border-white shadow-lg"
+                  style={{ backgroundColor: place.color ?? accent }}
+                />
+              </div>
+            </MarkerContent>
+            <MarkerPopup closeButton>
+              <div className="w-52">
+                <div className="text-sm font-semibold text-foreground">{place.label}</div>
+                {place.note && <p className="mt-1 text-xs leading-5 text-muted-foreground">{place.note}</p>}
+              </div>
+            </MarkerPopup>
+          </MapMarker>
+        ))}
+      </Map>
 
-      <section className="relative order-1 h-[46dvh] min-h-64 overflow-hidden bg-slate-200 md:order-2 md:h-full">
-        <Map
-          className="h-full w-full"
-          viewport={viewport}
-          onViewportChange={setViewport}
-          minZoom={config.map.minZoom}
-          maxZoom={config.map.maxZoom}
-          styles={STORY_MAP_STYLES}
-          showStyleLoadingOverlay={false}
+      {/* Scene stepper — keyboard/pointer alternative to scrolling. */}
+      <div className="pointer-events-none absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-background/95 p-1 shadow-lg backdrop-blur">
+        <button
+          type="button"
+          onClick={() => goToScene(activeSceneIndex - 1)}
+          disabled={activeSceneIndex === 0}
+          aria-label="Previous scene"
+          className="pointer-events-auto flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
-          <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="pointer-events-auto max-w-[40vw] truncate px-1.5 text-xs font-medium text-foreground">
+          {activeScene?.focus ?? project.region}
+        </span>
+        <button
+          type="button"
+          onClick={() => goToScene(activeSceneIndex + 1)}
+          disabled={activeSceneIndex >= scenes.length - 1}
+          aria-label="Next scene"
+          className="pointer-events-auto flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
 
-          {config.layers.map((layer) => (
-            <MapFillLayer
-              key={layer.id}
-              data={layer.data}
-              idProperty={layer.idProperty}
-              fillColor={layerFillColor(layer)}
-              fillOpacity={layer.fillOpacity}
-              lineColor={layer.lineColor}
-              lineOpacity={layer.lineOpacity}
-              lineWidth={layer.lineWidth}
-              visible={visibleLayerIds.has(layer.id)}
-              hoverHtml={(properties) => (
-                `<div class="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-lg">
-                  <div class="font-semibold">${escapeHtml(properties[layer.labelProperty])}</div>
-                  <div class="mt-1 text-slate-500">${escapeHtml(project.layers.find((item) => item.id === layer.id)?.label ?? layer.id)}</div>
-                </div>`
-              )}
+      <MapLegendPanel
+        title="Map layers"
+        description={activeScene?.label}
+        icon={<Layers className="h-3.5 w-3.5" />}
+        collapsible
+        // Expanded, the panel would cover most of a phone-sized map.
+        defaultCollapsed={isMobile}
+        width="lg"
+        contentClassName="space-y-3"
+        actions={
+          sceneOverridden ? (
+            <button
+              type="button"
+              onClick={() => activeScene && setVisibleLayerIds(new Set(activeScene.visibleLayerIds))}
+              className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset
+            </button>
+          ) : null
+        }
+      >
+        <MapLegendSection
+          title="Story layers"
+          value={`${visibleLayerIds.size}/${config.layers.length}`}
+          scroll={config.layers.length > 6}
+        >
+          {resolvedLayers.map((resolved) => (
+            <LegendItem
+              key={resolved.layer.id}
+              // The fill reads as the layer's identity; outlines are often near-black.
+              color={resolved.layer.fillColor}
+              label={resolved.label}
+              active={visibleLayerIds.has(resolved.layer.id)}
+              swatchShape="square"
+              onClick={() => toggleLayer(resolved.layer.id)}
             />
           ))}
+        </MapLegendSection>
 
-          {activePlaces.map((place) => (
-            <MapMarker
-              key={place.id}
-              longitude={place.coordinates[0]}
-              latitude={place.coordinates[1]}
-              anchor="bottom"
-            >
-              <MarkerContent>
-                <div className="group flex flex-col items-center">
-                  <div className="mb-1 whitespace-nowrap rounded-md bg-slate-950 px-2 py-1 text-[11px] font-bold text-white shadow-lg">
-                    {place.label}
-                  </div>
-                  <div
-                    className="h-4 w-4 rounded-full border-[3px] border-white shadow-lg ring-1 ring-slate-900/20"
-                    style={{ backgroundColor: place.color ?? '#047857' }}
-                  />
-                </div>
-              </MarkerContent>
-              <MarkerPopup closeButton>
-                <div className="w-52">
-                  <div className="text-sm font-bold">{place.label}</div>
-                  {place.note && <p className="mt-1 text-xs leading-5 text-muted-foreground">{place.note}</p>}
-                </div>
-              </MarkerPopup>
-            </MapMarker>
-          ))}
-        </Map>
-
-        <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setLayerPanelOpen((current) => !current)}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-white/70 bg-slate-950/90 px-4 text-xs font-bold text-white shadow-lg backdrop-blur transition-colors hover:bg-slate-900"
-            aria-expanded={layerPanelOpen}
-          >
-            <Layers className="h-4 w-4" />
-            Layers
-            <span className="rounded-full bg-white/15 px-1.5 py-0.5">{visibleLayerIds.size}</span>
-          </button>
-          <div className="hidden max-w-64 truncate rounded-full border border-white/70 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg backdrop-blur sm:block">
-            {activeScene?.focus ?? project.region}
-          </div>
-        </div>
-
-        {layerPanelOpen && (
-          <LayerLegend
-            project={project}
-            workspace={config}
-            visibleLayerIds={visibleLayerIds}
-            onToggle={toggleLayer}
-            onClose={() => setLayerPanelOpen(false)}
-          />
+        {legendEntries.length > 0 && (
+          <MapLegendSection title="Legend" columns={legendEntries.length > 5 ? 2 : 1}>
+            {legendEntries.map((entry) => (
+              <LegendItem key={entry.key} color={entry.color} label={entry.label} swatchShape="circle" />
+            ))}
+          </MapLegendSection>
         )}
-      </section>
-    </div>
+      </MapLegendPanel>
+    </MapSectionLayout>
   )
 }

@@ -45,7 +45,13 @@ const HEAT_PACKAGE: ProjectPackage = {
   },
 }
 
-function storyPackage(data = '/data/example.geojson') {
+/** Fixtures stand in for untrusted JSON, so their fields stay loosely typed. */
+type RawStoryPackage = {
+  scenes: Array<Record<string, unknown>>
+  workspace: { map: Record<string, unknown> } & Record<string, unknown>
+} & Record<string, unknown>
+
+function storyPackage(data = '/data/example.geojson'): RawStoryPackage {
   return {
     version: 1,
     slug: 'example-story',
@@ -106,6 +112,55 @@ describe('story project packages', () => {
     const project = normalizeProjectPackage(raw)
     expect(project?.scenes).toHaveLength(1)
     expect(project?.scenes[0].camera).toBeUndefined()
+  })
+
+  it('defaults the basemap and accent when a package omits them', () => {
+    const workspace = normalizeProjectPackage(storyPackage())?.workspace
+    expect(workspace).toMatchObject({ accent: '#0e7490', map: { basemap: 'auto' } })
+  })
+
+  it('keeps an explicit basemap override', () => {
+    const raw = storyPackage()
+    raw.workspace.map = { ...raw.workspace.map, basemap: 'dark' }
+    expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({ map: { basemap: 'dark' } })
+  })
+
+  it('normalizes scene highlights and clamps their dim opacity', () => {
+    const raw = storyPackage()
+    raw.scenes[0].highlights = [
+      { layerId: 'areas', property: 'name', values: ['North', 42], dimOpacity: 5, label: 'North' },
+      { layerId: 'areas', property: 'name', values: [] },
+      { property: 'name', values: ['North'] },
+    ]
+    const scene = normalizeProjectPackage(raw)?.scenes[0]
+    expect(scene?.highlights).toEqual([
+      { layerId: 'areas', property: 'name', values: ['North'], color: undefined, dimOpacity: 1, label: 'North' },
+    ])
+  })
+
+  it('keeps only usable scene layer overrides', () => {
+    const raw = storyPackage()
+    raw.scenes[0].layerOverrides = {
+      areas: { fillOpacity: 0, lineWidth: -4 },
+      ignored: { fillOpacity: 'thick' },
+    }
+    const scene = normalizeProjectPackage(raw)?.scenes[0]
+    expect(scene?.layerOverrides).toEqual({
+      areas: { fillOpacity: 0, lineOpacity: undefined, lineWidth: 0 },
+    })
+  })
+
+  it('accepts a scene legend and callout, and drops an incomplete callout', () => {
+    const raw = storyPackage()
+    raw.scenes[0].legend = [{ label: 'North', color: '#2563eb' }, { label: 'bad' }]
+    raw.scenes[0].callout = { label: 'Zone', value: 'South West' }
+    const scene = normalizeProjectPackage(raw)?.scenes[0]
+    expect(scene?.legend).toEqual([{ label: 'North', color: '#2563eb' }])
+    expect(scene?.callout).toEqual({ label: 'Zone', value: 'South West', detail: undefined })
+
+    const withoutValue = storyPackage()
+    withoutValue.scenes[0].callout = { label: 'Zone' }
+    expect(normalizeProjectPackage(withoutValue)?.scenes[0].callout).toBeUndefined()
   })
 })
 
