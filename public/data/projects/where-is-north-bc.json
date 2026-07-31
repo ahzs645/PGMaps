@@ -502,7 +502,7 @@
     "layers": [
       {
         "id": "census-north-south",
-        "data": "/data/census/canada-csd/provinces/59.geojson",
+        "data": "/data/census/canada-csd/provinces/59.geojson.gz",
         "idProperty": "CSDUID",
         "labelProperty": "CSDNAME",
         "fillColor": "#2563eb",

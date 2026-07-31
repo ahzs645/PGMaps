@@ -2,10 +2,14 @@ import { expect, test } from '@playwright/test'
 
 test.describe('North / South census subdivision boundaries', () => {
   test('loads every CSD and exposes both classifications', async ({ page }) => {
-    const provinceRequests: string[] = []
+    const simplifiedRequests: string[] = []
+    const legacyProvinceRequests: string[] = []
     page.on('request', (request) => {
+      if (request.url().includes('/data/census/canada-csd-simplified.geojson')) {
+        simplifiedRequests.push(request.url())
+      }
       if (request.url().includes('/data/census/canada-csd/provinces/')) {
-        provinceRequests.push(request.url())
+        legacyProvinceRequests.push(request.url())
       }
     })
 
@@ -19,13 +23,15 @@ test.describe('North / South census subdivision boundaries', () => {
     await expect(page.getByText('Census boundaries · Census Subdivision · 5,161')).toBeVisible({
       timeout: 45_000,
     })
-    expect(provinceRequests).toHaveLength(13)
+    expect(simplifiedRequests).toHaveLength(1)
+    expect(legacyProvinceRequests).toHaveLength(0)
 
     await page.getByRole('button', { name: /^North \/ South CSDs/ }).click()
     await expect(page.getByText('Census boundaries · North / South CSDs · 5,161')).toBeVisible({
       timeout: 10_000,
     })
-    expect(provinceRequests).toHaveLength(13)
+    expect(simplifiedRequests).toHaveLength(1)
+    expect(legacyProvinceRequests).toHaveLength(0)
     await expect(page.getByText('North', { exact: true })).toBeVisible()
     await expect(page.getByText('South', { exact: true })).toBeVisible()
 
