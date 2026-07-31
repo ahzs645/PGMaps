@@ -29,7 +29,11 @@ jobs:
 
       - run: npm ci
       - run: pip install -r vendor/bcdatamapper/datascrapers/bc/assessment/requirements.txt
+      - name: Build national Census Subdivision overview
+        run: npm run census:canada-csd-simplified -- --if-missing
       - run: npm run data:sync-from-bcdatamapper:clean
+      - name: Verify generated Census Subdivision deployment data
+        run: test -s public/data/census/canada-csd-simplified.geojson
       - run: npm run census:variables
       - run: npm run bc-assessment:build
       - run: npm run indigenous:copy
