@@ -1,3 +1,4 @@
+import type { BoundarySource } from '@/lib/studyArea'
 import type {
   ScoreIndexDomain,
   ScoreIndexModule,
@@ -13,6 +14,8 @@ import type {
 
 type ScoreMetricBaseDefinition = Omit<
   ScoreMetricDefinition,
+  | 'boundarySources'
+  | 'boundaryRequirementLabel'
   | 'direction'
   | 'component'
   | 'dataSourceLabel'
@@ -1175,6 +1178,27 @@ const METRIC_MISSING_DATA_POLICY: Partial<Record<ScoreMetricKey, ScoreMissingDat
   coolingWalk15Access: 'neutral',
 }
 
+/**
+ * Metrics joined from a boundary-specific snapshot rather than aggregated from
+ * points. Weighting one on any other boundary contributes nothing to the score,
+ * so the pickers gate them instead of letting the value silently read as zero.
+ */
+const METRIC_BOUNDARY_SOURCES: Partial<Record<ScoreMetricKey, BoundarySource[]>> = {
+  communityWalkBalanced: ['cityCommunity'],
+  communityWalkInfrastructure: ['cityCommunity'],
+  communityWalkAccess: ['cityCommunity'],
+  communityWalkSafetyAdjusted: ['cityCommunity'],
+  communityWalkSupplementedLocal: ['cityCommunity'],
+}
+
+const BOUNDARY_REQUIREMENT_LABELS: Partial<Record<ScoreMetricKey, string>> = {
+  communityWalkBalanced: 'Only populated on the Community polygons boundary.',
+  communityWalkInfrastructure: 'Only populated on the Community polygons boundary.',
+  communityWalkAccess: 'Only populated on the Community polygons boundary.',
+  communityWalkSafetyAdjusted: 'Only populated on the Community polygons boundary.',
+  communityWalkSupplementedLocal: 'Only populated on the Community polygons boundary.',
+}
+
 function metricDataSourceLabel(category: ScoreMetricDefinition['category']): string {
   if (category === 'airQuality') return 'Air quality monitor inventory'
   if (category === 'parksRec') return 'City of Prince George parks, trails, and amenities'
@@ -1225,6 +1249,8 @@ export const SCORE_METRICS: ScoreMetricDefinition[] = SCORE_METRIC_BASES.map((me
     METRIC_VALUE_BEHAVIOR[metric.key] ??
     (METRIC_DIRECTION[metric.key] === 'higherIsWorse' ? 'continuous' : 'inverseContinuous'),
   missingDataPolicy: METRIC_MISSING_DATA_POLICY[metric.key] ?? 'neutral',
+  boundarySources: METRIC_BOUNDARY_SOURCES[metric.key],
+  boundaryRequirementLabel: BOUNDARY_REQUIREMENT_LABELS[metric.key],
   proxyLevel:
     metric.category === 'deprivation' || metric.category === 'demographics' || metric.category === 'property'
       ? 'proxy'

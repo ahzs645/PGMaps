@@ -1,5 +1,12 @@
+import type { BoundarySource } from '@/lib/studyArea'
 import { SCORE_METRICS } from '../constants'
-import type { RegionDataCounts, ScoreDataSource, ScoreMetricKey } from '../types'
+import type {
+  RegionDataCounts,
+  ScoreDataSource,
+  ScoreMetricDefinition,
+  ScoreMetricKey,
+  ScoreMetricWeightMap,
+} from '../types'
 
 export function metricToDataSource(category: string): ScoreDataSource | null {
   if (category === 'airQuality') return 'airQuality'
@@ -17,9 +24,84 @@ export function metricToDataSource(category: string): ScoreDataSource | null {
   return null
 }
 
+/**
+ * Why a weighted metric is contributing nothing to the score right now.
+ * `sourceOff` is recoverable in one click; `boundary` needs a different study area.
+ */
+export type MetricUnavailableReason = 'sourceOff' | 'boundary'
+
+export interface MetricAvailability {
+  reason: MetricUnavailableReason
+  /** The data source to switch on — only set for `sourceOff`. */
+  source?: ScoreDataSource
+  message: string
+}
+
+export function isMetricAvailableOnBoundary(
+  metric: ScoreMetricDefinition,
+  boundarySource: BoundarySource,
+): boolean {
+  return !metric.boundarySources || metric.boundarySources.includes(boundarySource)
+}
+
+/**
+ * Returns why a metric cannot contribute, or null when it is fine. Boundary
+ * mismatches are reported first because no data-source toggle can fix them.
+ */
+export function getMetricUnavailability(
+  metric: ScoreMetricDefinition,
+  enabledDataSources: Iterable<ScoreDataSource>,
+  boundarySource: BoundarySource,
+): MetricAvailability | null {
+  if (!isMetricAvailableOnBoundary(metric, boundarySource)) {
+    return {
+      reason: 'boundary',
+      message: metric.boundaryRequirementLabel ?? 'Not populated on the current study area.',
+    }
+  }
+  const source = metricToDataSource(metric.category)
+  if (!source) return null
+  const enabled = enabledDataSources instanceof Set ? enabledDataSources : new Set(enabledDataSources)
+  if (enabled.has(source)) return null
+  return {
+    reason: 'sourceOff',
+    source,
+    message: 'Its data source is switched off, so it contributes nothing.',
+  }
+}
+
+/**
+ * Weighted metrics that are currently dead weight in the equation. The map is
+ * keyed by metric so callers can annotate individual terms rather than showing
+ * one aggregate warning.
+ */
+export function getUnavailableWeightedMetrics(
+  metrics: ScoreMetricDefinition[],
+  weights: ScoreMetricWeightMap,
+  enabledDataSources: ScoreDataSource[],
+  boundarySource: BoundarySource,
+): Map<ScoreMetricKey, MetricAvailability> {
+  const enabled = new Set(enabledDataSources)
+  const result = new Map<ScoreMetricKey, MetricAvailability>()
+  metrics.forEach((metric) => {
+    if ((weights[metric.key] ?? 0) === 0) return
+    const unavailable = getMetricUnavailability(metric, enabled, boundarySource)
+    if (unavailable) result.set(metric.key, unavailable)
+  })
+  return result
+}
+
+/**
+ * Metric key to backing data source. Built once: `metricHasCoverage` runs on the
+ * order of (metrics x regions x scoring passes), and a linear scan of the metric
+ * list per call dominated the scoring cost.
+ */
+const DATA_SOURCE_BY_METRIC_KEY: ReadonlyMap<ScoreMetricKey, ScoreDataSource | null> = new Map(
+  SCORE_METRICS.map((metric) => [metric.key, metricToDataSource(metric.category)] as const),
+)
+
 export function metricHasCoverage(metric: ScoreMetricKey, counts: RegionDataCounts): boolean {
-  const definition = SCORE_METRICS.find((entry) => entry.key === metric)
-  const source = definition ? metricToDataSource(definition.category) : null
+  const source = DATA_SOURCE_BY_METRIC_KEY.get(metric) ?? null
   if (source === 'airQuality') return counts.monitorCount > 0
   if (source === 'parks') return counts.parkCount + counts.trailCount + counts.amenityCount > 0
   if (source === 'heatShade')

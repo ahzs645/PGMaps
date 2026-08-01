@@ -1,9 +1,17 @@
 import { SCORE_METRICS } from '../constants'
+import { MINIMUM_DATA_COVERAGE } from '../types'
 import type { ScoreDataSource, ScoreFilterKey, ScoreMetricKey, ScoreMethodSettings } from '../types'
 
 export const MAX_VISIBLE_REGION_ROWS = 220
 
 export const SCORE_FILTER_DEFINITIONS: Array<{ key: ScoreFilterKey; label: string; description: string }> = [
+  {
+    key: 'requireCoverage',
+    label: 'Require data coverage',
+    description: `Exclude regions where fewer than ${Math.round(
+      MINIMUM_DATA_COVERAGE * 100,
+    )}% of the weighted metrics have real data.`,
+  },
   {
     key: 'requirePopulation',
     label: 'Require population data',

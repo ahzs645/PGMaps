@@ -14,6 +14,7 @@ import { ScorePresetDialog } from './components/ScorePresetDialog'
 import { SCORE_PRESETS } from './constants'
 import { ScoreBuilderLeftPanel } from './components/ScoreBuilderLeftPanel'
 import { ScoreBuilderMap } from './components/ScoreBuilderMap'
+import { ScoreBuilderCoverageNotice } from './components/ScoreBuilderCoverageNotice'
 import { ScoreBuilderMapLegend } from './components/ScoreBuilderMapLegend'
 import { ScoreBuilderMobileRegionCard } from './components/ScoreBuilderMobileRegionCard'
 import { ScoreBuilderRegionInsightDialog } from './components/ScoreBuilderRegionInsightDialog'
@@ -353,8 +354,13 @@ export default function ScoreBuilderSection() {
       selectedRegionLevel={sb.selectedRegionLevel}
       onRegionLevelChange={sb.handleRegionLevelChange}
       boundaryLevelOptions={sb.boundaryLevelOptions}
+      weights={state.weights}
+      metrics={sb.activeMetricDefinitions}
+      onAddMetric={sb.handleAddMetric}
+      onWeightChange={sb.handleWeightChange}
       enabledDataSources={state.enabledDataSources}
       onToggleDataSource={sb.toggleDataSource}
+      onEnableDataSource={sb.enableDataSource}
       networkCounts={points.networkCounts}
       selectedNetworks={state.selectedNetworks}
       onToggleNetwork={sb.toggleNetwork}
@@ -381,6 +387,7 @@ export default function ScoreBuilderSection() {
       loading={datasets.loading}
       dataErrors={datasets.dataErrors}
       weights={state.weights}
+      metrics={sb.activeMetricDefinitions}
       onWeightChange={sb.handleWeightChange}
       onAddMetric={sb.handleAddMetric}
       onApplyPreset={sb.handleApplyPreset}
@@ -441,6 +448,9 @@ export default function ScoreBuilderSection() {
       selectedRegionLevel={sb.selectedRegionLevel}
       onRegionLevelChange={sb.handleRegionLevelChange}
       boundaryLevelOptions={sb.boundaryLevelOptions}
+      metrics={sb.activeMetricDefinitions}
+      onAddMetric={sb.handleAddMetric}
+      onEnableDataSource={sb.enableDataSource}
       networkCounts={points.networkCounts}
       selectedNetworks={state.selectedNetworks}
       onToggleNetwork={sb.toggleNetwork}
@@ -509,6 +519,9 @@ export default function ScoreBuilderSection() {
   const buildView = (
     <ScoreBuilderBuildView
       weights={state.weights}
+      metrics={sb.activeMetricDefinitions}
+      enabledDataSources={state.enabledDataSources}
+      onEnableDataSource={sb.enableDataSource}
       onWeightChange={sb.handleWeightChange}
       onAddMetric={sb.handleAddMetric}
       totalAbsoluteWeight={sb.totalAbsoluteWeight}
@@ -586,13 +599,13 @@ export default function ScoreBuilderSection() {
             <ScoreBuilderEquationBar
               weights={state.weights}
               metrics={sb.activeMetricDefinitions}
+              enabledDataSources={state.enabledDataSources}
+              onEnableDataSource={sb.enableDataSource}
               methodSettings={state.methodSettings}
-              activePresetKey={results.activePresetKey}
               boundarySource={state.boundarySource}
               equationPreview={results.equationPreview}
               onWeightChange={sb.handleWeightChange}
               onAddMetric={sb.handleAddMetric}
-              onApplyPreset={sb.handleApplyPreset}
               onExport={handleExport}
               correlateMode={state.correlateMode}
               onToggleCorrelateMode={sb.handleToggleCorrelateMode}
@@ -620,6 +633,15 @@ export default function ScoreBuilderSection() {
               loading={datasets.loading}
               onMapInstance={handleMapInstance}
             />
+
+            {!datasets.loading &&
+              results.scoredRegions.length === 0 &&
+              results.lowCoverageExcludedCount > 0 && (
+                <ScoreBuilderCoverageNotice
+                  excludedCount={results.lowCoverageExcludedCount}
+                  onShowAnyway={() => sb.toggleScoreFilter('requireCoverage')}
+                />
+              )}
 
             {sb.showWalkabilitySourceSurface && (
               <ScoreBuilderWalkabilitySurfacePanel
@@ -721,6 +743,7 @@ export default function ScoreBuilderSection() {
               enabledDataSourceCount={state.enabledDataSources.length}
               regionCount={datasets.regions.length}
               thinCoverageCount={results.thinCoverageCount}
+              lowCoverageExcludedCount={results.lowCoverageExcludedCount}
             />
           </div>
         </div>

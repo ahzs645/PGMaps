@@ -1,42 +1,43 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
-  BookMarked,
+  AlertTriangle,
   Check,
   ChevronDown,
   ChevronUp,
   Copy,
   Download,
-  FlipHorizontal,
   Flame,
   Info,
   Plus,
   Redo2,
-  Search,
   Settings as SettingsIcon,
   Undo2,
   X,
 } from 'lucide-react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
-import { SCORE_PRESETS } from '../constants'
-import { METRIC_CATEGORY_LABELS } from '../types'
-import type { ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
+import type {
+  ScoreDataSource,
+  ScoreMetricDefinition,
+  ScoreMetricKey,
+  ScoreMetricWeightMap,
+  ScoreMethodSettings,
+} from '../types'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
-import { presetAppliesToBoundary } from '../lib/presets'
-import { ScorePresetDialog } from './ScorePresetDialog'
+import { getUnavailableWeightedMetrics } from '../lib/metrics'
+import { MetricPickerDialog } from './MetricLibrary'
 
 interface ScoreBuilderEquationBarProps {
   weights: ScoreMetricWeightMap
-  activePresetKey: string | null
   boundarySource: BoundarySource
   equationPreview: string
   methodSettings: ScoreMethodSettings
   metrics: ScoreMetricDefinition[]
+  enabledDataSources: ScoreDataSource[]
+  onEnableDataSource: (source: ScoreDataSource) => void
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
-  onApplyPreset: (presetKey: string) => void
   onExport: (format: ScoreBuilderExportFormat) => void
   correlateMode: boolean
   onToggleCorrelateMode: () => void
@@ -64,11 +65,6 @@ function getDefaultMetricWeight(metric: ScoreMetricKey): number {
   return 35
 }
 
-function getWeightIntent(value: number): string {
-  if (value === 0) return 'Disabled'
-  return value > 0 ? 'Prefer high' : 'Prefer low'
-}
-
 function getCategoryDot(category: string): string {
   if (category === 'airQuality') return 'bg-sky-500'
   if (category === 'parksRec') return 'bg-emerald-500'
@@ -84,14 +80,14 @@ function getCategoryDot(category: string): string {
 
 export function ScoreBuilderEquationBar({
   weights,
-  activePresetKey,
   boundarySource,
   equationPreview,
   methodSettings,
   metrics,
+  enabledDataSources,
+  onEnableDataSource,
   onWeightChange,
   onAddMetric,
-  onApplyPreset,
   onExport,
   correlateMode,
   onToggleCorrelateMode,
@@ -103,7 +99,6 @@ export function ScoreBuilderEquationBar({
   canUndo,
   canRedo,
 }: ScoreBuilderEquationBarProps) {
-  const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [metricDialogOpen, setMetricDialogOpen] = useState(false)
   const [formulaOpen, setFormulaOpen] = useState(false)
   const [equationOpen, setEquationOpen] = useState(true)
@@ -130,11 +125,13 @@ export function ScoreBuilderEquationBar({
     }
   }
 
-  const visiblePresets = useMemo(
-    () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, boundarySource)),
-    [boundarySource],
-  )
   const activeTerms = useMemo(() => metrics.filter((metric) => weights[metric.key] !== 0), [metrics, weights])
+  // Terms that are in the equation but contributing nothing — either their data source
+  // is switched off or the metric does not populate on the active study area.
+  const unavailableTerms = useMemo(
+    () => getUnavailableWeightedMetrics(metrics, weights, enabledDataSources, boundarySource),
+    [boundarySource, enabledDataSources, metrics, weights],
+  )
   const totalAbsoluteWeight = useMemo(
     () => activeTerms.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0),
     [activeTerms, weights],
@@ -258,15 +255,6 @@ export function ScoreBuilderEquationBar({
               </div>
               <button
                 type="button"
-                onClick={() => setPresetDialogOpen(true)}
-                title="Browse presets"
-                aria-label="Browse presets"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <BookMarked className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
                 onClick={onOpenSettings}
                 title="Index settings (examples, saved indexes, methodology, model, robustness)"
                 aria-label="Index settings"
@@ -341,17 +329,25 @@ export function ScoreBuilderEquationBar({
                 const weight = weights[metric.key]
                 const share = totalAbsoluteWeight > 0 ? Math.abs(weight) / totalAbsoluteWeight : 0
                 const isNegative = weight < 0
+                const unavailable = unavailableTerms.get(metric.key)
                 return (
                   <div key={metric.key} className="flex items-center gap-2">
                     {index > 0 && <span className="text-muted-foreground">+</span>}
                     <div
                       data-score-builder-equation-term={metric.key}
-                      title={`${metric.label} — ${(share * 100).toFixed(0)}% of total weight · ${metric.directionLabel}`}
+                      data-score-builder-term-inactive={unavailable ? 'true' : undefined}
+                      title={
+                        unavailable
+                          ? `${metric.label} — ${unavailable.message}`
+                          : `${metric.label} — ${(share * 100).toFixed(0)}% of total weight · ${metric.directionLabel}`
+                      }
                       className={cn(
                         'inline-flex items-stretch overflow-hidden rounded-lg border bg-background text-xs shadow-sm',
-                        isNegative
-                          ? 'border-orange-300 dark:border-orange-900/70'
-                          : 'border-emerald-300 dark:border-emerald-900/70',
+                        unavailable
+                          ? 'border-dashed border-amber-400 dark:border-amber-800'
+                          : isNegative
+                            ? 'border-orange-300 dark:border-orange-900/70'
+                            : 'border-emerald-300 dark:border-emerald-900/70',
                       )}
                     >
                       <button
@@ -371,8 +367,37 @@ export function ScoreBuilderEquationBar({
                       </button>
                       <div className="flex items-center gap-1.5 border-l border-border px-2 py-1.5">
                         <span className={cn('h-2 w-2 rounded-sm', getCategoryDot(metric.category))} />
-                        <span className="max-w-[10rem] truncate font-medium text-foreground">{metric.shortLabel}</span>
+                        <span
+                          className={cn(
+                            'max-w-[10rem] truncate font-medium text-foreground',
+                            unavailable && 'text-muted-foreground line-through',
+                          )}
+                        >
+                          {metric.shortLabel}
+                        </span>
                       </div>
+                      {unavailable?.source ? (
+                        <button
+                          type="button"
+                          data-score-builder-enable-source={unavailable.source}
+                          title={`${unavailable.message} Click to turn its data source back on.`}
+                          aria-label={`Turn on the data source for ${metric.label}`}
+                          onClick={() => onEnableDataSource(unavailable.source!)}
+                          className="inline-flex items-center gap-1 border-l border-border bg-amber-50 px-2 font-medium text-amber-900 transition-colors hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70"
+                        >
+                          <AlertTriangle className="h-3 w-3" />
+                          Turn on
+                        </button>
+                      ) : (
+                        unavailable && (
+                          <span
+                            title={unavailable.message}
+                            className="inline-flex items-center border-l border-border bg-amber-50 px-2 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                          </span>
+                        )
+                      )}
                       <button
                         type="button"
                         title="Remove metric"
@@ -417,124 +442,15 @@ export function ScoreBuilderEquationBar({
         )}
       </div>
 
-      <ScorePresetDialog
-        open={presetDialogOpen}
-        onOpenChange={setPresetDialogOpen}
-        presets={visiblePresets}
-        activePresetKey={activePresetKey}
-        onApplyPreset={onApplyPreset}
-      />
-      <EquationMetricPickerDialog
+      <MetricPickerDialog
         open={metricDialogOpen}
         onOpenChange={setMetricDialogOpen}
         weights={weights}
         metrics={metrics}
-        onPick={(metric) => {
-          onAddMetric(metric, getDefaultMetricWeight(metric))
-          setMetricDialogOpen(false)
-        }}
+        boundarySource={boundarySource}
+        description="Choose one metric to add to the top equation."
+        onPick={(metric) => onAddMetric(metric, getDefaultMetricWeight(metric))}
       />
     </div>
-  )
-}
-
-function EquationMetricPickerDialog({
-  open,
-  onOpenChange,
-  weights,
-  metrics,
-  onPick,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  weights: ScoreMetricWeightMap
-  metrics: ScoreMetricDefinition[]
-  onPick: (metric: ScoreMetricKey) => void
-}) {
-  const [query, setQuery] = useState('')
-  const normalizedQuery = query.trim().toLowerCase()
-  const groupedMetrics = Object.entries(
-    metrics.reduce(
-      (accumulator, metric) => {
-        if (!accumulator[metric.category]) accumulator[metric.category] = []
-        accumulator[metric.category].push(metric)
-        return accumulator
-      },
-      {} as Record<string, ScoreMetricDefinition[]>,
-    ),
-  ).map(([category, metrics]) => ({
-    category,
-    metrics: metrics.filter((metric) => {
-      if (!normalizedQuery) return true
-      return `${metric.label} ${metric.shortLabel} ${metric.description}`.toLowerCase().includes(normalizedQuery)
-    }),
-  }))
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent elevated className="max-h-[86vh] overflow-hidden p-0 sm:max-w-2xl">
-        <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
-          <DialogTitle>Add Metric</DialogTitle>
-          <DialogDescription>Choose one metric to add to the top equation.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 overflow-y-auto px-6 pb-6">
-          <div className="relative pt-1">
-            <Search className="pointer-events-none absolute left-3 top-[1.05rem] h-4 w-4 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search metrics..."
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 pl-9 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            />
-          </div>
-          {groupedMetrics.map(({ category, metrics }) => {
-            if (!metrics.length) return null
-            return (
-              <div key={category}>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {metrics.map((metric) => {
-                    const active = weights[metric.key] !== 0
-                    return (
-                      <button
-                        key={metric.key}
-                        type="button"
-                        disabled={active}
-                        onClick={() => onPick(metric.key)}
-                        className={cn(
-                          'rounded-lg border p-3 text-left transition-colors',
-                          active
-                            ? 'border-border bg-muted/40 text-muted-foreground opacity-70'
-                            : 'border-border bg-background hover:border-cyan-400 hover:bg-cyan-50/60 dark:hover:bg-cyan-950/25',
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="text-sm font-semibold text-foreground">{metric.label}</div>
-                          {active ? (
-                            <Check className="h-4 w-4 shrink-0 text-cyan-600" />
-                          ) : (
-                            <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{metric.description}</div>
-                        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{metric.format}</span>
-                          <span className="inline-flex items-center gap-1">
-                            <FlipHorizontal className="h-3 w-3" />
-                            {getWeightIntent(getDefaultMetricWeight(metric.key))}
-                          </span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </DialogContent>
-    </Dialog>
   )
 }

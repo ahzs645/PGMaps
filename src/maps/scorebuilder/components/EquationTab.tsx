@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { BoundarySource } from '@/lib/studyArea'
 import { SCORE_BUILDER_EXAMPLES, SCORE_METRICS, SCORE_PRESETS } from '../constants'
-import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricRangeMap, ScoreMetricWeightMap } from '../types'
+import type {
+  ScoredBoundaryRegion,
+  ScoreMetricDefinition,
+  ScoreMetricKey,
+  ScoreMetricRangeMap,
+  ScoreMetricWeightMap,
+} from '../types'
 import { formatScore } from '../lib/metrics'
 import { EquationComposer, PriorityMode, WeightDistribution } from './EquationComposer'
 import { MetricPickerDialog } from './MetricPickerDialog'
@@ -47,6 +54,8 @@ function WeightTotalStatus({
 export function EquationTab({
   isDesktop,
   weights,
+  metrics = SCORE_METRICS,
+  boundarySource,
   onWeightChange,
   onAddMetric,
   onApplyPreset,
@@ -63,6 +72,9 @@ export function EquationTab({
 }: {
   isDesktop: boolean
   weights: ScoreMetricWeightMap
+  /** Built-ins plus the user's recipe metrics. */
+  metrics?: ScoreMetricDefinition[]
+  boundarySource: BoundarySource
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
@@ -82,7 +94,7 @@ export function EquationTab({
   const [builderMode, setBuilderMode] = useState<'formula' | 'priority'>('formula')
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
   const [priorityOrder, setPriorityOrder] = useState<ScoreMetricKey[]>([])
-  const activeTerms = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0), [weights])
+  const activeTerms = useMemo(() => metrics.filter((metric) => weights[metric.key] !== 0), [metrics, weights])
   const activeWeightCount = activeTerms.length
   const activeTermKeys = useMemo(() => activeTerms.map((metric) => metric.key), [activeTerms])
   const activePriorityOrder = useMemo(() => {
@@ -172,7 +184,7 @@ export function EquationTab({
             onClick={() => setPresetDialogOpen(true)}
             className="shrink-0 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            Browse presets
+            Change
           </button>
         </div>
         <div className="text-xs text-muted-foreground">
@@ -258,7 +270,7 @@ export function EquationTab({
               </div>
             </div>
 
-            <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} />
+            <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} metrics={metrics} />
           </div>
 
           <div className="rounded-lg border border-border bg-background p-3">
@@ -308,6 +320,7 @@ export function EquationTab({
               <PriorityMode
                 order={activePriorityOrder}
                 weights={weights}
+                metrics={metrics}
                 onMove={movePriority}
                 onFocus={setFocusedMetric}
                 onRemove={(metric) => onWeightChange(metric, 0)}
@@ -315,7 +328,12 @@ export function EquationTab({
             )}
           </div>
 
-          <NormalizationPreview metricKey={previewMetric} regions={regions} metricRanges={metricRanges} />
+          <NormalizationPreview
+            metricKey={previewMetric}
+            regions={regions}
+            metricRanges={metricRanges}
+            metrics={metrics}
+          />
         </div>
       )}
 
@@ -331,6 +349,8 @@ export function EquationTab({
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         weights={weights}
+        metrics={metrics}
+        boundarySource={boundarySource}
         onPick={(metric) => {
           const value = getDefaultMetricWeight(metric)
           onAddMetric(metric, value)

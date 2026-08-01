@@ -4,16 +4,16 @@ import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
+import { getLevelOptionsForSource } from '@/lib/studyArea'
 import { Slider } from '@/components/ui/slider'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import {
   SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS,
-  SCORE_METRICS,
-  SCORE_METRICS_BY_CATEGORY,
   SCORE_PRESETS,
   SCORE_BUILDER_EXAMPLES,
 } from '../constants'
 import type {
+  ScoreMetricDefinition,
   RobustnessResult,
   ScoredBoundaryRegion,
   ScoreBandSummary,
@@ -34,7 +34,7 @@ import type { UserDatasetSummary } from '../lib/userDatasets'
 import type { UserDatasetUploadResult } from '../hooks/useUserDatasets'
 import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
-import { formatScore } from '../lib/metrics'
+import { formatScore, getUnavailableWeightedMetrics } from '../lib/metrics'
 import { presetAppliesToBoundary } from '../lib/presets'
 import { getScoreDrivers } from '../lib/scoreDrivers'
 import {
@@ -43,6 +43,8 @@ import {
   type ScoreBuilderSectionId,
   useScoreBuilderSections,
 } from '../hooks/useScoreBuilderSections'
+import { InactiveTermNotice } from './ScoreBuilderBuildView'
+import { MetricLibraryPanel, useMetricLibraryGroups } from './MetricLibrary'
 import { DensityTab } from './DensityTab'
 import { ExamplesTab } from './ExamplesTab'
 import { MethodologyTab } from './MethodologyTab'
@@ -62,6 +64,10 @@ interface ScoreBuilderSidebarProps {
   selectedRegionLevel: RegionLevel
   onRegionLevelChange: (level: RegionLevel) => void
   boundaryLevelOptions: Array<{ value: RegionLevel; label: string }>
+  /** Built-ins plus the user's recipe metrics. */
+  metrics: ScoreMetricDefinition[]
+  onAddMetric: (metric: ScoreMetricKey, value: number) => void
+  onEnableDataSource: (source: ScoreDataSource) => void
   networkCounts: Array<[string, number]>
   selectedNetworks: string[]
   onToggleNetwork: (network: string) => void
@@ -135,6 +141,9 @@ export function ScoreBuilderSidebar({
   selectedRegionLevel,
   onRegionLevelChange,
   boundaryLevelOptions,
+  metrics,
+  onAddMetric,
+  onEnableDataSource,
   networkCounts,
   selectedNetworks,
   onToggleNetwork,
@@ -221,9 +230,17 @@ export function ScoreBuilderSidebar({
     [selectedRegion, weights],
   )
   const totalAbsoluteWeight = useMemo(() => {
-    return SCORE_METRICS.reduce((sum, metric) => sum + Math.abs(weights[metric.key]), 0)
-  }, [weights])
-  const activeMetricCount = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length, [weights])
+    return metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
+  }, [metrics, weights])
+  const activeMetricCount = useMemo(
+    () => metrics.filter((metric) => (weights[metric.key] ?? 0) !== 0).length,
+    [metrics, weights],
+  )
+  const unavailableTerms = useMemo(
+    () => getUnavailableWeightedMetrics(metrics, weights, enabledDataSources, boundarySource),
+    [boundarySource, enabledDataSources, metrics, weights],
+  )
+  const metricGroups = useMetricLibraryGroups(metrics, '')
 
   const [showAllEquationMetrics, setShowAllEquationMetrics] = useState(false)
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
@@ -373,6 +390,7 @@ export function ScoreBuilderSidebar({
                 sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
                 level={selectedRegionLevel}
                 levelOptions={boundaryLevelOptions}
+                levelOptionsForSource={getLevelOptionsForSource}
                 onSourceChange={(source) => {
                   onBoundarySourceChange(source)
                   if (canUseWalkabilitySourceSurface) onMapSurfaceChange('boundary')
@@ -390,8 +408,6 @@ export function ScoreBuilderSidebar({
                   onRegionLevelChange(level)
                   onClearRegionSelection()
                 }}
-                showPoints={showPoints}
-                onTogglePoints={onTogglePoints}
                 levelSelectId="score-builder-level"
                 dataPrefix="score-builder"
               />
@@ -414,7 +430,7 @@ export function ScoreBuilderSidebar({
           )}
         </section>
 
-        {/* DATA SOURCES */}
+        {/* METRICS */}
         <section
           ref={(el) => setSectionRef('dataSources', el)}
           data-score-builder-section-id="dataSources"
@@ -423,67 +439,112 @@ export function ScoreBuilderSidebar({
         >
           {renderSectionHeader('dataSources')}
           {expandedSections.dataSources && (
-            <div className="space-y-2 px-4 pb-4">
-              {SCORE_DATA_SOURCES.map((ds) => {
-                const active = enabledSourceSet.has(ds.id)
-                return (
-                  <div key={ds.id}>
-                    <button
-                      aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
-                      title={ds.description}
-                      onClick={() => onToggleDataSource(ds.id)}
-                      className={cn(
-                        'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors',
-                        active
-                          ? 'border-cyan-500/60 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-100'
-                          : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      <span className="min-w-0 truncate font-medium">{ds.label}</span>
-                      <span className={cn('text-xs font-semibold', active ? 'text-cyan-600' : 'text-muted-foreground')}>
-                        {active ? 'ON' : 'OFF'}
-                      </span>
-                    </button>
-
-                    {/* Network sub-filters for Air Quality */}
-                    {ds.id === 'airQuality' && active && (
-                      <div className="ml-2 mt-1 space-y-1 border-l-2 border-cyan-200 pl-2 dark:border-cyan-900">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">{selectedNetworks.length} networks</span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={onSelectAllNetworks}
-                              className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
-                            >
-                              All
-                            </button>
-                            <button onClick={onClearNetworks} className="text-muted-foreground hover:text-foreground">
-                              None
-                            </button>
-                          </div>
-                        </div>
-                        <div className="max-h-28 space-y-0.5 overflow-y-auto">
-                          {networkCounts.map(([network, count]) => (
-                            <button
-                              key={network}
-                              onClick={() => onToggleNetwork(network)}
-                              className={cn(
-                                'flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors',
-                                selectedNetworkSet.has(network)
-                                  ? 'bg-cyan-50 text-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-100'
-                                  : 'text-muted-foreground hover:text-foreground',
-                              )}
-                            >
-                              <span className="truncate">{network}</span>
-                              <span>{count.toLocaleString()}</span>
-                            </button>
-                          ))}
+            <div className="pb-4">
+              <MetricLibraryPanel
+                weights={weights}
+                metrics={metrics}
+                boundarySource={boundarySource}
+                onAddMetric={onAddMetric}
+                onRemoveMetric={(metric) => onWeightChange(metric, 0)}
+                renderCategoryExtras={(category) =>
+                  category === 'airQuality' && enabledSourceSet.has('airQuality') ? (
+                    <div className="mb-1.5 space-y-1 rounded-md border border-cyan-200 bg-cyan-50/40 p-2 dark:border-cyan-900 dark:bg-cyan-950/20">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{selectedNetworks.length} networks</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={onSelectAllNetworks}
+                            className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
+                          >
+                            All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onClearNetworks}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            None
+                          </button>
                         </div>
                       </div>
+                      <div className="max-h-28 space-y-0.5 overflow-y-auto">
+                        {networkCounts.map(([network, count]) => (
+                          <button
+                            key={network}
+                            type="button"
+                            onClick={() => onToggleNetwork(network)}
+                            className={cn(
+                              'flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors',
+                              selectedNetworkSet.has(network)
+                                ? 'bg-cyan-100 text-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-100'
+                                : 'text-muted-foreground hover:text-foreground',
+                            )}
+                          >
+                            <span className="truncate">{network}</span>
+                            <span>{count.toLocaleString()}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null
+                }
+              />
+
+              <div className="border-t border-border px-4 pt-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Data sources · {enabledDataSources.length} on
+                </div>
+                <div className="space-y-2">
+                  {/* Point overlays draw from the data sources, not the boundaries. */}
+                  <button
+                    type="button"
+                    onClick={onTogglePoints}
+                    aria-pressed={showPoints}
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors',
+                      showPoints
+                        ? 'border-sky-500/60 bg-sky-50 text-sky-900 dark:bg-sky-950/40 dark:text-sky-100'
+                        : 'border-input bg-background text-muted-foreground hover:text-foreground',
                     )}
-                  </div>
-                )
-              })}
+                  >
+                    <span className="min-w-0 truncate font-medium">Source points on map</span>
+                    <span
+                      className={cn('text-xs font-semibold', showPoints ? 'text-sky-600' : 'text-muted-foreground')}
+                    >
+                      {showPoints ? 'ON' : 'OFF'}
+                    </span>
+                  </button>
+                  {SCORE_DATA_SOURCES.map((ds) => {
+                    const active = enabledSourceSet.has(ds.id)
+                    const orphanedCount = [...unavailableTerms.values()].filter(
+                      (entry) => entry.source === ds.id,
+                    ).length
+                    return (
+                      <button
+                        key={ds.id}
+                        type="button"
+                        aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
+                        title={ds.description}
+                        onClick={() => onToggleDataSource(ds.id)}
+                        className={cn(
+                          'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs transition-colors',
+                          active
+                            ? 'border-cyan-500/60 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-100'
+                            : orphanedCount > 0
+                              ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100'
+                              : 'border-input bg-background text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        <span className="min-w-0 truncate font-medium">{ds.label}</span>
+                        <span className={cn('text-xs font-semibold', active ? 'text-cyan-600' : 'text-muted-foreground')}>
+                          {active ? 'ON' : 'OFF'}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </section>
@@ -551,26 +612,36 @@ export function ScoreBuilderSidebar({
               </div>
 
               <div className="space-y-4">
-                {Object.entries(SCORE_METRICS_BY_CATEGORY).map(([category, metrics]) => (
+                {metricGroups.map(({ category, metrics: categoryMetrics }) => (
                   <div key={category}>
-                    {(showAllEquationMetrics || metrics.some((metric) => weights[metric.key] !== 0)) && (
+                    {(showAllEquationMetrics || categoryMetrics.some((metric) => weights[metric.key] !== 0)) && (
                       <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
                       </div>
                     )}
                     <div className="space-y-2">
-                      {metrics
+                      {categoryMetrics
                         .filter((metric) => showAllEquationMetrics || weights[metric.key] !== 0)
                         .map((metric) => (
                           <div
                             key={metric.key}
                             className={cn(
                               'rounded-lg border p-3',
-                              weights[metric.key] !== 0
-                                ? 'border-cyan-300/60 bg-cyan-50/50 dark:border-cyan-900/60 dark:bg-cyan-950/20'
-                                : 'border-border bg-muted/25',
+                              unavailableTerms.has(metric.key)
+                                ? 'border-dashed border-amber-400 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/20'
+                                : weights[metric.key] !== 0
+                                  ? 'border-cyan-300/60 bg-cyan-50/50 dark:border-cyan-900/60 dark:bg-cyan-950/20'
+                                  : 'border-border bg-muted/25',
                             )}
                           >
+                            {unavailableTerms.get(metric.key) && (
+                              <InactiveTermNotice
+                                metric={metric}
+                                unavailable={unavailableTerms.get(metric.key)!}
+                                onEnableDataSource={onEnableDataSource}
+                                className="mb-2"
+                              />
+                            )}
                             <div className="mb-2 flex items-start justify-between gap-2">
                               <div>
                                 <div className="text-xs font-semibold text-foreground">{metric.label}</div>
@@ -643,6 +714,7 @@ export function ScoreBuilderSidebar({
             <MethodologyTab
               className="px-4 pb-4 pt-0"
               weights={weights}
+              metrics={metrics}
               methodSettings={methodSettings}
               componentSummaries={componentSummaries}
               activePreset={activePreset}
@@ -662,6 +734,7 @@ export function ScoreBuilderSidebar({
             <ModelTab
               className="px-4 pb-4 pt-0"
               weights={weights}
+              metrics={metrics}
               totalAbsoluteWeight={totalAbsoluteWeight}
               scoreFilters={scoreFilters}
               onToggleScoreFilter={onToggleScoreFilter}

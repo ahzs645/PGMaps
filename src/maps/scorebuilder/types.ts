@@ -208,6 +208,14 @@ export interface ScoreMetricDefinition {
   valueBehavior?: ScoreMetricValueBehavior
   missingDataPolicy?: ScoreMissingDataPolicy
   proxyLevel?: 'official' | 'proxy' | 'experimental'
+  /**
+   * Boundary sources the metric actually populates on. Omitted means "every
+   * boundary"; a list means the metric is joined from a snapshot that only
+   * exists for those sources, so weighting it anywhere else contributes nothing.
+   */
+  boundarySources?: BoundarySource[]
+  /** Shown in place of the description when the metric is unavailable on the active boundary. */
+  boundaryRequirementLabel?: string
 }
 
 export type ScoreMetricWeightMap = Record<ScoreMetricKey, number>
@@ -403,7 +411,19 @@ export type ScoreDataSource =
   | 'deprivation'
   | 'healthyPlanPg'
 
-export type ScoreFilterKey = 'requirePopulation' | 'requireParks' | 'limitCrime' | 'limitFoodRisk'
+export type ScoreFilterKey =
+  | 'requireCoverage'
+  | 'requirePopulation'
+  | 'requireParks'
+  | 'limitCrime'
+  | 'limitFoodRisk'
+
+/**
+ * Share of a region's weighted metrics that must have real data before it is
+ * ranked. Below this the zero-fill dominates and the region scores mid-pack on
+ * the strength of missing data alone.
+ */
+export const MINIMUM_DATA_COVERAGE = 0.6
 
 export type ScoreFilterState = Record<ScoreFilterKey, boolean>
 

@@ -1,15 +1,22 @@
 import { SCORE_METRICS } from '../constants'
-import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricRangeMap } from '../types'
+import type {
+  ScoredBoundaryRegion,
+  ScoreMetricDefinition,
+  ScoreMetricKey,
+  ScoreMetricRangeMap,
+} from '../types'
 import { formatMetricValue } from '../lib/metrics'
 
 export function NormalizationPreview({
   metricKey,
   regions,
   metricRanges,
+  metrics = SCORE_METRICS,
 }: {
   metricKey: ScoreMetricKey | null
   regions: ScoredBoundaryRegion[]
   metricRanges: ScoreMetricRangeMap
+  metrics?: ScoreMetricDefinition[]
 }) {
   if (!metricKey) {
     return (
@@ -19,7 +26,7 @@ export function NormalizationPreview({
     )
   }
 
-  const metric = SCORE_METRICS.find((entry) => entry.key === metricKey)
+  const metric = metrics.find((entry) => entry.key === metricKey)
   const range = metricRanges[metricKey]
   const values = regions.map((region) => region.metrics[metricKey]).filter((value) => Number.isFinite(value))
   const buckets = new Array(8).fill(0)

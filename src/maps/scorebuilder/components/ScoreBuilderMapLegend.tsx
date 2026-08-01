@@ -26,6 +26,8 @@ interface ScoreBuilderMapLegendProps {
   enabledDataSourceCount: number
   regionCount: number
   thinCoverageCount: number
+  /** Regions the coverage floor is holding out of the ranking. */
+  lowCoverageExcludedCount?: number
 }
 
 /** The collapsible map legend, switching between score, correlate, and density lenses. */
@@ -47,13 +49,16 @@ export function ScoreBuilderMapLegend({
   enabledDataSourceCount,
   regionCount,
   thinCoverageCount,
+  lowCoverageExcludedCount = 0,
 }: ScoreBuilderMapLegendProps) {
   const compact = !isDesktop
   // Same resolved MI bands the raster paints with, so a regenerated grid moves
   // the legend too.
   const miBands = useWalkabilityMiBands(showWalkabilitySourceSurface || canUseWalkabilitySourceSurface)
   return (
-    <MapLegendPanel title="Legend" width={isDesktop ? 'md' : 'sm'} collapsible>
+    // Collapsed by default: the expanded panel covers a quarter of the map, and the
+    // score ramp is only needed on demand.
+    <MapLegendPanel title="Legend" width={isDesktop ? 'md' : 'sm'} collapsible defaultCollapsed>
       {correlateMode ? (
         <CorrelationMapLegend
           metricX={correlateMetricX}
@@ -200,6 +205,18 @@ export function ScoreBuilderMapLegend({
               </div>
             </>
           )}
+          {lowCoverageExcludedCount > 0 &&
+            (compact ? (
+              <div className="mt-1 text-xs text-muted-foreground">
+                {lowCoverageExcludedCount} region{lowCoverageExcludedCount === 1 ? '' : 's'} unranked (thin data).
+              </div>
+            ) : (
+              <div className="mt-2 rounded border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+                {lowCoverageExcludedCount} region{lowCoverageExcludedCount === 1 ? '' : 's'} left unranked because too
+                few of the weighted metrics have data there. Turn off "Require data coverage" in index settings to
+                include them.
+              </div>
+            ))}
           {thinCoverageCount > 0 &&
             (compact ? (
               <div className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">

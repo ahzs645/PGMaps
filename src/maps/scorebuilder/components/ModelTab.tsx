@@ -6,6 +6,7 @@ import type {
   ScoreBandSummary,
   ScoreFilterKey,
   ScoreFilterState,
+  ScoreMetricDefinition,
   ScoreMetricWeightMap,
   ScoreMethodSettings,
   ScenarioComparison,
@@ -18,6 +19,8 @@ import { MethodControls } from './MethodControls'
 interface ModelTabProps {
   className?: string
   weights: ScoreMetricWeightMap
+  /** Built-ins plus the user's recipe metrics. */
+  metrics?: ScoreMetricDefinition[]
   totalAbsoluteWeight: number
   scoreFilters: ScoreFilterState
   onToggleScoreFilter: (filter: ScoreFilterKey) => void
@@ -35,6 +38,7 @@ interface ModelTabProps {
 export function ModelTab({
   className,
   weights,
+  metrics,
   totalAbsoluteWeight,
   scoreFilters,
   onToggleScoreFilter,
@@ -171,6 +175,7 @@ export function ModelTab({
         <div className="mb-2 text-sm font-semibold text-foreground">Method controls</div>
         <MethodControls
           weights={weights}
+          metrics={metrics}
           methodSettings={methodSettings}
           onMethodSettingsChange={onMethodSettingsChange}
         />

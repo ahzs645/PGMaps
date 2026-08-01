@@ -19,6 +19,7 @@ import { buildScoreBandSummary, summarizeScores } from '../lib/scoreSummaries'
 import { computeMedian } from '../lib/spatial'
 import {
   METRIC_CATEGORY_LABELS,
+  MINIMUM_DATA_COVERAGE,
   type RobustnessResult,
   type ScenarioComparison,
   type ScoreComponentSummary,
@@ -167,6 +168,9 @@ export function useScoreBuilderResults({
 
   const scoredRegions = useMemo<ScoredBoundaryRegion[]>(() => {
     const filtered = unfilteredScoredRegions.filter((entry) => {
+      // Coverage first: a region scored almost entirely from zero-filled metrics is
+      // not a low-scoring region, it is an unmeasured one.
+      if (scoreFilters.requireCoverage && entry.dataCoverageScore < MINIMUM_DATA_COVERAGE) return false
       if (scoreFilters.requirePopulation && entry.counts.populationSum <= 0) return false
       if (
         scoreFilters.requireParks &&
@@ -295,10 +299,17 @@ export function useScoreBuilderResults({
       .filter(Boolean) as ScoredBoundaryRegion[]
   }, [comparisonIds, scoredRegions])
 
+  /** Thin regions still in the ranking — non-zero only when the coverage filter is off. */
   const thinCoverageCount = useMemo(
-    () => scoredRegions.filter((region) => region.dataCoverageScore < 0.6).length,
+    () => scoredRegions.filter((region) => region.dataCoverageScore < MINIMUM_DATA_COVERAGE).length,
     [scoredRegions],
   )
+
+  /** Thin regions the coverage filter is holding back, so the map can say so. */
+  const lowCoverageExcludedCount = useMemo(() => {
+    if (!scoreFilters.requireCoverage) return 0
+    return unfilteredScoredRegions.filter((region) => region.dataCoverageScore < MINIMUM_DATA_COVERAGE).length
+  }, [scoreFilters.requireCoverage, unfilteredScoredRegions])
 
   const scoreBands = useMemo(() => buildScoreBandSummary(scoredRegions), [scoredRegions])
 
@@ -543,6 +554,7 @@ export function useScoreBuilderResults({
     regionInsightRegion,
     comparisonRegions,
     thinCoverageCount,
+    lowCoverageExcludedCount,
     scoreBands,
     componentSummaries,
     populationEquitySummary,

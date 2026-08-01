@@ -1,12 +1,19 @@
 import { BookOpen } from 'lucide-react'
 import { SCORE_INDEX_MODULE_LABELS, SCORE_METRICS, SCORE_PRESETS, getScorePresetMethodology } from '../constants'
-import type { ScoreComponentSummary, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
+import type {
+  ScoreComponentSummary,
+  ScoreMetricDefinition,
+  ScoreMetricWeightMap,
+  ScoreMethodSettings,
+} from '../types'
 import { formatScore } from '../lib/metrics'
 import { formatAggregationMethod, formatNormalizationMethod } from './scoreBuilderPanelUtils'
 
 interface MethodologyTabProps {
   className?: string
   weights: ScoreMetricWeightMap
+  /** Built-ins plus the user's recipe metrics, so custom terms are documented too. */
+  metrics?: ScoreMetricDefinition[]
   methodSettings: ScoreMethodSettings
   componentSummaries: ScoreComponentSummary[]
   activePreset: (typeof SCORE_PRESETS)[number] | null
@@ -15,11 +22,12 @@ interface MethodologyTabProps {
 export function MethodologyTab({
   className = 'p-4',
   weights,
+  metrics = SCORE_METRICS,
   methodSettings,
   componentSummaries,
   activePreset,
 }: MethodologyTabProps) {
-  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+  const activeMetrics = metrics.filter((metric) => weights[metric.key] !== 0)
   const presetMethodology = activePreset ? getScorePresetMethodology(activePreset) : null
 
   return (

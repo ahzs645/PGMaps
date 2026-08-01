@@ -6,20 +6,33 @@ import {
   SCORE_INDEX_MODULE_LABELS,
   SCORE_METRICS,
 } from '../constants'
-import type { ScoreIndexModule, ScoreMetricKey, ScoreMetricWeightMap, ScoreMethodSettings } from '../types'
+import type {
+  ScoreIndexModule,
+  ScoreMetricDefinition,
+  ScoreMetricKey,
+  ScoreMetricWeightMap,
+  ScoreMethodSettings,
+} from '../types'
 import { isHealthyPlanDemographicMetric, isHealthyPlanEnvironmentMetric } from './scoreBuilderPanelUtils'
 
 interface MethodControlsProps {
   className?: string
   weights: ScoreMetricWeightMap
+  /** Built-ins plus the user's recipe metrics, so custom terms are editable here too. */
+  metrics?: ScoreMetricDefinition[]
   methodSettings: ScoreMethodSettings
   onMethodSettingsChange: (settings: ScoreMethodSettings) => void
 }
 
-const healthyPlanDemographicMetrics = SCORE_METRICS.filter(isHealthyPlanDemographicMetric)
-const healthyPlanEnvironmentMetrics = SCORE_METRICS.filter(isHealthyPlanEnvironmentMetric)
-
-export function MethodControls({ className, weights, methodSettings, onMethodSettingsChange }: MethodControlsProps) {
+export function MethodControls({
+  className,
+  weights,
+  metrics = SCORE_METRICS,
+  methodSettings,
+  onMethodSettingsChange,
+}: MethodControlsProps) {
+  const healthyPlanDemographicMetrics = metrics.filter(isHealthyPlanDemographicMetric)
+  const healthyPlanEnvironmentMetrics = metrics.filter(isHealthyPlanEnvironmentMetric)
   const activeHealthyPlanPairKey =
     HEALTHYPLAN_PAIRWISE_PRESETS.find(
       (preset) =>
@@ -170,7 +183,7 @@ export function MethodControls({ className, weights, methodSettings, onMethodSet
       {methodSettings.aggregation === 'modulePercentileRankedSum' && (
         <div className="grid gap-2 rounded-md border border-cyan-200 bg-cyan-50/70 p-2 dark:border-cyan-900/70 dark:bg-cyan-950/25">
           <div className="font-medium text-cyan-950 dark:text-cyan-100">Module editor</div>
-          {SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).map((metric) => (
+          {metrics.filter((metric) => weights[metric.key] !== 0).map((metric) => (
             <label key={metric.key} className="grid gap-1">
               <span className="text-xs font-medium text-cyan-950 dark:text-cyan-100">{metric.shortLabel}</span>
               <AppSelect

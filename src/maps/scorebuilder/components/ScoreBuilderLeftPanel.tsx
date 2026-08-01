@@ -1,14 +1,18 @@
 import { useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Layers, Plus, Trash2, Upload } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, Layers, Plus, Trash2, Upload } from 'lucide-react'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
+import { getLevelOptionsForSource } from '@/lib/studyArea'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import { SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS } from '../constants'
-import type { ScoreDataSource } from '../types'
+import type { ScoreDataSource, ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
 import { SCORE_DATA_SOURCES } from '../types'
+import { getUnavailableWeightedMetrics } from '../lib/metrics'
+import { InactiveTermNotice } from './ScoreBuilderBuildView'
+import { MetricLibraryPanel } from './MetricLibrary'
 import { SCORE_BUILDER_DATASETS, type DatasetProfile } from '../lib/datasetCatalog'
 import type { MetricRecipe, MetricRecipeFilter, MetricRecipeOperation, MetricRecipeSource } from '../lib/metricRecipes'
 import { isUserDatasetSource, userDatasetSourceId, type UserDatasetSummary } from '../lib/userDatasets'
@@ -22,8 +26,14 @@ interface ScoreBuilderLeftPanelProps {
   selectedRegionLevel: RegionLevel
   onRegionLevelChange: (level: RegionLevel) => void
   boundaryLevelOptions: Array<{ value: RegionLevel; label: string }>
+  weights: ScoreMetricWeightMap
+  /** Built-ins plus the user's recipe metrics. */
+  metrics: ScoreMetricDefinition[]
+  onAddMetric: (metric: ScoreMetricKey, value: number) => void
+  onWeightChange: (metric: ScoreMetricKey, value: number) => void
   enabledDataSources: ScoreDataSource[]
   onToggleDataSource: (source: ScoreDataSource) => void
+  onEnableDataSource: (source: ScoreDataSource) => void
   networkCounts: Array<[string, number]>
   selectedNetworks: string[]
   onToggleNetwork: (network: string) => void
@@ -51,8 +61,13 @@ export function ScoreBuilderLeftPanel({
   selectedRegionLevel,
   onRegionLevelChange,
   boundaryLevelOptions,
+  weights,
+  metrics,
+  onAddMetric,
+  onWeightChange,
   enabledDataSources,
   onToggleDataSource,
+  onEnableDataSource,
   networkCounts,
   selectedNetworks,
   onToggleNetwork,
@@ -72,9 +87,16 @@ export function ScoreBuilderLeftPanel({
   onUploadUserDataset,
   onRemoveUserDataset,
 }: ScoreBuilderLeftPanelProps) {
+  // Open by default: the list is now a readout of what the equation switched on, so
+  // hiding it would also hide it from the accessibility tree for no real gain.
+  const [dataSourcesOpen, setDataSourcesOpen] = useState(true)
   const enabledSet = useMemo(() => new Set(enabledDataSources), [enabledDataSources])
   const selectedNetworkSet = useMemo(() => new Set(selectedNetworks), [selectedNetworks])
   const displayedBoundarySource = canUseWalkabilitySourceSurface && mapSurface === 'source' ? undefined : boundarySource
+  const unavailableTerms = useMemo(
+    () => getUnavailableWeightedMetrics(metrics, weights, enabledDataSources, boundarySource),
+    [boundarySource, enabledDataSources, metrics, weights],
+  )
 
   return (
     <div
@@ -98,6 +120,7 @@ export function ScoreBuilderLeftPanel({
           sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
           level={selectedRegionLevel}
           levelOptions={boundaryLevelOptions}
+          levelOptionsForSource={getLevelOptionsForSource}
           onSourceChange={(source) => {
             onBoundarySourceChange(source)
             if (canUseWalkabilitySourceSurface) onMapSurfaceChange('boundary')
@@ -106,91 +129,149 @@ export function ScoreBuilderLeftPanel({
             canUseWalkabilitySourceSurface ? () => onMapSurfaceChange('source') : undefined
           }
           onLevelChange={onRegionLevelChange}
-          showPoints={showPoints}
-          onTogglePoints={onTogglePoints}
           levelSelectId="score-builder-level"
           dataPrefix="score-builder"
         />
 
-        {/* Data sources */}
-        <section
-          className="p-4"
-          data-score-builder-section="filters"
-        >
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Data sources
-          </h3>
-
-          <div className="space-y-2">
-            {SCORE_DATA_SOURCES.map((ds) => {
-              const active = enabledSet.has(ds.id)
-              return (
-                <div key={ds.id}>
-                  <button
-                    type="button"
-                    aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
-                    title={ds.description}
-                    onClick={() => onToggleDataSource(ds.id)}
-                    className={cn(
-                      'flex w-full items-center justify-between rounded-md border px-3 py-1.5 text-left text-xs transition-colors',
-                      active
-                        ? 'border-cyan-500/60 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-100'
-                        : 'border-input bg-background text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    <span className="min-w-0 truncate font-medium">{ds.label}</span>
-                    <span
+        <MetricLibraryPanel
+          weights={weights}
+          metrics={metrics}
+          boundarySource={boundarySource}
+          onAddMetric={onAddMetric}
+          onRemoveMetric={(metric) => onWeightChange(metric, 0)}
+          renderCategoryExtras={(category) =>
+            category === 'airQuality' && enabledSet.has('airQuality') ? (
+              <div className="mb-1.5 space-y-1 rounded-md border border-cyan-200 bg-cyan-50/40 p-2 dark:border-cyan-900 dark:bg-cyan-950/20">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{selectedNetworks.length} networks</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={onSelectAllNetworks}
+                      className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClearNetworks}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      None
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-32 space-y-0.5 overflow-y-auto">
+                  {networkCounts.map(([network, count]) => (
+                    <button
+                      key={network}
+                      type="button"
+                      data-score-builder-network={network}
+                      onClick={() => onToggleNetwork(network)}
                       className={cn(
-                        'ml-2 shrink-0 text-xs font-semibold',
-                        active ? 'text-cyan-600' : 'text-muted-foreground',
+                        'flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors',
+                        selectedNetworkSet.has(network)
+                          ? 'bg-cyan-100 text-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-100'
+                          : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
-                      {active ? 'ON' : 'OFF'}
-                    </span>
-                  </button>
-
-                  {ds.id === 'airQuality' && active && (
-                    <div className="ml-2 mt-1 space-y-1 border-l-2 border-cyan-200 pl-2 dark:border-cyan-900">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">
-                          {selectedNetworks.length} networks
-                        </span>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={onSelectAllNetworks}
-                            className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400"
-                          >
-                            All
-                          </button>
-                          <button
-                            onClick={onClearNetworks}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            None
-                          </button>
-                        </div>
-                      </div>
-                      <div className="max-h-32 space-y-0.5 overflow-y-auto">
-                        {networkCounts.map(([network, count]) => (
-                          <button
-                            key={network}
-                            data-score-builder-network={network}
-                            onClick={() => onToggleNetwork(network)}
-                            className={cn(
-                              'flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors',
-                              selectedNetworkSet.has(network)
-                                ? 'bg-cyan-50 text-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-100'
-                                : 'text-muted-foreground hover:text-foreground',
-                            )}
-                          >
-                            <span className="truncate">{network}</span>
-                            <span>{count.toLocaleString()}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                      <span className="truncate">{network}</span>
+                      <span>{count.toLocaleString()}</span>
+                    </button>
+                  ))}
                 </div>
+              </div>
+            ) : null
+          }
+        />
+
+        {/* Data sources follow the metrics in use; the list stays for overlay-only
+            sources and for switching one back on after an explicit turn-off. */}
+        <section className="border-t border-border p-4" data-score-builder-section="filters">
+          <button
+            type="button"
+            onClick={() => setDataSourcesOpen((current) => !current)}
+            aria-expanded={dataSourcesOpen}
+            className="mb-2 flex w-full items-center justify-between gap-2 text-left"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Data sources · {enabledDataSources.length} on
+            </span>
+            {dataSourcesOpen ? (
+              <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+          </button>
+
+          {unavailableTerms.size > 0 && (
+            <div className="mb-2 space-y-1">
+              {[...unavailableTerms].map(([key, unavailable]) => {
+                const metric = metrics.find((entry) => entry.key === key)
+                if (!metric) return null
+                return (
+                  <InactiveTermNotice
+                    key={key}
+                    metric={metric}
+                    unavailable={unavailable}
+                    onEnableDataSource={onEnableDataSource}
+                  />
+                )
+              })}
+            </div>
+          )}
+
+          <div className={cn('space-y-2', !dataSourcesOpen && 'hidden')}>
+            {/* Point overlays draw from the data sources, not from the study-area
+                boundaries, so the toggle lives with them. */}
+            <button
+              type="button"
+              onClick={onTogglePoints}
+              aria-pressed={showPoints}
+              className={cn(
+                'flex w-full items-center justify-between rounded-md border px-3 py-1.5 text-left text-xs transition-colors',
+                showPoints
+                  ? 'border-sky-500/60 bg-sky-50 text-sky-900 dark:bg-sky-950/40 dark:text-sky-100'
+                  : 'border-input bg-background text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <span className="min-w-0 truncate font-medium">Source points on map</span>
+              <span className={cn('ml-2 shrink-0 font-semibold', showPoints ? 'text-sky-600' : 'text-muted-foreground')}>
+                {showPoints ? 'ON' : 'OFF'}
+              </span>
+            </button>
+            {SCORE_DATA_SOURCES.map((ds) => {
+              const active = enabledSet.has(ds.id)
+              const orphanedCount = [...unavailableTerms.values()].filter(
+                (entry) => entry.source === ds.id,
+              ).length
+              return (
+                <button
+                  key={ds.id}
+                  type="button"
+                  aria-label={`${ds.label} ${ds.id === 'bcAssessment' ? 'Property' : ''} ${active ? 'ON' : 'OFF'}`}
+                  title={ds.description}
+                  onClick={() => onToggleDataSource(ds.id)}
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-md border px-3 py-1.5 text-left text-xs transition-colors',
+                    active
+                      ? 'border-cyan-500/60 bg-cyan-50 text-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-100'
+                      : orphanedCount > 0
+                        ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100'
+                        : 'border-input bg-background text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <span className="min-w-0 truncate font-medium">{ds.label}</span>
+                  <span className="ml-2 flex shrink-0 items-center gap-1.5 text-xs font-semibold">
+                    {orphanedCount > 0 && !active && (
+                      <span className="inline-flex items-center gap-1 font-normal">
+                        <AlertTriangle className="h-3 w-3" />
+                        {orphanedCount} metric{orphanedCount === 1 ? '' : 's'}
+                      </span>
+                    )}
+                    <span className={active ? 'text-cyan-600' : 'text-muted-foreground'}>{active ? 'ON' : 'OFF'}</span>
+                  </span>
+                </button>
               )
             })}
           </div>

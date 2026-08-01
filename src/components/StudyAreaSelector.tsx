@@ -9,12 +9,20 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { AppSelect } from '@/components/ui/select'
+import { StudyAreaSourcePickerDialog } from '@/components/StudyAreaSourcePicker'
 
 interface StudyAreaSelectorProps<TSource extends string = string, TLevel extends string = string> {
   source?: TSource
   sourceOptions?: Array<StudyAreaSourceOption<TSource>>
   level: TLevel
   levelOptions: Array<StudyAreaLevelOption<TLevel>>
+  /**
+   * Opt into the unified boundaries selector: the picker gains search, a level
+   * count per source, and inline level selection, so a source and its level are
+   * chosen in one pass. Surfaces that can only describe the *selected* source's
+   * hierarchy leave this out and keep the flat source list.
+   */
+  levelOptionsForSource?: (source: TSource) => Array<StudyAreaLevelOption<TLevel>>
   onSourceChange?: (source: TSource) => void
   onSelectedSourceClick?: () => void
   onLevelChange: (level: TLevel) => void
@@ -35,6 +43,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
   sourceOptions,
   level,
   levelOptions,
+  levelOptionsForSource,
   onSourceChange,
   onSelectedSourceClick,
   onLevelChange,
@@ -72,6 +81,18 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
   const sourceSummary = categoryCount > 0
     ? `${sourceOptions?.length ?? 0} boundary sources across ${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'}.`
     : `${sourceOptions?.length ?? 0} boundary ${sourceOptions?.length === 1 ? 'source' : 'sources'} available.`
+  const unified = Boolean(levelOptionsForSource && hasSourceList)
+  const selectedLevelLabel = selectedLevel?.label ?? level
+  // Unified mode leads with the resolved boundary level, since the source label already
+  // carries the "what". Single-level sources whose level restates the source name
+  // (Community polygons → "Community polygons") fall back to the description instead.
+  const levelRestatesSource = levelOptions.length <= 1 && selectedLevelLabel === (selectedSource?.label ?? source)
+  const selectedSourceSubtitle =
+    unified && !levelRestatesSource
+      ? [selectedLevelLabel, levelOptions.length > 1 ? `${levelOptions.length} levels` : null]
+          .filter(Boolean)
+          .join(' · ')
+      : selectedSource?.description ?? selectedLevelLabel
 
   return (
     <>
@@ -124,7 +145,7 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
               >
                 <div className="truncate text-xs font-medium text-foreground">{selectedSource?.label ?? source}</div>
                 <div className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">
-                  {selectedSource?.description ?? selectedLevel?.label ?? level}
+                  {selectedSourceSubtitle}
                 </div>
               </button>
               {onSelectedSourceClick && (
@@ -222,7 +243,31 @@ export function StudyAreaSelector<TSource extends string = string, TLevel extend
         )}
       </section>
 
-      {hasSourceList && (
+      {unified && levelOptionsForSource && (
+        <StudyAreaSourcePickerDialog<TSource, TLevel>
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          selectionMode="single"
+          sourceOptions={sourceOptions ?? []}
+          levelOptionsForSource={levelOptionsForSource}
+          activeSources={source ? [source] : []}
+          sourceLevels={source ? ({ [source]: level } as Partial<Record<TSource, TLevel>>) : {}}
+          sourceDataAttribute={dataPrefix === 'score-builder' ? 'data-score-builder-boundary-source' : undefined}
+          onToggleSource={(nextSource) => {
+            onSourceChange?.(nextSource)
+            setPickerOpen(false)
+          }}
+          onSelectLevel={(nextSource, nextLevel) => {
+            // A level row doubles as "switch to this source at this level", so the
+            // source change has to land before the level it is being scoped to.
+            if (nextSource !== source) onSourceChange?.(nextSource)
+            onLevelChange(nextLevel)
+            setPickerOpen(false)
+          }}
+        />
+      )}
+
+      {hasSourceList && !unified && (
         <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
           <DialogContent variant="sheet" elevated className="sm:max-w-md">
             <div className="border-b border-border p-4 pb-3 pr-10">

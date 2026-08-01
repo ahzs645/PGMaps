@@ -1,11 +1,18 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from '../constants'
-import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
+import type {
+  ScoredBoundaryRegion,
+  ScoreMetricDefinition,
+  ScoreMetricKey,
+  ScoreMetricWeightMap,
+} from '../types'
 
 interface RadarChartProps {
   regions: ScoredBoundaryRegion[]
   weights: ScoreMetricWeightMap
+  /** Built-ins plus the user's recipe metrics, so custom terms get an axis too. */
+  metrics?: ScoreMetricDefinition[]
   className?: string
 }
 
@@ -25,10 +32,10 @@ function polarToXY(angle: number, r: number): [number, number] {
   return [CENTER + r * Math.cos(rad), CENTER + r * Math.sin(rad)]
 }
 
-export function RadarChart({ regions, weights, className }: RadarChartProps) {
+export function RadarChart({ regions, weights, metrics = SCORE_METRICS, className }: RadarChartProps) {
   const activeMetrics = useMemo(
-    () => SCORE_METRICS.filter((m) => weights[m.key] !== 0),
-    [weights],
+    () => metrics.filter((m) => weights[m.key] !== 0),
+    [metrics, weights],
   )
 
   const axes = useMemo(() => {

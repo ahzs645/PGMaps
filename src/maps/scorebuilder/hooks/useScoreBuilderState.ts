@@ -64,6 +64,7 @@ const HISTORY_ACTION_TYPES = new Set<ScoreBuilderAction['type']>([
   'createCustomMetric',
   'removeCustomMetric',
   'toggleDataSource',
+  'enableDataSource',
   'toggleNetwork',
   'setSelectedNetworks',
   'toggleScoreFilter',
@@ -320,6 +321,9 @@ export function useScoreBuilderState() {
   const toggleDataSource = useCallback((source: ScoreDataSource) => {
     dispatchTracked({ type: 'toggleDataSource', source })
   }, [dispatchTracked])
+  const enableDataSource = useCallback((source: ScoreDataSource) => {
+    dispatchTracked({ type: 'enableDataSource', source, allNetworks: allNetworksRef.current })
+  }, [dispatchTracked])
   const toggleNetwork = useCallback((network: string) => {
     dispatchTracked({ type: 'toggleNetwork', network })
   }, [dispatchTracked])
@@ -484,6 +488,7 @@ export function useScoreBuilderState() {
     handleCreateCustomMetric,
     handleRemoveCustomMetric,
     toggleDataSource,
+    enableDataSource,
     toggleNetwork,
     selectAllNetworks,
     clearNetworks,

@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp, GripVertical, X } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import { SCORE_METRICS } from '../constants'
-import type { ScoreMetricKey, ScoreMetricWeightMap } from '../types'
+import type { ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
 import { clampWeight, getCategoryTone, getDefaultMetricWeight, getWeightIntent } from './scoreBuilderPanelUtils'
 
 export function EquationComposer({
@@ -13,7 +13,7 @@ export function EquationComposer({
   onFocus,
   onWeightChange,
 }: {
-  activeTerms: Array<(typeof SCORE_METRICS)[number]>
+  activeTerms: ScoreMetricDefinition[]
   weights: ScoreMetricWeightMap
   totalAbsoluteWeight: number
   focusedMetric: ScoreMetricKey | null
@@ -69,7 +69,7 @@ function ScoreEquationTerm({
   onChange,
   onRemove,
 }: {
-  metric: (typeof SCORE_METRICS)[number]
+  metric: ScoreMetricDefinition
   value: number
   totalAbsoluteWeight: number
   active: boolean
@@ -124,11 +124,13 @@ function ScoreEquationTerm({
 export function WeightDistribution({
   weights,
   totalAbsoluteWeight,
+  metrics = SCORE_METRICS,
 }: {
   weights: ScoreMetricWeightMap
   totalAbsoluteWeight: number
+  metrics?: ScoreMetricDefinition[]
 }) {
-  const activeMetrics = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0)
+  const activeMetrics = metrics.filter((metric) => weights[metric.key] !== 0)
 
   return (
     <div>
@@ -161,12 +163,14 @@ export function WeightDistribution({
 export function PriorityMode({
   order,
   weights,
+  metrics = SCORE_METRICS,
   onMove,
   onFocus,
   onRemove,
 }: {
   order: ScoreMetricKey[]
   weights: ScoreMetricWeightMap
+  metrics?: ScoreMetricDefinition[]
   onMove: (metric: ScoreMetricKey, direction: -1 | 1) => void
   onFocus: (metric: ScoreMetricKey) => void
   onRemove: (metric: ScoreMetricKey) => void
@@ -182,7 +186,7 @@ export function PriorityMode({
   return (
     <div className="space-y-2">
       {order.map((metricKey, index) => {
-        const metric = SCORE_METRICS.find((entry) => entry.key === metricKey)
+        const metric = metrics.find((entry) => entry.key === metricKey)
         if (!metric) return null
         const value = weights[metricKey]
         const projected = order.length <= 1 ? 70 : Math.round(80 - (index * 55) / (order.length - 1))

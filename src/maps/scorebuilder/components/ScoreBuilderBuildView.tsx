@@ -1,33 +1,30 @@
 import { useMemo, useState } from 'react'
 import {
+  AlertTriangle,
   BookOpen,
-  Check,
   Download,
   Hammer,
   Map as MapIcon,
-  Plus,
-  Search,
   Settings as SettingsIcon,
   X,
 } from 'lucide-react'
 import type { AirMonitor, BoundarySource, RegionLevel } from '@/maps/airquality'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { Slider } from '@/components/ui/slider'
+import { getLevelOptionsForSource } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
-import {
-  SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS,
-  SCORE_METRICS,
-  SCORE_METRICS_BY_CATEGORY,
-  SCORE_PRESETS,
-} from '../constants'
+import { SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS, SCORE_PRESETS } from '../constants'
+import { getUnavailableWeightedMetrics, type MetricAvailability } from '../lib/metrics'
+import { MetricLibraryPanel } from './MetricLibrary'
 import { formatScore } from '../lib/metrics'
 import type {
   BaselineComparisonResult,
   BaselineSnapshot,
 } from '../lib/baselineComparison'
-import { METRIC_CATEGORY_LABELS } from '../types'
 import type {
   ScoredBoundaryRegion,
+  ScoreDataSource,
+  ScoreMetricDefinition,
   ScoreMetricKey,
   ScoreMetricWeightMap,
   ScoreMethodSettings,
@@ -37,10 +34,14 @@ import { WeightDistribution } from './EquationComposer'
 import { MethodControls } from './MethodControls'
 import { ScoreBuilderMap } from './ScoreBuilderMap'
 import { ScorePresetDialog } from './ScorePresetDialog'
-import { clampWeight, getCategoryTone, getDefaultMetricWeight, getWeightIntent } from './scoreBuilderPanelUtils'
+import { clampWeight, getCategoryTone } from './scoreBuilderPanelUtils'
 
 export interface ScoreBuilderBuildViewProps {
   weights: ScoreMetricWeightMap
+  /** Built-ins plus the user's recipe metrics. */
+  metrics: ScoreMetricDefinition[]
+  enabledDataSources: ScoreDataSource[]
+  onEnableDataSource: (source: ScoreDataSource) => void
   onWeightChange: (metric: ScoreMetricKey, value: number) => void
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   totalAbsoluteWeight: number
@@ -78,6 +79,9 @@ export interface ScoreBuilderBuildViewProps {
  */
 export function ScoreBuilderBuildView({
   weights,
+  metrics,
+  enabledDataSources,
+  onEnableDataSource,
   onWeightChange,
   onAddMetric,
   totalAbsoluteWeight,
@@ -108,7 +112,11 @@ export function ScoreBuilderBuildView({
   onExportProjectPackage,
 }: ScoreBuilderBuildViewProps) {
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
-  const activeTerms = useMemo(() => SCORE_METRICS.filter((metric) => weights[metric.key] !== 0), [weights])
+  const activeTerms = useMemo(() => metrics.filter((metric) => weights[metric.key] !== 0), [metrics, weights])
+  const unavailableTerms = useMemo(
+    () => getUnavailableWeightedMetrics(metrics, weights, enabledDataSources, boundarySource),
+    [boundarySource, enabledDataSources, metrics, weights],
+  )
   const topRegions = scoredRegions.slice(0, 5)
 
   return (
@@ -126,6 +134,8 @@ export function ScoreBuilderBuildView({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[minmax(17rem,21rem)_minmax(0,1fr)_minmax(19rem,24rem)] lg:overflow-hidden">
         <MetricLibraryPanel
           weights={weights}
+          metrics={metrics}
+          boundarySource={boundarySource}
           onAddMetric={onAddMetric}
           onRemoveMetric={(metric) => onWeightChange(metric, 0)}
           className="order-2 border-b border-border lg:order-none lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r"
@@ -137,6 +147,7 @@ export function ScoreBuilderBuildView({
             sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
             level={selectedRegionLevel}
             levelOptions={boundaryLevelOptions}
+            levelOptionsForSource={getLevelOptionsForSource}
             onSourceChange={onBoundarySourceChange}
             onLevelChange={onRegionLevelChange}
             sectionClassName="rounded-lg border border-border bg-background p-3"
@@ -150,7 +161,7 @@ export function ScoreBuilderBuildView({
                 Slide how much each metric matters. The +/− toggle sets whether high values raise or lower the score.
               </div>
             </div>
-            <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} />
+            <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} metrics={metrics} />
 
             {activeTerms.length === 0 ? (
               <div className="mt-3 rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
@@ -164,6 +175,8 @@ export function ScoreBuilderBuildView({
                     metric={metric}
                     value={weights[metric.key]}
                     totalAbsoluteWeight={totalAbsoluteWeight}
+                    unavailable={unavailableTerms.get(metric.key) ?? null}
+                    onEnableDataSource={onEnableDataSource}
                     onChange={(value) => onWeightChange(metric.key, value)}
                     onRemove={() => onWeightChange(metric.key, 0)}
                   />
@@ -185,6 +198,7 @@ export function ScoreBuilderBuildView({
             </div>
             <MethodControls
               weights={weights}
+              metrics={metrics}
               methodSettings={methodSettings}
               onMethodSettingsChange={onMethodSettingsChange}
             />
@@ -426,12 +440,16 @@ function CompactWeightRow({
   metric,
   value,
   totalAbsoluteWeight,
+  unavailable,
+  onEnableDataSource,
   onChange,
   onRemove,
 }: {
-  metric: (typeof SCORE_METRICS)[number]
+  metric: ScoreMetricDefinition
   value: number
   totalAbsoluteWeight: number
+  unavailable?: MetricAvailability | null
+  onEnableDataSource?: (source: ScoreDataSource) => void
   onChange: (value: number) => void
   onRemove: () => void
 }) {
@@ -446,7 +464,21 @@ function CompactWeightRow({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/20 px-2 py-1.5 sm:flex-nowrap">
+    <div>
+    {unavailable && (
+      <InactiveTermNotice
+        metric={metric}
+        unavailable={unavailable}
+        onEnableDataSource={onEnableDataSource}
+        className="mb-1"
+      />
+    )}
+    <div
+      className={cn(
+        'flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/20 px-2 py-1.5 sm:flex-nowrap',
+        unavailable && 'border-dashed opacity-60',
+      )}
+    >
       <button
         type="button"
         onClick={() => onChange(-clamped)}
@@ -467,7 +499,10 @@ function CompactWeightRow({
       </button>
       <span className={cn('h-2 w-2 shrink-0 rounded-full', getCategoryTone(metric.category))} aria-hidden="true" />
       <span
-        className="min-w-0 flex-1 truncate text-xs font-medium text-foreground sm:w-40 sm:flex-none"
+        className={cn(
+          'min-w-0 flex-1 truncate text-xs font-medium text-foreground sm:w-40 sm:flex-none',
+          unavailable && 'text-muted-foreground line-through',
+        )}
         title={`${metric.label} — ${share}% of the score`}
       >
         {metric.shortLabel}
@@ -504,111 +539,49 @@ function CompactWeightRow({
         <X className="h-3.5 w-3.5" />
       </button>
     </div>
+    </div>
   )
 }
 
-function MetricLibraryPanel({
-  weights,
-  onAddMetric,
-  onRemoveMetric,
+/**
+ * Explains why a weighted metric is contributing nothing. A switched-off data
+ * source is recoverable inline; a boundary mismatch needs a different study area,
+ * so that case only states the requirement.
+ */
+export function InactiveTermNotice({
+  metric,
+  unavailable,
+  onEnableDataSource,
   className,
 }: {
-  weights: ScoreMetricWeightMap
-  onAddMetric: (metric: ScoreMetricKey, value: number) => void
-  onRemoveMetric: (metric: ScoreMetricKey) => void
+  metric: ScoreMetricDefinition
+  unavailable: MetricAvailability
+  onEnableDataSource?: (source: ScoreDataSource) => void
   className?: string
 }) {
-  const [query, setQuery] = useState('')
-  const normalizedQuery = query.trim().toLowerCase()
-  const groupedMetrics = useMemo(
-    () =>
-      Object.entries(SCORE_METRICS_BY_CATEGORY).map(([category, metrics]) => ({
-        category,
-        metrics: metrics.filter((metric) => {
-          if (!normalizedQuery) return true
-          return `${metric.label} ${metric.shortLabel} ${metric.description}`.toLowerCase().includes(normalizedQuery)
-        }),
-      })),
-    [normalizedQuery],
-  )
-  const activeCount = SCORE_METRICS.filter((metric) => weights[metric.key] !== 0).length
-
+  const source = unavailable.source
   return (
-    <aside className={cn('bg-background', className)}>
-      <div className="sticky top-0 z-10 border-b border-border bg-background p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Metric library
-          </div>
-          <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-            {activeCount} in use
-          </span>
-        </div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search metrics..."
-            className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-4 p-3">
-        {groupedMetrics.map(({ category, metrics }) => {
-          if (!metrics.length) return null
-          return (
-            <div key={category}>
-              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
-              </div>
-              <div className="space-y-1.5">
-                {metrics.map((metric) => {
-                  const active = weights[metric.key] !== 0
-                  return (
-                    <button
-                      key={metric.key}
-                      type="button"
-                      onClick={() =>
-                        active ? onRemoveMetric(metric.key) : onAddMetric(metric.key, getDefaultMetricWeight(metric.key))
-                      }
-                      title={active ? 'Remove from equation' : 'Add to equation'}
-                      className={cn(
-                        'w-full rounded-lg border p-2.5 text-left transition-colors',
-                        active
-                          ? 'border-cyan-500 bg-cyan-50/70 dark:bg-cyan-950/25'
-                          : 'border-border bg-background hover:border-cyan-400 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/15',
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 text-xs font-semibold text-foreground">{metric.label}</div>
-                        {active ? (
-                          <Check className="h-3.5 w-3.5 shrink-0 text-cyan-600" />
-                        ) : (
-                          <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
-                        {metric.description}
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{metric.format}</span>
-                        <span>{getWeightIntent(getDefaultMetricWeight(metric.key))}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
-        {groupedMetrics.every(({ metrics }) => metrics.length === 0) && (
-          <div className="rounded border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-            No metrics match that search.
-          </div>
-        )}
-      </div>
-    </aside>
+    <div
+      data-score-builder-inactive-term={metric.key}
+      className={cn(
+        'flex flex-wrap items-center gap-2 rounded-md border border-amber-300/70 bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100',
+        className,
+      )}
+    >
+      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+      <span className="min-w-0 flex-1">
+        <span className="font-semibold">{metric.shortLabel}</span> {unavailable.message}
+      </span>
+      {source && onEnableDataSource && (
+        <button
+          type="button"
+          onClick={() => onEnableDataSource(source)}
+          className="shrink-0 rounded border border-amber-400 bg-background px-2 py-0.5 font-medium text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:text-amber-100 dark:hover:bg-amber-950/60"
+        >
+          Turn on
+        </button>
+      )}
+    </div>
   )
 }
+

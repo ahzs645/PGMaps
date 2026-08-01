@@ -71,15 +71,41 @@ export function clampScore(value: number): number {
   return Math.max(0, Math.min(100, value))
 }
 
+/**
+ * Share of the weighted metrics that have real data for this region.
+ *
+ * `measurableKeys` restricts the denominator to metrics that have data *somewhere*
+ * in the current set. A metric that is dead everywhere — its data source is off, or
+ * the dataset does not reach this boundary — contributes the same zero to every
+ * region, so counting it would mark the whole map as uncovered instead of telling
+ * regions apart, which is the only thing this score is for.
+ */
 export function computeDataCoverageScore(
   counts: RegionDataCounts,
   weights: ScoreMetricWeightMap,
   metrics: ScoreMetricDefinition[] = DEFAULT_METRICS,
+  measurableKeys?: ReadonlySet<ScoreMetricKey>,
 ): number {
-  const activeMetrics = metrics.filter((metric) => weights[metric.key] !== 0)
+  const activeMetrics = metrics.filter(
+    (metric) => weights[metric.key] !== 0 && (!measurableKeys || measurableKeys.has(metric.key)),
+  )
   if (!activeMetrics.length) return 1
   const coveredMetrics = activeMetrics.filter((metric) => metricHasCoverage(metric.key, counts)).length
   return coveredMetrics / activeMetrics.length
+}
+
+/** Weighted metrics with data for at least one region in the current set. */
+export function findMeasurableMetricKeys(
+  rows: RegionMetricRow[],
+  weights: ScoreMetricWeightMap,
+  metrics: ScoreMetricDefinition[],
+): Set<ScoreMetricKey> {
+  const measurable = new Set<ScoreMetricKey>()
+  metrics.forEach((metric) => {
+    if (weights[metric.key] === 0) return
+    if (rows.some((row) => metricHasCoverage(metric.key, row.counts))) measurable.add(metric.key)
+  })
+  return measurable
 }
 
 export function buildMetricRanges(rows: RegionMetricRow[], metrics: ScoreMetricDefinition[] = DEFAULT_METRICS): ScoreMetricRangeMap {
@@ -119,6 +145,7 @@ export function scoreRegionRows({
   metrics?: ScoreMetricDefinition[]
 }): ScoredBoundaryRegion[] {
   const totalWeight = metrics.reduce((sum, metric) => sum + Math.abs(weights[metric.key] ?? 0), 0)
+  const measurableKeys = findMeasurableMetricKeys(rows, weights, metrics)
   const ranked = rows.map((row) => {
     const normalizedMetrics = createMetricValueMap(0)
     const contributions = createMetricValueMap(0)
@@ -160,7 +187,7 @@ export function scoreRegionRows({
       score,
       scoreColor: getScorePaletteOutputColor(score, paletteProfile, settings.visualOutput),
       rank: 0,
-      dataCoverageScore: computeDataCoverageScore(row.counts, weights, metrics),
+      dataCoverageScore: computeDataCoverageScore(row.counts, weights, metrics, measurableKeys),
       rankConfidence: 'Stable priority' as const,
       rankInterval: [0, 0],
       scoreInterval: [score, score] as [number, number],

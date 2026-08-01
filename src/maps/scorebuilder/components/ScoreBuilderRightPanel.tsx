@@ -3,7 +3,13 @@ import { Check, Copy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
 import { SCORE_BUILDER_EXAMPLES, SCORE_METRICS, SCORE_PRESETS } from '../constants'
-import type { ScoredBoundaryRegion, ScoreMetricKey, ScoreMetricRangeMap, ScoreMetricWeightMap } from '../types'
+import type {
+  ScoredBoundaryRegion,
+  ScoreMetricDefinition,
+  ScoreMetricKey,
+  ScoreMetricRangeMap,
+  ScoreMetricWeightMap,
+} from '../types'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import { presetAppliesToBoundary } from '../lib/presets'
@@ -26,6 +32,8 @@ interface ScoreBuilderRightPanelProps {
   onAddMetric: (metric: ScoreMetricKey, value: number) => void
   onApplyPreset: (presetKey: string) => void
   boundarySource: BoundarySource
+  /** Built-ins plus the user's recipe metrics. */
+  metrics: ScoreMetricDefinition[]
   activePresetKey: string | null
   hasActiveBoundarySurface: boolean
   equationPreview: string
@@ -87,6 +95,7 @@ export function ScoreBuilderRightPanel({
   onAddMetric,
   onApplyPreset,
   boundarySource,
+  metrics,
   activePresetKey,
   hasActiveBoundarySurface,
   equationPreview,
@@ -289,6 +298,8 @@ export function ScoreBuilderRightPanel({
           <EquationTab
             isDesktop={isDesktop}
             weights={weights}
+            metrics={metrics}
+            boundarySource={boundarySource}
             onWeightChange={onWeightChange}
             onAddMetric={onAddMetric}
             onApplyPreset={onApplyPreset}

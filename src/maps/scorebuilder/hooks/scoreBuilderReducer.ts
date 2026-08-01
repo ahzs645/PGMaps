@@ -70,6 +70,9 @@ import type {
 } from '../types'
 
 export const DEFAULT_SCORE_FILTERS: ScoreFilterState = {
+  // On by default: an unranked region is a better answer than a confidently
+  // wrong mid-table one built from zero-filled metrics.
+  requireCoverage: true,
   requirePopulation: false,
   requireParks: false,
   limitCrime: false,
@@ -127,6 +130,7 @@ export type ScoreBuilderAction =
   | { type: 'createCustomMetric'; recipe: MetricRecipe }
   | { type: 'removeCustomMetric'; id: string }
   | { type: 'toggleDataSource'; source: ScoreDataSource }
+  | { type: 'enableDataSource'; source: ScoreDataSource; allNetworks: string[] }
   | { type: 'toggleNetwork'; network: string }
   | { type: 'setSelectedNetworks'; networks: string[] }
   | { type: 'networksLoaded'; allNetworks: string[] }
@@ -312,6 +316,36 @@ function enableDataForMetric(
   return next
 }
 
+/**
+ * Data sources exist to feed the equation, so removing the last metric that needs
+ * one drops it. Sources that still back a weighted metric are always kept, and a
+ * source the user switched on with no metrics of its own (for a point overlay) is
+ * left alone — only the source just orphaned by this edit is pruned.
+ */
+function pruneOrphanedDataSource(
+  state: ScoreBuilderControlState,
+  removedMetric: ScoreMetricKey,
+): ScoreBuilderControlState {
+  const definitions = activeMetricDefinitionsFor(state)
+  const removedSource = metricToDataSource(
+    definitions.find((entry) => entry.key === removedMetric)?.category ?? '',
+  )
+  if (!removedSource || !state.enabledDataSources.includes(removedSource)) return state
+
+  const stillNeeded = definitions.some(
+    (entry) =>
+      (state.weights[entry.key] ?? 0) !== 0 && metricToDataSource(entry.category) === removedSource,
+  )
+  // Per-capita crime borrows census population, so census outlives its own metrics.
+  const borrowed = removedSource === 'census' && (state.weights.crimePerCapita ?? 0) !== 0
+  if (stillNeeded || borrowed) return state
+
+  return {
+    ...state,
+    enabledDataSources: state.enabledDataSources.filter((source) => source !== removedSource),
+  }
+}
+
 function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): ScoreBuilderControlState {
   switch (action.type) {
     case 'setBoundarySource':
@@ -346,12 +380,19 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       }
       return { ...state, watershedBoundaryLevel: parseWatershedBoundaryLevel(action.level) }
     }
-    case 'setWeight':
-      return {
+    case 'setWeight': {
+      const previous = state.weights[action.metric] ?? 0
+      const next: ScoreBuilderControlState = {
         ...state,
         activeExampleKey: null,
         weights: { ...state.weights, [action.metric]: action.value },
       }
+      // Source activation follows the equation: a metric that starts counting turns
+      // its source on, and the last one to leave turns it back off.
+      if (previous === 0 && action.value !== 0) return enableDataForMetric(next, action.metric, [])
+      if (previous !== 0 && action.value === 0) return pruneOrphanedDataSource(next, action.metric)
+      return next
+    }
     case 'addMetric': {
       let next: ScoreBuilderControlState = {
         ...state,
@@ -493,6 +534,20 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       }
     case 'toggleDataSource':
       return { ...state, enabledDataSources: toggleArrayItem(state.enabledDataSources, action.source) }
+    case 'enableDataSource': {
+      if (state.enabledDataSources.includes(action.source)) return state
+      const next: ScoreBuilderControlState = {
+        ...state,
+        enabledDataSources: [...state.enabledDataSources, action.source],
+      }
+      if (action.source !== 'airQuality') return next
+      // Air quality only renders once at least one monitoring network is selected.
+      return {
+        ...next,
+        selectedNetworks: next.selectedNetworks.length ? next.selectedNetworks : action.allNetworks,
+        pendingNetworkSelectAll: next.selectedNetworks.length === 0 && action.allNetworks.length === 0,
+      }
+    }
     case 'toggleNetwork':
       return {
         ...state,
