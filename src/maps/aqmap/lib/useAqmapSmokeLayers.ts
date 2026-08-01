@@ -6,17 +6,14 @@ import {
   type SmokeLayerDefinition,
   type SmokeLayerKey,
 } from './smokeLayers'
-import modelledSmokeSample from '../data/smoke/modelled.json'
-import visibleSmokeSample from '../data/smoke/visible.json'
-
 const LIVE_SMOKE_ENDPOINTS: Record<SmokeLayerKey, string> = {
   modelledSmoke: '/data/smoke/modelled/geojson',
   visibleSmoke: '/data/smoke/visible/geojson',
 }
 
-const SMOKE_SAMPLE_DATA: Record<SmokeLayerKey, SmokeFeatureCollection> = {
-  modelledSmoke: modelledSmokeSample as unknown as SmokeFeatureCollection,
-  visibleSmoke: visibleSmokeSample as unknown as SmokeFeatureCollection,
+const STATIC_SMOKE_ENDPOINTS: Record<SmokeLayerKey, string> = {
+  modelledSmoke: '/data/smoke/modelled.json',
+  visibleSmoke: '/data/smoke/visible.json',
 }
 
 const FAILED_SMOKE_MESSAGE = 'Unable to load live AQMap smoke data; using bundled sample data.'
@@ -66,26 +63,28 @@ export function useAqmapSmokeLayers(): UseAqmapSmokeLayersResult {
       setLoading(true)
       setError(null)
 
-      if (!import.meta.env.DEV) {
-        setLayers(SMOKE_LAYERS.map((layer) => ({
-          ...layer,
-          data: SMOKE_SAMPLE_DATA[layer.key] ?? SMOKE_FALLBACK_DATA[layer.key],
-        })))
-        setLoading(false)
-        return
-      }
-
-      const results = await Promise.all(
-        (Object.entries(LIVE_SMOKE_ENDPOINTS) as Array<[SmokeLayerKey, string]>)
+      const primaryEndpoints = import.meta.env.DEV ? LIVE_SMOKE_ENDPOINTS : STATIC_SMOKE_ENDPOINTS
+      const primaryResults = await Promise.all(
+        (Object.entries(primaryEndpoints) as Array<[SmokeLayerKey, string]>)
           .map(async ([key, endpoint]) => [key, await loadSmokeLayerData(endpoint, controller.signal)] as const),
       )
+      if (cancelled) return
+
+      // The Vite dev adapter provides live smoke endpoints. If either one is
+      // unavailable, use the same public snapshots deployed in production.
+      const results = import.meta.env.DEV
+        ? await Promise.all(primaryResults.map(async ([key, result]) => [
+            key,
+            result ?? await loadSmokeLayerData(STATIC_SMOKE_ENDPOINTS[key], controller.signal),
+          ] as const))
+        : primaryResults
       if (cancelled) return
 
       const next = SMOKE_LAYERS.map((layer) => {
         const result = results.find(([key]) => key === layer.key)?.[1]
         return {
           ...layer,
-          data: result ?? SMOKE_SAMPLE_DATA[layer.key] ?? SMOKE_FALLBACK_DATA[layer.key],
+          data: result ?? SMOKE_FALLBACK_DATA[layer.key],
         }
       })
       const hasFallback = next.some((layer) => !results.find(([key]) => key === layer.key)?.[1])

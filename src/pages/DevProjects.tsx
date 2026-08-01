@@ -57,7 +57,6 @@ import {
 import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
 import { ProjectStoryMap } from '@/maps/project-story/ProjectStoryMap'
 import { ProjectScoreMapPreview } from '@/maps/scorebuilder/ProjectScoreMapPreview'
-import healthAuthorityBoundaries from '../../public/data/boundaries/BCMoH/simplified/health_authorities.json'
 
 type ControllerTab = 'layers' | 'project'
 type CatalogFilter = 'all' | ProjectKind
@@ -105,38 +104,8 @@ const PROJECT_MAP_STYLES = {
   dark: MAP_STYLES.light,
 }
 
-type BoundaryFeatureCollection = {
-  type: 'FeatureCollection'
-  features: Array<{
-    type: 'Feature'
-    properties: Record<string, number | string | null>
-    geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
-  }>
-}
-
-const HEALTH_AUTHORITY_BOUNDARY_COLLECTION = healthAuthorityBoundaries as unknown as BoundaryFeatureCollection
-const NORTHERN_HEALTH_BOUNDARY = HEALTH_AUTHORITY_BOUNDARY_COLLECTION.features.find((feature) => {
-  return feature.properties.HLTH_AUTHORITY_NAME === 'Northern'
-})
-const NORTHERN_HEALTH_FEATURE_COLLECTION: GeoJSON.FeatureCollection<
-  GeoJSON.Polygon | GeoJSON.MultiPolygon,
-  GeoJSON.GeoJsonProperties
-> = {
-  type: 'FeatureCollection',
-  features: NORTHERN_HEALTH_BOUNDARY
-    ? [
-        {
-          type: 'Feature',
-          geometry: NORTHERN_HEALTH_BOUNDARY.geometry,
-          properties: {
-            id: 'northern-health',
-            name: 'Northern Health',
-            source: 'BC Ministry of Health',
-          },
-        },
-      ]
-    : [],
-}
+const HEALTH_AUTHORITY_BOUNDARIES_URL = '/data/boundaries/BCMoH/simplified/health_authorities.json'
+const NORTHERN_HEALTH_FILTER = ['==', ['get', 'HLTH_AUTHORITY_NAME'], 'Northern']
 
 function accentClass(project: ProjectPackage): string {
   return THEME_ACCENT[project.theme]
@@ -248,8 +217,7 @@ function ProjectPortalMapPreview({
   const activeRasterLayer = activeRasterLayers[activeRasterLayers.length - 1] ?? null
   const showLocalBoundary =
     Boolean(portal.localBoundaryLayerId) &&
-    visibleLayerIds.has(portal.localBoundaryLayerId!) &&
-    NORTHERN_HEALTH_FEATURE_COLLECTION.features.length > 0
+    visibleLayerIds.has(portal.localBoundaryLayerId!)
 
   return (
     <div className={cn('relative overflow-hidden bg-slate-100 dark:bg-slate-950', className)}>
@@ -290,7 +258,8 @@ function ProjectPortalMapPreview({
 
         {showLocalBoundary && (
           <MapFillLayer
-            data={NORTHERN_HEALTH_FEATURE_COLLECTION}
+            data={HEALTH_AUTHORITY_BOUNDARIES_URL}
+            filter={NORTHERN_HEALTH_FILTER}
             fillColor="#06b6d4"
             fillOpacity={0.07}
             lineColor="#0f172a"

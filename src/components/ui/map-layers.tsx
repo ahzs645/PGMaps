@@ -74,6 +74,8 @@ type MapFillLayerProps = {
   ) => void
   /** Optional HTML tooltip for hoverable feature properties. Return null to hide. */
   hoverHtml?: (properties: Record<string, unknown>) => string | null
+  /** Optional MapLibre filter applied to the base fill and border layers. */
+  filter?: StyleExpression
 }
 
 function MapFillLayer({
@@ -93,6 +95,7 @@ function MapFillLayer({
   visible = true,
   onFeatureClick,
   hoverHtml,
+  filter,
 }: MapFillLayerProps) {
   const { map, isLoaded } = useMap()
   const uid = useId().replace(/:/g, '')
@@ -107,6 +110,8 @@ function MapFillLayer({
   hoverHtmlRef.current = hoverHtml
   const idPropRef = useRef(idProperty)
   idPropRef.current = idProperty
+  const filterRef = useRef(filter)
+  filterRef.current = filter
   const tooltipRef = useRef<MapLibreGLRuntime.Popup | null>(null)
   const boxZoomWasEnabledRef = useRef(false)
   const doubleClickZoomWasEnabledRef = useRef(false)
@@ -117,13 +122,17 @@ function MapFillLayer({
 
     map.addSource(sourceId, {
       type: 'geojson',
-      data,
+      // Start empty and let the data effect below submit the real collection
+      // once. Passing `data` here and then calling setData in the next effect
+      // cloned and indexed every initial polygon twice.
+      data: { type: 'FeatureCollection', features: [] },
     })
 
     map.addLayer({
       id: fillLayerId,
       type: 'fill',
       source: sourceId,
+      ...(filterRef.current && { filter: filterRef.current as never }),
       paint: {
         'fill-color': fillColor as never,
         'fill-opacity': fillOpacity as never,
@@ -134,6 +143,7 @@ function MapFillLayer({
       id: lineLayerId,
       type: 'line',
       source: sourceId,
+      ...(filterRef.current && { filter: filterRef.current as never }),
       paint: {
         'line-color': lineColor as never,
         'line-width': lineWidth as never,
@@ -299,6 +309,13 @@ function MapFillLayer({
     const source = map.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
     source?.setData(data)
   }, [data, isLoaded, map, sourceId])
+
+  // Update the optional base-layer filter without rebuilding the source.
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    if (map.getLayer(fillLayerId)) map.setFilter(fillLayerId, filter as never)
+    if (map.getLayer(lineLayerId)) map.setFilter(lineLayerId, filter as never)
+  }, [filter, fillLayerId, isLoaded, lineLayerId, map])
 
   // Update visibility
   useEffect(() => {
