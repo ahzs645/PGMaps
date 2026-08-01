@@ -87,6 +87,15 @@ const FILTER_OPTIONS: Array<{ value: CatalogFilter; label: string }> = [
   { value: 'research-pack', label: 'Research packs' },
 ]
 
+const FEATURED_PROJECT_SLUGS = [
+  'echoscreen-climate-health',
+  'score-preset-pedestrian-network-study-mi',
+  'where-is-north-bc',
+  'nechako-watershed-research-portal',
+] as const
+
+const FEATURED_PROJECT_ORDER = new Map<string, number>(FEATURED_PROJECT_SLUGS.map((slug, index) => [slug, index]))
+
 const KIND_LABELS: Record<ProjectKind, string> = {
   'map-story': 'Map story',
   'raster-story': 'Raster story',
@@ -932,6 +941,8 @@ function ProjectCatalogPreview({
 
 function ProjectCatalogPage({
   projects,
+  additionalProjectCount,
+  showingMoreProjects,
   loading,
   loadError,
   query,
@@ -943,9 +954,12 @@ function ProjectCatalogPage({
   onOpenProject,
   onImportFile,
   onRemoveProject,
+  onToggleMoreProjects,
   importError,
 }: {
   projects: ProjectPackage[]
+  additionalProjectCount: number
+  showingMoreProjects: boolean
   loading: boolean
   loadError: boolean
   query: string
@@ -957,6 +971,7 @@ function ProjectCatalogPage({
   onOpenProject: (slug: string) => void
   onImportFile: (file: File) => void
   onRemoveProject: (slug: string) => void
+  onToggleMoreProjects: () => void
   importError: string | null
 }) {
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null)
@@ -970,6 +985,8 @@ function ProjectCatalogPage({
     ? 'Loading project packages…'
     : loadError
       ? 'The project manifest failed to load.'
+      : additionalProjectCount > 0
+        ? 'Matching projects are available under More projects.'
       : 'No projects match the current search.'
 
   return (
@@ -1120,6 +1137,22 @@ function ProjectCatalogPage({
             {projects.length === 0 && (
               <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
             )}
+
+            {additionalProjectCount > 0 && (
+              <div className="border-t p-3 text-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onToggleMoreProjects}
+                  aria-expanded={showingMoreProjects}
+                  className="w-full"
+                >
+                  {showingMoreProjects ? 'Show fewer projects' : `More projects (${additionalProjectCount})`}
+                  <ChevronDown className={cn('h-4 w-4 transition-transform', showingMoreProjects && 'rotate-180')} />
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3 p-3 lg:hidden">
@@ -1135,6 +1168,18 @@ function ProjectCatalogPage({
             ))}
             {projects.length === 0 && (
               <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
+            )}
+            {additionalProjectCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onToggleMoreProjects}
+                aria-expanded={showingMoreProjects}
+                className="w-full"
+              >
+                {showingMoreProjects ? 'Show fewer projects' : `More projects (${additionalProjectCount})`}
+                <ChevronDown className={cn('h-4 w-4 transition-transform', showingMoreProjects && 'rotate-180')} />
+              </Button>
             )}
           </div>
         </section>
@@ -1442,10 +1487,11 @@ export default function DevProjects() {
   const selectedProject = projects.find((project) => project.slug === projectSlug) ?? null
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<CatalogFilter>('all')
+  const [showingMoreProjects, setShowingMoreProjects] = useState(false)
   const [previewProjectSlug, setPreviewProjectSlug] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
 
-  const filteredProjects = useMemo(() => {
+  const matchingProjects = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
     return projects.filter((project) => {
       if (filter !== 'all' && project.kind !== filter) return false
@@ -1455,6 +1501,22 @@ export default function DevProjects() {
         .includes(normalizedQuery)
     })
   }, [filter, projects, query])
+
+  const { featuredProjects, additionalProjects } = useMemo(() => {
+    const featured: ProjectPackage[] = []
+    const additional: ProjectPackage[] = []
+
+    for (const project of matchingProjects) {
+      if (FEATURED_PROJECT_ORDER.has(project.slug)) featured.push(project)
+      else additional.push(project)
+    }
+
+    featured.sort((left, right) => FEATURED_PROJECT_ORDER.get(left.slug)! - FEATURED_PROJECT_ORDER.get(right.slug)!)
+
+    return { featuredProjects: featured, additionalProjects: additional }
+  }, [matchingProjects])
+
+  const filteredProjects = showingMoreProjects ? [...featuredProjects, ...additionalProjects] : featuredProjects
   const selectedPreviewProject =
     filteredProjects.find((project) => project.slug === previewProjectSlug) ?? filteredProjects[0] ?? null
 
@@ -1474,6 +1536,7 @@ export default function DevProjects() {
     try {
       const imported = await importProject(file)
       setImportError(null)
+      setShowingMoreProjects(true)
       setPreviewProjectSlug(imported.slug)
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'The file could not be imported.')
@@ -1504,6 +1567,8 @@ export default function DevProjects() {
   return (
     <ProjectCatalogPage
       projects={filteredProjects}
+      additionalProjectCount={additionalProjects.length}
+      showingMoreProjects={showingMoreProjects}
       loading={loading}
       loadError={loadError}
       query={query}
@@ -1515,6 +1580,7 @@ export default function DevProjects() {
       onOpenProject={openProject}
       onImportFile={handleImportFile}
       onRemoveProject={handleRemoveProject}
+      onToggleMoreProjects={() => setShowingMoreProjects((current) => !current)}
       importError={importError}
     />
   )
