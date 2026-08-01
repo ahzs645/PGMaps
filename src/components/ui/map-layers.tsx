@@ -15,6 +15,8 @@ import { MOBILE_MAP_FEATURE_CLICK_EVENT } from './mobile-feature-card'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StyleExpression = any
 
+const EMPTY_SELECTED_IDS: Array<string | number> = []
+
 let pmtilesProtocolRegistered = false
 
 function ensurePmtilesProtocol() {
@@ -83,7 +85,7 @@ function MapFillLayer({
   lineOpacity = 0.45,
   idProperty = 'id',
   selectedId = null,
-  selectedIds = [],
+  selectedIds = EMPTY_SELECTED_IDS,
   selectionColor = SELECTION_COLOR,
   selectionWidth = SELECTION_WIDTH,
   selectionStyle = 'line',

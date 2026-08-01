@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -75,7 +76,9 @@ type MapProps = {
   loader?: MapLoaderVariant;
   /** Show the loading indicator during style swaps after the initial map load. */
   showStyleLoadingOverlay?: boolean;
-} & Omit<MapLibreGL.MapOptions, "container" | "style">;
+  /** Keep the current WebGL backing buffer while a surrounding layout is being interactively resized. */
+  deferResize?: boolean;
+} & Omit<MapLibreGL.MapOptions, "container" | "style" | "trackResize">;
 
 type MapRef = MapLibreGL.Map;
 
@@ -101,6 +104,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     loading = false,
     loader,
     showStyleLoadingOverlay = true,
+    deferResize = false,
     ...props
   },
   ref
@@ -117,6 +121,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   const pointerStartRef = useRef<{ x: number; y: number; dispatched: boolean } | null>(null);
   const lastGestureAtRef = useRef(0);
   const lastFeatureClickAtRef = useRef(0);
+  const deferResizeRef = useRef(deferResize);
+  deferResizeRef.current = deferResize;
 
   const isControlled = viewport !== undefined && onViewportChange !== undefined;
 
@@ -155,6 +161,9 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
         compact: true,
       },
       ...props,
+      // This wrapper owns container resizing below. Keeping MapLibre's internal
+      // observer enabled would duplicate resize work and bypass drag deferral.
+      trackResize: false,
       ...viewport,
     });
 
@@ -222,15 +231,24 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // MapLibre only auto-resizes on window resize, so a container that grows after
-  // the map is created (flex/grid settling, a sidebar collapsing, a bottom sheet
-  // snapping) leaves a stale, undersized canvas. Track the container directly.
+  // Own container resizing here so flex/grid settling, panel changes, and drag
+  // deferral all follow one predictable path instead of competing observers.
   useEffect(() => {
     const container = containerRef.current;
     if (!mapInstance || !container || typeof ResizeObserver === "undefined") return;
 
     let frame = 0;
-    const observer = new ResizeObserver(() => {
+    const observer = new ResizeObserver(([entry]) => {
+      if (deferResizeRef.current) {
+        // Changing the canvas width/height attributes reallocates and clears its
+        // WebGL drawing buffer. During a divider drag, scale the existing frame
+        // with CSS and perform one real MapLibre resize when the drag finishes.
+        cancelAnimationFrame(frame);
+        const canvas = mapInstance.getCanvas();
+        canvas.style.width = `${entry.contentRect.width}px`;
+        canvas.style.height = `${entry.contentRect.height}px`;
+        return;
+      }
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => mapInstance.resize());
     });
@@ -241,6 +259,11 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       observer.disconnect();
     };
   }, [mapInstance]);
+
+  useLayoutEffect(() => {
+    if (!mapInstance || deferResize) return;
+    mapInstance.resize();
+  }, [deferResize, mapInstance]);
 
   useEffect(() => {
     if (!mapInstance || !isControlled || !viewport) return;

@@ -74,6 +74,9 @@ interface MapFeatureTablePanelProps<TRow, TLayerId extends string> {
    */
   height?: number
   onHeightChange?: (height: number) => void
+  /** Notifies the map host so expensive canvas resizes can be deferred during a drag. */
+  onResizeStart?: () => void
+  onResizeEnd?: () => void
 }
 
 export function MapTableButton({
@@ -138,6 +141,8 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
   collapsibleSearch = false,
   height: controlledHeight,
   onHeightChange,
+  onResizeStart,
+  onResizeEnd,
 }: MapFeatureTablePanelProps<TRow, TLayerId>) {
   const [uncontrolledQuery, setUncontrolledQuery] = useState('')
   const [layerPickerOpen, setLayerPickerOpen] = useState(false)
@@ -219,6 +224,8 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
         height={panelHeight}
         resizable={resizable}
         onHeightChange={setPanelHeight}
+        onResizeStart={onResizeStart}
+        onResizeEnd={onResizeEnd}
         onClose={onClose}
       >
         {renderBody}
@@ -244,6 +251,8 @@ function DesktopTablePanel({
   height,
   resizable,
   onHeightChange,
+  onResizeStart,
+  onResizeEnd,
   onClose,
   children,
 }: {
@@ -251,6 +260,8 @@ function DesktopTablePanel({
   height: number
   resizable: boolean
   onHeightChange: (height: number) => void
+  onResizeStart?: () => void
+  onResizeEnd?: () => void
   onClose: () => void
   children: (paneActions: TablePaneActions) => ReactNode
 }) {
@@ -287,16 +298,22 @@ function DesktopTablePanel({
     event.preventDefault()
     const parentBottom = parent.getBoundingClientRect().bottom
     setDragging(true)
+    onResizeStart?.()
 
     const move = (moveEvent: PointerEvent) => onHeightChange(clamp(parentBottom - moveEvent.clientY))
-    const up = () => {
+    const finish = () => {
       setDragging(false)
+      onResizeEnd?.()
       window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointerup', finish)
+      window.removeEventListener('pointercancel', finish)
+      window.removeEventListener('blur', finish)
     }
     window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }, [clamp, onHeightChange, resizable])
+    window.addEventListener('pointerup', finish)
+    window.addEventListener('pointercancel', finish)
+    window.addEventListener('blur', finish)
+  }, [clamp, onHeightChange, onResizeEnd, onResizeStart, resizable])
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'ArrowUp') {

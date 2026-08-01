@@ -32,6 +32,7 @@ function DevData() {
   const [showOnlyInView, setShowOnlyInView] = useState(false)
   const [viewModeToggle, setViewModeToggle] = useState(true)
   const [tableHeight, setTableHeight] = useState(DEFAULT_TABLE_PANE_HEIGHT)
+  const [tableResizing, setTableResizing] = useState(false)
   const [bounds, setBounds] = useState<ViewportBounds | null>(null)
   const [selected, setSelected] = useState<{ feature: DataFeature; center: [number, number] | null; nonce: number } | null>(null)
 
@@ -111,6 +112,8 @@ function DevData() {
           selectedFeatureId={selectedLayerId === tableLayer ? selectedId : null}
           height={tableHeight}
           onHeightChange={setTableHeight}
+          onResizeStart={() => setTableResizing(true)}
+          onResizeEnd={() => setTableResizing(false)}
           viewModeToggle={viewModeToggle}
           onShowOnlyInViewChange={setShowOnlyInView}
           onLayerChange={openTable}
@@ -120,7 +123,7 @@ function DevData() {
       ) : undefined}
     >
       <div className="relative h-full">
-        <Map center={DEV_DATA_CENTER} zoom={DEV_DATA_ZOOM} attributionControl={false}>
+        <Map center={DEV_DATA_CENTER} zoom={DEV_DATA_ZOOM} attributionControl={false} deferResize={tableResizing}>
           <MapControls position="top-right" className="top-16 md:top-2" />
           <ViewportTracker onChange={setBounds} />
           {selected && <FlyToCenter center={selected.center} nonce={selected.nonce} />}

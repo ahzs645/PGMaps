@@ -25,6 +25,8 @@ export function DataTablePanel({
   selectedFeatureId,
   height,
   onHeightChange,
+  onResizeStart,
+  onResizeEnd,
   viewModeToggle,
   onShowOnlyInViewChange,
   onLayerChange,
@@ -38,6 +40,8 @@ export function DataTablePanel({
   selectedFeatureId: string | null
   height: number
   onHeightChange: (height: number) => void
+  onResizeStart?: () => void
+  onResizeEnd?: () => void
   viewModeToggle: boolean
   onShowOnlyInViewChange: (enabled: boolean) => void
   onLayerChange: (layerId: DataLayerId) => void
@@ -86,6 +90,8 @@ export function DataTablePanel({
       showOnlyInView={showOnlyInView}
       height={height}
       onHeightChange={onHeightChange}
+      onResizeStart={onResizeStart}
+      onResizeEnd={onResizeEnd}
       onShowOnlyInViewChange={onShowOnlyInViewChange}
       onLayerChange={onLayerChange}
       onClose={onClose}
