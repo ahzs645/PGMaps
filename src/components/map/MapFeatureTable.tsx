@@ -1,6 +1,7 @@
 import { CalendarDays, CaseSensitive, Check, ChevronDown, Hash, Maximize2, Minimize2, Search, Square, SquareCheck, Table2, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, ReactNode, RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { cn } from '@/lib/utils'
@@ -429,6 +430,7 @@ function TableBody<TRow, TLayerId extends string>({
   onSelect: (row: TRow) => void
 }) {
   const showViewModeToggle = viewModeToggle && showOnlyInViewEnabled
+  const layerPickerAnchorRef = useRef<HTMLButtonElement>(null)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -438,6 +440,7 @@ function TableBody<TRow, TLayerId extends string>({
             <div className="relative" data-layer-picker-root="true">
               {/* Doubles as the pane heading, the way Felt's table titles its layer. */}
               <button
+                ref={layerPickerAnchorRef}
                 type="button"
                 role="heading"
                 aria-level={2}
@@ -455,6 +458,7 @@ function TableBody<TRow, TLayerId extends string>({
               </button>
               {layerPickerOpen && (
                 <LayerPicker
+                  anchorRef={layerPickerAnchorRef}
                   layers={layers}
                   selectedLayer={selectedLayer}
                   showOnlyInView={showOnlyInView}
@@ -719,6 +723,7 @@ function ColumnTypeGlyph({ type }: { type: MapFeatureTableColumnType }) {
 }
 
 function LayerPicker<TLayerId extends string>({
+  anchorRef,
   layers,
   selectedLayer,
   showOnlyInView,
@@ -727,6 +732,7 @@ function LayerPicker<TLayerId extends string>({
   onLayerChange,
   onShowOnlyInViewChange,
 }: {
+  anchorRef: RefObject<HTMLButtonElement>
   layers: Array<MapFeatureTableLayer<TLayerId>>
   selectedLayer: TLayerId
   showOnlyInView: boolean
@@ -736,7 +742,59 @@ function LayerPicker<TLayerId extends string>({
   onShowOnlyInViewChange?: (enabled: boolean) => void
 }) {
   const [layerQuery, setLayerQuery] = useState('')
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{
+    left: number
+    width: number
+    maxHeight: number
+    top?: number
+    bottom?: number
+    placement: 'top' | 'bottom'
+  } | null>(null)
+
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current
+    if (!anchor) return
+
+    const updatePosition = () => {
+      const rect = anchor.getBoundingClientRect()
+      // The table body is mounted twice (mobile + desktop). Only portal the
+      // picker belonging to the currently visible body.
+      if (rect.width === 0 || rect.height === 0) {
+        setPosition(null)
+        return
+      }
+
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+      const viewportMargin = 12
+      const gap = 6
+      const width = Math.max(0, Math.min(288, viewportWidth - viewportMargin * 2))
+      const left = Math.min(
+        Math.max(viewportMargin, rect.left),
+        viewportWidth - width - viewportMargin,
+      )
+      const availableBelow = viewportHeight - rect.bottom - gap - viewportMargin
+      const availableAbove = rect.top - gap - viewportMargin
+      const desiredHeight = showOnlyInViewEnabled ? 350 : 310
+      const opensBelow = availableBelow >= desiredHeight || availableBelow >= availableAbove
+      const maxHeight = Math.max(0, opensBelow ? availableBelow : availableAbove)
+
+      setPosition(opensBelow
+        ? { left, width, maxHeight, top: rect.bottom + gap, placement: 'bottom' }
+        : { left, width, maxHeight, bottom: viewportHeight - rect.top + gap, placement: 'top' })
+    }
+
+    updatePosition()
+    const observer = new ResizeObserver(updatePosition)
+    observer.observe(anchor)
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [anchorRef, showOnlyInViewEnabled])
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -762,9 +820,22 @@ function LayerPicker<TLayerId extends string>({
   const normalized = layerQuery.trim().toLowerCase()
   const visibleLayers = normalized ? layers.filter((item) => item.label.toLowerCase().includes(normalized)) : layers
 
-  return (
-    <div ref={containerRef} className="absolute left-0 top-[calc(100%+0.35rem)] z-30 w-72 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-xl">
-      <div className="border-b border-border p-2">
+  if (!position) return null
+
+  return createPortal(
+    <div
+      data-layer-picker-root="true"
+      data-layer-picker-placement={position.placement}
+      className="fixed z-[100] flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-xl"
+      style={{
+        left: position.left,
+        top: position.top,
+        bottom: position.bottom,
+        width: position.width,
+        maxHeight: position.maxHeight,
+      }}
+    >
+      <div className="shrink-0 border-b border-border p-2">
         <div className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5">
           <Search className="size-4 shrink-0 text-muted-foreground" />
           <input
@@ -776,7 +847,7 @@ function LayerPicker<TLayerId extends string>({
           />
         </div>
       </div>
-      <div role="listbox" aria-label="Table layer" className="max-h-64 overflow-auto py-1">
+      <div role="listbox" aria-label="Table layer" className="min-h-0 flex-1 overflow-auto py-1">
         {visibleLayers.map((item) => (
           <button key={item.id} type="button" role="option" aria-selected={selectedLayer === item.id} className={cn('flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted', selectedLayer === item.id && 'bg-muted')} onClick={() => onLayerChange(item.id)}>
             <LayerGlyph color={item.color} shape={item.shape ?? 'fill'} />
@@ -787,12 +858,13 @@ function LayerPicker<TLayerId extends string>({
         {visibleLayers.length === 0 && <p className="px-3 py-4 text-center text-sm text-muted-foreground">No layers match</p>}
       </div>
       {showOnlyInViewEnabled && (
-        <button type="button" role="menuitemcheckbox" aria-checked={showOnlyInView} className="flex w-full items-center gap-3 border-t border-border px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => onShowOnlyInViewChange?.(!showOnlyInView)}>
+        <button type="button" role="menuitemcheckbox" aria-checked={showOnlyInView} className="flex w-full shrink-0 items-center gap-3 border-t border-border px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => onShowOnlyInViewChange?.(!showOnlyInView)}>
           {showOnlyInView ? <SquareCheck className="size-4" /> : <Square className="size-4" />}
           <span>Show only features in view</span>
         </button>
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }
 
