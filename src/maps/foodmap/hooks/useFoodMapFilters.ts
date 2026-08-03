@@ -5,7 +5,6 @@ import {
   stringCodec,
   stringUnionCodec,
   useUrlState,
-  type UrlCodec,
 } from '@/hooks/useUrlState'
 import type { HazardRating, MarkerStyle, VisualizationMode, ViolationTimelineMode } from '../types'
 
@@ -17,20 +16,6 @@ export const FACILITY_TYPE_OPTIONS: readonly string[] = [
   'Community Kitchen', 'Social Services', 'Gas Station', 'Hotel',
   'Recreation', 'Farm', 'Institutional Kitchen', 'Store', 'Other', 'Unknown',
 ]
-
-/**
- * stringArrayCodec cannot round-trip an empty selection: it encodes to '',
- * which useUrlState treats as "remove the param", and an absent param decodes
- * back to the defaults. Encode the empty selection as a 'none' sentinel so
- * deselect-all survives a reload/share.
- */
-function emptyAwareArrayCodec<T extends string>(allowed: readonly T[], defaults: readonly T[]): UrlCodec<T[]> {
-  const base = stringArrayCodec(allowed, defaults)
-  return {
-    encode: (value) => (value.length === 0 ? 'none' : base.encode(value)),
-    decode: (raw) => (raw === 'none' ? [] : base.decode(raw)),
-  }
-}
 
 const VISUALIZATION_MODES: readonly VisualizationMode[] = ['violations', 'hazard']
 export const MARKER_STYLE_OPTIONS: readonly { value: MarkerStyle; label: string }[] = [
@@ -44,8 +29,8 @@ export const MARKER_STYLE_OPTIONS: readonly { value: MarkerStyle; label: string 
 const VIOLATION_TIMELINE_MODES: readonly ViolationTimelineMode[] = ['period', 'cumulative']
 
 // Codecs must stay module-level so useUrlState's decoded values are stable.
-const hazardCodec = emptyAwareArrayCodec(HAZARD_RATING_OPTIONS, HAZARD_RATING_OPTIONS)
-const facilityCodec = emptyAwareArrayCodec(FACILITY_TYPE_OPTIONS, FACILITY_TYPE_OPTIONS)
+const hazardCodec = stringArrayCodec(HAZARD_RATING_OPTIONS, HAZARD_RATING_OPTIONS)
+const facilityCodec = stringArrayCodec(FACILITY_TYPE_OPTIONS, FACILITY_TYPE_OPTIONS)
 const searchCodec = stringCodec('')
 const modeCodec = stringUnionCodec(VISUALIZATION_MODES, 'violations')
 const markerStyleCodec = stringUnionCodec(MARKER_STYLE_OPTIONS.map((opt) => opt.value), 'cluster')

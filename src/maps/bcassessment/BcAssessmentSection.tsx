@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useUrlParamSync } from '@/hooks/useUrlState'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -142,24 +143,14 @@ export default function BcAssessmentSection() {
   }, [filteredProperties, visibleSelectedProperty])
 
   // Sync filters to URL for shareable links
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams)
-    if (searchQuery.trim()) params.set('q', searchQuery.trim())
-    else params.delete('q')
-    if (colorMetric !== 'totalAssessed') params.set('metric', colorMetric)
-    else params.delete('metric')
-    if (boundaryLevel !== 'none') params.set('boundary', boundaryLevel)
-    else params.delete('boundary')
-    if (boundarySource !== 'census') params.set('source', boundarySource)
-    else params.delete('source')
-    if (visibleSelectedProperty) params.set('property', visibleSelectedProperty.id)
-    else params.delete('property')
-    if (selectedBoundaryId) params.set('region', selectedBoundaryId)
-    else params.delete('region')
-    if (params.toString() !== searchParams.toString()) {
-      setSearchParams(params, { replace: true })
-    }
-  }, [boundaryLevel, boundarySource, colorMetric, searchParams, searchQuery, selectedBoundaryId, visibleSelectedProperty, setSearchParams])
+  useUrlParamSync({
+    q: searchQuery.trim(),
+    metric: colorMetric === 'totalAssessed' ? null : colorMetric,
+    boundary: boundaryLevel === 'none' ? null : boundaryLevel,
+    source: boundarySource === 'census' ? null : boundarySource,
+    property: visibleSelectedProperty ? visibleSelectedProperty.id : null,
+    region: selectedBoundaryId,
+  })
 
   const timelineBucketValues = useMemo(() => {
     const totals = new Map<string, { total: number; count: number }>()

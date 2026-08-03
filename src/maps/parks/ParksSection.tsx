@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useUrlParamSync } from '@/hooks/useUrlState'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -104,25 +105,19 @@ export default function ParksSection() {
 
   // Sync filters to URL for shareable links; deep-linked ids stay untouched
   // until their dataset has loaded.
-  useEffect(() => {
-    const urlSelectionPending =
-      (urlParkId && urlParkId !== ignoredUrlSelection.park && parks.length === 0) ||
-      (urlTrailId && urlTrailId !== ignoredUrlSelection.trail && trails.length === 0)
-    if (urlSelectionPending) return
-
-    const params = new URLSearchParams(searchParams)
-    if (activeLayers.join(',') !== 'parks,trails') params.set('layers', activeLayers.join(','))
-    else params.delete('layers')
-    if (searchQuery.trim()) params.set('q', searchQuery.trim())
-    else params.delete('q')
-    if (visibleSelectedPark) params.set('park', String(visibleSelectedPark.id))
-    else params.delete('park')
-    if (visibleSelectedTrail) params.set('trail', String(visibleSelectedTrail.id))
-    else params.delete('trail')
-    if (params.toString() !== searchParams.toString()) {
-      setSearchParams(params, { replace: true })
-    }
-  }, [activeLayers, ignoredUrlSelection, parks.length, searchParams, searchQuery, setSearchParams, trails.length, urlParkId, urlTrailId, visibleSelectedPark, visibleSelectedTrail])
+  const urlSelectionPending =
+    (urlParkId && urlParkId !== ignoredUrlSelection.park && parks.length === 0) ||
+    (urlTrailId && urlTrailId !== ignoredUrlSelection.trail && trails.length === 0)
+  useUrlParamSync(
+    urlSelectionPending
+      ? null
+      : {
+          layers: activeLayers.join(',') === 'parks,trails' ? null : activeLayers.join(','),
+          q: searchQuery.trim(),
+          park: visibleSelectedPark ? String(visibleSelectedPark.id) : null,
+          trail: visibleSelectedTrail ? String(visibleSelectedTrail.id) : null,
+        },
+  )
 
   const toggleLayer = useCallback((layer: ActiveLayer) => {
     setActiveLayers((current) => toggleArrayItem(current, layer))

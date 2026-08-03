@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useToggleArray } from '@/hooks/useToggleArray'
+import { useUrlParamSync } from '@/hooks/useUrlState'
 import { EXPLORER_DATASETS } from '../constants'
 import type { ExplorerDatasetId, ExplorerGeometryType, SpatialFilter } from '../types'
 
@@ -26,7 +27,7 @@ export const DEFAULT_ACTIVE_DATASET_IDS: ExplorerDatasetId[] = [
  * search, sort mode, date range, heatmap flag, plus map selection state.
  */
 export function useExplorerFilters() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [geometryFilters, setGeometryFilters] = useState<ExplorerGeometryType[]>(() => {
     const values = (searchParams.get('geom') || '').split(',').filter(Boolean) as ExplorerGeometryType[]
     return values.length ? values.filter((value) => ALL_GEOMETRY_TYPES.includes(value)) : ALL_GEOMETRY_TYPES
@@ -48,36 +49,23 @@ export function useExplorerFilters() {
   }))
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
 
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams)
-    const defaultDatasetsActive =
-      activeDatasetIds.length === DEFAULT_ACTIVE_DATASET_IDS.length &&
-      DEFAULT_ACTIVE_DATASET_IDS.every((datasetId) => activeDatasetIds.includes(datasetId))
-    const datasetValue =
+  const defaultDatasetsActive =
+    activeDatasetIds.length === DEFAULT_ACTIVE_DATASET_IDS.length &&
+    DEFAULT_ACTIVE_DATASET_IDS.every((datasetId) => activeDatasetIds.includes(datasetId))
+  useUrlParamSync({
+    datasets:
       activeDatasetIds.length === ALL_DATASET_IDS.length
         ? 'all'
         : defaultDatasetsActive
-          ? ''
-          : activeDatasetIds.join(',')
-    const geomValue = geometryFilters.length === ALL_GEOMETRY_TYPES.length ? '' : geometryFilters.join(',')
-    if (datasetValue) params.set('datasets', datasetValue)
-    else params.delete('datasets')
-    if (geomValue) params.set('geom', geomValue)
-    else params.delete('geom')
-    if (searchQuery.trim()) params.set('q', searchQuery.trim())
-    else params.delete('q')
-    if (sortMode !== 'relevance') params.set('sort', sortMode)
-    else params.delete('sort')
-    if (dateRange.from) params.set('from', dateRange.from)
-    else params.delete('from')
-    if (dateRange.to) params.set('to', dateRange.to)
-    else params.delete('to')
-    if (showHeatmap) params.set('heatmap', '1')
-    else params.delete('heatmap')
-    if (params.toString() !== searchParams.toString()) {
-      setSearchParams(params, { replace: true })
-    }
-  }, [activeDatasetIds, dateRange, geometryFilters, searchParams, searchQuery, setSearchParams, showHeatmap, sortMode])
+          ? null
+          : activeDatasetIds.join(','),
+    geom: geometryFilters.length === ALL_GEOMETRY_TYPES.length ? null : geometryFilters.join(','),
+    q: searchQuery.trim(),
+    sort: sortMode === 'relevance' ? null : sortMode,
+    from: dateRange.from,
+    to: dateRange.to,
+    heatmap: showHeatmap ? '1' : null,
+  })
 
   const toggleGeometry = useToggleArray(geometryFilters, setGeometryFilters)
   const toggleDataset = useToggleArray(activeDatasetIds, setActiveDatasetIds)

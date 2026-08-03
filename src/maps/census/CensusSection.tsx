@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
-import { stringCodec, stringUnionCodec, useUrlState, type UrlCodec } from '@/hooks/useUrlState'
+import { stringCodec, stringUnionCodec, useSetUrlParams, useUrlState, type UrlCodec } from '@/hooks/useUrlState'
 import { CensusMap } from './components/CensusMap'
 import { CensusSidebar, formatArea, formatUnitLabel, formatValue } from './components/CensusSidebar'
 import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue } from './constants'
@@ -41,36 +40,13 @@ export default function CensusSection() {
   const [selectedUnitId, setSelectedUnitId] = useUrlState('unit', idCodec)
   const [selectedCategoryId] = useUrlState('category', idCodec)
   const [selectedVariableId] = useUrlState('variable', idCodec)
-  const [, setSearchParams] = useSearchParams()
+  const applyParams = useSetUrlParams()
 
   const variableSelection = useMemo<CensusVariableSelection | null>(
     () => (selectedCategoryId && selectedVariableId
       ? { categoryId: selectedCategoryId, variableId: selectedVariableId }
       : null),
     [selectedCategoryId, selectedVariableId],
-  )
-
-  /**
-   * Apply several encoded params in a single history replace. Updates that
-   * span multiple keys (e.g. level change clearing the selected unit) must go
-   * through one setSearchParams call: consecutive per-key writes within one
-   * handler would each start from the stale render params and clobber.
-   */
-  const applyParams = useCallback(
-    (updates: Record<string, string | null>) => {
-      setSearchParams(
-        (current) => {
-          const params = new URLSearchParams(current)
-          for (const [key, encoded] of Object.entries(updates)) {
-            if (encoded === null || encoded === '') params.delete(key)
-            else params.set(key, encoded)
-          }
-          return params
-        },
-        { replace: true },
-      )
-    },
-    [setSearchParams],
   )
 
   const { data: variableData, loading: variableLoading } = useCensusVariableData(

@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { useToggleArray } from '@/hooks/useToggleArray'
 import {
   booleanCodec,
+  nullableStringArrayCodec,
   stringArrayCodec,
   stringCodec,
   stringUnionCodec,
@@ -151,23 +152,8 @@ const monitorIdCodec: UrlCodec<string | null> = {
   decode: (raw) => raw,
 }
 
-/**
- * Network filter; absent means "all networks" (the data-driven default), so a
- * sentinel is needed to distinguish an explicit empty selection.
- */
-const NO_NETWORKS_SENTINEL = 'none'
-const networksCodec: UrlCodec<string[] | null> = {
-  encode: (value) => {
-    if (value === null) return null
-    if (value.length === 0) return NO_NETWORKS_SENTINEL
-    return [...value].sort().join(',')
-  },
-  decode: (raw) => {
-    if (raw === null) return null
-    if (raw === NO_NETWORKS_SENTINEL) return []
-    return raw.split(',').filter(Boolean)
-  },
-}
+/** Absent means "all networks" (the data-driven default), which is distinct from an explicit empty selection. */
+const networksCodec = nullableStringArrayCodec()
 
 /**
  * Boundary picker state packed into one param (`source:level[:regionCode]`)

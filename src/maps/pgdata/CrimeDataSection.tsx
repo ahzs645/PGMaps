@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useUrlParamSync } from '@/hooks/useUrlState'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { CrimeMap } from './components/CrimeMap'
@@ -12,7 +13,7 @@ import type { CrimeIncident, CrimeCategory } from './types'
 const ALL_CATEGORIES = Object.keys(CRIME_CATEGORY_COLORS) as CrimeCategory[]
 
 export default function CrimeDataSection() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const currentTab = searchParams.get('tab')
   const { incidents, loading, error } = useCrimeData()
 
@@ -108,15 +109,15 @@ export default function CrimeDataSection() {
     })
   }, [baseFilteredIncidents, timelineEnabled, effectiveTimelineDate, timelineWindowSize, incidentDateRange.start])
 
-  // Sync filters to URL for shareable links
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (currentTab) params.set('tab', currentTab)
-    if (searchQuery) params.set('q', searchQuery)
-    if (selectedCommunity) params.set('community', selectedCommunity)
-    if (showHeatmap) params.set('heatmap', '1')
-    setSearchParams(params, { replace: true })
-  }, [currentTab, searchQuery, selectedCommunity, showHeatmap, setSearchParams])
+  // Sync filters to URL for shareable links. This used to build from an empty
+  // URLSearchParams, which silently dropped every param this section does not
+  // own; useUrlParamSync writes through the current params instead.
+  useUrlParamSync({
+    tab: currentTab,
+    q: searchQuery,
+    community: selectedCommunity,
+    heatmap: showHeatmap ? '1' : null,
+  })
 
   const toggleCategory = useCallback((category: CrimeCategory) => {
     setSelectedCategories((current) =>
