@@ -6,6 +6,7 @@ import {
   MarkerContent,
   useMap
 } from '@/components/ui/map'
+import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
@@ -294,13 +295,7 @@ export function AirQualityMap({
 
   const mapStyles = useMemo(() => AIR_QUALITY_MAP_STYLES[basemap], [basemap])
 
-  useEffect(() => {
-    if (!selectedMonitor || !map) return
-    map.flyTo({
-      center: [selectedMonitor.longitude, selectedMonitor.latitude],
-      duration: 800
-    })
-  }, [selectedMonitor, map])
+  useFlyToSelection(selectedMonitor)
 
   useEffect(() => {
     if (!selectedRegionFeature || !map) return

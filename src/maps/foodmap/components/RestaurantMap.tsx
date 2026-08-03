@@ -8,6 +8,7 @@ import {
   MarkerTooltip,
   useMap
 } from '@/components/ui/map'
+import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
@@ -323,16 +324,12 @@ export function RestaurantMap({
 
   const showMarkers = !isRevealStyle || dotsRevealed
 
-  // Fly to selected restaurant
-  useEffect(() => {
-    if (selectedRestaurant?.latitude && selectedRestaurant?.longitude && map) {
-      map.flyTo({
-        center: [selectedRestaurant.longitude, selectedRestaurant.latitude],
-        zoom: 16,
-        duration: 1000
-      })
-    }
-  }, [selectedRestaurant, map])
+  useFlyToSelection(
+    selectedRestaurant?.latitude != null && selectedRestaurant?.longitude != null
+      ? { longitude: selectedRestaurant.longitude, latitude: selectedRestaurant.latitude }
+      : null,
+    { zoom: 16, duration: 1000 },
+  )
 
   return (
     <SharedMap loading={loading} loadingLabel="Loading food safety data">

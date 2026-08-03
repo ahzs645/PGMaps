@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTimelineState } from '@/hooks/useTimelineState'
 import { LoaderCircle, PawPrint } from 'lucide-react'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
+import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapFillLayer, MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { InlineAlert, LegendItem, MapGradientLegendItem, MapLegendNote, MapSizeLegend, SelectedItemCard, SidebarSection, StatGrid, ToggleChip } from '@/components/ui/map-panels'
@@ -1087,10 +1088,7 @@ function WarsMapFocus({ wars }: { wars: WarsState }) {
   const focusTarget = wars.focusTarget
   const selectedWinterRange = wars.selectedWinterRange
 
-  useEffect(() => {
-    if (!map || !isLoaded || !focusTarget) return
-    map.flyTo({ center: [focusTarget.longitude, focusTarget.latitude], zoom: 12, duration: 800 })
-  }, [map, isLoaded, focusTarget])
+  useFlyToSelection(isLoaded ? focusTarget : null, { zoom: 12 })
 
   // Winter range units span anything from a single hillside to hundreds of km²,
   // so the selection frames the polygon's own bounds rather than a fixed zoom.

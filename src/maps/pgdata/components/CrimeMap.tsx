@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
   MapClusterLayer,
   MapMarker,
   MapPopup,
   MarkerContent,
-  useMap,
 } from '@/components/ui/map'
+import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
@@ -91,8 +91,6 @@ export function CrimeMap({
   showCrimeLayer,
   loading = false,
 }: CrimeMapProps) {
-  const { map } = useMap()
-
   const incidentById = useMemo(() => {
     const map = new Map<number, CrimeIncident>()
     incidents.forEach((inc) => map.set(inc.id, inc))
@@ -125,14 +123,7 @@ export function CrimeMap({
     return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
   }, [incidents, showCrimeLayer])
 
-  useEffect(() => {
-    if (!selectedIncident || !map) return
-    map.flyTo({
-      center: [selectedIncident.longitude, selectedIncident.latitude],
-      zoom: 15,
-      duration: 800,
-    })
-  }, [map, selectedIncident])
+  useFlyToSelection(selectedIncident, { zoom: 15 })
 
   return (
     <div className="h-full w-full">
