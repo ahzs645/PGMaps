@@ -118,9 +118,8 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
               pitch={0}
               bearing={0}
               showStyleLoadingOverlay={false}
-            >
+             controls={<MapControls position="top-right" showFullscreen />}>
               <FitToCampuses campuses={org.campuses} />
-              <MapControls position="top-right" showFullscreen />
               {org.campuses.map((campus, index) => (
                 <MapMarker key={`${campus.name}-${index}`} longitude={campus.longitude} latitude={campus.latitude} anchor="bottom">
                   <MarkerContent>

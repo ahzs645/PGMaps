@@ -590,8 +590,12 @@ function DevInteract() {
       ) : undefined}
     >
       <div className="relative h-full">
-        <Map center={CENTER} zoom={11.1} attributionControl={false}>
-          <MapControls position="top-right" className="top-16 md:top-2" />
+        <Map
+          center={CENTER}
+          zoom={11.1}
+          attributionControl={false}
+          controls={<MapControls position="top-right" className="top-16 md:top-2" />}
+        >
           <MapClickCapture
             measurementMode={measurementMode}
             measurementShape={measurementShape}

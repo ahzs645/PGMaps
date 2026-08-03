@@ -615,14 +615,19 @@ function ProjectExplorerMap({
     : data.filteredStats.typeBreakdown
 
   return (
-    <Map center={config.map.center} zoom={config.map.zoom} minZoom={config.map.minZoom} maxZoom={config.map.maxZoom}>
+    <Map
+      center={config.map.center}
+      zoom={config.map.zoom}
+      minZoom={config.map.minZoom}
+      maxZoom={config.map.maxZoom}
+      controls={<MapControls position="top-right" showZoom showCompass showFullscreen />}
+    >
       <ResearchLocationLayer
         idPrefix="research"
         data={activeGeoJSON}
         fallbackColor={data.resourceTypeColors.other ?? '#94a3b8'}
         onLocationClick={(properties) => setSelectedLocationId(properties.id)}
       />
-      <MapControls position="top-right" showZoom showCompass showFullscreen />
       {legendFeature?.type === 'map-legend' && (
         <ProjectExplorerLegend config={config} feature={legendFeature} counts={legendCounts} elevated={timelineMode} />
       )}

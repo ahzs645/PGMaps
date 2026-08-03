@@ -100,8 +100,11 @@ function DevInteractSewage() {
       sidebar={sidebar}
     >
       <div className="relative h-full">
-        <Map center={SEWAGE_CENTER} zoom={SEWAGE_DEFAULT_ZOOM}>
-          <MapControls position="top-right" className="top-16 md:top-2" />
+        <Map
+          center={SEWAGE_CENTER}
+          zoom={SEWAGE_DEFAULT_ZOOM}
+          controls={<MapControls position="top-right" className="top-16 md:top-2" />}
+        >
 
           {visible &&
             siteFeatures.features.map((site) => {

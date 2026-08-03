@@ -120,8 +120,13 @@ function DevData() {
       ) : undefined}
     >
       <div className="relative h-full">
-        <Map center={DEV_DATA_CENTER} zoom={DEV_DATA_ZOOM} attributionControl={false} deferResize={tableResizing}>
-          <MapControls position="top-right" className="top-16 md:top-2" />
+        <Map
+          center={DEV_DATA_CENTER}
+          zoom={DEV_DATA_ZOOM}
+          attributionControl={false}
+          deferResize={tableResizing}
+          controls={<MapControls position="top-right" className="top-16 md:top-2" />}
+        >
           <ViewportTracker onChange={setBounds} />
           {selected && <FlyToCenter center={selected.center} nonce={selected.nonce} />}
 

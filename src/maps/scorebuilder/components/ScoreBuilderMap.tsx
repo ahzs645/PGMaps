@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Map as PgMap, MapClusterLayer, MapControls, type MapRef } from '@/components/ui/map'
+import { Map as PgMap, MapClusterLayer, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { hexToRgbaArray } from '@/lib/color'
@@ -148,7 +148,6 @@ export function ScoreBuilderMap({
   return (
     <div className="h-full w-full">
       <PgMap ref={setMapRef} center={PG_CENTER} zoom={ZOOM} styles={SCORE_BUILDER_MAP_STYLES} loading={loading}>
-        <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
         {walkabilitySourceSurface && (
           <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} tuning={walkabilitySurfaceTuning} />

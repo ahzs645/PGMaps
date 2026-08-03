@@ -30,7 +30,7 @@ import {
   DESKTOP_SIDEBAR_MIN_WIDTH,
   MapSectionLayout,
 } from '@/components/layout/MapSectionLayout'
-import { Map as PgMap, MapControls } from '@/components/ui/map'
+import { Map as PgMap } from '@/components/ui/map'
 import { MapFillLayer, MapRasterLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
@@ -239,7 +239,6 @@ function ProjectPortalMapPreview({
         styles={PROJECT_MAP_STYLES}
         showStyleLoadingOverlay={false}
       >
-        <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
         {activeRasterLayers.map((layer) => (
           <MapRasterLayer

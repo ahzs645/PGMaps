@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Map as PgMap,
   MapClusterLayer,
-  MapControls,
   MapMarker,
   MarkerContent,
   type MapRef
@@ -154,12 +153,6 @@ export function ExplorerMap({
   return (
     <div className="h-full w-full relative">
       <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} loading={loading}>
-        <MapControls
-          position="top-right"
-          mobilePosition="bottom-right"
-          showZoom
-          showCompass
-        />
 
         {heatmapLayer}
 

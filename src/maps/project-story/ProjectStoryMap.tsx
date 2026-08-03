@@ -14,7 +14,7 @@ import {
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
-import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
+import { Map, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
@@ -371,7 +371,6 @@ export function ProjectStoryMap({
         maxZoom={config.map.maxZoom}
         styles={mapStyles}
       >
-        <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
         {resolvedLayers.map((resolved) => (
           <MapFillLayer

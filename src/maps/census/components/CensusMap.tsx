@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Map as PgMap, MapControls, type MapRef } from '@/components/ui/map'
+import { Map as PgMap, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMapViewUrlState } from '@/components/ui/map-url-state'
 import { PG_CENTER, getChoroplethColor } from '@/components/ui/map-styles'
@@ -166,7 +166,6 @@ export function CensusMap({
                loading={loading}
         onViewportChange={onViewportChange}
       >
-        <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
         <MapFillLayer
           data={featureCollection}
           fillColor={['coalesce', ['get', 'color'], '#475569']}

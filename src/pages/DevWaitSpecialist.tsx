@@ -352,8 +352,12 @@ function DevWaitSpecialist() {
       sidebar={sidebar}
     >
       <div className="relative h-full">
-        <Map center={SPECIALIST_WAIT_MAP_CENTER} zoom={SPECIALIST_WAIT_MAP_ZOOM} loading={loading}>
-          <MapControls position="top-right" className="top-16 md:top-2" />
+        <Map
+          center={SPECIALIST_WAIT_MAP_CENTER}
+          zoom={SPECIALIST_WAIT_MAP_ZOOM}
+          loading={loading}
+          controls={<MapControls position="top-right" className="top-16 md:top-2" />}
+        >
 
           <SpecialistFacilityMarkers
             facilities={filteredFacilities}

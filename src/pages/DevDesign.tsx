@@ -1210,8 +1210,7 @@ export default function DevDesign() {
               maxZoom={14}
               pitch={0}
               bearing={0}
-            >
-              <MapControls showCompass showFullscreen position="bottom-right" />
+             controls={<MapControls showCompass showFullscreen position="bottom-right" />}>
               <MapMarker
                 longitude={MARKER_COORDINATE.longitude}
                 latitude={MARKER_COORDINATE.latitude}

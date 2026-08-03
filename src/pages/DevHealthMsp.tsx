@@ -305,8 +305,7 @@ function DevHealthMsp() {
         maxZoom={16}
         loading={loading}
         className="h-full"
-      >
-        <MapControls position="top-right" showFullscreen showLocate />
+       controls={<MapControls position="top-right" showFullscreen showLocate />}>
         <ZoomToSelected selected={selected} />
         <div className="absolute right-3 z-10 hidden rounded-md border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur md:block md:bottom-[calc(var(--map-timeline-height,0px)+1rem)]">
           <div className="mb-2 font-semibold">Legend</div>

@@ -245,8 +245,12 @@ function DevWait() {
       sidebar={sidebar}
     >
       <div className="relative h-full">
-        <Map center={WAIT_MAP_CENTER} zoom={WAIT_MAP_ZOOM} loading={loading}>
-          <MapControls position="top-right" className="top-16 md:top-2" />
+        <Map
+          center={WAIT_MAP_CENTER}
+          zoom={WAIT_MAP_ZOOM}
+          loading={loading}
+          controls={<MapControls position="top-right" className="top-16 md:top-2" />}
+        >
 
           <WaitMarkers
             hospitals={filteredHospitals}

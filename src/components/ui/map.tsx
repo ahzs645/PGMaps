@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MapLoader, type MapLoaderVariant } from "./map-loader";
 import { MAP_STYLES } from "./map-styles";
+import { DEFAULT_MAP_CONTROLS } from "./map-controls";
 import { MOBILE_MAP_FEATURE_CLICK_EVENT } from "./mobile-feature-card";
 import {
   MapContext,
@@ -70,6 +71,11 @@ type MapProps = {
    * to enable controlled mode where the map viewport is driven by your state.
    */
   onViewportChange?: (viewport: MapViewport) => void;
+  /**
+   * Map controls. Omit for the standard set (see DEFAULT_MAP_CONTROLS); pass
+   * your own `<MapControls>` to change them, or `null` for a bare map.
+   */
+  controls?: ReactNode;
   /** Show a loading indicator on the map */
   loading?: boolean;
   /** Loading animation to show: the ASCII "globe" (default) or "spinner". */
@@ -101,6 +107,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     projection,
     viewport,
     onViewportChange,
+    controls,
     loading = false,
     loader,
     showStyleLoadingOverlay = true,
@@ -347,6 +354,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       >
         <MapLoader visible={isLoading} variant={loader} />
         {/* SSR-safe: children render only when map is loaded on client */}
+        {mapInstance && (controls === undefined ? DEFAULT_MAP_CONTROLS : controls)}
         {mapInstance && children}
       </div>
     </MapContext.Provider>
@@ -368,7 +376,7 @@ export {
   MapPopup,
 } from "./map-markers";
 
-export { MapControls } from "./map-controls";
+export { MapControls, DEFAULT_MAP_CONTROLS } from "./map-controls";
 
 export { MapRoute, MapClusterLayer } from "./map-routes";
 

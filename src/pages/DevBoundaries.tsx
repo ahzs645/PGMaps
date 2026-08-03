@@ -2392,8 +2392,7 @@ function DevBoundaries() {
         loading={activeLoading}
         boxZoom={false}
         doubleClickZoom={false}
-      >
-        <MapControls position="top-right" mobilePosition="bottom-right" />
+       controls={<MapControls position="top-right" mobilePosition="bottom-right" />}>
         <TrackMapBounds onBoundsChange={setMapBounds} onZoomChange={setMapZoom} />
         <FitToRegions
           regions={fitRegions}

@@ -247,8 +247,7 @@ function BoundaryMap({
           viewport={viewport}
           onViewportChange={onViewportChange}
           attributionControl={false}
-        >
-          <MapControls position="top-right" />
+         controls={<MapControls position="top-right" />}>
           <MapFillLayer
             data={collection}
             fillColor={ZONE_FILL_EXPRESSION}

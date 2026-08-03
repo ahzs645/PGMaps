@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MapLoader, type MapLoaderVariant } from "./map-loader";
 import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from "./map-styles";
-import { MapContext, MapControls } from "./map";
+import { DEFAULT_MAP_CONTROLS, MapContext } from "./map";
 import { MapOverlayRoot } from "./map-overlays";
 import { MOBILE_MAP_BLANK_CLICK_EVENT, MOBILE_MAP_INTERACTION_EVENT } from "./mobile-feature-card";
 
@@ -346,16 +346,7 @@ export function SharedMap({
   return (
     <MapOverlayRoot className={className} initializeVariables={false}>
       <PersistentMapHost loading={loading} loadingLabel={loadingLabel} loader={loader} />
-      {controls === undefined ? (
-        <MapControls
-          position="top-right"
-          mobilePosition="bottom-right"
-          showZoom
-          showCompass
-        />
-      ) : (
-        controls
-      )}
+      {controls === undefined ? DEFAULT_MAP_CONTROLS : controls}
       {children}
     </MapOverlayRoot>
   );

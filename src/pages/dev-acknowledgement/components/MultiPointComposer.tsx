@@ -403,10 +403,9 @@ export function MultiPointComposer({
                   pitch={0}
                   bearing={0}
                   showStyleLoadingOverlay={false}
-                >
+                 controls={<MapControls position="top-right" showFullscreen />}>
                   <MapClickLayer onAdd={handleMapClick} />
                   <FlyToActive point={activePoint} />
-                  <MapControls position="top-right" showFullscreen />
                   {points.map((point, index) => (
                     <MapMarker key={point.id} longitude={point.longitude} latitude={point.latitude} anchor="bottom">
                       <MarkerContent>

@@ -237,4 +237,14 @@ function CompassButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+/**
+ * The control set the PG map sections settled on: top-right on desktop, moved
+ * clear of the mobile sheet, with zoom and compass. `Map` and `SharedMap`
+ * render this when their `controls` prop is omitted, so a section only spells
+ * controls out when it wants something else.
+ */
+export const DEFAULT_MAP_CONTROLS = (
+  <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
+);
+
 export { MapControls };

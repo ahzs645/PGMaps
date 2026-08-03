@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 import { Layers, Satellite, Trees } from 'lucide-react'
-import { Map as PgMap, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
+import { Map as PgMap, MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { SectionTabsBar } from '@/components/layout/SectionTabsBar'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -1216,7 +1216,6 @@ export default function MiscDataSection() {
         >
           <div className="relative h-full">
             <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} loading={mapLoading}>
-              <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
               <MapFillLayer
                 data={forestGeojson}

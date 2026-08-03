@@ -280,8 +280,12 @@ function DevFallout() {
       sidebar={sidebar}
     >
       <div className="relative h-full">
-        <Map center={CANADA_CENTER} zoom={3.3} loading={loading}>
-          <MapControls position="top-right" className="top-16 md:top-2" />
+        <Map
+          center={CANADA_CENTER}
+          zoom={3.3}
+          loading={loading}
+          controls={<MapControls position="top-right" className="top-16 md:top-2" />}
+        >
           <FitBounds data={visibleFitData} />
 
           {showLines && (
