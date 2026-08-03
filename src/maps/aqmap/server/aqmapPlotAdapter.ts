@@ -1,6 +1,9 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 
+// Relative, not aliased: this module is reachable from vite.config.ts, which
+// esbuild resolves without the app's `@` alias.
+import { parseCsvRecords } from '../../../lib/parseCsv'
 import type { AqmapDataFormat } from './aqmapDataAdapter'
 
 export interface AqmapPlotPoint {
@@ -28,51 +31,8 @@ function buildPlotFilename(network: string, siteId: string): string {
 }
 
 function parseCsvRows(text: string): AqmapPlotPoint[] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let value = ''
-  let inQuotes = false
-
-  for (let index = 0; index < text.length; index += 1) {
-    const current = text[index]
-    const next = text[index + 1]
-
-    if (current === '"' && inQuotes && next === '"') {
-      value += '"'
-      index += 1
-    } else if (current === '"') {
-      inQuotes = !inQuotes
-    } else if (current === ',' && !inQuotes) {
-      row.push(value)
-      value = ''
-    } else if ((current === '\n' || current === '\r') && !inQuotes) {
-      if (current === '\r' && next === '\n') index += 1
-      row.push(value)
-      if (row.some((cell) => cell.length > 0)) rows.push(row)
-      row = []
-      value = ''
-    } else {
-      value += current
-    }
-  }
-
-  if (value || row.length > 0) {
-    row.push(value)
-    if (row.some((cell) => cell.length > 0)) rows.push(row)
-  }
-
-  const [header, ...records] = rows
-  if (!header) return []
-
-  const headerMap = header.map((column) => column.trim())
-
-  return records
-    .map((values) => {
-      const record: Record<string, string> = {}
-      values.forEach((value, index) => {
-        record[headerMap[index]] = value
-      })
-
+  return parseCsvRecords(text)
+    .map((record) => {
       const date = (record.date ?? record.Date ?? record.timestamp ?? '').trim()
       const rawPm25 = record.pm25 ?? record.value ?? record.pm25_1hr ?? record.PM25
       const pm25 = Number.parseFloat(String(rawPm25 ?? '').trim())

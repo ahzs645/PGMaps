@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
+import { parseCsvRows } from '@/lib/parseCsv'
 
 /** Prefix that marks a metric recipe source as a user-uploaded dataset. */
 export const USER_DATASET_SOURCE_PREFIX = 'user.'
@@ -189,7 +190,7 @@ function parseGeoJsonDataset(text: string): ParsedUserDataset {
 }
 
 function parseCsvDataset(text: string, delimiter: string): ParsedUserDataset {
-  const rows = parseDelimited(text, delimiter)
+  const rows = parseCsvRows(text, { delimiter })
   if (rows.length < 2) throw new Error('CSV needs a header row and at least one data row.')
 
   const header = rows[0].map((cell) => cell.trim())
@@ -240,46 +241,6 @@ function parseCsvDataset(text: string, delimiter: string): ParsedUserDataset {
 }
 
 /** Minimal RFC4180-ish parser: quoted fields, escaped quotes, CRLF/LF rows. */
-function parseDelimited(text: string, delimiter: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let cell = ''
-  let inQuotes = false
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index]
-    if (inQuotes) {
-      if (char === '"') {
-        if (text[index + 1] === '"') {
-          cell += '"'
-          index += 1
-        } else {
-          inQuotes = false
-        }
-      } else {
-        cell += char
-      }
-      continue
-    }
-    if (char === '"') {
-      inQuotes = true
-    } else if (char === delimiter) {
-      row.push(cell)
-      cell = ''
-    } else if (char === '\n' || char === '\r') {
-      if (char === '\r' && text[index + 1] === '\n') index += 1
-      row.push(cell)
-      cell = ''
-      if (row.some((value) => value !== '')) rows.push(row)
-      row = []
-    } else {
-      cell += char
-    }
-  }
-  row.push(cell)
-  if (row.some((value) => value !== '')) rows.push(row)
-  return rows
-}
-
 function representativePoint(geometry: GeoJSON.Geometry): [number, number] | null {
   if (geometry.type === 'GeometryCollection') {
     for (const member of geometry.geometries) {

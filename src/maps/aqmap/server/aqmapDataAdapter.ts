@@ -1,5 +1,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+// Relative, not aliased: vite.config.ts pulls this in through aqmapApiPlugin,
+// and esbuild resolves config imports without the app's `@` alias.
+import { parseCsvRecords } from '../../../lib/parseCsv'
 import { buildIconUrl } from './aqmapIconAdapter'
 
 export type AqmapDataFormat = 'json' | 'csv' | 'tsv' | 'geojson'
@@ -241,50 +244,7 @@ function parseNumeric(value: string | number | null | undefined): number | undef
 }
 
 function parseCsvText(text: string): RawMonitorRow[] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let value = ''
-  let inQuotes = false
-
-  for (let index = 0; index < text.length; index += 1) {
-    const current = text[index]
-    const next = text[index + 1]
-
-    if (current === '"' && inQuotes && next === '"') {
-      value += '"'
-      index += 1
-    } else if (current === '"') {
-      inQuotes = !inQuotes
-    } else if (current === ',' && !inQuotes) {
-      row.push(value)
-      value = ''
-    } else if ((current === '\n' || current === '\r') && !inQuotes) {
-      if (current === '\r' && next === '\n') index += 1
-      row.push(value)
-      if (row.some((cell) => cell.length > 0)) rows.push(row)
-      row = []
-      value = ''
-    } else {
-      value += current
-    }
-  }
-
-  if (value || row.length > 0) {
-    row.push(value)
-    if (row.some((cell) => cell.length > 0)) rows.push(row)
-  }
-
-  const [header, ...records] = rows
-  if (!header) return []
-
-  return records.map((record) => {
-    const normalized: RawMonitorRow = {}
-    header.forEach((key, index) => {
-      const raw = record[index] ?? ''
-      normalized[key.trim()] = raw
-    })
-    return normalized
-  })
+  return parseCsvRecords(text)
 }
 
 type AqmapIconMetaGroup = 'agency' | 'purpleair' | 'aqegg' | 'lcm'

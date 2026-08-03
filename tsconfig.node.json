@@ -12,6 +12,7 @@
   "include": [
     "vite.config.ts",
     "src/maps/aqmap/server/**/*.ts",
-    "src/maps/aqmap/lib/smokeLayers.ts"
+    "src/maps/aqmap/lib/smokeLayers.ts",
+    "src/lib/parseCsv.ts"
   ]
 }

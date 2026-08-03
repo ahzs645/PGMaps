@@ -6,7 +6,8 @@ import type { Layer } from '@deck.gl/core'
 import maplibregl from 'maplibre-gl'
 import { useMap } from '@/components/ui/map'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
-import { fetchGzipJson, PM25_NATIVE_VECTOR_URL } from '../lib/pm25Grid'
+import { fetchJson } from '@/lib/fetchJson'
+import { PM25_NATIVE_VECTOR_URL } from '../lib/pm25Grid'
 import {
   FIRE_DANGER_CLASS_LABELS,
   FIRE_DANGER_VECTOR_TILE_MAX_ZOOM,
@@ -138,7 +139,7 @@ function buildFireDangerTileUrl({ x, y, z }: DeckTileIndex): string {
 
 async function fetchFireDangerTile(index: DeckTileIndex, signal?: AbortSignal | null): Promise<FireDangerDeckFeatureCollection | null> {
   try {
-    return await fetchGzipJson<FireDangerDeckFeatureCollection>(buildFireDangerTileUrl(index), signal ?? undefined)
+    return await fetchJson<FireDangerDeckFeatureCollection>(buildFireDangerTileUrl(index), signal ?? undefined)
   } catch (error) {
     if ((error as Error).name === 'AbortError') throw error
     return null
@@ -297,7 +298,7 @@ export function AqMapDeckOverlay({
   useEffect(() => {
     if (!pm25DeckActive || pm25NativeVectorData) return
     const controller = new AbortController()
-    fetchGzipJson<Pm25DeckFeatureCollection>(PM25_NATIVE_VECTOR_URL, controller.signal)
+    fetchJson<Pm25DeckFeatureCollection>(PM25_NATIVE_VECTOR_URL, controller.signal)
       .then(setPm25NativeVectorData)
       .catch((error) => {
         if ((error as Error).name !== 'AbortError') console.error('PM2.5 native vector failed', error)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { fetchJson } from '@/lib/fetchJson'
 import type { ProjectMapExplorerWorkspaceDef } from '@/lib/projectPackages'
 
 import type {
@@ -9,12 +10,6 @@ import type {
   ResearchRecordsOverview,
   ResearchRecordsTimelineBucket,
 } from './researchRecordsTypes'
-
-async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal })
-  if (!response.ok) throw new Error(`Data request failed (${response.status})`)
-  return response.json() as Promise<T>
-}
 
 export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef) {
   const [overview, setOverview] = useState<ResearchRecordsOverview | null>(null)

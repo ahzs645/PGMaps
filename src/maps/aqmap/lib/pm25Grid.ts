@@ -23,19 +23,3 @@ export function pm25Color(value: number): string {
   return [...PM25_VECTOR_COLORS].reverse().find((stop) => value >= stop.value)?.color ?? PM25_VECTOR_COLORS[0].color
 }
 
-/** Fetch a (optionally gzipped) JSON document, transparently inflating gzip. */
-export async function fetchGzipJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, signal ? { signal } : undefined)
-  if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`)
-  const buffer = await response.arrayBuffer()
-  const bytes = new Uint8Array(buffer)
-  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
-
-  if (isGzip && typeof DecompressionStream !== 'undefined') {
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
-    const text = await new Response(stream).text()
-    return JSON.parse(text) as T
-  }
-
-  return JSON.parse(new TextDecoder().decode(bytes)) as T
-}

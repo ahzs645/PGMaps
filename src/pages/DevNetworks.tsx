@@ -9,7 +9,7 @@ import { Eye, EyeOff, Image, Layers, RadioTower, Shapes } from 'lucide-react'
 import { Map as AppMap, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { fetchGzipJson } from '@/maps/aqmap/lib/pm25Grid'
+import { fetchJson } from '@/lib/fetchJson'
 import { cn } from '@/lib/utils'
 
 const DEV_NETWORK_DATA_BASE = '/__dev_network_data'
@@ -481,7 +481,7 @@ export default function DevNetworks() {
         ...current,
         [id]: { data: current[id]?.data ?? null, loading: true, error: null },
       }))
-      fetchGzipJson<BellFeatureCollection>(
+      fetchJson<BellFeatureCollection>(
         `${DEV_NETWORK_DATA_BASE}/bell/output/polygons/${id}.geojson.gz`,
         controller.signal,
       )

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { buildBoundaryIndex } from './boundaries'
 import { CANUE_BOUNDARY_CONFIG, CANUE_INVALID_NUMERIC_VALUES } from './constants'
-import { fetchGzipText, splitCsvLine } from './data'
+import { fetchGzipText } from '@/lib/fetchJson'
+import { splitCsvLine } from '@/lib/parseCsv'
 import { findCanueVariablesForFile, getCanuePeriodLabel } from './variables'
 import type {
   BoundaryFeatureCollection,

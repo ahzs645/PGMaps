@@ -1,3 +1,4 @@
+import { parseCsvRows } from '@/lib/parseCsv'
 import type { AirMonitor } from '@/maps/airquality'
 import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
 import { getAqmapNetworkSlug, getAqmapSiteId } from './monitorPresentation'
@@ -19,8 +20,9 @@ function optionalNumber(value: unknown): number | undefined {
 }
 
 function parseCsv(text: string): AqPlotPoint[] {
-  const [headerLine, ...lines] = text.trim().split(/\r?\n/)
-  const headers = headerLine.split(',').map((header) => header.trim())
+  const [headerRow, ...rows] = parseCsvRows(text)
+  if (!headerRow) return []
+  const headers = headerRow.map((header) => header.trim())
   const dateIndex = headers.indexOf('date')
   const pm25Index = headers.indexOf('pm25')
   if (dateIndex < 0 || pm25Index < 0) return []
@@ -30,9 +32,8 @@ function parseCsv(text: string): AqPlotPoint[] {
   const correctedIndex = headers.indexOf('pm25_corrected')
   const femIndex = headers.indexOf('pm25_fem')
 
-  return lines
-    .map((line): AqPlotPoint | null => {
-      const cells = line.split(',')
+  return rows
+    .map((cells): AqPlotPoint | null => {
       const pm25 = Number(cells[pm25Index])
       if (!Number.isFinite(pm25)) return null
       return {

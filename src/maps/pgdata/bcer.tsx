@@ -5,6 +5,7 @@ import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { InlineAlert, LegendItem, StatGrid, ToggleChip } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { fetchJson } from '@/lib/fetchJson'
 
 // BCER (British Columbia Energy Regulator) oil and gas well data, served as
 // statically exported gzipped JSON from the BCER Data Viewer deploy. The files
@@ -94,21 +95,6 @@ function formatGas(value: number): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
-async function fetchGzipJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal })
-  if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`)
-  const buffer = await response.arrayBuffer()
-  const bytes = new Uint8Array(buffer)
-  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
-  if (isGzip && typeof DecompressionStream !== 'undefined') {
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
-    const text = await new Response(stream).text()
-    return JSON.parse(text) as T
-  }
-  // Either not gzip (server transparently decompressed it) or no DecompressionStream.
-  return JSON.parse(new TextDecoder().decode(bytes)) as T
-}
-
 function toFeature(well: BcerWellRecord): BcerWellFeature {
   const orientation: BcerOrientation = (well.orientation ?? '').toUpperCase().startsWith('H')
     ? 'horizontal'
@@ -175,9 +161,9 @@ export function useBcerData(active: boolean) {
         setLoading(true)
         setError(null)
         const [search, dash, metaData] = await Promise.all([
-          fetchGzipJson<BcerWellRecord[]>(`${BCER_DATA_BASE}/wells/search.json.gz`, controller.signal),
-          fetchGzipJson<BcerDashboard>(`${BCER_DATA_BASE}/dashboard.json.gz`, controller.signal).catch(() => null),
-          fetchGzipJson<BcerMeta>(`${BCER_DATA_BASE}/meta.json.gz`, controller.signal).catch(() => null),
+          fetchJson<BcerWellRecord[]>(`${BCER_DATA_BASE}/wells/search.json.gz`, controller.signal),
+          fetchJson<BcerDashboard>(`${BCER_DATA_BASE}/dashboard.json.gz`, controller.signal).catch(() => null),
+          fetchJson<BcerMeta>(`${BCER_DATA_BASE}/meta.json.gz`, controller.signal).catch(() => null),
         ])
         const features = search
           .filter(

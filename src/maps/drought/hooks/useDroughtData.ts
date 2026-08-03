@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { fetchJson } from '@/lib/fetchJson'
 import type { DroughtFeatureCollection, DroughtManifest, DroughtTimeSeries, DroughtTimeSeriesRecord, DroughtTimeSeriesYearInfo } from '../types'
 
 const BASE_PATH = '/data/drought'
@@ -11,14 +12,6 @@ interface DroughtDataState {
   timeseries: DroughtTimeSeries | null
   loading: boolean
   error: string | null
-}
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`Failed to load ${url}: ${response.status}`)
-  }
-  return response.json() as Promise<T>
 }
 
 export function useDroughtData(year: number) {

@@ -1,3 +1,4 @@
+import { fetchGzipText } from '@/lib/fetchJson'
 import {
   computeWinterRangeOverlap,
   processWinterRangeSource,
@@ -24,8 +25,6 @@ export type WinterRangeWorkerResponse =
   | { type: 'overlap'; requestId: number; overlap: WinterRangeOverlap | null }
   | { type: 'error'; stage: 'load' | 'overlap'; requestId?: number; error: string }
 
-type DecompressionStreamConstructor = new (format: 'gzip') => TransformStream<Uint8Array, Uint8Array>
-
 const workerScope = globalThis as unknown as {
   onmessage: ((event: MessageEvent<WinterRangeWorkerRequest>) => void) | null
   postMessage: (message: WinterRangeWorkerResponse) => void
@@ -46,25 +45,15 @@ function isWinterRangeSource(value: unknown): value is WinterRangeSource {
 }
 
 async function fetchWinterRange(url: string): Promise<{ decompressedText: string; source: WinterRangeSource }> {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`)
-  const contentType = response.headers.get('content-type') ?? ''
-  const bytes = new Uint8Array(await response.arrayBuffer())
-  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b
   let text: string
-  if (isGzip) {
-    const DecompressionStreamCtor = (
-      globalThis as typeof globalThis & { DecompressionStream?: DecompressionStreamConstructor }
-    ).DecompressionStream
-    if (!DecompressionStreamCtor) throw new Error('This browser cannot decompress gzip map data')
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStreamCtor('gzip'))
-    text = await new Response(stream).text()
-  } else {
-    // Some hosts, including Vite's dev server, transparently decompress `.gz`.
-    text = new TextDecoder().decode(bytes)
-  }
-  if (!contentType.includes('json') && text.trimStart().startsWith('<')) {
-    throw new Error('Dataset is not included in this build')
+  try {
+    text = await fetchGzipText(url)
+  } catch (error) {
+    // fetchGzipText rejects the HTML SPA fallback; say why in this map's terms.
+    if (error instanceof Error && error.message.includes('file missing')) {
+      throw new Error('Dataset is not included in this build')
+    }
+    throw error
   }
   const parsed = JSON.parse(text) as unknown
   if (!isWinterRangeSource(parsed)) throw new Error('Winter range dataset is not valid GeoJSON')

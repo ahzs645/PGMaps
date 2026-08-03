@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { FetchError, fetchJson } from '@/lib/fetchJson'
 import { ARCGIS_BASE, LAYER_IDS } from '../constants'
 import type {
   ActiveLayer,
@@ -120,10 +121,16 @@ function annotateFeatures<T extends GeoJSON.Geometry>(
 }
 
 async function fetchLocalGeojson(path: string, signal: AbortSignal): Promise<GeoJSON.FeatureCollection> {
-  const response = await fetch(withBase(path), { signal })
-  if (response.status === 404) return { type: 'FeatureCollection', features: [] }
-  if (!response.ok) throw new Error(`Failed to fetch ${path}: ${response.status}`)
-  const geojson = await response.json()
+  let geojson: GeoJSON.FeatureCollection
+  try {
+    geojson = await fetchJson<GeoJSON.FeatureCollection>(withBase(path), signal)
+  } catch (error) {
+    // Overlay sources are optional; a missing file just contributes no features.
+    if (error instanceof FetchError && error.status === 404) {
+      return { type: 'FeatureCollection', features: [] }
+    }
+    throw error
+  }
   if (geojson.type !== 'FeatureCollection' || !Array.isArray(geojson.features)) {
     throw new Error(`${path} did not return a GeoJSON FeatureCollection`)
   }

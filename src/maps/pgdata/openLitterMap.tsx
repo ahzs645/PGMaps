@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
+import { useFetchData } from '@/hooks/useFetchData'
 import { formatDate, useJsonManifest } from './shared'
 
 export const OPEN_LITTER_TIMELINE_WINDOW_OPTIONS: TimelineWindowOption[] = [
@@ -136,52 +137,6 @@ const CATEGORY_COLORS: Record<string, string> = {
 }
 
 const FALLBACK_COLORS = ['#0d9488', '#9333ea', '#ca8a04', '#0369a1', '#be185d', '#65a30d', '#ea580c', '#4f46e5']
-
-type DecompressionStreamConstructor = new (format: 'gzip') => TransformStream<Uint8Array, Uint8Array>
-
-function useGzipJson<T>(path: string | null) {
-  const [data, setData] = useState<T | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!path) {
-      setData(null)
-      setError(null)
-      return
-    }
-
-    const controller = new AbortController()
-    const resolvedPath = path
-    async function load() {
-      try {
-        setError(null)
-        const response = await fetch(resolvedPath, { signal: controller.signal })
-        if (!response.ok) throw new Error(`Failed to fetch ${resolvedPath}: ${response.status}`)
-        const buffer = await response.arrayBuffer()
-        let text = new TextDecoder().decode(buffer)
-        if (!text.trimStart().startsWith('{')) {
-          const DecompressionStreamCtor = (
-            globalThis as typeof globalThis & { DecompressionStream?: DecompressionStreamConstructor }
-          ).DecompressionStream
-          if (!DecompressionStreamCtor) throw new Error('This browser cannot decompress gzip map data')
-          const stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStreamCtor('gzip'))
-          text = await new Response(stream).text()
-        }
-        setData(JSON.parse(text) as T)
-        setError(null)
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return
-        setData(null)
-        setError((err as Error).message || `Unable to load ${resolvedPath}`)
-      }
-    }
-
-    void load()
-    return () => controller.abort()
-  }, [path])
-
-  return { data, error }
-}
 
 function hashName(name: string): number {
   let hash = 0
@@ -453,7 +408,7 @@ export function useOpenLitterMapData(
   const [timelineWindowSize, setTimelineWindowSize] = useState(3)
 
   const manifest = useJsonManifest<OpenLitterMapManifest>(active ? '/data/open-litter-map/manifest.json' : null)
-  const points = useGzipJson<OpenLitterPointCollection>(
+  const points = useFetchData<OpenLitterPointCollection>(
     active && manifest.data ? (manifest.data.geojsonGzip ?? manifest.data.geojson) : null,
   )
   const features = useMemo(() => points.data?.features ?? [], [points.data])

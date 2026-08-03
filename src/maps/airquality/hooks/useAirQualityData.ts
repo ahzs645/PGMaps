@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { fetchGzipText, fetchJson } from '@/lib/fetchJson'
+import { parseCsvRecords } from '@/lib/parseCsv'
 import type { AirMonitor } from '../types'
 
 interface RawMonitor {
@@ -252,49 +254,7 @@ function normalizeNumericValue(value: number | string | null | undefined): numbe
 }
 
 function parseCsv(text: string): RawMonitor[] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let value = ''
-  let inQuotes = false
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index]
-    const next = text[index + 1]
-
-    if (char === '"' && inQuotes && next === '"') {
-      value += '"'
-      index += 1
-    } else if (char === '"') {
-      inQuotes = !inQuotes
-    } else if (char === ',' && !inQuotes) {
-      row.push(value)
-      value = ''
-    } else if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (char === '\r' && next === '\n') index += 1
-      row.push(value)
-      if (row.some((cell) => cell.length > 0)) rows.push(row)
-      row = []
-      value = ''
-    } else {
-      value += char
-    }
-  }
-
-  if (value || row.length > 0) {
-    row.push(value)
-    if (row.some((cell) => cell.length > 0)) rows.push(row)
-  }
-
-  const [headers, ...records] = rows.filter((csvRow) => csvRow.some((cell) => cell.trim().length > 0))
-  if (!headers) return []
-
-  return records.map((record) => {
-    const entry: Record<string, string> = {}
-    headers.forEach((header, index) => {
-      entry[header] = record[index] ?? ''
-    })
-    return entry as unknown as RawMonitor
-  })
+  return parseCsvRecords(text) as unknown as RawMonitor[]
 }
 
 function normalizeNetworkSlug(slug: string): string {
@@ -340,10 +300,7 @@ function rowsFromJsonPayload(payload: unknown, fallbackNetwork?: string): RawMon
 }
 
 async function fetchJsonRows(url: string, signal: AbortSignal, fallbackNetwork?: string): Promise<RawMonitor[]> {
-  const response = await fetch(url, { signal })
-  if (!response.ok) throw new Error(`Failed to load monitors: ${response.status}`)
-  const json = await response.json()
-  return rowsFromJsonPayload(json, fallbackNetwork)
+  return rowsFromJsonPayload(await fetchJson(url, signal), fallbackNetwork)
 }
 
 async function fetchOptionalJsonRows(url: string, signal: AbortSignal, fallbackNetwork?: string): Promise<RawMonitor[]> {
@@ -356,9 +313,7 @@ async function fetchOptionalJsonRows(url: string, signal: AbortSignal, fallbackN
 
 async function fetchOptionalCsvText(url: string, signal: AbortSignal): Promise<string | null> {
   try {
-    const response = await fetch(url, { signal })
-    if (!response.ok) return null
-    return await response.text()
+    return await fetchGzipText(url, signal)
   } catch {
     return null
   }

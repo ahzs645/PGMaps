@@ -7,10 +7,8 @@ import maplibregl from 'maplibre-gl'
 import type { ExpressionSpecification } from 'maplibre-gl'
 import type { SmokeLayerDefinition } from '../lib/smokeLayers'
 import type { WmsLayerDefinition } from '../lib/wmsLayers'
-import {
-  fetchGzipJson,
-  PM25_NATIVE_VECTOR_URL,
-} from '../lib/pm25Grid'
+import { fetchJson } from '@/lib/fetchJson'
+import { PM25_NATIVE_VECTOR_URL } from '../lib/pm25Grid'
 import type { AqMonitorGroup, AqNetworkSlug } from '../lib/monitorPresentation'
 import { getAqmapNetworkSlug, getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
@@ -315,7 +313,7 @@ export function ModelledPm25VectorLayer({ visible }: { visible: boolean }) {
       controller = new AbortController()
 
       try {
-        const data = await fetchGzipJson<GeoJSON.FeatureCollection>(PM25_NATIVE_VECTOR_URL, controller.signal)
+        const data = await fetchJson<GeoJSON.FeatureCollection>(PM25_NATIVE_VECTOR_URL, controller.signal)
         const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
         if (!aborted && source) source.setData(data)
       } catch (error) {

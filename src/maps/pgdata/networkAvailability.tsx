@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchGzipJson } from '../aqmap/lib/pm25Grid'
+import { fetchJson } from '@/lib/fetchJson'
 import { formatDate, useJsonManifest } from './shared'
 import { formatFileSize, formatVectorStatus } from './miscDataUtils'
 
@@ -118,7 +118,7 @@ export function useNetworkAvailabilityLayer(enabled: boolean, version?: string |
     async function load() {
       try {
         setError(null)
-        const geojson = await fetchGzipJson<NetworkAvailabilityFeatureCollection>(url, controller.signal)
+        const geojson = await fetchJson<NetworkAvailabilityFeatureCollection>(url, controller.signal)
         setData({
           ...geojson,
           features: geojson.features
