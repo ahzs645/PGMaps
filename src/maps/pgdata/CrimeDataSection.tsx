@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { CrimeMap } from './components/CrimeMap'
 import { CrimeSidebar } from './components/CrimeSidebar'
@@ -29,7 +29,6 @@ export default function CrimeDataSection() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
   const [selectedIncident, setSelectedIncident] = useState<CrimeIncident | null>(null)
-  const [showSidebar, setShowSidebar] = useState(true)
   const [timelineEnabled, setTimelineEnabled] = useState(false)
   const [timelineDate, setTimelineDate] = useState<Date | null>(null)
   const [timelineWindowSize, setTimelineWindowSize] = useState(1)
@@ -163,21 +162,11 @@ export default function CrimeDataSection() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((s) => !s)}
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">
-            PG Data | {filteredIncidents.length.toLocaleString()} incidents
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {visibleSelectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}
-          </div>
-        </div>
-      )}
+      mobilePeekTitle={<>PG Data | {filteredIncidents.length.toLocaleString()} incidents</>}
+      mobilePeekSubtitle={<>{visibleSelectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}</>}
       sidebar={
         <CrimeSidebar
-          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+          className={MAP_SIDEBAR_CLASS}
           incidents={incidents}
           filteredIncidents={filteredIncidents}
           selectedIncident={visibleSelectedIncident}

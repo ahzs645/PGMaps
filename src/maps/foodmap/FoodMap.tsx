@@ -5,7 +5,7 @@ import { InspectionPanel } from './components/InspectionPanel'
 import { Timeline } from '@/components/ui/timeline'
 import { LegendItem, MapLegendPanel, MapSizeLegend } from '@/components/ui/map-panels'
 import { RouletteModal } from './components/roulette'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { useRestaurantData } from './hooks/useRestaurantData'
 import { HAZARD_RATING_OPTIONS, useFoodMapFilters } from './hooks/useFoodMapFilters'
 import { stringCodec, useUrlState } from '@/hooks/useUrlState'
@@ -327,23 +327,15 @@ export default function FoodMap() {
       <MapSectionLayout
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-        mobilePeek={(
-          <div className="min-w-0 text-left">
-            <div className="truncate text-xs font-semibold text-foreground">
-              Food Safety | {geocodedRestaurants.length.toLocaleString()} on map
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {selectedRestaurant?.name || `${visualizationMode} | ${timelineMonths || 'all'} months`}
-            </div>
-          </div>
-        )}
+        mobilePeekTitle={<>Food Safety | {geocodedRestaurants.length.toLocaleString()} on map</>}
+        mobilePeekSubtitle={<>{selectedRestaurant?.name || `${visualizationMode} | ${timelineMonths || 'all'} months`}</>}
         selectedFeatureMobilePeek={selectedRestaurant ? {
           title: selectedRestaurant.name,
           subtitle: selectedRestaurant.full_address || selectedRestaurant.address,
         } : undefined}
         sidebar={(
           <Sidebar
-            className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+            className={MAP_SIDEBAR_CLASS}
             data={{
               restaurants: filteredRestaurants,
               geocodedRestaurants,

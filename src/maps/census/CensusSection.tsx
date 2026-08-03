@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { useEffect, useMemo } from 'react'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
@@ -33,7 +33,6 @@ export default function CensusSection() {
   const isMobileViewport = useIsMobile()
   const { unitsByLevel, boundsByLevel, bounds, loading, error } = useCensusData()
   const { catalog, loading: catalogLoading, error: catalogError } = useCensusCatalog()
-  const [showSidebar, setShowSidebar] = useState(true)
   const [selectedHierarchy] = useUrlState('level', levelCodec)
   const [selectedMetric, setSelectedMetric] = useUrlState('metric', metricCodec)
   const [searchQuery, setSearchQuery] = useUrlState('q', queryCodec)
@@ -149,21 +148,11 @@ export default function CensusSection() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">
-            Census | {filteredUnits.length.toLocaleString()} units
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {selectedHierarchyLabel} | {selectedUnit?.name || selectedMetricLabel}
-          </div>
-        </div>
-      )}
+      mobilePeekTitle={<>Census | {filteredUnits.length.toLocaleString()} units</>}
+      mobilePeekSubtitle={<>{selectedHierarchyLabel} | {selectedUnit?.name || selectedMetricLabel}</>}
       sidebar={(
         <CensusSidebar
-          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+          className={MAP_SIDEBAR_CLASS}
           units={allUnits}
           filteredUnits={filteredUnits}
           selectedUnit={selectedUnit}

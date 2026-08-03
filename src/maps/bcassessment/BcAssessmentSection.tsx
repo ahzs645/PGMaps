@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
@@ -82,7 +82,6 @@ export default function BcAssessmentSection() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [ignoredUrlPropertyId, setIgnoredUrlPropertyId] = useState<string | null>(null)
   const [selectedBoundaryId, setSelectedBoundaryId] = useState<string | null>(() => searchParams.get('region'))
-  const [showSidebar, setShowSidebar] = useState(true)
   const [showTimeline, setShowTimeline] = useState(false)
 
   const { boundaryData } = useBoundaryData(boundaryLevel)
@@ -241,21 +240,11 @@ export default function BcAssessmentSection() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">
-            BC Assessment | {filteredProperties.length.toLocaleString()} parcels
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {visibleSelectedProperty?.address || selectedBoundaryId || colorMetric}
-          </div>
-        </div>
-      )}
+      mobilePeekTitle={<>BC Assessment | {filteredProperties.length.toLocaleString()} parcels</>}
+      mobilePeekSubtitle={<>{visibleSelectedProperty?.address || selectedBoundaryId || colorMetric}</>}
       sidebar={(
         <BcAssessmentSidebar
-          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+          className={MAP_SIDEBAR_CLASS}
           properties={properties}
           filteredProperties={filteredProperties}
           selectedCategories={selectedCategories}

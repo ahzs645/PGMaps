@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Timeline } from '@/components/ui/timeline'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -80,7 +80,6 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
   const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
   const initialYear = Number(searchParams.get(yearParam)) || DEFAULT_YEAR
   const [selectedYear, setSelectedYear] = useState(initialYear)
-  const [showSidebar, setShowSidebar] = useState(true)
   const [timelineEnabled, setTimelineEnabled] = useState(false)
   const [timelineDate, setTimelineDate] = useState<Date | null>(null)
   const [timelineWindowSize, setTimelineWindowSize] = useState(1)
@@ -189,12 +188,10 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       mobilePeek={mobilePeek}
       sidebar={(
         <DroughtSidebar
-          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+          className={MAP_SIDEBAR_CLASS}
           manifest={manifest}
           selectedYear={selectedYear}
           availableYears={availableYears}

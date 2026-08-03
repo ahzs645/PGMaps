@@ -58,7 +58,6 @@ const STATUS_META: Record<WaitStatus, { label: string; swatch: string; marker: s
 }
 
 function DevWait() {
-  const [showSidebar, setShowSidebar] = useState(true)
   const [hospitals, setHospitals] = useState<WaitHospital[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -235,8 +234,6 @@ function DevWait() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={360}
       mobileInitialSheetState="collapsed"
       mobilePeek={(

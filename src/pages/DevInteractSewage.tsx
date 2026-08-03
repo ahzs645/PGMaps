@@ -15,7 +15,6 @@ import type { SewageAttributeId, SewageSite } from './dev-interact-sewage/data'
 import { SewageLegend } from './dev-interact-sewage/SewageLegend'
 
 function DevInteractSewage() {
-  const [showSidebar, setShowSidebar] = useState(true)
   const [attribute, setAttribute] = useState<SewageAttributeId>('pfas')
   const [visible, setVisible] = useState(true)
   const [selected, setSelected] = useState<SewageSite | null>(null)
@@ -90,8 +89,6 @@ function DevInteractSewage() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={320}
       mobileInitialSheetState="collapsed"
       mobilePeek={(

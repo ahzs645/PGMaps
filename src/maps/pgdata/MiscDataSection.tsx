@@ -303,7 +303,6 @@ function getEvStationsInRegion(features: EvChargingFeature[], region: StudyAreaR
 export default function MiscDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
   const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
-  const [showSidebar, setShowSidebar] = useState(true)
   const activeTab = parseMiscDataTab(searchParams.get('tab'))
   const setActiveTab = useCallback(
     (tab: MiscDataTab) => {
@@ -1149,8 +1148,6 @@ export default function MiscDataSection() {
       {tabsBar}
       <div className="min-h-0 flex-1">
         <MapSectionLayout
-          showDesktopSidebar={showSidebar}
-          onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
           mobilePeek={
             <div className="min-w-0 text-left">
               <div className="truncate text-xs font-semibold text-foreground">

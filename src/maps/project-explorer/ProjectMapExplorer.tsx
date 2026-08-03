@@ -26,7 +26,6 @@ export function ProjectMapExplorer({
   config: ProjectMapExplorerWorkspaceDef
   onBack: () => void
 }) {
-  const [showSidebar, setShowSidebar] = useState(true)
   const [timelineMode, setTimelineMode] = useState(false)
   const data = useResearchRecordsAdapter(config)
 
@@ -75,8 +74,6 @@ export function ProjectMapExplorer({
           }}
         />
       }
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={360}
       mobileInitialSheetState="collapsed"
       mobileCollapsedVisibleHeight={68}

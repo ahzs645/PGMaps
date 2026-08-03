@@ -63,7 +63,6 @@ const CLUSTER_RADIUS_PX = 54
 const REVEAL_LIMIT = 14
 
 function DevWaitSpecialist() {
-  const [showSidebar, setShowSidebar] = useState(true)
   const [facilities, setFacilities] = useState<SpecialistFacility[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -342,8 +341,6 @@ function DevWaitSpecialist() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={380}
       mobileInitialSheetState="collapsed"
       mobilePeek={(

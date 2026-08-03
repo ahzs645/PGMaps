@@ -3,7 +3,7 @@ import { Clock, FlaskConical, Hospital, MapPin, Stethoscope, X } from 'lucide-re
 import { Map, MapControls, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { AppSelect } from '@/components/ui/select'
 import { Timeline } from '@/components/ui/timeline'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { FilterChipGroup, MapSidebarShell, SearchInput, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { formatCompactCurrency, formatPercent as formatPercentFraction } from '@/lib/format'
@@ -82,7 +82,6 @@ const TYPE_META: Record<PayeeType, { label: string; swatch: string; marker: stri
 }
 
 function DevHealthMsp() {
-  const [showSidebar, setShowSidebar] = useState(true)
   const [facilities, setFacilities] = useState<MspFacility[]>([])
   const [metadata, setMetadata] = useState<MspFacilityCollection['metadata']>()
   const [selected, setSelected] = useState<MspFacility | null>(null)
@@ -188,7 +187,7 @@ function DevHealthMsp() {
 
   const sidebar = (
     <MapSidebarShell
-      className="h-full w-full min-w-0 border-0 shadow-none md:border-r md:shadow-xl"
+      className={cn(MAP_SIDEBAR_CLASS, 'min-w-0')}
       title="MSP payments"
       subtitle="Blue Book facility locations"
       titleClassName="text-base"
@@ -288,8 +287,6 @@ function DevHealthMsp() {
   return (
     <MapSectionLayout
       sidebar={sidebar}
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((value) => !value)}
       desktopSidebarWidth={380}
       mobileInitialSheetState="half"
       selectedFeatureMobilePeek={selected ? {

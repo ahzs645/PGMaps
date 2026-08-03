@@ -157,7 +157,6 @@ export default function TransitDataSection() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'shelter' | 'accessible'>('all')
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
-  const [showSidebar, setShowSidebar] = useState(true)
   const [hiddenRoutes, setHiddenRoutes] = useState<Set<string>>(new Set())
   const [hiddenStopCategories, setHiddenStopCategories] = useState<Set<StopCategory>>(new Set())
 
@@ -266,8 +265,6 @@ export default function TransitDataSection() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((value) => !value)}
       mobilePeek={
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">

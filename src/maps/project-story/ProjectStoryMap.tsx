@@ -238,7 +238,6 @@ export function ProjectStoryMap({
         scenes[0]?.visibleLayerIds ?? project.layers.filter((layer) => layer.checked).map((layer) => layer.id),
       ),
   )
-  const [showSidebar, setShowSidebar] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(380)
 
   const activeScene = scenes[activeSceneIndex]
@@ -356,8 +355,6 @@ export function ProjectStoryMap({
           onSelectScene={goToScene}
         />
       }
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={sidebarWidth}
       onDesktopSidebarWidthChange={setSidebarWidth}
       mobileInitialSheetState="half"

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -50,7 +50,6 @@ export default function ParksSection() {
   const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null)
   const [mobileFeatureSheetOpen, setMobileFeatureSheetOpen] = useState(false)
   const [selectionFocusKey, setSelectionFocusKey] = useState(0)
-  const [showSidebar, setShowSidebar] = useState(true)
   const [ignoredUrlSelection, setIgnoredUrlSelection] = useState<{ park: string | null; trail: string | null }>({
     park: null,
     trail: null,
@@ -214,21 +213,11 @@ export default function ParksSection() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">
-            Parks & Trails | {filteredParks.length + filteredTrails.length} visible
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {visibleSelectedPark?.name || visibleSelectedTrail?.name || `${activeLayers.length} layers active`}
-          </div>
-        </div>
-      )}
+      mobilePeekTitle={<>Parks & Trails | {filteredParks.length + filteredTrails.length} visible</>}
+      mobilePeekSubtitle={<>{visibleSelectedPark?.name || visibleSelectedTrail?.name || `${activeLayers.length} layers active`}</>}
       sidebar={(
         <ParksSidebar
-          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+          className={MAP_SIDEBAR_CLASS}
           parks={parks}
           trails={trails}
           amenities={amenities}

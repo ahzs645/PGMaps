@@ -5,7 +5,7 @@ import bboxPolygon from '@turf/bbox-polygon'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import convex from '@turf/convex'
 import { featureCollection, point } from '@turf/helpers'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { AirQualityMap } from './components/AirQualityMap'
 import { AirQualitySidebar } from './components/AirQualitySidebar'
@@ -287,8 +287,6 @@ export default function AirQualitySection() {
     selectedMonitor,
   } = state
   const { regions: activeStudyAreaRegions, selectedRegion, selectedRegionFeature } = studyArea
-
-  const [showSidebar, setShowSidebar] = useState(true)
   const [mapBounds, setMapBounds] = useState<AirQualityMapBounds | null>(null)
 
   const selectedRegionBounds = useMemo(() => {
@@ -540,21 +538,11 @@ export default function AirQualitySection() {
 
   return (
       <MapSectionLayout
-        showDesktopSidebar={showSidebar}
-        onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-      mobilePeek={(
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">
-            Air Quality | {sidebarMonitors.length.toLocaleString()} {sidebarMonitorCountLabel}
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {selectedMonitor?.name || `${selectedNetworks.length} networks selected`}
-          </div>
-        </div>
-      )}
+      mobilePeekTitle={<>Air Quality | {sidebarMonitors.length.toLocaleString()} {sidebarMonitorCountLabel}</>}
+      mobilePeekSubtitle={<>{selectedMonitor?.name || `${selectedNetworks.length} networks selected`}</>}
       sidebar={(
         <AirQualitySidebar
-          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+          className={MAP_SIDEBAR_CLASS}
           state={state}
           actions={actions}
           monitors={monitorsInRegionScope}

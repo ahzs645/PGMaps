@@ -59,7 +59,6 @@ function FitBounds({ data }: { data: GeoJSON.FeatureCollection }) {
 }
 
 function DevFallout() {
-  const [showSidebar, setShowSidebar] = useState(true)
   const [collection, setCollection] = useState<FalloutCollection | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -270,8 +269,6 @@ function DevFallout() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={360}
       mobileInitialSheetState="collapsed"
       mobilePeek={(

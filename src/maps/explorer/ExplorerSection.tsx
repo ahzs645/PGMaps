@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { HeatmapMashupLayer } from '@/components/HeatmapMashupLayer'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { NeighborhoodReport } from '@/components/NeighborhoodReport'
 import { ExplorerLegend } from './components/ExplorerLegend'
 import { ExplorerMap } from './components/ExplorerMap'
@@ -16,7 +16,6 @@ import { useExplorerTimeline } from './hooks/useExplorerTimeline'
 
 export default function ExplorerSection() {
   const isMobileViewport = useIsMobile()
-  const [showSidebar, setShowSidebar] = useState(true)
   const [showMobileLegend, setShowMobileLegend] = useState(true)
   const [neighborhoodPoint, setNeighborhoodPoint] = useState<{ lat: number; lng: number } | null>(null)
 
@@ -63,8 +62,6 @@ export default function ExplorerSection() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={370}
       mobilePeek={
         <div className="min-w-0 text-left">
@@ -81,7 +78,7 @@ export default function ExplorerSection() {
       }
       sidebar={
         <ExplorerSidebar
-          className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+          className={MAP_SIDEBAR_CLASS}
           loading={loading}
           errors={errors}
           geometryFilters={geometryFilters}

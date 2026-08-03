@@ -9,7 +9,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams } from 'react-router-dom'
 import { Map, MapControls, MapPopup, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MapSidebarShell, SidebarSection, StatGrid } from '@/components/ui/map-panels'
 import {
   StudyAreaSourcePickerDialog,
@@ -1059,7 +1059,6 @@ function DevBoundaries() {
   const initialShareToken = useRef(initialShareTokenValue)
   const lastEncodedShareToken = useRef<string | null>(initialShareTokenValue)
   const [shareStateReady, setShareStateReady] = useState(() => !initialShareTokenValue)
-  const [showSidebar, setShowSidebar] = useState(true)
   const [activeSources, setActiveSources] = useState<BoundarySource[]>([])
   const [sourceLevels, setSourceLevels] = useState<Record<BoundarySource, RegionLevel>>(() => DEFAULT_SOURCE_LEVELS)
   const [query, setQuery] = useState('')
@@ -1905,7 +1904,7 @@ function DevBoundaries() {
 
   const sidebar = (
     <MapSidebarShell
-      className="h-full w-full min-w-0 border-0 shadow-none md:border-r md:shadow-xl"
+      className={cn(MAP_SIDEBAR_CLASS, 'min-w-0')}
       title="Boundaries"
       subtitle="Compare study-area layers"
       titleClassName="text-base"
@@ -2395,8 +2394,6 @@ function DevBoundaries() {
   return (
     <MapSectionLayout
       sidebar={sidebarContent}
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={410}
       mobileInitialSheetState="half"
       selectedFeatureMobilePeek={{

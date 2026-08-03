@@ -1206,7 +1206,6 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
   const [activeSceneIndex, setActiveSceneIndex] = useState(0)
   const [rasterOpacity, setRasterOpacity] = useState(82)
   const [visibleLayerIds, setVisibleLayerIds] = useState<Set<string>>(() => defaultVisibleLayerIds(project))
-  const [showSidebar, setShowSidebar] = useState(true)
   const [showRightSidebar, setShowRightSidebar] = useState(true)
   const [sidebarWidth, setSidebarWidth] = useState(() => clampPanelWidth(320, 320))
   const [rightSidebarWidth, setRightSidebarWidth] = useState(() => clampPanelWidth(360, 360))
@@ -1428,8 +1427,6 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
     <div className="h-[100dvh] min-h-[640px] md:h-[calc(100vh-4rem)]">
       <MapSectionLayout
         sidebar={isMobile ? mobileSidebar : leftSidebar}
-        showDesktopSidebar={showSidebar}
-        onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
         desktopSidebarWidth={sidebarWidth}
         onDesktopSidebarWidthChange={setSidebarWidth}
         mobileInitialSheetState="collapsed"

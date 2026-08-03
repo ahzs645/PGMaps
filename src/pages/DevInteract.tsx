@@ -3,7 +3,7 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point as turfPoint } from '@turf/helpers'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { CENTER, YEAR_FILTER_DOMAIN, neighbourhoodFeatures, parkFeatures, routeFeatures } from './dev-interact/data'
@@ -115,7 +115,6 @@ function pointNearLine(point: [number, number], coordinates: GeoJSON.Position[])
 }
 
 function DevInteract() {
-  const [showSidebar, setShowSidebar] = useState(true)
   const [visibleLayers, setVisibleLayers] = useState<Record<LayerId, boolean>>({
     parks: true,
     routes: true,
@@ -500,7 +499,7 @@ function DevInteract() {
 
   const sidebar = (
     <DevInteractSidebar
-      className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+      className={MAP_SIDEBAR_CLASS}
       visibleLayers={visibleLayers}
       measurementMode={measurementMode}
       measurementStats={currentMeasurementStats}
@@ -532,8 +531,6 @@ function DevInteract() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={320}
       mobileInitialSheetState="collapsed"
       suppressMobileSheet={measurementMode !== 'idle'}

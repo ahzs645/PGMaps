@@ -26,7 +26,6 @@ const initialEnabled = Object.fromEntries(
 ) as Record<DataLayerId, boolean>
 
 function DevData() {
-  const [showSidebar, setShowSidebar] = useState(true)
   const [enabledLayers, setEnabledLayers] = useState<Record<DataLayerId, boolean>>(initialEnabled)
   const [tableLayer, setTableLayer] = useState<DataLayerId | null>(null)
   const [showOnlyInView, setShowOnlyInView] = useState(false)
@@ -90,8 +89,6 @@ function DevData() {
 
   return (
     <MapSectionLayout
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
       desktopSidebarWidth={330}
       mobileInitialSheetState="collapsed"
       showMobilePeek={Boolean(selectedSummary)}

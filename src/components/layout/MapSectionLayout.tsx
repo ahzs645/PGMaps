@@ -21,13 +21,30 @@ import { isMobileViewport } from '@/hooks/useIsMobile'
 
 type MobileSheetState = 'collapsed' | 'half' | 'full'
 
+/**
+ * Classes a section's sidebar element needs to sit correctly inside this
+ * layout: full-bleed in the mobile sheet, bordered and raised on desktop.
+ * Pass it as the sidebar's own `className` — it cannot live on a wrapper
+ * because sidebars merge it into their root element.
+ */
+export const MAP_SIDEBAR_CLASS = 'h-full w-full border-0 shadow-none md:border-r md:shadow-xl'
+
 interface MapSectionLayoutProps {
   sidebar: ReactNode
-  showDesktopSidebar: boolean
-  onToggleDesktopSidebar: () => void
+  /**
+   * Omit both this and `onToggleDesktopSidebar` to let the layout own the
+   * open/closed state (starting open) — most sections have no reason to.
+   * Pass both to control it, e.g. to collapse the sidebar from elsewhere.
+   */
+  showDesktopSidebar?: boolean
+  onToggleDesktopSidebar?: () => void
   desktopSidebarWidth?: number
   mobileInitialSheetState?: MobileSheetState
+  /** Full control over the collapsed-sheet peek. Prefer the title/subtitle props below. */
   mobilePeek?: ReactNode
+  /** Renders the standard two-line peek. Ignored when `mobilePeek` is set. */
+  mobilePeekTitle?: ReactNode
+  mobilePeekSubtitle?: ReactNode
   selectedFeatureMobilePeek?: {
     title?: string
     subtitle?: string
@@ -218,11 +235,13 @@ function SidebarResizeHandle({
 
 export function MapSectionLayout({
   sidebar,
-  showDesktopSidebar,
-  onToggleDesktopSidebar,
+  showDesktopSidebar: showDesktopSidebarProp,
+  onToggleDesktopSidebar: onToggleDesktopSidebarProp,
   desktopSidebarWidth = 350,
   mobileInitialSheetState = 'collapsed',
   mobilePeek,
+  mobilePeekTitle,
+  mobilePeekSubtitle,
   selectedFeatureMobilePeek,
   showMobilePeek = false,
   mobileSidebar,
@@ -248,6 +267,13 @@ export function MapSectionLayout({
   children,
   className,
 }: MapSectionLayoutProps) {
+  // Uncontrolled by default: every section used to repeat the same
+  // useState(true) + toggle purely to satisfy these two props.
+  const [uncontrolledSidebarOpen, setUncontrolledSidebarOpen] = useState(true)
+  const showDesktopSidebar = showDesktopSidebarProp ?? uncontrolledSidebarOpen
+  const toggleUncontrolledSidebar = useCallback(() => setUncontrolledSidebarOpen((open) => !open), [])
+  const onToggleDesktopSidebar = onToggleDesktopSidebarProp ?? toggleUncontrolledSidebar
+
   const [mobileSheetState, setMobileSheetState] = useState<MobileSheetState>(mobileInitialSheetState)
   const [mobileFeatureCardOpen, setMobileFeatureCardOpen] = useState(false)
   const [mobileControlsInFront, setMobileControlsInFront] = useState(false)
@@ -775,7 +801,14 @@ export function MapSectionLayout({
         {mobileFeaturePeek.subtitle || selectedFeatureMobilePeek?.subtitle || 'Tap to show selected feature'}
       </span>
     </button>
-  ) : mobilePeek
+  ) : (
+    mobilePeek ?? ((mobilePeekTitle || mobilePeekSubtitle) ? (
+      <div className="min-w-0 text-left">
+        <div className="truncate text-xs font-semibold text-foreground">{mobilePeekTitle}</div>
+        <div className="truncate text-xs text-muted-foreground">{mobilePeekSubtitle}</div>
+      </div>
+    ) : undefined)
+  )
 
   return (
     <div

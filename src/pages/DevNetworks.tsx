@@ -436,7 +436,6 @@ export default function DevNetworks() {
   const [visibleBellLayerIds, setVisibleBellLayerIds] = useState<string[]>([...DEFAULT_BELL_VISIBLE])
   const [visibleRogersLayerIds, setVisibleRogersLayerIds] = useState<string[]>([...DEFAULT_ROGERS_VISIBLE])
   const [bellRenderMode, setBellRenderMode] = useState<BellRenderMode>('raster')
-  const [showSidebar, setShowSidebar] = useState(true)
   const [bellDataById, setBellDataById] = useState<BellLayerDataState>({})
   const [bellManifest, setBellManifest] = useState<BellManifest | null>(null)
   const [rogersManifest, setRogersManifest] = useState<RogersManifest | null>(null)
@@ -735,8 +734,6 @@ export default function DevNetworks() {
   return (
     <MapSectionLayout
       sidebar={sidebar}
-      showDesktopSidebar={showSidebar}
-      onToggleDesktopSidebar={() => setShowSidebar((value) => !value)}
       desktopSidebarWidth={384}
       mobileInitialSheetState="half"
       mobilePeek={<div className="text-sm font-semibold text-foreground">Network Coverage</div>}
