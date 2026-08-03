@@ -1,4 +1,5 @@
 import { bucketIndex, quantileBreaks } from './correlation'
+import { hexToRgb, rgbToHex } from '@/lib/color'
 
 export const BIVARIATE_3X3_PALETTE: string[][] = [
   ['#e8e8e8', '#b5d3e7', '#6c83b5'],
@@ -31,16 +32,6 @@ export function getBivariateColor(x: number, y: number, breaks: BivariateBreaks)
 export const RESIDUAL_NEGATIVE_COLOR = '#1d4ed8'
 export const RESIDUAL_NEUTRAL_COLOR = '#f1f5f9'
 export const RESIDUAL_POSITIVE_COLOR = '#b91c1c'
-
-function hexToRgb(hex: string): [number, number, number] {
-  const cleaned = hex.replace('#', '')
-  const value = parseInt(cleaned, 16)
-  return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff]
-}
-
-function rgbToHex(rgb: [number, number, number]): string {
-  return `#${rgb.map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, '0')).join('')}`
-}
 
 function lerpColor(a: string, b: string, t: number): string {
   const ra = hexToRgb(a)

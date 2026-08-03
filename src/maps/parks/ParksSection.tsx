@@ -11,6 +11,7 @@ import { ParksSidebar } from './components/ParksSidebar'
 import { useParksData } from './hooks/useParksData'
 import { getClassificationColor, getTrailColor } from './constants'
 import type { Park, Trail, ParkClassification, TrailUserClass, ActiveLayer } from './types'
+import { formatArea, formatLength } from '@/lib/format'
 
 const ALL_CLASSIFICATIONS: ParkClassification[] = [
   'Athletic', 'Community', 'Downtown', 'Green Space',
@@ -18,18 +19,6 @@ const ALL_CLASSIFICATIONS: ParkClassification[] = [
 ]
 
 const ALL_TRAIL_TYPES: TrailUserClass[] = ['Walking', 'Multiuse', 'Equine']
-
-function formatArea(sqm: number | null): string {
-  if (!sqm) return ''
-  if (sqm >= 10000) return `${(sqm / 10000).toFixed(1)} ha`
-  return `${Math.round(sqm)} m²`
-}
-
-function formatLength(m: number | null): string {
-  if (!m) return ''
-  if (m >= 1000) return `${(m / 1000).toFixed(1)} km`
-  return `${Math.round(m)} m`
-}
 
 export default function ParksSection() {
   const [searchParams, setSearchParams] = useSearchParams()

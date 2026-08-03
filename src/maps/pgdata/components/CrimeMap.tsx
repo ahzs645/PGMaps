@@ -14,6 +14,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { formatDate } from '@/lib/format'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
+import { hexToRgba } from '@/lib/color'
 
 interface CrimeMapProps {
   incidents: CrimeIncident[]
@@ -29,17 +30,6 @@ type CrimeFeatureProperties = {
   id: number
   crimeType: string
   category: string
-}
-
-function hexToRgba(hex: string, alpha: number): string {
-  const cleaned = hex.replace('#', '')
-  const full = cleaned.length === 3
-    ? cleaned.split('').map((c) => c + c).join('')
-    : cleaned
-  const r = parseInt(full.slice(0, 2), 16)
-  const g = parseInt(full.slice(2, 4), 16)
-  const b = parseInt(full.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function formatTime(time: string): string {

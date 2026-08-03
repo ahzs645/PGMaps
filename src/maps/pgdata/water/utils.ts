@@ -17,6 +17,7 @@ import type {
   WaterPointCategory,
   WaterSampleRow,
 } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
@@ -242,18 +243,6 @@ export function parseSampleLocation(value: unknown): { raw: string; samplePoint:
   }
 }
 
-export function hexToRgba(hex: string, alpha: number): string {
-  const normalized = hex.replace('#', '')
-  const full = normalized.length === 3
-    ? normalized.split('').map((char) => char + char).join('')
-    : normalized
-  const value = Number.parseInt(full, 16)
-  const red = (value >> 16) & 255
-  const green = (value >> 8) & 255
-  const blue = value & 255
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
-}
-
 export function getBoundaryMetricLabel(metric: WaterBoundaryMetric): string {
   return WATER_BOUNDARY_METRIC_OPTIONS.find((option) => option.value === metric)?.label ?? 'Boundary metric'
 }
@@ -286,7 +275,7 @@ export function getBoundaryMetricValue(properties: WaterBoundaryAggregatePropert
 }
 
 export function formatMetricValue(value: number, metric: WaterBoundaryMetric): string {
-  if (metric === 'avgSamplesPerFacility') return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+  if (metric === 'avgSamplesPerFacility') return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })
   return Math.round(value).toLocaleString()
 }
 

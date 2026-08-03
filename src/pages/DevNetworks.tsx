@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { fetchJson } from '@/lib/fetchJson'
 import { cn } from '@/lib/utils'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 const DEV_NETWORK_DATA_BASE = '/__dev_network_data'
 
@@ -157,15 +158,6 @@ function themedTooltipHtml(title: string, rows: Array<[string, string | number |
       </div>
     </div>
   `
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }
 
 function rgbaCss(color: RgbColor) {

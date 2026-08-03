@@ -148,7 +148,7 @@ export function formatPm25(value: number | null): string {
   return `${value.toFixed(1)} ug/m3`
 }
 
-export function formatNumber(value: number | null, unit = ''): string {
+export function formatMeasurement(value: number | null, unit = ''): string {
   if (value === null) return 'No data'
   return `${value.toFixed(1)}${unit}`
 }

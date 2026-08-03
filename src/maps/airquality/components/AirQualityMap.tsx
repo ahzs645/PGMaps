@@ -12,7 +12,7 @@ import bbox from '@turf/bbox'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { getNetworkColor } from '../constants'
-import { calculateCorrectedPm25, formatNumber, formatPm25 } from '../lib/corrections'
+import { calculateCorrectedPm25, formatMeasurement, formatPm25 } from '../lib/corrections'
 import { AirQualityHeatmapLayer } from './AirQualityHeatmapLayer'
 import type {
   AirMonitor,
@@ -21,6 +21,7 @@ import type {
   AirQualityCorrectionModel
 } from '../types'
 import type maplibregl from 'maplibre-gl'
+import { hexToRgba } from '@/lib/color'
 
 interface AirQualityMapProps {
   monitors: AirMonitor[]
@@ -58,18 +59,6 @@ type MonitorFeatureProperties = {
   name: string
   city: string
   province: string
-}
-
-function hexToRgba(hex: string, alpha: number): string {
-  const cleaned = hex.replace('#', '')
-  const full = cleaned.length === 3
-    ? cleaned.split('').map((char) => char + char).join('')
-    : cleaned
-
-  const r = parseInt(full.slice(0, 2), 16)
-  const g = parseInt(full.slice(2, 4), 16)
-  const b = parseInt(full.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function uniqueParameters(parameters: string[]): string[] {
@@ -154,7 +143,7 @@ function SelectedMonitorDetails({
           <span className="text-muted-foreground">Corrected</span>
           <span className="text-right font-medium text-foreground">{formatPm25(correction.correctedPm25)}</span>
           <span className="text-muted-foreground">RH</span>
-          <span className="text-right font-medium text-foreground">{formatNumber(correction.humidity, '%')}</span>
+          <span className="text-right font-medium text-foreground">{formatMeasurement(correction.humidity, '%')}</span>
           <span className="text-muted-foreground">Uncertainty</span>
           <span className="text-right font-medium text-foreground">
             {correction.uncertainty === null ? 'No data' : `+/- ${correction.uncertainty.toFixed(1)} ug/m3`}

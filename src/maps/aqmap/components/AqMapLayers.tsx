@@ -30,6 +30,7 @@ import type {
   FirePerimeterFeatureProperties,
   ForecastZoneFeatureProperties,
 } from '../lib/aqMapTypes'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 interface AqMapFeatureProperties {
   key: string
@@ -51,15 +52,6 @@ interface AqMapFeatureProperties {
   online: boolean
   /** AQHI+ band index (0–10 levels, or the no-data band) for ring-mode clustering. */
   bandIndex: number
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }
 
 function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): string {

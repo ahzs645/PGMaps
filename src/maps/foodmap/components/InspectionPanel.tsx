@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { assessViolationRisk, summarizeViolationRisk } from '../risk'
 import { getHazardRating } from '../hazard'
 import type { RestaurantWithStats, HazardRating, Inspection, Violation, ViolationRiskBand } from '../types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 interface InspectionPanelProps {
   restaurant: RestaurantWithStats
@@ -56,7 +57,7 @@ function getRiskCategoryClass(category: string): string {
 }
 
 function formatRate(value: number): string {
-  return value.toLocaleString(undefined, {
+  return value.toLocaleString(DEFAULT_LOCALE, {
     maximumFractionDigits: value >= 10 ? 0 : 1,
     minimumFractionDigits: value > 0 && value < 10 ? 1 : 0
   })

@@ -14,7 +14,7 @@ import { BOUNDARY_SOURCE_OPTIONS } from '@/lib/studyArea'
 import { DATASETS } from '@/lib/dataCatalog'
 import { cn } from '@/lib/utils'
 import { getNetworkColor } from '../constants'
-import { calculateCorrectedPm25, formatNumber, formatPm25 } from '../lib/corrections'
+import { calculateCorrectedPm25, formatMeasurement, formatPm25 } from '../lib/corrections'
 import type { AirQualityActions, AirQualityViewState } from '../hooks/useAirQualityState'
 import type {
   AirMonitor,
@@ -346,7 +346,7 @@ export function AirQualitySidebar({
                   <div>
                     <div className="text-xs uppercase tracking-wide text-muted-foreground">RH</div>
                     <div className="font-medium text-foreground">
-                      {formatNumber(selectedMonitorCorrection.humidity, '%')}
+                      {formatMeasurement(selectedMonitorCorrection.humidity, '%')}
                     </div>
                   </div>
                   <div>

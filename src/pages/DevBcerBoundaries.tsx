@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Map, MapControls } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 type BoundaryCollection = GeoJSON.FeatureCollection<
   GeoJSON.Polygon | GeoJSON.MultiPolygon,
@@ -208,15 +209,6 @@ function formatBytes(bytes: number | null) {
 function reductionPercent(smaller: number, larger: number) {
   if (larger <= 0) return 0
   return (1 - smaller / larger) * 100
-}
-
-function escapeHtml(value: unknown) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
 }
 
 function BoundaryMap({

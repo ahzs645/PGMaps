@@ -14,6 +14,7 @@ import { DATASETS } from '@/lib/dataCatalog'
 import { useTransitData, type TransitStop } from '@/maps/scorebuilder/hooks/useTransitData'
 import { bundleRoutes, type BundledFeatureCollection, type RouteInput } from './lib/transitiveBundling'
 import { useTransitiveZoom } from './hooks/useTransitiveZoom'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 type TransitLayerId = 'stops' | 'routes'
 type StopCategory = 'shelter' | 'accessible' | 'other'
@@ -107,7 +108,7 @@ function subtypeLabel(subtype: number | null): string {
 function formatDistanceKm(km: number): string {
   if (!Number.isFinite(km)) return 'No value'
   if (km < 1) return `${Math.round(km * 1000).toLocaleString()} m`
-  return `${km.toLocaleString(undefined, { maximumFractionDigits: 2 })} km`
+  return `${km.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} km`
 }
 
 function useRouteData() {

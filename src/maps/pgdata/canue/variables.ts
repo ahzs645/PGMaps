@@ -11,6 +11,7 @@ import {
   CANUE_V2_PREFERRED_MEASURE_KEYS,
 } from './constants'
 import type { CanueFile, CanueV2Cadence, CanueYearMode } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function getCanueVariableLabel(file: CanueFile | null, variable: string): string {
   if (!file) return variable
@@ -46,7 +47,7 @@ export function getCanueVariableLabel(file: CanueFile | null, variable: string):
       return `Facility density at ${buffers[Number(suffix) - 7]}`
   }
 
-  const measure = suffix ? Number(suffix).toLocaleString(undefined, { minimumIntegerDigits: 2 }) : variable
+  const measure = suffix ? Number(suffix).toLocaleString(DEFAULT_LOCALE, { minimumIntegerDigits: 2 }) : variable
   return `${file.label} measure ${measure}`
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchJson } from '@/lib/fetchJson'
 import { formatDate, useJsonManifest } from './shared'
 import { formatFileSize, formatVectorStatus } from './miscDataUtils'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 interface NetworkAvailabilityDataset {
   id: string
@@ -72,25 +73,6 @@ export type NetworkAvailabilityFeatureCollection = GeoJSON.FeatureCollection<
 >
 
 const CRTC_WIRELESS_COVERAGE_GEOJSON_URL = '/data/network-availability/crtc-wireless-coverage-current.geojson.gz'
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => {
-    switch (char) {
-      case '&':
-        return '&amp;'
-      case '<':
-        return '&lt;'
-      case '>':
-        return '&gt;'
-      case '"':
-        return '&quot;'
-      case "'":
-        return '&#39;'
-      default:
-        return char
-    }
-  })
-}
 
 export function networkAvailabilityTooltipHtml(properties: Record<string, unknown>): string {
   const technology = String(properties.technology ?? properties.title ?? 'Network coverage')

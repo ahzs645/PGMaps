@@ -33,6 +33,8 @@ import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { BC_CENTER } from '@/components/ui/map-styles'
+import { escapeHtml } from '@/lib/escapeHtml'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 type LoadState = 'loading' | 'ready' | 'error'
 
@@ -458,15 +460,15 @@ function chooseBcDaLevel(manifest: BcDaChunkManifest | null, zoom: number): BcDa
 function formatArea(value: number) {
   if (!Number.isFinite(value) || value <= 0) return '--'
   if (value >= 1000) return `${Math.round(value).toLocaleString()} km²`
-  if (value >= 10) return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} km²`
-  return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} km²`
+  if (value >= 10) return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })} km²`
+  return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} km²`
 }
 
 
 function formatGzipMiB(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return null
   const mib = bytes / 1024 / 1024
-  return `${mib >= 10 ? Math.round(mib).toLocaleString() : mib.toLocaleString(undefined, { maximumFractionDigits: 1 })} MiB gzip`
+  return `${mib >= 10 ? Math.round(mib).toLocaleString() : mib.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })} MiB gzip`
 }
 
 function sourceLabel(source: BoundarySource) {
@@ -562,23 +564,6 @@ function censusParentSummary(properties: Record<string, unknown>) {
   const rows = censusParentRows(properties)
   if (rows.length === 0) return null
   return rows.map((row) => `${row.label}: ${row.name ?? row.code}${row.code && row.name ? ` (${row.code})` : ''}`).join(' · ')
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => {
-    switch (char) {
-      case '&':
-        return '&amp;'
-      case '<':
-        return '&lt;'
-      case '>':
-        return '&gt;'
-      case '"':
-        return '&quot;'
-      default:
-        return '&#39;'
-    }
-  })
 }
 
 function levelRange(regions: StudyAreaRegion[]) {

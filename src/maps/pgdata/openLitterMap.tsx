@@ -17,6 +17,7 @@ import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { useFetchData } from '@/hooks/useFetchData'
 import { formatDate, useJsonManifest } from './shared'
+import { hexToRgba } from '@/lib/color'
 
 export const OPEN_LITTER_TIMELINE_WINDOW_OPTIONS: TimelineWindowOption[] = [
   { value: 1, label: '1 mo' },
@@ -147,14 +148,6 @@ function hashName(name: string): number {
 function getCategoryColor(category: string): string {
   const key = category.toLowerCase()
   return CATEGORY_COLORS[key] ?? FALLBACK_COLORS[hashName(category) % FALLBACK_COLORS.length]
-}
-
-function hexToRgba(hex: string, alpha: number): string {
-  const cleaned = hex.replace('#', '')
-  const r = parseInt(cleaned.slice(0, 2), 16)
-  const g = parseInt(cleaned.slice(2, 4), 16)
-  const b = parseInt(cleaned.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function parseLitterDate(feature: OpenLitterPointFeature): Date | null {

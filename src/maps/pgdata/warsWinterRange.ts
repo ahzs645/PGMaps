@@ -26,6 +26,7 @@ export type {
   WinterRangePoint,
   WinterRangeProperties,
 } from './warsWinterRangeCore'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 /**
  * Legal Ungulate Winter Range (UWR) polygons, synced from bcdatamapper's BC
@@ -66,25 +67,6 @@ function emptyState(loading: boolean): WinterRangeState {
     overlapLoading: loading,
     overlapError: null,
   }
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => {
-    switch (char) {
-      case '&':
-        return '&amp;'
-      case '<':
-        return '&lt;'
-      case '>':
-        return '&gt;'
-      case '"':
-        return '&quot;'
-      case "'":
-        return '&#39;'
-      default:
-        return char
-    }
-  })
 }
 
 export function formatWinterRangeHectares(hectares: number): string {

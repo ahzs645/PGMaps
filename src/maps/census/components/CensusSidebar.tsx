@@ -13,6 +13,7 @@ import type {
   CensusUnit,
   CensusVariableSelection,
 } from '../types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 interface CensusSidebarProps {
   className?: string
@@ -60,13 +61,13 @@ export function formatUnitLabel(unit: CensusUnit): string {
 }
 
 export function formatArea(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })
 }
 
 export function formatValue(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return 'N/A'
   if (Number.isInteger(value)) return value.toLocaleString()
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })
 }
 
 export function CensusSidebar({

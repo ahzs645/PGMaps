@@ -7,6 +7,7 @@ import type { CorrelationResult } from '../lib/correlation'
 import { BIVARIATE_3X3_PALETTE } from '../lib/correlationColors'
 import type { ScoreSpread } from '../lib/scoreSummaries'
 import type { ScoreMethodSettings, ScoreMetricKey } from '../types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 interface ScoreBuilderMapLegendProps {
   isDesktop: boolean
@@ -333,7 +334,7 @@ function DensityMapLegend({
   const definition = SCORE_METRICS.find((entry) => entry.key === metric)
   const label = definition?.shortLabel ?? metric
   const colors = COLOR_SCALES.amber
-  const formatValue = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  const formatValue = (value: number) => value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })
   return (
     <>
       <h4 className="mb-2 text-xs font-semibold text-foreground">Density · {label}</h4>

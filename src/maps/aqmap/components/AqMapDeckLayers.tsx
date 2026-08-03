@@ -15,6 +15,7 @@ import {
   FIRE_DANGER_VECTOR_TILE_URL_TEMPLATE,
 } from '../lib/fireDangerGrid'
 import { FIRE_DANGER_FILL_COLORS } from '../lib/aqMapConstants'
+import { hexToRgb } from '@/lib/color'
 
 const EARTH_RADIUS = 6378137
 const MAX_MERCATOR_LAT = 85.0511287798
@@ -26,10 +27,6 @@ function lngLatToMercator(lng: number, lat: number): [number, number] {
   const x = (EARTH_RADIUS * lng * Math.PI) / 180
   const y = EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + (clampedLat * Math.PI) / 360))
   return [x, y]
-}
-function hexToRgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16)
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
 const FIRE_RGB: [number, number, number][] = [0, 1, 2, 3, 4].map((c) => hexToRgb(FIRE_DANGER_FILL_COLORS[c]))
 

@@ -6,6 +6,7 @@ import { InlineAlert, LegendItem, StatGrid, ToggleChip } from '@/components/ui/m
 import { AppSelect } from '@/components/ui/select'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { fetchJson } from '@/lib/fetchJson'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 // BCER (British Columbia Energy Regulator) oil and gas well data, served as
 // statically exported gzipped JSON from the BCER Data Viewer deploy. The files
@@ -92,7 +93,7 @@ function formatYearMonth(value: number | null | undefined): string {
 
 function formatGas(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0'
-  return value.toLocaleString(undefined, { maximumFractionDigits: 0 })
+  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 0 })
 }
 
 function toFeature(well: BcerWellRecord): BcerWellFeature {

@@ -9,6 +9,7 @@ import { formatArea, formatDistance } from './geo'
 import { MeasurementValue, StatCard } from './SmallControls'
 import type { LayerId, MeasurementMode, MeasurementStats, ScalePosition, YearRange } from './types'
 import { YearFilterWidget } from './YearFilterWidget'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 const scalePositionOptions: Array<{ value: ScalePosition; label: string }> = [
   { value: 'bottom-center', label: 'Bottom center' },
@@ -281,7 +282,7 @@ function ComponentToggle({
 function formatUpdated(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString(DEFAULT_LOCALE, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

@@ -7,6 +7,7 @@ import {
 import { formatPercentValue } from '@/lib/format'
 import { useJsonManifest } from './shared'
 import { formatFileSize } from './miscDataUtils'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 interface EvChargingResource {
   id: string
@@ -81,7 +82,7 @@ function formatPercent(value: number): string {
 
 function formatDensity(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return 'n/a'
-  return value.toLocaleString(undefined, { maximumFractionDigits: value < 10 ? 1 : 0 })
+  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: value < 10 ? 1 : 0 })
 }
 
 function EvSummaryCard({ label, value }: { label: string; value: string }) {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Map as PgMap, MapClusterLayer, MapControls, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
+import { hexToRgbaArray } from '@/lib/color'
 import { useMap } from '@/components/ui/map'
 import { useJsonManifest } from '@/maps/pgdata/shared'
 import {
@@ -178,15 +179,6 @@ export function ScoreBuilderMap({
   )
 }
 
-function hexToRgba(hex: string, alpha = 217): [number, number, number, number] {
-  const clean = hex.replace('#', '')
-  const value = Number.parseInt(clean.length === 3
-    ? clean.split('').map((char) => `${char}${char}`).join('')
-    : clean, 16)
-  if (!Number.isFinite(value)) return [0, 0, 0, 0]
-  return [(value >> 16) & 255, (value >> 8) & 255, value & 255, alpha]
-}
-
 function ScoreBuilderWalkabilitySourceGrid({
   weights,
   tuning,
@@ -271,7 +263,7 @@ function ScoreBuilderWalkabilitySourceGrid({
     let pixel = 0
     for (const [value, count] of rle) {
       const sourceColor = colors[String(value)] ?? fallbackColors[String(value)]
-      const color = sourceColor ? hexToRgba(sourceColor, 217) : [0, 0, 0, 0] as [number, number, number, number]
+      const color = sourceColor ? hexToRgbaArray(sourceColor, 217) : [0, 0, 0, 0] as [number, number, number, number]
       for (let index = 0; index < count; index += 1) {
         const offset = pixel * 4
         image.data[offset] = color[0]

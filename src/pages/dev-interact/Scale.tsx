@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMap } from '@/components/ui/map'
 import { cn } from '@/lib/utils'
 import type { ScalePosition } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 interface ScaleProps {
   className?: string
@@ -49,11 +50,11 @@ function niceDistance(value: number) {
 function formatScaleDistance(meters: number) {
   const miles = meters / METERS_PER_MILE
   if (miles >= 1) {
-    return `${niceDistance(miles).toLocaleString(undefined, { maximumFractionDigits: 0 })}mi`
+    return `${niceDistance(miles).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 0 })}mi`
   }
 
   const feet = meters / METERS_PER_FOOT
-  return `${niceDistance(feet).toLocaleString(undefined, { maximumFractionDigits: 0 })}ft`
+  return `${niceDistance(feet).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 0 })}ft`
 }
 
 function scaleDistanceMetersFromLabel(label: string) {

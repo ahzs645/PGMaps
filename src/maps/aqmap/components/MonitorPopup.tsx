@@ -15,15 +15,7 @@ import {
   type AqmapLocale,
 } from '../lib/i18n'
 import { MonitorPlotPanel, type NearbyFem } from './MonitorPlotPanel'
-
-/** Convert a 6-digit hex color to an rgba() string for subtle tinted backgrounds. */
-function hexToRgba(hex: string, alpha: number): string {
-  const value = hex.replace('#', '')
-  const r = parseInt(value.slice(0, 2), 16)
-  const g = parseInt(value.slice(2, 4), 16)
-  const b = parseInt(value.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
+import { hexToRgba } from '@/lib/color'
 
 /** Split a health line like "General Population - message" into label + detail. */
 function splitHealthLine(line: string): { label: string; detail: string } {

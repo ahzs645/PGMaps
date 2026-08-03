@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { formatCompactCurrency } from '@/lib/format'
 import { Clock } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
@@ -19,7 +20,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 import { DATASETS } from '@/lib/dataCatalog'
-import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, CATEGORY_LABELS, getCategoryColor, COLOR_METRICS, formatCurrency } from '../constants'
+import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, CATEGORY_LABELS, getCategoryColor, COLOR_METRICS } from '../constants'
 import type {
   AssessmentBoundaryLevel,
   AssessmentBoundarySource,
@@ -345,10 +346,10 @@ export function BcAssessmentSidebar({
             },
             {
               label: showingBlockOverview ? 'Avg Block' : 'Avg Value',
-              value: formatCurrency(avgValue),
+              value: formatCompactCurrency(avgValue),
               valueClassName: 'text-xl',
             },
-            { label: 'Total Value', value: formatCurrency(totalValue) },
+            { label: 'Total Value', value: formatCompactCurrency(totalValue) },
           ]}
         />
 
@@ -543,7 +544,7 @@ export function BcAssessmentSidebar({
                     />
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{formatCurrency(prop.totalAssessed)}</span>
+                    <span>{formatCompactCurrency(prop.totalAssessed)}</span>
                     <span>·</span>
                     <span className="line-clamp-1">{prop.description}</span>
                   </div>

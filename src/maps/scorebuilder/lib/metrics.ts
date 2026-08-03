@@ -7,6 +7,7 @@ import type {
   ScoreMetricKey,
   ScoreMetricWeightMap,
 } from '../types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function metricToDataSource(category: string): ScoreDataSource | null {
   if (category === 'airQuality') return 'airQuality'
@@ -164,30 +165,30 @@ export function formatMetricValue(metric: ScoreMetricKey, value: number, compact
   if (metric === 'crimePerCapita') {
     const perThousand = value * 1_000
     return compact
-      ? `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k residents`
-      : `${perThousand.toLocaleString(undefined, { maximumFractionDigits: 2 })} incidents / 1,000 residents`
+      ? `${perThousand.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })}/1k residents`
+      : `${perThousand.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} incidents / 1,000 residents`
   }
   if (format === 'density') {
     const scaled = value * 1_000
     return compact
-      ? `${scaled.toLocaleString(undefined, { maximumFractionDigits: 1 })}/1k km2`
-      : `${scaled.toLocaleString(undefined, { maximumFractionDigits: 2 })} / 1,000 km2`
+      ? `${scaled.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })}/1k km2`
+      : `${scaled.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} / 1,000 km2`
   }
   if (format === 'ratio' || format === 'percent') return `${(value * 100).toFixed(1)}%`
   if (format === 'currency') {
     if (compact) {
       if (Math.abs(value) >= 1_000_000) {
-        return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}M`
+        return `$${(value / 1_000_000).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })}M`
       }
       return `$${Math.round(value / 1000).toLocaleString()}k`
     }
-    return value.toLocaleString(undefined, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
+    return value.toLocaleString(DEFAULT_LOCALE, { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 })
   }
-  if (format === 'years') return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} yrs`
+  if (format === 'years') return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })} yrs`
   if (Number.isInteger(value)) return value.toLocaleString()
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })
 }
 
 export function formatScore(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })
 }

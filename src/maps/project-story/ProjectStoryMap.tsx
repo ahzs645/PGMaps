@@ -27,6 +27,7 @@ import {
   type ProjectStoryWorkspaceDef,
 } from '@/lib/projectPackages'
 import { buildLegend, resolveLayer, sameLayerSet } from './storyScene'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 const CAMERA_EASE_MS = 1150
 /** How long the scroll observer stays muted after the stepper starts a smooth scroll. */
@@ -35,16 +36,6 @@ const PROGRAMMATIC_SCROLL_MS = 700
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 }
-
-function escapeHtml(value: unknown) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
-
 
 /* -------------------------------------------------------------------------- */
 /* Narrative sidebar                                                          */

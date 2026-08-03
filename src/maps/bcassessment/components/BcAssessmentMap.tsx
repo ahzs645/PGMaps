@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { formatCompactCurrency } from '@/lib/format'
 import {
   Map as PgMap,
   MapControls,
@@ -11,7 +12,6 @@ import {
   getInterpolatedValueColor,
   VALUE_STOPS,
   YEAR_STOPS,
-  formatCurrency,
 } from '../constants'
 import type { Property, ColorMetric, BoundaryAggregate, BoundaryLevel } from '../types'
 
@@ -125,7 +125,7 @@ export function BcAssessmentMap({
         const val = getAggregateValue(agg, colorMetric)
         if (val != null) {
           color = getColor(val, stops)
-          label = colorMetric === 'yearBuilt' ? String(val) : formatCurrency(val)
+          label = colorMetric === 'yearBuilt' ? String(val) : formatCompactCurrency(val)
         }
       }
 

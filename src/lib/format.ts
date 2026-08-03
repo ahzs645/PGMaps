@@ -1,4 +1,9 @@
-const DEFAULT_LOCALE = 'en-CA'
+/**
+ * Every formatter here pins this locale so output does not change with the
+ * viewer's browser settings. Call sites that need `toLocaleString` directly
+ * (custom units, compact suffixes) should pass this rather than `undefined`.
+ */
+export const DEFAULT_LOCALE = 'en-CA'
 
 export interface FormatDateOptions extends Intl.DateTimeFormatOptions {
   fallback?: string
@@ -66,6 +71,20 @@ export function formatPercentValue(
 ): string {
   if (value == null || !Number.isFinite(value)) return fallback
   return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1, ...options })}%`
+}
+
+/** Square metres as m² below a hectare, hectares above. Empty string for 0/null. */
+export function formatArea(squareMetres: number | null | undefined): string {
+  if (!squareMetres) return ''
+  if (squareMetres >= 10_000) return `${(squareMetres / 10_000).toFixed(1)} ha`
+  return `${Math.round(squareMetres)} m²`
+}
+
+/** Metres as m below a kilometre, km above. Empty string for 0/null. */
+export function formatLength(metres: number | null | undefined): string {
+  if (!metres) return ''
+  if (metres >= 1_000) return `${(metres / 1_000).toFixed(1)} km`
+  return `${Math.round(metres)} m`
 }
 
 /** Abbreviated currency for tight UI (e.g. $1.2B / $3.4M / $560K). */

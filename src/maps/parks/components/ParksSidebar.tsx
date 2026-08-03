@@ -20,6 +20,7 @@ import type {
   ActiveLayer,
   CityPgOverlaySummary,
 } from '../types'
+import { formatArea, formatLength } from '@/lib/format'
 
 interface ParksSidebarProps {
   className?: string
@@ -59,18 +60,6 @@ const ALL_CLASSIFICATIONS: ParkClassification[] = [
 ]
 
 const ALL_TRAIL_TYPES: TrailUserClass[] = ['Walking', 'Multiuse', 'Equine']
-
-function formatArea(sqm: number | null): string {
-  if (!sqm) return ''
-  if (sqm >= 10000) return `${(sqm / 10000).toFixed(1)} ha`
-  return `${Math.round(sqm)} m²`
-}
-
-function formatLength(m: number | null): string {
-  if (!m) return ''
-  if (m >= 1000) return `${(m / 1000).toFixed(1)} km`
-  return `${Math.round(m)} m`
-}
 
 function OverlayToggle({
   label,

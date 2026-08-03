@@ -1,4 +1,5 @@
 import type { PropertyCategory, ColorMetric } from './types'
+import { hexToRgb, rgbToHex } from '@/lib/color'
 
 export const ASSESSMENT_HISTORY_START_YEAR = 2017
 
@@ -78,16 +79,6 @@ export function getValueColor(value: number, stops: [number, string][]): string 
   return stops[stops.length - 1][1]
 }
 
-function hexToRgb(hex: string): [number, number, number] {
-  const normalized = hex.replace('#', '')
-  const value = Number.parseInt(normalized, 16)
-  return [(value >> 16) & 255, (value >> 8) & 255, value & 255]
-}
-
-function rgbToHex([r, g, b]: [number, number, number]): string {
-  return `#${[r, g, b].map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('')}`
-}
-
 export function getInterpolatedValueColor(value: number, stops: [number, string][]): string {
   if (value <= stops[0][0]) return stops[0][1]
 
@@ -111,4 +102,3 @@ export function getInterpolatedValueColor(value: number, stops: [number, string]
   return stops[stops.length - 1][1]
 }
 
-export { formatCompactCurrency as formatCurrency } from '@/lib/format'

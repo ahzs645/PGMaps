@@ -1,4 +1,5 @@
 import type { CensusHierarchyOption, CensusMetricOption } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export const CENSUS_METRICS: CensusMetricOption[] = [
   {
@@ -56,7 +57,7 @@ export const CENSUS_HIERARCHIES: CensusHierarchyOption[] = [
 export function formatMetricValue(value: number | null, format: 'int' | 'decimal'): string {
   if (value == null || !Number.isFinite(value)) return 'N/A'
   if (format === 'decimal') {
-    return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })
   }
   return Math.round(value).toLocaleString()
 }

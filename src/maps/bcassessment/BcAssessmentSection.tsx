@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { formatCompactCurrency } from '@/lib/format'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -12,7 +13,7 @@ import { BcAssessmentSidebar, formatNumber, HistorySparkline } from './component
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
 import { useBoundaryData } from './hooks/useBoundaryData'
 import { useBoundaryAggregates } from './hooks/useBoundaryAggregates'
-import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, formatCurrency, VALUE_STOPS, YEAR_STOPS } from './constants'
+import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, VALUE_STOPS, YEAR_STOPS } from './constants'
 import type {
   AssessmentBoundaryLevel,
   AssessmentBoundarySource,
@@ -220,7 +221,7 @@ export default function BcAssessmentSection() {
   const legendItems = useMemo(() => {
     const stops = colorMetric === 'yearBuilt' ? YEAR_STOPS : VALUE_STOPS
     return stops.map(([value, color]) => ({
-      label: colorMetric === 'yearBuilt' ? String(value) : formatCurrency(value),
+      label: colorMetric === 'yearBuilt' ? String(value) : formatCompactCurrency(value),
       color,
     }))
   }, [colorMetric])
@@ -322,10 +323,10 @@ export default function BcAssessmentSection() {
             onClose={() => setShowTimeline(false)}
             granularity="year"
             bucketCounts={timelineBucketValues}
-            bucketValueFormatter={formatCurrency}
+            bucketValueFormatter={formatCompactCurrency}
             bucketValueLabel="avg assessed"
             percentChangeMode={{ enabled: true, label: 'YoY' }}
-            statsLabel={`${formatCurrency(timelineBucketValues.get(String(timelineYear)) ?? 0)} avg assessed`}
+            statsLabel={`${formatCompactCurrency(timelineBucketValues.get(String(timelineYear)) ?? 0)} avg assessed`}
           />
         )}
       </div>

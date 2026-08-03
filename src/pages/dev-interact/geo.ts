@@ -3,15 +3,16 @@ import bbox from '@turf/bbox'
 import { distanceKm } from '@/lib/geo'
 import { neighbourhoodFeatures, parkFeatures, routeFeatures } from './data'
 import type { InteractFeature, InteractFeatureProperties, LayerId, YearRange } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function formatArea(squareMeters: number): string {
   const squareKm = squareMeters / 1_000_000
-  if (squareKm >= 1) return `${squareKm.toLocaleString(undefined, { maximumFractionDigits: 2 })} sq km`
-  return `${(squareMeters / 10_000).toLocaleString(undefined, { maximumFractionDigits: 1 })} ha`
+  if (squareKm >= 1) return `${squareKm.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} sq km`
+  return `${(squareMeters / 10_000).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })} ha`
 }
 
 export function formatDistance(km: number): string {
-  if (km >= 1) return `${km.toLocaleString(undefined, { maximumFractionDigits: 2 })} km`
+  if (km >= 1) return `${km.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} km`
   return `${Math.round(km * 1000).toLocaleString()} m`
 }
 

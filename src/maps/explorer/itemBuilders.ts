@@ -9,6 +9,7 @@ import type { TransitStop } from '@/maps/scorebuilder/hooks/useTransitData'
 import { LOW_COST_NETWORKS } from './constants'
 import type { ExplorerDatasetId, ExplorerItem } from './types'
 import { clampScore, createPointBounds, formatNullableText, geometryBounds, normalize } from './utils'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 const EXPLORER_SESSION_NOW = Date.now()
 
@@ -332,14 +333,14 @@ export function buildTrailItems(trails: Trail[]): ExplorerItem[] {
           { label: trail.winterMaintenance ? 'Winter maintained' : 'No winter maint.', points: winterPts },
           { label: `${trail.userClass || 'Unknown'} class`, points: classPts },
         ],
-        summary: `${trail.winterMaintenance ? 'Maintained' : 'Not maintained'} in winter with length ${length.toLocaleString(undefined, { maximumFractionDigits: 0 })} m.`,
+        summary: `${trail.winterMaintenance ? 'Maintained' : 'Not maintained'} in winter with length ${length.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 0 })} m.`,
         bounds,
         geometry,
         details: [
           { label: 'User Class', value: formatNullableText(trail.userClass, 'Unknown') },
           { label: 'Surface', value: formatNullableText(trail.surfaceMaterial, 'Unknown') },
           { label: 'Winter', value: trail.winterMaintenance ? 'Maintained' : 'Not maintained' },
-          { label: 'Length (m)', value: length.toLocaleString(undefined, { maximumFractionDigits: 0 }) },
+          { label: 'Length (m)', value: length.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 0 }) },
         ],
       })
     })
@@ -376,14 +377,14 @@ export function buildParkItems(parks: Park[]): ExplorerItem[] {
         { label: park.developed ? 'Developed' : 'Natural', points: devPts },
         { label: `${park.classification || 'Unknown'} class`, points: classPts },
       ],
-      summary: `${park.developed ? 'Developed' : 'Natural/open'} park with area ${areaKm2.toLocaleString(undefined, { maximumFractionDigits: 2 })} km².`,
+      summary: `${park.developed ? 'Developed' : 'Natural/open'} park with area ${areaKm2.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} km².`,
       bounds,
       geometry: park.geometry,
       details: [
         { label: 'Classification', value: formatNullableText(park.classification, 'Unknown') },
         { label: 'Subtype', value: formatNullableText(park.subType, 'Unknown') },
         { label: 'Developed', value: park.developed ? 'Yes' : 'No' },
-        { label: 'Area (km²)', value: areaKm2.toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'Area (km²)', value: areaKm2.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 }) },
       ],
     })
   })
@@ -435,15 +436,15 @@ export function buildCensusAreaItems(units: CensusUnit[], level: CensusAreaLevel
         { label: 'Pop. density (norm)', points: densityPts },
         { label: 'Population (norm)', points: popPts },
       ],
-      summary: `Population ${population.toLocaleString()} with density ${density.toLocaleString(undefined, { maximumFractionDigits: 1 })} /km².`,
+      summary: `Population ${population.toLocaleString()} with density ${density.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })} /km².`,
       bounds,
       geometry: unit.geometry,
       details: [
         { label: 'Population', value: population.toLocaleString() },
-        { label: 'Density', value: density.toLocaleString(undefined, { maximumFractionDigits: 1 }) },
+        { label: 'Density', value: density.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 }) },
         { label: 'Households', value: (unit.households || 0).toLocaleString() },
         { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString() },
-        { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 }) },
       ],
     })
   })
@@ -481,7 +482,7 @@ export function buildCensusBlockItems(units: CensusUnit[]): ExplorerItem[] {
       details: [
         { label: 'Population', value: population.toLocaleString() },
         { label: 'Dwellings', value: (unit.dwellings || 0).toLocaleString() },
-        { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(undefined, { maximumFractionDigits: 4 }) },
+        { label: 'Area (km²)', value: (unit.areaSqKm || 0).toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 4 }) },
       ],
     })
   })
