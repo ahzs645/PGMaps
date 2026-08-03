@@ -1,44 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useFetchData } from '@/hooks/useFetchData'
 import type { CensusCatalog } from '../types'
 
 const CATALOG_URL = '/data/census/variables/catalog.json'
 
-let cachedCatalog: CensusCatalog | null = null
-
 export function useCensusCatalog() {
-  const [catalog, setCatalog] = useState<CensusCatalog | null>(cachedCatalog)
-  const [loading, setLoading] = useState(!cachedCatalog)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (cachedCatalog) return
-
-    const controller = new AbortController()
-
-    async function load() {
-      try {
-        const response = await fetch(CATALOG_URL, { signal: controller.signal })
-        if (!response.ok) throw new Error(`Failed to load census catalog (${response.status})`)
-        // Dev servers answer missing files with the SPA index.html and a 200,
-        // so the content type is the only reliable missing-file signal.
-        const contentType = response.headers.get('content-type') || ''
-        if (!contentType.includes('json')) {
-          throw new Error('Census variable catalog is not available in this build.')
-        }
-        const data = await response.json() as CensusCatalog
-        cachedCatalog = data
-        setCatalog(data)
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return
-        setError((err as Error).message || 'Unable to load census catalog')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    load()
-    return () => controller.abort()
-  }, [])
-
+  // Dev servers answer missing files with the SPA index.html and a 200;
+  // fetchJson detects that and raises it as a missing file.
+  const { data: catalog, loading, error } = useFetchData<CensusCatalog>(CATALOG_URL)
   return { catalog, loading, error }
 }

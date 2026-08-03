@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useFetchAll } from '@/hooks/useFetchData'
 import type { CensusBounds, CensusHierarchyLevel, CensusUnit } from '../types'
 
 interface RawGeoFeature {
@@ -120,58 +121,27 @@ function getPrimaryBounds(
   return boundsByLevel.csd || boundsByLevel.da || boundsByLevel.ct || boundsByLevel.db || boundsByLevel.cd || null
 }
 
+const LEVEL_ENTRIES = Object.entries(LEVEL_FILES) as Array<[CensusHierarchyLevel, string]>
+const LEVEL_URLS = LEVEL_ENTRIES.map(([, file]) => file)
+
 export function useCensusData(enabled = true) {
-  const [unitsByLevel, setUnitsByLevel] = useState<Record<CensusHierarchyLevel, CensusUnit[]>>(emptyUnitsByLevel)
-  const [loading, setLoading] = useState(enabled)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useFetchAll<CensusUnit[]>(LEVEL_URLS, {
+    enabled,
+    transform: (json, index) =>
+      ((json as RawGeoResponse).features || [])
+        .map((feature) => readUnit(feature, LEVEL_ENTRIES[index][0]))
+        .filter((unit): unit is CensusUnit => unit !== null)
+        .sort((a, b) => a.id.localeCompare(b.id)),
+  })
 
-  useEffect(() => {
-    if (!enabled) {
-      setLoading(false)
-      setError(null)
-      return
-    }
-
-    const controller = new AbortController()
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const levelEntries = Object.entries(LEVEL_FILES) as Array<[CensusHierarchyLevel, string]>
-        const responses = await Promise.all(
-          levelEntries.map(async ([level, file]) => {
-            const response = await fetch(file, { signal: controller.signal })
-            if (!response.ok) {
-              throw new Error(`Failed to load ${level.toUpperCase()} geometry (${response.status})`)
-            }
-            const json = await response.json() as RawGeoResponse
-            const units = (json.features || [])
-              .map((feature) => readUnit(feature, level))
-              .filter((unit): unit is CensusUnit => unit !== null)
-              .sort((a, b) => a.id.localeCompare(b.id))
-            return [level, units] as const
-          })
-        )
-
-        const next = emptyUnitsByLevel()
-        responses.forEach(([level, units]) => {
-          next[level] = units
-        })
-
-        setUnitsByLevel(next)
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return
-        setError((err as Error).message || 'Unable to load census data')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    load()
-    return () => controller.abort()
-  }, [enabled])
+  const unitsByLevel = useMemo(() => {
+    const next = emptyUnitsByLevel()
+    if (!data) return next
+    LEVEL_ENTRIES.forEach(([level], index) => {
+      next[level] = data[index] ?? []
+    })
+    return next
+  }, [data])
 
   const boundsByLevel = useMemo(() => {
     return {
