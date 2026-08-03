@@ -11,6 +11,7 @@ import type MapLibreGL from 'maplibre-gl'
 import MapLibreGLRuntime from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import { dispatchMobileMapFeatureClick } from './map-context'
+import { attachPointerDismiss } from './map-pointer'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StyleExpression = any
@@ -285,23 +286,11 @@ function MapFillLayer({
       removeTooltip()
     }
 
-    const canvas = map.getCanvas()
-    const handleDocumentPointerMove = (event: PointerEvent) => {
-      if (event.target instanceof Node && canvas.contains(event.target)) return
-      removeTooltip()
-    }
-    const handleVisibilityChange = () => {
-      if (document.hidden) removeTooltip()
-    }
-
     map.on('click', fillLayerId, handleClick as never)
     map.on('mouseenter', fillLayerId, handleMouseEnter)
     map.on('mousemove', fillLayerId, handleMouseMove as never)
     map.on('mouseleave', fillLayerId, handleMouseLeave)
-    canvas.addEventListener('mouseleave', removeTooltip)
-    document.addEventListener('pointermove', handleDocumentPointerMove, true)
-    window.addEventListener('blur', removeTooltip)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    const detachPointerDismiss = attachPointerDismiss(map, removeTooltip)
 
     return () => {
       try {
@@ -309,10 +298,7 @@ function MapFillLayer({
         map.off('mouseenter', fillLayerId, handleMouseEnter)
         map.off('mousemove', fillLayerId, handleMouseMove as never)
         map.off('mouseleave', fillLayerId, handleMouseLeave)
-        canvas.removeEventListener('mouseleave', removeTooltip)
-        document.removeEventListener('pointermove', handleDocumentPointerMove, true)
-        window.removeEventListener('blur', removeTooltip)
-        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        detachPointerDismiss()
         if (boxZoomWasEnabledRef.current) {
           map.boxZoom.enable()
           boxZoomWasEnabledRef.current = false

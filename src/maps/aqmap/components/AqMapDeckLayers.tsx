@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapboxOverlay } from '@deck.gl/mapbox'
 import { TileLayer } from '@deck.gl/geo-layers'
 import { BitmapLayer, GeoJsonLayer } from '@deck.gl/layers'
 import type { Layer } from '@deck.gl/core'
 import maplibregl from 'maplibre-gl'
 import { useMap } from '@/components/ui/map'
+import { useDeckOverlay } from '@/components/ui/map-deck'
 import { WMS_LAYERS, type WmsLayerKey } from '../lib/wmsLayers'
 import { fetchJson } from '@/lib/fetchJson'
 import { PM25_NATIVE_VECTOR_URL } from '../lib/pm25Grid'
@@ -181,7 +181,6 @@ export function AqMapDeckOverlay({
   suppressHoverPopups?: boolean
 }) {
   const { map, isLoaded } = useMap()
-  const overlayRef = useRef<MapboxOverlay | null>(null)
   const fireDangerTooltipRef = useRef<maplibregl.Popup | null>(null)
   const pm25TooltipRef = useRef<maplibregl.Popup | null>(null)
   const suppressHoverPopupsRef = useRef(suppressHoverPopups)
@@ -205,43 +204,11 @@ export function AqMapDeckOverlay({
     pm25TooltipRef.current?.remove()
   }
 
-  // Create / destroy the single deck overlay.
-  useEffect(() => {
-    if (!isLoaded || !map) return
-    const overlay = new MapboxOverlay({ interleaved: true, layers: [] })
-    map.addControl(overlay as unknown as maplibregl.IControl)
-    overlayRef.current = overlay
-    rebuildRef.current()
-
-    const canvas = map.getCanvas()
-    const handleDocumentPointerMove = (event: PointerEvent) => {
-      if (event.target instanceof Node && canvas.contains(event.target)) return
-      removeDeckHoverPopups()
-    }
-    const handleVisibilityChange = () => {
-      if (document.hidden) removeDeckHoverPopups()
-    }
-
-    canvas.addEventListener('mouseleave', removeDeckHoverPopups)
-    document.addEventListener('pointermove', handleDocumentPointerMove, true)
-    window.addEventListener('blur', removeDeckHoverPopups)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      canvas.removeEventListener('mouseleave', removeDeckHoverPopups)
-      document.removeEventListener('pointermove', handleDocumentPointerMove, true)
-      window.removeEventListener('blur', removeDeckHoverPopups)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      removeDeckHoverPopups()
-      try {
-        map.removeControl(overlay as unknown as maplibregl.IControl)
-      } catch {
-        // MapLibre can throw during teardown.
-      }
-      removeDeckAnchorLayer(map)
-      overlayRef.current = null
-    }
-  }, [isLoaded, map])
+  const overlayRef = useDeckOverlay({
+    onDismiss: removeDeckHoverPopups,
+    onAttach: () => rebuildRef.current(),
+    onDetach: removeDeckAnchorLayer,
+  })
 
   useEffect(() => {
     if (!isLoaded || !map || !fireDangerActive) {
@@ -449,7 +416,7 @@ export function AqMapDeckOverlay({
 
     rebuildRef.current = rebuild
     rebuild()
-  }, [map, tileKey, fireDangerActive, suppressHoverPopups, tileConfigs, pm25OrderedVector])
+  }, [overlayRef, map, tileKey, fireDangerActive, suppressHoverPopups, tileConfigs, pm25OrderedVector])
 
   return null
 }

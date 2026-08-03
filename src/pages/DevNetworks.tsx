@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapboxOverlay } from '@deck.gl/mapbox'
 import { MVTLayer, TileLayer } from '@deck.gl/geo-layers'
 import { BitmapLayer, GeoJsonLayer } from '@deck.gl/layers'
 import type { Layer } from '@deck.gl/core'
@@ -7,6 +6,7 @@ import maplibregl from 'maplibre-gl'
 import { Eye, EyeOff, Image, Layers, RadioTower, Shapes } from 'lucide-react'
 
 import { Map as AppMap, useMap } from '@/components/ui/map'
+import { useDeckOverlay } from '@/components/ui/map-deck'
 import { Button } from '@/components/ui/button'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { fetchJson } from '@/lib/fetchJson'
@@ -185,52 +185,23 @@ function DevNetworkDeckOverlay({
   bellRenderMode: BellRenderMode
   bellDataById: BellLayerDataState
 }) {
-  const { map, isLoaded } = useMap()
-  const overlayRef = useRef<MapboxOverlay | null>(null)
+  const { map } = useMap()
   const tooltipRef = useRef<maplibregl.Popup | null>(null)
 
-  useEffect(() => {
-    if (!isLoaded || !map) return
-    const overlay = new MapboxOverlay({ interleaved: true, layers: [] })
-    const popup = new maplibregl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      className: 'mapcn-tooltip pointer-events-none',
-      offset: 12,
-    })
-    map.addControl(overlay as unknown as maplibregl.IControl)
-    overlayRef.current = overlay
-    tooltipRef.current = popup
-
-    const removeTooltip = () => popup.remove()
-    const canvas = map.getCanvas()
-    const handleDocumentPointerMove = (event: PointerEvent) => {
-      if (event.target instanceof Node && canvas.contains(event.target)) return
-      removeTooltip()
-    }
-    const handleVisibilityChange = () => {
-      if (document.hidden) removeTooltip()
-    }
-    canvas.addEventListener('mouseleave', removeTooltip)
-    document.addEventListener('pointermove', handleDocumentPointerMove, true)
-    window.addEventListener('blur', removeTooltip)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      canvas.removeEventListener('mouseleave', removeTooltip)
-      document.removeEventListener('pointermove', handleDocumentPointerMove, true)
-      window.removeEventListener('blur', removeTooltip)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      popup.remove()
-      try {
-        map.removeControl(overlay as unknown as maplibregl.IControl)
-      } catch {
-        // MapLibre can throw during teardown.
-      }
-      overlayRef.current = null
+  const overlayRef = useDeckOverlay({
+    onDismiss: () => tooltipRef.current?.remove(),
+    onAttach: () => {
+      tooltipRef.current = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        className: 'mapcn-tooltip pointer-events-none',
+        offset: 12,
+      })
+    },
+    onDetach: () => {
       tooltipRef.current = null
-    }
-  }, [isLoaded, map])
+    },
+  })
 
   useEffect(() => {
     const overlay = overlayRef.current
@@ -409,7 +380,7 @@ function DevNetworkDeckOverlay({
     }
 
     overlay.setProps({ layers })
-  }, [bellDataById, bellRenderMode, map, visibleBellLayerIds, visibleRogersLayerIds, visibleTelusLayerIds])
+  }, [overlayRef, bellDataById, bellRenderMode, map, visibleBellLayerIds, visibleRogersLayerIds, visibleTelusLayerIds])
 
   return null
 }

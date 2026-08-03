@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { MapboxOverlay } from '@deck.gl/mapbox'
+import { useEffect, useState } from 'react'
 import { IconLayer } from '@deck.gl/layers'
 import { useMap } from '@/components/ui/map'
+import { useDeckOverlay } from '@/components/ui/map-deck'
 import type maplibregl from 'maplibre-gl'
 import { windBarbIconForSpeed, type WindBarbIconKey } from '../lib/windBarbIcons'
 
@@ -230,7 +230,7 @@ export function VectorWindBarbLayer({
   basemap: 'light' | 'dark'
 }) {
   const { map, isLoaded } = useMap()
-  const overlayRef = useRef<MapboxOverlay | null>(null)
+  const overlayRef = useDeckOverlay({ enabled: visible })
   const [dataset, setDataset] = useState<WindBarbDataset | null>(null)
   const [visibleDeckSamples, setVisibleDeckSamples] = useState<WindBarbDeckSample[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -267,23 +267,6 @@ export function VectorWindBarbLayer({
 
     return () => controller.abort()
   }, [dataset, error, visible])
-
-  useEffect(() => {
-    if (!visible || !map || !isLoaded) return
-
-    const overlay = new MapboxOverlay({ interleaved: true, layers: [] })
-    map.addControl(overlay as unknown as maplibregl.IControl)
-    overlayRef.current = overlay
-
-    return () => {
-      try {
-        map.removeControl(overlay as unknown as maplibregl.IControl)
-      } catch {
-        // MapLibre can throw during teardown.
-      }
-      overlayRef.current = null
-    }
-  }, [isLoaded, map, visible])
 
   useEffect(() => {
     if (!visible || !map || !isLoaded || !dataset) return
@@ -352,7 +335,7 @@ export function VectorWindBarbLayer({
         } as unknown as ConstructorParameters<typeof IconLayer<WindBarbDeckSample>>[0]),
       ],
     })
-  }, [basemap, deckSamples, map])
+  }, [overlayRef, basemap, deckSamples, map])
 
   return null
 }

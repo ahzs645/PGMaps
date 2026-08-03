@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { MapboxOverlay } from '@deck.gl/mapbox'
 import { BitmapLayer } from '@deck.gl/layers'
 import { useMap } from '@/components/ui/map'
+import { useDeckOverlay } from '@/components/ui/map-deck'
 import maplibregl from 'maplibre-gl'
 
 type WalkabilityImageCoordinates = [[number, number], [number, number], [number, number], [number, number]]
@@ -84,55 +84,26 @@ export function WalkabilityDeckHeatmapLayer({
   layerKey,
 }: WalkabilityDeckHeatmapLayerProps) {
   const { map, isLoaded } = useMap()
-  const overlayRef = useRef<MapboxOverlay | null>(null)
   const tooltipRef = useRef<maplibregl.Popup | null>(null)
 
   function removeTooltip() {
     tooltipRef.current?.remove()
   }
 
-  useEffect(() => {
-    if (!isLoaded || !map) return
-
-    const overlay = new MapboxOverlay({ interleaved: true, layers: [] })
-    map.addControl(overlay as unknown as maplibregl.IControl)
-    overlayRef.current = overlay
-    tooltipRef.current = new maplibregl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      className: 'mapcn-tooltip aqmap-tooltip pointer-events-none',
-      offset: 12,
-    })
-
-    const canvas = map.getCanvas()
-    const handleDocumentPointerMove = (event: PointerEvent) => {
-      if (event.target instanceof Node && canvas.contains(event.target)) return
-      removeTooltip()
-    }
-    const handleVisibilityChange = () => {
-      if (document.hidden) removeTooltip()
-    }
-
-    canvas.addEventListener('mouseleave', removeTooltip)
-    document.addEventListener('pointermove', handleDocumentPointerMove, true)
-    window.addEventListener('blur', removeTooltip)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      canvas.removeEventListener('mouseleave', removeTooltip)
-      document.removeEventListener('pointermove', handleDocumentPointerMove, true)
-      window.removeEventListener('blur', removeTooltip)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      removeTooltip()
+  const overlayRef = useDeckOverlay({
+    onDismiss: removeTooltip,
+    onAttach: () => {
+      tooltipRef.current = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        className: 'mapcn-tooltip aqmap-tooltip pointer-events-none',
+        offset: 12,
+      })
+    },
+    onDetach: () => {
       tooltipRef.current = null
-      try {
-        map.removeControl(overlay as unknown as maplibregl.IControl)
-      } catch {
-        // MapLibre can throw during style teardown.
-      }
-      overlayRef.current = null
-    }
-  }, [isLoaded, map])
+    },
+  })
 
   useEffect(() => {
     const overlay = overlayRef.current
@@ -188,7 +159,7 @@ export function WalkabilityDeckHeatmapLayer({
       tooltipRef.current?.remove()
       overlay.setProps({ layers: [] })
     }
-  }, [cols, imageCoordinates, isLoaded, layerKey, map, rle, rows])
+  }, [overlayRef, cols, imageCoordinates, isLoaded, layerKey, map, rle, rows])
 
   return null
 }
