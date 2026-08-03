@@ -1,5 +1,5 @@
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
-import { distanceKm } from '@/lib/geo'
+import { distanceKm, geometryBounds } from '@/lib/geo'
 import area from '@turf/area'
 import intersect from '@turf/intersect'
 import union from '@turf/union'
@@ -20,31 +20,6 @@ export function computeMedian(values: number[]): number {
   return (sorted[midpoint - 1] + sorted[midpoint]) / 2
 }
 
-export function geometryBounds(geometry: GeoJSON.Geometry): [number, number, number, number] | null {
-  let minLng = Infinity,
-    minLat = Infinity,
-    maxLng = -Infinity,
-    maxLat = -Infinity
-  const scan = (coords: number[][]) => {
-    coords.forEach(([lng, lat]) => {
-      if (lng < minLng) minLng = lng
-      if (lng > maxLng) maxLng = lng
-      if (lat < minLat) minLat = lat
-      if (lat > maxLat) maxLat = lat
-    })
-  }
-  if (geometry.type === 'Point') {
-    const [lng, lat] = geometry.coordinates
-    return [lng, lat, lng, lat]
-  }
-  if (geometry.type === 'LineString') scan(geometry.coordinates)
-  else if (geometry.type === 'Polygon') geometry.coordinates.forEach(scan)
-  else if (geometry.type === 'MultiPolygon') geometry.coordinates.forEach((p) => p.forEach(scan))
-  else return null
-  if (!Number.isFinite(minLng)) return null
-  return [minLng, minLat, maxLng, maxLat]
-}
-
 export function bboxCenter(geometry: GeoJSON.Geometry): [number, number] | null {
   const bounds = geometryBounds(geometry)
   if (!bounds) return null
@@ -62,7 +37,7 @@ export function regionCenter(region: ScoreBuilderRegion): [number, number] {
   return [(region.bounds[0] + region.bounds[2]) / 2, (region.bounds[1] + region.bounds[3]) / 2]
 }
 
-export { distanceKm }
+export { distanceKm, geometryBounds }
 
 /** Linear access score in [0, 1]: 1 at the origin, 0 at or beyond `maxKm` from the nearest point. */
 export function catchmentAccess(

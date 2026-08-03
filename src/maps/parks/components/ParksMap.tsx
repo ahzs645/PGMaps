@@ -8,32 +8,21 @@ import {
 } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { SharedMap } from '@/components/ui/persistent-map'
+import { geometryBounds, type BBox } from '@/lib/geo'
 import { getClassificationColor, getTrailColor } from '../constants'
 import type { Park, Trail, ParkAmenity, ActiveLayer, CityPgOverlayData } from '../types'
 
-function extendBounds(
-  bounds: MapLibreGL.LngLatBounds,
-  coordinates: GeoJSON.Position[] | GeoJSON.Position[][] | GeoJSON.Position[][][],
-) {
-  for (const item of coordinates) {
-    if (typeof item[0] === 'number' && typeof item[1] === 'number') {
-      bounds.extend(item as [number, number])
-    } else {
-      extendBounds(bounds, item as GeoJSON.Position[] | GeoJSON.Position[][] | GeoJSON.Position[][][])
-    }
-  }
+function toLngLatBounds(bbox: BBox | null): MapLibreGL.LngLatBounds {
+  if (!bbox) return new MapLibreGL.LngLatBounds()
+  return new MapLibreGL.LngLatBounds([bbox[0], bbox[1]], [bbox[2], bbox[3]])
 }
 
 function getParkBounds(park: Park) {
-  const bounds = new MapLibreGL.LngLatBounds()
-  extendBounds(bounds, park.geometry.coordinates)
-  return bounds
+  return toLngLatBounds(geometryBounds(park.geometry))
 }
 
 function getTrailBounds(trail: Trail) {
-  const bounds = new MapLibreGL.LngLatBounds()
-  trail.coordinates.forEach((coordinate) => bounds.extend(coordinate))
-  return bounds
+  return toLngLatBounds(geometryBounds({ type: 'LineString', coordinates: trail.coordinates }))
 }
 
 interface ParksMapProps {

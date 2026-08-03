@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useFetchAll } from '@/hooks/useFetchData'
+import { geometryBounds, type BBox } from '@/lib/geo'
 import type { CensusBounds, CensusHierarchyLevel, CensusUnit } from '../types'
 
 interface RawGeoFeature {
@@ -79,40 +80,24 @@ function readUnit(feature: RawGeoFeature, fallbackLevel: CensusHierarchyLevel): 
   }
 }
 
-function scanCoordinates(ring: number[][], accumulator: CensusBounds) {
-  ring.forEach(([lng, lat]) => {
-    if (lng < accumulator.minLng) accumulator.minLng = lng
-    if (lng > accumulator.maxLng) accumulator.maxLng = lng
-    if (lat < accumulator.minLat) accumulator.minLat = lat
-    if (lat > accumulator.maxLat) accumulator.maxLat = lat
-  })
-}
-
 function computeBounds(units: CensusUnit[]): CensusBounds | null {
-  if (!units.length) return null
+  let merged: BBox | null = null
 
-  const bounds: CensusBounds = {
-    minLng: Infinity,
-    minLat: Infinity,
-    maxLng: -Infinity,
-    maxLat: -Infinity
+  for (const unit of units) {
+    const bounds = geometryBounds(unit.geometry)
+    if (!bounds) continue
+    merged = merged
+      ? [
+          Math.min(merged[0], bounds[0]),
+          Math.min(merged[1], bounds[1]),
+          Math.max(merged[2], bounds[2]),
+          Math.max(merged[3], bounds[3]),
+        ]
+      : bounds
   }
 
-  units.forEach((unit) => {
-    if (unit.geometry.type === 'Polygon') {
-      unit.geometry.coordinates.forEach((ring) => scanCoordinates(ring, bounds))
-    } else {
-      unit.geometry.coordinates.forEach((polygon) => {
-        polygon.forEach((ring) => scanCoordinates(ring, bounds))
-      })
-    }
-  })
-
-  if (!Number.isFinite(bounds.minLng) || !Number.isFinite(bounds.minLat)) {
-    return null
-  }
-
-  return bounds
+  if (!merged) return null
+  return { minLng: merged[0], minLat: merged[1], maxLng: merged[2], maxLat: merged[3] }
 }
 
 function getPrimaryBounds(

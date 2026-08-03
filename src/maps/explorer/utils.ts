@@ -1,3 +1,4 @@
+import { geometryBounds as sharedGeometryBounds } from '@/lib/geo'
 import type { GeometryBounds, SpatialFilter } from './types'
 
 export function clampScore(value: number): number {
@@ -15,33 +16,16 @@ export function createPointBounds(longitude: number, latitude: number): Geometry
   return { minLng: longitude - pad, minLat: latitude - pad, maxLng: longitude + pad, maxLat: latitude + pad }
 }
 
-function expandBounds(bounds: GeometryBounds, lng: number, lat: number) {
-  if (lng < bounds.minLng) bounds.minLng = lng
-  if (lng > bounds.maxLng) bounds.maxLng = lng
-  if (lat < bounds.minLat) bounds.minLat = lat
-  if (lat > bounds.maxLat) bounds.maxLat = lat
-}
-
+/**
+ * Explorer's named-field bounds, padded so a point (or a degenerate geometry
+ * that collapses to one) still has a clickable area to hit-test against.
+ */
 export function geometryBounds(geometry: GeoJSON.Geometry): GeometryBounds | null {
-  if (geometry.type === 'Point') {
-    const [lng, lat] = geometry.coordinates
-    return createPointBounds(lng, lat)
-  }
-  const bounds: GeometryBounds = { minLng: Infinity, minLat: Infinity, maxLng: -Infinity, maxLat: -Infinity }
-  const scanRing = (ring: number[][]) => {
-    ring.forEach(([lng, lat]) => expandBounds(bounds, lng, lat))
-  }
-  if (geometry.type === 'LineString') geometry.coordinates.forEach(([lng, lat]) => expandBounds(bounds, lng, lat))
-  else if (geometry.type === 'MultiLineString')
-    geometry.coordinates.forEach((line) => line.forEach(([lng, lat]) => expandBounds(bounds, lng, lat)))
-  else if (geometry.type === 'Polygon') geometry.coordinates.forEach((ring) => scanRing(ring))
-  else if (geometry.type === 'MultiPolygon')
-    geometry.coordinates.forEach((polygon) => polygon.forEach((ring) => scanRing(ring)))
-  else return null
-  if (!Number.isFinite(bounds.minLng) || !Number.isFinite(bounds.minLat)) return null
-  if (bounds.minLng === bounds.maxLng && bounds.minLat === bounds.maxLat)
-    return createPointBounds(bounds.minLng, bounds.minLat)
-  return bounds
+  const bounds = sharedGeometryBounds(geometry)
+  if (!bounds) return null
+  const [minLng, minLat, maxLng, maxLat] = bounds
+  if (minLng === maxLng && minLat === maxLat) return createPointBounds(minLng, minLat)
+  return { minLng, minLat, maxLng, maxLat }
 }
 
 export function formatNullableText(value: string | number | null | undefined, fallback = 'N/A'): string {
