@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { MAP_OVERLAY_Z } from './map-overlay'
 import { MOBILE_CARD_STACK_PEEK, useMobileCardStack } from './mobile-card-stack'
-import { MOBILE_MEDIA_QUERY } from '@/hooks/useIsMobile'
+import { MOBILE_MEDIA_QUERY, useIsMobile } from '@/hooks/useIsMobile'
 
 export const MOBILE_FEATURE_CARD_MEDIA_QUERY = MOBILE_MEDIA_QUERY
 export const MOBILE_FEATURE_CARD_HEIGHT = 720
@@ -22,6 +22,25 @@ export const MOBILE_FEATURE_CARD_PEEK_EVENT = 'pgmaps:mobile-feature-card-peek'
 export const MOBILE_FEATURE_CARD_OPEN_EVENT = 'pgmaps:mobile-feature-card-open'
 export const MOBILE_FEATURE_CARD_CLOSE_EVENT = 'pgmaps:mobile-feature-card-close'
 export const MOBILE_FEATURE_CARD_COLLAPSE_STATE_EVENT = 'pgmaps:mobile-feature-card-collapse-state'
+
+/**
+ * Picks between a map popup and a mobile bottom-sheet card for the same
+ * selected feature — the fork every section used to write inline as a pair of
+ * `{!isMobile && <MapPopup>}` / `{isMobile && <Card>}` blocks.
+ *
+ * Both slots are plain nodes, so only the chosen one is mounted. Pass just
+ * `card` for sections whose desktop detail lives in the sidebar instead.
+ */
+export function ResponsiveFeatureDetail({
+  popup,
+  card,
+}: {
+  popup?: ReactNode
+  card?: ReactNode
+}) {
+  const isMobile = useIsMobile()
+  return <>{isMobile ? card : popup}</>
+}
 
 export function MobileFeatureCard({
   title,

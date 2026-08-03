@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from 'react'
-import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   MapClusterLayer,
   MapMarker,
@@ -8,7 +7,7 @@ import {
   useMap,
 } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { formatDate } from '@/lib/format'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
@@ -93,7 +92,6 @@ export function CrimeMap({
   loading = false,
 }: CrimeMapProps) {
   const { map } = useMap()
-  const isMobileViewport = useIsMobile()
 
   const incidentById = useMemo(() => {
     const map = new Map<number, CrimeIncident>()
@@ -187,50 +185,51 @@ export function CrimeMap({
               </MarkerContent>
             </MapMarker>
 
-            {!isMobileViewport && (
-              <MapPopup
-                key={selectedIncident.id}
-                longitude={selectedIncident.longitude}
-                latitude={selectedIncident.latitude}
-                closeButton
-                onClose={onIncidentClear}
-                className="max-w-xs"
-              >
-                <div className="pr-6">
-                  <div className="text-sm font-semibold text-foreground">
-                    {selectedIncident.crimeType}
+            <ResponsiveFeatureDetail
+              popup={(
+                <MapPopup
+                  key={selectedIncident.id}
+                  longitude={selectedIncident.longitude}
+                  latitude={selectedIncident.latitude}
+                  closeButton
+                  onClose={onIncidentClear}
+                  className="max-w-xs"
+                >
+                  <div className="pr-6">
+                    <div className="text-sm font-semibold text-foreground">
+                      {selectedIncident.crimeType}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {selectedIncident.address}
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{formatDate(selectedIncident.date)}</span>
+                      {formatTime(selectedIncident.time) && (
+                        <span>{formatTime(selectedIncident.time)}</span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {selectedIncident.community}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: getCrimeCategoryColor(selectedIncident.crimeType) }}
+                      />
+                      <span className="text-xs font-medium text-foreground">
+                        {getCrimeCategory(selectedIncident.crimeType)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {selectedIncident.address}
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{formatDate(selectedIncident.date)}</span>
-                    {formatTime(selectedIncident.time) && (
-                      <span>{formatTime(selectedIncident.time)}</span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {selectedIncident.community}
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: getCrimeCategoryColor(selectedIncident.crimeType) }}
-                    />
-                    <span className="text-xs font-medium text-foreground">
-                      {getCrimeCategory(selectedIncident.crimeType)}
-                    </span>
-                  </div>
-                </div>
-              </MapPopup>
-            )}
-
-            {isMobileViewport && (
-              <MobileCrimeFeatureCard
-                incident={selectedIncident}
-                onClose={onIncidentClear}
-              />
-            )}
+                </MapPopup>
+              )}
+              card={(
+                <MobileCrimeFeatureCard
+                  incident={selectedIncident}
+                  onClose={onIncidentClear}
+                />
+              )}
+            />
           </>
         )}
       </SharedMap>

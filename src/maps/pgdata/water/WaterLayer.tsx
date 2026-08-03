@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { useIsMobile } from '@/hooks/useIsMobile'
 import type MapLibreGL from 'maplibre-gl'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
+import { ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { WATER_HAZARD_DOT_COLORS, WATER_POINT_COLORS } from './constants'
 import { hexToRgba } from '@/lib/color'
 import { getWaterPointCategory } from './utils'
@@ -17,7 +17,6 @@ function getLayerPointCategory(water: WaterState): WaterPointCategory {
 }
 
 export function WaterLayer({ water }: { water: WaterState }) {
-  const isMobileViewport = useIsMobile()
   const activePointCategory = getLayerPointCategory(water)
   const pointCollections = useMemo(() => (
     [activePointCategory]
@@ -124,28 +123,30 @@ export function WaterLayer({ water }: { water: WaterState }) {
               />
             </MarkerContent>
           </MapMarker>
-          {!isMobileViewport && (
-            <MapPopup
-              key={water.selectedFacility.id}
-              longitude={water.selectedFacility.longitude}
-              latitude={water.selectedFacility.latitude}
-              closeButton
-              onClose={() => water.setSelectedFacilityId(null)}
-              className="max-w-xs"
-            >
-              <WaterFacilityPopupCard
+          <ResponsiveFeatureDetail
+            popup={(
+              <MapPopup
+                key={water.selectedFacility.id}
+                longitude={water.selectedFacility.longitude}
+                latitude={water.selectedFacility.latitude}
+                closeButton
+                onClose={() => water.setSelectedFacilityId(null)}
+                className="max-w-xs"
+              >
+                <WaterFacilityPopupCard
+                  facility={water.selectedFacility}
+                  onOpenReport={() => water.setShowSelectedFacilityReport(true)}
+                />
+              </MapPopup>
+            )}
+            card={(
+              <MobileWaterFacilityFeatureCard
                 facility={water.selectedFacility}
+                onClose={() => water.setSelectedFacilityId(null)}
                 onOpenReport={() => water.setShowSelectedFacilityReport(true)}
               />
-            </MapPopup>
-          )}
-          {isMobileViewport && (
-            <MobileWaterFacilityFeatureCard
-              facility={water.selectedFacility}
-              onClose={() => water.setSelectedFacilityId(null)}
-              onOpenReport={() => water.setShowSelectedFacilityReport(true)}
-            />
-          )}
+            )}
+          />
         </>
       )}
     </>

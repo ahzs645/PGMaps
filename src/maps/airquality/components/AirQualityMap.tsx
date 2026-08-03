@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from 'react'
-import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   MapClusterLayer,
   MapMarker,
@@ -8,7 +7,7 @@ import {
   useMap
 } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
-import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import bbox from '@turf/bbox'
 import { MAP_STYLES } from '@/components/ui/map-styles'
@@ -234,7 +233,6 @@ export function AirQualityMap({
   onMonitorClear
 }: AirQualityMapProps) {
   const { map } = useMap()
-  const isMobileViewport = useIsMobile()
 
   const monitorById = useMemo(() => {
     const map = new globalThis.Map<string, AirMonitor>()
@@ -396,7 +394,11 @@ export function AirQualityMap({
               </MarkerContent>
             </MapMarker>
 
-            {!isMobileViewport && (
+          </>
+        )}
+        {selectedMonitor && (
+          <ResponsiveFeatureDetail
+            popup={(
               <MapPopup
                 key={monitorEntryKey(selectedMonitor)}
                 longitude={selectedMonitor.longitude}
@@ -412,14 +414,14 @@ export function AirQualityMap({
                 />
               </MapPopup>
             )}
-          </>
-        )}
-        {isMobileViewport && selectedMonitor && (
-          <MobileAirQualityFeatureCard
-            monitor={selectedMonitor}
-            monitorsAtLocation={selectedMonitorsAtLocation}
-            correctionModel={correctionModel}
-            onClose={() => onMonitorClear?.()}
+            card={(
+              <MobileAirQualityFeatureCard
+                monitor={selectedMonitor}
+                monitorsAtLocation={selectedMonitorsAtLocation}
+                correctionModel={correctionModel}
+                onClose={() => onMonitorClear?.()}
+              />
+            )}
           />
         )}
     </SharedMap>
