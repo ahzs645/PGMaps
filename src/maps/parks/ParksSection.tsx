@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
+import { useUrlSelection } from '@/hooks/useUrlSelection'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -20,8 +21,11 @@ const ALL_CLASSIFICATIONS: ParkClassification[] = [
 
 const ALL_TRAIL_TYPES: TrailUserClass[] = ['Walking', 'Multiuse', 'Equine']
 
+const getParkId = (park: Park) => String(park.id)
+const getTrailId = (trail: Trail) => String(trail.id)
+
 export default function ParksSection() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const isMobileViewport = useIsMobile()
   const [activeLayers, setActiveLayers] = useState<ActiveLayer[]>(() => {
     const layers = (searchParams.get('layers') || '').split(',').filter(Boolean) as ActiveLayer[]
@@ -35,14 +39,8 @@ export default function ParksSection() {
   const [trailTypesOverride, setTrailTypesOverride] = useState<TrailUserClass[] | null>(null)
   const selectedTrailTypes = trailTypesOverride ?? ALL_TRAIL_TYPES
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
-  const [selectedPark, setSelectedPark] = useState<Park | null>(null)
-  const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null)
   const [mobileFeatureSheetOpen, setMobileFeatureSheetOpen] = useState(false)
   const [selectionFocusKey, setSelectionFocusKey] = useState(0)
-  const [ignoredUrlSelection, setIgnoredUrlSelection] = useState<{ park: string | null; trail: string | null }>({
-    park: null,
-    trail: null,
-  })
 
 
   const filteredParks = useMemo(() => {
@@ -67,21 +65,17 @@ export default function ParksSection() {
     })
   }, [trails, selectedTrailTypes, searchQuery])
 
-  // Deep-linked selections derive from the URL until the user explicitly
-  // clears them; remembering cleared ids keeps fresh links live. A selection
-  // that filters drop out of view stops rendering without a state write.
-  const urlParkId = searchParams.get('park')
-  const urlTrailId = searchParams.get('trail')
-  const effectiveSelectedPark = useMemo(() => {
-    if (selectedPark) return selectedPark
-    if (!urlParkId || urlParkId === ignoredUrlSelection.park) return null
-    return parks.find((item) => String(item.id) === urlParkId) ?? null
-  }, [selectedPark, urlParkId, ignoredUrlSelection.park, parks])
-  const effectiveSelectedTrail = useMemo(() => {
-    if (selectedTrail) return selectedTrail
-    if (effectiveSelectedPark || !urlTrailId || urlTrailId === ignoredUrlSelection.trail) return null
-    return trails.find((item) => String(item.id) === urlTrailId) ?? null
-  }, [selectedTrail, effectiveSelectedPark, urlTrailId, ignoredUrlSelection.trail, trails])
+  // A selection that filters drop out of view stops rendering without a state write.
+  const parkSelection = useUrlSelection<Park>({ param: 'park', items: parks, getId: getParkId })
+  const effectiveSelectedPark = parkSelection.selected
+  // A park selection wins, so the trail param is only resolved when none is set.
+  const trailSelection = useUrlSelection<Trail>({
+    param: 'trail',
+    items: trails,
+    getId: getTrailId,
+    enabled: !effectiveSelectedPark,
+  })
+  const effectiveSelectedTrail = trailSelection.selected
   const visibleSelectedPark = useMemo(() => {
     if (!effectiveSelectedPark) return null
     return filteredParks.some((park) => park.id === effectiveSelectedPark.id) ? effectiveSelectedPark : null
@@ -93,9 +87,7 @@ export default function ParksSection() {
 
   // Sync filters to URL for shareable links; deep-linked ids stay untouched
   // until their dataset has loaded.
-  const urlSelectionPending =
-    (urlParkId && urlParkId !== ignoredUrlSelection.park && parks.length === 0) ||
-    (urlTrailId && urlTrailId !== ignoredUrlSelection.trail && trails.length === 0)
+  const urlSelectionPending = parkSelection.pending || trailSelection.pending
   useUrlParamSync(
     urlSelectionPending
       ? null
@@ -120,37 +112,34 @@ export default function ParksSection() {
   }, [])
 
   const handleClearSelection = useCallback(() => {
-    setIgnoredUrlSelection({ park: searchParams.get('park'), trail: searchParams.get('trail') })
-    setSelectedPark(null)
-    setSelectedTrail(null)
+    // Both clears write through useSetUrlParams, so the second does not start
+    // from the first's stale render params.
+    parkSelection.clear()
+    trailSelection.clear()
     setMobileFeatureSheetOpen(false)
-    const params = new URLSearchParams(searchParams)
-    params.delete('park')
-    params.delete('trail')
-    setSearchParams(params, { replace: true })
-  }, [searchParams, setSearchParams])
+  }, [parkSelection, trailSelection])
 
   const handleParkClick = useCallback((park: Park | null) => {
     if (!park) {
       handleClearSelection()
       return
     }
-    setSelectedPark(park)
-    setSelectedTrail(null)
+    parkSelection.select(park)
+    trailSelection.select(null)
     setMobileFeatureSheetOpen(true)
     setSelectionFocusKey((key) => key + 1)
-  }, [handleClearSelection])
+  }, [handleClearSelection, parkSelection, trailSelection])
 
   const handleTrailClick = useCallback((trail: Trail | null) => {
     if (!trail) {
       handleClearSelection()
       return
     }
-    setSelectedTrail(trail)
-    setSelectedPark(null)
+    trailSelection.select(trail)
+    parkSelection.select(null)
     setMobileFeatureSheetOpen(true)
     setSelectionFocusKey((key) => key + 1)
-  }, [handleClearSelection])
+  }, [handleClearSelection, parkSelection, trailSelection])
 
   const parkLegendRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()

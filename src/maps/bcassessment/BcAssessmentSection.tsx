@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { formatCompactCurrency } from '@/lib/format'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
+import { useUrlSelection } from '@/hooks/useUrlSelection'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -22,6 +23,9 @@ import type {
   ColorMetric,
   BoundaryLevel,
 } from './types'
+
+const REGION_PARAM = ['region'] as const
+const getPropertyId = (property: Property) => property.id
 
 type AssessmentLegendMode = 'rows' | 'horizontal' | 'gradient'
 
@@ -61,7 +65,7 @@ function isAssessmentBoundarySource(source: string | null): source is Assessment
 
 export default function BcAssessmentSection() {
   const isMobileViewport = useIsMobile()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const { properties, loading, error } = useBcAssessmentData()
 
   // null means "no explicit selection yet" and resolves to every category, so
@@ -80,21 +84,18 @@ export default function BcAssessmentSection() {
     const boundary = searchParams.get('boundary')
     return isAssessmentBoundaryLevel(boundary) ? SOURCE_BY_LEVEL[boundary] : 'census'
   })
-  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
-  const [ignoredUrlPropertyId, setIgnoredUrlPropertyId] = useState<string | null>(null)
   const [selectedBoundaryId, setSelectedBoundaryId] = useState<string | null>(() => searchParams.get('region'))
   const [showTimeline, setShowTimeline] = useState(false)
 
   const { boundaryData } = useBoundaryData(boundaryLevel)
 
-  // Deep-linked selection derives from the URL until the user explicitly
-  // clears it; remembering the cleared id keeps a fresh ?property= link live.
-  const urlPropertyId = searchParams.get('property')
-  const effectiveSelectedProperty = useMemo(() => {
-    if (selectedProperty) return selectedProperty
-    if (!urlPropertyId || urlPropertyId === ignoredUrlPropertyId) return null
-    return properties.find((item) => item.id === urlPropertyId) ?? null
-  }, [selectedProperty, urlPropertyId, ignoredUrlPropertyId, properties])
+  const propertySelection = useUrlSelection<Property>({
+    param: 'property',
+    items: properties,
+    getId: getPropertyId,
+    clearParams: REGION_PARAM,
+  })
+  const effectiveSelectedProperty = propertySelection.selected
 
   const timelineYearOptions = useMemo(() => {
     const maxHistoryLength = properties.reduce((max, property) => Math.max(max, property.histValues?.length ?? 0), 0)
@@ -184,23 +185,18 @@ export default function BcAssessmentSection() {
   }, [])
 
   const handleClearSelection = useCallback(() => {
-    setIgnoredUrlPropertyId(searchParams.get('property'))
-    setSelectedProperty(null)
+    propertySelection.clear()
     setSelectedBoundaryId(null)
-    const params = new URLSearchParams(searchParams)
-    params.delete('property')
-    params.delete('region')
-    setSearchParams(params, { replace: true })
-  }, [searchParams, setSearchParams])
+  }, [propertySelection])
 
   const handlePropertyClick = useCallback((property: Property) => {
     if (effectiveSelectedProperty?.id === property.id) {
       handleClearSelection()
       return
     }
-    setSelectedProperty(property)
+    propertySelection.select(property)
     setSelectedBoundaryId(null)
-  }, [handleClearSelection, effectiveSelectedProperty])
+  }, [handleClearSelection, effectiveSelectedProperty, propertySelection])
 
   const handleBoundaryClick = useCallback((boundaryId: string) => {
     if (selectedBoundaryId === boundaryId) {
@@ -208,8 +204,8 @@ export default function BcAssessmentSection() {
       return
     }
     setSelectedBoundaryId(boundaryId)
-    setSelectedProperty(null)
-  }, [handleClearSelection, selectedBoundaryId])
+    propertySelection.select(null)
+  }, [handleClearSelection, selectedBoundaryId, propertySelection])
 
   const handleBoundarySourceChange = useCallback((source: AssessmentBoundarySource) => {
     setBoundarySource(source)
