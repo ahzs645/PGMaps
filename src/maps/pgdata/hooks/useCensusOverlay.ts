@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useFetchData } from '@/hooks/useFetchData'
 import { useCensusCatalog } from '@/maps/census/hooks/useCensusCatalog'
 import { useCensusVariableData, getVariableValues } from '@/maps/census/hooks/useCensusVariableData'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
@@ -19,8 +20,6 @@ const SOCIOECONOMIC_CATEGORY_IDS = [
   'mobility',
 ]
 
-let geometryCache: GeoJSON.FeatureCollection | null = null
-
 export interface CensusOverlayState {
   geometry: GeoJSON.FeatureCollection | null
   categories: CensusCategory[]
@@ -40,35 +39,11 @@ export interface CensusOverlayState {
 export function useCensusOverlay(): CensusOverlayState {
   const { catalog, loading: catalogLoading, error: catalogError } = useCensusCatalog()
 
-  const [geometry, setGeometry] = useState<GeoJSON.FeatureCollection | null>(geometryCache)
-  const [geoLoading, setGeoLoading] = useState(!geometryCache)
-  const [geoError, setGeoError] = useState<string | null>(null)
+  // useFetchData's module-level cache replaces the local geometryCache.
+  const { data: geometry, loading: geoLoading, error: geoError } =
+    useFetchData<GeoJSON.FeatureCollection>(DA_GEOMETRY_URL)
   const [selectedCategoryId, setCategoryId] = useState<string | null>(null)
   const [selectedVariableId, setVariableId] = useState<string | null>(null)
-
-  // Load DA geometry
-  useEffect(() => {
-    if (geometryCache) return
-    const controller = new AbortController()
-
-    async function load() {
-      try {
-        const res = await fetch(DA_GEOMETRY_URL, { signal: controller.signal })
-        if (!res.ok) throw new Error(`Failed to load DA geometry: ${res.status}`)
-        const data = await res.json() as GeoJSON.FeatureCollection
-        geometryCache = data
-        setGeometry(data)
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return
-        setGeoError((err as Error).message)
-      } finally {
-        setGeoLoading(false)
-      }
-    }
-
-    load()
-    return () => controller.abort()
-  }, [])
 
   // Filter to socioeconomic categories
   const categories = useMemo(() => {
@@ -76,37 +51,33 @@ export function useCensusOverlay(): CensusOverlayState {
     return catalog.categories.filter((c) => SOCIOECONOMIC_CATEGORY_IDS.includes(c.id))
   }, [catalog])
 
-  // Auto-select first category if none selected
-  useEffect(() => {
-    if (!selectedCategoryId && categories.length > 0) {
-      setCategoryId(categories[0].id)
-    }
-  }, [categories, selectedCategoryId])
+  // null means "no explicit choice yet" and resolves to the first option, so
+  // the selection needs no initialization effect once the catalog loads.
+  const effectiveCategoryId = selectedCategoryId ?? categories[0]?.id ?? null
 
   // Get variables for selected category
   const variables = useMemo(() => {
-    if (!selectedCategoryId || !catalog) return []
-    const cat = catalog.categories.find((c) => c.id === selectedCategoryId)
+    if (!effectiveCategoryId || !catalog) return []
+    const cat = catalog.categories.find((c) => c.id === effectiveCategoryId)
     return cat?.variables.filter((v) => v.type === 'Total' || v.type === '') ?? []
-  }, [catalog, selectedCategoryId])
+  }, [catalog, effectiveCategoryId])
 
-  // Auto-select first variable
-  useEffect(() => {
-    if (variables.length > 0 && (!selectedVariableId || !variables.some((v) => v.id === selectedVariableId))) {
-      setVariableId(variables[0].id)
-    }
-  }, [variables, selectedVariableId])
+  // A variable the current category does not offer falls back the same way.
+  const effectiveVariableId =
+    selectedVariableId && variables.some((v) => v.id === selectedVariableId)
+      ? selectedVariableId
+      : variables[0]?.id ?? null
 
   // Load variable data
-  const { data: variableData, loading: varLoading } = useCensusVariableData('da', selectedCategoryId)
+  const { data: variableData, loading: varLoading } = useCensusVariableData('da', effectiveCategoryId)
 
   // Build enriched GeoJSON with variable values
   const { enrichedGeojson, fillColorExpression, legendMin, legendMax } = useMemo(() => {
-    if (!geometry || !variableData || !selectedVariableId) {
+    if (!geometry || !variableData || !effectiveVariableId) {
       return { enrichedGeojson: null, fillColorExpression: '#475569', legendMin: 0, legendMax: 0 }
     }
 
-    const valueMap = getVariableValues(variableData, selectedVariableId)
+    const valueMap = getVariableValues(variableData, effectiveVariableId)
     let min = Infinity
     let max = -Infinity
 
@@ -149,7 +120,7 @@ export function useCensusOverlay(): CensusOverlayState {
     ]
 
     return { enrichedGeojson: enriched, fillColorExpression: expr, legendMin: min, legendMax: max }
-  }, [geometry, variableData, selectedVariableId])
+  }, [geometry, variableData, effectiveVariableId])
 
   const loading = catalogLoading || geoLoading || varLoading
   const error = catalogError || geoError
@@ -157,8 +128,8 @@ export function useCensusOverlay(): CensusOverlayState {
   return {
     geometry,
     categories,
-    selectedCategoryId,
-    selectedVariableId,
+    selectedCategoryId: effectiveCategoryId,
+    selectedVariableId: effectiveVariableId,
     variables,
     enrichedGeojson,
     fillColorExpression,

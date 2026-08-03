@@ -1,3 +1,5 @@
+import { withBase } from './dataUrl'
+
 type DecompressionStreamConstructor = new (
   format: 'gzip',
 ) => TransformStream<Uint8Array, Uint8Array>
@@ -41,12 +43,29 @@ export class FetchError extends Error {
   }
 }
 
-/** Fetch raw bytes, with the response's content-type for downstream diagnostics. */
+/**
+ * A static host answering for a file it does not have: 200 OK with the SPA's
+ * HTML. Reported as a 404 so "tolerate a missing dataset" call sites need only
+ * one check to cover both shapes of missing.
+ */
+export class MissingFileError extends FetchError {
+  constructor(url: string, contentType: string) {
+    super(url, 404)
+    this.name = 'MissingFileError'
+    this.message = `Failed to fetch ${url}: file missing (got ${contentType || 'HTML'})`
+  }
+}
+
+/**
+ * Fetch raw bytes, with the response's content-type for downstream diagnostics.
+ * Root-relative paths are resolved against the deploy base, so the bare
+ * '/data/...' literals used throughout the app survive a sub-path deploy.
+ */
 export async function fetchBytes(
   url: string,
   signal?: AbortSignal,
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
-  const response = await fetch(url, signal ? { signal } : undefined)
+  const response = await fetch(withBase(url), signal ? { signal } : undefined)
   if (!response.ok) {
     throw new FetchError(url, response.status)
   }
@@ -71,9 +90,7 @@ export async function fetchGzipText(
     : new TextDecoder().decode(bytes)
 
   if (text.trimStart().startsWith('<')) {
-    throw new Error(
-      `Failed to fetch ${url}: file missing (got ${contentType || 'HTML'})`,
-    )
+    throw new MissingFileError(url, contentType)
   }
 
   return text

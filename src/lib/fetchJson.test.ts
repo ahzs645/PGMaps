@@ -66,3 +66,17 @@ describe('fetchGzipText', () => {
     await expect(fetchGzipText('/plain.csv.gz')).resolves.toBe('a,b\n1,2\n')
   })
 })
+
+describe('MissingFileError', () => {
+  it('reports the HTML SPA fallback as a 404 so optional callers see one shape of missing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => (
+      new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } })
+    )))
+
+    await expect(fetchJson('/absent.json')).rejects.toMatchObject({
+      name: 'MissingFileError',
+      status: 404,
+    })
+    await expect(fetchJson('/absent.json')).rejects.toBeInstanceOf(FetchError)
+  })
+})

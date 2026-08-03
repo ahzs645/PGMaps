@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
+import { useFetchAll } from '@/hooks/useFetchData'
 
 export interface HeatShadeTree {
   id: string
@@ -124,60 +125,34 @@ function parseResponseFacilities(geojson: GeoJSON.FeatureCollection): HeatShadeF
     .filter((facility): facility is HeatShadeFacility => facility !== null)
 }
 
+const HEAT_SHADE_URLS = [
+  HEAT_SHADE_PATHS.trees,
+  HEAT_SHADE_PATHS.intactForest,
+  HEAT_SHADE_PATHS.communityForests,
+  HEAT_SHADE_PATHS.communityFacilities,
+  HEAT_SHADE_PATHS.responseFacilities,
+] as const
+
 export function useHeatShadeData(enabled = true) {
-  const [trees, setTrees] = useState<HeatShadeTree[]>([])
-  const [forests, setForests] = useState<HeatShadePolygon[]>([])
-  const [facilities, setFacilities] = useState<HeatShadeFacility[]>([])
-  const [loading, setLoading] = useState(enabled)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useFetchAll<GeoJSON.FeatureCollection>(HEAT_SHADE_URLS as unknown as string[], {
+    enabled,
+  })
 
-  useEffect(() => {
-    if (!enabled) {
-      setLoading(false)
-      return
+  const parsed = useMemo(() => {
+    if (!data) return { trees: [], forests: [], facilities: [] }
+    const [treesGeo, intactForestGeo, communityForestsGeo, communityFacilitiesGeo, responseFacilitiesGeo] = data
+    return {
+      trees: treesGeo ? parseTrees(treesGeo) : [],
+      forests: [
+        ...(intactForestGeo ? parsePolygons(intactForestGeo, 'Intact forest') : []),
+        ...(communityForestsGeo ? parsePolygons(communityForestsGeo, 'Community forest') : []),
+      ],
+      facilities: [
+        ...(communityFacilitiesGeo ? parseCommunityFacilities(communityFacilitiesGeo) : []),
+        ...(responseFacilitiesGeo ? parseResponseFacilities(responseFacilitiesGeo) : []),
+      ],
     }
+  }, [data])
 
-    const controller = new AbortController()
-
-    async function fetchGeojson(path: string): Promise<GeoJSON.FeatureCollection> {
-      const response = await fetch(path, { signal: controller.signal })
-      if (!response.ok) throw new Error(`Failed to fetch ${path}: ${response.status}`)
-      return response.json()
-    }
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const [treesGeo, intactForestGeo, communityForestsGeo, communityFacilitiesGeo, responseFacilitiesGeo] =
-          await Promise.all([
-            fetchGeojson(HEAT_SHADE_PATHS.trees),
-            fetchGeojson(HEAT_SHADE_PATHS.intactForest),
-            fetchGeojson(HEAT_SHADE_PATHS.communityForests),
-            fetchGeojson(HEAT_SHADE_PATHS.communityFacilities),
-            fetchGeojson(HEAT_SHADE_PATHS.responseFacilities),
-          ])
-        if (controller.signal.aborted) return
-        setTrees(parseTrees(treesGeo))
-        setForests([
-          ...parsePolygons(intactForestGeo, 'Intact forest'),
-          ...parsePolygons(communityForestsGeo, 'Community forest'),
-        ])
-        setFacilities([
-          ...parseCommunityFacilities(communityFacilitiesGeo),
-          ...parseResponseFacilities(responseFacilitiesGeo),
-        ])
-      } catch (err) {
-        if (controller.signal.aborted) return
-        setError((err as Error).message || 'Unable to load heat and shade data')
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
-    }
-
-    void load()
-    return () => controller.abort()
-  }, [enabled])
-
-  return { trees, forests, facilities, loading, error }
+  return { ...parsed, loading, error: error ?? null }
 }

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
+import { useFetchData } from '@/hooks/useFetchData'
 
 export interface CimdRecord {
   daCode: string
@@ -52,46 +53,10 @@ function parseCimdRecords(payload: unknown): CimdRecord[] {
 }
 
 export function useCimdData(enabled = true) {
-  const [records, setRecords] = useState<CimdRecord[]>([])
-  const [loading, setLoading] = useState(enabled)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!enabled) {
-      setLoading(false)
-      return
-    }
-
-    const controller = new AbortController()
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(CIMD_PATH, { signal: controller.signal })
-        if (response.status === 404) {
-          if (!controller.signal.aborted) setRecords([])
-          return
-        }
-        if (!response.ok) throw new Error(`Failed to fetch CIMD data: ${response.status}`)
-        const contentType = response.headers.get('content-type') || ''
-        if (!contentType.includes('application/json')) {
-          if (!controller.signal.aborted) setRecords([])
-          return
-        }
-        const payload = await response.json()
-        if (!controller.signal.aborted) setRecords(parseCimdRecords(payload))
-      } catch (err) {
-        if (controller.signal.aborted) return
-        setError((err as Error).message || 'Unable to load CIMD data')
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
-    }
-
-    void load()
-    return () => controller.abort()
-  }, [enabled])
+  // The dataset is not in every build; `optional` covers both a real 404 and
+  // the HTML the static host serves in its place.
+  const { data, loading, error } = useFetchData<unknown>(CIMD_PATH, { enabled, optional: true })
+  const records = useMemo(() => (data ? parseCimdRecords(data) : []), [data])
 
   return { records, loading, error }
 }

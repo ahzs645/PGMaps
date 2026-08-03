@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
+import { useFetchData } from '@/hooks/useFetchData'
 
 export interface TransitStop {
   id: string
@@ -90,47 +91,14 @@ function parseTransitStops(geojson: GeoJSON.FeatureCollection, gtfsSummaries = n
 }
 
 export function useTransitData(enabled = true) {
-  const [stops, setStops] = useState<TransitStop[]>([])
-  const [loading, setLoading] = useState(enabled)
-  const [error, setError] = useState<string | null>(null)
+  const { data: geojson, loading, error } = useFetchData<GeoJSON.FeatureCollection>(TRANSIT_STOPS_PATH, { enabled })
+  // GTFS summaries are optional; density and stop-amenity metrics still work without them.
+  const { data: gtfs } = useFetchData<unknown>(GTFS_SUMMARY_PATH, { enabled, optional: true })
 
-  useEffect(() => {
-    if (!enabled) {
-      setLoading(false)
-      return
-    }
-
-    const controller = new AbortController()
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(TRANSIT_STOPS_PATH, { signal: controller.signal })
-        if (!response.ok) throw new Error(`Failed to fetch transit stops: ${response.status}`)
-        const geojson: GeoJSON.FeatureCollection = await response.json()
-        let gtfsSummaries = new Map<string, GtfsStopSummary>()
-        try {
-          const gtfsResponse = await fetch(GTFS_SUMMARY_PATH, { signal: controller.signal })
-          if (gtfsResponse.ok) gtfsSummaries = parseGtfsSummary(await gtfsResponse.json())
-        } catch {
-          // GTFS summaries are optional; density and stop-amenity metrics still work without them.
-        }
-        if (!controller.signal.aborted) setStops(parseTransitStops(geojson, gtfsSummaries))
-      } catch (err) {
-        if (controller.signal.aborted) return
-        setError((err as Error).message || 'Unable to load transit stops')
-      } finally {
-        if (!controller.signal.aborted) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      controller.abort()
-    }
-  }, [enabled])
+  const stops = useMemo(
+    () => (geojson ? parseTransitStops(geojson, gtfs ? parseGtfsSummary(gtfs) : new Map<string, GtfsStopSummary>()) : []),
+    [geojson, gtfs],
+  )
 
   return { stops, loading, error }
 }
