@@ -10,7 +10,7 @@ import {
 import type MapLibreGL from 'maplibre-gl'
 import MapLibreGLRuntime from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
-import { MOBILE_MAP_FEATURE_CLICK_EVENT } from './mobile-feature-card'
+import { dispatchMobileMapFeatureClick } from './map-context'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type StyleExpression = any
@@ -24,10 +24,6 @@ function ensurePmtilesProtocol() {
   const protocol = new Protocol()
   MapLibreGLRuntime.addProtocol('pmtiles', protocol.tile)
   pmtilesProtocolRegistered = true
-}
-
-function dispatchMobileMapFeatureClick() {
-  window.dispatchEvent(new CustomEvent(MOBILE_MAP_FEATURE_CLICK_EVENT))
 }
 
 // =============================================================================
@@ -74,6 +70,12 @@ type MapFillLayerProps = {
   ) => void
   /** Optional HTML tooltip for hoverable feature properties. Return null to hide. */
   hoverHtml?: (properties: Record<string, unknown>) => string | null
+  /**
+   * Fill opacity applied to the feature under the pointer. Off by default;
+   * setting it enables MapLibre feature-state hover highlighting, which needs
+   * `idProperty` to identify features uniquely.
+   */
+  hoverFillOpacity?: number
   /** Optional MapLibre filter applied to the base fill and border layers. */
   filter?: StyleExpression
 }
@@ -95,6 +97,7 @@ function MapFillLayer({
   visible = true,
   onFeatureClick,
   hoverHtml,
+  hoverFillOpacity,
   filter,
 }: MapFillLayerProps) {
   const { map, isLoaded } = useMap()
@@ -115,6 +118,14 @@ function MapFillLayer({
   const tooltipRef = useRef<MapLibreGLRuntime.Popup | null>(null)
   const boxZoomWasEnabledRef = useRef(false)
   const doubleClickZoomWasEnabledRef = useRef(false)
+  const hoveredIdRef = useRef<string | number | null>(null)
+
+  const hoverEnabled = hoverFillOpacity !== undefined
+  // Wrapping the caller's opacity in a feature-state case leaves their
+  // expression intact for every feature that is not hovered.
+  const resolvedFillOpacity: StyleExpression = hoverEnabled
+    ? ['case', ['boolean', ['feature-state', 'hover'], false], hoverFillOpacity, fillOpacity]
+    : fillOpacity
 
   // Mount: create source + layers
   useEffect(() => {
@@ -126,6 +137,9 @@ function MapFillLayer({
       // once. Passing `data` here and then calling setData in the next effect
       // cloned and indexed every initial polygon twice.
       data: { type: 'FeatureCollection', features: [] },
+      // feature-state needs a stable per-feature id; source GeoJSON here rarely
+      // carries a top-level `id`, so promote the property we already key on.
+      ...(hoverEnabled && { promoteId: idPropRef.current }),
     })
 
     map.addLayer({
@@ -135,7 +149,7 @@ function MapFillLayer({
       ...(filterRef.current && { filter: filterRef.current as never }),
       paint: {
         'fill-color': fillColor as never,
-        'fill-opacity': fillOpacity as never,
+        'fill-opacity': resolvedFillOpacity as never,
       },
     })
 
@@ -215,13 +229,31 @@ function MapFillLayer({
       tooltipRef.current?.remove()
     }
 
+    const clearHoverState = () => {
+      if (hoveredIdRef.current === null) return
+      map.setFeatureState({ source: sourceId, id: hoveredIdRef.current }, { hover: false })
+      hoveredIdRef.current = null
+    }
+
     const handleMouseMove = (event: unknown) => {
-      const formatter = hoverHtmlRef.current
-      if (!formatter) return
       const e = event as {
-        features?: Array<{ properties?: Record<string, unknown> }>
+        features?: Array<{ id?: string | number; properties?: Record<string, unknown> }>
         lngLat?: MapLibreGL.LngLatLike
       }
+
+      if (hoverEnabled) {
+        const nextId = e.features?.[0]?.id ?? null
+        if (nextId !== hoveredIdRef.current) {
+          clearHoverState()
+          if (nextId !== null) {
+            map.setFeatureState({ source: sourceId, id: nextId }, { hover: true })
+            hoveredIdRef.current = nextId
+          }
+        }
+      }
+
+      const formatter = hoverHtmlRef.current
+      if (!formatter) return
       const properties = e.features?.[0]?.properties
       const html = properties ? formatter(properties) : null
       if (!html || !e.lngLat) {
@@ -249,6 +281,7 @@ function MapFillLayer({
         map.doubleClickZoom.enable()
         doubleClickZoomWasEnabledRef.current = false
       }
+      clearHoverState()
       removeTooltip()
     }
 
@@ -331,14 +364,15 @@ function MapFillLayer({
     if (!isLoaded || !map) return
     if (map.getLayer(fillLayerId)) {
       map.setPaintProperty(fillLayerId, 'fill-color', fillColor as never)
-      map.setPaintProperty(fillLayerId, 'fill-opacity', fillOpacity as never)
+      map.setPaintProperty(fillLayerId, 'fill-opacity', resolvedFillOpacity as never)
     }
     if (map.getLayer(lineLayerId)) {
       map.setPaintProperty(lineLayerId, 'line-color', lineColor as never)
       map.setPaintProperty(lineLayerId, 'line-width', lineWidth as never)
       map.setPaintProperty(lineLayerId, 'line-opacity', lineOpacity)
     }
-  }, [fillColor, fillOpacity, fillLayerId, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolvedFillOpacity is derived from fillOpacity + hoverFillOpacity
+  }, [fillColor, fillOpacity, hoverFillOpacity, fillLayerId, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map])
 
   // Update selection filter
   useEffect(() => {

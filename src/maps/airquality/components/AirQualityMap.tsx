@@ -6,6 +6,7 @@ import {
   MarkerContent,
   useMap
 } from '@/components/ui/map'
+import { MapFillLayer } from '@/components/ui/map-layers'
 import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import bbox from '@turf/bbox'
@@ -20,8 +21,13 @@ import type {
   AirQualityBoundaryColorMetric,
   AirQualityCorrectionModel
 } from '../types'
-import type maplibregl from 'maplibre-gl'
 import { hexToRgba } from '@/lib/color'
+
+/** Stable empty collection so MapFillLayer does not resubmit a new object each render. */
+const EMPTY_BOUNDARY_COLLECTION: GeoJSON.FeatureCollection<
+  GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  { code: string; name: string; colorValue?: number | null; hasColorValue?: boolean }
+> = { type: 'FeatureCollection', features: [] }
 
 interface AirQualityMapProps {
   monitors: AirMonitor[]
@@ -172,170 +178,40 @@ function BoundaryBrowseLayer({
   maxColorValue: number
   onBoundaryClick?: (feature: { code: string; name: string }) => void
 }) {
-  const { map, isLoaded } = useMap()
-  const sourceId = 'airq-browse-boundary-source'
-  const fillLayerId = 'airq-browse-boundary-fill'
-  const lineLayerId = 'airq-browse-boundary-line'
+  const collection = features ?? EMPTY_BOUNDARY_COLLECTION
+  const hasFeatures = collection.features.length > 0
 
-  useEffect(() => {
-    if (!isLoaded || !map) return
+  const maxStop = maxColorValue > 0 ? maxColorValue : 1
+  const colorStops = colorMetric === 'correctedPm25' || colorMetric === 'rawPm25'
+    ? ['#dcfce7', '#fde047', '#fb923c', '#b91c1c']
+    : ['#e0f2fe', '#7dd3fc', '#0ea5e9', '#0369a1']
 
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: []
-        }
-      } as never)
-    }
-
-    if (!map.getLayer(fillLayerId)) {
-      map.addLayer({
-        id: fillLayerId,
-        type: 'fill',
-        source: sourceId,
-        paint: {
-          'fill-color': '#0ea5e9',
-          'fill-opacity': 0.1
-        },
-        layout: {
-          visibility: 'none'
-        }
-      } as never)
-    }
-
-    if (!map.getLayer(lineLayerId)) {
-      map.addLayer({
-        id: lineLayerId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#0284c7',
-          'line-width': 1.2,
-          'line-opacity': 0.9
-        },
-        layout: {
-          visibility: 'none'
-        }
-      } as never)
-    }
-
-    const handleClick = (event: maplibregl.MapLayerMouseEvent) => {
-      const firstFeature = event.features?.[0]
-      const properties = (firstFeature?.properties ?? {}) as Record<string, unknown>
-      const code = String(properties.code ?? '').trim()
-      if (!code) return
-      event.preventDefault()
-      event.originalEvent.preventDefault()
-      const name = String(properties.name ?? code)
-      onBoundaryClick?.({ code, name })
-    }
-
-    const handleMouseEnter = () => {
-      map.getCanvas().style.cursor = 'pointer'
-    }
-
-    const handleMouseLeave = () => {
-      map.getCanvas().style.cursor = ''
-    }
-
-    map.on('click', fillLayerId, handleClick)
-    map.on('mouseenter', fillLayerId, handleMouseEnter)
-    map.on('mouseleave', fillLayerId, handleMouseLeave)
-
-    return () => {
-      try {
-        if (!map || !map.getStyle()) return
-        map.getCanvas().style.cursor = ''
-        map.off('click', fillLayerId, handleClick)
-        map.off('mouseenter', fillLayerId, handleMouseEnter)
-        map.off('mouseleave', fillLayerId, handleMouseLeave)
-        if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
-        if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
-        if (map.getSource(sourceId)) map.removeSource(sourceId)
-      } catch {
-        // Map already destroyed during unmount.
-      }
-    }
-  }, [fillLayerId, isLoaded, lineLayerId, map, onBoundaryClick, sourceId])
-
-  useEffect(() => {
-    if (!isLoaded || !map) return
-
-    const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
-    source?.setData(features ?? {
-      type: 'FeatureCollection',
-      features: []
-    })
-
-    const hasFeatures = Boolean(features && features.features.length > 0)
-    const layerVisibility = visible && hasFeatures ? 'visible' : 'none'
-
-    const maxStop = maxColorValue > 0 ? maxColorValue : 1
-    const lowStop = maxStop * 0.25
-    const midStop = maxStop * 0.6
-    const colorStops = colorMetric === 'correctedPm25' || colorMetric === 'rawPm25'
-      ? ['#dcfce7', '#fde047', '#fb923c', '#b91c1c']
-      : ['#e0f2fe', '#7dd3fc', '#0ea5e9', '#0369a1']
-
-    if (map.getLayer(fillLayerId)) {
-      map.setLayoutProperty(fillLayerId, 'visibility', layerVisibility)
-      map.setPaintProperty(
-        fillLayerId,
-        'fill-color',
-        [
-          'interpolate',
-          ['linear'],
-          ['to-number', ['get', 'colorValue'], 0],
-          0,
-          colorStops[0],
-          lowStop,
-          colorStops[1],
-          midStop,
-          colorStops[2],
-          maxStop,
-          colorStops[3]
-        ] as never
-      )
-      map.setPaintProperty(
-        fillLayerId,
-        'fill-opacity',
-        [
-          'case',
-          ['==', ['get', 'hasColorValue'], true],
-          0.26,
-          0.1
-        ] as never
-      )
-    }
-
-    if (map.getLayer(lineLayerId)) {
-      map.setLayoutProperty(lineLayerId, 'visibility', layerVisibility)
-      map.setPaintProperty(
-        lineLayerId,
-        'line-color',
-        [
-          'case',
-          ['==', ['to-string', ['get', 'code']], selectedCode ?? '__none__'],
-          '#ea580c',
-          '#0284c7'
-        ] as never
-      )
-      map.setPaintProperty(
-        lineLayerId,
-        'line-width',
-        [
-          'case',
-          ['==', ['to-string', ['get', 'code']], selectedCode ?? '__none__'],
-          2.2,
-          1.1
-        ] as never
-      )
-    }
-  }, [colorMetric, features, fillLayerId, isLoaded, lineLayerId, map, maxColorValue, selectedCode, sourceId, visible])
-
-  return null
+  return (
+    <MapFillLayer
+      data={collection}
+      idProperty="code"
+      visible={visible && hasFeatures}
+      fillColor={[
+        'interpolate',
+        ['linear'],
+        ['to-number', ['get', 'colorValue'], 0],
+        0, colorStops[0],
+        maxStop * 0.25, colorStops[1],
+        maxStop * 0.6, colorStops[2],
+        maxStop, colorStops[3],
+      ]}
+      fillOpacity={['case', ['==', ['get', 'hasColorValue'], true], 0.26, 0.1]}
+      lineColor="#0284c7"
+      lineWidth={1.1}
+      lineOpacity={0.9}
+      selectedId={selectedCode ?? null}
+      selectionColor="#ea580c"
+      selectionWidth={2.2}
+      onFeatureClick={(code, _event, properties) => {
+        onBoundaryClick?.({ code, name: String(properties.name ?? code) })
+      }}
+    />
+  )
 }
 
 export function AirQualityMap({
