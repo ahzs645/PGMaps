@@ -1,3 +1,5 @@
+import { hexToRgb, rgbToHex } from './color'
+
 /**
  * Ordered numeric bands — the shape shared by every scale on the site that maps
  * a measurement onto a laballed, coloured step: AQHI+ levels, walkability
@@ -66,6 +68,55 @@ export function valueBandRampColors(bands: readonly ValueBand[]): string[] {
 /** Colours keyed by band id, for raster painters that index by stored value. */
 export function valueBandColorsById(bands: readonly ValueBand[]): Record<string, string> {
   return Object.fromEntries(bands.map((band) => [String(band.id), band.color]))
+}
+
+// ---------------------------------------------------------------------------
+// Colour-stop ramps
+// ---------------------------------------------------------------------------
+// Bands above describe labelled ranges a value falls *into*. A ramp instead
+// describes colours a value is measured *against*, and can be read either as
+// discrete steps or blended between neighbours. Choropleths over continuous
+// quantities (assessed value, year built) want the ramp; scales with published
+// levels (AQHI+, Mobility Index) want the bands.
+
+/** `[threshold, colour]` pairs in ascending order. Each threshold is the range's *upper* bound. */
+export type ColorStops = readonly (readonly [number, string])[]
+
+/** Index of the first stop at or above `value`, or -1 when it exceeds every stop. */
+function findStopIndex(stops: ColorStops, value: number): number {
+  return stops.findIndex(([threshold]) => value <= threshold)
+}
+
+/** The colour of the range `value` falls in, as a hard step. Clamps to the end stops. */
+export function stopColor(stops: ColorStops, value: number): string {
+  if (!stops.length) return '#000000'
+  const index = findStopIndex(stops, value)
+  return index === -1 ? stops[stops.length - 1][1] : stops[index][1]
+}
+
+/**
+ * Like {@link stopColor} but blended between the two stops bracketing `value`,
+ * for a continuous ramp rather than visible banding. Clamps to the end stops.
+ */
+export function interpolateStopColor(stops: ColorStops, value: number): string {
+  if (!stops.length) return '#000000'
+  const index = findStopIndex(stops, value)
+  if (index === -1) return stops[stops.length - 1][1]
+  if (index === 0) return stops[0][1]
+
+  const [lowerValue, lowerColor] = stops[index - 1]
+  const [upperValue, upperColor] = stops[index]
+  // Guard against duplicate thresholds, which would divide by zero.
+  const span = upperValue - lowerValue || 1
+  const ratio = Math.min(1, Math.max(0, (value - lowerValue) / span))
+
+  const lower = hexToRgb(lowerColor)
+  const upper = hexToRgb(upperColor)
+  return rgbToHex([
+    lower[0] + (upper[0] - lower[0]) * ratio,
+    lower[1] + (upper[1] - lower[1]) * ratio,
+    lower[2] + (upper[2] - lower[2]) * ratio,
+  ])
 }
 
 function readText(raw: unknown): string | null {

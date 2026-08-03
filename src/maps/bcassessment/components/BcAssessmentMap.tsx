@@ -2,14 +2,12 @@ import { useEffect, useMemo, useRef } from 'react'
 import { formatCompactCurrency } from '@/lib/format'
 import {
   Map as PgMap,
-  MapControls,
   type MapRef,
 } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
+import { interpolateStopColor, stopColor } from '@/lib/valueBands'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import {
-  getValueColor,
-  getInterpolatedValueColor,
   VALUE_STOPS,
   YEAR_STOPS,
 } from '../constants'
@@ -75,14 +73,14 @@ export function BcAssessmentMap({
   const showBoundaries = !!boundaryData && boundaryAggregates.size > 0
 
   const geojson = useMemo<GeoJSON.FeatureCollection>(() => {
-    const getColor = colorScaleMode === 'continuous' ? getInterpolatedValueColor : getValueColor
+    const getColor = colorScaleMode === 'continuous' ? interpolateStopColor : stopColor
     const features = properties.map((prop, idx) => {
       let color: string
       if (colorMetric === 'yearBuilt') {
-        color = prop.yearBuilt ? getColor(prop.yearBuilt, YEAR_STOPS) : '#d4d4d4'
+        color = prop.yearBuilt ? getColor(YEAR_STOPS, prop.yearBuilt) : '#d4d4d4'
       } else {
         const value = prop[colorMetric]
-        color = typeof value === 'number' ? getColor(value, VALUE_STOPS) : '#d4d4d4'
+        color = typeof value === 'number' ? getColor(VALUE_STOPS, value) : '#d4d4d4'
       }
 
       return {
@@ -114,7 +112,7 @@ export function BcAssessmentMap({
     if (!boundaryData || boundaryAggregates.size === 0) return EMPTY_FC
 
     const stops = colorMetric === 'yearBuilt' ? YEAR_STOPS : VALUE_STOPS
-    const getColor = colorScaleMode === 'continuous' ? getInterpolatedValueColor : getValueColor
+    const getColor = colorScaleMode === 'continuous' ? interpolateStopColor : stopColor
     const features = boundaryData.features.map((feat, idx) => {
       const bid = String(feat.properties?.id ?? '')
       const agg = boundaryAggregates.get(bid)
@@ -124,7 +122,7 @@ export function BcAssessmentMap({
       if (agg) {
         const val = getAggregateValue(agg, colorMetric)
         if (val != null) {
-          color = getColor(val, stops)
+          color = getColor(stops, val)
           label = colorMetric === 'yearBuilt' ? String(val) : formatCompactCurrency(val)
         }
       }
@@ -173,12 +171,6 @@ export function BcAssessmentMap({
         zoom={ZOOM}
                loading={loading}
       >
-        <MapControls
-          position="top-right"
-          mobilePosition="bottom-right"
-          showZoom
-          showCompass
-        />
 
         {/* Property parcels — hidden when boundary overlay is active */}
         <MapFillLayer

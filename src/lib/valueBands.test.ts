@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   findValueBand,
+  interpolateStopColor,
+  stopColor,
   mergeValueBandMetadata,
   valueBandColorsById,
   valueBandLegendItems,
@@ -100,5 +102,61 @@ describe('mergeValueBandMetadata', () => {
   it('leaves the source bands untouched', () => {
     mergeValueBandMetadata(BANDS, { colors: { 1: '#ffffff' } })
     expect(BANDS[0].color).toBe('#111111')
+  })
+})
+
+describe('stopColor', () => {
+  // Thresholds are upper bounds, matching bcassessment's assessed-value ramp.
+  const stops = [
+    [0, '#000000'],
+    [100, '#808080'],
+    [200, '#ffffff'],
+  ] as const
+
+  it('returns the first stop at or above the value', () => {
+    expect(stopColor(stops, 0)).toBe('#000000')
+    expect(stopColor(stops, 1)).toBe('#808080')
+    expect(stopColor(stops, 100)).toBe('#808080')
+    expect(stopColor(stops, 101)).toBe('#ffffff')
+  })
+
+  it('clamps below the first stop and above the last', () => {
+    expect(stopColor(stops, -50)).toBe('#000000')
+    expect(stopColor(stops, 9999)).toBe('#ffffff')
+  })
+
+  it('does not throw on an empty ramp', () => {
+    expect(stopColor([], 5)).toBe('#000000')
+  })
+})
+
+describe('interpolateStopColor', () => {
+  const stops = [
+    [0, '#000000'],
+    [100, '#ffffff'],
+  ] as const
+
+  it('blends between the bracketing stops', () => {
+    expect(interpolateStopColor(stops, 50)).toBe('#808080')
+    expect(interpolateStopColor(stops, 25)).toBe('#404040')
+  })
+
+  it('returns the exact stop colour at a threshold', () => {
+    expect(interpolateStopColor(stops, 0)).toBe('#000000')
+    expect(interpolateStopColor(stops, 100)).toBe('#ffffff')
+  })
+
+  it('clamps outside the ramp', () => {
+    expect(interpolateStopColor(stops, -10)).toBe('#000000')
+    expect(interpolateStopColor(stops, 500)).toBe('#ffffff')
+  })
+
+  it('survives duplicate thresholds instead of dividing by zero', () => {
+    const duplicated = [[0, '#000000'], [10, '#ff0000'], [10, '#00ff00']] as const
+    expect(interpolateStopColor(duplicated, 10)).toBe('#ff0000')
+  })
+
+  it('does not throw on an empty ramp', () => {
+    expect(interpolateStopColor([], 5)).toBe('#000000')
   })
 })
