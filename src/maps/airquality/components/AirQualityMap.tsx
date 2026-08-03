@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   MapClusterLayer,
   MapMarker,
@@ -7,11 +8,10 @@ import {
   useMap
 } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import bbox from '@turf/bbox'
 import { MAP_STYLES } from '@/components/ui/map-styles'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { getNetworkColor } from '../constants'
 import { calculateCorrectedPm25, formatMeasurement, formatPm25 } from '../lib/corrections'
 import { AirQualityHeatmapLayer } from './AirQualityHeatmapLayer'
@@ -234,7 +234,7 @@ export function AirQualityMap({
   onMonitorClear
 }: AirQualityMapProps) {
   const { map } = useMap()
-  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const isMobileViewport = useIsMobile()
 
   const monitorById = useMemo(() => {
     const map = new globalThis.Map<string, AirMonitor>()

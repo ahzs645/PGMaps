@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { toggleArrayItem } from '@/hooks/useToggleArray'
 import { ParksMap } from './components/ParksMap'
 import { ParksSidebar } from './components/ParksSidebar'
@@ -22,7 +22,7 @@ const ALL_TRAIL_TYPES: TrailUserClass[] = ['Walking', 'Multiuse', 'Equine']
 
 export default function ParksSection() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const isMobileViewport = useIsMobile()
   const [activeLayers, setActiveLayers] = useState<ActiveLayer[]>(() => {
     const layers = (searchParams.get('layers') || '').split(',').filter(Boolean) as ActiveLayer[]
     return layers.length ? layers : ['parks', 'trails']

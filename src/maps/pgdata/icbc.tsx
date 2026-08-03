@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { useTimelineState } from '@/hooks/useTimelineState'
 import { ShieldAlert, X } from 'lucide-react'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
@@ -147,9 +148,12 @@ export function useIcbcData(
   const [showPoints, setShowPoints] = useState<boolean>(initialShowPoints === '1')
   const [showHeatmap, setShowHeatmap] = useState<boolean>(initialShowHeatmap !== '0')
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
-  const [timelineEnabled, setTimelineEnabled] = useState(false)
-  const [timelineDate, setTimelineDate] = useState<Date | null>(null)
-  const [timelineWindowSize, setTimelineWindowSize] = useState(1)
+  const {
+    timelineEnabled, setTimelineEnabled,
+    timelineDate, setTimelineDate,
+    timelineWindowSize, setTimelineWindowSize,
+  disableTimeline,
+  } = useTimelineState(1)
   const manifest = useJsonManifest<IcbcManifest>(active ? '/data/icbc/manifest.json' : null)
   const datasets = useMemo(() => manifest.data?.datasets ?? [], [manifest.data])
   const selectedDataset = useMemo(() => {
@@ -261,10 +265,6 @@ export function useIcbcData(
     })),
   }), [crashFeatures])
 
-  const handleTimelineDisable = useCallback(() => {
-    setTimelineEnabled(false)
-    setTimelineDate(null)
-  }, [])
 
   return {
     manifest,
@@ -293,7 +293,7 @@ export function useIcbcData(
     setTimelineWindowSize,
     crashDateRange,
     yearCounts,
-    handleTimelineDisable,
+    disableTimeline,
   }
 }
 

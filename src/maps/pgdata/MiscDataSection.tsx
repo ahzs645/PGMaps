@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSearchParams } from 'react-router-dom'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
@@ -6,7 +7,7 @@ import { Layers, Satellite, Trees } from 'lucide-react'
 import { Map as PgMap, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { SectionTabsBar } from '@/components/layout/SectionTabsBar'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
@@ -51,7 +52,6 @@ import {
   renderCanueDisplayLabel,
   type MiscLayerId,
 } from './canueCore'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import {
   WALKABILITY_DEFAULT_VARIANT,
   WALKABILITY_DEFAULT_DISPLAY_MODE,
@@ -302,7 +302,7 @@ function getEvStationsInRegion(features: EvChargingFeature[], region: StudyAreaR
 
 export default function MiscDataSection() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const isMobileViewport = useIsMobile()
   const activeTab = parseMiscDataTab(searchParams.get('tab'))
   const setActiveTab = useCallback(
     (tab: MiscDataTab) => {
@@ -1448,7 +1448,7 @@ export default function MiscDataSection() {
                 endDate={wars.accidentDateRange.end}
                 currentDate={wars.timelineDate}
                 onDateChange={wars.setTimelineDate}
-                onClose={wars.handleTimelineDisable}
+                onClose={wars.disableTimeline}
                 granularity="year"
                 bucketCounts={wars.bucketCounts}
                 compactBars
@@ -1468,7 +1468,7 @@ export default function MiscDataSection() {
                 endDate={openLitterMap.dateRange.end}
                 currentDate={openLitterMap.timelineDate}
                 onDateChange={openLitterMap.setTimelineDate}
-                onClose={openLitterMap.handleTimelineDisable}
+                onClose={openLitterMap.disableTimeline}
                 bucketCounts={openLitterMap.bucketCounts}
                 compactBars
                 overflowBuckets
@@ -1487,7 +1487,7 @@ export default function MiscDataSection() {
                 endDate={icbc.crashDateRange.end}
                 currentDate={icbc.timelineDate}
                 onDateChange={icbc.setTimelineDate}
-                onClose={icbc.handleTimelineDisable}
+                onClose={icbc.disableTimeline}
                 granularity="year"
                 bucketCounts={icbc.yearCounts}
                 compactBars
@@ -1507,7 +1507,7 @@ export default function MiscDataSection() {
                 endDate={water.sampleDateRange.end}
                 currentDate={water.timelineDate}
                 onDateChange={water.setTimelineDate}
-                onClose={water.handleTimelineDisable}
+                onClose={water.disableTimeline}
                 bucketCounts={water.bucketCounts}
                 compactBars
                 overflowBuckets

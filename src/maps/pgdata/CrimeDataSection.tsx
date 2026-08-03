@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { useTimelineState } from '@/hooks/useTimelineState'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -29,9 +30,12 @@ export default function CrimeDataSection() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '')
   const [showHeatmap, setShowHeatmap] = useState(() => searchParams.get('heatmap') === '1')
   const [selectedIncident, setSelectedIncident] = useState<CrimeIncident | null>(null)
-  const [timelineEnabled, setTimelineEnabled] = useState(false)
-  const [timelineDate, setTimelineDate] = useState<Date | null>(null)
-  const [timelineWindowSize, setTimelineWindowSize] = useState(1)
+  const {
+    timelineEnabled, setTimelineEnabled,
+    timelineDate, setTimelineDate,
+    timelineWindowSize, setTimelineWindowSize,
+  disableTimeline,
+  } = useTimelineState(1)
 
   const allYears = useMemo(() => {
     const years = new Set(incidents.map((inc) => inc.date.getFullYear()))
@@ -133,10 +137,6 @@ export default function CrimeDataSection() {
     })
   }, [allYears])
 
-  const handleTimelineDisable = useCallback(() => {
-    setTimelineEnabled(false)
-    setTimelineDate(null)
-  }, [])
 
   // A selection that filters drop out of view simply stops rendering; the
   // stored state is harmless and avoids an effect-driven clear.
@@ -215,7 +215,7 @@ export default function CrimeDataSection() {
             endDate={incidentDateRange.end}
             currentDate={effectiveTimelineDate}
             onDateChange={setTimelineDate}
-            onClose={handleTimelineDisable}
+            onClose={disableTimeline}
             windowMode={{
               size: timelineWindowSize,
               onSizeChange: setTimelineWindowSize,

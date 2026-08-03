@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   MapClusterLayer,
   MapMarker,
@@ -7,10 +8,9 @@ import {
   useMap,
 } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { MAP_STYLES } from '@/components/ui/map-styles'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { formatDate } from '@/lib/format'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
@@ -94,7 +94,7 @@ export function CrimeMap({
   loading = false,
 }: CrimeMapProps) {
   const { map } = useMap()
-  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const isMobileViewport = useIsMobile()
 
   const incidentById = useMemo(() => {
     const map = new Map<number, CrimeIncident>()

@@ -1,10 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { useTheme } from 'next-themes'
 import { AlertCircle, HeartPulse, Users } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Map as PgMap } from '@/components/ui/map'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useAirQualityData, type AirMonitor } from '@/maps/airquality'
 import { distanceKm, getAqhiCategory, getMonitorAqhiPm25, isFemMonitor } from '@/maps/airquality/lib/monitorPopup'
 import {
@@ -331,7 +331,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
   const isRing = variant === 'ring'
   const { resolvedTheme } = useTheme()
   const { monitors, loading, error } = useAirQualityData({ aqmapCompatible: true })
-  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const isMobileViewport = useIsMobile()
   const { layers: smokeLayers, error: smokeError } = useAqmapSmokeLayers()
   const initialUrlState = useMemo(
     () => parseAqmapHash(window.location.hash, new URLSearchParams(window.location.search)),

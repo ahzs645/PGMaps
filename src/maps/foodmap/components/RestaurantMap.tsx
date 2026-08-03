@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState, useCallback } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { useTheme } from 'next-themes'
 import {
   MapMarker,
@@ -8,9 +9,8 @@ import {
   useMap
 } from '@/components/ui/map'
 import { MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { getHazardRating, HAZARD_HEX_COLORS, HAZARD_TAILWIND } from '../hazard'
 import type { HazardRating, MarkerStyle, RestaurantWithStats, VisualizationMode } from '../types'
@@ -256,7 +256,7 @@ export function RestaurantMap({
   onClearSelection
 }: RestaurantMapProps) {
   const { map } = useMap()
-  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const isMobileViewport = useIsMobile()
 
   // Filter to only restaurants with valid coordinates
   const geocodedRestaurants = useMemo(() => {

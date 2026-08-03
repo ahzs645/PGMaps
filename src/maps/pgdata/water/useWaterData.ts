@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { useTimelineState } from '@/hooks/useTimelineState'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 import { useJsonManifest } from '../shared'
@@ -71,9 +72,12 @@ export function useWaterData(active: boolean) {
     setSelectedFacilityIdState(facilityId)
     if (!facilityId) setShowSelectedFacilityReport(false)
   }, [])
-  const [timelineEnabled, setTimelineEnabled] = useState(false)
-  const [timelineDate, setTimelineDate] = useState<Date | null>(null)
-  const [timelineWindowSize, setTimelineWindowSize] = useState(12)
+  const {
+    timelineEnabled, setTimelineEnabled,
+    timelineDate, setTimelineDate,
+    timelineWindowSize, setTimelineWindowSize,
+  disableTimeline,
+  } = useTimelineState(12)
 
   const manifest = useWaterJson<WaterManifest>(active, 'water_download_manifest.json')
   const facilitiesJson = useWaterJson<unknown>(active, 'drinking_water_facilities.json')
@@ -568,10 +572,6 @@ export function useWaterData(active: boolean) {
     setSelectedBoundaryId(null)
   }, [])
 
-  const handleTimelineDisable = useCallback(() => {
-    setTimelineEnabled(false)
-    setTimelineDate(null)
-  }, [])
 
   const toggleHazardRating = useCallback((rating: string) => {
     const current = selectedHazardRatings ?? hazardOptions
@@ -656,7 +656,7 @@ export function useWaterData(active: boolean) {
     setTimelineDate,
     timelineWindowSize,
     setTimelineWindowSize,
-    handleTimelineDisable,
+    disableTimeline,
     heatmapData,
     facilityPointData,
     boundaries,

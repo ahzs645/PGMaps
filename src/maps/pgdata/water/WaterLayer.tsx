@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import type MapLibreGL from 'maplibre-gl'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY } from '@/components/ui/mobile-feature-card'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { WATER_HAZARD_DOT_COLORS, WATER_POINT_COLORS } from './constants'
 import { hexToRgba } from '@/lib/color'
 import { getWaterPointCategory } from './utils'
@@ -18,7 +17,7 @@ function getLayerPointCategory(water: WaterState): WaterPointCategory {
 }
 
 export function WaterLayer({ water }: { water: WaterState }) {
-  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const isMobileViewport = useIsMobile()
   const activePointCategory = getLayerPointCategory(water)
   const pointCollections = useMemo(() => (
     [activePointCategory]

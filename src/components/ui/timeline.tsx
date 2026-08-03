@@ -1,8 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { ChevronLeft, ChevronRight, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY } from '@/components/ui/mobile-feature-card'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { calculatePercentageChange, formatPercentChange, type PercentageChangeResult } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
 
@@ -211,7 +210,7 @@ export function Timeline({
   percentChangeMode,
   minLabelPx,
 }: TimelineProps) {
-  const isMobile = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const isMobile = useIsMobile()
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(1000)
   const [barViewportWidth, setBarViewportWidth] = useState(0)

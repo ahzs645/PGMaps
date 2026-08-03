@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTimelineState } from '@/hooks/useTimelineState'
 import { LoaderCircle, PawPrint } from 'lucide-react'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
@@ -241,9 +242,12 @@ export function useWarsData(
   const [selectedMonths, setSelectedMonths] = useState<number[]>([])
   const [yearMode, setYearModeState] = useState<string>(ALL_YEARS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [timelineEnabled, setTimelineEnabled] = useState(false)
-  const [timelineDate, setTimelineDate] = useState<Date | null>(null)
-  const [timelineWindowSize, setTimelineWindowSize] = useState(1)
+  const {
+    timelineEnabled, setTimelineEnabled,
+    timelineDate, setTimelineDate,
+    timelineWindowSize, setTimelineWindowSize,
+  disableTimeline,
+  } = useTimelineState(1)
   const winterRangeMode = parseWinterRangeMode(initialWinterRangeMode)
   const [winterRangeSelection, setWinterRangeSelection] = useState<{
     mode: WarsWinterRangeMode
@@ -428,10 +432,6 @@ export function useWarsData(
     })
   }, [features, recentYearStart, selectedMonths, timelineFilterRange, yearMode])
 
-  const handleTimelineDisable = useCallback(() => {
-    setTimelineEnabled(false)
-    setTimelineDate(null)
-  }, [])
 
   const toggleSpeciesVisibility = useCallback((species: string) => {
     setHiddenSpecies((current) => (
@@ -645,7 +645,7 @@ export function useWarsData(
     timelineWindowSize,
     setTimelineWindowSize,
     accidentDateRange,
-    handleTimelineDisable,
+    disableTimeline,
   }
 }
 

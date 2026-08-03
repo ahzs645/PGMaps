@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTimelineState } from '@/hooks/useTimelineState'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSearchParams } from 'react-router-dom'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { MOBILE_FEATURE_CARD_MEDIA_QUERY, MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Timeline } from '@/components/ui/timeline'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { formatDate } from '@/lib/format'
 import { DroughtMap } from './components/DroughtMap'
 import { DroughtSidebar } from './components/DroughtSidebar'
@@ -77,12 +78,14 @@ interface DroughtSectionProps {
 
 export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
   const [searchParams, setSearchParams] = useSearchParams()
-  const isMobileViewport = useMediaQuery(MOBILE_FEATURE_CARD_MEDIA_QUERY)
+  const isMobileViewport = useIsMobile()
   const initialYear = Number(searchParams.get(yearParam)) || DEFAULT_YEAR
   const [selectedYear, setSelectedYear] = useState(initialYear)
-  const [timelineEnabled, setTimelineEnabled] = useState(false)
-  const [timelineDate, setTimelineDate] = useState<Date | null>(null)
-  const [timelineWindowSize, setTimelineWindowSize] = useState(1)
+  const {
+    timelineEnabled, setTimelineEnabled,
+    timelineDate, setTimelineDate,
+    timelineWindowSize, setTimelineWindowSize,
+  } = useTimelineState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const { manifest, collection, records, yearInfo, loading, error } = useDroughtData(selectedYear)
 
@@ -173,7 +176,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
     setSelectedYear(year)
     setTimelineDate(null)
     setSelectedId(null)
-  }, [])
+  }, [setTimelineDate])
 
   const mobilePeek = (
     <div className="min-w-0 text-left">

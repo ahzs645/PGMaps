@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTimelineState } from '@/hooks/useTimelineState'
 import { Trash2 } from 'lucide-react'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
@@ -396,9 +397,12 @@ export function useOpenLitterMapData(
   const [showHeatmap, setShowHeatmap] = useState(initialShowHeatmap === '1')
   const [showHexes, setShowHexes] = useState(initialShowHexes === '1')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [timelineEnabled, setTimelineEnabled] = useState(false)
-  const [timelineDate, setTimelineDate] = useState<Date | null>(null)
-  const [timelineWindowSize, setTimelineWindowSize] = useState(3)
+  const {
+    timelineEnabled, setTimelineEnabled,
+    timelineDate, setTimelineDate,
+    timelineWindowSize, setTimelineWindowSize,
+  disableTimeline,
+  } = useTimelineState(3)
 
   const manifest = useJsonManifest<OpenLitterMapManifest>(active ? '/data/open-litter-map/manifest.json' : null)
   const points = useFetchData<OpenLitterPointCollection>(
@@ -557,10 +561,6 @@ export function useOpenLitterMapData(
     [filteredFeatures],
   )
 
-  const handleTimelineDisable = useCallback(() => {
-    setTimelineEnabled(false)
-    setTimelineDate(null)
-  }, [])
 
   return {
     manifest,
@@ -593,7 +593,7 @@ export function useOpenLitterMapData(
     timelineWindowSize,
     setTimelineWindowSize,
     dateRange,
-    handleTimelineDisable,
+    disableTimeline,
   }
 }
 
