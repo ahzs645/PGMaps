@@ -8,7 +8,7 @@ import { Map as PgMap, MapClusterLayer, MapControls, MapMarker, MapPopup, Marker
 import { MapFillLayer, MapHeatmapLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { SectionTabsBar } from '@/components/layout/SectionTabsBar'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
-import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { PG_CENTER } from '@/components/ui/map-styles'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import {
@@ -1215,7 +1215,7 @@ export default function MiscDataSection() {
           sidebar={sidebar}
         >
           <div className="relative h-full">
-            <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} styles={MAP_STYLES} loading={mapLoading}>
+            <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} loading={mapLoading}>
               <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
 
               <MapFillLayer

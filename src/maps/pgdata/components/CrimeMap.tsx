@@ -10,7 +10,6 @@ import {
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
-import { MAP_STYLES } from '@/components/ui/map-styles'
 import { formatDate } from '@/lib/format'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
@@ -139,7 +138,7 @@ export function CrimeMap({
 
   return (
     <div className="h-full w-full">
-      <SharedMap styles={MAP_STYLES} loading={loading} loadingLabel="Loading crime map data">
+      <SharedMap loading={loading} loadingLabel="Loading crime map data">
         {/* Crime cluster layers */}
         {showCrimeLayer && !showHeatmap &&
           collectionsByCategory.map(([category, collection]) => {

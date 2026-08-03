@@ -6,7 +6,7 @@ import {
   type MapRef,
 } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
-import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
+import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import {
   getValueColor,
   getInterpolatedValueColor,
@@ -171,8 +171,7 @@ export function BcAssessmentMap({
         ref={mapRef}
         center={PG_CENTER}
         zoom={ZOOM}
-        styles={MAP_STYLES}
-        loading={loading}
+               loading={loading}
       >
         <MapControls
           position="top-right"

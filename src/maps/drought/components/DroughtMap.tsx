@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Map as PgMap, MapControls, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
-import { MAP_STYLES } from '@/components/ui/map-styles'
 import { isMobileViewport } from '@/hooks/useIsMobile'
 import { DROUGHT_BC_CENTER } from '../constants'
 import type { DroughtFeatureCollection } from '../types'
@@ -49,7 +48,7 @@ export function DroughtMap({ data, selectedId, onFeatureClick, loading = false }
   }), [data])
 
   return (
-    <PgMap ref={mapRef} center={DROUGHT_BC_CENTER} zoom={4.3} styles={MAP_STYLES} loading={loading}>
+    <PgMap ref={mapRef} center={DROUGHT_BC_CENTER} zoom={4.3} loading={loading}>
       <MapControls position="top-right" mobilePosition="bottom-right" showZoom showCompass />
       <MapFillLayer
         data={mapData}

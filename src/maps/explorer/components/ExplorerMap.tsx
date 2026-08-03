@@ -8,7 +8,7 @@ import {
   type MapRef
 } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
-import { MAP_STYLES, PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
+import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
 import type {
   ExplorerItem,
@@ -153,7 +153,7 @@ export function ExplorerMap({
 
   return (
     <div className="h-full w-full relative">
-      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} styles={MAP_STYLES} loading={loading}>
+      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} loading={loading}>
         <MapControls
           position="top-right"
           mobilePosition="bottom-right"

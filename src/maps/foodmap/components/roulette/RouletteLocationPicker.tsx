@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react'
 import { Map, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
-import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { PG_CENTER } from '@/components/ui/map-styles'
 // @ts-expect-error - turf types issue with package exports
 import * as turf from '@turf/turf'
 import type maplibregl from 'maplibre-gl'
@@ -31,8 +31,7 @@ export function RouletteLocationPicker({
       <Map
         center={sourceLocation ? [sourceLocation.lng, sourceLocation.lat] : PG_CENTER}
         zoom={sourceLocation ? 12 : ZOOM}
-        styles={MAP_STYLES}
-      >
+             >
         <MapClickHandler onMapClick={handleMapClick} />
         <RadiusCircle sourceLocation={sourceLocation} maxDistance={maxDistance} />
 

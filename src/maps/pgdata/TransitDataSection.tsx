@@ -6,7 +6,7 @@ import { SharedMap } from '@/components/ui/persistent-map'
 import { LegendItem, MapLegendPanel, MapLegendSection, StatTile } from '@/components/ui/map-panels'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
-import { MAP_STYLES, PG_CENTER } from '@/components/ui/map-styles'
+import { PG_CENTER } from '@/components/ui/map-styles'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { distanceKm } from '@/lib/geo'
@@ -423,8 +423,7 @@ export default function TransitDataSection() {
     >
       <div className="relative h-full">
         <SharedMap
-          styles={MAP_STYLES}
-          loading={stopsLoading || routesLoading}
+                   loading={stopsLoading || routesLoading}
           loadingLabel="Loading transit data"
         >
           {visibleRouteInputs && (

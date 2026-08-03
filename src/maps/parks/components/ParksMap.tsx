@@ -8,7 +8,6 @@ import {
 } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { SharedMap } from '@/components/ui/persistent-map'
-import { MAP_STYLES } from '@/components/ui/map-styles'
 import { getClassificationColor, getTrailColor } from '../constants'
 import type { Park, Trail, ParkAmenity, ActiveLayer, CityPgOverlayData } from '../types'
 
@@ -152,7 +151,7 @@ export function ParksMap({
 
   return (
     <div className="h-full w-full">
-      <SharedMap styles={MAP_STYLES} loading={loading} loadingLabel="Loading parks and trails data">
+      <SharedMap loading={loading} loadingLabel="Loading parks and trails data">
         <MapFillLayer
           data={parkGeojson}
           fillColor={['get', 'color']}
