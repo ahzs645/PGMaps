@@ -335,12 +335,12 @@ export function MetricPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent elevated className="max-h-[86vh] overflow-hidden p-0 sm:max-w-2xl">
-        <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
+      <DialogContent variant="sheet" elevated className="sm:max-h-[86vh] sm:max-w-2xl">
+        <DialogHeader className="shrink-0 border-b border-border px-6 pb-4 pt-6">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 overflow-y-auto px-6 pb-6 pt-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 sm:pb-6">
           <MetricSearchInput value={query} onChange={setQuery} className="[&_input]:h-10 [&_input]:text-sm" />
           <MetricLibraryRows
             metrics={metrics}

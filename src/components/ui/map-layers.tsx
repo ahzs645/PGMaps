@@ -1202,7 +1202,11 @@ function MapPieClusterLayer({
         if (!markersOnScreen[id]) marker.addTo(currentMap)
       }
       for (const id of Object.keys(markersOnScreen)) {
-        if (!newMarkers[id]) markersOnScreen[id].remove()
+        if (newMarkers[id]) continue
+        markersOnScreen[id].remove()
+        // Re-clustering mints fresh cluster ids, so the cache would otherwise
+        // accumulate a full set of orphaned donut elements per data update.
+        delete markers[id]
       }
       markersOnScreen = newMarkers
     }
@@ -1215,7 +1219,12 @@ function MapPieClusterLayer({
     if (!currentMap.getSource(sourceId)) {
       currentMap.addSource(sourceId, {
         type: 'geojson',
-        data,
+        // Start empty and let the data effect below submit the real collection.
+        // Keeping `data` out of this effect's dependencies is the point: it used
+        // to tear down the source, the layer, and every donut on screen on each
+        // new collection, which read as the whole layer blinking out whenever a
+        // timeline scrub produced a new set.
+        data: { type: 'FeatureCollection', features: [] },
         cluster: true,
         clusterMaxZoom,
         clusterRadius,
@@ -1262,7 +1271,16 @@ function MapPieClusterLayer({
         // MapLibre can throw during style teardown.
       }
     }
-  }, [isLoaded, map, data, bandColors, clusterMaxZoom, clusterRadius, showCount, centerStyle, pointStrokeColor, expandOverlappingPoints, sourceId, pointLayerId])
+  }, [isLoaded, map, bandColors, clusterMaxZoom, clusterRadius, showCount, centerStyle, pointStrokeColor, expandOverlappingPoints, sourceId, pointLayerId])
+
+  // Update source data in place. MapLibre re-clusters in a worker, and the render
+  // handler above leaves the existing donuts alone until the source reports loaded
+  // again — so the previous clustering stays painted until the new one is ready.
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    const source = map.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
+    source?.setData(data)
+  }, [data, isLoaded, map, sourceId])
 
   return null
 }

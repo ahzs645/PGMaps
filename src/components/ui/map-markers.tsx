@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -185,13 +186,15 @@ type MarkerContentProps = {
   children?: ReactNode;
   /** Additional CSS classes for the marker container */
   className?: string;
+  /** Inline styles for the marker container, for values Tailwind cannot express statically */
+  style?: CSSProperties;
 };
 
-function MarkerContent({ children, className }: MarkerContentProps) {
+function MarkerContent({ children, className, style }: MarkerContentProps) {
   const { marker } = useMarkerContext();
 
   return createPortal(
-    <div className={cn("relative cursor-pointer", className)}>
+    <div className={cn("relative cursor-pointer", className)} style={style}>
       {children || <DefaultMarkerIcon />}
     </div>,
     marker.getElement()

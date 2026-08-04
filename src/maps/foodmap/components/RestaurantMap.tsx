@@ -14,6 +14,8 @@ import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { cn } from '@/lib/utils'
 import { getHazardRating, HAZARD_HEX_COLORS, HAZARD_TAILWIND } from '../hazard'
+import { MARKER_FADE_MS, useLingeringMarkers } from '../hooks/useLingeringMarkers'
+import type { LingerPhase } from '../lingering'
 import type { HazardRating, MarkerStyle, RestaurantWithStats, VisualizationMode } from '../types'
 
 interface RestaurantMapProps {
@@ -84,6 +86,14 @@ interface MarkerDotProps {
 const SELECTED_RING_CLASS =
   'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-sky-300 dark:ring-offset-slate-950'
 
+/**
+ * A marker that stays on the map through a timeline step usually changes colour and
+ * size rather than position, so morph those instead of snapping between them. Also
+ * covers the hover scale that used to be the only animated property.
+ */
+const MARKER_MORPH_CLASS =
+  'transition-[transform,background-color,border-color,color,width,height] duration-200'
+
 /** Zoom level at which the 'heat' style trades the heatmap for individual dots. */
 const HEAT_REVEAL_ZOOM = 13
 
@@ -138,7 +148,8 @@ function MarkerDot({
     return (
       <div
         className={cn(
-          'cursor-pointer rounded-full transition-transform hover:scale-110',
+          'cursor-pointer rounded-full hover:scale-110',
+          MARKER_MORPH_CLASS,
           'shadow-[0_1px_4px_rgba(0,0,0,0.35)] dark:shadow-[0_0_0_1px_rgba(0,0,0,0.6),0_1px_5px_rgba(0,0,0,0.6)]',
           isSelected && SELECTED_RING_CLASS
         )}
@@ -157,7 +168,8 @@ function MarkerDot({
       return (
         <div
           className={cn(
-            'cursor-pointer rounded-full transition-transform hover:scale-125',
+            'cursor-pointer rounded-full hover:scale-125',
+            MARKER_MORPH_CLASS,
             isSelected && SELECTED_RING_CLASS
           )}
           style={{ width: 7, height: 7, backgroundColor: color, opacity: 0.55 }}
@@ -176,7 +188,8 @@ function MarkerDot({
         )}
         <div
           className={cn(
-            'absolute inset-0 cursor-pointer rounded-full border border-white/90 transition-transform hover:scale-110 dark:border-black/60',
+            'absolute inset-0 cursor-pointer rounded-full border border-white/90 hover:scale-110 dark:border-black/60',
+            MARKER_MORPH_CLASS,
             isSelected && SELECTED_RING_CLASS
           )}
           style={{
@@ -193,7 +206,8 @@ function MarkerDot({
       return (
         <div
           className={cn(
-            'cursor-pointer rounded-full border border-white/80 shadow-sm transition-transform hover:scale-125 dark:border-black/50',
+            'cursor-pointer rounded-full border border-white/80 shadow-sm hover:scale-125 dark:border-black/50',
+            MARKER_MORPH_CLASS,
             isSelected && SELECTED_RING_CLASS
           )}
           style={{ width: 8, height: 8, backgroundColor: color, opacity: 0.8 }}
@@ -209,7 +223,8 @@ function MarkerDot({
     return (
       <div
         className={cn(
-          'relative flex cursor-pointer items-center justify-center rounded-full border-2 border-white font-bold leading-none shadow-md transition-transform hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_6px_rgba(0,0,0,0.8)]',
+          'relative flex cursor-pointer items-center justify-center rounded-full border-2 border-white font-bold leading-none shadow-md hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_6px_rgba(0,0,0,0.8)]',
+          MARKER_MORPH_CLASS,
           isSelected && SELECTED_RING_CLASS
         )}
         style={{
@@ -234,7 +249,8 @@ function MarkerDot({
   return (
     <div
       className={cn(
-        'cursor-pointer rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.95),0_8px_18px_rgba(0,0,0,0.6),0_0_12px_rgba(255,255,255,0.35)]',
+        'cursor-pointer rounded-full border-2 border-white shadow-lg hover:scale-110 dark:border-slate-950 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.95),0_8px_18px_rgba(0,0,0,0.6),0_0_12px_rgba(255,255,255,0.35)]',
+        MARKER_MORPH_CLASS,
         isSelected && SELECTED_RING_CLASS
       )}
       style={{
@@ -324,6 +340,11 @@ export function RestaurantMap({
 
   const showMarkers = !isRevealStyle || dotsRevealed
 
+  // A timeline scrub recomputes violation counts inside a rolling window, so
+  // restaurants drop out of the filtered set and come back a step later. Render
+  // the union so those markers are held rather than unmounted and remounted.
+  const lingeringMarkers = useLingeringMarkers(geocodedRestaurants)
+
   useFlyToSelection(
     selectedRestaurant?.latitude != null && selectedRestaurant?.longitude != null
       ? { longitude: selectedRestaurant.longitude, latitude: selectedRestaurant.latitude }
@@ -352,10 +373,11 @@ export function RestaurantMap({
           opacity={[[0, 0.85], [HEAT_REVEAL_ZOOM - 1, 0.7], [HEAT_REVEAL_ZOOM + 0.8, 0]]}
         />
       )}
-      {showMarkers && geocodedRestaurants.map(restaurant => (
+      {showMarkers && lingeringMarkers.map(({ key, item: restaurant, phase }) => (
         <RestaurantMarker
-          key={restaurant.details_url}
+          key={key}
           restaurant={restaurant}
+          phase={phase}
           visualizationMode={visualizationMode}
           markerStyle={markerStyle}
           isSelected={selectedRestaurant?.details_url === restaurant.details_url}
@@ -382,6 +404,8 @@ export function RestaurantMap({
 
 interface RestaurantMarkerProps {
   restaurant: RestaurantWithStats
+  /** 'leaving' markers fade out and stop taking clicks; the rest render normally. */
+  phase: LingerPhase
   visualizationMode: VisualizationMode
   markerStyle: MarkerStyle
   isSelected: boolean
@@ -390,7 +414,7 @@ interface RestaurantMarkerProps {
   onViewInspections: () => void
 }
 
-function RestaurantMarker({ restaurant, visualizationMode, markerStyle, isSelected, isMobileViewport, onClick, onViewInspections }: RestaurantMarkerProps) {
+function RestaurantMarker({ restaurant, phase, visualizationMode, markerStyle, isSelected, isMobileViewport, onClick, onViewInspections }: RestaurantMarkerProps) {
   const { resolvedTheme } = useTheme()
   const isDarkMode = resolvedTheme === 'dark'
   const stats = restaurant.violationStats || {
@@ -417,7 +441,10 @@ function RestaurantMarker({ restaurant, visualizationMode, markerStyle, isSelect
       latitude={restaurant.latitude!}
       onClick={onClick}
     >
-      <MarkerContent>
+      <MarkerContent
+        className={cn('transition-opacity', phase === 'leaving' && 'pointer-events-none opacity-0')}
+        style={{ transitionDuration: `${MARKER_FADE_MS}ms` }}
+      >
         <MarkerDot
           markerStyle={markerStyle}
           color={color}
