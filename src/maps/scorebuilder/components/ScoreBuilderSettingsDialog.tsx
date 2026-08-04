@@ -117,12 +117,16 @@ export function ScoreBuilderSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent elevated className="max-h-[90vh] w-[min(960px,calc(100vw-2rem))] overflow-hidden p-0 sm:max-w-[960px]">
-        <DialogHeader className="border-b border-border px-5 py-4">
+      <DialogContent
+        variant="sheet"
+        elevated
+        className="sm:max-h-[90vh] sm:w-[min(960px,calc(100vw-2rem))] sm:max-w-[960px]"
+      >
+        <DialogHeader className="shrink-0 border-b border-border px-5 py-4">
           <DialogTitle>Index settings</DialogTitle>
           <DialogDescription>{TAB_DESCRIPTIONS[activeTab]}</DialogDescription>
         </DialogHeader>
-        <div className="flex max-h-[calc(90vh-5rem)] min-h-0 flex-col md:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <nav
             role="tablist"
             aria-label="Index settings sections"

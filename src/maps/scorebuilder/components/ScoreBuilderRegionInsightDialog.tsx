@@ -295,8 +295,9 @@ export function ScoreBuilderRegionInsightDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        variant="sheet"
         elevated
-        className="bottom-0 top-auto flex max-h-[min(88dvh,720px)] w-full translate-y-0 flex-col overflow-hidden rounded-b-none p-0 sm:bottom-auto sm:top-[50%] sm:grid sm:w-[calc(100%-2rem)] sm:max-w-2xl sm:translate-y-[-50%] sm:rounded-b-xl"
+        className="max-h-[min(88dvh,720px)] sm:max-h-[min(88dvh,720px)] sm:max-w-2xl"
         data-score-builder-region-insight-dialog="true"
       >
         <DialogHeader className="shrink-0 border-b border-border px-4 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
