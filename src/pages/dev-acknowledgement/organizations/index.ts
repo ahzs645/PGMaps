@@ -78,9 +78,7 @@ export type OrgRecord = {
   campuses: OrgCampus[]
 }
 
-// Exclude nation-registry.json and fpcc-language-map.json — they live here but
-// are not org records.
-const modules = import.meta.glob<{ default: OrgRecord }>(['./*.json', '!./nation-registry.json', '!./fpcc-language-map.json'], { eager: true })
+const modules = import.meta.glob<{ default: OrgRecord }>('./*.json', { eager: true })
 
 export const organizations: OrgRecord[] = Object.values(modules)
   .map((mod) => mod.default)

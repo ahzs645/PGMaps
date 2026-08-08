@@ -46,7 +46,7 @@ function parseCsvRows(text: string): AqmapPlotPoint[] {
 async function loadLocalPlotRows(network: string, siteId: string): Promise<AqmapPlotPoint[] | null> {
   const normalized = normalizePlotNetwork(network)
   const filename = buildPlotFilename(normalized, siteId)
-  const localPath = path.resolve(process.cwd(), 'public', 'airdatamap', 'data', 'plotting', normalized, filename)
+  const localPath = path.resolve(process.cwd(), 'public', 'data', 'plotting', normalized, filename)
 
   try {
     const text = await fs.readFile(localPath, 'utf8')

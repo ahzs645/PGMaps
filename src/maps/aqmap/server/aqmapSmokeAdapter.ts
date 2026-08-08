@@ -13,14 +13,8 @@ import {
 const AQMAP_ORIGIN = 'https://aqmap.ca/aqmap'
 
 const LOCAL_PATHS: Record<SmokeLayerKey, string[]> = {
-  modelledSmoke: [
-    path.resolve(process.cwd(), 'public', 'airdatamap', 'data', 'smoke', 'modelled.json'),
-    path.resolve(process.cwd(), 'public', 'data', 'smoke', 'modelled.json'),
-  ],
-  visibleSmoke: [
-    path.resolve(process.cwd(), 'public', 'airdatamap', 'data', 'smoke', 'visible.json'),
-    path.resolve(process.cwd(), 'public', 'data', 'smoke', 'visible.json'),
-  ],
+  modelledSmoke: [path.resolve(process.cwd(), 'public', 'data', 'smoke', 'modelled.json')],
+  visibleSmoke: [path.resolve(process.cwd(), 'public', 'data', 'smoke', 'visible.json')],
 }
 
 const REMOTE_PATHS: Record<SmokeLayerKey, string> = {

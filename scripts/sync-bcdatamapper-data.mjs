@@ -10,9 +10,8 @@ const target = join(root, 'public', 'data')
 const clean = process.argv.includes('--clean')
 
 const appOwnedDataPaths = [
-  'health/msp-facilities.geojson',
-  'health/msp-facility-geocode-cache.json',
   'projects',
+  // Stable demo/AQMap fallback snapshots owned by PGMaps.
   'smoke',
   'walkability/heatmap/factor_masks.json',
 ]
@@ -34,6 +33,8 @@ const pathMappings = [
   ['data-sources/healthdata/health_place_registry/health_place_sites.geojson', 'health/health-place-sites.geojson'],
   ['data-sources/healthdata/statcan_odhf/output/statcan-odhf-bc.csv', 'health/statcan-odhf-bc.csv'],
   ['data-sources/healthdata/statcan_odhf/output/statcan-odhf-bc.geojson', 'health/statcan-odhf-bc.geojson'],
+  ['datascrapers/health/msp-facilities/output/msp-facilities.geojson', 'health/msp-facilities.geojson'],
+  ['datascrapers/health/msp-facilities/output/msp-facility-geocode-cache.json', 'health/msp-facility-geocode-cache.json'],
   ['datascrapers/fallout/output', 'fallout'],
   ['datascrapers/citypg/output', 'citypg'],
   ['datascrapers/citypg/output-boundaries/CityPG', 'boundaries/CityPG'],

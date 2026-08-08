@@ -82,18 +82,18 @@ canonical identity:
 - `people-group` — matches a people-group (e.g. "Ts'msyen", "Coast Salish");
 - `unlisted` — not in our database yet.
 
-The resolver (`createNationResolver`) references **three** sources, so coverage
-does **not** depend on the submodule relationship graph:
+The resolver (`createNationResolver`) references **three** sources:
 
 1. the **relationship graph** (verified Nations + people-groups);
-2. **`nation-registry.json`** — an in-repo list we maintain ourselves (data file;
-   `nations.ts` only holds the loader + resolver logic); and
+2. the bcdatamapper-owned **`datascrapers/manual/output/acknowledgement/nation-registry.json`**
+   list (`nations.ts` only holds the loader + resolver logic); and
 3. the **BC First Nation Community Locations GIS dataset**
    (`public/data/indigenous/first_nation_community_locations.geojson`, 208 Nations)
    — used to *validate* a Nation and *enrich* it with coordinates, website, and
    language group (`resolution.gis`). The composer shows a "GIS-verified" count.
 
-To map a Nation an org names, add a record to `nation-registry.json` (no submodule edit):
+To map a Nation an org names, add a record to
+`vendor/bcdatamapper/datascrapers/manual/output/acknowledgement/nation-registry.json`:
 
 - **Nation already in the graph, different name** → add an entry with
   `graphNationId` set + the free-text form in `aliases` (e.g. Squamish,
@@ -105,6 +105,9 @@ To map a Nation an org names, add a record to `nation-registry.json` (no submodu
 
 The composer shows `Mapped to our database: X/Y (Z in verified graph, rest in
 registry)` and only chips names in **neither** source.
+
+The FPCC language-to-Nation reference is also owned by bcdatamapper at
+`vendor/bcdatamapper/datascrapers/manual/output/acknowledgement/fpcc-language-map.json`.
 
 ## Notes on accuracy
 

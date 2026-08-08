@@ -2,14 +2,13 @@
 // The org JSON keeps the names each organization actually writes; this resolver
 // maps each to a canonical identity. It references THREE sources:
 //   1. the relationship graph (verified Nations + people-groups),
-//   2. `nation-registry.json` — an in-repo list we maintain (incl. Nations not in
-//      the graph), and
+//   2. the bcdatamapper Nation registry (incl. Nations not in the graph), and
 //   3. (optional) the BC First Nation Community Locations GIS dataset, used to
 //      VALIDATE a Nation and enrich it with coordinates / website / language.
 
 import { buildNationAliasIndex, normalizeName } from '@/lib/acknowledgement/engine'
 import type { RelationshipGraph } from '@/lib/acknowledgement/engine'
-import nationRegistryData from './nation-registry.json'
+import nationRegistryData from '../../../../vendor/bcdatamapper/datascrapers/manual/output/acknowledgement/nation-registry.json'
 
 export type NationStatus = 'nation' | 'people-group' | 'unlisted'
 
@@ -39,7 +38,7 @@ export type NationResolution = {
   gis?: NationGisEntry
 }
 
-// In-repo canonical Nation registry (data lives in nation-registry.json).
+// Canonical Nation registry owned by the bcdatamapper submodule.
 export const nationRegistry = nationRegistryData as NationRegistryEntry[]
 
 function nameMatches(a: string, b: string) {
@@ -50,16 +49,25 @@ function nameMatches(a: string, b: string) {
   return false
 }
 
-const GIS_NAME_FIELDS = ['PREFERRED_NAME', 'FIRST_NATION_BC_NAME', 'FIRST_NATION_FEDERAL_NAME', 'ALTERNATIVE_NAME_1', 'ALTERNATIVE_NAME_2']
+const GIS_NAME_FIELDS = [
+  'PREFERRED_NAME',
+  'FIRST_NATION_BC_NAME',
+  'FIRST_NATION_FEDERAL_NAME',
+  'ALTERNATIVE_NAME_1',
+  'ALTERNATIVE_NAME_2',
+]
 
 /** Index the BC First Nation Community Locations features by normalized name. */
 export function buildGisNationIndex(features: GeoJSON.Feature[]) {
   const index = new Map<string, NationGisEntry>()
   for (const feature of features) {
     const props = (feature.properties ?? {}) as Record<string, unknown>
-    const name = String(props.FIRST_NATION_BC_NAME || props.PREFERRED_NAME || props.FIRST_NATION_FEDERAL_NAME || '').trim()
+    const name = String(
+      props.FIRST_NATION_BC_NAME || props.PREFERRED_NAME || props.FIRST_NATION_FEDERAL_NAME || '',
+    ).trim()
     if (!name) continue
-    const coordinates = feature.geometry?.type === 'Point' ? (feature.geometry.coordinates as [number, number]) : undefined
+    const coordinates =
+      feature.geometry?.type === 'Point' ? (feature.geometry.coordinates as [number, number]) : undefined
     const website = String(props.URL_TO_FIRST_NATION_WEBSITE || props.URL_TO_BC_WEBSITE || '').trim() || undefined
     const languageGroup = String(props.LANGUAGE_GROUP || '').trim() || undefined
     const entry: NationGisEntry = { name, coordinates, website, languageGroup }
@@ -133,12 +141,24 @@ export function createNationResolver(graph: RelationshipGraph | null, gisFeature
     const entry = registryIndex.get(key)
 
     if (nationId) {
-      resolution = { input: name, canonical: nationName.get(nationId) ?? name, status: 'nation', id: nationId, inGraph: true }
+      resolution = {
+        input: name,
+        canonical: nationName.get(nationId) ?? name,
+        status: 'nation',
+        id: nationId,
+        inGraph: true,
+      }
     } else if (group) {
       resolution = { input: name, canonical: group.name, status: 'people-group', id: group.id, inGraph: true }
     } else if (entry) {
       const canonical = entry.graphNationId ? (nationName.get(entry.graphNationId) ?? entry.canonical) : entry.canonical
-      resolution = { input: name, canonical, status: entry.kind, id: entry.graphNationId, inGraph: Boolean(entry.graphNationId) }
+      resolution = {
+        input: name,
+        canonical,
+        status: entry.kind,
+        id: entry.graphNationId,
+        inGraph: Boolean(entry.graphNationId),
+      }
     } else {
       resolution = { input: name, canonical: name, status: 'unlisted', inGraph: false }
     }

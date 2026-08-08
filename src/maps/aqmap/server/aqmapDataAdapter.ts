@@ -25,7 +25,6 @@ interface AqmapFeature {
 }
 
 const DATA_JSON_PATHS = [
-  path.resolve(process.cwd(), 'public', 'airdatamap', 'data', 'monitors', 'all.json'),
   path.resolve(process.cwd(), 'public', 'data', 'monitors', 'all.json'),
 ]
 

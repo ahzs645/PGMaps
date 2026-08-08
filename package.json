@@ -90,7 +90,7 @@
     "health:phsa-community": "npm --prefix vendor/bcdatamapper run health:phsa-community --",
     "health:phsa-community:crosswalk": "npm --prefix vendor/bcdatamapper run health:phsa-community:crosswalk --",
     "health:bccdc-chronic-tableau": "npm --prefix vendor/bcdatamapper run health:bccdc-chronic-tableau --",
-    "health:msp-facilities": "node scripts/build-msp-health-facilities.mjs",
+    "health:msp-facilities": "npm --prefix vendor/bcdatamapper run health:msp-facilities --",
     "projects:scorebuilder": "tsx scripts/generate-scorebuilder-projects.ts",
     "walkability:build": "npm --prefix vendor/bcdatamapper run walkability:build --",
     "walkability:import-supplements": "npm --prefix vendor/bcdatamapper run walkability:import-supplements --",

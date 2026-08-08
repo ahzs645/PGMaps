@@ -127,5 +127,7 @@ public/data/health/health-place-sites.csv
 public/data/health/health-place-sites.geojson
 public/data/health/statcan-odhf-bc.csv
 public/data/health/statcan-odhf-bc.geojson
+public/data/health/msp-facilities.geojson
+public/data/health/msp-facility-geocode-cache.json
 public/data/health/bccdc-chronic-disease-tableau/
 public/data/health/phsa-community-health/
