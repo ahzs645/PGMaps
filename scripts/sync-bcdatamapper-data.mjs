@@ -39,6 +39,7 @@ const pathMappings = [
   ['datascrapers/citypg/output', 'citypg'],
   ['datascrapers/citypg/output-boundaries/CityPG', 'boundaries/CityPG'],
   ['datascrapers/bc/drought/output', 'drought'],
+  ['datascrapers/bc/snow-survey/output', 'snow-survey'],
   ['datascrapers/bc/assessment/output', 'bc-assessment'],
   ['datascrapers/census/output', 'census'],
   ['datascrapers/transit/output', 'transit'],

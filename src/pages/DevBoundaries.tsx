@@ -1961,6 +1961,7 @@ function DevBoundaries() {
         <StudyAreaSourcePickerDialog<BoundarySource, RegionLevel>
           open={sourcePickerOpen}
           onOpenChange={handleSourcePickerOpenChange}
+          autoFocusSearch={false}
           sourceOptions={BOUNDARY_EXPLORER_SOURCE_OPTIONS}
           levelOptionsForSource={getLevelOptionsForSource}
           sourceColor={(source) => SOURCE_COLORS[source].fill}

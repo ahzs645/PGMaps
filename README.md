@@ -36,6 +36,10 @@ npm run data:sync-from-bcdatamapper:clean
 
 The scraper inventory is documented in [vendor/bcdatamapper/README.md](vendor/bcdatamapper/README.md).
 
+## Application updates and project catalog
+
+Production builds publish their Git commit SHA for in-browser update detection, and the project catalog is generated with content revisions so additions, removals, and edits do not remain stale behind the service worker. See [Application updates, caching, and the project index](docs/app-updates-and-caching.md) for the cache policy, project commands, and deployment verification steps.
+
 ## Data source policy
 
 See [BC Data Catalogue and ArcGIS Live Usage](docs/bc-data-live-usage.md) for guidance on using BC Data Catalogue records and BC-published ArcGIS REST services in PGMaps. In short: licences are often permissive with attribution, but live APIs have operational limits, so large or core datasets should usually be synced and cached instead of queried directly from the browser.

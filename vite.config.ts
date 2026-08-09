@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin, type ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
+import { webUpdateNotice } from '@plugin-web-update-notification/vite'
 import path from 'path'
 import fs from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -10,11 +11,7 @@ function networkDevDataPlugin(): Plugin {
   return {
     name: 'network-dev-data',
     configureServer(server: ViteDevServer) {
-      server.middlewares.use('/__dev_network_data', (
-        req: IncomingMessage,
-        res: ServerResponse,
-        next: () => void,
-      ) => {
+      server.middlewares.use('/__dev_network_data', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
         const rawUrl = req.url ?? '/'
         const pathname = decodeURIComponent(rawUrl.split('?')[0] ?? '/')
         const relativePath = pathname.replace(/^\/+/, '')
@@ -48,11 +45,24 @@ function networkDevDataPlugin(): Plugin {
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
-  plugins: [react(), aqmapApiPlugin(), networkDevDataPlugin()],
+  plugins: [
+    react(),
+    webUpdateNotice({
+      versionType: 'git_commit_hash',
+      checkInterval: 5 * 60 * 1000,
+      checkOnWindowFocus: true,
+      checkImmediately: true,
+      checkOnLoadFileError: true,
+      hiddenDefaultNotification: true,
+      logVersion: true,
+    }),
+    aqmapApiPlugin(),
+    networkDevDataPlugin(),
+  ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
-    }
+      '@': path.resolve(__dirname, './src'),
+    },
   },
   build: {
     rollupOptions: {
@@ -60,12 +70,12 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules/maplibre-gl')) return 'maplibre'
           if (id.includes('node_modules/@turf')) return 'turf'
-        }
-      }
-    }
+        },
+      },
+    },
   },
   server: {
     port: 5173,
-    host: '0.0.0.0'
-  }
+    host: '0.0.0.0',
+  },
 })

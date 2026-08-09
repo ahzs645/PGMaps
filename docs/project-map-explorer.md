@@ -98,3 +98,11 @@ same overview, record, location, and decade JSON shapes used by the Nechako
 project. A future source with those shapes needs only a new project JSON. A
 source with different shapes needs one new adapter, while the workspace and
 capability blocks remain reusable.
+
+## Planned feature-backed sub-projects
+
+The Flood Study Library and BC Snowpack require parent projects whose child views
+are generated from feature indexes rather than listed as independent catalog
+packages. The proposed `feature-subprojects-v1` contract, route conventions,
+licensing boundary, and implementation sequence are documented in
+[`docs/flood-studies-snowpack-subprojects.md`](./flood-studies-snowpack-subprojects.md).

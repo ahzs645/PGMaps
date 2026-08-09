@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test'
 
+test('opens the mobile study-area picker without focusing the search field', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/dev/boundaries', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Add' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Add study areas' })).toBeFocused()
+  await expect(page.getByPlaceholder('Search sources, categories, levels')).not.toBeFocused()
+})
+
 test('keeps the study-area picker stable while choosing and switching levels', async ({ page }) => {
   await page.goto('/dev/boundaries', { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Add' }).click()

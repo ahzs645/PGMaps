@@ -67,7 +67,10 @@ export function Navbar() {
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const locationParams = new URLSearchParams(location.search)
-  const showProjectBackButton = location.pathname === '/dev/projects' && locationParams.has('project')
+  const isProjectPage = location.pathname.startsWith('/dev/projects/') || (
+    location.pathname === '/dev/projects' && locationParams.has('project')
+  )
+  const showProjectBackButton = isProjectPage
   const mobileGlassButtonClass = 'border-white/70 bg-white/90 text-zinc-950 shadow-lg backdrop-blur hover:bg-white hover:text-zinc-950 dark:border-zinc-700/70 dark:bg-zinc-950/90 dark:text-zinc-50 dark:shadow-black/50 dark:hover:bg-zinc-900 dark:hover:text-zinc-50'
 
   const toggleTheme = () => {
@@ -165,7 +168,7 @@ export function Navbar() {
     navLinks.find(({ path }) => path !== '/' && isNavActive(path))?.label ??
     EXTRA_PAGE_LABELS[location.pathname] ??
     null
-  const mobileMenuLabel = activeNavLabel ?? 'PGMaps'
+  const mobileMenuLabel = isProjectPage ? 'Project' : activeNavLabel ?? 'PGMaps'
 
   const activeMobileSubmenu = mobileSubmenu === 'pgdata'
     ? { label: 'PG Data', links: pgDataTabLinks, isActive: isPgDataTabActive }

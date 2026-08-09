@@ -83,6 +83,7 @@ public/data/indicators/
 public/data/manifest.json
 public/data/monitors.csv
 public/data/monitors/
+public/data/snow-survey/
 public/data/network-availability/
 public/data/open-litter-map/
 public/data/restaurant-classifications.json

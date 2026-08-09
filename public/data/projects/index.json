@@ -1,82 +1,317 @@
 {
+  "version": 1,
   "projects": [
-    "where-is-north-bc.json",
-    "nechako-watershed-research-portal.json",
-    "echoscreen-climate-health.json",
-    "heat-shade-priority.json",
-    "park-access-equity.json",
-    "active-living-walkability.json",
-    "transit-equity-project.json",
-    "scorebuilder/example-air-quality-gaps-ct.json",
-    "scorebuilder/example-canopy-cooling-heat-map-da.json",
-    "scorebuilder/example-chsa-reference-gaps.json",
-    "scorebuilder/example-chsa-sensor-coverage.json",
-    "scorebuilder/example-community-livability-ct.json",
-    "scorebuilder/example-complete-neighbourhood-da.json",
-    "scorebuilder/example-crime-pressure-da.json",
-    "scorebuilder/example-food-access-da.json",
-    "scorebuilder/example-food-inspection-risk-da.json",
-    "scorebuilder/example-food-safety-ct.json",
-    "scorebuilder/example-greenest-neighbourhoods.json",
-    "scorebuilder/example-heat-shade-need-da.json",
-    "scorebuilder/example-housing-affordability-da.json",
-    "scorebuilder/example-hsda-sensor-coverage.json",
-    "scorebuilder/example-lha-low-cost-expansion.json",
-    "scorebuilder/example-lha-monitoring-comparison.json",
-    "scorebuilder/example-livability-da.json",
-    "scorebuilder/example-low-cost-sensor-deployment-da.json",
-    "scorebuilder/example-park-access-da.json",
-    "scorebuilder/example-pedestrian-network-study-mi-da.json",
-    "scorebuilder/example-pg-climate-health-vulnerability-da.json",
-    "scorebuilder/example-pg-environmental-justice-proxy-da.json",
-    "scorebuilder/example-pg-social-environmental-rank-da.json",
-    "scorebuilder/example-provincial-air-quality-ha.json",
-    "scorebuilder/example-redevelopment-pressure-da.json",
-    "scorebuilder/example-school-exposure-mobility-da.json",
-    "scorebuilder/example-sensor-gap-equity-da.json",
-    "scorebuilder/example-shade-gap-heat-map-da.json",
-    "scorebuilder/preset-access-pg15-minute.json",
-    "scorebuilder/preset-active-living-walkability.json",
-    "scorebuilder/preset-balanced-coverage.json",
-    "scorebuilder/preset-canopy-cooling-heat-map.json",
-    "scorebuilder/preset-climate-community-health.json",
-    "scorebuilder/preset-community-resilience-proxy.json",
-    "scorebuilder/preset-complete-neighbourhood.json",
-    "scorebuilder/preset-cumulative-equity-burden.json",
-    "scorebuilder/preset-environmental-health.json",
-    "scorebuilder/preset-flood-vulnerability-proxy.json",
-    "scorebuilder/preset-food-inspection-risk.json",
-    "scorebuilder/preset-food-safety-access.json",
-    "scorebuilder/preset-hbe-active-transportation.json",
-    "scorebuilder/preset-hbe-complete-neighbourhood.json",
-    "scorebuilder/preset-hbe-food-access-resilience.json",
-    "scorebuilder/preset-hbe-housing-quality-hazards.json",
-    "scorebuilder/preset-hbe-linkages-index.json",
-    "scorebuilder/preset-hbe-natural-environment-access.json",
-    "scorebuilder/preset-healthy-plan-cimd-canopy.json",
-    "scorebuilder/preset-healthy-plan-economic-parks.json",
-    "scorebuilder/preset-heat-relief-priority.json",
-    "scorebuilder/preset-heat-shade-need-proxy.json",
-    "scorebuilder/preset-housing-affordability.json",
-    "scorebuilder/preset-housing-climate-retrofit-need.json",
-    "scorebuilder/preset-housing-climate-risk.json",
-    "scorebuilder/preset-industrial-burden-proxy.json",
-    "scorebuilder/preset-investment-priority.json",
-    "scorebuilder/preset-livability-index.json",
-    "scorebuilder/preset-low-cost-expansion.json",
-    "scorebuilder/preset-monitoring-gap-proxy.json",
-    "scorebuilder/preset-park-access-equity.json",
-    "scorebuilder/preset-pedestrian-network-study-mi.json",
-    "scorebuilder/preset-pg-environmental-justice-proxy.json",
-    "scorebuilder/preset-pg-social-environmental-rank.json",
-    "scorebuilder/preset-redevelopment-pressure.json",
-    "scorebuilder/preset-reference-network.json",
-    "scorebuilder/preset-safety-pressure.json",
-    "scorebuilder/preset-school-exposure-mobility.json",
-    "scorebuilder/preset-sensor-gap-equity.json",
-    "scorebuilder/preset-shade-gap-heat-map.json",
-    "scorebuilder/preset-smoke-vulnerability-proxy.json",
-    "scorebuilder/preset-transit-access.json",
-    "scorebuilder/preset-transit-equity.json"
+    {
+      "file": "where-is-north-bc.json",
+      "revision": "a4b7ff737ccd"
+    },
+    {
+      "file": "nechako-watershed-research-portal.json",
+      "revision": "8d3afb1827cd"
+    },
+    {
+      "file": "echoscreen-climate-health.json",
+      "revision": "39d4664b2c7c"
+    },
+    {
+      "file": "heat-shade-priority.json",
+      "revision": "e861928907c9"
+    },
+    {
+      "file": "park-access-equity.json",
+      "revision": "b9eb0bdffed9"
+    },
+    {
+      "file": "active-living-walkability.json",
+      "revision": "2e94cf0e8c37"
+    },
+    {
+      "file": "transit-equity-project.json",
+      "revision": "34401466629f"
+    },
+    {
+      "file": "scorebuilder/example-air-quality-gaps-ct.json",
+      "revision": "285cab915259"
+    },
+    {
+      "file": "scorebuilder/example-canopy-cooling-heat-map-da.json",
+      "revision": "fc853b304d2e"
+    },
+    {
+      "file": "scorebuilder/example-chsa-reference-gaps.json",
+      "revision": "b595c472019b"
+    },
+    {
+      "file": "scorebuilder/example-chsa-sensor-coverage.json",
+      "revision": "c0497304f7b2"
+    },
+    {
+      "file": "scorebuilder/example-community-livability-ct.json",
+      "revision": "ff943859e089"
+    },
+    {
+      "file": "scorebuilder/example-complete-neighbourhood-da.json",
+      "revision": "2f839219667c"
+    },
+    {
+      "file": "scorebuilder/example-crime-pressure-da.json",
+      "revision": "79c53c4074e6"
+    },
+    {
+      "file": "scorebuilder/example-food-access-da.json",
+      "revision": "f3576b8b1ecf"
+    },
+    {
+      "file": "scorebuilder/example-food-inspection-risk-da.json",
+      "revision": "42f9a5b81899"
+    },
+    {
+      "file": "scorebuilder/example-food-safety-ct.json",
+      "revision": "1882e06cff04"
+    },
+    {
+      "file": "scorebuilder/example-greenest-neighbourhoods.json",
+      "revision": "0ac686cf8c29"
+    },
+    {
+      "file": "scorebuilder/example-heat-shade-need-da.json",
+      "revision": "410dc6e5804c"
+    },
+    {
+      "file": "scorebuilder/example-housing-affordability-da.json",
+      "revision": "a05289ca7bf4"
+    },
+    {
+      "file": "scorebuilder/example-hsda-sensor-coverage.json",
+      "revision": "78325f70b399"
+    },
+    {
+      "file": "scorebuilder/example-lha-low-cost-expansion.json",
+      "revision": "fe7d643bf204"
+    },
+    {
+      "file": "scorebuilder/example-lha-monitoring-comparison.json",
+      "revision": "c4694244f79e"
+    },
+    {
+      "file": "scorebuilder/example-livability-da.json",
+      "revision": "38d4f11ffc7e"
+    },
+    {
+      "file": "scorebuilder/example-low-cost-sensor-deployment-da.json",
+      "revision": "d1783bb5055f"
+    },
+    {
+      "file": "scorebuilder/example-park-access-da.json",
+      "revision": "d52fdbf5a363"
+    },
+    {
+      "file": "scorebuilder/example-pedestrian-network-study-mi-da.json",
+      "revision": "70d86e70ded7"
+    },
+    {
+      "file": "scorebuilder/example-pg-climate-health-vulnerability-da.json",
+      "revision": "963c6891797c"
+    },
+    {
+      "file": "scorebuilder/example-pg-environmental-justice-proxy-da.json",
+      "revision": "e466e1815fe3"
+    },
+    {
+      "file": "scorebuilder/example-pg-social-environmental-rank-da.json",
+      "revision": "701064363d68"
+    },
+    {
+      "file": "scorebuilder/example-provincial-air-quality-ha.json",
+      "revision": "6a8f58caffd1"
+    },
+    {
+      "file": "scorebuilder/example-redevelopment-pressure-da.json",
+      "revision": "491a9d17d3cd"
+    },
+    {
+      "file": "scorebuilder/example-school-exposure-mobility-da.json",
+      "revision": "fa22302a1b8b"
+    },
+    {
+      "file": "scorebuilder/example-sensor-gap-equity-da.json",
+      "revision": "94d614f2123e"
+    },
+    {
+      "file": "scorebuilder/example-shade-gap-heat-map-da.json",
+      "revision": "eb368564c1e4"
+    },
+    {
+      "file": "scorebuilder/preset-access-pg15-minute.json",
+      "revision": "81289646ec6b"
+    },
+    {
+      "file": "scorebuilder/preset-active-living-walkability.json",
+      "revision": "d7dff4a4cf59"
+    },
+    {
+      "file": "scorebuilder/preset-balanced-coverage.json",
+      "revision": "1def5f926c83"
+    },
+    {
+      "file": "scorebuilder/preset-canopy-cooling-heat-map.json",
+      "revision": "84ccf40d67e0"
+    },
+    {
+      "file": "scorebuilder/preset-climate-community-health.json",
+      "revision": "860d3fcfd300"
+    },
+    {
+      "file": "scorebuilder/preset-community-resilience-proxy.json",
+      "revision": "eb6064539097"
+    },
+    {
+      "file": "scorebuilder/preset-complete-neighbourhood.json",
+      "revision": "b7073b1943e7"
+    },
+    {
+      "file": "scorebuilder/preset-cumulative-equity-burden.json",
+      "revision": "040bd00604d6"
+    },
+    {
+      "file": "scorebuilder/preset-environmental-health.json",
+      "revision": "bc0d17783bdc"
+    },
+    {
+      "file": "scorebuilder/preset-flood-vulnerability-proxy.json",
+      "revision": "9dcc70b6a3ee"
+    },
+    {
+      "file": "scorebuilder/preset-food-inspection-risk.json",
+      "revision": "21848707b0e9"
+    },
+    {
+      "file": "scorebuilder/preset-food-safety-access.json",
+      "revision": "c044d931bfac"
+    },
+    {
+      "file": "scorebuilder/preset-hbe-active-transportation.json",
+      "revision": "77ed84304e3b"
+    },
+    {
+      "file": "scorebuilder/preset-hbe-complete-neighbourhood.json",
+      "revision": "eb66174695a3"
+    },
+    {
+      "file": "scorebuilder/preset-hbe-food-access-resilience.json",
+      "revision": "903c94edca1c"
+    },
+    {
+      "file": "scorebuilder/preset-hbe-housing-quality-hazards.json",
+      "revision": "bba008dde7e6"
+    },
+    {
+      "file": "scorebuilder/preset-hbe-linkages-index.json",
+      "revision": "8311ad01b64d"
+    },
+    {
+      "file": "scorebuilder/preset-hbe-natural-environment-access.json",
+      "revision": "be6e18d1b51b"
+    },
+    {
+      "file": "scorebuilder/preset-healthy-plan-cimd-canopy.json",
+      "revision": "fd0688a869f9"
+    },
+    {
+      "file": "scorebuilder/preset-healthy-plan-economic-parks.json",
+      "revision": "1c763fd70a51"
+    },
+    {
+      "file": "scorebuilder/preset-heat-relief-priority.json",
+      "revision": "e8929931260c"
+    },
+    {
+      "file": "scorebuilder/preset-heat-shade-need-proxy.json",
+      "revision": "8081b14790cd"
+    },
+    {
+      "file": "scorebuilder/preset-housing-affordability.json",
+      "revision": "88b267dd4a65"
+    },
+    {
+      "file": "scorebuilder/preset-housing-climate-retrofit-need.json",
+      "revision": "5d3f26d9b37c"
+    },
+    {
+      "file": "scorebuilder/preset-housing-climate-risk.json",
+      "revision": "11f68210c0e8"
+    },
+    {
+      "file": "scorebuilder/preset-industrial-burden-proxy.json",
+      "revision": "59175806ca2f"
+    },
+    {
+      "file": "scorebuilder/preset-investment-priority.json",
+      "revision": "832097db6533"
+    },
+    {
+      "file": "scorebuilder/preset-livability-index.json",
+      "revision": "f4531fb47f82"
+    },
+    {
+      "file": "scorebuilder/preset-low-cost-expansion.json",
+      "revision": "2de13b035754"
+    },
+    {
+      "file": "scorebuilder/preset-monitoring-gap-proxy.json",
+      "revision": "5b6cdc167711"
+    },
+    {
+      "file": "scorebuilder/preset-park-access-equity.json",
+      "revision": "34a3210149a7"
+    },
+    {
+      "file": "scorebuilder/preset-pedestrian-network-study-mi.json",
+      "revision": "989e52457a2d"
+    },
+    {
+      "file": "scorebuilder/preset-pg-environmental-justice-proxy.json",
+      "revision": "5d6f92eba551"
+    },
+    {
+      "file": "scorebuilder/preset-pg-social-environmental-rank.json",
+      "revision": "55f5fd7cf441"
+    },
+    {
+      "file": "scorebuilder/preset-redevelopment-pressure.json",
+      "revision": "b724b3cff554"
+    },
+    {
+      "file": "scorebuilder/preset-reference-network.json",
+      "revision": "520405cae89b"
+    },
+    {
+      "file": "scorebuilder/preset-safety-pressure.json",
+      "revision": "c3552a535e09"
+    },
+    {
+      "file": "scorebuilder/preset-school-exposure-mobility.json",
+      "revision": "70cae7159a25"
+    },
+    {
+      "file": "scorebuilder/preset-sensor-gap-equity.json",
+      "revision": "2d33a4b010f4"
+    },
+    {
+      "file": "scorebuilder/preset-shade-gap-heat-map.json",
+      "revision": "d0816bdc823e"
+    },
+    {
+      "file": "scorebuilder/preset-smoke-vulnerability-proxy.json",
+      "revision": "ef17f1e4deca"
+    },
+    {
+      "file": "scorebuilder/preset-transit-access.json",
+      "revision": "e09a442effe4"
+    },
+    {
+      "file": "scorebuilder/preset-transit-equity.json",
+      "revision": "f20e2956ab05"
+    }
   ]
 }

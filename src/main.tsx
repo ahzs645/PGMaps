@@ -10,7 +10,10 @@ import './index.css'
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     if (import.meta.env.PROD) {
-      void navigator.serviceWorker.register('/sw.js')
+      const serviceWorkerUrl = `${import.meta.env.BASE_URL}sw.js`
+      void navigator.serviceWorker
+        .register(serviceWorkerUrl, { updateViaCache: 'none' })
+        .then((registration) => registration.update())
     } else {
       void navigator.serviceWorker.getRegistrations().then((registrations) => {
         registrations.forEach((registration) => void registration.unregister())
@@ -25,11 +28,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <BrowserRouter
         future={{
           v7_startTransition: true,
-          v7_relativeSplatPath: true
+          v7_relativeSplatPath: true,
         }}
       >
         <App />
       </BrowserRouter>
     </ThemeProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 )

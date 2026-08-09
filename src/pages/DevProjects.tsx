@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowRight,
@@ -1463,14 +1463,14 @@ function ConfiguredProjectWorkspace({ project, onBack }: { project: ProjectPacka
 
   if (workspace.type === 'story-map') {
     return (
-      <div className="h-[100dvh] bg-background pt-[calc(env(safe-area-inset-top)+4rem)] md:h-[calc(100vh-4rem)] md:pt-0">
+      <div className="h-[100dvh] bg-background md:h-[calc(100vh-4rem)]">
         <ProjectStoryMap project={project} config={workspace} onBack={onBack} />
       </div>
     )
   }
 
   return (
-    <div className="h-[100dvh] bg-background pt-[calc(env(safe-area-inset-top)+4rem)] md:h-[calc(100vh-4rem)] md:pt-0">
+    <div className="h-[100dvh] bg-background md:h-[calc(100vh-4rem)]">
       <ProjectMapExplorer title={project.title} config={workspace} onBack={onBack} />
     </div>
   )
@@ -1478,14 +1478,23 @@ function ConfiguredProjectWorkspace({ project, onBack }: { project: ProjectPacka
 
 export default function DevProjects() {
   const { projects, loading, loadError, importProject, removeProject } = useProjectPackages()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const projectSlug = searchParams.get('project')
+  const navigate = useNavigate()
+  const { projectSlug: routeProjectSlug } = useParams<{ projectSlug?: string }>()
+  const [searchParams] = useSearchParams()
+  const legacyProjectSlug = searchParams.get('project')
+  const projectSlug = routeProjectSlug ?? legacyProjectSlug
   const selectedProject = projects.find((project) => project.slug === projectSlug) ?? null
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<CatalogFilter>('all')
   const [showingMoreProjects, setShowingMoreProjects] = useState(false)
   const [previewProjectSlug, setPreviewProjectSlug] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+
+  // Preserve old shared links while making every project URL path-based and canonical.
+  useEffect(() => {
+    if (routeProjectSlug || !legacyProjectSlug) return
+    navigate(`/dev/projects/${encodeURIComponent(legacyProjectSlug)}`, { replace: true })
+  }, [legacyProjectSlug, navigate, routeProjectSlug])
 
   const matchingProjects = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -1517,15 +1526,11 @@ export default function DevProjects() {
     filteredProjects.find((project) => project.slug === previewProjectSlug) ?? filteredProjects[0] ?? null
 
   function openProject(slug: string) {
-    const next = new URLSearchParams(searchParams)
-    next.set('project', slug)
-    setSearchParams(next)
+    navigate(`/dev/projects/${encodeURIComponent(slug)}`)
   }
 
   function backToCatalog() {
-    const next = new URLSearchParams(searchParams)
-    next.delete('project')
-    setSearchParams(next)
+    navigate('/dev/projects')
   }
 
   async function handleImportFile(file: File) {

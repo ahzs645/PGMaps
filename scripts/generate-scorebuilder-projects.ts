@@ -1,13 +1,10 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { SCORE_BUILDER_EXAMPLES } from '../src/maps/scorebuilder/constants/examples.ts'
 import { SCORE_METRICS } from '../src/maps/scorebuilder/constants/metrics.ts'
-import {
-  SCORE_PRESETS,
-  getScoreDataSourcesForWeights,
-} from '../src/maps/scorebuilder/constants/presets.ts'
+import { SCORE_PRESETS, getScoreDataSourcesForWeights } from '../src/maps/scorebuilder/constants/presets.ts'
 import type {
   ScoreDataSource,
   ScoreExample,
@@ -74,8 +71,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
 const projectsDir = path.join(repoRoot, 'public/data/projects')
 const generatedDir = path.join(projectsDir, 'scorebuilder')
-const manifestPath = path.join(projectsDir, 'index.json')
-
 const GENERATED_PREFIX = 'scorebuilder/'
 const OWNER = 'PGMaps Index Lab'
 const UPDATED = 'Generated'
@@ -117,7 +112,10 @@ function sourceLabel(source: ScoreDataSource): string {
   return labels[source]
 }
 
-function boundaryDefaultsForPreset(preset: ScorePreset, sources: ScoreDataSource[]): {
+function boundaryDefaultsForPreset(
+  preset: ScorePreset,
+  sources: ScoreDataSource[],
+): {
   boundarySource: BoundarySource
   boundaryLevel: string
 } {
@@ -363,18 +361,7 @@ function exampleProjects(): Array<{ file: string; pkg: GeneratedProjectPackage }
   })
 }
 
-async function readAuthoredManifestFiles(): Promise<string[]> {
-  const raw = await readFile(manifestPath, 'utf8')
-  const parsed = JSON.parse(raw) as { projects?: unknown }
-  return Array.isArray(parsed.projects)
-    ? parsed.projects.filter(
-        (file): file is string => typeof file === 'string' && !file.startsWith(GENERATED_PREFIX),
-      )
-    : []
-}
-
 async function main() {
-  const authoredFiles = await readAuthoredManifestFiles()
   const generated = [...presetProjects(), ...exampleProjects()].sort((a, b) => a.file.localeCompare(b.file))
 
   await rm(generatedDir, { recursive: true, force: true })
@@ -385,11 +372,6 @@ async function main() {
       await writeFile(path.join(projectsDir, file), `${JSON.stringify(pkg, null, 2)}\n`)
     }),
   )
-
-  const manifest = {
-    projects: [...authoredFiles, ...generated.map((entry) => entry.file)],
-  }
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 
   console.log(`Generated ${generated.length} score-builder project packages.`)
 }

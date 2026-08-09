@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Check, ChevronDown, Search } from 'lucide-react'
 import type { StudyAreaLevelOption, StudyAreaSourceOption } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
@@ -221,6 +221,7 @@ type PickerShellProps<TSource extends string, TLevel extends string> = Omit<
 export function StudyAreaSourcePickerDialog<TSource extends string, TLevel extends string>({
   open,
   onOpenChange,
+  autoFocusSearch = true,
   title,
   description,
   searchPlaceholder,
@@ -229,8 +230,11 @@ export function StudyAreaSourcePickerDialog<TSource extends string, TLevel exten
 }: PickerShellProps<TSource, TLevel> & {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Focus the search field when the dialog opens. Disable on mobile to avoid opening the keyboard. */
+  autoFocusSearch?: boolean
 }) {
   const [pickerQuery, setPickerQuery] = useState('')
+  const titleRef = useRef<HTMLHeadingElement>(null)
   const handleOpenChange = (nextOpen: boolean) => {
     onOpenChange(nextOpen)
     if (!nextOpen) setPickerQuery('')
@@ -245,9 +249,24 @@ export function StudyAreaSourcePickerDialog<TSource extends string, TLevel exten
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent variant="sheet" elevated className="sm:max-w-md">
+      <DialogContent
+        variant="sheet"
+        elevated
+        className="sm:max-w-md"
+        onOpenAutoFocus={(event) => {
+          if (autoFocusSearch) return
+          event.preventDefault()
+          titleRef.current?.focus({ preventScroll: true })
+        }}
+      >
         <div className="border-b border-border p-4 pb-3 pr-10">
-          <DialogTitle className="text-base font-semibold text-foreground">{resolvedTitle}</DialogTitle>
+          <DialogTitle
+            ref={titleRef}
+            tabIndex={autoFocusSearch ? undefined : -1}
+            className="text-base font-semibold text-foreground focus:outline-none"
+          >
+            {resolvedTitle}
+          </DialogTitle>
           <DialogDescription className="mt-0.5 text-xs leading-4 text-muted-foreground">
             {resolvedDescription}
           </DialogDescription>

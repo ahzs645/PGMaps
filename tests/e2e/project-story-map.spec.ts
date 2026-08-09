@@ -1,8 +1,25 @@
 import { expect, test } from '@playwright/test'
 
-const STORY_URL = '/dev/projects?project=where-is-north-bc'
+const STORY_URL = '/dev/projects/where-is-north-bc'
 
 test.describe('JSON map story', () => {
+  test('uses a project slug and lets the mobile map extend behind the toolbar', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(STORY_URL)
+
+    await expect(page).toHaveURL(new RegExp(`${STORY_URL}$`))
+    await expect(page.getByRole('button', { name: 'Main menu' })).toContainText('Project')
+
+    const map = page.locator('.maplibregl-map')
+    await expect(map).toBeVisible()
+    await expect.poll(async () => (await map.boundingBox())?.y).toBe(0)
+  })
+
+  test('redirects legacy project query links to the canonical slug', async ({ page }) => {
+    await page.goto('/dev/projects?project=where-is-north-bc')
+    await expect(page).toHaveURL(new RegExp(`${STORY_URL}$`))
+  })
+
   test('renders the narrative and loads the first scene layer', async ({ page }) => {
     const layerRequests: string[] = []
     page.on('request', (request) => {

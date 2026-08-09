@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { AppUpdateNotice } from '@/updates/AppUpdateNotice'
 import { Navbar } from './Navbar'
 
 interface ShellProps {
@@ -19,6 +20,7 @@ export function Shell({ children }: ShellProps) {
       <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto focus:outline-none">
         {children}
       </main>
+      <AppUpdateNotice />
     </div>
   )
 }

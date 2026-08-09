@@ -6,6 +6,7 @@ import {
 } from '@/maps/scorebuilder/constants'
 import type { ScoreBuilderShareState } from '@/maps/scorebuilder/lib/shareState'
 import type { ScoreMetricWeightMap, ScoreMethodSettings } from '@/maps/scorebuilder/types'
+import { withBase } from './dataUrl'
 
 /**
  * Serializable "project package" shared by the dev projects catalog, the project
@@ -385,12 +386,7 @@ function normalizeSceneDef(value: unknown): ProjectSceneDef | null {
 }
 
 function isCoordinatePair(value: unknown): value is [number, number] {
-  return (
-    Array.isArray(value) &&
-    value.length === 2 &&
-    isFiniteNumber(value[0]) &&
-    isFiniteNumber(value[1])
-  )
+  return Array.isArray(value) && value.length === 2 && isFiniteNumber(value[0]) && isFiniteNumber(value[1])
 }
 
 function isProjectDataUrl(value: unknown): value is string {
@@ -418,14 +414,10 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
   }).map((layer) => {
     const category = layer.category
     const colors = Object.fromEntries(
-      Object.entries(category?.colors ?? {}).filter(
-        (entry): entry is [string, string] => typeof entry[1] === 'string',
-      ),
+      Object.entries(category?.colors ?? {}).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
     )
     const hasCategory =
-      typeof category?.property === 'string' &&
-      typeof category.fallback === 'string' &&
-      Object.keys(colors).length > 0
+      typeof category?.property === 'string' && typeof category.fallback === 'string' && Object.keys(colors).length > 0
     return {
       ...layer,
       fillOpacity: Math.max(0, Math.min(1, layer.fillOpacity)),
@@ -682,16 +674,32 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
 }
 
 export async function loadStaticProjectPackages(): Promise<ProjectPackage[]> {
-  const manifestResponse = await fetch(MANIFEST_URL)
+  const requestToken = Date.now().toString(36)
+  const manifestUrl = new URL(withBase(MANIFEST_URL), window.location.href)
+  manifestUrl.searchParams.set('_project_index', requestToken)
+  const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' })
   if (!manifestResponse.ok) throw new Error(`Project manifest failed to load (${manifestResponse.status})`)
   const manifest = (await manifestResponse.json()) as { projects?: unknown }
-  const files = Array.isArray(manifest.projects)
-    ? manifest.projects.filter((file): file is string => typeof file === 'string')
+  const entries = Array.isArray(manifest.projects)
+    ? manifest.projects.flatMap((entry): Array<{ file: string; revision?: string }> => {
+        if (typeof entry === 'string') return [{ file: entry }]
+        if (!entry || typeof entry !== 'object') return []
+        const candidate = entry as { file?: unknown; revision?: unknown }
+        if (typeof candidate.file !== 'string') return []
+        return [
+          {
+            file: candidate.file,
+            revision: typeof candidate.revision === 'string' ? candidate.revision : undefined,
+          },
+        ]
+      })
     : []
   const packages = await Promise.all(
-    files.map(async (file) => {
+    entries.map(async ({ file, revision }) => {
       try {
-        const response = await fetch(`/data/projects/${file}`)
+        const projectUrl = new URL(withBase(`/data/projects/${file}`), window.location.href)
+        projectUrl.searchParams.set('v', revision ?? requestToken)
+        const response = await fetch(projectUrl)
         if (!response.ok) return null
         return normalizeProjectPackage(await response.json())
       } catch {
