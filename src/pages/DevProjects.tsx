@@ -42,9 +42,10 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   buildProjectLabUrl,
   downloadProjectPackage,
+  findProjectPackageBySlug,
   importProjectPackageFile,
   loadLocalProjectPackages,
-  loadStaticProjectPackages,
+  loadProjectCatalogSummaries,
   projectRecipeBars,
   removeLocalProjectPackage,
   type ProjectKind,
@@ -173,7 +174,7 @@ function useProjectPackages() {
 
   useEffect(() => {
     let cancelled = false
-    loadStaticProjectPackages()
+    loadProjectCatalogSummaries()
       .then((packages) => {
         if (!cancelled) setStaticProjects(packages)
       })
@@ -742,7 +743,18 @@ function ProjectDetailSections({
           <div>
             <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Package</div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => downloadProjectPackage(project)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Catalog previews hold metadata-only summaries; download the
+                  // real package (falls back to what we have if the fetch fails).
+                  void findProjectPackageBySlug(project.slug).then((full) =>
+                    downloadProjectPackage(full ?? project),
+                  )
+                }}
+              >
                 <Download className="h-4 w-4" />
                 Download package
               </Button>
@@ -1107,10 +1119,16 @@ function ProjectCatalogPage({
                       </td>
                       <td className="px-3 py-3 text-xs leading-5 text-muted-foreground">
                         <div>
-                          <span className="font-medium text-foreground">{project.layers.length}</span> layers
+                          <span className="font-medium text-foreground">
+                            {project.catalogCounts?.layers ?? project.layers.length}
+                          </span>{' '}
+                          layers
                         </div>
                         <div>
-                          <span className="font-medium text-foreground">{project.scenes.length}</span> scenes
+                          <span className="font-medium text-foreground">
+                            {project.catalogCounts?.scenes ?? project.scenes.length}
+                          </span>{' '}
+                          scenes
                         </div>
                         <div>
                           <span className="font-medium text-foreground">{project.lab ? 'Lab' : 'Story'}</span> recipe
@@ -1483,7 +1501,21 @@ export default function DevProjects() {
   const [searchParams] = useSearchParams()
   const legacyProjectSlug = searchParams.get('project')
   const projectSlug = routeProjectSlug ?? legacyProjectSlug
-  const selectedProject = projects.find((project) => project.slug === projectSlug) ?? null
+  // Catalog entries are metadata-only summaries; a routed project needs its
+  // full package, fetched on demand (one file, not the whole manifest).
+  const [routedProject, setRoutedProject] = useState<{ slug: string; pkg: ProjectPackage | null } | null>(null)
+  useEffect(() => {
+    if (!projectSlug) return
+    let cancelled = false
+    findProjectPackageBySlug(projectSlug).then((pkg) => {
+      if (!cancelled) setRoutedProject({ slug: projectSlug, pkg })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [projectSlug])
+  const routedProjectReady = !projectSlug || routedProject?.slug === projectSlug
+  const selectedProject = projectSlug && routedProject?.slug === projectSlug ? routedProject.pkg : null
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<CatalogFilter>('all')
   const [showingMoreProjects, setShowingMoreProjects] = useState(false)
@@ -1550,7 +1582,7 @@ export default function DevProjects() {
     if (previewProjectSlug === slug) setPreviewProjectSlug(null)
   }
 
-  if (projectSlug && loading) {
+  if (projectSlug && !routedProjectReady) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center text-sm text-muted-foreground">
         Loading project package…

@@ -81,6 +81,12 @@
       "checked": false
     },
     {
+      "id": "census-north-south-dissolved",
+      "label": "Statistics Canada North / South",
+      "type": "boundary",
+      "checked": false
+    },
+    {
       "id": "natural-resource-regions",
       "label": "Natural Resource Regions",
       "type": "boundary",
@@ -285,7 +291,7 @@
       "text": "The North/South variant of the 2021 census classification labels every census subdivision in Canada using a set of measured variables rather than a single drawn line. Clipped to B.C., it places both Prince George and Williams Lake in the North — closer to how people in the Cariboo describe themselves.",
       "focus": "North / South census subdivisions",
       "visibleLayerIds": [
-        "census-north-south"
+        "census-north-south-dissolved"
       ],
       "placeIds": [
         "prince-george",
@@ -327,6 +333,9 @@
           "fillOpacity": 0,
           "lineWidth": 2.8,
           "lineOpacity": 1
+        },
+        "census-north-south": {
+          "lineWidth": 0
         }
       },
       "highlights": [
@@ -340,8 +349,18 @@
             "Cariboo E"
           ],
           "color": "#1d4ed8",
-          "dimOpacity": 0.22,
+          "dimOpacity": 0,
           "label": "Williams Lake area CSDs"
+        }
+      ],
+      "legend": [
+        {
+          "label": "Williams Lake area CSDs",
+          "color": "#1d4ed8"
+        },
+        {
+          "label": "Health Authority outline",
+          "color": "#0f172a"
         }
       ],
       "camera": {
@@ -398,7 +417,7 @@
       "text": "None of these maps settles where Northern B.C. truly begins. Each makes a boundary useful for health delivery, regulation, statistics, or resource administration. The better question is not only “Where is north?” but “Who drew this line, and what did they need it to do?”",
       "focus": "Compare health and census definitions",
       "visibleLayerIds": [
-        "census-north-south",
+        "census-north-south-dissolved",
         "health-authorities"
       ],
       "placeIds": [
@@ -510,6 +529,26 @@
         "lineColor": "#ffffff",
         "lineOpacity": 0.72,
         "lineWidth": 0.55,
+        "category": {
+          "property": "north_south",
+          "colors": {
+            "North": "#2563eb",
+            "South": "#f59e0b"
+          },
+          "fallback": "#94a3b8"
+        },
+        "attribution": "Statistics Canada, 2021"
+      },
+      {
+        "id": "census-north-south-dissolved",
+        "data": "/data/census/canada-csd/bc-north-south-dissolved.geojson",
+        "idProperty": "north_south",
+        "labelProperty": "label",
+        "fillColor": "#2563eb",
+        "fillOpacity": 0.5,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0,
+        "lineWidth": 0,
         "category": {
           "property": "north_south",
           "colors": {

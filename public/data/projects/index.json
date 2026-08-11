@@ -3,315 +3,5351 @@
   "projects": [
     {
       "file": "where-is-north-bc.json",
-      "revision": "a4b7ff737ccd"
+      "revision": "0b51cd4b565b",
+      "catalog": {
+        "slug": "where-is-north-bc",
+        "title": "Where Does Northern B.C. Begin?",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "2026-07-30",
+        "region": "British Columbia",
+        "status": "Story prototype",
+        "summary": "Prince George feels northern. Williams Lake often does too. But official maps draw the line in different places, because each boundary was built to answer a different question.",
+        "sourceNote": "This story uses repository snapshots from the B.C. Ministry of Health, B.C. Energy Regulator, Statistics Canada, and B.C. natural-resource administration. These are administrative and statistical definitions — not a survey of how people describe where they live.",
+        "details": [
+          "Northern B.C. looks obvious until a boundary has to be drawn. Health services, energy regulation, census geography, and natural-resource administration divide the same province for different purposes.",
+          "The story is intentionally encoded as data. Its cards declare a camera position, a visible layer set, feature highlights, and place markers; the reusable story-map workspace turns those declarations into a scrolling map narrative.",
+          "Local repository paths can be replaced with HTTPS GeoJSON URLs in another project package, provided the remote host permits browser access."
+        ],
+        "links": [
+          {
+            "label": "Statistics Canada North/South classification",
+            "href": "https://www23.statcan.gc.ca/imdb/p3VD.pl?Function=getVD&TVD=1372103"
+          },
+          {
+            "label": "Explore all boundary sources",
+            "href": "/dev/boundaries"
+          },
+          {
+            "label": "BCER boundary comparison",
+            "href": "/dev/boundaries/bcer"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Story cards",
+            "value": "9"
+          },
+          {
+            "label": "Boundary layers",
+            "value": "7"
+          },
+          {
+            "label": "Definitions",
+            "value": "4"
+          }
+        ],
+        "files": [
+          {
+            "label": "where-is-north-bc.json",
+            "detail": "Complete story, layer, camera, highlight, marker, and source configuration"
+          },
+          {
+            "label": "BCMoH simplified boundaries",
+            "detail": "Health Authority, HSDA, LHA, and CHSA repository snapshots"
+          },
+          {
+            "label": "BCER and Natural Resource boundaries",
+            "detail": "Repository GeoJSON snapshots used by the comparison scenes"
+          },
+          {
+            "label": "Statistics Canada B.C. CSDs",
+            "detail": "2021 census subdivisions with the North/South classification joined"
+          }
+        ],
+        "layerCount": 8,
+        "sceneCount": 9
+      }
     },
     {
       "file": "nechako-watershed-research-portal.json",
-      "revision": "8d3afb1827cd"
+      "revision": "8d3afb1827cd",
+      "catalog": {
+        "slug": "nechako-watershed-research-portal",
+        "title": "Nechako Watershed Research Portal",
+        "kind": "research-pack",
+        "theme": "blue",
+        "owner": "UNBC IWRG",
+        "updated": "Mar 2026",
+        "region": "Nechako Watershed",
+        "status": "Prototype",
+        "summary": "Explore 1,408 watershed publications across 51 mapped locations, filter the collection by decade and resource type, and animate how the research record changes over time.",
+        "sourceNote": "The native PGMaps project reads the generated public JSON served by nwsviz. PGMaps does not copy the dataset.",
+        "details": [
+          "The portal maps a public saturation search of Nechako Watershed research and supporting resources spanning 1918–2024.",
+          "Publication, location, decade, and resource-type data remain owned and deployed by nwsviz. Updates become available here when that project is rebuilt and deployed.",
+          "Use the timeline, resource-type filters, search, and location list inside the project to explore the collection."
+        ],
+        "links": [
+          {
+            "label": "Public Zotero library",
+            "href": "https://www.zotero.org/groups/5510344/nechako_watershed_saturation_search_public/library"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Publications",
+            "value": "1,408"
+          },
+          {
+            "label": "Locations",
+            "value": "51"
+          },
+          {
+            "label": "Years",
+            "value": "1918–2024"
+          }
+        ],
+        "files": [
+          {
+            "label": "submissions.cleaned.json",
+            "detail": "Publication metadata generated and deployed by nwsviz."
+          },
+          {
+            "label": "locations.cleaned.json",
+            "detail": "Mapped research locations and publication counts generated by nwsviz."
+          },
+          {
+            "label": "decades.cleaned.json",
+            "detail": "Decade and resource-type series generated by nwsviz."
+          }
+        ],
+        "layerCount": 3,
+        "sceneCount": 2
+      }
     },
     {
       "file": "echoscreen-climate-health.json",
-      "revision": "39d4664b2c7c"
+      "revision": "39d4664b2c7c",
+      "catalog": {
+        "slug": "echoscreen-climate-health",
+        "title": "EchoScreen Cumulative Impacts Study",
+        "kind": "raster-story",
+        "theme": "cyan",
+        "owner": "NH - UNBC",
+        "updated": "Apr 2024",
+        "region": "Northern BC watersheds",
+        "status": "Prototype",
+        "summary": "Climate and health exchange map with watershed context, health facilities, future heat rasters, and precipitation-change layers.",
+        "sourceNote": "Climate rasters load from the Nechako Watershed Portal QGIS WMS using ClimateData.ca layers. Northern Health is drawn from the local BC Ministry of Health boundary data.",
+        "details": [
+          "Created for the NH - UNBC Climate & Health Knowledge Exchange Event on April 12, 2024.",
+          "The project gives Northern Health staff and UNBC researchers a shared map package for climate-health discussion, northern BC expertise, resources, and collaboration opportunities.",
+          "Climate variables use CMIP6 CanDCS-U6 data under SSP585 from ClimateData.ca, with the Northern Health boundary and watershed context kept visible while the raster story changes."
+        ],
+        "image": {
+          "src": "/media/dev-projects/echoscreen-climate-health-event.png",
+          "alt": "Northern Health and UNBC climate and health knowledge exchange event poster"
+        },
+        "links": [
+          {
+            "label": "NH - UNBC event page",
+            "href": "https://www.leaph.org/events/nh---unbc-climate-health-knowledge-exchange-event"
+          },
+          {
+            "label": "Nechako Watershed Portal",
+            "href": "https://nechakowatershed-portal.ca/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Scenes",
+            "value": "4"
+          },
+          {
+            "label": "Layers",
+            "value": "9"
+          },
+          {
+            "label": "Raster",
+            "value": "Portal WMS"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Layers, style, scenes, and notes"
+          },
+          {
+            "label": "Nechako portal WMS",
+            "detail": "ClimateData.ca raster layers"
+          },
+          {
+            "label": "BCMoH boundary",
+            "detail": "Local Northern Health multipolygon"
+          }
+        ],
+        "layerCount": 9,
+        "sceneCount": 4
+      }
     },
     {
       "file": "heat-shade-priority.json",
-      "revision": "e861928907c9"
+      "revision": "e861928907c9",
+      "catalog": {
+        "slug": "heat-shade-priority",
+        "title": "Heat + Shade Relief Priority",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps",
+        "updated": "Current",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "A guided version of the heat relief recipe for finding dense, deprivation-affected areas with weaker shade, cooling access, and older housing.",
+        "sourceNote": "The project carries the real Heat Relief Priority recipe. Opening it in Index Lab loads the exact same weights, boundary level, and cumulative-burden method, with this project pinned as the comparison baseline.",
+        "details": [
+          "A guided project shell for the heat relief preset, keeping the recommended score surface and cooling context visible before anyone edits weights.",
+          "The map scenes separate the final priority score from shade signals, cooling access, and the method handoff so the project reads like a small briefing rather than a raw index builder."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Preset",
+            "value": "Heat"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Lab",
+            "value": "Yes"
+          }
+        ],
+        "files": [
+          {
+            "label": "Index recipe",
+            "detail": "Preset weights and method settings"
+          },
+          {
+            "label": "Boundary export",
+            "detail": "Scored DA features"
+          },
+          {
+            "label": "Method note",
+            "detail": "Proxy limitations and source review"
+          }
+        ],
+        "lab": {
+          "presetKey": "heatReliefPriority",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "shadeGap": 28,
+            "canopyProxyRatio": 18,
+            "coolingWalk15Access": 16,
+            "buildingAge": 14,
+            "cimdSituationalVulnerability": 14,
+            "cimdComposite": 10,
+            "populationDensity": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "cumulativeBurden"
+        },
+        "layerCount": 3,
+        "sceneCount": 4
+      }
     },
     {
       "file": "park-access-equity.json",
-      "revision": "b9eb0bdffed9"
+      "revision": "b9eb0bdffed9",
+      "catalog": {
+        "slug": "park-access-equity",
+        "title": "Park Access Equity",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps",
+        "updated": "Current",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "A project view for park access gaps and neighbourhood-scale equity checks, backed by the real park access recipe.",
+        "sourceNote": "The project carries the real Park Access Equity recipe with catchment accessibility, deprivation, and population context. Index Lab opens with the same weights and pins this project as the baseline.",
+        "details": [
+          "A project view for explaining where park access gaps appear and which neighbourhood-scale assets are part of the access story.",
+          "Scenes move from the access score to the bare surface and the editable Index Lab recipe."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Preset",
+            "value": "Parks"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Lab",
+            "value": "Yes"
+          }
+        ],
+        "files": [
+          {
+            "label": "Index recipe",
+            "detail": "Preset weights and method settings"
+          },
+          {
+            "label": "Park inventory",
+            "detail": "City open-space features"
+          },
+          {
+            "label": "Index export",
+            "detail": "Scored dissemination areas"
+          }
+        ],
+        "lab": {
+          "presetKey": "parkAccessEquity",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "parkWalk10Access": 28,
+            "parkWalk20Access": 18,
+            "parkTransit20Access": 12,
+            "parkAreaRatio": 10,
+            "amenityDensity": 8,
+            "cimdComposite": 14,
+            "populationDensity": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "additive"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "active-living-walkability.json",
-      "revision": "2e94cf0e8c37"
+      "revision": "2e94cf0e8c37",
+      "catalog": {
+        "slug": "active-living-walkability",
+        "title": "Active Living Walkability Study",
+        "kind": "index-preset",
+        "theme": "blue",
+        "owner": "PGMaps",
+        "updated": "Current",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Walkability project built on the pedestrian network study: sidewalks, crossings, trails, transit, parks, and services against pedestrian crash pressure.",
+        "sourceNote": "The project carries the real Active Living / Walkability recipe. Index Lab opens with the same weights and boundary level, where the 44-factor walkability source surface is also available for comparison.",
+        "details": [
+          "A guided walkability project using the pedestrian network study inputs: sidewalk and walkway density, intersections and crossings, trail access, transit, parks, and everyday service access.",
+          "Pedestrian crash density enters as a negative weight so high-collision corridors reduce the walkability score instead of hiding inside it.",
+          "In Index Lab the same recipe can be edited, and the walkability MI source surface can be turned on to compare the boundary-level score against the underlying 44-factor grid."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Preset",
+            "value": "Walkability"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Lab",
+            "value": "Yes"
+          }
+        ],
+        "files": [
+          {
+            "label": "Index recipe",
+            "detail": "Preset weights and method settings"
+          },
+          {
+            "label": "Pedestrian network study",
+            "detail": "Sidewalks, walkways, crossings, and trails"
+          },
+          {
+            "label": "MI source surface",
+            "detail": "44-factor walkability grid, available in the lab"
+          }
+        ],
+        "lab": {
+          "presetKey": "activeLivingWalkability",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "sidewalkDensity": 16,
+            "walkwayDensity": 10,
+            "walkabilityIntersectionDensity": 12,
+            "walkabilityCrossingDensity": 10,
+            "trailDensity": 10,
+            "parkWalk10Access": 10,
+            "accessibleFrequentTransitAccess": 10,
+            "serviceAccessComposite": 12,
+            "pedestrianCrashDensity": -10
+          },
+          "normalization": "percentile",
+          "aggregation": "additive"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "transit-equity-project.json",
-      "revision": "34401466629f"
+      "revision": "34401466629f",
+      "catalog": {
+        "slug": "transit-equity-project",
+        "title": "Transit Equity Project",
+        "kind": "research-pack",
+        "theme": "blue",
+        "owner": "PGMaps",
+        "updated": "Draft",
+        "region": "Prince George DA",
+        "status": "Draft",
+        "summary": "A research pack scoring frequent, accessible, sheltered transit service against population and deprivation need.",
+        "sourceNote": "GTFS-derived service metrics combined with census and deprivation context. The full weighting model lives in Index Lab, which opens with this exact recipe.",
+        "details": [
+          "A research pack for reviewing transit access against population context with a transparent equity scoring recipe.",
+          "The story keeps service context visible while the lab remains available for weighting changes and boundary-level experiments."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Preset",
+            "value": "Transit"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Lab",
+            "value": "Yes"
+          }
+        ],
+        "files": [
+          {
+            "label": "GTFS bundles",
+            "detail": "Routes, stops, and service metadata"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "Transit equity preset"
+          },
+          {
+            "label": "Ranked export",
+            "detail": "Review areas by boundary"
+          }
+        ],
+        "lab": {
+          "presetKey": "transitEquity",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "frequentTransitStopAccess": 24,
+            "accessibleFrequentTransitAccess": 20,
+            "transitServiceSpan": 16,
+            "transitTripsPerStop": 14,
+            "transitShelterDensity": 8,
+            "cimdEconomicDependency": 10,
+            "populationDensity": 8
+          },
+          "normalization": "percentile",
+          "aggregation": "additive"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-air-quality-gaps-ct.json",
-      "revision": "285cab915259"
+      "revision": "285cab915259",
+      "catalog": {
+        "slug": "score-example-air-quality-gaps-ct",
+        "title": "Air Monitoring Gaps (Tract)",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Highlights census tracts where sensor density is low relative to population. Low-scoring tracts are monitoring blind spots.",
+        "sourceNote": "Generated from the score-builder example \"airQualityGapsCt\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Active Sensor Share, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "6"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "6 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "overallDensity": 30,
+            "lowCostDensity": 15,
+            "referenceDensity": 20,
+            "networkVariety": 8,
+            "activeShare": 7,
+            "populationDensity": -20
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-canopy-cooling-heat-map-da.json",
-      "revision": "fc853b304d2e"
+      "revision": "fc853b304d2e",
+      "catalog": {
+        "slug": "score-example-canopy-cooling-heat-map-da",
+        "title": "Canopy + Cooling Heat Map (DA)",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "A compact heat-map score built from canopy proxy and cooling-facility access, useful as a positive heat-resilience layer.",
+        "sourceNote": "Generated from the score-builder example \"canopyCoolingHeatMapDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include 15-Minute Cooling Access, Canopy Proxy Ratio."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "2"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "2 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "coolingWalk15Access": 40,
+            "canopyProxyRatio": 60
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-chsa-reference-gaps.json",
-      "revision": "b595c472019b"
+      "revision": "b595c472019b",
+      "catalog": {
+        "slug": "score-example-chsa-reference-gaps",
+        "title": "Reference Station Gaps (CHSA)",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "British Columbia CHSA",
+        "status": "Ready",
+        "summary": "Highlights CHSAs that rely entirely on community sensors with no reference stations. Low scores = regulatory monitoring gaps.",
+        "sourceNote": "Generated from the score-builder example \"chsaReferenceGaps\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Reference Sensor Density, Network Variety, Parameter Variety, Active Sensor Share, Raw Sensor Count."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "CHSA"
+          },
+          {
+            "label": "Metrics",
+            "value": "6"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "6 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air"
+          }
+        ],
+        "lab": {
+          "boundarySource": "bcHealth",
+          "boundaryLevel": "chsa",
+          "weights": {
+            "overallDensity": 15,
+            "referenceDensity": 45,
+            "networkVariety": 8,
+            "parameterVariety": 10,
+            "activeShare": 15,
+            "monitorCount": 7
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-chsa-sensor-coverage.json",
-      "revision": "c0497304f7b2"
+      "revision": "c0497304f7b2",
+      "catalog": {
+        "slug": "score-example-chsa-sensor-coverage",
+        "title": "Community Health Sensor Coverage (CHSA)",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "British Columbia CHSA",
+        "status": "Ready",
+        "summary": "The most granular health boundary level with ~200+ areas. Shows fine-grained provincial monitoring gaps.",
+        "sourceNote": "Generated from the score-builder example \"chsaSensorCoverage\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Parameter Variety, Active Sensor Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "CHSA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air"
+          }
+        ],
+        "lab": {
+          "boundarySource": "bcHealth",
+          "boundaryLevel": "chsa",
+          "weights": {
+            "overallDensity": 30,
+            "lowCostDensity": 20,
+            "referenceDensity": 18,
+            "networkVariety": 10,
+            "parameterVariety": 5,
+            "activeShare": 10,
+            "monitorCount": 7
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-community-livability-ct.json",
-      "revision": "ff943859e089"
+      "revision": "ff943859e089",
+      "catalog": {
+        "slug": "score-example-community-livability-ct",
+        "title": "Community Livability (Tract)",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "A holistic index blending all available data at the tract level. Best-scoring areas have parks, food options, air monitoring, and population.",
+        "sourceNote": "Generated from the score-builder example \"communityLivabilityCt\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Active Sensor Share, Park Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "12"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "12 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Food, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "overallDensity": 12,
+            "lowCostDensity": 5,
+            "referenceDensity": 5,
+            "networkVariety": 3,
+            "activeShare": 5,
+            "parkDensity": 10,
+            "parkAreaRatio": 15,
+            "trailDensity": 10,
+            "amenityDensity": 5,
+            "restaurantDensity": 10,
+            "foodRiskScore": -10,
+            "populationDensity": 10
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-complete-neighbourhood-da.json",
-      "revision": "2f839219667c"
+      "revision": "2f839219667c",
+      "catalog": {
+        "slug": "score-example-complete-neighbourhood-da",
+        "title": "Complete Neighbourhood (DA)",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Combines food, parks, trails, housing mix, density, and crime per capita into a neighbourhood completeness score.",
+        "sourceNote": "Generated from the score-builder example \"completeNeighbourhoodDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Park Density, Trail Density, Amenity Density, Restaurant Density, Food Risk Score, Critical Violation Rate."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "10"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "10 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Food, Parks, Property, Census, Safety"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "parkDensity": 12,
+            "trailDensity": 10,
+            "amenityDensity": 8,
+            "restaurantDensity": 15,
+            "foodRiskScore": -6,
+            "criticalViolationRate": -6,
+            "populationDensity": 12,
+            "parcelDensity": 8,
+            "multiFamilyShare": 8,
+            "crimePerCapita": -15
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-crime-pressure-da.json",
-      "revision": "79c53c4074e6"
+      "revision": "79c53c4074e6",
+      "catalog": {
+        "slug": "score-example-crime-pressure-da",
+        "title": "Crime Pressure (DA)",
+        "kind": "index-preset",
+        "theme": "slate",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Uses live PG crime points with census population to score density, per-capita risk, and recent activity.",
+        "sourceNote": "Generated from the score-builder example \"crimePressureDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Population Density, Crime Density, Crime Per Capita, Recent Crime Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "4"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "4 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Safety, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "populationDensity": 15,
+            "crimeDensity": 35,
+            "crimePerCapita": 35,
+            "recentCrimeShare": 15
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-food-access-da.json",
-      "revision": "f3576b8b1ecf"
+      "revision": "f3576b8b1ecf",
+      "catalog": {
+        "slug": "score-example-food-access-da",
+        "title": "Food Access (DA)",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Fine-grained restaurant coverage across 135 areas. Highlights both under-served areas and areas with high food safety risk.",
+        "sourceNote": "Generated from the score-builder example \"foodAccessDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Amenity Density, Restaurant Density, Food Risk Score, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "4"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "4 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Food, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "amenityDensity": 15,
+            "restaurantDensity": 40,
+            "foodRiskScore": -25,
+            "populationDensity": 20
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-food-inspection-risk-da.json",
-      "revision": "42f9a5b81899"
+      "revision": "42f9a5b81899",
+      "catalog": {
+        "slug": "score-example-food-inspection-risk-da",
+        "title": "Food Inspection Risk (DA)",
+        "kind": "index-preset",
+        "theme": "slate",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Looks beyond hazard rating by adding critical violation rate and follow-up inspection rate.",
+        "sourceNote": "Generated from the score-builder example \"foodInspectionRiskDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Restaurant Density, Food Risk Score, Critical Violation Rate, Follow-Up Inspection Rate, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "5"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "5 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Food, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "restaurantDensity": 10,
+            "foodRiskScore": 22,
+            "criticalViolationRate": 34,
+            "followUpRate": 24,
+            "populationDensity": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-food-safety-ct.json",
-      "revision": "1882e06cff04"
+      "revision": "1882e06cff04",
+      "catalog": {
+        "slug": "score-example-food-safety-ct",
+        "title": "Food Safety Landscape (Tract)",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Scores each tract by restaurant access and inspection risk. Negative weight on food risk means safer areas score higher.",
+        "sourceNote": "Generated from the score-builder example \"foodSafetyCt\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Amenity Density, Restaurant Density, Food Risk Score, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "4"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "4 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Food, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "amenityDensity": 15,
+            "restaurantDensity": 35,
+            "foodRiskScore": -30,
+            "populationDensity": 20
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-greenest-neighbourhoods.json",
-      "revision": "0ac686cf8c29"
+      "revision": "0ac686cf8c29",
+      "catalog": {
+        "slug": "score-example-greenest-neighbourhoods",
+        "title": "Greenest Neighbourhoods",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George communityPolygon",
+        "status": "Ready",
+        "summary": "Scores each of the 31 CityPG communities by park coverage, trail density, and amenity access. High-scoring areas have more green space per resident.",
+        "sourceNote": "Generated from the score-builder example \"greenestNeighbourhoods\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Park Density, Park Area Ratio, Trail Density, Amenity Density, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "COMMUNITYPOLYGON"
+          },
+          {
+            "label": "Metrics",
+            "value": "5"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "5 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "cityCommunity",
+          "boundaryLevel": "communityPolygon",
+          "weights": {
+            "parkDensity": 22,
+            "parkAreaRatio": 28,
+            "trailDensity": 20,
+            "amenityDensity": 15,
+            "populationDensity": 15
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-heat-shade-need-da.json",
-      "revision": "410dc6e5804c"
+      "revision": "410dc6e5804c",
+      "catalog": {
+        "slug": "score-example-heat-shade-need-da",
+        "title": "Heat + Shade Need Proxy (DA)",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Uses the CityPG tree inventory, forest layers, community-facility proxies, building age, values, and population density. High scores mark areas needing closer heat/shade review.",
+        "sourceNote": "Generated from the score-builder example \"heatShadeNeedDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Tree Density, Mature Tree Density, Forest Area Ratio, Cooling Facility Density, Population Density, Average Assessed Value."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat, Census, Property"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "treeDensity": -16,
+            "matureTreeDensity": -12,
+            "forestAreaRatio": -18,
+            "coolingFacilityDensity": -8,
+            "populationDensity": 22,
+            "avgAssessedValue": -8,
+            "buildingAge": 16
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-housing-affordability-da.json",
-      "revision": "a05289ca7bf4"
+      "revision": "a05289ca7bf4",
+      "catalog": {
+        "slug": "score-example-housing-affordability-da",
+        "title": "Housing Affordability (DA)",
+        "kind": "index-preset",
+        "theme": "slate",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Uses BC Assessment parcels to balance lower values, multi-family share, parcel density, and recent value growth.",
+        "sourceNote": "Generated from the score-builder example \"housingAffordabilityDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Population Density, Parcel Density, Average Assessed Value, 10-Year Value Growth, Average Building Age, Multi-Family Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "6"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "6 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Property, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "populationDensity": 8,
+            "parcelDensity": 10,
+            "avgAssessedValue": -34,
+            "valueGrowth10y": -22,
+            "buildingAge": 8,
+            "multiFamilyShare": 18
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-hsda-sensor-coverage.json",
-      "revision": "78325f70b399"
+      "revision": "78325f70b399",
+      "catalog": {
+        "slug": "score-example-hsda-sensor-coverage",
+        "title": "Sensor Coverage (HSDA)",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "British Columbia HSDA",
+        "status": "Ready",
+        "summary": "Uses 16 HSDAs across BC. Reveals which sub-regions rely on community sensors vs. reference stations.",
+        "sourceNote": "Generated from the score-builder example \"hsdaSensorCoverage\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Parameter Variety, Active Sensor Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "HSDA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air"
+          }
+        ],
+        "lab": {
+          "boundarySource": "bcHealth",
+          "boundaryLevel": "hsda",
+          "weights": {
+            "overallDensity": 28,
+            "lowCostDensity": 18,
+            "referenceDensity": 22,
+            "networkVariety": 12,
+            "parameterVariety": 5,
+            "activeShare": 10,
+            "monitorCount": 5
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-lha-low-cost-expansion.json",
-      "revision": "fe7d643bf204"
+      "revision": "fe7d643bf204",
+      "catalog": {
+        "slug": "score-example-lha-low-cost-expansion",
+        "title": "Low-Cost Expansion Targets (LHA)",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "British Columbia LHA",
+        "status": "Ready",
+        "summary": "Prioritizes local health areas with low community sensor density but existing reference coverage. Low scores = best expansion targets.",
+        "sourceNote": "Generated from the score-builder example \"lhaLowCostExpansion\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Parameter Variety, Active Sensor Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "LHA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air"
+          }
+        ],
+        "lab": {
+          "boundarySource": "bcHealth",
+          "boundaryLevel": "lha",
+          "weights": {
+            "overallDensity": 10,
+            "lowCostDensity": 35,
+            "referenceDensity": -15,
+            "networkVariety": 15,
+            "parameterVariety": 8,
+            "activeShare": 12,
+            "monitorCount": -5
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-lha-monitoring-comparison.json",
-      "revision": "c4694244f79e"
+      "revision": "c4694244f79e",
+      "catalog": {
+        "slug": "score-example-lha-monitoring-comparison",
+        "title": "Local Health Area Monitoring (LHA)",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "British Columbia LHA",
+        "status": "Ready",
+        "summary": "Compares ~89 LHAs across BC by sensor network coverage, variety, and active monitoring rates.",
+        "sourceNote": "Generated from the score-builder example \"lhaMonitoringComparison\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Parameter Variety, Active Sensor Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "LHA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air"
+          }
+        ],
+        "lab": {
+          "boundarySource": "bcHealth",
+          "boundaryLevel": "lha",
+          "weights": {
+            "overallDensity": 35,
+            "lowCostDensity": 15,
+            "referenceDensity": 20,
+            "networkVariety": 12,
+            "parameterVariety": 6,
+            "activeShare": 8,
+            "monitorCount": 4
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-livability-da.json",
-      "revision": "38d4f11ffc7e"
+      "revision": "38d4f11ffc7e",
+      "catalog": {
+        "slug": "score-example-livability-da",
+        "title": "Livability Index (DA)",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Blends all data sources across 135 dissemination areas for the most detailed livability picture.",
+        "sourceNote": "Generated from the score-builder example \"livabilityDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Active Sensor Share, Park Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "12"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "12 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Food, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": 12,
+            "lowCostDensity": 6,
+            "referenceDensity": 7,
+            "networkVariety": 4,
+            "activeShare": 6,
+            "parkDensity": 8,
+            "parkAreaRatio": 15,
+            "trailDensity": 8,
+            "amenityDensity": 5,
+            "restaurantDensity": 8,
+            "foodRiskScore": -8,
+            "populationDensity": 12
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-low-cost-sensor-deployment-da.json",
-      "revision": "d1783bb5055f"
+      "revision": "d1783bb5055f",
+      "catalog": {
+        "slug": "score-example-low-cost-sensor-deployment-da",
+        "title": "Community Sensor Gaps (DA)",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Uses 135 dissemination areas to find fine-grained gaps. Areas with high population but few PA/EGG sensors score lowest.",
+        "sourceNote": "Generated from the score-builder example \"lowCostSensorDeploymentDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Network Variety, Parameter Variety, Active Sensor Share, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "6"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "6 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": 15,
+            "lowCostDensity": 35,
+            "networkVariety": 7,
+            "parameterVariety": 8,
+            "activeShare": 10,
+            "populationDensity": -25
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": [
+            "PA",
+            "EGG"
+          ]
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-park-access-da.json",
-      "revision": "d52fdbf5a363"
+      "revision": "d52fdbf5a363",
+      "catalog": {
+        "slug": "score-example-park-access-da",
+        "title": "Park Access (DA)",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Fine-grained view using 135 dissemination areas. Low-scoring areas lack nearby parks, trails, and amenities relative to their population.",
+        "sourceNote": "Generated from the score-builder example \"parkAccessDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Park Density, Park Area Ratio, Trail Density, Amenity Density, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "5"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "5 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "parkDensity": 20,
+            "parkAreaRatio": 30,
+            "trailDensity": 18,
+            "amenityDensity": 12,
+            "populationDensity": -20
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-pedestrian-network-study-mi-da.json",
-      "revision": "70d86e70ded7"
+      "revision": "70d86e70ded7",
+      "catalog": {
+        "slug": "score-example-pedestrian-network-study-mi-da",
+        "title": "Pedestrian Network Study MI (DA)",
+        "kind": "index-preset",
+        "theme": "blue",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Adapts the report Mobility Index to the Index Lab boundary model using sidewalk/walkway density, crossings, transit, parks, childcare, POIs, and lower safety pressure.",
+        "sourceNote": "Generated from the score-builder example \"pedestrianNetworkStudyMiDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Transit Stop Density, Sidewalk Density, Walkway Density, Intersection Density, Pedestrian Crossing Density, Childcare / Daycare Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "10"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "10 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Walkability, Parks, Transit"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "transitStopDensity": 10,
+            "sidewalkDensity": 20,
+            "walkwayDensity": 12,
+            "walkabilityIntersectionDensity": 12,
+            "walkabilityCrossingDensity": 10,
+            "childcareDensity": 8,
+            "walkabilityPoiDensity": 10,
+            "class3CrosswalkDensity": -4,
+            "pedestrianCrashDensity": -4,
+            "parkWalk10Access": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "source"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-pg-climate-health-vulnerability-da.json",
-      "revision": "963c6891797c"
+      "revision": "963c6891797c",
+      "catalog": {
+        "slug": "score-example-pg-climate-health-vulnerability-da",
+        "title": "PG Climate + Health Vulnerability Proxy (DA)",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Research-backed starter index that combines exposure proxies, population sensitivity, property vulnerability, and adaptive capacity. High scores mark areas needing closer review.",
+        "sourceNote": "Generated from the score-builder example \"pgClimateHealthVulnerabilityDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Park Area Ratio, Trail Density, Amenity Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "15"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "15 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Heat, Food, Census, Property, Safety"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": -14,
+            "lowCostDensity": -8,
+            "referenceDensity": -10,
+            "parkAreaRatio": -16,
+            "trailDensity": -8,
+            "amenityDensity": -6,
+            "treeDensity": -8,
+            "forestAreaRatio": -8,
+            "coolingFacilityDensity": -4,
+            "foodRiskScore": 5,
+            "populationDensity": 18,
+            "avgAssessedValue": -10,
+            "buildingAge": 8,
+            "vacantParcelShare": 7,
+            "crimePerCapita": 8
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-pg-environmental-justice-proxy-da.json",
-      "revision": "e466e1815fe3"
+      "revision": "e466e1815fe3",
+      "catalog": {
+        "slug": "score-example-pg-environmental-justice-proxy-da",
+        "title": "PG Environmental Justice Proxy (DA)",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "CDC EJI-inspired local screen using module percentile-ranked sums. This is a local proxy, not the official ATSDR Environmental Justice Index.",
+        "sourceNote": "Generated from the score-builder example \"pgEnvironmentalJusticeProxyDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Food Risk Score, Critical Violation Rate, Population Density, Average Building Age, Crime Per Capita, Accessible Frequent Transit Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "14"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "14 active metrics; modulePercentileRankedSum aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Heat, Food, Census, Property, Safety, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "foodRiskScore": 8,
+            "criticalViolationRate": 6,
+            "populationDensity": 10,
+            "buildingAge": 8,
+            "crimePerCapita": 12,
+            "accessibleFrequentTransitAccess": 8,
+            "parkWalk10Access": 10,
+            "coolingWalk15Access": 10,
+            "serviceAccessComposite": 8,
+            "shadeGap": 18,
+            "cimdComposite": 18,
+            "cimdResidentialInstability": 8,
+            "cimdEconomicDependency": 10,
+            "cimdSituationalVulnerability": 12
+          },
+          "normalization": "percentile",
+          "aggregation": "modulePercentileRankedSum",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-pg-social-environmental-rank-da.json",
-      "revision": "701064363d68"
+      "revision": "701064363d68",
+      "catalog": {
+        "slug": "score-example-pg-social-environmental-rank-da",
+        "title": "PG Social-Environmental Rank (DA)",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "EJI SER-style example that ranks social vulnerability and environmental burden modules, then combines those module ranks without health vulnerability.",
+        "sourceNote": "Generated from the score-builder example \"pgSocialEnvironmentalRankDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Food Risk Score, Critical Violation Rate, Population Density, Average Building Age, Crime Per Capita, 10-Minute Park Walk Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "10"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "10 active metrics; modulePercentileRankedSum aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Heat, Food, Census, Property, Safety, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "foodRiskScore": 10,
+            "criticalViolationRate": 8,
+            "populationDensity": 8,
+            "buildingAge": 8,
+            "crimePerCapita": 12,
+            "parkWalk10Access": 10,
+            "serviceAccessComposite": 8,
+            "cimdComposite": 18,
+            "cimdResidentialInstability": 8,
+            "cimdEconomicDependency": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "modulePercentileRankedSum",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-provincial-air-quality-ha.json",
-      "revision": "6a8f58caffd1"
+      "revision": "6a8f58caffd1",
+      "catalog": {
+        "slug": "score-example-provincial-air-quality-ha",
+        "title": "Provincial Air Quality (HA)",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "British Columbia HEALTHAUTHORITY",
+        "status": "Ready",
+        "summary": "Compares the 5 health authorities across BC by overall sensor density, network variety, and reference station coverage.",
+        "sourceNote": "Generated from the score-builder example \"provincialAirQualityHa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Parameter Variety, Active Sensor Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "HEALTHAUTHORITY"
+          },
+          {
+            "label": "Metrics",
+            "value": "6"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "6 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air"
+          }
+        ],
+        "lab": {
+          "boundarySource": "bcHealth",
+          "boundaryLevel": "healthAuthority",
+          "weights": {
+            "overallDensity": 30,
+            "lowCostDensity": 15,
+            "referenceDensity": 25,
+            "networkVariety": 14,
+            "parameterVariety": 6,
+            "activeShare": 10
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-redevelopment-pressure-da.json",
-      "revision": "491a9d17d3cd"
+      "revision": "491a9d17d3cd",
+      "catalog": {
+        "slug": "score-example-redevelopment-pressure-da",
+        "title": "Redevelopment Pressure (DA)",
+        "kind": "index-preset",
+        "theme": "slate",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Highlights DAs with older buildings, high land-value share, vacant parcels, and rapid assessment growth.",
+        "sourceNote": "Generated from the score-builder example \"redevelopmentPressureDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Population Density, Parcel Density, 10-Year Value Growth, Average Building Age, Vacant Parcel Share, Commercial Parcel Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Property, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "populationDensity": 4,
+            "parcelDensity": 6,
+            "valueGrowth10y": 28,
+            "buildingAge": 14,
+            "vacantParcelShare": 18,
+            "commercialShare": 8,
+            "landValueShare": 22
+          },
+          "normalization": "zScore",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-school-exposure-mobility-da.json",
-      "revision": "fa22302a1b8b"
+      "revision": "fa22302a1b8b",
+      "catalog": {
+        "slug": "score-example-school-exposure-mobility-da",
+        "title": "School Exposure + Active Mobility Proxy (DA)",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "A near-term school proxy using population, trails, parks, amenities, monitor coverage, food-risk, and safety pressure until school points and catchments are fully wired in.",
+        "sourceNote": "Generated from the score-builder example \"schoolExposureMobilityDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Reference Sensor Density, Park Density, Trail Density, Amenity Density, Food Risk Score."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Food, Census, Safety"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": -12,
+            "referenceDensity": -8,
+            "parkDensity": 14,
+            "trailDensity": 16,
+            "amenityDensity": 10,
+            "foodRiskScore": -8,
+            "criticalViolationRate": -6,
+            "populationDensity": 18,
+            "crimePerCapita": -8
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-sensor-gap-equity-da.json",
-      "revision": "94d614f2123e"
+      "revision": "94d614f2123e",
+      "catalog": {
+        "slug": "score-example-sensor-gap-equity-da",
+        "title": "Sensor Gap + Equity Proxy (DA)",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Ranks populated areas with weaker monitor density, less network variety, and fewer nearby adaptive-capacity proxies.",
+        "sourceNote": "Generated from the score-builder example \"sensorGapEquityDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Active Sensor Share, Park Area Ratio."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Census"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": -26,
+            "lowCostDensity": -18,
+            "referenceDensity": -16,
+            "networkVariety": -6,
+            "activeShare": -2,
+            "parkAreaRatio": -4,
+            "populationDensity": 28
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/example-shade-gap-heat-map-da.json",
-      "revision": "eb368564c1e4"
+      "revision": "eb368564c1e4",
+      "catalog": {
+        "slug": "score-example-shade-gap-heat-map-da",
+        "title": "Shade Gap Heat Map (DA)",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Uses the score builder heat-map lens as a score: high-ranking dissemination areas have lower canopy proxy and weaker cooling access.",
+        "sourceNote": "Generated from the score-builder example \"shadeGapHeatMapDa\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Example package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Shade Gap."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Example"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "1"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "1 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat"
+          }
+        ],
+        "lab": {
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "shadeGap": 100
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-access-pg15-minute.json",
-      "revision": "81289646ec6b"
+      "revision": "81289646ec6b",
+      "catalog": {
+        "slug": "score-preset-access-pg15-minute",
+        "title": "15-Minute PG Access",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Access preset for transit, parks, trails, cooling/community destinations, services, childcare, and walkability proxies.",
+        "sourceNote": "Generated from the score-builder preset \"accessPg15Minute\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Trail Density, Transit Service Span, Accessible Frequent Transit Access, Childcare / Daycare Density, Supplemental POI Density, 10-Minute Park Walk Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; accessThreshold aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Heat, Transit, Walkability"
+          }
+        ],
+        "lab": {
+          "presetKey": "accessPg15Minute",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "trailDensity": 8,
+            "transitServiceSpan": 10,
+            "accessibleFrequentTransitAccess": 16,
+            "childcareDensity": 8,
+            "walkabilityPoiDensity": 10,
+            "parkWalk10Access": 14,
+            "coolingWalk15Access": 8,
+            "parkTransit20Access": 8,
+            "serviceAccessComposite": 18
+          },
+          "normalization": "percentile",
+          "aggregation": "accessThreshold",
+          "mapSurface": "source",
+          "accessThreshold": {
+            "minimumAccess": 0.5,
+            "minimumHits": 4
+          }
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-active-living-walkability.json",
-      "revision": "d7dff4a4cf59"
+      "revision": "d7dff4a4cf59",
+      "catalog": {
+        "slug": "score-preset-active-living-walkability",
+        "title": "Active Living / Walkability",
+        "kind": "index-preset",
+        "theme": "blue",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Active-living preset using pedestrian network, crossings, transit, trails, parks, services, and lower pedestrian crash pressure.",
+        "sourceNote": "Generated from the score-builder preset \"activeLivingWalkability\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Trail Density, Accessible Frequent Transit Access, Sidewalk Density, Walkway Density, Intersection Density, Pedestrian Crossing Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Transit, Walkability"
+          }
+        ],
+        "lab": {
+          "presetKey": "activeLivingWalkability",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "trailDensity": 10,
+            "accessibleFrequentTransitAccess": 10,
+            "sidewalkDensity": 16,
+            "walkwayDensity": 10,
+            "walkabilityIntersectionDensity": 12,
+            "walkabilityCrossingDensity": 10,
+            "pedestrianCrashDensity": -10,
+            "parkWalk10Access": 10,
+            "serviceAccessComposite": 12
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "source"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-balanced-coverage.json",
-      "revision": "1def5f926c83"
+      "revision": "1def5f926c83",
+      "catalog": {
+        "slug": "score-preset-balanced-coverage",
+        "title": "Balanced Coverage",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Mix density with network and parameter variety.",
+        "sourceNote": "Generated from the score-builder preset \"balancedCoverage\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Parameter Variety, Active Sensor Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "6"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "6 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air"
+          }
+        ],
+        "lab": {
+          "presetKey": "balancedCoverage",
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "overallDensity": 40,
+            "lowCostDensity": 18,
+            "referenceDensity": 24,
+            "networkVariety": 10,
+            "parameterVariety": 5,
+            "activeShare": 3
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-canopy-cooling-heat-map.json",
-      "revision": "84ccf40d67e0"
+      "revision": "84ccf40d67e0",
+      "catalog": {
+        "slug": "score-preset-canopy-cooling-heat-map",
+        "title": "Canopy + Cooling Heat Map",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Single-theme heat-map score for stronger canopy proxy and cooling/community facility access.",
+        "sourceNote": "Generated from the score-builder preset \"canopyCoolingHeatMap\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include 15-Minute Cooling Access, Canopy Proxy Ratio."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "2"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "2 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat"
+          }
+        ],
+        "lab": {
+          "presetKey": "canopyCoolingHeatMap",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "coolingWalk15Access": 40,
+            "canopyProxyRatio": 60
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-climate-community-health.json",
-      "revision": "860d3fcfd300"
+      "revision": "860d3fcfd300",
+      "catalog": {
+        "slug": "score-preset-climate-community-health",
+        "title": "Climate + Health Vulnerability Proxy",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Proxy vulnerability recipe using density, housing, parks, safety, food, monitoring gaps, and CityPG shade/cooling proxy layers.",
+        "sourceNote": "Generated from the score-builder preset \"climateCommunityHealth\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Park Area Ratio, Trail Density, Amenity Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "15"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "15 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Heat, Food, Census, Property, Safety"
+          }
+        ],
+        "lab": {
+          "presetKey": "climateCommunityHealth",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": -14,
+            "lowCostDensity": -8,
+            "referenceDensity": -10,
+            "parkAreaRatio": -16,
+            "trailDensity": -8,
+            "amenityDensity": -6,
+            "treeDensity": -8,
+            "forestAreaRatio": -8,
+            "coolingFacilityDensity": -4,
+            "foodRiskScore": 5,
+            "populationDensity": 18,
+            "avgAssessedValue": -10,
+            "buildingAge": 8,
+            "vacantParcelShare": 7,
+            "crimePerCapita": 8
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-community-resilience-proxy.json",
-      "revision": "eb6064539097"
+      "revision": "eb6064539097",
+      "catalog": {
+        "slug": "score-preset-community-resilience-proxy",
+        "title": "Community Resilience Proxy",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Higher scores combine monitoring, parks, services, housing mix, and lower safety/food pressure.",
+        "sourceNote": "Generated from the score-builder preset \"communityResilienceProxy\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Active Sensor Share, Park Density, Park Area Ratio, Trail Density, Amenity Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "11"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "11 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Food, Census, Property, Safety"
+          }
+        ],
+        "lab": {
+          "presetKey": "communityResilienceProxy",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": 10,
+            "activeShare": 6,
+            "parkDensity": 10,
+            "parkAreaRatio": 16,
+            "trailDensity": 10,
+            "amenityDensity": 8,
+            "restaurantDensity": 6,
+            "foodRiskScore": -8,
+            "buildingAge": -8,
+            "multiFamilyShare": 8,
+            "crimePerCapita": -10
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-complete-neighbourhood.json",
-      "revision": "b7073b1943e7"
+      "revision": "b7073b1943e7",
+      "catalog": {
+        "slug": "score-preset-complete-neighbourhood",
+        "title": "Complete Neighbourhood",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Balances services, parks, trails, density, and housing mix.",
+        "sourceNote": "Generated from the score-builder preset \"completeNeighbourhood\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Park Density, Trail Density, Amenity Density, Restaurant Density, Food Risk Score, Critical Violation Rate."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "10"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "10 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Food, Census, Property, Safety"
+          }
+        ],
+        "lab": {
+          "presetKey": "completeNeighbourhood",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "parkDensity": 14,
+            "trailDensity": 12,
+            "amenityDensity": 10,
+            "restaurantDensity": 16,
+            "foodRiskScore": -6,
+            "criticalViolationRate": -6,
+            "populationDensity": 12,
+            "parcelDensity": 8,
+            "multiFamilyShare": 8,
+            "crimePerCapita": -8
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-cumulative-equity-burden.json",
-      "revision": "040bd00604d6"
+      "revision": "040bd00604d6",
+      "catalog": {
+        "slug": "score-preset-cumulative-equity-burden",
+        "title": "Cumulative Equity Burden",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "CalEnviroScreen-style overlap of local burden, deprivation vulnerability, and adaptive-capacity gaps.",
+        "sourceNote": "Generated from the score-builder preset \"cumulativeEquityBurden\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Food Risk Score, Critical Violation Rate, Population Density, 10-Year Value Growth, Average Building Age, Crime Per Capita."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "12"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "12 active metrics; cumulativeBurden aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Heat, Food, Census, Property, Safety, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "cumulativeEquityBurden",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "foodRiskScore": 16,
+            "criticalViolationRate": 10,
+            "populationDensity": 10,
+            "valueGrowth10y": 8,
+            "buildingAge": 8,
+            "crimePerCapita": 18,
+            "parkWalk10Access": 12,
+            "coolingWalk15Access": 10,
+            "serviceAccessComposite": 8,
+            "shadeGap": 16,
+            "cimdComposite": 20,
+            "cimdEconomicDependency": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "cumulativeBurden",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-environmental-health.json",
-      "revision": "bc0d17783bdc"
+      "revision": "bc0d17783bdc",
+      "catalog": {
+        "slug": "score-preset-environmental-health",
+        "title": "Environmental Health",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Air quality coverage combined with green space access and lower population exposure.",
+        "sourceNote": "Generated from the score-builder preset \"environmentalHealth\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Network Variety, Active Sensor Share, Park Density, Park Area Ratio."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Census"
+          }
+        ],
+        "lab": {
+          "presetKey": "environmentalHealth",
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "overallDensity": 18,
+            "lowCostDensity": 10,
+            "networkVariety": 5,
+            "activeShare": 8,
+            "parkDensity": 14,
+            "parkAreaRatio": 22,
+            "trailDensity": 10,
+            "amenityDensity": 5,
+            "populationDensity": -8
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-flood-vulnerability-proxy.json",
-      "revision": "9dcc70b6a3ee"
+      "revision": "9dcc70b6a3ee",
+      "catalog": {
+        "slug": "score-preset-flood-vulnerability-proxy",
+        "title": "Flood Vulnerability Proxy",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Flood-response vulnerability proxy using population, social vulnerability, older housing, lower access, and emergency response access.",
+        "sourceNote": "Generated from the score-builder preset \"floodVulnerabilityProxy\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Response Facility Density, Population Density, Average Building Age, Pre-1980 Housing Share, Accessible Frequent Transit Access, Service Access Composite."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; cumulativeBurden aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat, Census, Property, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "floodVulnerabilityProxy",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "responseFacilityDensity": -8,
+            "populationDensity": 14,
+            "buildingAge": 12,
+            "pre1980HousingShare": 10,
+            "accessibleFrequentTransitAccess": -6,
+            "serviceAccessComposite": -8,
+            "cimdComposite": 20,
+            "cimdResidentialInstability": 12,
+            "cimdEconomicDependency": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "cumulativeBurden",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-food-inspection-risk.json",
-      "revision": "21848707b0e9"
+      "revision": "21848707b0e9",
+      "catalog": {
+        "slug": "score-preset-food-inspection-risk",
+        "title": "Food Inspection Risk",
+        "kind": "index-preset",
+        "theme": "slate",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Prioritizes restaurant areas with more critical violations, follow-ups, and hazard risk.",
+        "sourceNote": "Generated from the score-builder preset \"foodInspectionRisk\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Restaurant Density, Food Risk Score, Critical Violation Rate, Follow-Up Inspection Rate, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "5"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "5 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Food, Census"
+          }
+        ],
+        "lab": {
+          "presetKey": "foodInspectionRisk",
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "restaurantDensity": 10,
+            "foodRiskScore": 22,
+            "criticalViolationRate": 34,
+            "followUpRate": 24,
+            "populationDensity": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-food-safety-access.json",
-      "revision": "c044d931bfac"
+      "revision": "c044d931bfac",
+      "catalog": {
+        "slug": "score-preset-food-safety-access",
+        "title": "Food Safety + Access",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Higher scores flag areas with food access but lower inspection pressure and better context.",
+        "sourceNote": "Generated from the score-builder preset \"foodSafetyAccess\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Amenity Density, Restaurant Density, Food Risk Score, Critical Violation Rate, Follow-Up Inspection Rate, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Food, Census, Safety"
+          }
+        ],
+        "lab": {
+          "presetKey": "foodSafetyAccess",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "amenityDensity": 5,
+            "restaurantDensity": 26,
+            "foodRiskScore": -22,
+            "criticalViolationRate": -18,
+            "followUpRate": -10,
+            "populationDensity": 12,
+            "crimePerCapita": -7
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-hbe-active-transportation.json",
-      "revision": "77ed84304e3b"
+      "revision": "77ed84304e3b",
+      "catalog": {
+        "slug": "score-preset-hbe-active-transportation",
+        "title": "HBE Active Transportation",
+        "kind": "index-preset",
+        "theme": "blue",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Toolkit transportation-network proxy for accessible transit, connected trails, active-mobility service reach, and lower safety pressure.",
+        "sourceNote": "Generated from the score-builder preset \"hbeActiveTransportation\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Trail Density, Crime Per Capita, Transit Stop Density, Accessible Transit Stop Density, Transit Shelter/Exchange Density, Frequent Transit Stop Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "8"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "8 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Census, Safety, Transit"
+          }
+        ],
+        "lab": {
+          "presetKey": "hbeActiveTransportation",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "trailDensity": 18,
+            "crimePerCapita": -8,
+            "transitStopDensity": 16,
+            "accessibleTransitStopDensity": 14,
+            "transitShelterDensity": 6,
+            "frequentTransitStopAccess": 14,
+            "transitServiceSpan": 10,
+            "accessibleFrequentTransitAccess": 14
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-hbe-complete-neighbourhood.json",
-      "revision": "eb66174695a3"
+      "revision": "eb66174695a3",
+      "catalog": {
+        "slug": "score-preset-hbe-complete-neighbourhood",
+        "title": "HBE Complete Neighbourhood",
+        "kind": "index-preset",
+        "theme": "blue",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Toolkit neighbourhood-design proxy for compact, connected places with mixed services, parks, housing choice, and lower safety pressure.",
+        "sourceNote": "Generated from the score-builder preset \"hbeCompleteNeighbourhood\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Restaurant Density, Population Density, Parcel Density, Multi-Family Share, Commercial Parcel Share, Crime Per Capita."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Food, Census, Property, Safety, Transit"
+          }
+        ],
+        "lab": {
+          "presetKey": "hbeCompleteNeighbourhood",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "restaurantDensity": 10,
+            "populationDensity": 8,
+            "parcelDensity": 8,
+            "multiFamilyShare": 10,
+            "commercialShare": 8,
+            "crimePerCapita": -10,
+            "transitStopDensity": 10,
+            "parkWalk10Access": 14,
+            "serviceAccessComposite": 22
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-hbe-food-access-resilience.json",
-      "revision": "903c94edca1c"
+      "revision": "903c94edca1c",
+      "catalog": {
+        "slug": "score-preset-hbe-food-access-resilience",
+        "title": "HBE Food Access + Resilience",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Toolkit food-systems proxy using available food premises, service access, transit reach, and lower inspection-risk pressure until grocery and food-program layers are added.",
+        "sourceNote": "Generated from the score-builder preset \"hbeFoodAccessResilience\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Restaurant Density, Food Risk Score, Critical Violation Rate, Follow-Up Inspection Rate, Population Density, Transit Service Span."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Food, Census, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "hbeFoodAccessResilience",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "restaurantDensity": 18,
+            "foodRiskScore": -14,
+            "criticalViolationRate": -8,
+            "followUpRate": -4,
+            "populationDensity": 8,
+            "transitServiceSpan": 8,
+            "accessibleFrequentTransitAccess": 12,
+            "serviceAccessComposite": 16,
+            "cimdEconomicDependency": -12
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-hbe-housing-quality-hazards.json",
-      "revision": "bba008dde7e6"
+      "revision": "bba008dde7e6",
+      "catalog": {
+        "slug": "score-preset-hbe-housing-quality-hazards",
+        "title": "HBE Housing Quality + Hazards",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Toolkit housing proxy for affordability, housing choice, older-stock retrofit need, shade/cooling gaps, and nearby local burden.",
+        "sourceNote": "Generated from the score-builder preset \"hbeHousingQualityHazards\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Average Assessed Value, 10-Year Value Growth, Average Building Age, Pre-1980 Housing Share, Multi-Family Share, Crime Per Capita."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "10"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "10 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat, Census, Property, Safety, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "hbeHousingQualityHazards",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "avgAssessedValue": -18,
+            "valueGrowth10y": -12,
+            "buildingAge": -8,
+            "pre1980HousingShare": -8,
+            "multiFamilyShare": 12,
+            "crimePerCapita": -8,
+            "coolingWalk15Access": 10,
+            "canopyProxyRatio": 10,
+            "shadeGap": -10,
+            "cimdComposite": -4
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-hbe-linkages-index.json",
-      "revision": "8311ad01b64d"
+      "revision": "8311ad01b64d",
+      "catalog": {
+        "slug": "score-preset-hbe-linkages-index",
+        "title": "HBE Linkages Index",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Healthy Built Environment toolkit proxy combining complete neighbourhoods, active mobility, nature access, food context, housing, and equity.",
+        "sourceNote": "Generated from the score-builder preset \"hbeLinkagesIndex\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Restaurant Density, Food Risk Score, Critical Violation Rate, Average Assessed Value, 10-Year Value Growth, Multi-Family Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "14"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "14 active metrics; modulePercentileRankedSum aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Heat, Food, Census, Property, Safety, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "hbeLinkagesIndex",
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "restaurantDensity": 8,
+            "foodRiskScore": -6,
+            "criticalViolationRate": -4,
+            "avgAssessedValue": -6,
+            "valueGrowth10y": -5,
+            "multiFamilyShare": 7,
+            "crimePerCapita": -6,
+            "transitServiceSpan": 8,
+            "accessibleFrequentTransitAccess": 10,
+            "parkWalk10Access": 10,
+            "coolingWalk15Access": 8,
+            "serviceAccessComposite": 14,
+            "canopyProxyRatio": 10,
+            "cimdComposite": -8
+          },
+          "normalization": "percentile",
+          "aggregation": "modulePercentileRankedSum",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-hbe-natural-environment-access.json",
-      "revision": "be6e18d1b51b"
+      "revision": "be6e18d1b51b",
+      "catalog": {
+        "slug": "score-preset-hbe-natural-environment-access",
+        "title": "HBE Nature + Cooling Access",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Toolkit natural-environments proxy for park access, canopy, forest/open-space cover, cooling access, and lower shade gaps.",
+        "sourceNote": "Generated from the score-builder preset \"hbeNaturalEnvironmentAccess\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Park Area Ratio, Trail Density, Forest Area Ratio, 10-Minute Park Walk Access, 20-Minute Park Walk Access, 15-Minute Cooling Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Heat"
+          }
+        ],
+        "lab": {
+          "presetKey": "hbeNaturalEnvironmentAccess",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "parkAreaRatio": 12,
+            "trailDensity": 8,
+            "forestAreaRatio": 10,
+            "parkWalk10Access": 18,
+            "parkWalk20Access": 10,
+            "coolingWalk15Access": 12,
+            "parkTransit20Access": 8,
+            "canopyProxyRatio": 16,
+            "shadeGap": -6
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-healthy-plan-cimd-canopy.json",
-      "revision": "fd0688a869f9"
+      "revision": "fd0688a869f9",
+      "catalog": {
+        "slug": "score-preset-healthy-plan-cimd-canopy",
+        "title": "Pairwise: CIMD x Canopy",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "HealthyPlan-style priority: high CIMD vulnerability and low canopy benefit.",
+        "sourceNote": "Generated from the score-builder preset \"healthyPlanCimdCanopy\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Canopy Proxy Ratio, CIMD Composite Deprivation."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "2"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "2 active metrics; healthyPlanPairwisePriority aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "healthyPlanCimdCanopy",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "canopyProxyRatio": 50,
+            "cimdComposite": 50
+          },
+          "normalization": "percentile",
+          "aggregation": "healthyPlanPairwisePriority",
+          "mapSurface": "boundary",
+          "healthyPlanPriority": {
+            "demographicMetric": "cimdComposite",
+            "environmentMetric": "canopyProxyRatio"
+          }
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-healthy-plan-economic-parks.json",
-      "revision": "1c763fd70a51"
+      "revision": "1c763fd70a51",
+      "catalog": {
+        "slug": "score-preset-healthy-plan-economic-parks",
+        "title": "Pairwise: Economic Dependency x Parks",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "HealthyPlan-style priority: high economic dependency and low 10-minute park access.",
+        "sourceNote": "Generated from the score-builder preset \"healthyPlanEconomicParks\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include 10-Minute Park Walk Access, CIMD Economic Dependency."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "2"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "2 active metrics; healthyPlanPairwisePriority aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "healthyPlanEconomicParks",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "parkWalk10Access": 50,
+            "cimdEconomicDependency": 50
+          },
+          "normalization": "percentile",
+          "aggregation": "healthyPlanPairwisePriority",
+          "mapSurface": "boundary",
+          "healthyPlanPriority": {
+            "demographicMetric": "cimdEconomicDependency",
+            "environmentMetric": "parkWalk10Access"
+          }
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-heat-relief-priority.json",
-      "revision": "e8929931260c"
+      "revision": "e8929931260c",
+      "catalog": {
+        "slug": "score-preset-heat-relief-priority",
+        "title": "Heat Relief Priority",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Prioritizes populated, deprivation-affected areas with shade/cooling gaps and older housing.",
+        "sourceNote": "Generated from the score-builder preset \"heatReliefPriority\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Population Density, Average Building Age, 15-Minute Cooling Access, Canopy Proxy Ratio, Shade Gap, CIMD Composite Deprivation."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; cumulativeBurden aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat, Census, Property, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "heatReliefPriority",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "populationDensity": 10,
+            "buildingAge": 14,
+            "coolingWalk15Access": 16,
+            "canopyProxyRatio": 18,
+            "shadeGap": 28,
+            "cimdComposite": 10,
+            "cimdSituationalVulnerability": 14
+          },
+          "normalization": "percentile",
+          "aggregation": "cumulativeBurden",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-heat-shade-need-proxy.json",
-      "revision": "8081b14790cd"
+      "revision": "8081b14790cd",
+      "catalog": {
+        "slug": "score-preset-heat-shade-need-proxy",
+        "title": "Heat + Shade Need Proxy",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Higher scores flag dense areas with older housing, weaker tree/forest cover, and fewer cooling proxies.",
+        "sourceNote": "Generated from the score-builder preset \"heatShadeNeedProxy\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Tree Density, Mature Tree Density, Forest Area Ratio, Cooling Facility Density, Population Density, Average Assessed Value."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat, Census, Property"
+          }
+        ],
+        "lab": {
+          "presetKey": "heatShadeNeedProxy",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "treeDensity": -16,
+            "matureTreeDensity": -12,
+            "forestAreaRatio": -18,
+            "coolingFacilityDensity": -8,
+            "populationDensity": 22,
+            "avgAssessedValue": -8,
+            "buildingAge": 16
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-housing-affordability.json",
-      "revision": "88b267dd4a65"
+      "revision": "88b267dd4a65",
+      "catalog": {
+        "slug": "score-preset-housing-affordability",
+        "title": "Housing Affordability",
+        "kind": "index-preset",
+        "theme": "slate",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Highlights lower values, slower price pressure, older stock, multi-family mix, and vacant capacity.",
+        "sourceNote": "Generated from the score-builder preset \"housingAffordability\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Population Density, Parcel Density, Average Assessed Value, 10-Year Value Growth, Average Building Age, Vacant Parcel Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Census, Property"
+          }
+        ],
+        "lab": {
+          "presetKey": "housingAffordability",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "populationDensity": 6,
+            "parcelDensity": 8,
+            "avgAssessedValue": -32,
+            "valueGrowth10y": -22,
+            "buildingAge": 8,
+            "vacantParcelShare": 6,
+            "multiFamilyShare": 18
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-housing-climate-retrofit-need.json",
-      "revision": "5d3f26d9b37c"
+      "revision": "5d3f26d9b37c",
+      "catalog": {
+        "slug": "score-preset-housing-climate-retrofit-need",
+        "title": "Housing Climate Retrofit Proxy",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Proxy recipe for older, lower-resource housing areas with weaker adaptive-capacity signals.",
+        "sourceNote": "Generated from the score-builder preset \"housingClimateRetrofitNeed\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Park Area Ratio, Population Density, Parcel Density, Average Assessed Value, 10-Year Value Growth."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "8"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "8 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Census, Property"
+          }
+        ],
+        "lab": {
+          "presetKey": "housingClimateRetrofitNeed",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": -8,
+            "parkAreaRatio": -10,
+            "populationDensity": 12,
+            "parcelDensity": 6,
+            "avgAssessedValue": -20,
+            "valueGrowth10y": -6,
+            "buildingAge": 26,
+            "multiFamilyShare": 12
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-housing-climate-risk.json",
-      "revision": "11f68210c0e8"
+      "revision": "11f68210c0e8",
+      "catalog": {
+        "slug": "score-preset-housing-climate-risk",
+        "title": "Housing + Climate Risk",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Housing stress and climate-risk proxy using older housing, lower assessed value, instability, shade/cooling gaps, and local burden.",
+        "sourceNote": "Generated from the score-builder preset \"housingClimateRisk\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Food Risk Score, Average Assessed Value, Average Building Age, Pre-1980 Housing Share, Multi-Family Share, Crime Per Capita."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "10"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "10 active metrics; cumulativeBurden aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat, Food, Census, Property, Safety, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "housingClimateRisk",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "foodRiskScore": 4,
+            "avgAssessedValue": -12,
+            "buildingAge": 18,
+            "pre1980HousingShare": 14,
+            "multiFamilyShare": 8,
+            "crimePerCapita": 6,
+            "coolingWalk15Access": -10,
+            "shadeGap": 14,
+            "cimdResidentialInstability": 14,
+            "cimdEconomicDependency": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "cumulativeBurden",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-industrial-burden-proxy.json",
-      "revision": "59175806ca2f"
+      "revision": "59175806ca2f",
+      "catalog": {
+        "slug": "score-preset-industrial-burden-proxy",
+        "title": "Industrial Burden Proxy",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Industrial/local burden placeholder using traffic, monitoring, land-value, food-safety, crime, and older-building proxies until NPRI and contaminated-site layers are normalized.",
+        "sourceNote": "Generated from the score-builder preset \"industrialBurdenProxy\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Food Risk Score, Critical Violation Rate, Average Building Age, Commercial Parcel Share, Land Value Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "10"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "10 active metrics; cumulativeBurden aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Food, Property, Safety, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "industrialBurdenProxy",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": -8,
+            "foodRiskScore": 10,
+            "criticalViolationRate": 8,
+            "buildingAge": 10,
+            "commercialShare": 10,
+            "landValueShare": 10,
+            "crimeDensity": 12,
+            "transitStopDensity": 8,
+            "parkWalk10Access": -8,
+            "cimdComposite": 16
+          },
+          "normalization": "percentile",
+          "aggregation": "cumulativeBurden",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-investment-priority.json",
-      "revision": "832097db6533"
+      "revision": "832097db6533",
+      "catalog": {
+        "slug": "score-preset-investment-priority",
+        "title": "Investment Priority",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Screening preset for stable high-burden, high-need areas with low adaptive capacity.",
+        "sourceNote": "Generated from the score-builder preset \"investmentPriority\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Food Risk Score, Average Building Age, Crime Per Capita, Accessible Frequent Transit Access, 10-Minute Park Walk Access, Service Access Composite."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "8"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "8 active metrics; cumulativeBurden aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Heat, Food, Census, Property, Safety, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "investmentPriority",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "foodRiskScore": 10,
+            "buildingAge": 10,
+            "crimePerCapita": 14,
+            "accessibleFrequentTransitAccess": 10,
+            "parkWalk10Access": 12,
+            "serviceAccessComposite": 8,
+            "shadeGap": 18,
+            "cimdComposite": 18
+          },
+          "normalization": "percentile",
+          "aggregation": "cumulativeBurden",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-livability-index.json",
-      "revision": "f4531fb47f82"
+      "revision": "f4531fb47f82",
+      "catalog": {
+        "slug": "score-preset-livability-index",
+        "title": "Livability Index",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Holistic livability: parks, food access, air coverage, and lower crowding pressure.",
+        "sourceNote": "Generated from the score-builder preset \"livabilityIndex\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Active Sensor Share, Park Density, Park Area Ratio, Trail Density, Amenity Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Food, Census"
+          }
+        ],
+        "lab": {
+          "presetKey": "livabilityIndex",
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "overallDensity": 8,
+            "activeShare": 7,
+            "parkDensity": 20,
+            "parkAreaRatio": 18,
+            "trailDensity": 12,
+            "amenityDensity": 8,
+            "restaurantDensity": 12,
+            "foodRiskScore": -15,
+            "populationDensity": -10
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-low-cost-expansion.json",
-      "revision": "2de13b035754"
+      "revision": "2de13b035754",
+      "catalog": {
+        "slug": "score-preset-low-cost-expansion",
+        "title": "Low-Cost Expansion",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Prioritize community low-cost deployment patterns.",
+        "sourceNote": "Generated from the score-builder preset \"lowCostExpansion\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Parameter Variety, Active Sensor Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "6"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "6 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air"
+          }
+        ],
+        "lab": {
+          "presetKey": "lowCostExpansion",
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "overallDensity": 18,
+            "lowCostDensity": 45,
+            "referenceDensity": 8,
+            "networkVariety": 12,
+            "parameterVariety": 7,
+            "activeShare": 10
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-monitoring-gap-proxy.json",
-      "revision": "5b6cdc167711"
+      "revision": "5b6cdc167711",
+      "catalog": {
+        "slug": "score-preset-monitoring-gap-proxy",
+        "title": "Monitoring Gap 2.0 Proxy",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Higher scores flag populated areas where additional air monitoring may add value.",
+        "sourceNote": "Generated from the score-builder preset \"monitoringGapProxy\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Active Sensor Share, Population Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "6"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "6 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Census"
+          }
+        ],
+        "lab": {
+          "presetKey": "monitoringGapProxy",
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "overallDensity": -28,
+            "lowCostDensity": -14,
+            "referenceDensity": -18,
+            "networkVariety": -5,
+            "activeShare": -5,
+            "populationDensity": 30
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-park-access-equity.json",
-      "revision": "34a3210149a7"
+      "revision": "34a3210149a7",
+      "catalog": {
+        "slug": "score-preset-park-access-equity",
+        "title": "Park Access Equity",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Ranks park access gaps with deprivation and population context using catchment accessibility estimates.",
+        "sourceNote": "Generated from the score-builder preset \"parkAccessEquity\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Park Area Ratio, Amenity Density, Population Density, 10-Minute Park Walk Access, 20-Minute Park Walk Access, 20-Minute Park Transit Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Census, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "parkAccessEquity",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "parkAreaRatio": 10,
+            "amenityDensity": 8,
+            "populationDensity": 10,
+            "parkWalk10Access": 28,
+            "parkWalk20Access": 18,
+            "parkTransit20Access": 12,
+            "cimdComposite": 14
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-pedestrian-network-study-mi.json",
-      "revision": "989e52457a2d"
+      "revision": "989e52457a2d",
+      "catalog": {
+        "slug": "score-preset-pedestrian-network-study-mi",
+        "title": "Pedestrian Network Study MI",
+        "kind": "index-preset",
+        "theme": "blue",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Boundary-level proxy for the 2017 pedestrian-network Mobility Index: active routes, transit, parks, service access, density, and lower safety pressure.",
+        "sourceNote": "Generated from the score-builder preset \"pedestrianNetworkStudyMi\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Transit Stop Density, Sidewalk Density, Walkway Density, Intersection Density, Pedestrian Crossing Density, Childcare / Daycare Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "10"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "10 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Transit, Walkability"
+          }
+        ],
+        "lab": {
+          "presetKey": "pedestrianNetworkStudyMi",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "transitStopDensity": 10,
+            "sidewalkDensity": 20,
+            "walkwayDensity": 12,
+            "walkabilityIntersectionDensity": 12,
+            "walkabilityCrossingDensity": 10,
+            "childcareDensity": 8,
+            "walkabilityPoiDensity": 10,
+            "class3CrosswalkDensity": -4,
+            "pedestrianCrashDensity": -4,
+            "parkWalk10Access": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "source"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-pg-environmental-justice-proxy.json",
-      "revision": "5d6f92eba551"
+      "revision": "5d6f92eba551",
+      "catalog": {
+        "slug": "score-preset-pg-environmental-justice-proxy",
+        "title": "PG Environmental Justice Proxy",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "EJI-inspired local screen combining social vulnerability context, environmental burden proxies, and adaptive-capacity gaps.",
+        "sourceNote": "Generated from the score-builder preset \"pgEnvironmentalJusticeProxy\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Food Risk Score, Critical Violation Rate, Population Density, Average Building Age, Crime Per Capita, Accessible Frequent Transit Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "14"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "14 active metrics; modulePercentileRankedSum aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Heat, Food, Census, Property, Safety, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "pgEnvironmentalJusticeProxy",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "foodRiskScore": 8,
+            "criticalViolationRate": 6,
+            "populationDensity": 10,
+            "buildingAge": 8,
+            "crimePerCapita": 12,
+            "accessibleFrequentTransitAccess": 8,
+            "parkWalk10Access": 10,
+            "coolingWalk15Access": 10,
+            "serviceAccessComposite": 8,
+            "shadeGap": 18,
+            "cimdComposite": 18,
+            "cimdResidentialInstability": 8,
+            "cimdEconomicDependency": 10,
+            "cimdSituationalVulnerability": 12
+          },
+          "normalization": "percentile",
+          "aggregation": "modulePercentileRankedSum",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-pg-social-environmental-rank.json",
-      "revision": "55f5fd7cf441"
+      "revision": "55f5fd7cf441",
+      "catalog": {
+        "slug": "score-preset-pg-social-environmental-rank",
+        "title": "PG Social-Environmental Rank",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "EJI SER-style local screen using social vulnerability and environmental burden modules, without health.",
+        "sourceNote": "Generated from the score-builder preset \"pgSocialEnvironmentalRank\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Food Risk Score, Critical Violation Rate, Population Density, Average Building Age, Crime Per Capita, 10-Minute Park Walk Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "10"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "10 active metrics; modulePercentileRankedSum aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Food, Census, Property, Safety, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "pgSocialEnvironmentalRank",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "foodRiskScore": 10,
+            "criticalViolationRate": 8,
+            "populationDensity": 8,
+            "buildingAge": 8,
+            "crimePerCapita": 12,
+            "parkWalk10Access": 10,
+            "serviceAccessComposite": 8,
+            "cimdComposite": 18,
+            "cimdResidentialInstability": 8,
+            "cimdEconomicDependency": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "modulePercentileRankedSum",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-redevelopment-pressure.json",
-      "revision": "b724b3cff554"
+      "revision": "b724b3cff554",
+      "catalog": {
+        "slug": "score-preset-redevelopment-pressure",
+        "title": "Redevelopment Pressure",
+        "kind": "index-preset",
+        "theme": "slate",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Finds areas with high land value share, vacant land, older buildings, and rapid value growth.",
+        "sourceNote": "Generated from the score-builder preset \"redevelopmentPressure\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Population Density, Parcel Density, 10-Year Value Growth, Average Building Age, Vacant Parcel Share, Commercial Parcel Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Census, Property"
+          }
+        ],
+        "lab": {
+          "presetKey": "redevelopmentPressure",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "populationDensity": 4,
+            "parcelDensity": 6,
+            "valueGrowth10y": 28,
+            "buildingAge": 14,
+            "vacantParcelShare": 18,
+            "commercialShare": 8,
+            "landValueShare": 22
+          },
+          "normalization": "zScore",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-reference-network.json",
-      "revision": "520405cae89b"
+      "revision": "520405cae89b",
+      "catalog": {
+        "slug": "score-preset-reference-network",
+        "title": "Reference Strength",
+        "kind": "index-preset",
+        "theme": "cyan",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Emphasize reference stations and reliability.",
+        "sourceNote": "Generated from the score-builder preset \"referenceNetwork\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Parameter Variety, Active Sensor Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air"
+          }
+        ],
+        "lab": {
+          "presetKey": "referenceNetwork",
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "overallDensity": 20,
+            "lowCostDensity": 5,
+            "referenceDensity": 45,
+            "networkVariety": 8,
+            "parameterVariety": 5,
+            "activeShare": 12,
+            "monitorCount": 5
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-safety-pressure.json",
-      "revision": "c3552a535e09"
+      "revision": "c3552a535e09",
+      "catalog": {
+        "slug": "score-preset-safety-pressure",
+        "title": "Safety Pressure",
+        "kind": "index-preset",
+        "theme": "slate",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Ranks areas by crime density, per-capita incident load, and recent activity.",
+        "sourceNote": "Generated from the score-builder preset \"safetyPressure\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Population Density, Parcel Density, Crime Density, Crime Per Capita, Recent Crime Share."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "5"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "5 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Census, Property, Safety"
+          }
+        ],
+        "lab": {
+          "presetKey": "safetyPressure",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "populationDensity": 10,
+            "parcelDensity": 5,
+            "crimeDensity": 35,
+            "crimePerCapita": 35,
+            "recentCrimeShare": 15
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-school-exposure-mobility.json",
-      "revision": "70cae7159a25"
+      "revision": "70cae7159a25",
+      "catalog": {
+        "slug": "score-preset-school-exposure-mobility",
+        "title": "School Access + Safety Proxy",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George elementarySchoolCatchment",
+        "status": "Ready",
+        "summary": "Proxy recipe for child-serving areas: parks/trails, stronger monitoring, and lower food/safety pressure help.",
+        "sourceNote": "Generated from the score-builder preset \"schoolExposureMobility\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Reference Sensor Density, Park Density, Trail Density, Amenity Density, Food Risk Score."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "ELEMENTARYSCHOOLCATCHMENT"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Food, Census, Safety"
+          }
+        ],
+        "lab": {
+          "presetKey": "schoolExposureMobility",
+          "boundarySource": "cityPG",
+          "boundaryLevel": "elementarySchoolCatchment",
+          "weights": {
+            "overallDensity": 12,
+            "referenceDensity": 8,
+            "parkDensity": 14,
+            "trailDensity": 16,
+            "amenityDensity": 10,
+            "foodRiskScore": -8,
+            "criticalViolationRate": -6,
+            "populationDensity": 18,
+            "crimePerCapita": -8
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-sensor-gap-equity.json",
-      "revision": "2d33a4b010f4"
+      "revision": "2d33a4b010f4",
+      "catalog": {
+        "slug": "score-preset-sensor-gap-equity",
+        "title": "Sensor Gap + Equity Proxy",
+        "kind": "index-preset",
+        "theme": "emerald",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George CT",
+        "status": "Ready",
+        "summary": "Proxy recipe for populated areas with weak monitor coverage and low adaptive-capacity signals.",
+        "sourceNote": "Generated from the score-builder preset \"sensorGapEquity\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Low-Cost Sensor Density, Reference Sensor Density, Network Variety, Active Sensor Share, Park Area Ratio."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "CT"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Parks, Census"
+          }
+        ],
+        "lab": {
+          "presetKey": "sensorGapEquity",
+          "boundarySource": "census",
+          "boundaryLevel": "ct",
+          "weights": {
+            "overallDensity": -26,
+            "lowCostDensity": -18,
+            "referenceDensity": -16,
+            "networkVariety": -6,
+            "activeShare": -2,
+            "parkAreaRatio": -4,
+            "populationDensity": 28
+          },
+          "normalization": "winsorizedMinMax",
+          "aggregation": "additive",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-shade-gap-heat-map.json",
-      "revision": "d0816bdc823e"
+      "revision": "d0816bdc823e",
+      "catalog": {
+        "slug": "score-preset-shade-gap-heat-map",
+        "title": "Shade Gap Heat Map",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Single-layer heat-map score: high values mark areas with lower canopy and weaker cooling access.",
+        "sourceNote": "Generated from the score-builder preset \"shadeGapHeatMap\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Shade Gap."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "1"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "1 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Heat"
+          }
+        ],
+        "lab": {
+          "presetKey": "shadeGapHeatMap",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "shadeGap": 100
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-smoke-vulnerability-proxy.json",
-      "revision": "ef17f1e4deca"
+      "revision": "ef17f1e4deca",
+      "catalog": {
+        "slug": "score-preset-smoke-vulnerability-proxy",
+        "title": "Smoke Vulnerability Proxy",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Smoke-readiness proxy for vulnerable, dense, older-housing areas with weaker monitoring, cooling, and service access.",
+        "sourceNote": "Generated from the score-builder preset \"smokeVulnerabilityProxy\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Overall Sensor Density, Reference Sensor Density, Active Sensor Share, Population Density, Average Building Age, 15-Minute Cooling Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "9"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "9 active metrics; cumulativeBurden aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Air, Heat, Census, Property, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "smokeVulnerabilityProxy",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "overallDensity": -12,
+            "referenceDensity": -10,
+            "activeShare": -4,
+            "populationDensity": 12,
+            "buildingAge": 12,
+            "coolingWalk15Access": -10,
+            "serviceAccessComposite": -8,
+            "cimdEconomicDependency": 12,
+            "cimdSituationalVulnerability": 20
+          },
+          "normalization": "percentile",
+          "aggregation": "cumulativeBurden",
+          "mapSurface": "boundary",
+          "selectedNetworks": "all"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-transit-access.json",
-      "revision": "e09a442effe4"
+      "revision": "e09a442effe4",
+      "catalog": {
+        "slug": "score-preset-transit-access",
+        "title": "Transit Access",
+        "kind": "index-preset",
+        "theme": "blue",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George elementarySchoolCatchment",
+        "status": "Ready",
+        "summary": "Scores areas with stronger stop coverage, accessible-stop proxies, shelters/exchanges, and nearby demand.",
+        "sourceNote": "Generated from the score-builder preset \"transitAccess\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Amenity Density, Population Density, Transit Stop Density, Accessible Transit Stop Density, Transit Shelter/Exchange Density."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "ELEMENTARYSCHOOLCATCHMENT"
+          },
+          {
+            "label": "Metrics",
+            "value": "5"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "5 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Parks, Census, Transit"
+          }
+        ],
+        "lab": {
+          "presetKey": "transitAccess",
+          "boundarySource": "cityPG",
+          "boundaryLevel": "elementarySchoolCatchment",
+          "weights": {
+            "amenityDensity": 8,
+            "populationDensity": 12,
+            "transitStopDensity": 30,
+            "accessibleTransitStopDensity": 28,
+            "transitShelterDensity": 22
+          },
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     },
     {
       "file": "scorebuilder/preset-transit-equity.json",
-      "revision": "f20e2956ab05"
+      "revision": "f20e2956ab05",
+      "catalog": {
+        "slug": "score-preset-transit-equity",
+        "title": "Transit Equity",
+        "kind": "index-preset",
+        "theme": "amber",
+        "owner": "PGMaps Index Lab",
+        "updated": "Generated",
+        "region": "Prince George DA",
+        "status": "Ready",
+        "summary": "Scores frequent, accessible, sheltered, longer-span transit service against population and deprivation need.",
+        "sourceNote": "Generated from the score-builder preset \"transitEquity\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
+        "details": [
+          "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
+          "Primary active metrics include Population Density, Transit Shelter/Exchange Density, Frequent Transit Stop Access, Transit Service Span, Transit Trips per Stop, Accessible Frequent Transit Access."
+        ],
+        "links": [],
+        "catalogMetrics": [
+          {
+            "label": "Source",
+            "value": "Preset"
+          },
+          {
+            "label": "Boundary",
+            "value": "DA"
+          },
+          {
+            "label": "Metrics",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Project package",
+            "detail": "Generated JSON project recipe"
+          },
+          {
+            "label": "Index recipe",
+            "detail": "7 active metrics; additive aggregation"
+          },
+          {
+            "label": "Data sources",
+            "detail": "Census, Transit, CIMD"
+          }
+        ],
+        "lab": {
+          "presetKey": "transitEquity",
+          "boundarySource": "census",
+          "boundaryLevel": "da",
+          "weights": {
+            "populationDensity": 8,
+            "transitShelterDensity": 8,
+            "frequentTransitStopAccess": 24,
+            "transitServiceSpan": 16,
+            "transitTripsPerStop": 14,
+            "accessibleFrequentTransitAccess": 20,
+            "cimdEconomicDependency": 10
+          },
+          "normalization": "percentile",
+          "aggregation": "additive",
+          "mapSurface": "boundary"
+        },
+        "layerCount": 3,
+        "sceneCount": 3
+      }
     }
   ]
 }

@@ -260,6 +260,11 @@ export interface ProjectPackage {
   workspace?: ProjectWorkspaceDef
   /** Runtime flag: package came from this device (import or lab export), not the manifest. */
   local?: boolean
+  /**
+   * Present on catalog summaries built from index.json metadata, where
+   * `layers`/`scenes` are empty: the real counts for catalog display.
+   */
+  catalogCounts?: { layers: number; scenes: number }
 }
 
 const MANIFEST_URL = '/data/projects/index.json'
@@ -673,40 +678,101 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
   }
 }
 
-export async function loadStaticProjectPackages(): Promise<ProjectPackage[]> {
-  const requestToken = Date.now().toString(36)
-  const manifestUrl = new URL(withBase(MANIFEST_URL), window.location.href)
-  manifestUrl.searchParams.set('_project_index', requestToken)
-  const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' })
-  if (!manifestResponse.ok) throw new Error(`Project manifest failed to load (${manifestResponse.status})`)
-  const manifest = (await manifestResponse.json()) as { projects?: unknown }
-  const entries = Array.isArray(manifest.projects)
-    ? manifest.projects.flatMap((entry): Array<{ file: string; revision?: string }> => {
-        if (typeof entry === 'string') return [{ file: entry }]
-        if (!entry || typeof entry !== 'object') return []
-        const candidate = entry as { file?: unknown; revision?: unknown }
-        if (typeof candidate.file !== 'string') return []
-        return [
-          {
-            file: candidate.file,
-            revision: typeof candidate.revision === 'string' ? candidate.revision : undefined,
-          },
-        ]
-      })
-    : []
-  const packages = await Promise.all(
-    entries.map(async ({ file, revision }) => {
+type ProjectManifestEntry = {
+  file: string
+  revision?: string
+  /** Catalog metadata embedded by generate-project-index.mjs (newer indexes). */
+  catalog?: Record<string, unknown>
+}
+
+let manifestPromise: Promise<ProjectManifestEntry[]> | null = null
+/** Full-package fetches, keyed by file — a project page fetches exactly one. */
+const packagePromises = new Map<string, Promise<ProjectPackage | null>>()
+
+async function loadProjectManifest(): Promise<ProjectManifestEntry[]> {
+  manifestPromise ??= (async () => {
+    const requestToken = Date.now().toString(36)
+    const manifestUrl = new URL(withBase(MANIFEST_URL), window.location.href)
+    manifestUrl.searchParams.set('_project_index', requestToken)
+    const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' })
+    if (!manifestResponse.ok) throw new Error(`Project manifest failed to load (${manifestResponse.status})`)
+    const manifest = (await manifestResponse.json()) as { projects?: unknown }
+    if (!Array.isArray(manifest.projects)) return []
+    return manifest.projects.flatMap((entry): ProjectManifestEntry[] => {
+      if (typeof entry === 'string') return [{ file: entry }]
+      if (!entry || typeof entry !== 'object') return []
+      const candidate = entry as { file?: unknown; revision?: unknown; catalog?: unknown }
+      if (typeof candidate.file !== 'string') return []
+      return [
+        {
+          file: candidate.file,
+          revision: typeof candidate.revision === 'string' ? candidate.revision : undefined,
+          catalog:
+            candidate.catalog && typeof candidate.catalog === 'object'
+              ? (candidate.catalog as Record<string, unknown>)
+              : undefined,
+        },
+      ]
+    })
+  })()
+  try {
+    return await manifestPromise
+  } catch (error) {
+    // Don't cache a failed fetch — a retry (e.g. after a flaky reload) should refetch.
+    manifestPromise = null
+    throw error
+  }
+}
+
+function fetchStaticProjectPackage(entry: ProjectManifestEntry): Promise<ProjectPackage | null> {
+  let pending = packagePromises.get(entry.file)
+  if (!pending) {
+    pending = (async () => {
       try {
-        const projectUrl = new URL(withBase(`/data/projects/${file}`), window.location.href)
-        projectUrl.searchParams.set('v', revision ?? requestToken)
+        const projectUrl = new URL(withBase(`/data/projects/${entry.file}`), window.location.href)
+        projectUrl.searchParams.set('v', entry.revision ?? Date.now().toString(36))
         const response = await fetch(projectUrl)
         if (!response.ok) return null
         return normalizeProjectPackage(await response.json())
       } catch {
         return null
       }
-    }),
+    })()
+    packagePromises.set(entry.file, pending)
+  }
+  return pending
+}
+
+function catalogEntryToSummary(entry: ProjectManifestEntry): ProjectPackage | null {
+  if (!entry.catalog) return null
+  const pkg = normalizeProjectPackage(entry.catalog)
+  if (!pkg) return null
+  const counts = entry.catalog as { layerCount?: unknown; sceneCount?: unknown }
+  return {
+    ...pkg,
+    catalogCounts: {
+      layers: typeof counts.layerCount === 'number' ? counts.layerCount : pkg.layers.length,
+      scenes: typeof counts.sceneCount === 'number' ? counts.sceneCount : pkg.scenes.length,
+    },
+  }
+}
+
+/**
+ * Catalog listing without the fan-out: summaries come straight from the
+ * manifest's embedded metadata, so no per-project files are fetched. Entries
+ * from an older index without metadata fall back to fetching their package.
+ */
+export async function loadProjectCatalogSummaries(): Promise<ProjectPackage[]> {
+  const entries = await loadProjectManifest()
+  const summaries = await Promise.all(
+    entries.map(async (entry) => catalogEntryToSummary(entry) ?? (await fetchStaticProjectPackage(entry))),
   )
+  return summaries.filter((pkg): pkg is ProjectPackage => pkg !== null)
+}
+
+export async function loadStaticProjectPackages(): Promise<ProjectPackage[]> {
+  const entries = await loadProjectManifest()
+  const packages = await Promise.all(entries.map(fetchStaticProjectPackage))
   return packages.filter((pkg): pkg is ProjectPackage => pkg !== null)
 }
 
@@ -749,6 +815,11 @@ export async function findProjectPackageBySlug(slug: string): Promise<ProjectPac
   const local = loadLocalProjectPackages().find((pkg) => pkg.slug === slug)
   if (local) return local
   try {
+    const entries = await loadProjectManifest()
+    const entry = entries.find((candidate) => candidate.catalog?.slug === slug)
+    if (entry) return fetchStaticProjectPackage(entry)
+    // Older index without embedded metadata: no slug→file mapping, so resolve
+    // the slug the expensive way.
     const packages = await loadStaticProjectPackages()
     return packages.find((pkg) => pkg.slug === slug) ?? null
   } catch {

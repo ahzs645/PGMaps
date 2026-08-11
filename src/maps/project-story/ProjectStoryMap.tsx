@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Info,
   Layers,
   MapPin,
   RotateCcw,
@@ -14,6 +15,13 @@ import {
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Map, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
@@ -30,8 +38,14 @@ import { buildLegend, resolveLayer, sameLayerSet } from './storyScene'
 import { escapeHtml } from '@/lib/escapeHtml'
 
 const CAMERA_EASE_MS = 1150
-/** How long the scroll observer stays muted after the stepper starts a smooth scroll. */
-const PROGRAMMATIC_SCROLL_MS = 700
+/** Crossfade duration when scene changes swap map layers. */
+const LAYER_FADE_MS = 300
+/** Initial mute window after the stepper starts a programmatic scroll. */
+const PROGRAMMATIC_SCROLL_MS = 300
+/** A muted scroll keeps extending the mute until events stop for this long. */
+const SCROLL_SETTLE_MS = 160
+/** The card under this fraction of the viewport height is the active scene. */
+const READING_LINE_FRACTION = 0.35
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
@@ -50,6 +64,7 @@ function StoryNarrative({
   cardRefs,
   onBack,
   onSelectScene,
+  onStepScene,
 }: {
   project: ProjectPackage
   scenes: ProjectSceneDef[]
@@ -59,8 +74,10 @@ function StoryNarrative({
   cardRefs: React.MutableRefObject<Array<HTMLElement | null>>
   onBack: () => void
   onSelectScene: (index: number) => void
+  onStepScene: (direction: number) => void
 }) {
   const progress = scenes.length > 0 ? ((activeSceneIndex + 1) / scenes.length) * 100 : 0
+  const [sourceNoteOpen, setSourceNoteOpen] = useState(false)
 
   return (
     <aside className="flex h-full min-h-0 flex-col border-r bg-background">
@@ -74,11 +91,34 @@ function StoryNarrative({
             <ArrowLeft className="h-3.5 w-3.5" />
             All projects
           </button>
-          <Button type="button" variant="outline" size="sm" onClick={() => downloadProjectPackage(project)}>
-            <Download className="h-3.5 w-3.5" />
-            JSON
-          </Button>
+          <div className="flex items-center gap-1.5">
+            {project.sourceNote && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSourceNoteOpen(true)}
+                aria-label="Source note"
+              >
+                <Info className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button type="button" variant="outline" size="sm" onClick={() => downloadProjectPackage(project)}>
+              <Download className="h-3.5 w-3.5" />
+              JSON
+            </Button>
+          </div>
         </div>
+
+        <Dialog open={sourceNoteOpen} onOpenChange={setSourceNoteOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Source note</DialogTitle>
+              <DialogDescription className="sr-only">Where this story's data comes from</DialogDescription>
+            </DialogHeader>
+            <p className="text-sm leading-6 text-muted-foreground">{project.sourceNote}</p>
+          </DialogContent>
+        </Dialog>
 
         <div className="mt-3 flex items-start gap-3">
           <div
@@ -95,7 +135,17 @@ function StoryNarrative({
           </div>
         </div>
 
+        {/* Scene stepper — keyboard/pointer alternative to scrolling. */}
         <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onStepScene(-1)}
+            disabled={activeSceneIndex === 0}
+            aria-label="Previous scene"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
           <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full transition-[width] duration-300"
@@ -105,6 +155,15 @@ function StoryNarrative({
           <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
             {activeSceneIndex + 1}/{scenes.length}
           </span>
+          <button
+            type="button"
+            onClick={() => onStepScene(1)}
+            disabled={activeSceneIndex >= scenes.length - 1}
+            aria-label="Next scene"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -117,16 +176,6 @@ function StoryNarrative({
             Map story
           </div>
           <p className="mt-2 text-sm leading-6 text-foreground">{project.summary}</p>
-          {project.catalogMetrics.length > 0 && (
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {project.catalogMetrics.map((metric) => (
-                <div key={metric.label} className="rounded border bg-background p-2 text-center">
-                  <div className="text-sm font-bold text-foreground">{metric.value}</div>
-                  <div className="text-xs text-muted-foreground">{metric.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
           <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             Scroll to move through the story
             <ArrowDown className="h-3.5 w-3.5" />
@@ -190,10 +239,6 @@ function StoryNarrative({
             )
           })}
 
-          <div className="rounded-md border bg-muted/20 p-3">
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Source note</div>
-            <p className="text-xs leading-5 text-muted-foreground">{project.sourceNote}</p>
-          </div>
         </div>
       </div>
     </aside>
@@ -221,6 +266,8 @@ export function ProjectStoryMap({
   const scrollRef = useRef<HTMLDivElement>(null)
   const cardRefs = useRef<Array<HTMLElement | null>>([])
   const programmaticScrollUntilRef = useRef(0)
+  /** Scene a stepper click is scrolling toward; null when the reader drives. */
+  const pendingSceneRef = useRef<number | null>(null)
 
   const [activeSceneIndex, setActiveSceneIndex] = useState(0)
   const [visibleLayerIds, setVisibleLayerIds] = useState(
@@ -244,10 +291,19 @@ export function ProjectStoryMap({
     [accent, activeScene, config.layers, layerLabels],
   )
 
-  const legendEntries = useMemo(
-    () => buildLegend(activeScene, resolvedLayers, visibleLayerIds, accent),
-    [accent, activeScene, resolvedLayers, visibleLayerIds],
-  )
+  // The layers panel only covers what the scene uses (plus anything the reader
+  // toggled on themselves) — layers from other scenes would just be noise.
+  // Building the legend from the listed set rather than the visible set keeps a
+  // toggled-off layer's entries around (dimmed) so it can be toggled back on.
+  const legendEntries = useMemo(() => {
+    const sceneLayerIds = new Set(activeScene?.visibleLayerIds ?? [])
+    const listedIds = new Set(
+      resolvedLayers
+        .map((resolved) => resolved.layer.id)
+        .filter((id) => sceneLayerIds.has(id) || visibleLayerIds.has(id)),
+    )
+    return buildLegend(activeScene, resolvedLayers, listedIds, accent)
+  }, [accent, activeScene, resolvedLayers, visibleLayerIds])
 
   const activePlaces = useMemo(() => {
     if (!activeScene?.placeIds) return []
@@ -266,10 +322,16 @@ export function ProjectStoryMap({
 
   const sceneOverridden = activeScene ? !sameLayerSet(visibleLayerIds, activeScene.visibleLayerIds) : false
 
+  const activeSceneIndexRef = useRef(0)
+
   const applyScene = useCallback(
-    (index: number) => {
+    (index: number, { force = false } = {}) => {
       const scene = scenes[index]
       if (!scene) return
+      // Scroll events re-derive the scene every frame; re-applying the active
+      // one would restart the camera ease and stomp manual layer toggles.
+      if (!force && index === activeSceneIndexRef.current) return
+      activeSceneIndexRef.current = index
       setActiveSceneIndex(index)
       setVisibleLayerIds(new Set(scene.visibleLayerIds))
 
@@ -287,40 +349,104 @@ export function ProjectStoryMap({
     [scenes],
   )
 
-  // Scroll position drives the active scene; the card nearest the reading line wins.
+  // Scroll position drives the active scene: the card under the reading line
+  // wins. A single trigger line keeps the mapping deterministic for cards of
+  // any height — intersection-ratio thresholds can never fire for cards taller
+  // than the observed band, and flip-flop at card boundaries.
   useEffect(() => {
     const root = scrollRef.current
     if (!root) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // A smooth scroll started by the stepper sweeps past intermediate cards.
-        // Honouring those would drag the story back and fight rapid clicks.
-        if (performance.now() < programmaticScrollUntilRef.current) return
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0]
-        if (!visible) return
-        const index = Number((visible.target as HTMLElement).dataset.sceneIndex)
-        if (Number.isInteger(index)) applyScene(index)
-      },
-      { root, rootMargin: '-20% 0px -40% 0px', threshold: [0.25, 0.55, 0.8] },
-    )
-    cardRefs.current.forEach((card) => card && observer.observe(card))
-    return () => observer.disconnect()
-  }, [applyScene, scenes.length])
+    let frame = 0
+    let settleTimer = 0
+
+    const pickIndex = () => {
+      const rootRect = root.getBoundingClientRect()
+      const readingLine = rootRect.top + rootRect.height * READING_LINE_FRACTION
+      let bestIndex = -1
+      let bestDistance = Infinity
+      cardRefs.current.forEach((card, index) => {
+        if (!card) return
+        const rect = card.getBoundingClientRect()
+        const distance =
+          readingLine < rect.top ? rect.top - readingLine : Math.max(0, readingLine - rect.bottom)
+        if (distance < bestDistance) {
+          bestDistance = distance
+          bestIndex = index
+        }
+      })
+      return bestIndex
+    }
+
+    const pickAndApply = () => {
+      frame = 0
+      if (performance.now() < programmaticScrollUntilRef.current) return
+      // The reader is driving; any pending stepper target is obsolete.
+      pendingSceneRef.current = null
+      const index = pickIndex()
+      if (index >= 0) applyScene(index)
+    }
+
+    const settle = () => {
+      const target = pendingSceneRef.current
+      if (target == null) {
+        programmaticScrollUntilRef.current = 0
+        pickAndApply()
+        return
+      }
+      // A stepper scroll can be cut short (another click, a busy main
+      // thread); converge on the clicked scene rather than re-deriving from
+      // wherever the aborted scroll happened to stop.
+      if (pickIndex() !== target) {
+        programmaticScrollUntilRef.current = performance.now() + PROGRAMMATIC_SCROLL_MS
+        cardRefs.current[target]?.scrollIntoView({ behavior: 'auto', block: 'center' })
+        return
+      }
+      pendingSceneRef.current = null
+      programmaticScrollUntilRef.current = 0
+    }
+
+    const handleScroll = () => {
+      const now = performance.now()
+      if (now < programmaticScrollUntilRef.current) {
+        // A stepper-driven smooth scroll sweeps past intermediate cards.
+        // Honouring those would drag the story back and fight rapid clicks,
+        // so keep muting until events stop, then confirm the landing card.
+        programmaticScrollUntilRef.current = now + SCROLL_SETTLE_MS
+        window.clearTimeout(settleTimer)
+        settleTimer = window.setTimeout(settle, SCROLL_SETTLE_MS + 20)
+        return
+      }
+      if (!frame) frame = requestAnimationFrame(pickAndApply)
+    }
+
+    root.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      root.removeEventListener('scroll', handleScroll)
+      if (frame) cancelAnimationFrame(frame)
+      window.clearTimeout(settleTimer)
+    }
+  }, [applyScene])
 
   const goToScene = useCallback(
     (index: number) => {
       const clamped = Math.max(0, Math.min(scenes.length - 1, index))
       const smooth = !prefersReducedMotion()
-      programmaticScrollUntilRef.current = performance.now() + (smooth ? PROGRAMMATIC_SCROLL_MS : 0)
-      applyScene(clamped)
+      pendingSceneRef.current = clamped
+      programmaticScrollUntilRef.current = performance.now() + PROGRAMMATIC_SCROLL_MS
+      applyScene(clamped, { force: true })
       cardRefs.current[clamped]?.scrollIntoView({
         behavior: smooth ? 'smooth' : 'auto',
         block: 'center',
       })
     },
     [applyScene, scenes.length],
+  )
+
+  // Step from the ref, not render state: two quick clicks can both fire
+  // before the re-render from the first one commits.
+  const stepScene = useCallback(
+    (direction: number) => goToScene(activeSceneIndexRef.current + direction),
+    [goToScene],
   )
 
   function toggleLayer(layerId: string) {
@@ -344,6 +470,7 @@ export function ProjectStoryMap({
           cardRefs={cardRefs}
           onBack={onBack}
           onSelectScene={goToScene}
+          onStepScene={stepScene}
         />
       }
       desktopSidebarWidth={sidebarWidth}
@@ -352,13 +479,42 @@ export function ProjectStoryMap({
       mobileCollapsedVisibleHeight={68}
       showMobilePeek
       mobilePeek={
-        <div className="min-w-0 text-left">
-          <div className="truncate text-xs font-semibold text-foreground">
-            {activeScene?.title ?? project.title}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div className="min-w-0 flex-1 text-left">
+            <div className="truncate text-xs font-semibold text-foreground">
+              {activeScene?.title ?? project.title}
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              {activeSceneIndex + 1}/{scenes.length} · {activeScene?.focus ?? project.region}
+            </div>
           </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {activeSceneIndex + 1}/{scenes.length} · {activeScene?.focus ?? project.region}
-          </div>
+          {/* stopPropagation keeps taps from starting a sheet drag or toggle. */}
+          <button
+            type="button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              stepScene(-1)
+            }}
+            disabled={activeSceneIndex === 0}
+            aria-label="Previous scene"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              stepScene(1)
+            }}
+            disabled={activeSceneIndex >= scenes.length - 1}
+            aria-label="Next scene"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       }
     >
@@ -383,6 +539,8 @@ export function ProjectStoryMap({
             lineOpacity={resolved.lineOpacity}
             lineWidth={resolved.lineWidth}
             visible={visibleLayerIds.has(resolved.layer.id)}
+            filter={resolved.filter as never}
+            fadeMs={LAYER_FADE_MS}
             hoverHtml={(properties) =>
               `<div class="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md">
                 <div class="font-semibold">${escapeHtml(properties[resolved.layer.labelProperty])}</div>
@@ -415,31 +573,6 @@ export function ProjectStoryMap({
         ))}
       </Map>
 
-      {/* Scene stepper — keyboard/pointer alternative to scrolling. */}
-      <div className="pointer-events-none absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-background/95 p-1 shadow-lg backdrop-blur">
-        <button
-          type="button"
-          onClick={() => goToScene(activeSceneIndex - 1)}
-          disabled={activeSceneIndex === 0}
-          aria-label="Previous scene"
-          className="pointer-events-auto flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="pointer-events-auto max-w-[40vw] truncate px-1.5 text-xs font-medium text-foreground">
-          {activeScene?.focus ?? project.region}
-        </span>
-        <button
-          type="button"
-          onClick={() => goToScene(activeSceneIndex + 1)}
-          disabled={activeSceneIndex >= scenes.length - 1}
-          aria-label="Next scene"
-          className="pointer-events-auto flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-
       <MapLegendPanel
         title="Map layers"
         description={activeScene?.label}
@@ -447,7 +580,7 @@ export function ProjectStoryMap({
         collapsible
         // Expanded, the panel would cover most of a phone-sized map.
         defaultCollapsed={isMobile}
-        width="lg"
+        width="md"
         contentClassName="space-y-3"
         actions={
           sceneOverridden ? (
@@ -462,31 +595,20 @@ export function ProjectStoryMap({
           ) : null
         }
       >
-        <MapLegendSection
-          title="Story layers"
-          value={`${visibleLayerIds.size}/${config.layers.length}`}
-          scroll={config.layers.length > 6}
-        >
-          {resolvedLayers.map((resolved) => (
+        {/* One merged legend: entries carry their layer, so clicking one
+            toggles that layer — no separate "Story layers" list. */}
+        <MapLegendSection columns={legendEntries.length > 5 ? 2 : 1} scroll={legendEntries.length > 12}>
+          {legendEntries.map((entry) => (
             <LegendItem
-              key={resolved.layer.id}
-              // The fill reads as the layer's identity; outlines are often near-black.
-              color={resolved.layer.fillColor}
-              label={resolved.label}
-              active={visibleLayerIds.has(resolved.layer.id)}
-              swatchShape="square"
-              onClick={() => toggleLayer(resolved.layer.id)}
+              key={entry.key}
+              color={entry.color}
+              label={entry.label}
+              swatchShape="circle"
+              active={entry.layerId ? visibleLayerIds.has(entry.layerId) : true}
+              onClick={entry.layerId ? () => toggleLayer(entry.layerId as string) : undefined}
             />
           ))}
         </MapLegendSection>
-
-        {legendEntries.length > 0 && (
-          <MapLegendSection title="Legend" columns={legendEntries.length > 5 ? 2 : 1}>
-            {legendEntries.map((entry) => (
-              <LegendItem key={entry.key} color={entry.color} label={entry.label} swatchShape="circle" />
-            ))}
-          </MapLegendSection>
-        )}
       </MapLegendPanel>
     </MapSectionLayout>
   )

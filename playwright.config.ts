@@ -5,8 +5,13 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Each test boots a SwiftShader-rendered MapLibre page; more than a few at
+  // once starves the CPU and freezes pages mid-test.
+  workers: process.env.CI ? 1 : 2,
   reporter: 'html',
+  // Map pages boot MapLibre on SwiftShader; under parallel load the default
+  // 5s expect timeout flakes on first paint.
+  expect: { timeout: 15_000 },
   use: {
     baseURL: 'http://127.0.0.1:42173',
     trace: 'on-first-retry',

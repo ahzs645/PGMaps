@@ -52,6 +52,38 @@ function compareProjectFiles(left, right, previousOrder) {
   return left.localeCompare(right)
 }
 
+// Everything the catalog page renders (listing, preview pane, search, lab
+// links) without the heavy layers/scenes/workspace payloads. Embedding these
+// in the index lets the catalog load one file instead of one per project.
+const CATALOG_FIELDS = [
+  'slug',
+  'title',
+  'kind',
+  'theme',
+  'owner',
+  'updated',
+  'region',
+  'status',
+  'summary',
+  'sourceNote',
+  'details',
+  'image',
+  'links',
+  'catalogMetrics',
+  'files',
+  'lab',
+]
+
+function buildCatalogMetadata(project) {
+  const catalog = {}
+  for (const field of CATALOG_FIELDS) {
+    if (project[field] !== undefined) catalog[field] = project[field]
+  }
+  catalog.layerCount = Array.isArray(project.layers) ? project.layers.length : 0
+  catalog.sceneCount = Array.isArray(project.scenes) ? project.scenes.length : 0
+  return catalog
+}
+
 async function buildProjectEntries(files) {
   const slugs = new Map()
 
@@ -79,6 +111,7 @@ async function buildProjectEntries(files) {
       return {
         file,
         revision: createHash('sha256').update(source).digest('hex').slice(0, 12),
+        catalog: buildCatalogMetadata(project),
       }
     }),
   )

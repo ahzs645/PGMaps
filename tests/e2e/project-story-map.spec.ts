@@ -76,6 +76,59 @@ test.describe('JSON map story', () => {
     expect(delta.dh).toBeLessThanOrEqual(2)
   })
 
+  test('scrolling the narrative drives the active scene both ways', async ({ page }) => {
+    await page.goto(STORY_URL)
+    const firstCard = page.getByRole('button', { name: /A line everyone knows/ })
+    await expect(firstCard).toHaveAttribute('aria-current', 'step')
+    await firstCard.hover()
+
+    const activeIndex = () =>
+      page.evaluate(() =>
+        Number(
+          document
+            .querySelector('[aria-current="step"]')
+            ?.closest('[data-scene-index]')
+            ?.getAttribute('data-scene-index') ?? -1,
+        ),
+      )
+
+    // Wheel in small steps: the active scene must advance past the first card.
+    await expect
+      .poll(async () => {
+        await page.mouse.wheel(0, 250)
+        return activeIndex()
+      }, { timeout: 15_000 })
+      .toBeGreaterThan(0)
+
+    // And wheeling back up must return to the first card.
+    await expect
+      .poll(async () => {
+        await page.mouse.wheel(0, -300)
+        return activeIndex()
+      }, { timeout: 15_000 })
+      .toBe(0)
+  })
+
+  test('shows the source note in an info dialog', async ({ page }) => {
+    await page.goto(STORY_URL)
+    await page.getByRole('button', { name: 'Source note' }).click()
+    await expect(page.getByRole('dialog')).toContainText('administrative and statistical definitions')
+  })
+
+  test('the layers panel lists only the scene-relevant legend', async ({ page }) => {
+    await page.goto(STORY_URL)
+    // Scene 1 shows the health-authority regions by full name; entries from
+    // other scenes' layers (e.g. the BCER zones) are not listed at all.
+    await expect(page.getByRole('button', { name: 'Vancouver Island', exact: true })).toBeVisible()
+    await expect(page.getByText('Story layers')).toBeHidden()
+    // Scene 5's BCER zones are absent (role-scoped: the narrative text also
+    // mentions the zone names, but only legend entries are toggle buttons).
+    await expect(page.getByRole('button', { name: 'South West', exact: true })).toBeHidden()
+    // Scene 4 adds the three finer health boundary levels.
+    for (let i = 0; i < 3; i += 1) await page.getByRole('button', { name: 'Next scene' }).click()
+    await expect(page.getByRole('button', { name: 'Local Health Areas', exact: true })).toBeVisible()
+  })
+
   test('advancing a scene swaps the visible layers and the callout', async ({ page }) => {
     await page.goto(STORY_URL)
     await expect(page.getByRole('heading', { name: 'Where Does Northern B.C. Begin?' })).toBeVisible()

@@ -63,6 +63,12 @@ type MapFillLayerProps = {
   selectionFillOpacity?: number
   /** Whether the layer is visible (default: true) */
   visible?: boolean
+  /**
+   * Crossfade duration in ms for visibility changes. When set, hiding fades
+   * fill/line opacity to 0 and only then flips layout visibility, and showing
+   * fades back in — instead of the instant on/off pop.
+   */
+  fadeMs?: number
   /** Callback when a feature is clicked — receives its ID, modifier keys, and properties */
   onFeatureClick?: (
     id: string,
@@ -96,6 +102,7 @@ function MapFillLayer({
   selectionStyle = 'line',
   selectionFillOpacity = 0.5,
   visible = true,
+  fadeMs,
   onFeatureClick,
   hoverHtml,
   hoverFillOpacity,
@@ -127,6 +134,11 @@ function MapFillLayer({
   const resolvedFillOpacity: StyleExpression = hoverEnabled
     ? ['case', ['boolean', ['feature-state', 'hover'], false], hoverFillOpacity, fillOpacity]
     : fillOpacity
+  const fadeEnabled = typeof fadeMs === 'number' && fadeMs > 0
+  // With fade enabled, a hidden layer's target opacity is 0; layout visibility
+  // only flips after the opacity transition has finished.
+  const effectiveFillOpacity: StyleExpression = fadeEnabled && !visible ? 0 : resolvedFillOpacity
+  const effectiveLineOpacity = fadeEnabled && !visible ? 0 : lineOpacity
 
   // Mount: create source + layers
   useEffect(() => {
@@ -150,7 +162,8 @@ function MapFillLayer({
       ...(filterRef.current && { filter: filterRef.current as never }),
       paint: {
         'fill-color': fillColor as never,
-        'fill-opacity': resolvedFillOpacity as never,
+        'fill-opacity': effectiveFillOpacity as never,
+        ...(fadeEnabled && { 'fill-opacity-transition': { duration: fadeMs } }),
       },
     })
 
@@ -162,7 +175,8 @@ function MapFillLayer({
       paint: {
         'line-color': lineColor as never,
         'line-width': lineWidth as never,
-        'line-opacity': lineOpacity,
+        'line-opacity': effectiveLineOpacity as never,
+        ...(fadeEnabled && { 'line-opacity-transition': { duration: fadeMs } }),
       },
     })
 
@@ -339,26 +353,36 @@ function MapFillLayer({
   // Update visibility
   useEffect(() => {
     if (!isLoaded || !map) return
-    const vis = visible ? 'visible' : 'none'
-    for (const id of [fillLayerId, lineLayerId, selectedLayerId]) {
-      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis)
+    const setVis = (ids: string[], vis: 'visible' | 'none') => {
+      for (const id of ids) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis)
+      }
     }
-  }, [visible, isLoaded, map, fillLayerId, lineLayerId, selectedLayerId])
+    if (visible || !fadeEnabled) {
+      setVis([fillLayerId, lineLayerId, selectedLayerId], visible ? 'visible' : 'none')
+      return
+    }
+    // Fading out: the selection highlight hides at once, but the base layers
+    // stay rendered until the opacity transition has finished.
+    setVis([selectedLayerId], 'none')
+    const timer = setTimeout(() => setVis([fillLayerId, lineLayerId], 'none'), fadeMs)
+    return () => clearTimeout(timer)
+  }, [visible, fadeEnabled, fadeMs, isLoaded, map, fillLayerId, lineLayerId, selectedLayerId])
 
   // Update paint when caller changes choropleth styling without remounting the layer.
   useEffect(() => {
     if (!isLoaded || !map) return
     if (map.getLayer(fillLayerId)) {
       map.setPaintProperty(fillLayerId, 'fill-color', fillColor as never)
-      map.setPaintProperty(fillLayerId, 'fill-opacity', resolvedFillOpacity as never)
+      map.setPaintProperty(fillLayerId, 'fill-opacity', effectiveFillOpacity as never)
     }
     if (map.getLayer(lineLayerId)) {
       map.setPaintProperty(lineLayerId, 'line-color', lineColor as never)
       map.setPaintProperty(lineLayerId, 'line-width', lineWidth as never)
-      map.setPaintProperty(lineLayerId, 'line-opacity', lineOpacity)
+      map.setPaintProperty(lineLayerId, 'line-opacity', effectiveLineOpacity as never)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolvedFillOpacity is derived from fillOpacity + hoverFillOpacity
-  }, [fillColor, fillOpacity, hoverFillOpacity, fillLayerId, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- effectiveFillOpacity/effectiveLineOpacity are derived from fillOpacity + hoverFillOpacity + lineOpacity + visible + fadeMs
+  }, [fillColor, fillOpacity, hoverFillOpacity, fillLayerId, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map, visible, fadeEnabled])
 
   // Update selection filter
   useEffect(() => {

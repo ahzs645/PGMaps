@@ -20,6 +20,8 @@ export type ResolvedLayer = {
   lineColor: PaintValue
   lineWidth: PaintValue
   lineOpacity: number
+  /** Restricts rendering (and hover hit-testing) to matching features. */
+  filter?: unknown[]
 }
 
 export type LegendEntry = {
@@ -70,6 +72,9 @@ export function resolveLayer(
   const dim = highlight.dimOpacity ?? Math.min(fillOpacity, 0.08)
   return {
     ...resolved,
+    // A fully hidden remainder is filtered out entirely — invisible features
+    // would otherwise still catch hover tooltips.
+    filter: dim === 0 ? matched : undefined,
     fillOpacity: ['case', matched, fillOpacity, dim],
     lineColor: ['case', matched, highlight.color ?? accent, layer.lineColor],
     lineWidth: ['case', matched, Math.max(lineWidth * 2, 2.4), lineWidth],
