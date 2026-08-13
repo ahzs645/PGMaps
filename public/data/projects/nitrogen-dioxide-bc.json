@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "slug": "nitrogen-dioxide-bc",
+  "title": "Status of Nitrogen Dioxide in B.C.",
+  "kind": "map-story",
+  "theme": "cyan",
+  "owner": "Environmental Reporting BC",
+  "updated": "June 2026",
+  "region": "British Columbia",
+  "status": "Published indicator",
+  "summary": "Explore 2022–2024 nitrogen dioxide (NO₂) management levels across B.C.'s seven air zones and 49 monitoring-station map locations.",
+  "sourceNote": "This project preserves the station locations, management levels, and click details embedded in Environmental Reporting BC's June 2026 NO₂ map. It reuses the shared seven-zone CAAQS boundary. The Province's no2-caaqs-indicator repository provides the reproducible R analysis, DataBC output, and year-over-year QA workflow.",
+  "details": [
+    "NO₂ has annual and one-hour Canadian Ambient Air Quality Standards; management uses the higher resulting level.",
+    "The map contains 49 station locations, while the Province reports 48 valid annual and 47 valid one-hour assessments.",
+    "Click or tap an air zone or station for the 2022–2024 metrics and management action."
+  ],
+  "links": [
+    { "label": "B.C. nitrogen dioxide indicator", "href": "https://www.env.gov.bc.ca/soe/indicators/air/no2.html" },
+    { "label": "Indicator summary data", "href": "https://catalogue.data.gov.bc.ca/dataset/indicator-summary-data-bc-nitrogen-dioxide-canadian-ambient-air-quality-standards" },
+    { "label": "Analysis code", "href": "https://github.com/bcgov/no2-caaqs-indicator" },
+    { "label": "Environmental Reporting BC repositories", "href": "https://github.com/bcgov/EnvReportBC" }
+  ],
+  "catalogMetrics": [
+    { "label": "Map stations", "value": "49" },
+    { "label": "Annual standard", "value": "48 of 48" },
+    { "label": "One-hour standard", "value": "47 of 47" }
+  ],
+  "layers": [
+    { "id": "no2-air-zones", "label": "NO₂ air-zone management level", "type": "boundary", "checked": true },
+    { "id": "no2-stations", "label": "NO₂ monitoring stations", "type": "point", "checked": true }
+  ],
+  "legend": [
+    { "label": "Actions for Achieving Air Zone CAAQS", "color": "#a50026" },
+    { "label": "Actions for Preventing CAAQS Exceedance", "color": "#f46d43" },
+    { "label": "Actions for Preventing Air Quality Deterioration", "color": "#fee08b" },
+    { "label": "Actions for Keeping Clean Areas Clean", "color": "#a6d96a" },
+    { "label": "Insufficient Data", "color": "#dbdbdb" }
+  ],
+  "scenes": [
+    {
+      "label": "Assessment",
+      "kicker": "01 · 2022–2024 assessment",
+      "title": "Every valid NO₂ assessment met both standards",
+      "text": "All 48 stations with valid annual data and all 47 stations with sufficient one-hour data achieved their respective Canadian Ambient Air Quality Standards.",
+      "focus": "Seven air zones and 49 station locations",
+      "visibleLayerIds": ["no2-air-zones", "no2-stations"],
+      "legend": [
+        { "label": "Achieving CAAQS", "color": "#a50026" },
+        { "label": "Preventing exceedance", "color": "#f46d43" },
+        { "label": "Preventing deterioration", "color": "#fee08b" },
+        { "label": "Keeping clean", "color": "#a6d96a" },
+        { "label": "Insufficient data", "color": "#dbdbdb" }
+      ],
+      "callout": { "label": "CAAQS achievement", "value": "100%", "detail": "For both annual and one-hour valid assessments." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Air zones",
+      "kicker": "02 · Regional management",
+      "title": "Six of seven air zones met both NO₂ standards",
+      "text": "Air-zone management levels use the highest station metric. Northwest had no assessed monitoring station and is shown as insufficient data.",
+      "focus": "Shared B.C. CAAQS air-zone boundary",
+      "visibleLayerIds": ["no2-air-zones"],
+      "callout": { "label": "Both standards achieved", "value": "6 of 7 air zones", "detail": "Northwest had insufficient monitoring data." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Stations",
+      "kicker": "03 · Local measurements",
+      "title": "Station details separate annual and one-hour metrics",
+      "text": "Select a station to inspect its air zone, annual metric, one-hour metric, and assigned management action.",
+      "focus": "49 NO₂ station locations",
+      "visibleLayerIds": ["no2-stations"],
+      "callout": { "label": "Valid assessments", "value": "48 annual · 47 one-hour", "detail": "All achieved their respective standards." },
+      "camera": { "center": [-123.8, 51.7], "zoom": 5.0 }
+    }
+  ],
+  "files": [
+    { "label": "Shared air-zone boundary", "detail": "7 geometries reused across four CAAQS indicator projects" },
+    { "label": "NO₂ stations", "detail": "49 map points with metric and management details" },
+    { "label": "Open analysis", "detail": "Province of B.C. no2-caaqs-indicator repository" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.5, 54.5], "zoom": 4.25, "minZoom": 3.5, "maxZoom": 12, "basemap": "light" },
+    "accent": "#0891b2",
+    "layers": [
+      {
+        "id": "no2-air-zones",
+        "data": "/data/bc/caaqs-2022-2024-air-zones.geojson",
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "no2_display",
+        "selectionTitleProperty": "name",
+        "selectionDetailProperty": "no2_details",
+        "fillColor": "#fee08b",
+        "fillOpacity": 0.68,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.9,
+        "lineWidth": 1.25,
+        "category": {
+          "property": "no2_management_level",
+          "colors": {
+            "Actions for Achieving Air Zone CAAQS": "#a50026",
+            "Actions for Preventing CAAQS Exceedance": "#f46d43",
+            "Actions for Preventing Air Quality Deterioration": "#fee08b",
+            "Actions for Keeping Clean Areas Clean": "#a6d96a",
+            "Insufficient Data": "#dbdbdb"
+          },
+          "fallback": "#dbdbdb"
+        },
+        "attribution": "Environmental Reporting BC, 2026"
+      },
+      {
+        "id": "no2-stations",
+        "data": "/data/bc/no2-caaqs-2022-2024-stations.geojson",
+        "geometry": "point",
+        "idProperty": "id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "name",
+        "selectionDetailProperty": "details",
+        "fillColor": "#fee08b",
+        "fillOpacity": 0.96,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 1.4,
+        "circleRadius": 5.5,
+        "category": {
+          "property": "management_level",
+          "colors": {
+            "Actions for Achieving Air Zone CAAQS": "#a50026",
+            "Actions for Preventing CAAQS Exceedance": "#f46d43",
+            "Actions for Preventing Air Quality Deterioration": "#fee08b",
+            "Actions for Keeping Clean Areas Clean": "#a6d96a"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "Environmental Reporting BC, 2026"
+      }
+    ],
+    "places": []
+  }
+}

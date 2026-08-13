@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "slug": "municipal-solid-waste-bc",
+  "title": "Municipal Solid Waste Disposal in B.C.",
+  "kind": "map-story",
+  "theme": "green",
+  "owner": "Environmental Reporting BC",
+  "updated": "December 2025",
+  "region": "British Columbia",
+  "status": "Published indicator",
+  "summary": "Compare 2023 municipal solid waste disposal rates and change since 2012 across B.C.'s regional districts.",
+  "sourceNote": "The map joins the open 1990–2023 disposal-rate table to the reusable Statistics Canada census-division boundary already held by BC Data Mapper. Comox Valley and Strathcona report one combined waste stream, so their shared rate is drawn on both boundaries. Stikine has no reported 2023 rate. Historic values before 2012 are not directly comparable because collection methods changed.",
+  "details": [
+    "Click or tap a regional district for its 2023 disposal rate, disposed tonnage, reporting population, and selected historical values.",
+    "Rates include residential, institutional, commercial, light-industrial, construction, renovation, and demolition waste sent to disposal.",
+    "Waste that is reused or recycled is not included in the disposal rate."
+  ],
+  "links": [
+    { "label": "B.C. municipal solid waste indicator", "href": "https://www.env.gov.bc.ca/soe/indicators/sustainability/municipal-solid-waste.html" },
+    { "label": "Indicator analysis repository", "href": "https://github.com/bcgov/msw-disposal-indicator" },
+    { "label": "Municipal solid waste data", "href": "https://catalogue.data.gov.bc.ca/dataset/d21ed158-0ac7-4afd-a03b-ce22df0096bc" }
+  ],
+  "catalogMetrics": [
+    { "label": "Disposed in 2023", "value": "≈2.7M tonnes" },
+    { "label": "B.C. rate", "value": "481 kg/person" },
+    { "label": "Reporting series", "value": "27" }
+  ],
+  "layers": [
+    { "id": "waste-rate-2023", "label": "2023 disposal rate", "type": "boundary", "checked": true },
+    { "id": "waste-change-2012", "label": "Change since 2012", "type": "boundary", "checked": false }
+  ],
+  "legend": [
+    { "label": "Under 400 kg/person", "color": "#d9f0a3" },
+    { "label": "400–499 kg/person", "color": "#addd8e" },
+    { "label": "500–599 kg/person", "color": "#78c679" },
+    { "label": "600–699 kg/person", "color": "#31a354" },
+    { "label": "700 kg/person or more", "color": "#006837" },
+    { "label": "No reported rate", "color": "#d1d5db" }
+  ],
+  "scenes": [
+    {
+      "label": "2023 rates",
+      "kicker": "01 · Disposal per resident",
+      "title": "British Columbians disposed of 481 kilograms per person",
+      "text": "Approximately 2.7 million tonnes of municipal solid waste were disposed of in 2023. Regional rates vary with population, economic activity, tourism, infrastructure, and access to diversion programs.",
+      "focus": "2023 disposal rate",
+      "visibleLayerIds": ["waste-rate-2023"],
+      "callout": { "label": "B.C. average", "value": "481 kg/person", "detail": "The indicator's published 2023 provincial rate." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Lowest rate",
+      "kicker": "02 · Regional variation",
+      "title": "Sunshine Coast reported the lowest 2023 rate",
+      "text": "Sunshine Coast reported 348 kilograms per person, while Squamish-Lillooet reported 355. These rates do not capture waste that was prevented, reused, composted, or recycled.",
+      "focus": "Sunshine Coast Regional District",
+      "visibleLayerIds": ["waste-rate-2023"],
+      "highlights": [
+        { "layerId": "waste-rate-2023", "property": "display_name", "values": ["Sunshine Coast"], "color": "#2563eb", "dimOpacity": 0.08, "label": "Sunshine Coast" }
+      ],
+      "callout": { "label": "Sunshine Coast", "value": "348 kg/person", "detail": "Lowest reported regional rate in 2023." },
+      "camera": { "center": [-123.9, 49.8], "zoom": 6.5 }
+    },
+    {
+      "label": "Highest rate",
+      "kicker": "03 · Regional variation",
+      "title": "Peace River reported the highest 2023 rate",
+      "text": "Peace River reported 804 kilograms per person, followed by Bulkley-Nechako at 786. Rates should be interpreted alongside regional economic activity and transient populations.",
+      "focus": "Peace River Regional District",
+      "visibleLayerIds": ["waste-rate-2023"],
+      "highlights": [
+        { "layerId": "waste-rate-2023", "property": "display_name", "values": ["Peace River"], "color": "#be123c", "dimOpacity": 0.08, "label": "Peace River" }
+      ],
+      "callout": { "label": "Peace River", "value": "804 kg/person", "detail": "Highest reported regional rate in 2023." },
+      "camera": { "center": [-121.7, 56.2], "zoom": 5.25 }
+    },
+    {
+      "label": "Change",
+      "kicker": "04 · Comparable series",
+      "title": "The post-2012 series shows where disposal rates fell or rose",
+      "text": "The change view compares 2023 with 2012, the first year of the consistent reporting method. Select a district for both rates and the calculated percentage change.",
+      "focus": "Change in disposal rate, 2012–2023",
+      "visibleLayerIds": ["waste-change-2012"],
+      "legend": [
+        { "label": "Decrease of 20% or more", "color": "#1a9850" },
+        { "label": "Decrease of 5–19%", "color": "#91cf60" },
+        { "label": "Little change (±5%)", "color": "#ffffbf" },
+        { "label": "Increase of 6–19%", "color": "#fc8d59" },
+        { "label": "Increase of 20% or more", "color": "#d73027" },
+        { "label": "No comparable data", "color": "#d1d5db" }
+      ],
+      "callout": { "label": "Comparable period", "value": "2012–2023", "detail": "Earlier historic estimates used different collection methods." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    }
+  ],
+  "files": [
+    { "label": "Shared regional-district layer", "detail": "29 census divisions reused by this and the population project" },
+    { "label": "Waste-disposal table", "detail": "918 rows covering 1990–2023" },
+    { "label": "Comparable trend", "detail": "Percentage change calculated from 2012 to 2023" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.5, 54.5], "zoom": 4.25, "minZoom": 3.5, "maxZoom": 10, "basemap": "light" },
+    "accent": "#15803d",
+    "layers": [
+      {
+        "id": "waste-rate-2023",
+        "data": "/data/census/bc-da-simplified/parents/cd.geojson",
+        "attributes": {
+          "data": "/data/bc/environmental-reporting/regional_district_environmental_indicators.json",
+          "boundaryProperty": "id",
+          "attributeProperty": "id"
+        },
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "waste_display",
+        "selectionTitleProperty": "display_name",
+        "selectionDetailProperty": "waste_details",
+        "fillColor": "#78c679",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.92,
+        "lineWidth": 0.9,
+        "category": {
+          "property": "waste_rate_band",
+          "colors": { "Under 400 kg/person": "#d9f0a3", "400–499 kg/person": "#addd8e", "500–599 kg/person": "#78c679", "600–699 kg/person": "#31a354", "700 kg/person or more": "#006837", "No reported rate": "#d1d5db" },
+          "fallback": "#d1d5db"
+        },
+        "attribution": "Environmental Reporting BC · 2023 municipal solid waste disposal rates"
+      },
+      {
+        "id": "waste-change-2012",
+        "data": "/data/census/bc-da-simplified/parents/cd.geojson",
+        "attributes": {
+          "data": "/data/bc/environmental-reporting/regional_district_environmental_indicators.json",
+          "boundaryProperty": "id",
+          "attributeProperty": "id"
+        },
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "waste_change_display",
+        "selectionTitleProperty": "display_name",
+        "selectionDetailProperty": "waste_change_details",
+        "fillColor": "#fef3c7",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.92,
+        "lineWidth": 0.9,
+        "category": {
+          "property": "waste_change_band",
+          "colors": { "Decrease of 20% or more": "#1a9850", "Decrease of 5–19%": "#91cf60", "Little change (±5%)": "#ffffbf", "Increase of 6–19%": "#fc8d59", "Increase of 20% or more": "#d73027", "No comparable data": "#d1d5db" },
+          "fallback": "#d1d5db"
+        },
+        "attribution": "Environmental Reporting BC · comparable 2012–2023 disposal series"
+      }
+    ],
+    "places": []
+  }
+}

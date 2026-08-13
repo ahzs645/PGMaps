@@ -11,6 +11,7 @@ import {
   Layers,
   MapPin,
   RotateCcw,
+  X,
 } from 'lucide-react'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -23,7 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Map, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
-import { MapFillLayer } from '@/components/ui/map-layers'
+import { MapCircleLayer, MapFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
@@ -32,8 +33,10 @@ import {
   downloadProjectPackage,
   type ProjectPackage,
   type ProjectSceneDef,
+  type ProjectStoryLayerDef,
   type ProjectStoryWorkspaceDef,
 } from '@/lib/projectPackages'
+import { withBase } from '@/lib/dataUrl'
 import { buildLegend, resolveLayer, sameLayerSet } from './storyScene'
 import { escapeHtml } from '@/lib/escapeHtml'
 
@@ -46,6 +49,72 @@ const PROGRAMMATIC_SCROLL_MS = 300
 const SCROLL_SETTLE_MS = 160
 /** The card under this fraction of the viewport height is the active scene. */
 const READING_LINE_FRACTION = 0.35
+const EMPTY_FEATURE_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+const joinedLayerDataCache = new globalThis.Map<string, Promise<GeoJSON.FeatureCollection>>()
+
+function joinedLayerData(layer: ProjectStoryLayerDef): Promise<GeoJSON.FeatureCollection> {
+  const join = layer.attributes
+  if (!join) return Promise.reject(new Error(`Layer ${layer.id} has no attribute join`))
+  const cacheKey = [layer.data, join.data, join.boundaryProperty, join.attributeProperty, join.recordsProperty].join('|')
+  const cached = joinedLayerDataCache.get(cacheKey)
+  if (cached) return cached
+
+  const pending = Promise.all([
+    fetch(withBase(layer.data)).then((response) => {
+      if (!response.ok) throw new Error(`Boundary request failed: ${response.status}`)
+      return response.json() as Promise<GeoJSON.FeatureCollection>
+    }),
+    fetch(withBase(join.data)).then((response) => {
+      if (!response.ok) throw new Error(`Attribute request failed: ${response.status}`)
+      return response.json() as Promise<Record<string, unknown>>
+    }),
+  ]).then(([boundaries, attributePayload]) => {
+    if (boundaries.type !== 'FeatureCollection' || !Array.isArray(boundaries.features)) {
+      throw new Error(`Layer ${layer.id} boundary data is not a FeatureCollection`)
+    }
+    const records = attributePayload[join.recordsProperty ?? 'records']
+    if (!Array.isArray(records)) throw new Error(`Layer ${layer.id} attribute data has no records array`)
+    const byId = new globalThis.Map(
+      records
+        .filter((record): record is Record<string, unknown> => Boolean(record && typeof record === 'object'))
+        .map((record) => [String(record[join.attributeProperty]), record]),
+    )
+    return {
+      ...boundaries,
+      features: boundaries.features.map((feature) => {
+        const properties = feature.properties ?? {}
+        const attributes = byId.get(String(properties[join.boundaryProperty]))
+        return attributes ? { ...feature, properties: { ...properties, ...attributes } } : feature
+      }),
+    }
+  }).catch((error) => {
+    joinedLayerDataCache.delete(cacheKey)
+    throw error
+  })
+  joinedLayerDataCache.set(cacheKey, pending)
+  return pending
+}
+
+function useStoryLayerData(layers: ProjectStoryLayerDef[]) {
+  const [joinedData, setJoinedData] = useState<Record<string, GeoJSON.FeatureCollection>>({})
+  useEffect(() => {
+    let cancelled = false
+    const joinedLayers = layers.filter((layer) => layer.attributes)
+    if (joinedLayers.length === 0) {
+      setJoinedData({})
+      return
+    }
+    Promise.all(joinedLayers.map(async (layer) => [layer.id, await joinedLayerData(layer)] as const))
+      .then((entries) => {
+        if (!cancelled) setJoinedData(Object.fromEntries(entries))
+      })
+      .catch((error) => {
+        if (!cancelled) console.error('Unable to join shared story-map boundaries', error)
+      })
+    return () => { cancelled = true }
+  }, [layers])
+  return joinedData
+}
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
@@ -261,6 +330,7 @@ export function ProjectStoryMap({
   const scenes = project.scenes
   const accent = config.accent
   const isMobile = useIsMobile()
+  const joinedLayerData = useStoryLayerData(config.layers)
 
   const mapRef = useRef<MapLibreGL.Map | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -277,6 +347,13 @@ export function ProjectStoryMap({
       ),
   )
   const [sidebarWidth, setSidebarWidth] = useState(380)
+  const [selectedFeature, setSelectedFeature] = useState<{
+    layerId: string
+    id: string
+    title: string
+    layerLabel: string
+    detail?: string
+  } | null>(null)
 
   const activeScene = scenes[activeSceneIndex]
 
@@ -334,6 +411,7 @@ export function ProjectStoryMap({
       activeSceneIndexRef.current = index
       setActiveSceneIndex(index)
       setVisibleLayerIds(new Set(scene.visibleLayerIds))
+      setSelectedFeature(null)
 
       const map = mapRef.current
       if (!map || !scene.camera) return
@@ -528,27 +606,67 @@ export function ProjectStoryMap({
         styles={mapStyles}
       >
 
-        {resolvedLayers.map((resolved) => (
-          <MapFillLayer
-            key={resolved.layer.id}
-            data={resolved.layer.data}
-            idProperty={resolved.layer.idProperty}
-            fillColor={resolved.fillColor}
-            fillOpacity={resolved.fillOpacity}
-            lineColor={resolved.lineColor}
-            lineOpacity={resolved.lineOpacity}
-            lineWidth={resolved.lineWidth}
-            visible={visibleLayerIds.has(resolved.layer.id)}
-            filter={resolved.filter as never}
-            fadeMs={LAYER_FADE_MS}
-            hoverHtml={(properties) =>
-              `<div class="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md">
-                <div class="font-semibold">${escapeHtml(properties[resolved.layer.labelProperty])}</div>
-                <div class="mt-0.5 text-muted-foreground">${escapeHtml(resolved.label)}</div>
-              </div>`
-            }
-          />
-        ))}
+        {resolvedLayers.map((resolved) => {
+          const layerData = resolved.layer.attributes
+            ? joinedLayerData[resolved.layer.id] ?? EMPTY_FEATURE_COLLECTION
+            : resolved.layer.data
+          const selectFeature = (id: string, _event: unknown, properties: Record<string, unknown>) =>
+            setSelectedFeature({
+              layerId: resolved.layer.id,
+              id,
+              title: String(
+                properties[resolved.layer.selectionTitleProperty ?? resolved.layer.labelProperty] ?? id,
+              ),
+              layerLabel: resolved.label,
+              detail: resolved.layer.selectionDetailProperty
+                ? String(properties[resolved.layer.selectionDetailProperty] ?? '') || undefined
+                : undefined,
+            })
+          const hoverHtml = (properties: Record<string, unknown>) =>
+            `<div class="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground shadow-md">
+              <div class="font-semibold">${escapeHtml(properties[resolved.layer.labelProperty])}</div>
+              <div class="mt-0.5 text-muted-foreground">${escapeHtml(resolved.label)}</div>
+            </div>`
+
+          if (resolved.layer.geometry === 'point') {
+            return (
+              <MapCircleLayer
+                key={resolved.layer.id}
+                data={layerData}
+                idProperty={resolved.layer.idProperty}
+                color={resolved.fillColor}
+                opacity={resolved.fillOpacity}
+                radius={resolved.layer.circleRadius ?? 5.5}
+                strokeColor={resolved.lineColor}
+                strokeWidth={resolved.lineWidth}
+                visible={visibleLayerIds.has(resolved.layer.id)}
+                filter={resolved.filter as never}
+                selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
+                onFeatureClick={selectFeature}
+                hoverHtml={hoverHtml}
+              />
+            )
+          }
+
+          return (
+            <MapFillLayer
+              key={resolved.layer.id}
+              data={layerData}
+              idProperty={resolved.layer.idProperty}
+              fillColor={resolved.fillColor}
+              fillOpacity={resolved.fillOpacity}
+              lineColor={resolved.lineColor}
+              lineOpacity={resolved.lineOpacity}
+              lineWidth={resolved.lineWidth}
+              visible={visibleLayerIds.has(resolved.layer.id)}
+              filter={resolved.filter as never}
+              fadeMs={LAYER_FADE_MS}
+              selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
+              onFeatureClick={selectFeature}
+              hoverHtml={hoverHtml}
+            />
+          )
+        })}
 
         {activePlaces.map((place) => (
           <MapMarker key={place.id} longitude={place.coordinates[0]} latitude={place.coordinates[1]} anchor="bottom">
@@ -572,6 +690,30 @@ export function ProjectStoryMap({
           </MapMarker>
         ))}
       </Map>
+
+      {selectedFeature && (
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex justify-center">
+          <div className="pointer-events-auto flex max-h-[min(60vh,32rem)] w-full max-w-md items-start gap-3 rounded-lg border bg-background/95 px-3 py-2.5 text-sm shadow-lg backdrop-blur">
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold leading-5 text-foreground">{selectedFeature.title}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{selectedFeature.layerLabel}</div>
+              {selectedFeature.detail && (
+                <div className="mt-2 max-h-[min(42vh,22rem)] overflow-y-auto whitespace-pre-line border-t pt-2 text-xs leading-5 text-muted-foreground">
+                  {selectedFeature.detail}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedFeature(null)}
+              aria-label="Close selected feature"
+              className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <MapLegendPanel
         title="Map layers"

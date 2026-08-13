@@ -5348,6 +5348,745 @@
         "layerCount": 3,
         "sceneCount": 3
       }
+    },
+    {
+      "file": "roadless-areas-bc-ecoregions.json",
+      "revision": "8d33903c6ccd",
+      "catalog": {
+        "slug": "roadless-areas-bc-ecoregions",
+        "title": "Roadless Areas within B.C.'s Ecoregions",
+        "kind": "map-story",
+        "theme": "emerald",
+        "owner": "Environmental Reporting BC",
+        "updated": "May 2018",
+        "region": "British Columbia",
+        "status": "Published indicator",
+        "summary": "The amount and distribution of roadless land vary considerably across British Columbia. Explore the share of each terrestrial ecoregion that lies more than 500 metres from a road.",
+        "sourceNote": "Environmental Reporting BC calculated roadless area from the B.C. Digital Road Atlas accessed May 1, 2018. Roadless means more than 500 metres from a road. This project preserves the 43 ecoregion geometries and reported percentages embedded in the Province's May 2018 interactive map; results are a coarse-scale snapshot and are reported to three significant figures.",
+        "details": [
+          "Twenty-seven of B.C.'s 43 terrestrial ecoregions are more than 50 percent roadless, while six have less than 25 percent roadless area.",
+          "Ecoregions with high population densities and larger road networks have the lowest shares. Lower Mainland, Georgia-Puget Basin, and Okanogan Highland each have 13 percent roadless area.",
+          "Point to an ecoregion to see its percentage, or click or tap it to keep that ecoregion selected."
+        ],
+        "links": [
+          {
+            "label": "B.C. roads and roadless areas indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/land/roads.html"
+          },
+          {
+            "label": "Indicator summary data",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/42f52a87-e0a3-4dfa-8a0a-7c0aba69167d"
+          },
+          {
+            "label": "Analysis code",
+            "href": "https://github.com/bcgov/roadless-areas-indicator"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Ecoregions",
+            "value": "43"
+          },
+          {
+            "label": "B.C. roadless",
+            "value": "66%"
+          },
+          {
+            "label": "Roadless threshold",
+            "value": ">500 m"
+          }
+        ],
+        "files": [
+          {
+            "label": "Ecoregion polygons",
+            "detail": "43 geometries preserved from the Province's 2018 interactive map"
+          },
+          {
+            "label": "Roadless percentages",
+            "detail": "Area more than 500 metres from a road, by ecoregion"
+          },
+          {
+            "label": "Method and provenance",
+            "detail": "Environmental Reporting BC indicator and open analysis code"
+          }
+        ],
+        "layerCount": 1,
+        "sceneCount": 4
+      }
+    },
+    {
+      "file": "air-quality-bylaws-bc.json",
+      "revision": "05d678ece72c",
+      "catalog": {
+        "slug": "air-quality-bylaws-bc",
+        "title": "Status of Air Quality Bylaws in B.C.",
+        "kind": "map-story",
+        "theme": "cyan",
+        "owner": "Environmental Reporting BC",
+        "updated": "February 2017",
+        "region": "British Columbia",
+        "status": "Published indicator",
+        "summary": "Explore the share of each regional district's population covered by vehicle-idling, open-burning, and solid-fuel-burning-appliance bylaws in 2016.",
+        "sourceNote": "Environmental Reporting BC compiled bylaw status for municipalities and unincorporated areas in 2016, using 2015 population estimates. The map reuses the BC Data Mapper regional-district boundary, excluding Stikine because it has no row in the indicator table. Historical reporting names are matched to today's boundary names without changing the 2016 results.",
+        "details": [
+          "Click or tap a regional district to see the bylaw status reported for every municipality and unincorporated area in that district.",
+          "Coverage is population-weighted, so a district with a bylaw in a large municipality may have a high coverage percentage even when other jurisdictions report none.",
+          "The three scenes switch between vehicle-idling, open-burning, and solid-fuel-burning-appliance bylaws."
+        ],
+        "links": [
+          {
+            "label": "B.C. air quality bylaws indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/air/air-quality-bylaws.html"
+          },
+          {
+            "label": "B.C. Data Catalogue record",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/8c9dbd87-3704-420f-bc4e-fce93b6c39dc"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Regional districts",
+            "value": "27"
+          },
+          {
+            "label": "Jurisdictions",
+            "value": "188"
+          },
+          {
+            "label": "Reference year",
+            "value": "2016"
+          }
+        ],
+        "files": [
+          {
+            "label": "Shared regional-district boundary",
+            "detail": "27 districts derived from the BC Data Mapper boundary; no legacy boundary download"
+          },
+          {
+            "label": "Bylaw source table",
+            "detail": "188 jurisdiction rows, 7,643 bytes"
+          },
+          {
+            "label": "Population-weighted coverage",
+            "detail": "Vehicle idling, open burning, and solid-fuel appliances"
+          }
+        ],
+        "layerCount": 3,
+        "sceneCount": 3
+      }
+    },
+    {
+      "file": "fine-particulate-matter-bc.json",
+      "revision": "010277e1c7d2",
+      "catalog": {
+        "slug": "fine-particulate-matter-bc",
+        "title": "Status of Fine Particulate Matter in B.C.",
+        "kind": "map-story",
+        "theme": "amber",
+        "owner": "Environmental Reporting BC",
+        "updated": "June 2026",
+        "region": "British Columbia",
+        "status": "Published indicator",
+        "summary": "Explore fine particulate matter (PM₂.₅) management levels across seven B.C. air zones and the 57 monitoring stations assessed for 2022–2024.",
+        "sourceNote": "This project preserves the air-zone geometries, station locations, management levels, and click details embedded in Environmental Reporting BC's June 2026 interactive map. The air zones were not previously present in BC Data Mapper, so they are now stored there once as a reusable boundary layer. Results reflect the 2022–2024 Canadian Ambient Air Quality Standards assessment and include approved adjustments for transboundary flows and exceptional events where the indicator applies them.",
+        "details": [
+          "Click or tap an air zone or monitoring station for the metrics and assessment details supplied by the Province.",
+          "Fine particulate matter is PM₂.₅: airborne particles 2.5 micrometres or smaller that can penetrate deep into the lungs.",
+          "Management levels progress from keeping clean areas clean through preventing deterioration or exceedance to actions for achieving the standards."
+        ],
+        "links": [
+          {
+            "label": "B.C. fine particulate matter indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/air/fine-pm.html"
+          },
+          {
+            "label": "Indicator data catalogue record",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/699be99e-a9ba-403e-b0fe-3d13f84f45ab"
+          },
+          {
+            "label": "Air-zone boundary catalogue record",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/e8eeefc4-2826-47bc-8430-85703d328516"
+          },
+          {
+            "label": "Analysis code",
+            "href": "https://github.com/bcgov/pm25-caaqs-indicator"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Monitoring stations",
+            "value": "57"
+          },
+          {
+            "label": "Air zones",
+            "value": "7"
+          },
+          {
+            "label": "Met both standards",
+            "value": "70%"
+          }
+        ],
+        "files": [
+          {
+            "label": "Air-zone boundaries",
+            "detail": "7 reusable polygons added to BC Data Mapper"
+          },
+          {
+            "label": "Monitoring stations",
+            "detail": "57 indicator-specific station points and click details"
+          },
+          {
+            "label": "Assessment period",
+            "detail": "2022–2024 CAAQS metrics; indicator updated June 2026"
+          }
+        ],
+        "layerCount": 2,
+        "sceneCount": 4
+      }
+    },
+    {
+      "file": "ground-level-ozone-bc.json",
+      "revision": "5b1e18f6ffad",
+      "catalog": {
+        "slug": "ground-level-ozone-bc",
+        "title": "Status of Ground-Level Ozone in B.C.",
+        "kind": "map-story",
+        "theme": "blue",
+        "owner": "Environmental Reporting BC",
+        "updated": "June 2026",
+        "region": "British Columbia",
+        "status": "Published indicator",
+        "summary": "Explore 2022–2024 ground-level ozone management levels across B.C.'s seven air zones and 46 assessed monitoring stations.",
+        "sourceNote": "This project preserves the station locations, management levels, and click details embedded in Environmental Reporting BC's June 2026 ozone map. It reuses the same seven-zone boundary shared by the Province's PM₂.₅, SO₂, and NO₂ indicator maps. The Province's open ozone-caaqs-indicator repository documents the underlying R analysis and output workflow.",
+        "details": [
+          "Click or tap an air zone or monitoring station to inspect the Province's 2022–2024 assessment details.",
+          "The ozone metric is the three-year average of the annual fourth-highest daily maximum eight-hour rolling concentration.",
+          "Management levels use metrics adjusted for approved transboundary flows and exceptional events."
+        ],
+        "links": [
+          {
+            "label": "B.C. ground-level ozone indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/air/ozone.html"
+          },
+          {
+            "label": "Indicator summary data",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/9b7a9e74-9274-4f97-be81-ce4ee475077d"
+          },
+          {
+            "label": "Analysis code",
+            "href": "https://github.com/bcgov/ozone-caaqs-indicator"
+          },
+          {
+            "label": "Environmental Reporting BC repositories",
+            "href": "https://github.com/bcgov/EnvReportBC"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Monitoring stations",
+            "value": "46"
+          },
+          {
+            "label": "Met the standard",
+            "value": "46 of 46"
+          },
+          {
+            "label": "Air zones",
+            "value": "7"
+          }
+        ],
+        "files": [
+          {
+            "label": "Shared air-zone boundary",
+            "detail": "7 geometries reused across four CAAQS indicator projects"
+          },
+          {
+            "label": "Ozone stations",
+            "detail": "46 indicator-specific points and assessment details"
+          },
+          {
+            "label": "Open analysis",
+            "detail": "Province of B.C. ozone-caaqs-indicator repository"
+          }
+        ],
+        "layerCount": 2,
+        "sceneCount": 3
+      }
+    },
+    {
+      "file": "nitrogen-dioxide-bc.json",
+      "revision": "f5c6365427e8",
+      "catalog": {
+        "slug": "nitrogen-dioxide-bc",
+        "title": "Status of Nitrogen Dioxide in B.C.",
+        "kind": "map-story",
+        "theme": "cyan",
+        "owner": "Environmental Reporting BC",
+        "updated": "June 2026",
+        "region": "British Columbia",
+        "status": "Published indicator",
+        "summary": "Explore 2022–2024 nitrogen dioxide (NO₂) management levels across B.C.'s seven air zones and 49 monitoring-station map locations.",
+        "sourceNote": "This project preserves the station locations, management levels, and click details embedded in Environmental Reporting BC's June 2026 NO₂ map. It reuses the shared seven-zone CAAQS boundary. The Province's no2-caaqs-indicator repository provides the reproducible R analysis, DataBC output, and year-over-year QA workflow.",
+        "details": [
+          "NO₂ has annual and one-hour Canadian Ambient Air Quality Standards; management uses the higher resulting level.",
+          "The map contains 49 station locations, while the Province reports 48 valid annual and 47 valid one-hour assessments.",
+          "Click or tap an air zone or station for the 2022–2024 metrics and management action."
+        ],
+        "links": [
+          {
+            "label": "B.C. nitrogen dioxide indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/air/no2.html"
+          },
+          {
+            "label": "Indicator summary data",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/indicator-summary-data-bc-nitrogen-dioxide-canadian-ambient-air-quality-standards"
+          },
+          {
+            "label": "Analysis code",
+            "href": "https://github.com/bcgov/no2-caaqs-indicator"
+          },
+          {
+            "label": "Environmental Reporting BC repositories",
+            "href": "https://github.com/bcgov/EnvReportBC"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Map stations",
+            "value": "49"
+          },
+          {
+            "label": "Annual standard",
+            "value": "48 of 48"
+          },
+          {
+            "label": "One-hour standard",
+            "value": "47 of 47"
+          }
+        ],
+        "files": [
+          {
+            "label": "Shared air-zone boundary",
+            "detail": "7 geometries reused across four CAAQS indicator projects"
+          },
+          {
+            "label": "NO₂ stations",
+            "detail": "49 map points with metric and management details"
+          },
+          {
+            "label": "Open analysis",
+            "detail": "Province of B.C. no2-caaqs-indicator repository"
+          }
+        ],
+        "layerCount": 2,
+        "sceneCount": 3
+      }
+    },
+    {
+      "file": "sulphur-dioxide-bc.json",
+      "revision": "2a794b9afb61",
+      "catalog": {
+        "slug": "sulphur-dioxide-bc",
+        "title": "Status of Sulphur Dioxide in B.C.",
+        "kind": "map-story",
+        "theme": "amber",
+        "owner": "Environmental Reporting BC",
+        "updated": "June 2026",
+        "region": "British Columbia",
+        "status": "Published indicator",
+        "summary": "Explore 2022–2024 sulphur dioxide (SO₂) management levels across B.C.'s seven air zones and 38 monitoring-station map locations.",
+        "sourceNote": "This project preserves the station locations, management levels, and click details embedded in Environmental Reporting BC's June 2026 SO₂ map. It reuses the shared seven-zone CAAQS boundary. The Province's so2-caaqs-indicator repository documents the R workflow used to load, clean, analyse, quality-check, and publish the source results.",
+        "details": [
+          "SO₂ has annual and one-hour Canadian Ambient Air Quality Standards; management uses the more stringent resulting level.",
+          "The map contains 38 station locations, while data sufficiency differs by metric: 37 annual and 36 one-hour station assessments were reported.",
+          "Click or tap any air zone or station for the Province's detailed 2022–2024 result."
+        ],
+        "links": [
+          {
+            "label": "B.C. sulphur dioxide indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/air/so2.html"
+          },
+          {
+            "label": "Indicator summary data",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/646bb2ae-e2de-46b7-b377-39b56abff79e"
+          },
+          {
+            "label": "Analysis code",
+            "href": "https://github.com/bcgov/so2-caaqs-indicator"
+          },
+          {
+            "label": "Environmental Reporting BC repositories",
+            "href": "https://github.com/bcgov/EnvReportBC"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Map stations",
+            "value": "38"
+          },
+          {
+            "label": "One-hour standard",
+            "value": "34 of 36"
+          },
+          {
+            "label": "Annual standard",
+            "value": "37 of 37"
+          }
+        ],
+        "files": [
+          {
+            "label": "Shared air-zone boundary",
+            "detail": "7 geometries reused across four CAAQS indicator projects"
+          },
+          {
+            "label": "SO₂ stations",
+            "detail": "38 map points with metric and management details"
+          },
+          {
+            "label": "Open analysis",
+            "detail": "Province of B.C. so2-caaqs-indicator repository"
+          }
+        ],
+        "layerCount": 2,
+        "sceneCount": 3
+      }
+    },
+    {
+      "file": "lidarbc-data-availability.json",
+      "revision": "7051ae2b1145",
+      "catalog": {
+        "slug": "lidarbc-data-availability",
+        "title": "LidarBC Data Availability",
+        "kind": "map-story",
+        "theme": "blue",
+        "owner": "GeoBC · LidarBC",
+        "updated": "July 2026",
+        "region": "British Columbia",
+        "status": "Live portal snapshot",
+        "summary": "Explore the annual footprints of publicly available provincial LiDAR data, then continue to LidarBC to select and download point clouds and elevation products.",
+        "sourceNote": "This project is a cartographic snapshot of the public LidarBC Provincial Data Extent service, last edited in July 2026. It stores 13 simplified annual availability footprints—not the LiDAR point clouds, DEMs, DSMs, or tile-level download indexes. Annual footprints can overlap where an area was surveyed more than once, so their areas must not be added together as a province-wide coverage percentage. Use the official portal for current tile selection and downloads.",
+        "details": [
+          "Click or tap a footprint for its acquisition year and source-reported area.",
+          "LidarBC provides classified point clouds, digital elevation models, digital surface models, and other derived products through its download portal.",
+          "The Province's six-year collection program is intended to make LiDAR products available for all of B.C. by 2029."
+        ],
+        "links": [
+          {
+            "label": "Open LidarBC portal",
+            "href": "https://lidar.gov.bc.ca/"
+          },
+          {
+            "label": "Select and download LiDAR data",
+            "href": "https://lidar.gov.bc.ca/pages/download-discovery"
+          },
+          {
+            "label": "LiDAR catalogue record",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/d08b2795-d192-4377-8056-eccef50296e6"
+          },
+          {
+            "label": "LidarBC portal catalogue record",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/cc11fb58-4837-4d6f-b783-95173e040983"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Annual footprints",
+            "value": "13"
+          },
+          {
+            "label": "Point-cloud tiles",
+            "value": "160,334"
+          },
+          {
+            "label": "Program target",
+            "value": "2029"
+          }
+        ],
+        "files": [
+          {
+            "label": "Annual availability footprints",
+            "detail": "13 overlapping polygons simplified for province-wide display"
+          },
+          {
+            "label": "Live product indexes",
+            "detail": "Counts summarized from the public ArcGIS Feature Service"
+          },
+          {
+            "label": "Official downloads",
+            "detail": "Point clouds, DEMs, DSMs, and supporting reports remain on LidarBC"
+          }
+        ],
+        "layerCount": 1,
+        "sceneCount": 3
+      }
+    },
+    {
+      "file": "bc-population-distribution.json",
+      "revision": "7927d499e50c",
+      "catalog": {
+        "slug": "bc-population-distribution",
+        "title": "B.C. Population Size & Distribution",
+        "kind": "map-story",
+        "theme": "amber",
+        "owner": "Environmental Reporting BC · BC Stats",
+        "updated": "May 2026",
+        "region": "British Columbia",
+        "status": "Repository-method refresh",
+        "summary": "Explore 2025 population size and density, plus estimated population change since 2001, across B.C.'s regional districts.",
+        "sourceNote": "The original Environmental Reporting BC indicator and repository reported 1986–2017. This project applies the same regional population and density method to the newer open BC Stats Sub-Provincial Population Estimates table. The current table provides a consistent regional-district series from 2001–2025, so the change map uses that period. Geometry is shared with the municipal solid waste project through one reusable census-division layer.",
+        "details": [
+          "Click or tap a regional district for its 2025 population estimate, land area, density, and change from 2001.",
+          "Population estimates describe where people live; they do not directly measure environmental pressure or impact.",
+          "The regional district series includes Stikine and Northern Rockies as census divisions."
+        ],
+        "links": [
+          {
+            "label": "Original B.C. population indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/sustainability/bc-population.html"
+          },
+          {
+            "label": "Indicator analysis repository",
+            "href": "https://github.com/bcgov/bc-population-indicator"
+          },
+          {
+            "label": "BC Sub-Provincial Population Estimates",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "B.C. population",
+            "value": "5,697,536"
+          },
+          {
+            "label": "Regional districts",
+            "value": "29"
+          },
+          {
+            "label": "Estimate year",
+            "value": "2025"
+          }
+        ],
+        "files": [
+          {
+            "label": "Shared regional-district layer",
+            "detail": "29 census divisions reused by the population and waste projects"
+          },
+          {
+            "label": "BC Stats estimates",
+            "detail": "4,230 total-population rows within the downloaded regional table"
+          },
+          {
+            "label": "Comparable trend",
+            "detail": "Population change calculated from 2001 to 2025"
+          }
+        ],
+        "layerCount": 3,
+        "sceneCount": 4
+      }
+    },
+    {
+      "file": "grizzly-bear-conservation-bc.json",
+      "revision": "545d94aeac15",
+      "catalog": {
+        "slug": "grizzly-bear-conservation-bc",
+        "title": "Grizzly Bear Conservation Ranking in B.C.",
+        "kind": "map-story",
+        "theme": "amber",
+        "owner": "Environmental Reporting BC",
+        "updated": "November 2020",
+        "region": "British Columbia",
+        "status": "Published indicator",
+        "summary": "Explore conservation rank, population density, overall threats, and historic mortality across B.C.'s Grizzly Bear Population Units.",
+        "sourceNote": "This project reproduces the four map views generated by the Environmental Reporting BC repository. It joins the 2019 conservation-ranking table and 2018 population estimates to one shared 2018 Grizzly Bear Population Unit boundary, then summarizes mapped mortality records from 1976–2017. The reusable 59-polygon boundary comprises 55 ranked population units and four extirpated units.",
+        "details": [
+          "Click or tap a population unit to inspect the factors behind its conservation rank, its 2018 density estimate, threat classifications, or historic mortality record.",
+          "Conservation rankings combine population trend, population size and isolation, and threats to bears or bear habitat.",
+          "The mortality view summarizes records by population unit; it does not represent the current number of bears in that unit."
+        ],
+        "links": [
+          {
+            "label": "B.C. grizzly bear indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/plants-and-animals/grizzly-bears.html"
+          },
+          {
+            "label": "Indicator analysis repository",
+            "href": "https://github.com/bcgov/grizzly-bear-status-indicator"
+          },
+          {
+            "label": "Grizzly Bear Population Units",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/caa22f7a-87df-4f31-89e0-d5295ec5c725"
+          },
+          {
+            "label": "Conservation-ranking results",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/e08876a1-3f9c-46bf-b69a-3d88de1da725"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Population units",
+            "value": "59"
+          },
+          {
+            "label": "Ranked units",
+            "value": "55"
+          },
+          {
+            "label": "2018 estimate",
+            "value": "14,925 bears"
+          }
+        ],
+        "files": [
+          {
+            "label": "Grizzly population-unit polygons",
+            "detail": "59 simplified 2018 population units"
+          },
+          {
+            "label": "Conservation and population tables",
+            "detail": "55 ranked units and 2018 population estimates"
+          },
+          {
+            "label": "Historic mortality",
+            "detail": "1976–2017 records summarized by population unit"
+          }
+        ],
+        "layerCount": 4,
+        "sceneCount": 4
+      }
+    },
+    {
+      "file": "invasive-species-bc.json",
+      "revision": "be06ba9918b9",
+      "catalog": {
+        "slug": "invasive-species-bc",
+        "title": "Status of Invasive Species in B.C.",
+        "kind": "map-story",
+        "theme": "blue",
+        "owner": "Environmental Reporting BC",
+        "updated": "August 2026",
+        "region": "British Columbia",
+        "status": "Repository-method refresh",
+        "summary": "Explore current aquatic invasive-species occurrence records summarized across B.C.'s 36 ecological drainage units, with a dedicated freshwater-fish view.",
+        "sourceNote": "The original Environmental Reporting BC page was published in 2015. This project reruns its ecological-drainage-unit aggregation against the current public Aquatic Invasive Species service. Forty source polygons are grouped into one reusable set of 36 named drainage-unit boundaries; 122 coastal or edge records are assigned to the nearest unit, following the repository's nearest-unit method. The invasive-alien-plant-site map is not republished because its source is Access Only and the repository depends on a non-public supplementary label file.",
+        "details": [
+          "Click or tap a drainage unit for the number of distinct aquatic invasive species and occurrence records in the current service.",
+          "Switch to the fish view to see the distribution of known invasive freshwater fish species and read each unit's species list.",
+          "Occurrence data document detections; absence of a mapped record does not establish that an invasive species is absent."
+        ],
+        "links": [
+          {
+            "label": "B.C. invasive species indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/plants-and-animals/invasive-species.html"
+          },
+          {
+            "label": "Indicator analysis repository",
+            "href": "https://github.com/bcgov/invasive-species-indicator"
+          },
+          {
+            "label": "Aquatic invasive species catalogue record",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/d9613096-b2fe-43b4-9be1-d82a3b805082"
+          },
+          {
+            "label": "Ecological drainage units catalogue record",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/eeab4fa2-be2e-430f-a149-ad5cb37435c0"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Occurrence records",
+            "value": "8,490"
+          },
+          {
+            "label": "Drainage units",
+            "value": "36"
+          },
+          {
+            "label": "Taxonomic groups",
+            "value": "6"
+          }
+        ],
+        "files": [
+          {
+            "label": "Ecological drainage units",
+            "detail": "40 source polygons grouped into 36 named units"
+          },
+          {
+            "label": "Aquatic occurrence service",
+            "detail": "8,490 current occurrence records aggregated to drainage units"
+          },
+          {
+            "label": "Repository method",
+            "detail": "Distinct species counts and nearest-unit handling reproduced in JavaScript"
+          }
+        ],
+        "layerCount": 2,
+        "sceneCount": 3
+      }
+    },
+    {
+      "file": "municipal-solid-waste-bc.json",
+      "revision": "a21e990123e6",
+      "catalog": {
+        "slug": "municipal-solid-waste-bc",
+        "title": "Municipal Solid Waste Disposal in B.C.",
+        "kind": "map-story",
+        "theme": "green",
+        "owner": "Environmental Reporting BC",
+        "updated": "December 2025",
+        "region": "British Columbia",
+        "status": "Published indicator",
+        "summary": "Compare 2023 municipal solid waste disposal rates and change since 2012 across B.C.'s regional districts.",
+        "sourceNote": "The map joins the open 1990–2023 disposal-rate table to the reusable Statistics Canada census-division boundary already held by BC Data Mapper. Comox Valley and Strathcona report one combined waste stream, so their shared rate is drawn on both boundaries. Stikine has no reported 2023 rate. Historic values before 2012 are not directly comparable because collection methods changed.",
+        "details": [
+          "Click or tap a regional district for its 2023 disposal rate, disposed tonnage, reporting population, and selected historical values.",
+          "Rates include residential, institutional, commercial, light-industrial, construction, renovation, and demolition waste sent to disposal.",
+          "Waste that is reused or recycled is not included in the disposal rate."
+        ],
+        "links": [
+          {
+            "label": "B.C. municipal solid waste indicator",
+            "href": "https://www.env.gov.bc.ca/soe/indicators/sustainability/municipal-solid-waste.html"
+          },
+          {
+            "label": "Indicator analysis repository",
+            "href": "https://github.com/bcgov/msw-disposal-indicator"
+          },
+          {
+            "label": "Municipal solid waste data",
+            "href": "https://catalogue.data.gov.bc.ca/dataset/d21ed158-0ac7-4afd-a03b-ce22df0096bc"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Disposed in 2023",
+            "value": "≈2.7M tonnes"
+          },
+          {
+            "label": "B.C. rate",
+            "value": "481 kg/person"
+          },
+          {
+            "label": "Reporting series",
+            "value": "27"
+          }
+        ],
+        "files": [
+          {
+            "label": "Shared regional-district layer",
+            "detail": "29 census divisions reused by this and the population project"
+          },
+          {
+            "label": "Waste-disposal table",
+            "detail": "918 rows covering 1990–2023"
+          },
+          {
+            "label": "Comparable trend",
+            "detail": "Percentage change calculated from 2012 to 2023"
+          }
+        ],
+        "layerCount": 2,
+        "sceneCount": 4
+      }
     }
   ]
 }

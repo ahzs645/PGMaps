@@ -65,6 +65,8 @@ public/data/bc-wait-specialists.json
 public/data/boundaries/
 public/data/cell-coverage/
 public/data/census/
+public/data/canada-admin/
+/build/canada-admin-pmtiles/
 public/data/citypg/
 public/data/drought/
 public/data/environmental-burden/

@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "slug": "invasive-species-bc",
+  "title": "Status of Invasive Species in B.C.",
+  "kind": "map-story",
+  "theme": "blue",
+  "owner": "Environmental Reporting BC",
+  "updated": "August 2026",
+  "region": "British Columbia",
+  "status": "Repository-method refresh",
+  "summary": "Explore current aquatic invasive-species occurrence records summarized across B.C.'s 36 ecological drainage units, with a dedicated freshwater-fish view.",
+  "sourceNote": "The original Environmental Reporting BC page was published in 2015. This project reruns its ecological-drainage-unit aggregation against the current public Aquatic Invasive Species service. Forty source polygons are grouped into one reusable set of 36 named drainage-unit boundaries; 122 coastal or edge records are assigned to the nearest unit, following the repository's nearest-unit method. The invasive-alien-plant-site map is not republished because its source is Access Only and the repository depends on a non-public supplementary label file.",
+  "details": [
+    "Click or tap a drainage unit for the number of distinct aquatic invasive species and occurrence records in the current service.",
+    "Switch to the fish view to see the distribution of known invasive freshwater fish species and read each unit's species list.",
+    "Occurrence data document detections; absence of a mapped record does not establish that an invasive species is absent."
+  ],
+  "links": [
+    { "label": "B.C. invasive species indicator", "href": "https://www.env.gov.bc.ca/soe/indicators/plants-and-animals/invasive-species.html" },
+    { "label": "Indicator analysis repository", "href": "https://github.com/bcgov/invasive-species-indicator" },
+    { "label": "Aquatic invasive species catalogue record", "href": "https://catalogue.data.gov.bc.ca/dataset/d9613096-b2fe-43b4-9be1-d82a3b805082" },
+    { "label": "Ecological drainage units catalogue record", "href": "https://catalogue.data.gov.bc.ca/dataset/eeab4fa2-be2e-430f-a149-ad5cb37435c0" }
+  ],
+  "catalogMetrics": [
+    { "label": "Occurrence records", "value": "8,490" },
+    { "label": "Drainage units", "value": "36" },
+    { "label": "Taxonomic groups", "value": "6" }
+  ],
+  "layers": [
+    { "id": "aquatic-invasive-all", "label": "All aquatic invasive species", "type": "boundary", "checked": true },
+    { "id": "aquatic-invasive-fish", "label": "Invasive freshwater fish", "type": "boundary", "checked": false }
+  ],
+  "legend": [
+    { "label": "No records", "color": "#e5e7eb" },
+    { "label": "1–3 species", "color": "#d0ecf4" },
+    { "label": "4–7 species", "color": "#8bd3dd" },
+    { "label": "8–15 species", "color": "#3399b8" },
+    { "label": "16 or more species", "color": "#075985" }
+  ],
+  "scenes": [
+    {
+      "label": "Aquatic species",
+      "kicker": "01 · Current occurrence service",
+      "title": "Aquatic invasive species are recorded across most southern drainage units",
+      "text": "The current service contains 8,490 point records. This view counts distinct species within each ecological drainage unit rather than drawing thousands of overlapping occurrence markers.",
+      "focus": "All aquatic taxonomic groups",
+      "visibleLayerIds": ["aquatic-invasive-all"],
+      "callout": { "label": "Mapped records", "value": "8,490", "detail": "Fish, plants, amphibians, reptiles, algae, and invertebrates." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Freshwater fish",
+      "kicker": "02 · Fish detections",
+      "title": "Invasive freshwater fish occur in two thirds of drainage units",
+      "text": "Twenty-four of the 36 named units contain at least one mapped invasive fish species in the current service. Select a unit to see its species list.",
+      "focus": "Distinct invasive fish species",
+      "visibleLayerIds": ["aquatic-invasive-fish"],
+      "legend": [
+        { "label": "No fish records", "color": "#e5e7eb" },
+        { "label": "1–2 fish species", "color": "#bfdbfe" },
+        { "label": "3–5 fish species", "color": "#60a5fa" },
+        { "label": "6–10 fish species", "color": "#2563eb" },
+        { "label": "11 or more fish species", "color": "#1e3a8a" }
+      ],
+      "callout": { "label": "Units with fish records", "value": "24 of 36", "detail": "Occurrence records are unevenly distributed and reflect monitoring effort." },
+      "camera": { "center": [-123.5, 51.5], "zoom": 4.75 }
+    },
+    {
+      "label": "Lower Fraser",
+      "kicker": "03 · Highest recorded diversity",
+      "title": "Lower Fraser has the largest mapped invasive-species count",
+      "text": "The Lower Fraser drainage unit contains 96 distinct aquatic invasive species in the current source, including 20 invasive fish species.",
+      "focus": "Lower Fraser ecological drainage unit",
+      "visibleLayerIds": ["aquatic-invasive-all", "aquatic-invasive-fish"],
+      "highlights": [
+        { "layerId": "aquatic-invasive-all", "property": "edu_name", "values": ["Lower Fraser"], "color": "#be123c", "dimOpacity": 0.08, "label": "Lower Fraser" }
+      ],
+      "callout": { "label": "Lower Fraser", "value": "96 species", "detail": "20 are invasive freshwater fish species." },
+      "camera": { "center": [-122.6, 49.5], "zoom": 6.0 }
+    }
+  ],
+  "files": [
+    { "label": "Ecological drainage units", "detail": "40 source polygons grouped into 36 named units" },
+    { "label": "Aquatic occurrence service", "detail": "8,490 current occurrence records aggregated to drainage units" },
+    { "label": "Repository method", "detail": "Distinct species counts and nearest-unit handling reproduced in JavaScript" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.5, 54.5], "zoom": 4.25, "minZoom": 3.5, "maxZoom": 10, "basemap": "light" },
+    "accent": "#075985",
+    "layers": [
+      {
+        "id": "aquatic-invasive-all",
+        "data": "/data/boundaries/BCEcology/ecological_drainage_units_aquatic_invasive_species.geojson",
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "species_display",
+        "selectionTitleProperty": "edu_name",
+        "selectionDetailProperty": "species_details",
+        "fillColor": "#3399b8",
+        "fillOpacity": 0.76,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.92,
+        "lineWidth": 0.9,
+        "category": {
+          "property": "species_band",
+          "colors": { "No records": "#e5e7eb", "1–3 species": "#d0ecf4", "4–7 species": "#8bd3dd", "8–15 species": "#3399b8", "16 or more species": "#075985" },
+          "fallback": "#e5e7eb"
+        },
+        "attribution": "Environmental Reporting BC method · DataBC aquatic invasive species"
+      },
+      {
+        "id": "aquatic-invasive-fish",
+        "data": "/data/boundaries/BCEcology/ecological_drainage_units_aquatic_invasive_species.geojson",
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "fish_display",
+        "selectionTitleProperty": "edu_name",
+        "selectionDetailProperty": "fish_details",
+        "fillColor": "#2563eb",
+        "fillOpacity": 0.76,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.92,
+        "lineWidth": 0.9,
+        "category": {
+          "property": "fish_band",
+          "colors": { "No fish records": "#e5e7eb", "1–2 fish species": "#bfdbfe", "3–5 fish species": "#60a5fa", "6–10 fish species": "#2563eb", "11 or more fish species": "#1e3a8a" },
+          "fallback": "#e5e7eb"
+        },
+        "attribution": "DataBC Aquatic Invasive Species service"
+      }
+    ],
+    "places": []
+  }
+}

@@ -39,9 +39,14 @@ const pathMappings = [
   ['datascrapers/citypg/output', 'citypg'],
   ['datascrapers/citypg/output-boundaries/CityPG', 'boundaries/CityPG'],
   ['datascrapers/bc/drought/output', 'drought'],
+  ['datascrapers/bc/environmental-reporting/output/manifest.json', 'bc/environmental-reporting/manifest.json'],
+  ['datascrapers/bc/environmental-reporting/output/regional_district_environmental_indicators.json', 'bc/environmental-reporting/regional_district_environmental_indicators.json'],
+  ['datascrapers/bc/environmental-reporting/output/grizzly_bear_population_units_2018.geojson', 'boundaries/BCWildlife/grizzly_bear_population_units_2018.geojson'],
+  ['datascrapers/bc/environmental-reporting/output/aquatic_invasive_species_by_edu.geojson', 'boundaries/BCEcology/ecological_drainage_units_aquatic_invasive_species.geojson'],
   ['datascrapers/bc/snow-survey/output', 'snow-survey'],
   ['datascrapers/bc/assessment/output', 'bc-assessment'],
   ['datascrapers/census/output', 'census'],
+  ['datascrapers/canada/admin-geographies/output', 'canada-admin'],
   ['datascrapers/transit/output', 'transit'],
   ['datascrapers/icbc/output', 'icbc'],
   ['datascrapers/bc/wars/output', 'wars'],
@@ -195,6 +200,17 @@ for (const [sourceRelative, targetRelative] of optionalPathMappings) {
     continue
   }
   copyPath(sourceRelative, targetRelative)
+}
+
+// Environmental Reporting map geometry now lives once in the shared boundary
+// namespace. Remove the former deploy paths when assembling without --clean.
+for (const stalePath of [
+  'bc/environmental-reporting/grizzly_bear_population_units_2018.geojson',
+  'bc/environmental-reporting/aquatic_invasive_species_by_edu.geojson',
+  'bc/environmental-reporting/regional_district_environmental_indicators.geojson',
+  'boundaries/StatCan/bc_census_divisions_environmental_indicators.geojson',
+]) {
+  rmSync(join(target, stalePath), { force: true })
 }
 
 const staleAqmapExperimentPaths = [

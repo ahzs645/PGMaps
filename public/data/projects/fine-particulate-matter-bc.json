@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "slug": "fine-particulate-matter-bc",
+  "title": "Status of Fine Particulate Matter in B.C.",
+  "kind": "map-story",
+  "theme": "amber",
+  "owner": "Environmental Reporting BC",
+  "updated": "June 2026",
+  "region": "British Columbia",
+  "status": "Published indicator",
+  "summary": "Explore fine particulate matter (PM₂.₅) management levels across seven B.C. air zones and the 57 monitoring stations assessed for 2022–2024.",
+  "sourceNote": "This project preserves the air-zone geometries, station locations, management levels, and click details embedded in Environmental Reporting BC's June 2026 interactive map. The air zones were not previously present in BC Data Mapper, so they are now stored there once as a reusable boundary layer. Results reflect the 2022–2024 Canadian Ambient Air Quality Standards assessment and include approved adjustments for transboundary flows and exceptional events where the indicator applies them.",
+  "details": [
+    "Click or tap an air zone or monitoring station for the metrics and assessment details supplied by the Province.",
+    "Fine particulate matter is PM₂.₅: airborne particles 2.5 micrometres or smaller that can penetrate deep into the lungs.",
+    "Management levels progress from keeping clean areas clean through preventing deterioration or exceedance to actions for achieving the standards."
+  ],
+  "links": [
+    {
+      "label": "B.C. fine particulate matter indicator",
+      "href": "https://www.env.gov.bc.ca/soe/indicators/air/fine-pm.html"
+    },
+    {
+      "label": "Indicator data catalogue record",
+      "href": "https://catalogue.data.gov.bc.ca/dataset/699be99e-a9ba-403e-b0fe-3d13f84f45ab"
+    },
+    {
+      "label": "Air-zone boundary catalogue record",
+      "href": "https://catalogue.data.gov.bc.ca/dataset/e8eeefc4-2826-47bc-8430-85703d328516"
+    },
+    {
+      "label": "Analysis code",
+      "href": "https://github.com/bcgov/pm25-caaqs-indicator"
+    }
+  ],
+  "catalogMetrics": [
+    { "label": "Monitoring stations", "value": "57" },
+    { "label": "Air zones", "value": "7" },
+    { "label": "Met both standards", "value": "70%" }
+  ],
+  "layers": [
+    { "id": "pm25-air-zones", "label": "PM₂.₅ air-zone management level", "type": "boundary", "checked": true },
+    { "id": "pm25-stations", "label": "PM₂.₅ monitoring stations", "type": "point", "checked": true }
+  ],
+  "legend": [
+    { "label": "Actions for Achieving Air Zone CAAQS", "color": "#a50026" },
+    { "label": "Actions for Preventing CAAQS Exceedance", "color": "#f46d43" },
+    { "label": "Actions for Preventing Air Quality Deterioration", "color": "#fee08b" },
+    { "label": "Actions for Keeping Clean Areas Clean", "color": "#a6d96a" },
+    { "label": "Insufficient Data", "color": "#dbdbdb" }
+  ],
+  "scenes": [
+    {
+      "label": "Assessment",
+      "kicker": "01 · 2022–2024 assessment",
+      "title": "Seventy percent of stations met both PM₂.₅ standards",
+      "text": "Across B.C., 40 of the 57 assessed stations met both the annual and 24-hour Canadian Ambient Air Quality Standards after applicable adjustments.",
+      "focus": "Seven air zones and 57 assessed stations",
+      "visibleLayerIds": ["pm25-air-zones", "pm25-stations"],
+      "legend": [
+        { "label": "Achieving CAAQS", "color": "#a50026" },
+        { "label": "Preventing exceedance", "color": "#f46d43" },
+        { "label": "Preventing deterioration", "color": "#fee08b" },
+        { "label": "Keeping clean", "color": "#a6d96a" },
+        { "label": "Insufficient data", "color": "#dbdbdb" }
+      ],
+      "callout": { "label": "Both standards achieved", "value": "40 of 57 stations", "detail": "70 percent of assessed monitoring stations." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Air zones",
+      "kicker": "02 · Regional management",
+      "title": "Only two air zones achieved the 24-hour standard",
+      "text": "Coastal and Georgia Strait achieved both the annual and 24-hour standards. The zone colours show the management response associated with the annual assessment.",
+      "focus": "Air-zone assessment boundaries",
+      "visibleLayerIds": ["pm25-air-zones"],
+      "callout": { "label": "Air-zone result", "value": "2 of 7", "detail": "Coastal and Georgia Strait achieved both standards." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Stations",
+      "kicker": "03 · Local measurements",
+      "title": "Station results reveal variation within air zones",
+      "text": "The 57 station markers carry the Province's annual and 24-hour metrics and the corresponding management action. Select a station to inspect its assessment.",
+      "focus": "Monitoring stations with valid assessment data",
+      "visibleLayerIds": ["pm25-stations"],
+      "callout": { "label": "Annual standard", "value": "47 of 57 stations", "detail": "82 percent achieved the annual standard." },
+      "camera": { "center": [-123.8, 51.7], "zoom": 5.0 }
+    },
+    {
+      "label": "Data gaps",
+      "kicker": "04 · Monitoring coverage",
+      "title": "The Northwest air zone had no assessed station",
+      "text": "No monitoring stations in the Northwest air zone had sufficient data for the 2022–2024 assessment, so the zone is shown in grey.",
+      "focus": "Northwest air zone",
+      "visibleLayerIds": ["pm25-air-zones", "pm25-stations"],
+      "highlights": [
+        {
+          "layerId": "pm25-air-zones",
+          "property": "management_level",
+          "values": ["Insufficient Data"],
+          "color": "#64748b",
+          "dimOpacity": 0.05,
+          "label": "Insufficient data"
+        }
+      ],
+      "callout": { "label": "Northwest", "value": "0 assessed stations", "detail": "The indicator reports insufficient data for an air-zone result." },
+      "camera": { "center": [-129.0, 56.3], "zoom": 5.0 }
+    }
+  ],
+  "files": [
+    { "label": "Air-zone boundaries", "detail": "7 reusable polygons added to BC Data Mapper" },
+    { "label": "Monitoring stations", "detail": "57 indicator-specific station points and click details" },
+    { "label": "Assessment period", "detail": "2022–2024 CAAQS metrics; indicator updated June 2026" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.5, 54.5], "zoom": 4.25, "minZoom": 3.5, "maxZoom": 12, "basemap": "light" },
+    "accent": "#d97706",
+    "layers": [
+      {
+        "id": "pm25-air-zones",
+        "data": "/data/bc/caaqs-2022-2024-air-zones.geojson",
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "pm25_display",
+        "selectionTitleProperty": "name",
+        "selectionDetailProperty": "pm25_details",
+        "fillColor": "#fee08b",
+        "fillOpacity": 0.68,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.9,
+        "lineWidth": 1.25,
+        "category": {
+          "property": "pm25_management_level",
+          "colors": {
+            "Actions for Achieving Air Zone CAAQS": "#a50026",
+            "Actions for Preventing CAAQS Exceedance": "#f46d43",
+            "Actions for Preventing Air Quality Deterioration": "#fee08b",
+            "Actions for Keeping Clean Areas Clean": "#a6d96a",
+            "Insufficient Data": "#dbdbdb"
+          },
+          "fallback": "#dbdbdb"
+        },
+        "attribution": "Environmental Reporting BC, 2026"
+      },
+      {
+        "id": "pm25-stations",
+        "data": "/data/bc/pm25-caaqs-2022-2024-stations.geojson",
+        "geometry": "point",
+        "idProperty": "id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "name",
+        "selectionDetailProperty": "details",
+        "fillColor": "#fee08b",
+        "fillOpacity": 0.96,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 1.4,
+        "circleRadius": 5.5,
+        "category": {
+          "property": "management_level",
+          "colors": {
+            "Actions for Achieving Air Zone CAAQS": "#a50026",
+            "Actions for Preventing CAAQS Exceedance": "#f46d43",
+            "Actions for Preventing Air Quality Deterioration": "#fee08b",
+            "Actions for Keeping Clean Areas Clean": "#a6d96a"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "Environmental Reporting BC, 2026"
+      }
+    ],
+    "places": []
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "version": 1,
+  "slug": "roadless-areas-bc-ecoregions",
+  "title": "Roadless Areas within B.C.'s Ecoregions",
+  "kind": "map-story",
+  "theme": "emerald",
+  "owner": "Environmental Reporting BC",
+  "updated": "May 2018",
+  "region": "British Columbia",
+  "status": "Published indicator",
+  "summary": "The amount and distribution of roadless land vary considerably across British Columbia. Explore the share of each terrestrial ecoregion that lies more than 500 metres from a road.",
+  "sourceNote": "Environmental Reporting BC calculated roadless area from the B.C. Digital Road Atlas accessed May 1, 2018. Roadless means more than 500 metres from a road. This project preserves the 43 ecoregion geometries and reported percentages embedded in the Province's May 2018 interactive map; results are a coarse-scale snapshot and are reported to three significant figures.",
+  "details": [
+    "Twenty-seven of B.C.'s 43 terrestrial ecoregions are more than 50 percent roadless, while six have less than 25 percent roadless area.",
+    "Ecoregions with high population densities and larger road networks have the lowest shares. Lower Mainland, Georgia-Puget Basin, and Okanogan Highland each have 13 percent roadless area.",
+    "Point to an ecoregion to see its percentage, or click or tap it to keep that ecoregion selected."
+  ],
+  "links": [
+    {
+      "label": "B.C. roads and roadless areas indicator",
+      "href": "https://www.env.gov.bc.ca/soe/indicators/land/roads.html"
+    },
+    {
+      "label": "Indicator summary data",
+      "href": "https://catalogue.data.gov.bc.ca/dataset/42f52a87-e0a3-4dfa-8a0a-7c0aba69167d"
+    },
+    {
+      "label": "Analysis code",
+      "href": "https://github.com/bcgov/roadless-areas-indicator"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Ecoregions",
+      "value": "43"
+    },
+    {
+      "label": "B.C. roadless",
+      "value": "66%"
+    },
+    {
+      "label": "Roadless threshold",
+      "value": ">500 m"
+    }
+  ],
+  "layers": [
+    {
+      "id": "roadless-ecoregions",
+      "label": "Percent roadless area",
+      "type": "boundary",
+      "checked": true
+    }
+  ],
+  "legend": [
+    {
+      "label": "Less than 25%",
+      "color": "#ffffcc"
+    },
+    {
+      "label": "25–49%",
+      "color": "#c2e699"
+    },
+    {
+      "label": "50–74%",
+      "color": "#78c679"
+    },
+    {
+      "label": "75% or more",
+      "color": "#238443"
+    }
+  ],
+  "scenes": [
+    {
+      "label": "Distribution",
+      "kicker": "01 · Provincial view",
+      "title": "Two thirds of B.C.'s landbase is roadless",
+      "text": "Across the province, approximately 62.6 million hectares—66 percent of the landbase—lies more than 500 metres from a road. The distribution is uneven, from heavily roaded southern regions to large roadless northern and coastal landscapes.",
+      "focus": "All 43 terrestrial ecoregions",
+      "visibleLayerIds": [
+        "roadless-ecoregions"
+      ],
+      "callout": {
+        "label": "Province-wide",
+        "value": "66% roadless",
+        "detail": "Approximately 62.6 million hectares in the 2018 indicator."
+      },
+      "camera": {
+        "center": [
+          -126.5,
+          54.5
+        ],
+        "zoom": 4.25
+      }
+    },
+    {
+      "label": "More roadless",
+      "kicker": "02 · Larger intact areas",
+      "title": "Twenty-seven ecoregions are more than half roadless",
+      "text": "Most ecoregions remain predominantly roadless. The darkest greens show where more than three quarters of the land is beyond the indicator's 500-metre road influence zone.",
+      "focus": "Ecoregions above 50% roadless",
+      "visibleLayerIds": [
+        "roadless-ecoregions"
+      ],
+      "highlights": [
+        {
+          "layerId": "roadless-ecoregions",
+          "property": "roadless_band",
+          "values": [
+            "50–74%",
+            "75% or more"
+          ],
+          "color": "#006d2c",
+          "dimOpacity": 0.08,
+          "label": "More than 50% roadless"
+        }
+      ],
+      "callout": {
+        "label": "Predominantly roadless",
+        "value": "27 of 43",
+        "detail": "Nearly two thirds of the terrestrial ecoregions."
+      },
+      "camera": {
+        "center": [
+          -127.2,
+          55.5
+        ],
+        "zoom": 4.3
+      }
+    },
+    {
+      "label": "More roaded",
+      "kicker": "03 · Southern pressure",
+      "title": "Six ecoregions have less than one quarter roadless",
+      "text": "The lowest roadless shares occur in more populated and road-dense ecoregions. Eastern Vancouver Island, the Southern Rocky Mountain Trench, and the Thompson-Okanagan Plateau are among the six below 25 percent.",
+      "focus": "Ecoregions below 25% roadless",
+      "visibleLayerIds": [
+        "roadless-ecoregions"
+      ],
+      "highlights": [
+        {
+          "layerId": "roadless-ecoregions",
+          "property": "roadless_band",
+          "values": [
+            "Less than 25%"
+          ],
+          "color": "#d97706",
+          "dimOpacity": 0.05,
+          "label": "Less than 25% roadless"
+        }
+      ],
+      "callout": {
+        "label": "Lowest band",
+        "value": "6 ecoregions",
+        "detail": "All occur in the more roaded southern portion of the province."
+      },
+      "camera": {
+        "center": [
+          -121.3,
+          50.1
+        ],
+        "zoom": 5.15
+      }
+    },
+    {
+      "label": "Thirteen percent",
+      "kicker": "04 · Lowest reported share",
+      "title": "Three ecoregions are only 13 percent roadless",
+      "text": "Lower Mainland, Georgia-Puget Basin, and Okanogan Highland each have the lowest reported share. Their dense settlement, transportation, and resource-road networks leave comparatively little land beyond 500 metres from a road.",
+      "focus": "Lower Mainland · Georgia-Puget Basin · Okanogan Highland",
+      "visibleLayerIds": [
+        "roadless-ecoregions"
+      ],
+      "highlights": [
+        {
+          "layerId": "roadless-ecoregions",
+          "property": "roadless_percent_label",
+          "values": [
+            "13%"
+          ],
+          "color": "#b45309",
+          "dimOpacity": 0.04,
+          "label": "13% roadless"
+        }
+      ],
+      "callout": {
+        "label": "Lowest reported share",
+        "value": "13% roadless",
+        "detail": "Shared by three southern ecoregions."
+      },
+      "camera": {
+        "center": [
+          -121.3,
+          49.6
+        ],
+        "zoom": 5.55
+      }
+    }
+  ],
+  "files": [
+    {
+      "label": "Ecoregion polygons",
+      "detail": "43 geometries preserved from the Province's 2018 interactive map"
+    },
+    {
+      "label": "Roadless percentages",
+      "detail": "Area more than 500 metres from a road, by ecoregion"
+    },
+    {
+      "label": "Method and provenance",
+      "detail": "Environmental Reporting BC indicator and open analysis code"
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": {
+      "center": [
+        -126.5,
+        54.5
+      ],
+      "zoom": 4.25,
+      "minZoom": 3.5,
+      "maxZoom": 9,
+      "basemap": "light"
+    },
+    "accent": "#238443",
+    "layers": [
+      {
+        "id": "roadless-ecoregions",
+        "data": "/data/projects/roadless-areas-bc-ecoregions.geojson",
+        "idProperty": "id",
+        "labelProperty": "display",
+        "fillColor": "#78c679",
+        "fillOpacity": 0.76,
+        "lineColor": "#334155",
+        "lineOpacity": 0.7,
+        "lineWidth": 0.75,
+        "category": {
+          "property": "roadless_band",
+          "colors": {
+            "Less than 25%": "#ffffcc",
+            "25–49%": "#c2e699",
+            "50–74%": "#78c679",
+            "75% or more": "#238443"
+          },
+          "fallback": "#cbd5e1"
+        },
+        "attribution": "Environmental Reporting BC, 2018"
+      }
+    ],
+    "places": []
+  }
+}

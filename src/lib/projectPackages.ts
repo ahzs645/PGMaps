@@ -193,13 +193,26 @@ export interface ProjectMapExplorerWorkspaceDef {
 export interface ProjectStoryLayerDef {
   id: string
   data: string
+  /** Optional tabular attributes joined onto shared boundary geometry at load time. */
+  attributes?: {
+    data: string
+    boundaryProperty: string
+    attributeProperty: string
+    /** Property containing the row array. Defaults to `records`. */
+    recordsProperty?: string
+  }
+  /** Geometry renderer. Omitted polygon remains the v1 default. */
+  geometry?: 'polygon' | 'point'
   idProperty: string
   labelProperty: string
+  selectionTitleProperty?: string
+  selectionDetailProperty?: string
   fillColor: string
   fillOpacity: number
   lineColor: string
   lineOpacity: number
   lineWidth: number
+  circleRadius?: number
   category?: {
     property: string
     colors: Record<string, string>
@@ -423,11 +436,33 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
     )
     const hasCategory =
       typeof category?.property === 'string' && typeof category.fallback === 'string' && Object.keys(colors).length > 0
+    const attributes = layer.attributes
+    const hasAttributes = Boolean(
+      attributes &&
+      isProjectDataUrl(attributes.data) &&
+      typeof attributes.boundaryProperty === 'string' &&
+      typeof attributes.attributeProperty === 'string',
+    )
     return {
       ...layer,
+      attributes: hasAttributes
+        ? {
+            data: attributes!.data,
+            boundaryProperty: attributes!.boundaryProperty,
+            attributeProperty: attributes!.attributeProperty,
+            recordsProperty:
+              typeof attributes!.recordsProperty === 'string' ? attributes!.recordsProperty : undefined,
+          }
+        : undefined,
+      geometry: layer.geometry === 'point' ? ('point' as const) : ('polygon' as const),
+      selectionTitleProperty:
+        typeof layer.selectionTitleProperty === 'string' ? layer.selectionTitleProperty : undefined,
+      selectionDetailProperty:
+        typeof layer.selectionDetailProperty === 'string' ? layer.selectionDetailProperty : undefined,
       fillOpacity: Math.max(0, Math.min(1, layer.fillOpacity)),
       lineOpacity: Math.max(0, Math.min(1, layer.lineOpacity)),
       lineWidth: Math.max(0, layer.lineWidth),
+      circleRadius: isFiniteNumber(layer.circleRadius) ? Math.max(1, layer.circleRadius) : undefined,
       category: hasCategory ? { ...category, colors } : undefined,
     }
   })

@@ -1,0 +1,217 @@
+{
+  "version": 1,
+  "slug": "air-quality-bylaws-bc",
+  "title": "Status of Air Quality Bylaws in B.C.",
+  "kind": "map-story",
+  "theme": "cyan",
+  "owner": "Environmental Reporting BC",
+  "updated": "February 2017",
+  "region": "British Columbia",
+  "status": "Published indicator",
+  "summary": "Explore the share of each regional district's population covered by vehicle-idling, open-burning, and solid-fuel-burning-appliance bylaws in 2016.",
+  "sourceNote": "Environmental Reporting BC compiled bylaw status for municipalities and unincorporated areas in 2016, using 2015 population estimates. The map reuses the BC Data Mapper regional-district boundary, excluding Stikine because it has no row in the indicator table. Historical reporting names are matched to today's boundary names without changing the 2016 results.",
+  "details": [
+    "Click or tap a regional district to see the bylaw status reported for every municipality and unincorporated area in that district.",
+    "Coverage is population-weighted, so a district with a bylaw in a large municipality may have a high coverage percentage even when other jurisdictions report none.",
+    "The three scenes switch between vehicle-idling, open-burning, and solid-fuel-burning-appliance bylaws."
+  ],
+  "links": [
+    {
+      "label": "B.C. air quality bylaws indicator",
+      "href": "https://www.env.gov.bc.ca/soe/indicators/air/air-quality-bylaws.html"
+    },
+    {
+      "label": "B.C. Data Catalogue record",
+      "href": "https://catalogue.data.gov.bc.ca/dataset/8c9dbd87-3704-420f-bc4e-fce93b6c39dc"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Regional districts",
+      "value": "27"
+    },
+    {
+      "label": "Jurisdictions",
+      "value": "188"
+    },
+    {
+      "label": "Reference year",
+      "value": "2016"
+    }
+  ],
+  "layers": [
+    {
+      "id": "vehicle-idling",
+      "label": "Vehicle-idling bylaw coverage",
+      "type": "boundary",
+      "checked": true
+    },
+    {
+      "id": "open-burning",
+      "label": "Open-burning bylaw coverage",
+      "type": "boundary",
+      "checked": false
+    },
+    {
+      "id": "solid-fuel",
+      "label": "Solid-fuel appliance bylaw coverage",
+      "type": "boundary",
+      "checked": false
+    }
+  ],
+  "legend": [
+    { "label": "0%", "color": "#ccebc5" },
+    { "label": "1–25%", "color": "#7bccc4" },
+    { "label": "26–50%", "color": "#4eb3d3" },
+    { "label": "51–75%", "color": "#2b8cbe" },
+    { "label": "More than 75%", "color": "#0868ac" }
+  ],
+  "scenes": [
+    {
+      "label": "Vehicle idling",
+      "kicker": "01 · Vehicle-idling bylaws",
+      "title": "Thirty jurisdictions reported a vehicle-idling bylaw",
+      "text": "Vehicle-idling bylaws covered about 35 percent of B.C.'s population. Coverage varied sharply among regional districts, from none to more than three quarters.",
+      "focus": "Population coverage by regional district",
+      "visibleLayerIds": ["vehicle-idling"],
+      "callout": {
+        "label": "Province-wide coverage",
+        "value": "35%",
+        "detail": "30 municipalities or unincorporated areas reported a bylaw."
+      },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Open burning",
+      "kicker": "02 · Open-burning bylaws",
+      "title": "Open-burning bylaws were the most common",
+      "text": "Seventy jurisdictions in 24 regional districts reported an open-burning bylaw, but those jurisdictions represented only about 29 percent of B.C.'s population.",
+      "focus": "Population coverage by regional district",
+      "visibleLayerIds": ["open-burning"],
+      "callout": {
+        "label": "Province-wide coverage",
+        "value": "29%",
+        "detail": "70 jurisdictions across 24 regional districts."
+      },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Solid fuel",
+      "kicker": "03 · Wood-burning appliances",
+      "title": "Solid-fuel appliance bylaws covered about one third of residents",
+      "text": "Fifty-two jurisdictions in 22 regional districts reported a bylaw addressing solid-fuel or wood-burning appliances.",
+      "focus": "Population coverage by regional district",
+      "visibleLayerIds": ["solid-fuel"],
+      "callout": {
+        "label": "Province-wide coverage",
+        "value": "35%",
+        "detail": "52 jurisdictions across 22 regional districts."
+      },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    }
+  ],
+  "files": [
+    {
+      "label": "Shared regional-district boundary",
+      "detail": "27 districts derived from the BC Data Mapper boundary; no legacy boundary download"
+    },
+    {
+      "label": "Bylaw source table",
+      "detail": "188 jurisdiction rows, 7,643 bytes"
+    },
+    {
+      "label": "Population-weighted coverage",
+      "detail": "Vehicle idling, open burning, and solid-fuel appliances"
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": {
+      "center": [-126.5, 54.5],
+      "zoom": 4.25,
+      "minZoom": 3.5,
+      "maxZoom": 10,
+      "basemap": "light"
+    },
+    "accent": "#0868ac",
+    "layers": [
+      {
+        "id": "vehicle-idling",
+        "data": "/data/boundaries/BCAirQuality/air_quality_bylaws_2016.geojson",
+        "idProperty": "id",
+        "labelProperty": "vehicle_idling_display",
+        "selectionTitleProperty": "boundaryName",
+        "selectionDetailProperty": "vehicle_idling_details",
+        "fillColor": "#4eb3d3",
+        "fillOpacity": 0.78,
+        "lineColor": "#334155",
+        "lineOpacity": 0.68,
+        "lineWidth": 0.75,
+        "category": {
+          "property": "vehicle_idling_band",
+          "colors": {
+            "0%": "#ccebc5",
+            "1–25%": "#7bccc4",
+            "26–50%": "#4eb3d3",
+            "51–75%": "#2b8cbe",
+            "More than 75%": "#0868ac"
+          },
+          "fallback": "#d1d5db"
+        },
+        "attribution": "Environmental Reporting BC, 2016"
+      },
+      {
+        "id": "open-burning",
+        "data": "/data/boundaries/BCAirQuality/air_quality_bylaws_2016.geojson",
+        "idProperty": "id",
+        "labelProperty": "open_burning_display",
+        "selectionTitleProperty": "boundaryName",
+        "selectionDetailProperty": "open_burning_details",
+        "fillColor": "#4eb3d3",
+        "fillOpacity": 0.78,
+        "lineColor": "#334155",
+        "lineOpacity": 0.68,
+        "lineWidth": 0.75,
+        "category": {
+          "property": "open_burning_band",
+          "colors": {
+            "0%": "#ccebc5",
+            "1–25%": "#7bccc4",
+            "26–50%": "#4eb3d3",
+            "51–75%": "#2b8cbe",
+            "More than 75%": "#0868ac"
+          },
+          "fallback": "#d1d5db"
+        },
+        "attribution": "Environmental Reporting BC, 2016"
+      },
+      {
+        "id": "solid-fuel",
+        "data": "/data/boundaries/BCAirQuality/air_quality_bylaws_2016.geojson",
+        "idProperty": "id",
+        "labelProperty": "solid_fuel_display",
+        "selectionTitleProperty": "boundaryName",
+        "selectionDetailProperty": "solid_fuel_details",
+        "fillColor": "#4eb3d3",
+        "fillOpacity": 0.78,
+        "lineColor": "#334155",
+        "lineOpacity": 0.68,
+        "lineWidth": 0.75,
+        "category": {
+          "property": "solid_fuel_band",
+          "colors": {
+            "0%": "#ccebc5",
+            "1–25%": "#7bccc4",
+            "26–50%": "#4eb3d3",
+            "51–75%": "#2b8cbe",
+            "More than 75%": "#0868ac"
+          },
+          "fallback": "#d1d5db"
+        },
+        "attribution": "Environmental Reporting BC, 2016"
+      }
+    ],
+    "places": []
+  }
+}

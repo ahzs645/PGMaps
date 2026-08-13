@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "slug": "bc-population-distribution",
+  "title": "B.C. Population Size & Distribution",
+  "kind": "map-story",
+  "theme": "amber",
+  "owner": "Environmental Reporting BC · BC Stats",
+  "updated": "May 2026",
+  "region": "British Columbia",
+  "status": "Repository-method refresh",
+  "summary": "Explore 2025 population size and density, plus estimated population change since 2001, across B.C.'s regional districts.",
+  "sourceNote": "The original Environmental Reporting BC indicator and repository reported 1986–2017. This project applies the same regional population and density method to the newer open BC Stats Sub-Provincial Population Estimates table. The current table provides a consistent regional-district series from 2001–2025, so the change map uses that period. Geometry is shared with the municipal solid waste project through one reusable census-division layer.",
+  "details": [
+    "Click or tap a regional district for its 2025 population estimate, land area, density, and change from 2001.",
+    "Population estimates describe where people live; they do not directly measure environmental pressure or impact.",
+    "The regional district series includes Stikine and Northern Rockies as census divisions."
+  ],
+  "links": [
+    { "label": "Original B.C. population indicator", "href": "https://www.env.gov.bc.ca/soe/indicators/sustainability/bc-population.html" },
+    { "label": "Indicator analysis repository", "href": "https://github.com/bcgov/bc-population-indicator" },
+    { "label": "BC Sub-Provincial Population Estimates", "href": "https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb" }
+  ],
+  "catalogMetrics": [
+    { "label": "B.C. population", "value": "5,697,536" },
+    { "label": "Regional districts", "value": "29" },
+    { "label": "Estimate year", "value": "2025" }
+  ],
+  "layers": [
+    { "id": "population-density", "label": "2025 population density", "type": "boundary", "checked": true },
+    { "id": "population-change", "label": "Population change since 2001", "type": "boundary", "checked": false },
+    { "id": "population-size", "label": "2025 population size", "type": "boundary", "checked": false }
+  ],
+  "legend": [
+    { "label": "Under 1 person/km²", "color": "#ffffe5" },
+    { "label": "1–9 people/km²", "color": "#fee391" },
+    { "label": "10–49 people/km²", "color": "#fec44f" },
+    { "label": "50–199 people/km²", "color": "#fe9929" },
+    { "label": "200 people/km² or more", "color": "#8c2d04" }
+  ],
+  "scenes": [
+    {
+      "label": "Density",
+      "kicker": "01 · Population distribution",
+      "title": "B.C.'s population remains concentrated in the southwest",
+      "text": "Metro Vancouver is both the largest regional population and the most densely populated census division. Most northern and central districts have fewer than ten residents per square kilometre.",
+      "focus": "2025 population density",
+      "visibleLayerIds": ["population-density"],
+      "callout": { "label": "B.C. population", "value": "5,697,536", "detail": "BC Stats estimate for 2025." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Population size",
+      "kicker": "02 · Regional totals",
+      "title": "Metro Vancouver contains more than half of B.C.'s population",
+      "text": "Metro Vancouver's 2025 estimate is 3,087,023 residents. Capital is the second-largest regional population, followed by Fraser Valley and Central Okanagan.",
+      "focus": "2025 regional population estimates",
+      "visibleLayerIds": ["population-size"],
+      "legend": [
+        { "label": "Under 10,000", "color": "#fff7ed" },
+        { "label": "10,000–49,999", "color": "#fed7aa" },
+        { "label": "50,000–99,999", "color": "#fdba74" },
+        { "label": "100,000–499,999", "color": "#f97316" },
+        { "label": "500,000 or more", "color": "#9a3412" }
+      ],
+      "highlights": [
+        { "layerId": "population-size", "property": "display_name", "values": ["Metro Vancouver"], "color": "#a50026", "dimOpacity": 0.08, "label": "Metro Vancouver" }
+      ],
+      "callout": { "label": "Metro Vancouver", "value": "3,087,023", "detail": "Approximately 54 percent of the provincial estimate." },
+      "camera": { "center": [-123.1, 49.25], "zoom": 7.0 }
+    },
+    {
+      "label": "Change",
+      "kicker": "03 · 2001–2025",
+      "title": "Central Okanagan recorded the largest percentage increase",
+      "text": "Central Okanagan's population estimate grew by 65.1 percent from 2001 to 2025. Northern Rockies had the largest decline, at 20.4 percent.",
+      "focus": "Estimated population change",
+      "visibleLayerIds": ["population-change"],
+      "legend": [
+        { "label": "Population decrease", "color": "#4575b4" },
+        { "label": "Increase under 25%", "color": "#fee090" },
+        { "label": "Increase of 25–49%", "color": "#fdae61" },
+        { "label": "Increase of 50–99%", "color": "#f46d43" },
+        { "label": "Population doubled or more", "color": "#a50026" }
+      ],
+      "callout": { "label": "Central Okanagan", "value": "+65.1%", "detail": "Largest regional percentage increase from 2001 to 2025." },
+      "camera": { "center": [-120.0, 50.0], "zoom": 5.5 }
+    },
+    {
+      "label": "Smallest district",
+      "kicker": "04 · Sparse settlement",
+      "title": "Stikine remains B.C.'s smallest regional population",
+      "text": "The 2025 estimate for Stikine is 789 residents across more than 118,000 square kilometres of land, illustrating the province's uneven population distribution.",
+      "focus": "Stikine census division",
+      "visibleLayerIds": ["population-density", "population-size"],
+      "highlights": [
+        { "layerId": "population-density", "property": "display_name", "values": ["Stikine (Census Division)"], "color": "#2563eb", "dimOpacity": 0.08, "label": "Stikine" }
+      ],
+      "callout": { "label": "Stikine", "value": "789 residents", "detail": "Smallest 2025 regional population estimate." },
+      "camera": { "center": [-130.0, 58.0], "zoom": 5.0 }
+    }
+  ],
+  "files": [
+    { "label": "Shared regional-district layer", "detail": "29 census divisions reused by the population and waste projects" },
+    { "label": "BC Stats estimates", "detail": "4,230 total-population rows within the downloaded regional table" },
+    { "label": "Comparable trend", "detail": "Population change calculated from 2001 to 2025" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.5, 54.5], "zoom": 4.25, "minZoom": 3.5, "maxZoom": 10, "basemap": "light" },
+    "accent": "#c2410c",
+    "layers": [
+      {
+        "id": "population-density",
+        "data": "/data/census/bc-da-simplified/parents/cd.geojson",
+        "attributes": {
+          "data": "/data/bc/environmental-reporting/regional_district_environmental_indicators.json",
+          "boundaryProperty": "id",
+          "attributeProperty": "id"
+        },
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "population_density_display",
+        "selectionTitleProperty": "display_name",
+        "selectionDetailProperty": "population_density_details",
+        "fillColor": "#fe9929",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.92,
+        "lineWidth": 0.9,
+        "category": {
+          "property": "population_density_band",
+          "colors": { "Under 1 person/km²": "#ffffe5", "1–9 people/km²": "#fee391", "10–49 people/km²": "#fec44f", "50–199 people/km²": "#fe9929", "200 people/km² or more": "#8c2d04" },
+          "fallback": "#d1d5db"
+        },
+        "attribution": "BC Stats 2025 population estimates · Statistics Canada census divisions"
+      },
+      {
+        "id": "population-change",
+        "data": "/data/census/bc-da-simplified/parents/cd.geojson",
+        "attributes": {
+          "data": "/data/bc/environmental-reporting/regional_district_environmental_indicators.json",
+          "boundaryProperty": "id",
+          "attributeProperty": "id"
+        },
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "population_change_display",
+        "selectionTitleProperty": "display_name",
+        "selectionDetailProperty": "population_details",
+        "fillColor": "#fdae61",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.92,
+        "lineWidth": 0.9,
+        "category": {
+          "property": "population_change_band",
+          "colors": { "Population decrease": "#4575b4", "Increase under 25%": "#fee090", "Increase of 25–49%": "#fdae61", "Increase of 50–99%": "#f46d43", "Population doubled or more": "#a50026" },
+          "fallback": "#d1d5db"
+        },
+        "attribution": "BC Stats regional-district estimates, 2001–2025"
+      },
+      {
+        "id": "population-size",
+        "data": "/data/census/bc-da-simplified/parents/cd.geojson",
+        "attributes": {
+          "data": "/data/bc/environmental-reporting/regional_district_environmental_indicators.json",
+          "boundaryProperty": "id",
+          "attributeProperty": "id"
+        },
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "population_display",
+        "selectionTitleProperty": "display_name",
+        "selectionDetailProperty": "population_details",
+        "fillColor": "#d97706",
+        "fillOpacity": 0.78,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.92,
+        "lineWidth": 0.9,
+        "category": {
+          "property": "population_band",
+          "colors": { "Under 10,000": "#fff7ed", "10,000–49,999": "#fed7aa", "50,000–99,999": "#fdba74", "100,000–499,999": "#f97316", "500,000 or more": "#9a3412" },
+          "fallback": "#d1d5db"
+        },
+        "attribution": "BC Stats 2025 regional-district population estimates"
+      }
+    ],
+    "places": []
+  }
+}

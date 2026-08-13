@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "slug": "sulphur-dioxide-bc",
+  "title": "Status of Sulphur Dioxide in B.C.",
+  "kind": "map-story",
+  "theme": "amber",
+  "owner": "Environmental Reporting BC",
+  "updated": "June 2026",
+  "region": "British Columbia",
+  "status": "Published indicator",
+  "summary": "Explore 2022–2024 sulphur dioxide (SO₂) management levels across B.C.'s seven air zones and 38 monitoring-station map locations.",
+  "sourceNote": "This project preserves the station locations, management levels, and click details embedded in Environmental Reporting BC's June 2026 SO₂ map. It reuses the shared seven-zone CAAQS boundary. The Province's so2-caaqs-indicator repository documents the R workflow used to load, clean, analyse, quality-check, and publish the source results.",
+  "details": [
+    "SO₂ has annual and one-hour Canadian Ambient Air Quality Standards; management uses the more stringent resulting level.",
+    "The map contains 38 station locations, while data sufficiency differs by metric: 37 annual and 36 one-hour station assessments were reported.",
+    "Click or tap any air zone or station for the Province's detailed 2022–2024 result."
+  ],
+  "links": [
+    { "label": "B.C. sulphur dioxide indicator", "href": "https://www.env.gov.bc.ca/soe/indicators/air/so2.html" },
+    { "label": "Indicator summary data", "href": "https://catalogue.data.gov.bc.ca/dataset/646bb2ae-e2de-46b7-b377-39b56abff79e" },
+    { "label": "Analysis code", "href": "https://github.com/bcgov/so2-caaqs-indicator" },
+    { "label": "Environmental Reporting BC repositories", "href": "https://github.com/bcgov/EnvReportBC" }
+  ],
+  "catalogMetrics": [
+    { "label": "Map stations", "value": "38" },
+    { "label": "One-hour standard", "value": "34 of 36" },
+    { "label": "Annual standard", "value": "37 of 37" }
+  ],
+  "layers": [
+    { "id": "so2-air-zones", "label": "SO₂ air-zone management level", "type": "boundary", "checked": true },
+    { "id": "so2-stations", "label": "SO₂ monitoring stations", "type": "point", "checked": true }
+  ],
+  "legend": [
+    { "label": "Actions for Achieving Air Zone CAAQS", "color": "#a50026" },
+    { "label": "Actions for Preventing CAAQS Exceedance", "color": "#f46d43" },
+    { "label": "Actions for Preventing Air Quality Deterioration", "color": "#fee08b" },
+    { "label": "Actions for Keeping Clean Areas Clean", "color": "#a6d96a" },
+    { "label": "Insufficient Data", "color": "#dbdbdb" }
+  ],
+  "scenes": [
+    {
+      "label": "Assessment",
+      "kicker": "01 · 2022–2024 assessment",
+      "title": "Ninety-four percent met the one-hour SO₂ standard",
+      "text": "All 37 stations with a valid annual result met the annual standard. Thirty-four of 36 stations with sufficient one-hour data met that standard.",
+      "focus": "Seven air zones and 38 station locations",
+      "visibleLayerIds": ["so2-air-zones", "so2-stations"],
+      "legend": [
+        { "label": "Achieving CAAQS", "color": "#a50026" },
+        { "label": "Preventing exceedance", "color": "#f46d43" },
+        { "label": "Preventing deterioration", "color": "#fee08b" },
+        { "label": "Keeping clean", "color": "#a6d96a" },
+        { "label": "Insufficient data", "color": "#dbdbdb" }
+      ],
+      "callout": { "label": "One-hour standard", "value": "34 of 36 stations", "detail": "94 percent of stations with sufficient data." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Air zones",
+      "kicker": "02 · Regional management",
+      "title": "Five air zones met both SO₂ standards",
+      "text": "Coastal, Central Interior, Georgia Strait, Northeast, and Lower Fraser Valley met both standards. Southern Interior exceeded the one-hour standard; Northwest had insufficient data.",
+      "focus": "Shared B.C. CAAQS air-zone boundary",
+      "visibleLayerIds": ["so2-air-zones"],
+      "callout": { "label": "Both standards achieved", "value": "5 air zones", "detail": "Southern Interior exceeded the one-hour standard." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Stations",
+      "kicker": "03 · Local measurements",
+      "title": "Station details separate annual and one-hour metrics",
+      "text": "Select a station to inspect its air zone, annual metric, one-hour metric, and assigned management action.",
+      "focus": "38 SO₂ station locations",
+      "visibleLayerIds": ["so2-stations"],
+      "callout": { "label": "Annual standard", "value": "37 of 37 stations", "detail": "Every station with a valid annual result achieved it." },
+      "camera": { "center": [-123.8, 51.7], "zoom": 5.0 }
+    }
+  ],
+  "files": [
+    { "label": "Shared air-zone boundary", "detail": "7 geometries reused across four CAAQS indicator projects" },
+    { "label": "SO₂ stations", "detail": "38 map points with metric and management details" },
+    { "label": "Open analysis", "detail": "Province of B.C. so2-caaqs-indicator repository" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.5, 54.5], "zoom": 4.25, "minZoom": 3.5, "maxZoom": 12, "basemap": "light" },
+    "accent": "#d97706",
+    "layers": [
+      {
+        "id": "so2-air-zones",
+        "data": "/data/bc/caaqs-2022-2024-air-zones.geojson",
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "so2_display",
+        "selectionTitleProperty": "name",
+        "selectionDetailProperty": "so2_details",
+        "fillColor": "#fee08b",
+        "fillOpacity": 0.68,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.9,
+        "lineWidth": 1.25,
+        "category": {
+          "property": "so2_management_level",
+          "colors": {
+            "Actions for Achieving Air Zone CAAQS": "#a50026",
+            "Actions for Preventing CAAQS Exceedance": "#f46d43",
+            "Actions for Preventing Air Quality Deterioration": "#fee08b",
+            "Actions for Keeping Clean Areas Clean": "#a6d96a",
+            "Insufficient Data": "#dbdbdb"
+          },
+          "fallback": "#dbdbdb"
+        },
+        "attribution": "Environmental Reporting BC, 2026"
+      },
+      {
+        "id": "so2-stations",
+        "data": "/data/bc/so2-caaqs-2022-2024-stations.geojson",
+        "geometry": "point",
+        "idProperty": "id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "name",
+        "selectionDetailProperty": "details",
+        "fillColor": "#fee08b",
+        "fillOpacity": 0.96,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 1.4,
+        "circleRadius": 5.5,
+        "category": {
+          "property": "management_level",
+          "colors": {
+            "Actions for Achieving Air Zone CAAQS": "#a50026",
+            "Actions for Preventing CAAQS Exceedance": "#f46d43",
+            "Actions for Preventing Air Quality Deterioration": "#fee08b",
+            "Actions for Keeping Clean Areas Clean": "#a6d96a"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "Environmental Reporting BC, 2026"
+      }
+    ],
+    "places": []
+  }
+}

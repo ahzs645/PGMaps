@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "slug": "ground-level-ozone-bc",
+  "title": "Status of Ground-Level Ozone in B.C.",
+  "kind": "map-story",
+  "theme": "blue",
+  "owner": "Environmental Reporting BC",
+  "updated": "June 2026",
+  "region": "British Columbia",
+  "status": "Published indicator",
+  "summary": "Explore 2022–2024 ground-level ozone management levels across B.C.'s seven air zones and 46 assessed monitoring stations.",
+  "sourceNote": "This project preserves the station locations, management levels, and click details embedded in Environmental Reporting BC's June 2026 ozone map. It reuses the same seven-zone boundary shared by the Province's PM₂.₅, SO₂, and NO₂ indicator maps. The Province's open ozone-caaqs-indicator repository documents the underlying R analysis and output workflow.",
+  "details": [
+    "Click or tap an air zone or monitoring station to inspect the Province's 2022–2024 assessment details.",
+    "The ozone metric is the three-year average of the annual fourth-highest daily maximum eight-hour rolling concentration.",
+    "Management levels use metrics adjusted for approved transboundary flows and exceptional events."
+  ],
+  "links": [
+    { "label": "B.C. ground-level ozone indicator", "href": "https://www.env.gov.bc.ca/soe/indicators/air/ozone.html" },
+    { "label": "Indicator summary data", "href": "https://catalogue.data.gov.bc.ca/dataset/9b7a9e74-9274-4f97-be81-ce4ee475077d" },
+    { "label": "Analysis code", "href": "https://github.com/bcgov/ozone-caaqs-indicator" },
+    { "label": "Environmental Reporting BC repositories", "href": "https://github.com/bcgov/EnvReportBC" }
+  ],
+  "catalogMetrics": [
+    { "label": "Monitoring stations", "value": "46" },
+    { "label": "Met the standard", "value": "46 of 46" },
+    { "label": "Air zones", "value": "7" }
+  ],
+  "layers": [
+    { "id": "ozone-air-zones", "label": "Ozone air-zone management level", "type": "boundary", "checked": true },
+    { "id": "ozone-stations", "label": "Ozone monitoring stations", "type": "point", "checked": true }
+  ],
+  "legend": [
+    { "label": "Actions for Achieving Air Zone CAAQS", "color": "#a50026" },
+    { "label": "Actions for Preventing CAAQS Exceedance", "color": "#f46d43" },
+    { "label": "Actions for Preventing Air Quality Deterioration", "color": "#fee08b" },
+    { "label": "Actions for Keeping Clean Areas Clean", "color": "#a6d96a" },
+    { "label": "Insufficient Data", "color": "#808080" }
+  ],
+  "scenes": [
+    {
+      "label": "Assessment",
+      "kicker": "01 · 2022–2024 assessment",
+      "title": "All 46 assessed stations met the ozone standard",
+      "text": "Ozone metrics ranged from 38 to 62 parts per billion. Twenty-five stations—54 percent—reported levels of 50 ppb or lower.",
+      "focus": "Seven air zones and 46 monitoring stations",
+      "visibleLayerIds": ["ozone-air-zones", "ozone-stations"],
+      "legend": [
+        { "label": "Achieving CAAQS", "color": "#a50026" },
+        { "label": "Preventing exceedance", "color": "#f46d43" },
+        { "label": "Preventing deterioration", "color": "#fee08b" },
+        { "label": "Keeping clean", "color": "#a6d96a" },
+        { "label": "Insufficient data", "color": "#808080" }
+      ],
+      "callout": { "label": "CAAQS achieved", "value": "46 of 46 stations", "detail": "No assessed station exceeded 62 ppb." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Air zones",
+      "kicker": "02 · Regional management",
+      "title": "Six of seven air zones achieved the standard",
+      "text": "An air zone takes the highest reported ozone metric among its stations. The Northwest has no assessed station and is shown as insufficient data.",
+      "focus": "Shared B.C. CAAQS air-zone boundary",
+      "visibleLayerIds": ["ozone-air-zones"],
+      "callout": { "label": "Air-zone result", "value": "6 of 7", "detail": "The Northwest had no assessed monitoring station." },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Stations",
+      "kicker": "03 · Local measurements",
+      "title": "Station points show local ozone management levels",
+      "text": "Select any station to see its three-year ozone metric, air zone, and assigned management action.",
+      "focus": "46 stations with sufficient data",
+      "visibleLayerIds": ["ozone-stations"],
+      "callout": { "label": "At or below 50 ppb", "value": "25 stations", "detail": "54 percent of reporting stations." },
+      "camera": { "center": [-123.8, 51.7], "zoom": 5.0 }
+    }
+  ],
+  "files": [
+    { "label": "Shared air-zone boundary", "detail": "7 geometries reused across four CAAQS indicator projects" },
+    { "label": "Ozone stations", "detail": "46 indicator-specific points and assessment details" },
+    { "label": "Open analysis", "detail": "Province of B.C. ozone-caaqs-indicator repository" }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": { "center": [-126.5, 54.5], "zoom": 4.25, "minZoom": 3.5, "maxZoom": 12, "basemap": "light" },
+    "accent": "#2563eb",
+    "layers": [
+      {
+        "id": "ozone-air-zones",
+        "data": "/data/bc/caaqs-2022-2024-air-zones.geojson",
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "ozone_display",
+        "selectionTitleProperty": "name",
+        "selectionDetailProperty": "ozone_details",
+        "fillColor": "#fee08b",
+        "fillOpacity": 0.68,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.9,
+        "lineWidth": 1.25,
+        "category": {
+          "property": "ozone_management_level",
+          "colors": {
+            "Actions for Achieving Air Zone CAAQS": "#a50026",
+            "Actions for Preventing CAAQS Exceedance": "#f46d43",
+            "Actions for Preventing Air Quality Deterioration": "#fee08b",
+            "Actions for Keeping Clean Areas Clean": "#a6d96a",
+            "Insufficient Data": "#808080"
+          },
+          "fallback": "#808080"
+        },
+        "attribution": "Environmental Reporting BC, 2026"
+      },
+      {
+        "id": "ozone-stations",
+        "data": "/data/bc/ozone-caaqs-2022-2024-stations.geojson",
+        "geometry": "point",
+        "idProperty": "id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "name",
+        "selectionDetailProperty": "details",
+        "fillColor": "#fee08b",
+        "fillOpacity": 0.96,
+        "lineColor": "#ffffff",
+        "lineOpacity": 1,
+        "lineWidth": 1.4,
+        "circleRadius": 5.5,
+        "category": {
+          "property": "management_level",
+          "colors": {
+            "Actions for Achieving Air Zone CAAQS": "#a50026",
+            "Actions for Preventing CAAQS Exceedance": "#f46d43",
+            "Actions for Preventing Air Quality Deterioration": "#fee08b",
+            "Actions for Keeping Clean Areas Clean": "#a6d96a"
+          },
+          "fallback": "#64748b"
+        },
+        "attribution": "Environmental Reporting BC, 2026"
+      }
+    ],
+    "places": []
+  }
+}

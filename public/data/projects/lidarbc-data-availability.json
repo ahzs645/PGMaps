@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "slug": "lidarbc-data-availability",
+  "title": "LidarBC Data Availability",
+  "kind": "map-story",
+  "theme": "blue",
+  "owner": "GeoBC · LidarBC",
+  "updated": "July 2026",
+  "region": "British Columbia",
+  "status": "Live portal snapshot",
+  "summary": "Explore the annual footprints of publicly available provincial LiDAR data, then continue to LidarBC to select and download point clouds and elevation products.",
+  "sourceNote": "This project is a cartographic snapshot of the public LidarBC Provincial Data Extent service, last edited in July 2026. It stores 13 simplified annual availability footprints—not the LiDAR point clouds, DEMs, DSMs, or tile-level download indexes. Annual footprints can overlap where an area was surveyed more than once, so their areas must not be added together as a province-wide coverage percentage. Use the official portal for current tile selection and downloads.",
+  "details": [
+    "Click or tap a footprint for its acquisition year and source-reported area.",
+    "LidarBC provides classified point clouds, digital elevation models, digital surface models, and other derived products through its download portal.",
+    "The Province's six-year collection program is intended to make LiDAR products available for all of B.C. by 2029."
+  ],
+  "links": [
+    {
+      "label": "Open LidarBC portal",
+      "href": "https://lidar.gov.bc.ca/"
+    },
+    {
+      "label": "Select and download LiDAR data",
+      "href": "https://lidar.gov.bc.ca/pages/download-discovery"
+    },
+    {
+      "label": "LiDAR catalogue record",
+      "href": "https://catalogue.data.gov.bc.ca/dataset/d08b2795-d192-4377-8056-eccef50296e6"
+    },
+    {
+      "label": "LidarBC portal catalogue record",
+      "href": "https://catalogue.data.gov.bc.ca/dataset/cc11fb58-4837-4d6f-b783-95173e040983"
+    }
+  ],
+  "catalogMetrics": [
+    {
+      "label": "Annual footprints",
+      "value": "13"
+    },
+    {
+      "label": "Point-cloud tiles",
+      "value": "160,334"
+    },
+    {
+      "label": "Program target",
+      "value": "2029"
+    }
+  ],
+  "layers": [
+    {
+      "id": "lidarbc-availability",
+      "label": "LiDAR availability by acquisition year",
+      "type": "boundary",
+      "checked": true
+    }
+  ],
+  "legend": [
+    { "label": "2011–2018", "color": "#cbd5e1" },
+    { "label": "2019–2022", "color": "#93c5fd" },
+    { "label": "2023 acquisition", "color": "#60a5fa" },
+    { "label": "2024 acquisition", "color": "#2563eb" },
+    { "label": "2025–2026", "color": "#1e3a8a" }
+  ],
+  "scenes": [
+    {
+      "label": "Availability",
+      "kicker": "01 · Provincial overview",
+      "title": "Public LiDAR availability spans thirteen acquisition years",
+      "text": "The service currently contains annual availability footprints for 2011 and every year from 2015 through 2026. Newer surveys are drawn above older footprints where coverage overlaps.",
+      "focus": "Published LiDAR acquisition footprints",
+      "visibleLayerIds": ["lidarbc-availability"],
+      "callout": {
+        "label": "Availability records",
+        "value": "13 annual footprints",
+        "detail": "2011 and 2015–2026 in the July 2026 service snapshot."
+      },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    },
+    {
+      "label": "Recent collection",
+      "kicker": "02 · Program expansion",
+      "title": "The largest published annual footprint is from 2024",
+      "text": "Collection accelerated after the Province announced its six-year program in 2023. The 2024 source footprint covers about 160,350 square kilometres before accounting for overlaps with other years.",
+      "focus": "Acquisitions from 2023 onward",
+      "visibleLayerIds": ["lidarbc-availability"],
+      "highlights": [
+        {
+          "layerId": "lidarbc-availability",
+          "property": "era",
+          "values": ["2023 acquisition", "2024 acquisition", "2025–2026"],
+          "color": "#1d4ed8",
+          "dimOpacity": 0.05,
+          "label": "2023–2026 availability"
+        }
+      ],
+      "callout": {
+        "label": "2024 footprint",
+        "value": "160,350 km²",
+        "detail": "Source-reported annual footprint area; not unique cumulative coverage."
+      },
+      "camera": { "center": [-125.8, 54.0], "zoom": 4.45 }
+    },
+    {
+      "label": "Downloads",
+      "kicker": "03 · Product indexes",
+      "title": "Tile-level products remain in the official portal",
+      "text": "The live service indexes 160,334 point-cloud tiles, 94,607 DSM tiles, and 95,028 DEM tiles. PGMaps keeps only the lightweight overview; use LidarBC to select files, inspect metadata, and download products.",
+      "focus": "Continue to LidarBC for individual products",
+      "visibleLayerIds": ["lidarbc-availability"],
+      "callout": {
+        "label": "Point-cloud index",
+        "value": "160,334 tiles",
+        "detail": "Plus DSM and DEM product indexes in the live portal."
+      },
+      "camera": { "center": [-126.5, 54.5], "zoom": 4.25 }
+    }
+  ],
+  "files": [
+    {
+      "label": "Annual availability footprints",
+      "detail": "13 overlapping polygons simplified for province-wide display"
+    },
+    {
+      "label": "Live product indexes",
+      "detail": "Counts summarized from the public ArcGIS Feature Service"
+    },
+    {
+      "label": "Official downloads",
+      "detail": "Point clouds, DEMs, DSMs, and supporting reports remain on LidarBC"
+    }
+  ],
+  "workspace": {
+    "type": "story-map",
+    "schema": "story-map-v1",
+    "map": {
+      "center": [-126.5, 54.5],
+      "zoom": 4.25,
+      "minZoom": 3.5,
+      "maxZoom": 11,
+      "basemap": "light"
+    },
+    "accent": "#2563eb",
+    "layers": [
+      {
+        "id": "lidarbc-availability",
+        "data": "/data/boundaries/BCLidar/lidarbc-data-availability.geojson",
+        "geometry": "polygon",
+        "idProperty": "id",
+        "labelProperty": "display",
+        "selectionTitleProperty": "title",
+        "selectionDetailProperty": "details",
+        "fillColor": "#60a5fa",
+        "fillOpacity": 0.72,
+        "lineColor": "#ffffff",
+        "lineOpacity": 0.85,
+        "lineWidth": 0.75,
+        "category": {
+          "property": "era",
+          "colors": {
+            "2011–2018": "#cbd5e1",
+            "2019–2022": "#93c5fd",
+            "2023 acquisition": "#60a5fa",
+            "2024 acquisition": "#2563eb",
+            "2025–2026": "#1e3a8a"
+          },
+          "fallback": "#94a3b8"
+        },
+        "attribution": "GeoBC · LidarBC, July 2026"
+      }
+    ],
+    "places": []
+  }
+}
