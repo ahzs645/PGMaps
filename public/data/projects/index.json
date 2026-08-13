@@ -4526,13 +4526,14 @@
     },
     {
       "file": "scorebuilder/preset-pedestrian-network-study-mi.json",
-      "revision": "989e52457a2d",
+      "revision": "eb5098a13e5d",
       "catalog": {
         "slug": "score-preset-pedestrian-network-study-mi",
         "title": "Pedestrian Network Study MI",
         "kind": "index-preset",
         "theme": "blue",
         "owner": "PGMaps Index Lab",
+        "created": "2026-07-05",
         "updated": "Generated",
         "region": "Prince George DA",
         "status": "Ready",

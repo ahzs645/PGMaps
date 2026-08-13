@@ -23,11 +23,13 @@ interface GeneratedProjectPackage {
   kind: 'index-preset'
   theme: ProjectTheme
   owner: string
+  created?: string
   updated: string
   region: string
   status: string
   summary: string
   sourceNote: string
+  legendLabelAngle?: number
   details: string[]
   links: []
   catalogMetrics: Array<{ label: string; value: string }>
@@ -246,11 +248,13 @@ function buildProject({
     kind: 'index-preset',
     theme: themeForSources(sources, methodSettings),
     owner: OWNER,
+    created: sourceKey === 'pedestrianNetworkStudyMi' ? '2026-07-05' : undefined,
     updated: UPDATED,
     region: regionLabel(boundarySource, boundaryLevel),
     status: 'Ready',
     summary,
     sourceNote: `Generated from the score-builder ${sourceType.toLowerCase()} "${sourceKey}". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.`,
+    legendLabelAngle: sourceKey === 'pedestrianNetworkStudyMi' ? -35 : undefined,
     details: [
       `${sourceType} package generated from the Index Lab catalog so it can be opened from the Projects workspace.`,
       activeMetrics.length

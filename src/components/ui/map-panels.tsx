@@ -1040,6 +1040,7 @@ type MapSteppedLegendProps = ComponentPropsWithoutRef<'div'> & {
   variant?: 'strip' | 'rows' | 'gradient'
   labels?: ReactNode[]
   showBandLabels?: boolean
+  labelAngle?: number
   swatchShape?: 'square' | 'circle'
   getReadableTextColor?: (color: string) => string
 }
@@ -1049,6 +1050,7 @@ export function MapSteppedLegend({
   variant = 'strip',
   labels,
   showBandLabels = true,
+  labelAngle = 0,
   swatchShape = 'square',
   getReadableTextColor,
   className,
@@ -1079,6 +1081,7 @@ export function MapSteppedLegend({
   }
 
   const footerLabels = labels ?? bands.map((band) => band.label)
+  const normalizedLabelAngle = Number.isFinite(labelAngle) ? Math.max(-60, Math.min(60, labelAngle)) : 0
 
   if (variant === 'gradient') {
     const gradient = `linear-gradient(to right, ${bands
@@ -1112,13 +1115,36 @@ export function MapSteppedLegend({
           <span key={`${String(band.label)}-${index}`} className="block h-3" style={{ backgroundColor: band.color }} />
         ))}
       </div>
-      {footerLabels.length > 0 && (
-        <div className="flex items-center justify-between gap-1 text-xs tabular-nums text-muted-foreground sm:text-xs">
-          {footerLabels.map((label, index) => (
-            <span key={`${String(label)}-${index}`}>{label}</span>
-          ))}
-        </div>
-      )}
+      {footerLabels.length > 0 &&
+        (normalizedLabelAngle !== 0 ? (
+          <div
+            className="grid h-12 pt-1 text-xs tabular-nums text-muted-foreground sm:text-xs"
+            style={{ gridTemplateColumns: `repeat(${footerLabels.length}, minmax(0, 1fr))` }}
+          >
+            {footerLabels.map((label, index) => (
+              <span
+                key={`${String(label)}-${index}`}
+                className={cn('flex', normalizedLabelAngle < 0 ? 'justify-end pr-4' : 'justify-start pl-4')}
+              >
+                <span
+                  className={cn(
+                    'inline-block whitespace-nowrap',
+                    normalizedLabelAngle < 0 ? 'origin-top-right' : 'origin-top-left',
+                  )}
+                  style={{ transform: `rotate(${normalizedLabelAngle}deg)` }}
+                >
+                  {label}
+                </span>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-1 text-xs tabular-nums text-muted-foreground sm:text-xs">
+            {footerLabels.map((label, index) => (
+              <span key={`${String(label)}-${index}`}>{label}</span>
+            ))}
+          </div>
+        ))}
     </div>
   )
 }

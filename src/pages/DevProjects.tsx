@@ -470,7 +470,6 @@ function ProjectController({
   className?: string
 }) {
   const recipeBars = projectRecipeBars(project)
-  const labUrl = buildProjectLabUrl(project)
 
   return (
     <aside className={cn('flex min-h-0 flex-col rounded-lg border bg-card shadow-sm', className)}>
@@ -537,29 +536,6 @@ function ProjectController({
 
         {activeTab === 'project' && (
           <div className="space-y-4">
-            <div className={cn('rounded-lg border p-3', accentClass(project))}>
-              <div className="text-xs font-semibold uppercase tracking-wide">{KIND_LABELS[project.kind]}</div>
-              <div className="mt-1 text-sm font-semibold">{project.lab?.presetKey ?? project.slug}</div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-foreground">Details</div>
-              {[
-                ['Owner', project.owner],
-                ['Updated', project.updated],
-                ['Region', project.region],
-                ['Status', project.status],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
-                >
-                  <span className="text-xs text-muted-foreground">{label}</span>
-                  <span className="min-w-0 truncate text-right text-sm font-medium text-foreground">{value}</span>
-                </div>
-              ))}
-            </div>
-
             {recipeBars.length > 0 && (
               <div>
                 <div className="mb-2 text-sm font-semibold text-foreground">Recipe</div>
@@ -599,15 +575,6 @@ function ProjectController({
                 ))}
               </div>
             </div>
-
-            {labUrl && (
-              <Button asChild variant="outline" size="sm" className="w-full">
-                <Link to={labUrl}>
-                  <Settings2 className="h-4 w-4" />
-                  Open in Index Lab
-                </Link>
-              </Button>
-            )}
           </div>
         )}
       </div>
@@ -1294,7 +1261,7 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
         <div className="mb-4 grid grid-cols-2 gap-2">
           {[
             ['Owner', project.owner],
-            ['Updated', project.updated],
+            [project.created ? 'Created' : 'Updated', project.created ?? project.updated],
             ['Type', KIND_LABELS[project.kind]],
             ['Status', project.status],
           ].map(([label, value]) => (
@@ -1329,11 +1296,6 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="rounded-md border bg-muted/20 p-3">
-          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Source Note</div>
-          <p className="text-xs leading-5 text-muted-foreground">{project.sourceNote}</p>
         </div>
       </div>
 
@@ -1443,11 +1405,6 @@ function LoadedProjectWorkspace({ project, onBack }: { project: ProjectPackage; 
             />
           </div>
         )}
-
-        <div className="rounded-md border bg-muted/20 p-3">
-          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Source Note</div>
-          <p className="text-xs leading-5 text-muted-foreground">{project.sourceNote}</p>
-        </div>
       </div>
     </div>
   )

@@ -191,10 +191,14 @@ describe('normalizeProjectPackage', () => {
     const pkg = normalizeProjectPackage({
       slug: 'x',
       title: 'X',
+      created: '2026-07-05',
+      legendLabelAngle: -35,
       lab: { boundarySource: 'census', boundaryLevel: 'da', weights: { populationDensity: 10 } },
     })
     expect(pkg).not.toBeNull()
     expect(pkg!.kind).toBe('index-preset')
+    expect(pkg!.created).toBe('2026-07-05')
+    expect(pkg!.legendLabelAngle).toBe(-35)
     expect(pkg!.layers).toEqual([])
     expect(pkg!.lab?.weights.populationDensity).toBe(10)
   })

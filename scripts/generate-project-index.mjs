@@ -61,6 +61,7 @@ const CATALOG_FIELDS = [
   'kind',
   'theme',
   'owner',
+  'created',
   'updated',
   'region',
   'status',

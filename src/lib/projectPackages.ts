@@ -259,11 +259,13 @@ export interface ProjectPackage {
   kind: ProjectKind
   theme: ProjectTheme
   owner: string
+  created?: string
   updated: string
   region: string
   status: string
   summary: string
   sourceNote: string
+  legendLabelAngle?: number
   details?: string[]
   image?: { src: string; alt: string }
   links?: Array<{ label: string; href: string }>
@@ -699,11 +701,16 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
     kind,
     theme,
     owner: asString(candidate.owner, 'PGMaps'),
+    created: typeof candidate.created === 'string' ? candidate.created : undefined,
     updated: asString(candidate.updated, '—'),
     region: asString(candidate.region, 'Prince George'),
     status: asString(candidate.status, 'Draft'),
     summary: asString(candidate.summary),
     sourceNote: asString(candidate.sourceNote),
+    legendLabelAngle:
+      typeof candidate.legendLabelAngle === 'number' && Number.isFinite(candidate.legendLabelAngle)
+        ? Math.max(-60, Math.min(60, candidate.legendLabelAngle))
+        : undefined,
     details: asArray(candidate.details, (item): item is string => typeof item === 'string'),
     image: typeof image?.src === 'string' ? { src: image.src, alt: asString(image.alt, title) } : undefined,
     links: asArray(candidate.links, isLinkItem),
