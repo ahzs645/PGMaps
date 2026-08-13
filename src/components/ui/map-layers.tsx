@@ -1535,6 +1535,8 @@ type MapPmtilesFillLayerProps = {
     lngLat: { lng: number; lat: number } | null,
   ) => void
   hoverHtml?: (properties: Record<string, unknown>) => string | null
+  /** Optional MapLibre filter applied to the vector fill and border layers. */
+  filter?: StyleExpression
 }
 
 function MapPmtilesFillLayer({
@@ -1553,6 +1555,7 @@ function MapPmtilesFillLayer({
   visible = true,
   onFeatureClick,
   hoverHtml,
+  filter,
 }: MapPmtilesFillLayerProps) {
   const { map, isLoaded } = useMap()
   const uid = useId().replace(/:/g, '')
@@ -1563,6 +1566,7 @@ function MapPmtilesFillLayer({
   const onClickRef = useRef(onFeatureClick)
   const hoverHtmlRef = useRef(hoverHtml)
   const idPropRef = useRef(idProperty)
+  const filterRef = useRef(filter)
   const tooltipRef = useRef<MapLibreGLRuntime.Popup | null>(null)
   const boxZoomWasEnabledRef = useRef(false)
   const doubleClickZoomWasEnabledRef = useRef(false)
@@ -1578,6 +1582,10 @@ function MapPmtilesFillLayer({
   useEffect(() => {
     idPropRef.current = idProperty
   }, [idProperty])
+
+  useEffect(() => {
+    filterRef.current = filter
+  }, [filter])
 
   // Creation reads the latest style through a ref so recreating the source
   // (url change) keeps current paint without depending on per-render
@@ -1602,6 +1610,7 @@ function MapPmtilesFillLayer({
       type: 'fill',
       source: sourceId,
       'source-layer': sourceLayer,
+      ...(filterRef.current && { filter: filterRef.current as never }),
       paint: {
         'fill-color': style.fillColor as never,
         'fill-opacity': style.fillOpacity,
@@ -1616,6 +1625,7 @@ function MapPmtilesFillLayer({
       type: 'line',
       source: sourceId,
       'source-layer': sourceLayer,
+      ...(filterRef.current && { filter: filterRef.current as never }),
       paint: {
         'line-color': style.lineColor as never,
         'line-width': style.lineWidth,
@@ -1774,6 +1784,13 @@ function MapPmtilesFillLayer({
       map.setPaintProperty(selectedLayerId, 'line-width', selectionWidth)
     }
   }, [fillColor, fillLayerId, fillOpacity, isLoaded, lineColor, lineLayerId, lineOpacity, lineWidth, map, selectedLayerId, selectionColor, selectionWidth])
+
+  useEffect(() => {
+    if (!isLoaded || !map) return
+    const nextFilter = filter ? filter as never : null
+    if (map.getLayer(fillLayerId)) map.setFilter(fillLayerId, nextFilter)
+    if (map.getLayer(lineLayerId)) map.setFilter(lineLayerId, nextFilter)
+  }, [fillLayerId, filter, isLoaded, lineLayerId, map])
 
   useEffect(() => {
     if (!isLoaded || !map || !map.getLayer(selectedLayerId)) return

@@ -6087,6 +6087,75 @@
         "layerCount": 2,
         "sceneCount": 4
       }
+    },
+    {
+      "file": "canada-administrative-divisions.json",
+      "revision": "3336b98bcbf5",
+      "catalog": {
+        "slug": "canada-administrative-divisions",
+        "title": "How Canada Divides Itself",
+        "kind": "map-story",
+        "theme": "amber",
+        "owner": "PGMaps",
+        "updated": "2026-08-13",
+        "region": "Canada",
+        "status": "Interactive atlas prototype",
+        "summary": "Canada has no single, uniform second level of government. Compare current regional systems, municipalities and statistical equivalents, unorganized areas, and Indigenous legal lands across all 13 provinces and territories.",
+        "sourceNote": "This project is an original interactive interpretation built from Statistics Canada 2025 geographies, the 2021 census-division comparison layer, Natural Resources Canada's Canada Lands Survey System, and Newfoundland and Labrador GeoAtlas overlays. Census divisions and subdivisions are not uniformly governments, so every scene preserves the distinction between governing bodies and statistical equivalents.",
+        "details": [
+          "The poster-like national view is a starting point, not a claim that every coloured polygon has the same legal role.",
+          "Use the story cards to move between current regional parents, local municipal forms, Indigenous legal lands, and jurisdiction-specific examples.",
+          "Click or tap a feature to inspect its source name and representation role. The project streams versioned PMTiles from Cloudflare R2 instead of downloading the full source archive."
+        ],
+        "links": [
+          {
+            "label": "Live PMTiles publication catalog",
+            "href": "https://data.map.ahmad.sh/canada/admin-geographies/catalog.json"
+          },
+          {
+            "label": "Statistics Canada 2025 boundary reference",
+            "href": "https://www150.statcan.gc.ca/n1/pub/92-162-g/92-162-g2025001-eng.htm"
+          },
+          {
+            "label": "Canada Lands Survey System source",
+            "href": "https://proxyinternet.nrcan.gc.ca/arcgis/rest/services/CLSS-SATC/CLSS_Administrative_Boundaries/MapServer/0"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Current regional parents",
+            "value": "290"
+          },
+          {
+            "label": "Municipal/statistical areas",
+            "value": "5,054"
+          },
+          {
+            "label": "Indigenous legal-land polygons",
+            "value": "3,372"
+          }
+        ],
+        "files": [
+          {
+            "label": "Current national foundation",
+            "detail": "5,054 CSDs and 290 derived 2025 parent geographies"
+          },
+          {
+            "label": "Historical comparison",
+            "detail": "293 official 2021 census divisions"
+          },
+          {
+            "label": "Indigenous legal lands",
+            "detail": "3,372 CLSS polygons in 11 preserved legal classes"
+          },
+          {
+            "label": "Streaming delivery",
+            "detail": "Five versioned PMTiles archives totalling 26.62 MB in Cloudflare R2"
+          }
+        ],
+        "layerCount": 7,
+        "sceneCount": 11
+      }
     }
   ]
 }

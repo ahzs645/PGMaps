@@ -48,7 +48,10 @@ const HEAT_PACKAGE: ProjectPackage = {
 /** Fixtures stand in for untrusted JSON, so their fields stay loosely typed. */
 type RawStoryPackage = {
   scenes: Array<Record<string, unknown>>
-  workspace: { map: Record<string, unknown> } & Record<string, unknown>
+  workspace: {
+    map: Record<string, unknown>
+    layers: Array<Record<string, unknown>>
+  } & Record<string, unknown>
 } & Record<string, unknown>
 
 function storyPackage(data = '/data/example.geojson'): RawStoryPackage {
@@ -104,6 +107,19 @@ describe('story project packages', () => {
     expect(normalizeProjectPackage(storyPackage('https://example.com/areas.geojson'))?.workspace).toBeDefined()
     expect(normalizeProjectPackage(storyPackage('http://example.com/areas.geojson'))?.workspace).toBeUndefined()
     expect(normalizeProjectPackage(storyPackage('//example.com/areas.geojson'))?.workspace).toBeUndefined()
+  })
+
+  it('accepts PMTiles only when a vector source layer is declared', () => {
+    const raw = storyPackage('https://data.example.com/areas.pmtiles')
+    raw.workspace.layers[0].format = 'pmtiles'
+    raw.workspace.layers[0].sourceLayer = 'areas'
+    expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
+      layers: [{ format: 'pmtiles', sourceLayer: 'areas' }],
+    })
+
+    const missingSourceLayer = storyPackage('https://data.example.com/areas.pmtiles')
+    missingSourceLayer.workspace.layers[0].format = 'pmtiles'
+    expect(normalizeProjectPackage(missingSourceLayer)?.workspace).toBeUndefined()
   })
 
   it('drops malformed optional camera data without losing the scene', () => {

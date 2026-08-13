@@ -24,7 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Map, MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
-import { MapCircleLayer, MapFillLayer } from '@/components/ui/map-layers'
+import { MapCircleLayer, MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MAP_STYLES } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
@@ -641,6 +641,27 @@ export function ProjectStoryMap({
                 strokeWidth={resolved.lineWidth}
                 visible={visibleLayerIds.has(resolved.layer.id)}
                 filter={resolved.filter as never}
+                selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
+                onFeatureClick={selectFeature}
+                hoverHtml={hoverHtml}
+              />
+            )
+          }
+
+          if (resolved.layer.format === 'pmtiles' && resolved.layer.sourceLayer) {
+            return (
+              <MapPmtilesFillLayer
+                key={resolved.layer.id}
+                url={resolved.layer.data}
+                sourceLayer={resolved.layer.sourceLayer}
+                idProperty={resolved.layer.idProperty}
+                fillColor={resolved.fillColor}
+                fillOpacity={resolved.fillOpacity}
+                lineColor={resolved.lineColor}
+                lineOpacity={resolved.lineOpacity}
+                lineWidth={resolved.lineWidth}
+                visible={visibleLayerIds.has(resolved.layer.id)}
+                filter={resolved.filter}
                 selectedId={selectedFeature?.layerId === resolved.layer.id ? selectedFeature.id : null}
                 onFeatureClick={selectFeature}
                 hoverHtml={hoverHtml}

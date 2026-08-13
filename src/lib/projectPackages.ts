@@ -193,6 +193,10 @@ export interface ProjectMapExplorerWorkspaceDef {
 export interface ProjectStoryLayerDef {
   id: string
   data: string
+  /** Source transport. GeoJSON is the default; PMTiles requires sourceLayer. */
+  format?: 'geojson' | 'pmtiles'
+  /** Vector layer name inside a PMTiles archive. */
+  sourceLayer?: string
   /** Optional tabular attributes joined onto shared boundary geometry at load time. */
   attributes?: {
     data: string
@@ -418,9 +422,11 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
 
   const layers = asArray(value.layers, (item): item is ProjectStoryLayerDef => {
     const layer = item as Partial<ProjectStoryLayerDef>
+    const format = layer?.format === 'pmtiles' ? 'pmtiles' : 'geojson'
     return (
       typeof layer?.id === 'string' &&
       isProjectDataUrl(layer.data) &&
+      (format !== 'pmtiles' || typeof layer.sourceLayer === 'string') &&
       typeof layer.idProperty === 'string' &&
       typeof layer.labelProperty === 'string' &&
       typeof layer.fillColor === 'string' &&
@@ -445,6 +451,8 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
     )
     return {
       ...layer,
+      format: layer.format === 'pmtiles' ? ('pmtiles' as const) : ('geojson' as const),
+      sourceLayer: layer.format === 'pmtiles' ? layer.sourceLayer : undefined,
       attributes: hasAttributes
         ? {
             data: attributes!.data,
