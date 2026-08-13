@@ -89,6 +89,7 @@ const FILTER_OPTIONS: Array<{ value: CatalogFilter; label: string }> = [
 ]
 
 const FEATURED_PROJECT_SLUGS = [
+  'canada-administrative-divisions',
   'echoscreen-climate-health',
   'score-preset-pedestrian-network-study-mi',
   'where-is-north-bc',

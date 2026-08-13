@@ -110,7 +110,7 @@
       "label": "The national question",
       "kicker": "01 · Start here",
       "title": "There is no single Canadian ‘second level’",
-      "text": "Counties, regional districts, regional municipalities, service commissions, census divisions, territories, and regions all appear at roughly the same map scale. They do not all have the same powers—and some exist only for statistical comparison.",
+      "text": "Counties, regional districts, regional municipalities, service commissions, census divisions, territories, and regions all appear at roughly the same map scale. They do not all have the same powers, and some exist only for statistical comparison.",
       "focus": "Canada · current regional parent geography",
       "visibleLayerIds": [
         "regional-2025"
@@ -176,7 +176,7 @@
     {
       "label": "Local layer",
       "kicker": "03 · Under the regional map",
-      "title": "Municipalities are a separate layer—and statistical equivalents share it",
+      "title": "Municipalities are a separate layer, and statistical equivalents share it",
       "text": "Statistics Canada's census subdivisions include incorporated municipalities alongside Indian reserves, treaty and self-government lands, unorganized areas, settlements, electoral areas, and other statistical municipal equivalents. The common census level makes comparison possible, but it is not one legal category.",
       "focus": "5,054 census subdivisions",
       "visibleLayerIds": [
@@ -386,7 +386,7 @@
     {
       "label": "Ontario and Quebec",
       "kicker": "07 · The most varied regional systems",
-      "title": "Ontario and Quebec use multiple regional forms—and both include statistical equivalents",
+      "title": "Ontario and Quebec use multiple regional forms, and both include statistical equivalents",
       "text": "Quebec's regional layer includes MRCs and territoires équivalents. Ontario mixes counties, districts, a district municipality, regional municipalities, united counties, and statistical census divisions. Unorganized local areas remain visible beneath both systems.",
       "focus": "Ontario and Quebec",
       "visibleLayerIds": [
@@ -450,7 +450,7 @@
     {
       "label": "Atlantic Canada",
       "kicker": "08 · Counties, commissions, and Inuit lands",
-      "title": "Atlantic systems range from counties to service commissions—and Newfoundland and Labrador needs an extra overlay",
+      "title": "Atlantic systems range from counties to service commissions, while Newfoundland and Labrador needs an extra overlay",
       "text": "Prince Edward Island and Nova Scotia use county-shaped regional parents; New Brunswick's current hierarchy contains 12 Regional Service Commissions. Newfoundland and Labrador's census divisions are statistical, so the project adds provincial municipality boundaries and Labrador Inuit agreement lands.",
       "focus": "Atlantic Canada",
       "visibleLayerIds": [
@@ -669,7 +669,7 @@
       "label": "The takeaway",
       "kicker": "11 · Read the role, not only the shape",
       "title": "A boundary is meaningful only when its purpose travels with it",
-      "text": "Canada can be compared nationally only by carrying role, type, source, and reference date beside every feature. The map is therefore an atlas of related systems—not a claim that one hierarchy governs the whole country.",
+      "text": "Canada can be compared nationally only by carrying role, type, source, and reference date beside every feature. The map is therefore an atlas of related systems, not a claim that one hierarchy governs the whole country.",
       "focus": "Canada · all systems in context",
       "visibleLayerIds": [
         "regional-2025",
