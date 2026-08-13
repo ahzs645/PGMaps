@@ -265,7 +265,7 @@ export interface ProjectPackage {
   status: string
   summary: string
   sourceNote: string
-  legendLabelAngle?: number
+  angledLegendLabels?: boolean
   details?: string[]
   image?: { src: string; alt: string }
   links?: Array<{ label: string; href: string }>
@@ -707,10 +707,8 @@ export function normalizeProjectPackage(raw: unknown): ProjectPackage | null {
     status: asString(candidate.status, 'Draft'),
     summary: asString(candidate.summary),
     sourceNote: asString(candidate.sourceNote),
-    legendLabelAngle:
-      typeof candidate.legendLabelAngle === 'number' && Number.isFinite(candidate.legendLabelAngle)
-        ? Math.max(-60, Math.min(60, candidate.legendLabelAngle))
-        : undefined,
+    angledLegendLabels:
+      typeof candidate.angledLegendLabels === 'boolean' ? candidate.angledLegendLabels : undefined,
     details: asArray(candidate.details, (item): item is string => typeof item === 'string'),
     image: typeof image?.src === 'string' ? { src: image.src, alt: asString(image.alt, title) } : undefined,
     links: asArray(candidate.links, isLinkItem),

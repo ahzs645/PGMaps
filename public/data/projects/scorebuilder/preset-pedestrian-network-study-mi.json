@@ -11,7 +11,7 @@
   "status": "Ready",
   "summary": "Boundary-level proxy for the 2017 pedestrian-network Mobility Index: active routes, transit, parks, service access, density, and lower safety pressure.",
   "sourceNote": "Generated from the score-builder preset \"pedestrianNetworkStudyMi\". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.",
-  "legendLabelAngle": -35,
+  "angledLegendLabels": true,
   "details": [
     "Preset package generated from the Index Lab catalog so it can be opened from the Projects workspace.",
     "Primary active metrics include Transit Stop Density, Sidewalk Density, Walkway Density, Intersection Density, Pedestrian Crossing Density, Childcare / Daycare Density."

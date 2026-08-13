@@ -1040,7 +1040,7 @@ type MapSteppedLegendProps = ComponentPropsWithoutRef<'div'> & {
   variant?: 'strip' | 'rows' | 'gradient'
   labels?: ReactNode[]
   showBandLabels?: boolean
-  labelAngle?: number
+  angledLabels?: boolean
   swatchShape?: 'square' | 'circle'
   getReadableTextColor?: (color: string) => string
 }
@@ -1050,7 +1050,7 @@ export function MapSteppedLegend({
   variant = 'strip',
   labels,
   showBandLabels = true,
-  labelAngle = 0,
+  angledLabels = false,
   swatchShape = 'square',
   getReadableTextColor,
   className,
@@ -1081,7 +1081,6 @@ export function MapSteppedLegend({
   }
 
   const footerLabels = labels ?? bands.map((band) => band.label)
-  const normalizedLabelAngle = Number.isFinite(labelAngle) ? Math.max(-60, Math.min(60, labelAngle)) : 0
 
   if (variant === 'gradient') {
     const gradient = `linear-gradient(to right, ${bands
@@ -1116,25 +1115,14 @@ export function MapSteppedLegend({
         ))}
       </div>
       {footerLabels.length > 0 &&
-        (normalizedLabelAngle !== 0 ? (
+        (angledLabels ? (
           <div
             className="grid h-12 pt-1 text-xs tabular-nums text-muted-foreground sm:text-xs"
             style={{ gridTemplateColumns: `repeat(${footerLabels.length}, minmax(0, 1fr))` }}
           >
             {footerLabels.map((label, index) => (
-              <span
-                key={`${String(label)}-${index}`}
-                className={cn('flex', normalizedLabelAngle < 0 ? 'justify-end pr-4' : 'justify-start pl-4')}
-              >
-                <span
-                  className={cn(
-                    'inline-block whitespace-nowrap',
-                    normalizedLabelAngle < 0 ? 'origin-top-right' : 'origin-top-left',
-                  )}
-                  style={{ transform: `rotate(${normalizedLabelAngle}deg)` }}
-                >
-                  {label}
-                </span>
+              <span key={`${String(label)}-${index}`} className="flex justify-end pr-4">
+                <span className="inline-block origin-top-right -rotate-[35deg] whitespace-nowrap">{label}</span>
               </span>
             ))}
           </div>

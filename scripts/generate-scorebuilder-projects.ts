@@ -29,7 +29,7 @@ interface GeneratedProjectPackage {
   status: string
   summary: string
   sourceNote: string
-  legendLabelAngle?: number
+  angledLegendLabels?: boolean
   details: string[]
   links: []
   catalogMetrics: Array<{ label: string; value: string }>
@@ -254,7 +254,7 @@ function buildProject({
     status: 'Ready',
     summary,
     sourceNote: `Generated from the score-builder ${sourceType.toLowerCase()} "${sourceKey}". Opening it in Index Lab loads the same weights, boundary, network, and method settings carried by this package.`,
-    legendLabelAngle: sourceKey === 'pedestrianNetworkStudyMi' ? -35 : undefined,
+    angledLegendLabels: sourceKey === 'pedestrianNetworkStudyMi' ? true : undefined,
     details: [
       `${sourceType} package generated from the Index Lab catalog so it can be opened from the Projects workspace.`,
       activeMetrics.length

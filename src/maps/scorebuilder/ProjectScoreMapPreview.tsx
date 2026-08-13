@@ -129,7 +129,7 @@ export function ProjectScoreMapPreview({
             <>
               <MapSteppedLegend
                 bands={toWalkabilityMiLegendBands(miBands)}
-                labelAngle={project.legendLabelAngle}
+                angledLabels={project.angledLegendLabels}
               />
               <div className="text-xs leading-snug text-muted-foreground">
                 Mobility Index surface derived from the project recipe, over {results.scoredRegions.length.toLocaleString()}{' '}
