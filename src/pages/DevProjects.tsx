@@ -93,6 +93,17 @@ const FEATURED_PROJECT_SLUGS = [
   'score-preset-pedestrian-network-study-mi',
   'where-is-north-bc',
   'nechako-watershed-research-portal',
+  'roadless-areas-bc-ecoregions',
+  'air-quality-bylaws-bc',
+  'fine-particulate-matter-bc',
+  'ground-level-ozone-bc',
+  'nitrogen-dioxide-bc',
+  'sulphur-dioxide-bc',
+  'lidarbc-data-availability',
+  'bc-population-distribution',
+  'grizzly-bear-conservation-bc',
+  'invasive-species-bc',
+  'municipal-solid-waste-bc',
 ] as const
 
 const FEATURED_PROJECT_ORDER = new Map<string, number>(FEATURED_PROJECT_SLUGS.map((slug, index) => [slug, index]))
