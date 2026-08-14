@@ -28,16 +28,49 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: pip install -r vendor/bcdatamapper/datascrapers/bc/assessment/requirements.txt
+
+      - name: Read bcdatamapper source revision
+        id: data-source
+        run: echo "revision=$(git rev-parse HEAD:vendor/bcdatamapper)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore generated deployment data
+        id: data-cache
+        uses: actions/cache@v4
+        with:
+          path: public/data
+          key: ${{ runner.os }}-pgmaps-data-v1-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', 'package.json', 'package-lock.json', 'public/data/projects/**', 'public/data/smoke/**', 'public/data/walkability/heatmap/factor_masks.json') }}
+
+      - name: Install data-generation dependencies
+        if: steps.data-cache.outputs.cache-hit != 'true'
+        run: pip install -r vendor/bcdatamapper/datascrapers/bc/assessment/requirements.txt
+
       - name: Build national Census Subdivision overview
+        if: steps.data-cache.outputs.cache-hit != 'true'
         run: npm run census:canada-csd-simplified -- --if-missing
-      - run: npm run data:sync-from-bcdatamapper:clean
+
+      - name: Assemble bcdatamapper snapshots
+        if: steps.data-cache.outputs.cache-hit != 'true'
+        run: npm run data:sync-from-bcdatamapper:clean
+
       - name: Verify generated Census Subdivision deployment data
         run: test -s public/data/census/canada-csd-simplified.geojson
-      - run: npm run census:variables
-      - run: npm run bc-assessment:build
-      - run: npm run indigenous:copy
-      - run: npm run health:msp-facilities
+
+      - name: Build Census variable catalog
+        if: steps.data-cache.outputs.cache-hit != 'true'
+        run: npm run census:variables
+
+      - name: Build BC Assessment dataset
+        if: steps.data-cache.outputs.cache-hit != 'true'
+        run: npm run bc-assessment:build
+
+      - name: Copy Indigenous snapshot
+        if: steps.data-cache.outputs.cache-hit != 'true'
+        run: npm run indigenous:copy
+
+      - name: Build MSP facilities dataset
+        if: steps.data-cache.outputs.cache-hit != 'true'
+        run: npm run health:msp-facilities
+
       - run: npm run build
         env:
           PGMAPS_SKIP_VENDOR_DATA_SYNC: '1'
