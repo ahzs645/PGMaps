@@ -1107,18 +1107,29 @@ function formatClusterCount(total: number): string {
   return `${Math.round(total / 1000)}k`
 }
 
+/** Values that require an existing donut marker's SVG to be repainted. */
+function getDonutRenderKey(
+  props: Record<string, unknown>,
+  bandColors: readonly string[],
+): string {
+  return [
+    Number(props.point_count) || 0,
+    ...bandColors.map((_, index) => Number(props[`band${index}`]) || 0),
+  ].join(':')
+}
+
 /**
- * Build the donut marker element for a cluster from its aggregated band
- * counts, with the total in the hollow centre when showCount is set. With a
- * transparent centerStyle the hole shows the map through it and the count
- * gets a white halo to stay legible.
+ * Paint a donut marker from its aggregated band counts, with the total in the
+ * hollow centre when showCount is set. Updating the existing root keeps the
+ * MapLibre marker mounted while its SVG changes.
  */
-function createDonutElement(
+function updateDonutElement(
+  element: HTMLDivElement,
   props: Record<string, unknown>,
   bandColors: readonly string[],
   showCount: boolean,
   centerStyle: 'white' | 'transparent',
-): HTMLDivElement {
+): void {
   const counts = bandColors.map((_, index) => Number(props[`band${index}`]) || 0)
   const total = Number(props.point_count) || counts.reduce((sum, count) => sum + count, 0)
   const r = total >= 50 ? 24 : total >= 25 ? 21 : total >= 10 ? 18 : 15
@@ -1134,7 +1145,6 @@ function createDonutElement(
     placed += count
   })
   const isWhiteCenter = centerStyle === 'white'
-  const element = document.createElement('div')
   element.innerHTML =
     `<svg width="${w}" height="${w}" viewBox="0 0 ${w} ${w}" text-anchor="middle" ` +
     `style="display:block;font:700 ${fontSize}px system-ui,sans-serif;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45));">` +
@@ -1150,6 +1160,16 @@ function createDonutElement(
   element.style.cursor = 'pointer'
   element.style.width = `${w}px`
   element.style.height = `${w}px`
+}
+
+function createDonutElement(
+  props: Record<string, unknown>,
+  bandColors: readonly string[],
+  showCount: boolean,
+  centerStyle: 'white' | 'transparent',
+): HTMLDivElement {
+  const element = document.createElement('div')
+  updateDonutElement(element, props, bandColors, showCount, centerStyle)
   return element
 }
 
@@ -1291,8 +1311,18 @@ function MapPieClusterLayer({
     if (!isLoaded || !map) return
     const currentMap = map
     let cancelled = false
-    const markers: Record<string, MapLibreGL.Marker> = {}
-    let markersOnScreen: Record<string, MapLibreGL.Marker> = {}
+    type DonutMarkerState = {
+      marker: MapLibreGL.Marker
+      element: HTMLDivElement
+      renderKey: string
+      clickState: {
+        coordinates: [number, number]
+        clusterId: number
+        pointCount: number
+      }
+    }
+    const markers: Record<string, DonutMarkerState> = {}
+    let markersOnScreen: Record<string, DonutMarkerState> = {}
     let spiderMarker: MapLibreGL.Marker | null = null
     let clusterListPopup: MapLibreGL.Popup | null = null
 
@@ -1460,38 +1490,59 @@ function MapPieClusterLayer({
     const handlePointLeave = () => { currentMap.getCanvas().style.cursor = '' }
 
     const updateMarkers = () => {
-      const newMarkers: Record<string, MapLibreGL.Marker> = {}
+      const newMarkers: Record<string, DonutMarkerState> = {}
       for (const feature of currentMap.querySourceFeatures(sourceId)) {
         const props = feature.properties as Record<string, unknown> | null
         if (!props || !props.cluster) continue
         const id = `cluster-${props.cluster_id}`
-        let marker = markers[id]
-        if (!marker) {
-          const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
-          const clusterId = props.cluster_id as number
+        const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number]
+        const clusterId = props.cluster_id as number
+        const pointCount = Number(props.point_count) || 0
+        const renderKey = getDonutRenderKey(props, bandColors)
+        let markerState = markers[id]
+        if (!markerState) {
           const element = createDonutElement(props, bandColors, showCount, centerStyle)
+          const clickState = { coordinates, clusterId, pointCount }
           element.addEventListener('click', (domEvent) => {
             domEvent.stopPropagation()
             const source = currentMap.getSource(sourceId) as MapLibreGL.GeoJSONSource | undefined
             if (!source) return
             dispatchMobileMapFeatureClick()
-            void source.getClusterExpansionZoom(clusterId).then((zoom) => {
+            const current = clickState
+            void source.getClusterExpansionZoom(current.clusterId).then((zoom) => {
               if (expandOverlappingPoints && zoom > clusterMaxZoom) {
-                void expandTerminalCluster(source, clusterId, coordinates, Number(props.point_count) || 0)
+                void expandTerminalCluster(source, current.clusterId, current.coordinates, current.pointCount)
                 return
               }
               clearExpandedCluster()
-              currentMap.easeTo({ center: coordinates, zoom, duration: 450 })
+              currentMap.easeTo({ center: current.coordinates, zoom, duration: 450 })
             })
           })
-          marker = markers[id] = new MapLibreGLRuntime.Marker({ element }).setLngLat(coordinates)
+          markerState = markers[id] = {
+            marker: new MapLibreGLRuntime.Marker({ element }).setLngLat(coordinates),
+            element,
+            renderKey,
+            clickState,
+          }
+        } else {
+          // MapLibre may reuse a cluster id after setData(). Reconcile the DOM
+          // marker as well as its click metadata so a data/filter change is
+          // visible immediately, without waiting for a zoom to mint new ids.
+          markerState.clickState.coordinates = coordinates
+          markerState.clickState.clusterId = clusterId
+          markerState.clickState.pointCount = pointCount
+          markerState.marker.setLngLat(coordinates)
+          if (markerState.renderKey !== renderKey) {
+            updateDonutElement(markerState.element, props, bandColors, showCount, centerStyle)
+            markerState.renderKey = renderKey
+          }
         }
-        newMarkers[id] = marker
-        if (!markersOnScreen[id]) marker.addTo(currentMap)
+        newMarkers[id] = markerState
+        if (!markersOnScreen[id]) markerState.marker.addTo(currentMap)
       }
       for (const id of Object.keys(markersOnScreen)) {
         if (newMarkers[id]) continue
-        markersOnScreen[id].remove()
+        markersOnScreen[id].marker.remove()
         // Re-clustering mints fresh cluster ids, so the cache would otherwise
         // accumulate a full set of orphaned donut elements per data update.
         delete markers[id]
@@ -1548,8 +1599,8 @@ function MapPieClusterLayer({
       currentMap.off('mouseleave', pointLayerId, handlePointLeave)
       currentMap.off('movestart', clearExpandedCluster)
       clearExpandedCluster()
-      Object.values(markersOnScreen).forEach((marker) => marker.remove())
-      Object.values(markers).forEach((marker) => marker.remove())
+      Object.values(markersOnScreen).forEach(({ marker }) => marker.remove())
+      Object.values(markers).forEach(({ marker }) => marker.remove())
       markersOnScreen = {}
       try {
         currentMap.getCanvas().style.cursor = ''
