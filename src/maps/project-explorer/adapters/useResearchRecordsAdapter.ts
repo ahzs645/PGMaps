@@ -10,6 +10,7 @@ import type {
   ResearchRecordsOverview,
   ResearchRecordsTimelineBucket,
 } from './researchRecordsTypes'
+import { researchLocationDisplayName } from './researchLocationNames'
 
 export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef) {
   const [overview, setOverview] = useState<ResearchRecordsOverview | null>(null)
@@ -54,7 +55,12 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
       .then(([nextOverview, nextSubmissions, nextLocations, nextDecades]) => {
         setOverview(nextOverview)
         setSubmissions(nextSubmissions)
-        setLocations(nextLocations)
+        setLocations(
+          nextLocations.map((location) => ({
+            ...location,
+            name: researchLocationDisplayName(location),
+          })),
+        )
         setDecades(nextDecades)
         setLoading(false)
       })

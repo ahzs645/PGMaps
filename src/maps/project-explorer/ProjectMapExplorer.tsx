@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Map, MapControls, MapPopup, useMap } from '@/components/ui/map'
 import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { Timeline } from '@/components/ui/timeline'
@@ -234,13 +235,14 @@ function ProjectExplorerSidebar({
         })}
       </div>
 
-      {showRegionalModal && aggregateFeature?.type === 'aggregate-records' && (
+      {aggregateFeature?.type === 'aggregate-records' && (
         <AggregateRecordsModal
+          open={showRegionalModal}
           feature={aggregateFeature}
           submissions={regionalOnlySubmissions}
           resourceTypeLabels={data.resourceTypeLabels}
           recordSingular={config.labels.recordSingular}
-          onClose={() => setShowRegionalModal(false)}
+          onOpenChange={setShowRegionalModal}
         />
       )}
     </div>
@@ -420,7 +422,7 @@ function RankedListFeature({
             className="group flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors hover:bg-muted"
           >
             <span className="min-w-0 flex-1 truncate text-left transition-colors group-hover:text-primary">
-              {formatLocationName(location.name)}
+              {location.name}
             </span>
             <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted">
               <span
@@ -520,45 +522,28 @@ function DecadeTimeline({
 }
 
 function AggregateRecordsModal({
+  open,
   feature,
   submissions,
   resourceTypeLabels,
   recordSingular,
-  onClose,
+  onOpenChange,
 }: {
+  open: boolean
   feature: ExplorerFeature<'aggregate-records'>
   submissions: ResearchRecord[]
   resourceTypeLabels: Record<string, string>
   recordSingular: string
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
 }) {
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
-
   return (
-    <div className="fixed inset-0 z-[1500] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        aria-label={`Close ${recordSingular} collection`}
-      />
-      <div className="relative z-10 flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg border bg-background shadow-xl">
-        <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">{feature.modalTitle}</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {applyCountTemplate(feature.modalDescription, submissions.length)}
-            </p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-md p-1 hover:bg-muted" aria-label="Close">
-            <X className="size-4" />
-          </button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent variant="sheet" elevated className="gap-0 p-0 sm:max-h-[80dvh] sm:max-w-lg">
+        <div className="border-b px-4 py-3 pr-12">
+          <DialogTitle className="text-sm leading-5 text-foreground">{feature.modalTitle}</DialogTitle>
+          <DialogDescription className="mt-0.5 text-xs">
+            {applyCountTemplate(feature.modalDescription, submissions.length)}
+          </DialogDescription>
         </div>
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
           {submissions.map((submission) => (
@@ -574,8 +559,8 @@ function AggregateRecordsModal({
             </article>
           ))}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -659,7 +644,7 @@ function ProjectExplorerMap({
           className="w-56"
         >
           <div>
-            <h3 className="text-sm font-semibold">{formatLocationName(selectedTimelineFeature.properties.name)}</h3>
+            <h3 className="text-sm font-semibold">{selectedTimelineFeature.properties.name}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
               {selectedTimelineFeature.properties.count.toLocaleString()} {config.labels.recordPlural} in the{' '}
               {currentDecade}s
@@ -830,7 +815,7 @@ function LocationPopupContent({
   return (
     <div className="space-y-2">
       <div>
-        <h3 className="text-sm font-semibold">{formatLocationName(name)}</h3>
+        <h3 className="text-sm font-semibold">{name}</h3>
         <p className="text-xs text-muted-foreground">
           {count} {recordPlural} (filtered)
         </p>
@@ -892,10 +877,6 @@ function ProjectExplorerLegend({
       ))}
     </MapLegendPanel>
   )
-}
-
-function formatLocationName(name: string) {
-  return name.replace(/_/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
 function applyCountTemplate(template: string, count: number) {

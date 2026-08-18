@@ -20,11 +20,70 @@ const EMPTY_SELECTED_IDS: Array<string | number> = []
 
 let pmtilesProtocolRegistered = false
 
+type SharedPmtilesTooltipState = {
+  ownerLayerId: string | null
+  popup: MapLibreGLRuntime.Popup
+}
+
+const pmtilesHoverLayersByMap = new WeakMap<MapLibreGL.Map, Set<string>>()
+const pmtilesTooltipByMap = new WeakMap<MapLibreGL.Map, SharedPmtilesTooltipState>()
+
 function ensurePmtilesProtocol() {
   if (pmtilesProtocolRegistered) return
   const protocol = new Protocol()
   MapLibreGLRuntime.addProtocol('pmtiles', protocol.tile)
   pmtilesProtocolRegistered = true
+}
+
+function registerPmtilesHoverLayer(map: MapLibreGL.Map, layerId: string) {
+  const layerIds = pmtilesHoverLayersByMap.get(map) ?? new Set<string>()
+  layerIds.add(layerId)
+  pmtilesHoverLayersByMap.set(map, layerIds)
+
+  return () => {
+    layerIds.delete(layerId)
+    if (layerIds.size === 0) pmtilesHoverLayersByMap.delete(map)
+  }
+}
+
+function isTopPmtilesHoverLayer(map: MapLibreGL.Map, point: MapLibreGL.PointLike, layerId: string) {
+  const registeredLayerIds = pmtilesHoverLayersByMap.get(map)
+  if (!registeredLayerIds) return true
+  const existingLayerIds = [...registeredLayerIds].filter((registeredLayerId) => map.getLayer(registeredLayerId))
+  if (existingLayerIds.length === 0) return true
+
+  return map.queryRenderedFeatures(point, { layers: existingLayerIds })[0]?.layer?.id === layerId
+}
+
+function showPmtilesTooltip(
+  map: MapLibreGL.Map,
+  ownerLayerId: string,
+  lngLat: MapLibreGL.LngLatLike,
+  html: string,
+) {
+  let state = pmtilesTooltipByMap.get(map)
+  if (!state) {
+    state = {
+      ownerLayerId: null,
+      popup: new MapLibreGLRuntime.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        className: 'mapcn-tooltip pointer-events-none',
+        offset: 12,
+      }),
+    }
+    pmtilesTooltipByMap.set(map, state)
+  }
+
+  state.ownerLayerId = ownerLayerId
+  state.popup.setLngLat(lngLat).setHTML(html).addTo(map)
+}
+
+function removePmtilesTooltip(map: MapLibreGL.Map, ownerLayerId: string) {
+  const state = pmtilesTooltipByMap.get(map)
+  if (!state || state.ownerLayerId !== ownerLayerId) return
+  state.popup.remove()
+  state.ownerLayerId = null
 }
 
 // =============================================================================
@@ -1567,7 +1626,6 @@ function MapPmtilesFillLayer({
   const hoverHtmlRef = useRef(hoverHtml)
   const idPropRef = useRef(idProperty)
   const filterRef = useRef(filter)
-  const tooltipRef = useRef<MapLibreGLRuntime.Popup | null>(null)
   const boxZoomWasEnabledRef = useRef(false)
   const doubleClickZoomWasEnabledRef = useRef(false)
 
@@ -1652,8 +1710,10 @@ function MapPmtilesFillLayer({
       },
     })
 
+    const unregisterHoverLayer = registerPmtilesHoverLayer(map, fillLayerId)
+
     const removeTooltip = () => {
-      tooltipRef.current?.remove()
+      removePmtilesTooltip(map, fillLayerId)
     }
 
     const handleClick = (event: unknown) => {
@@ -1698,6 +1758,11 @@ function MapPmtilesFillLayer({
       const e = event as {
         features?: Array<{ properties?: Record<string, unknown> }>
         lngLat?: MapLibreGL.LngLatLike
+        point?: MapLibreGL.PointLike
+      }
+      if (e.point && !isTopPmtilesHoverLayer(map, e.point, fillLayerId)) {
+        removeTooltip()
+        return
       }
       const properties = e.features?.[0]?.properties
       const html = properties ? formatter(properties) : null
@@ -1705,15 +1770,7 @@ function MapPmtilesFillLayer({
         removeTooltip()
         return
       }
-      if (!tooltipRef.current) {
-        tooltipRef.current = new MapLibreGLRuntime.Popup({
-          closeButton: false,
-          closeOnClick: false,
-          className: 'mapcn-tooltip pointer-events-none',
-          offset: 12,
-        })
-      }
-      tooltipRef.current.setLngLat(e.lngLat).setHTML(html).addTo(map)
+      showPmtilesTooltip(map, fillLayerId, e.lngLat, html)
     }
 
     const handleMouseLeave = () => {
@@ -1749,7 +1806,7 @@ function MapPmtilesFillLayer({
           doubleClickZoomWasEnabledRef.current = false
         }
         removeTooltip()
-        tooltipRef.current = null
+        unregisterHoverLayer()
         if (map.getLayer(selectedLayerId)) map.removeLayer(selectedLayerId)
         if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
         if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
