@@ -67,6 +67,8 @@ public/data/cell-coverage/
 public/data/census/
 public/data/canada-admin/
 /build/canada-admin-pmtiles/
+/build/bc-outdoors-pmtiles/
+/build/bc-outdoors-plans/
 public/data/citypg/
 public/data/drought/
 public/data/environmental-burden/

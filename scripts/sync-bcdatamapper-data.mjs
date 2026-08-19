@@ -47,6 +47,7 @@ const pathMappings = [
   ['datascrapers/bc/assessment/output', 'bc-assessment'],
   ['datascrapers/census/output', 'census'],
   ['datascrapers/canada/admin-geographies/output', 'canada-admin'],
+  ['datascrapers/bc/outdoors/output', 'bc/outdoors'],
   ['datascrapers/transit/output', 'transit'],
   ['datascrapers/icbc/output', 'icbc'],
   ['datascrapers/bc/wars/output', 'wars'],
