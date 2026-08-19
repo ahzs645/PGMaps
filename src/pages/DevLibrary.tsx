@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ElementType } from 'react'
-import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, FolderKanban, Handshake, Loader2, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Table2, Wind } from 'lucide-react'
+import { ArrowRight, Beaker, CircleDollarSign, CircleDot, Clock3, Compass, FolderKanban, Handshake, Loader2, MapPinned, MousePointerClick, Palette, RadioTower, ShieldAlert, Table2, Wind } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -112,6 +112,14 @@ const devEntries: DevEntry[] = [
     icon: FolderKanban,
     color: 'bg-slate-800',
     label: '/dev/projects',
+  },
+  {
+    title: 'Outdoors Planner',
+    description: 'Hunting/fishing trip planner over the WMU PMTiles layer — waypoints, routes, and closure/hunt areas save as JSON, share as a link, and export/import as files, with a real MU 7-42 sample plan.',
+    href: '/dev/outdoors',
+    icon: Compass,
+    color: 'bg-green-700',
+    label: '/dev/outdoors',
   },
   {
     title: 'Fallout Sites',
