@@ -92,6 +92,7 @@ optional; omitted fields keep the defaults shown here:
     "sceneTransitionMs": 1150,
     "mobileSheet": "half",
     "mobilePeekSceneText": false,
+    "mobilePeekTicker": false,
     "legendCollapsed": "auto"
   }
 }
@@ -109,12 +110,17 @@ optional; omitted fields keep the defaults shown here:
   the active scene's narrative text (up to three lines), so the story can be
   read scene by scene with the map fully visible. Pairs well with
   `"mobileSheet": "collapsed"`.
+- `mobilePeekTicker` — when `true`, a scene title too long for the peek bar
+  marquee-scrolls instead of truncating, and the sheet chevron button is hidden
+  to give the title the full width (the drag handle still expands the sheet).
+  Reduced-motion readers keep the static truncated title.
 - `legendCollapsed` — the Map layers panel start state: `"auto"` (collapsed on
   mobile only), `"always"`, or `"never"`.
 
 `public/data/projects/where-is-north-bc.json` sets `sceneTransition: "fly"`,
-`mobileSheet: "collapsed"`, and `mobilePeekSceneText: true` as a working
-example of the map-first mobile presentation.
+`mobileSheet: "collapsed"`, `mobilePeekSceneText: true`, and
+`mobilePeekTicker: true` as a working example of the map-first mobile
+presentation.
 
 ## GeoJSON layers
 

@@ -245,6 +245,10 @@ export interface ProjectStoryOptionsDef {
   /** Show the active scene's narrative text in the collapsed mobile peek,
    *  so the story reads while the map stays visible. */
   mobilePeekSceneText: boolean
+  /** Marquee-scroll a too-long scene title in the mobile peek instead of
+   *  truncating it, and hide the sheet chevron to give the title the room.
+   *  Reduced-motion readers keep the static truncated title. */
+  mobilePeekTicker: boolean
   /** Layers panel start state. 'auto' collapses it on mobile only. */
   legendCollapsed: 'auto' | 'always' | 'never'
 }
@@ -444,6 +448,7 @@ function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
       : 1150,
     mobileSheet: raw.mobileSheet === 'collapsed' || raw.mobileSheet === 'full' ? raw.mobileSheet : 'half',
     mobilePeekSceneText: raw.mobilePeekSceneText === true,
+    mobilePeekTicker: raw.mobilePeekTicker === true,
     legendCollapsed:
       raw.legendCollapsed === 'always' || raw.legendCollapsed === 'never' ? raw.legendCollapsed : 'auto',
   }

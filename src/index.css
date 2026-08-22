@@ -269,6 +269,27 @@ a,
 }
 
 /* Custom animations */
+/* Story-map mobile peek: marquee for titles too long for the bar. Two copies
+   of the text scroll by exactly half the strip width for a seamless loop. */
+@keyframes story-peek-ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.story-peek-ticker {
+  animation: story-peek-ticker linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-peek-ticker {
+    animation: none;
+  }
+}
+
 @keyframes bounce-in {
   0% {
     opacity: 0;

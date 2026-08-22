@@ -481,6 +481,7 @@
       "sceneTransitionMs": 1500,
       "mobileSheet": "collapsed",
       "mobilePeekSceneText": true,
+      "mobilePeekTicker": true,
       "legendCollapsed": "auto"
     },
     "map": {

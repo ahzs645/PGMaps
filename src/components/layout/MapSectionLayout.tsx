@@ -50,6 +50,8 @@ interface MapSectionLayoutProps {
     subtitle?: string
   }
   showMobilePeek?: boolean
+  /** Hides the collapsed-sheet chevron toggle; the drag handle still resizes. */
+  showMobileSheetChevron?: boolean
   mobileSidebar?: ReactNode
   mobileSnapTo?: MobileSheetState
   mobileSnapVisibleHeight?: number
@@ -244,6 +246,7 @@ export function MapSectionLayout({
   mobilePeekSubtitle,
   selectedFeatureMobilePeek,
   showMobilePeek = false,
+  showMobileSheetChevron = true,
   mobileSidebar,
   mobileSnapTo,
   mobileSnapVisibleHeight,
@@ -892,25 +895,33 @@ export function MapSectionLayout({
               <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
             </div>
             {((showMobilePeek && mobileSheetState === 'collapsed') || (mobileFeatureCardOpen && mobileControlsInFront)) && (
-              <div className={cn('min-h-0 w-full px-4 pb-3 pr-14', renderedMobilePeek && 'border-b border-border')}>
+              <div
+                className={cn(
+                  'min-h-0 w-full px-4 pb-3',
+                  showMobileSheetChevron && 'pr-14',
+                  renderedMobilePeek && 'border-b border-border',
+                )}
+              >
                 {renderedMobilePeek ?? <div className="h-8" aria-hidden="true" />}
               </div>
             )}
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                snapTo(mobileSheetState === 'collapsed' ? 'half' : 'collapsed')
-              }}
-              className="absolute right-2 top-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-3"
-              aria-label={mobileSheetState === 'collapsed' ? 'Show panel' : 'Hide panel'}
-            >
-              {mobileSheetState === 'collapsed' ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </button>
+            {showMobileSheetChevron && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  snapTo(mobileSheetState === 'collapsed' ? 'half' : 'collapsed')
+                }}
+                className="absolute right-2 top-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-3"
+                aria-label={mobileSheetState === 'collapsed' ? 'Show panel' : 'Hide panel'}
+              >
+                {mobileSheetState === 'collapsed' ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+            )}
           </div>
 
           {/* Sidebar content */}

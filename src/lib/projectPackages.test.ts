@@ -149,6 +149,7 @@ describe('story project packages', () => {
         sceneTransitionMs: 1150,
         mobileSheet: 'half',
         mobilePeekSceneText: false,
+        mobilePeekTicker: false,
         legendCollapsed: 'auto',
       },
     })
@@ -161,6 +162,7 @@ describe('story project packages', () => {
       sceneTransitionMs: 99999,
       mobileSheet: 'collapsed',
       mobilePeekSceneText: true,
+      mobilePeekTicker: true,
       legendCollapsed: 'never',
     }
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
@@ -169,6 +171,7 @@ describe('story project packages', () => {
         sceneTransitionMs: 5000,
         mobileSheet: 'collapsed',
         mobilePeekSceneText: true,
+        mobilePeekTicker: true,
         legendCollapsed: 'never',
       },
     })

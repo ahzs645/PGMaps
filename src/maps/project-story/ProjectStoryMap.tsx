@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type MapLibreGL from 'maplibre-gl'
 import {
   ArrowDown,
@@ -117,6 +117,42 @@ function useStoryLayerData(layers: ProjectStoryLayerDef[]) {
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+}
+
+/**
+ * Single-line text that marquee-scrolls when it overflows its container,
+ * instead of truncating. The strip holds two copies of the text so the
+ * -50% keyframe loops seamlessly; the duration scales with text length.
+ */
+function TickerText({ text, className }: { text: string; className?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLSpanElement>(null)
+  const [overflowing, setOverflowing] = useState(false)
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    const span = textRef.current
+    if (!container || !span) return
+    setOverflowing(span.scrollWidth > container.clientWidth + 1)
+  }, [text])
+
+  return (
+    <div ref={containerRef} className={cn('overflow-hidden whitespace-nowrap', className)}>
+      <div
+        className={cn('inline-flex max-w-none', overflowing && 'story-peek-ticker')}
+        style={overflowing ? { animationDuration: `${Math.max(6, text.length * 0.35)}s` } : undefined}
+      >
+        <span ref={textRef} className={cn(overflowing && 'pr-10')}>
+          {text}
+        </span>
+        {overflowing && (
+          <span aria-hidden="true" className="pr-10">
+            {text}
+          </span>
+        )}
+      </div>
+    </div>
+  )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -429,6 +465,19 @@ export function ProjectStoryMap({
     [options, scenes],
   )
 
+  // Scrolls only the narrative container. scrollIntoView would also scroll
+  // every scrollable ancestor, which on mobile drags the page itself while the
+  // sheet is collapsed and wrecks the fixed map layout.
+  const scrollCardIntoCenter = useCallback((index: number, behavior: ScrollBehavior) => {
+    const root = scrollRef.current
+    const card = cardRefs.current[index]
+    if (!root || !card) return
+    const rootRect = root.getBoundingClientRect()
+    const cardRect = card.getBoundingClientRect()
+    const top = cardRect.top - rootRect.top + root.scrollTop - (root.clientHeight - cardRect.height) / 2
+    root.scrollTo({ top: Math.max(0, top), behavior })
+  }, [])
+
   // Scroll position drives the active scene: the card under the reading line
   // wins. A single trigger line keeps the mapping deterministic for cards of
   // any height — intersection-ratio thresholds can never fire for cards taller
@@ -478,7 +527,7 @@ export function ProjectStoryMap({
       // wherever the aborted scroll happened to stop.
       if (pickIndex() !== target) {
         programmaticScrollUntilRef.current = performance.now() + PROGRAMMATIC_SCROLL_MS
-        cardRefs.current[target]?.scrollIntoView({ behavior: 'auto', block: 'center' })
+        scrollCardIntoCenter(target, 'auto')
         return
       }
       pendingSceneRef.current = null
@@ -505,7 +554,7 @@ export function ProjectStoryMap({
       if (frame) cancelAnimationFrame(frame)
       window.clearTimeout(settleTimer)
     }
-  }, [applyScene])
+  }, [applyScene, scrollCardIntoCenter])
 
   const goToScene = useCallback(
     (index: number) => {
@@ -514,12 +563,9 @@ export function ProjectStoryMap({
       pendingSceneRef.current = clamped
       programmaticScrollUntilRef.current = performance.now() + PROGRAMMATIC_SCROLL_MS
       applyScene(clamped, { force: true })
-      cardRefs.current[clamped]?.scrollIntoView({
-        behavior: smooth ? 'smooth' : 'auto',
-        block: 'center',
-      })
+      scrollCardIntoCenter(clamped, smooth ? 'smooth' : 'auto')
     },
-    [applyScene, scenes.length],
+    [applyScene, scenes.length, scrollCardIntoCenter],
   )
 
   // Step from the ref, not render state: two quick clicks can both fire
@@ -556,15 +602,24 @@ export function ProjectStoryMap({
       desktopSidebarWidth={sidebarWidth}
       onDesktopSidebarWidthChange={setSidebarWidth}
       mobileInitialSheetState={options.mobileSheet}
+      showMobileSheetChevron={!options.mobilePeekTicker}
       mobileCollapsedVisibleHeight={options.mobilePeekSceneText ? 128 : 68}
       showMobilePeek
       mobilePeek={
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
             <div className="min-w-0 flex-1 text-left">
-              <div className="truncate text-xs font-semibold text-foreground">
-                {activeScene?.title ?? project.title}
-              </div>
+              {options.mobilePeekTicker ? (
+                <TickerText
+                  key={activeSceneIndex}
+                  text={activeScene?.title ?? project.title}
+                  className="text-xs font-semibold text-foreground"
+                />
+              ) : (
+                <div className="truncate text-xs font-semibold text-foreground">
+                  {activeScene?.title ?? project.title}
+                </div>
+              )}
               <div className="truncate text-xs text-muted-foreground">
                 {activeSceneIndex + 1}/{scenes.length} · {activeScene?.focus ?? project.region}
               </div>
