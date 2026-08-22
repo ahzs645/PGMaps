@@ -233,6 +233,22 @@ export interface ProjectStoryPlaceDef {
   color?: string
 }
 
+/** Per-story presentation options. Authored in the package JSON; every field
+ *  is optional there and normalized to these defaults. */
+export interface ProjectStoryOptionsDef {
+  /** Camera motion between scenes. Reduced-motion readers always jump. */
+  sceneTransition: 'ease' | 'fly' | 'jump'
+  /** Duration of ease/fly camera transitions, in milliseconds. */
+  sceneTransitionMs: number
+  /** Where the mobile bottom sheet opens when the story loads. */
+  mobileSheet: 'collapsed' | 'half' | 'full'
+  /** Show the active scene's narrative text in the collapsed mobile peek,
+   *  so the story reads while the map stays visible. */
+  mobilePeekSceneText: boolean
+  /** Layers panel start state. 'auto' collapses it on mobile only. */
+  legendCollapsed: 'auto' | 'always' | 'never'
+}
+
 export interface ProjectStoryWorkspaceDef {
   type: 'story-map'
   schema: 'story-map-v1'
@@ -246,6 +262,7 @@ export interface ProjectStoryWorkspaceDef {
   }
   /** Accent colour for scene chrome and default highlight outlines. */
   accent: string
+  options: ProjectStoryOptionsDef
   layers: ProjectStoryLayerDef[]
   places: ProjectStoryPlaceDef[]
 }
@@ -417,6 +434,21 @@ function isProjectDataUrl(value: unknown): value is string {
   return typeof value === 'string' && ((value.startsWith('/') && !value.startsWith('//')) || isHttpsUrl(value))
 }
 
+function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
+  const raw = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+  return {
+    sceneTransition:
+      raw.sceneTransition === 'fly' || raw.sceneTransition === 'jump' ? raw.sceneTransition : 'ease',
+    sceneTransitionMs: isFiniteNumber(raw.sceneTransitionMs)
+      ? Math.max(0, Math.min(5000, Math.round(raw.sceneTransitionMs)))
+      : 1150,
+    mobileSheet: raw.mobileSheet === 'collapsed' || raw.mobileSheet === 'full' ? raw.mobileSheet : 'half',
+    mobilePeekSceneText: raw.mobilePeekSceneText === true,
+    legendCollapsed:
+      raw.legendCollapsed === 'always' || raw.legendCollapsed === 'never' ? raw.legendCollapsed : 'auto',
+  }
+}
+
 function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWorkspaceDef | undefined {
   if (value.type !== 'story-map' || value.schema !== 'story-map-v1') return undefined
   const map = value.map as Record<string, unknown> | undefined
@@ -495,6 +527,7 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
       basemap: basemap === 'light' || basemap === 'dark' ? basemap : 'auto',
     },
     accent: typeof value.accent === 'string' ? value.accent : '#0e7490',
+    options: normalizeStoryOptions(value.options),
     layers,
     places,
   }

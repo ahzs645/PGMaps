@@ -40,7 +40,6 @@ import { withBase } from '@/lib/dataUrl'
 import { buildLegend, resolveLayer, sameLayerSet } from './storyScene'
 import { escapeHtml } from '@/lib/escapeHtml'
 
-const CAMERA_EASE_MS = 1150
 /** Crossfade duration when scene changes swap map layers. */
 const LAYER_FADE_MS = 300
 /** Initial mute window after the stepper starts a programmatic scroll. */
@@ -329,6 +328,7 @@ export function ProjectStoryMap({
 }) {
   const scenes = project.scenes
   const accent = config.accent
+  const options = config.options
   const isMobile = useIsMobile()
   const joinedLayerData = useStoryLayerData(config.layers)
 
@@ -421,10 +421,12 @@ export function ProjectStoryMap({
         bearing: scene.camera.bearing ?? 0,
         pitch: scene.camera.pitch ?? 0,
       }
-      if (prefersReducedMotion()) map.jumpTo(camera)
-      else map.easeTo({ ...camera, duration: CAMERA_EASE_MS })
+      const { sceneTransition, sceneTransitionMs } = options
+      if (prefersReducedMotion() || sceneTransition === 'jump') map.jumpTo(camera)
+      else if (sceneTransition === 'fly') map.flyTo({ ...camera, duration: sceneTransitionMs })
+      else map.easeTo({ ...camera, duration: sceneTransitionMs })
     },
-    [scenes],
+    [options, scenes],
   )
 
   // Scroll position drives the active scene: the card under the reading line
@@ -553,46 +555,51 @@ export function ProjectStoryMap({
       }
       desktopSidebarWidth={sidebarWidth}
       onDesktopSidebarWidthChange={setSidebarWidth}
-      mobileInitialSheetState="half"
-      mobileCollapsedVisibleHeight={68}
+      mobileInitialSheetState={options.mobileSheet}
+      mobileCollapsedVisibleHeight={options.mobilePeekSceneText ? 128 : 68}
       showMobilePeek
       mobilePeek={
-        <div className="flex min-w-0 items-center gap-1.5">
-          <div className="min-w-0 flex-1 text-left">
-            <div className="truncate text-xs font-semibold text-foreground">
-              {activeScene?.title ?? project.title}
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <div className="min-w-0 flex-1 text-left">
+              <div className="truncate text-xs font-semibold text-foreground">
+                {activeScene?.title ?? project.title}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">
+                {activeSceneIndex + 1}/{scenes.length} · {activeScene?.focus ?? project.region}
+              </div>
             </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {activeSceneIndex + 1}/{scenes.length} · {activeScene?.focus ?? project.region}
-            </div>
+            {/* stopPropagation keeps taps from starting a sheet drag or toggle. */}
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                stepScene(-1)
+              }}
+              disabled={activeSceneIndex === 0}
+              aria-label="Previous scene"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                stepScene(1)
+              }}
+              disabled={activeSceneIndex >= scenes.length - 1}
+              aria-label="Next scene"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
-          {/* stopPropagation keeps taps from starting a sheet drag or toggle. */}
-          <button
-            type="button"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation()
-              stepScene(-1)
-            }}
-            disabled={activeSceneIndex === 0}
-            aria-label="Previous scene"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation()
-              stepScene(1)
-            }}
-            disabled={activeSceneIndex >= scenes.length - 1}
-            aria-label="Next scene"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
+          {options.mobilePeekSceneText && activeScene?.text && (
+            <p className="mt-1.5 line-clamp-3 text-xs leading-5 text-muted-foreground">{activeScene.text}</p>
+          )}
         </div>
       }
     >
@@ -741,8 +748,9 @@ export function ProjectStoryMap({
         description={activeScene?.label}
         icon={<Layers className="h-3.5 w-3.5" />}
         collapsible
-        // Expanded, the panel would cover most of a phone-sized map.
-        defaultCollapsed={isMobile}
+        // 'auto' collapses on mobile, where the expanded panel would cover
+        // most of a phone-sized map.
+        defaultCollapsed={options.legendCollapsed === 'auto' ? isMobile : options.legendCollapsed === 'always'}
         width="md"
         contentClassName="space-y-3"
         actions={

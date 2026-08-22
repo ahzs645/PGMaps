@@ -80,6 +80,42 @@ appears while the stack differs from the scene's own.
 outline. `workspace.map.basemap` is `"auto"` (follow the app's light/dark
 theme), `"light"`, or `"dark"`.
 
+## Story options
+
+`workspace.options` tunes how the renderer presents the story. Every field is
+optional; omitted fields keep the defaults shown here:
+
+```json
+{
+  "options": {
+    "sceneTransition": "ease",
+    "sceneTransitionMs": 1150,
+    "mobileSheet": "half",
+    "mobilePeekSceneText": false,
+    "legendCollapsed": "auto"
+  }
+}
+```
+
+- `sceneTransition` — camera motion between scenes: `"ease"` (straight
+  interpolation), `"fly"` (zoom-out-and-in flight), or `"jump"` (instant cut).
+  Readers with reduced motion enabled always get an instant jump.
+- `sceneTransitionMs` — duration of `ease`/`fly` transitions in milliseconds,
+  clamped to 0-5000.
+- `mobileSheet` — where the mobile bottom sheet opens when the story loads:
+  `"collapsed"` (map-first, narrative in the peek bar), `"half"`, or `"full"`.
+  Desktop is unaffected.
+- `mobilePeekSceneText` — when `true`, the collapsed mobile peek grows to show
+  the active scene's narrative text (up to three lines), so the story can be
+  read scene by scene with the map fully visible. Pairs well with
+  `"mobileSheet": "collapsed"`.
+- `legendCollapsed` — the Map layers panel start state: `"auto"` (collapsed on
+  mobile only), `"always"`, or `"never"`.
+
+`public/data/projects/where-is-north-bc.json` sets `sceneTransition: "fly"`,
+`mobileSheet: "collapsed"`, and `mobilePeekSceneText: true` as a working
+example of the map-first mobile presentation.
+
 ## GeoJSON layers
 
 Every `workspace.layers` entry references polygon GeoJSON and shares its `id`

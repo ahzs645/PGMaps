@@ -141,6 +141,58 @@ describe('story project packages', () => {
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({ map: { basemap: 'dark' } })
   })
 
+  it('defaults the story options when a package omits them', () => {
+    const workspace = normalizeProjectPackage(storyPackage())?.workspace
+    expect(workspace).toMatchObject({
+      options: {
+        sceneTransition: 'ease',
+        sceneTransitionMs: 1150,
+        mobileSheet: 'half',
+        mobilePeekSceneText: false,
+        legendCollapsed: 'auto',
+      },
+    })
+  })
+
+  it('keeps valid story options and clamps the transition duration', () => {
+    const raw = storyPackage()
+    raw.workspace.options = {
+      sceneTransition: 'fly',
+      sceneTransitionMs: 99999,
+      mobileSheet: 'collapsed',
+      mobilePeekSceneText: true,
+      legendCollapsed: 'never',
+    }
+    expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
+      options: {
+        sceneTransition: 'fly',
+        sceneTransitionMs: 5000,
+        mobileSheet: 'collapsed',
+        mobilePeekSceneText: true,
+        legendCollapsed: 'never',
+      },
+    })
+  })
+
+  it('falls back to option defaults on unknown values', () => {
+    const raw = storyPackage()
+    raw.workspace.options = {
+      sceneTransition: 'teleport',
+      mobileSheet: 'giant',
+      mobilePeekSceneText: 'yes',
+      legendCollapsed: 'sometimes',
+    }
+    expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
+      options: {
+        sceneTransition: 'ease',
+        sceneTransitionMs: 1150,
+        mobileSheet: 'half',
+        mobilePeekSceneText: false,
+        legendCollapsed: 'auto',
+      },
+    })
+  })
+
   it('normalizes scene highlights and clamps their dim opacity', () => {
     const raw = storyPackage()
     raw.scenes[0].highlights = [
