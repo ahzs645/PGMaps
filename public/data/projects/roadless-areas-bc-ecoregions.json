@@ -226,6 +226,7 @@
     "accent": "#238443",
     "options": {
       "layout": "slides",
+      "slidesSwipeHint": true,
       "sceneTransition": "fly",
       "sceneTransitionMs": 2000
     },

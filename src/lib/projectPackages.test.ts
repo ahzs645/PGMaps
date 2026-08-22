@@ -188,6 +188,7 @@ describe('story project packages', () => {
       mobileSheet: 'giant',
       mobilePeekSceneText: 'yes',
       legendCollapsed: 'sometimes',
+      slidesSwipeHint: 'always',
     }
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
       options: {
@@ -197,6 +198,7 @@ describe('story project packages', () => {
         mobileSheet: 'half',
         mobilePeekSceneText: false,
         legendCollapsed: 'auto',
+        slidesSwipeHint: false,
       },
     })
   })

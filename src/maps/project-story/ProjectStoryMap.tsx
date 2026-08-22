@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Hand,
   Info,
   Layers,
   MapPin,
@@ -477,12 +478,15 @@ function ScrollyStory({
       <button
         type="button"
         onClick={onBack}
-        className="absolute left-3 top-3 z-20 hidden h-8 items-center gap-2 rounded-md border bg-background/90 px-2.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted md:inline-flex"
+        className="absolute right-3 top-3 z-20 hidden h-8 items-center gap-2 rounded-md border bg-background/90 px-2.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted md:inline-flex"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         All projects
       </button>
-      <div className="pointer-events-none absolute inset-0 z-20">{chrome}</div>
+      {/* On phones the centered card lane spans the full width, so any fixed
+          chrome would sit on top of it — the Mapbox template ships none there
+          either. Wide screens keep the legend clear of the left card lane. */}
+      <div className="pointer-events-none absolute inset-0 z-20 hidden md:block">{chrome}</div>
     </div>
   )
 }
@@ -497,6 +501,7 @@ function SlidesStory({
   scenes,
   activeSceneIndex,
   accent,
+  swipeHint,
   onBack,
   onStepScene,
   onSelectScene,
@@ -507,6 +512,7 @@ function SlidesStory({
   scenes: ProjectSceneDef[]
   activeSceneIndex: number
   accent: string
+  swipeHint: boolean
   onBack: () => void
   onStepScene: (direction: number) => void
   onSelectScene: (index: number) => void
@@ -514,7 +520,25 @@ function SlidesStory({
   children: React.ReactNode
 }) {
   const scene = scenes[activeSceneIndex]
+  const isMobile = useIsMobile()
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const [swipeHintDismissed, setSwipeHintDismissed] = useState(false)
+  const showSwipeHint = swipeHint && isMobile && !swipeHintDismissed
+
+  const handleSwipe = useCallback(
+    (start: { x: number; y: number } | null, touch: { clientX: number; clientY: number }) => {
+      if (!start) return false
+      const dx = touch.clientX - start.x
+      const dy = touch.clientY - start.y
+      // A mostly-horizontal swipe advances the slide; vertical stays a scroll.
+      if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        onStepScene(dx < 0 ? 1 : -1)
+        return true
+      }
+      return false
+    },
+    [onStepScene],
+  )
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -528,7 +552,7 @@ function SlidesStory({
   }, [onStepScene])
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col">
       <div className="relative min-h-0 flex-1">
         {children}
         <button
@@ -556,12 +580,7 @@ function SlidesStory({
         onTouchEnd={(event) => {
           const start = touchStartRef.current
           touchStartRef.current = null
-          if (!start) return
-          const touch = event.changedTouches[0]
-          const dx = touch.clientX - start.x
-          const dy = touch.clientY - start.y
-          // A mostly-horizontal swipe advances the slide; vertical stays a scroll.
-          if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) onStepScene(dx < 0 ? 1 : -1)
+          handleSwipe(start, event.changedTouches[0])
         }}
       >
         <button
@@ -634,6 +653,41 @@ function SlidesStory({
           </span>
         </div>
       </div>
+
+      {showSwipeHint && (
+        <div
+          role="dialog"
+          aria-label="Swipe to navigate"
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/70 px-8 text-center"
+          onClick={() => setSwipeHintDismissed(true)}
+          onTouchStart={(event) => {
+            const touch = event.touches[0]
+            touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+          }}
+          onTouchEnd={(event) => {
+            const start = touchStartRef.current
+            touchStartRef.current = null
+            // A swipe on the overlay both advances and dismisses; a plain tap
+            // falls through to the click handler and just dismisses.
+            handleSwipe(start, event.changedTouches[0])
+            setSwipeHintDismissed(true)
+          }}
+        >
+          <div className="flex items-center gap-4 text-white">
+            <ChevronLeft className="h-8 w-8 opacity-80" />
+            <Hand className="h-14 w-14" />
+            <ChevronRight className="h-8 w-8 opacity-80" />
+          </div>
+          <div className="text-xl font-semibold text-white">Swipe to navigate</div>
+          <button
+            type="button"
+            onClick={() => setSwipeHintDismissed(true)}
+            className="mt-1 rounded-md bg-white px-10 py-2 text-sm font-bold text-slate-900 shadow-lg transition-colors hover:bg-slate-100"
+          >
+            OK
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -883,6 +937,9 @@ export function ProjectStoryMap({
         minZoom={config.map.minZoom}
         maxZoom={config.map.maxZoom}
         styles={mapStyles}
+        // The scrolly overlay owns the pointer, so zoom/compass controls
+        // would be unreachable dead chrome there.
+        controls={options.layout === 'scrolly' ? null : undefined}
       >
 
         {resolvedLayers.map((resolved) => {
@@ -1024,8 +1081,10 @@ export function ProjectStoryMap({
         description={activeScene?.label}
         icon={<Layers className="h-3.5 w-3.5" />}
         // The scrolly/slides layouts hang the chrome in a pointer-events-none
-        // overlay, so the panel re-enables its own pointer events.
-        className="pointer-events-auto"
+        // overlay, so the panel re-enables its own pointer events. In slides
+        // mode the phone-sized map pane keeps its zoom controls bottom-right,
+        // so the legend moves to the opposite corner there.
+        className={cn('pointer-events-auto', options.layout === 'slides' && 'max-md:left-3 max-md:right-auto')}
         collapsible
         // 'auto' collapses on mobile, where the expanded panel would cover
         // most of a phone-sized map.
@@ -1088,6 +1147,7 @@ export function ProjectStoryMap({
         scenes={scenes}
         activeSceneIndex={activeSceneIndex}
         accent={accent}
+        swipeHint={options.slidesSwipeHint}
         onBack={onBack}
         onStepScene={stepScene}
         onSelectScene={goToScene}

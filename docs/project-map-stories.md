@@ -94,7 +94,8 @@ optional; omitted fields keep the defaults shown here:
     "mobileSheet": "half",
     "mobilePeekSceneText": false,
     "mobilePeekTicker": false,
-    "legendCollapsed": "auto"
+    "legendCollapsed": "auto",
+    "slidesSwipeHint": false
   }
 }
 ```
@@ -130,6 +131,9 @@ optional; omitted fields keep the defaults shown here:
   Reduced-motion readers keep the static truncated title.
 - `legendCollapsed` — the Map layers panel start state: `"auto"` (collapsed on
   mobile only), `"always"`, or `"never"`.
+- `slidesSwipeHint` — slides layout only: on touch screens, show a
+  KnightLab-style "Swipe to navigate" intro overlay until the reader taps OK
+  or swipes.
 
 `public/data/projects/roadless-areas-bc-ecoregions.json` uses
 `layout: "slides"` and `public/data/projects/bc-population-distribution.json`

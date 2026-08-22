@@ -259,6 +259,9 @@ export interface ProjectStoryOptionsDef {
   mobilePeekTicker: boolean
   /** Layers panel start state. 'auto' collapses it on mobile only. */
   legendCollapsed: 'auto' | 'always' | 'never'
+  /** Slides layout only: show a KnightLab-style "swipe to navigate" intro
+   *  overlay on touch screens until the reader dismisses it or swipes. */
+  slidesSwipeHint: boolean
 }
 
 export interface ProjectStoryWorkspaceDef {
@@ -460,6 +463,7 @@ function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
     mobilePeekTicker: raw.mobilePeekTicker === true,
     legendCollapsed:
       raw.legendCollapsed === 'always' || raw.legendCollapsed === 'never' ? raw.legendCollapsed : 'auto',
+    slidesSwipeHint: raw.slidesSwipeHint === true,
   }
 }
 
