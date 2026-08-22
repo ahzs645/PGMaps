@@ -259,9 +259,14 @@ export interface ProjectStoryOptionsDef {
   mobilePeekTicker: boolean
   /** Layers panel start state. 'auto' collapses it on mobile only. */
   legendCollapsed: 'auto' | 'always' | 'never'
-  /** Slides layout only: show a KnightLab-style "swipe to navigate" intro
-   *  overlay on touch screens until the reader dismisses it or swipes. */
-  slidesSwipeHint: boolean
+  /** Map zoom/compass controls. 'hidden' removes them entirely; scrolly
+   *  layouts drop them regardless, since the scroll overlay owns the pointer. */
+  mapControls: 'auto' | 'hidden'
+  /** Slides layout only: KnightLab-style "swipe to navigate" intro overlay on
+   *  touch screens, dismissed by tapping OK or swiping. 'fullscreen' dims the
+   *  whole story, 'pane' dims only the slide pane (as KnightLab does). The
+   *  JSON also accepts true as an alias for 'fullscreen'. */
+  slidesSwipeHint: 'off' | 'fullscreen' | 'pane'
 }
 
 export interface ProjectStoryWorkspaceDef {
@@ -463,7 +468,13 @@ function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
     mobilePeekTicker: raw.mobilePeekTicker === true,
     legendCollapsed:
       raw.legendCollapsed === 'always' || raw.legendCollapsed === 'never' ? raw.legendCollapsed : 'auto',
-    slidesSwipeHint: raw.slidesSwipeHint === true,
+    mapControls: raw.mapControls === 'hidden' ? 'hidden' : 'auto',
+    slidesSwipeHint:
+      raw.slidesSwipeHint === true || raw.slidesSwipeHint === 'fullscreen'
+        ? 'fullscreen'
+        : raw.slidesSwipeHint === 'pane'
+          ? 'pane'
+          : 'off',
   }
 }
 

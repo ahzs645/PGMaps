@@ -512,7 +512,7 @@ function SlidesStory({
   scenes: ProjectSceneDef[]
   activeSceneIndex: number
   accent: string
-  swipeHint: boolean
+  swipeHint: 'off' | 'fullscreen' | 'pane'
   onBack: () => void
   onStepScene: (direction: number) => void
   onSelectScene: (index: number) => void
@@ -523,7 +523,7 @@ function SlidesStory({
   const isMobile = useIsMobile()
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const [swipeHintDismissed, setSwipeHintDismissed] = useState(false)
-  const showSwipeHint = swipeHint && isMobile && !swipeHintDismissed
+  const showSwipeHint = swipeHint !== 'off' && isMobile && !swipeHintDismissed
 
   const handleSwipe = useCallback(
     (start: { x: number; y: number } | null, touch: { clientX: number; clientY: number }) => {
@@ -550,6 +550,50 @@ function SlidesStory({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onStepScene])
+
+  const compactHint = swipeHint === 'pane'
+  const swipeHintOverlay = showSwipeHint ? (
+    <div
+      role="dialog"
+      aria-label="Swipe to navigate"
+      className={cn(
+        'absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70 px-8 text-center',
+        compactHint ? 'gap-3' : 'gap-4',
+      )}
+      onClick={() => setSwipeHintDismissed(true)}
+      onTouchStart={(event) => {
+        const touch = event.touches[0]
+        touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+      }}
+      onTouchEnd={(event) => {
+        const start = touchStartRef.current
+        touchStartRef.current = null
+        // A swipe on the overlay both advances and dismisses; a plain tap
+        // falls through to the click handler and just dismisses.
+        handleSwipe(start, event.changedTouches[0])
+        setSwipeHintDismissed(true)
+      }}
+    >
+      <div className="flex items-center gap-4 text-white">
+        <ChevronLeft className={cn('opacity-80', compactHint ? 'h-6 w-6' : 'h-8 w-8')} />
+        <Hand className={compactHint ? 'h-10 w-10' : 'h-14 w-14'} />
+        <ChevronRight className={cn('opacity-80', compactHint ? 'h-6 w-6' : 'h-8 w-8')} />
+      </div>
+      <div className={cn('font-semibold text-white', compactHint ? 'text-base' : 'text-xl')}>
+        Swipe to navigate
+      </div>
+      <button
+        type="button"
+        onClick={() => setSwipeHintDismissed(true)}
+        className={cn(
+          'mt-1 rounded-md bg-white font-bold text-slate-900 shadow-lg transition-colors hover:bg-slate-100',
+          compactHint ? 'px-8 py-1.5 text-xs' : 'px-10 py-2 text-sm',
+        )}
+      >
+        OK
+      </button>
+    </div>
+  ) : null
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -652,42 +696,11 @@ function SlidesStory({
             {activeSceneIndex + 1}/{scenes.length}
           </span>
         </div>
+
+        {swipeHint === 'pane' && swipeHintOverlay}
       </div>
 
-      {showSwipeHint && (
-        <div
-          role="dialog"
-          aria-label="Swipe to navigate"
-          className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/70 px-8 text-center"
-          onClick={() => setSwipeHintDismissed(true)}
-          onTouchStart={(event) => {
-            const touch = event.touches[0]
-            touchStartRef.current = { x: touch.clientX, y: touch.clientY }
-          }}
-          onTouchEnd={(event) => {
-            const start = touchStartRef.current
-            touchStartRef.current = null
-            // A swipe on the overlay both advances and dismisses; a plain tap
-            // falls through to the click handler and just dismisses.
-            handleSwipe(start, event.changedTouches[0])
-            setSwipeHintDismissed(true)
-          }}
-        >
-          <div className="flex items-center gap-4 text-white">
-            <ChevronLeft className="h-8 w-8 opacity-80" />
-            <Hand className="h-14 w-14" />
-            <ChevronRight className="h-8 w-8 opacity-80" />
-          </div>
-          <div className="text-xl font-semibold text-white">Swipe to navigate</div>
-          <button
-            type="button"
-            onClick={() => setSwipeHintDismissed(true)}
-            className="mt-1 rounded-md bg-white px-10 py-2 text-sm font-bold text-slate-900 shadow-lg transition-colors hover:bg-slate-100"
-          >
-            OK
-          </button>
-        </div>
-      )}
+      {swipeHint === 'fullscreen' && swipeHintOverlay}
     </div>
   )
 }
@@ -937,9 +950,10 @@ export function ProjectStoryMap({
         minZoom={config.map.minZoom}
         maxZoom={config.map.maxZoom}
         styles={mapStyles}
-        // The scrolly overlay owns the pointer, so zoom/compass controls
-        // would be unreachable dead chrome there.
-        controls={options.layout === 'scrolly' ? null : undefined}
+        // 'hidden' removes the zoom/compass controls; scrolly drops them
+        // regardless, since its scroll overlay owns the pointer and would
+        // leave them as unreachable dead chrome.
+        controls={options.mapControls === 'hidden' || options.layout === 'scrolly' ? null : undefined}
       >
 
         {resolvedLayers.map((resolved) => {

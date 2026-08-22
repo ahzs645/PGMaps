@@ -152,6 +152,8 @@ describe('story project packages', () => {
         mobilePeekSceneText: false,
         mobilePeekTicker: false,
         legendCollapsed: 'auto',
+        mapControls: 'auto',
+        slidesSwipeHint: 'off',
       },
     })
   })
@@ -166,6 +168,8 @@ describe('story project packages', () => {
       mobilePeekSceneText: true,
       mobilePeekTicker: true,
       legendCollapsed: 'never',
+      mapControls: 'hidden',
+      slidesSwipeHint: 'pane',
     }
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
       options: {
@@ -176,7 +180,16 @@ describe('story project packages', () => {
         mobilePeekSceneText: true,
         mobilePeekTicker: true,
         legendCollapsed: 'never',
+        mapControls: 'hidden',
+        slidesSwipeHint: 'pane',
       },
+    })
+
+    // Boolean true predates the scoped variants and keeps meaning fullscreen.
+    const legacy = storyPackage()
+    legacy.workspace.options = { slidesSwipeHint: true }
+    expect(normalizeProjectPackage(legacy)?.workspace).toMatchObject({
+      options: { slidesSwipeHint: 'fullscreen' },
     })
   })
 
@@ -188,6 +201,7 @@ describe('story project packages', () => {
       mobileSheet: 'giant',
       mobilePeekSceneText: 'yes',
       legendCollapsed: 'sometimes',
+      mapControls: 'invisible',
       slidesSwipeHint: 'always',
     }
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
@@ -198,7 +212,8 @@ describe('story project packages', () => {
         mobileSheet: 'half',
         mobilePeekSceneText: false,
         legendCollapsed: 'auto',
-        slidesSwipeHint: false,
+        mapControls: 'auto',
+        slidesSwipeHint: 'off',
       },
     })
   })

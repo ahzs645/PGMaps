@@ -95,7 +95,8 @@ optional; omitted fields keep the defaults shown here:
     "mobilePeekSceneText": false,
     "mobilePeekTicker": false,
     "legendCollapsed": "auto",
-    "slidesSwipeHint": false
+    "mapControls": "auto",
+    "slidesSwipeHint": "off"
   }
 }
 ```
@@ -131,9 +132,13 @@ optional; omitted fields keep the defaults shown here:
   Reduced-motion readers keep the static truncated title.
 - `legendCollapsed` — the Map layers panel start state: `"auto"` (collapsed on
   mobile only), `"always"`, or `"never"`.
+- `mapControls` — `"hidden"` removes the zoom/compass map controls. Scrolly
+  layouts drop them regardless, since the scroll overlay owns the pointer.
 - `slidesSwipeHint` — slides layout only: on touch screens, show a
   KnightLab-style "Swipe to navigate" intro overlay until the reader taps OK
-  or swipes.
+  or swipes. `"fullscreen"` dims the whole story; `"pane"` dims only the slide
+  pane, as KnightLab itself does. `true` is accepted as an alias for
+  `"fullscreen"`; the default is `"off"`.
 
 `public/data/projects/roadless-areas-bc-ecoregions.json` uses
 `layout: "slides"` and `public/data/projects/bc-population-distribution.json`
