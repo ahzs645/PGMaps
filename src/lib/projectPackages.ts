@@ -236,6 +236,14 @@ export interface ProjectStoryPlaceDef {
 /** Per-story presentation options. Authored in the package JSON; every field
  *  is optional there and normalized to these defaults. */
 export interface ProjectStoryOptionsDef {
+  /**
+   * Overall presentation. 'panel' is the native PGMaps shell (desktop sidebar,
+   * mobile bottom sheet). 'scrolly' replicates the Mapbox/MapLibre storytelling
+   * template: fullscreen map with chapter cards scrolling over it. 'slides'
+   * replicates KnightLab StoryMapJS: map on top, slide pane below, arrow/swipe
+   * navigation.
+   */
+  layout: 'panel' | 'scrolly' | 'slides'
   /** Camera motion between scenes. Reduced-motion readers always jump. */
   sceneTransition: 'ease' | 'fly' | 'jump'
   /** Duration of ease/fly camera transitions, in milliseconds. */
@@ -441,6 +449,7 @@ function isProjectDataUrl(value: unknown): value is string {
 function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
   const raw = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
   return {
+    layout: raw.layout === 'scrolly' || raw.layout === 'slides' ? raw.layout : 'panel',
     sceneTransition:
       raw.sceneTransition === 'fly' || raw.sceneTransition === 'jump' ? raw.sceneTransition : 'ease',
     sceneTransitionMs: isFiniteNumber(raw.sceneTransitionMs)

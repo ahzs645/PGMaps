@@ -88,6 +88,7 @@ optional; omitted fields keep the defaults shown here:
 ```json
 {
   "options": {
+    "layout": "panel",
     "sceneTransition": "ease",
     "sceneTransitionMs": 1150,
     "mobileSheet": "half",
@@ -98,6 +99,19 @@ optional; omitted fields keep the defaults shown here:
 }
 ```
 
+- `layout` — the overall presentation:
+  - `"panel"` (default) — the native PGMaps shell: scrollytelling sidebar on
+    desktop, drag-to-expand bottom sheet on mobile.
+  - `"scrolly"` — replicates the Mapbox/MapLibre storytelling template
+    ([mapbox/storytelling](https://github.com/mapbox/storytelling),
+    [opengeos/maplibre-gl-storymaps](https://github.com/opengeos/maplibre-gl-storymaps)):
+    fullscreen map with chapter cards scrolling over it, left-aligned on wide
+    screens and centered on phones, scroll position driving the camera. The
+    scroll layer owns the pointer, so the map is a backdrop during the story.
+  - `"slides"` — replicates [KnightLab StoryMapJS](https://storymap.knightlab.com/):
+    map on top, a slide pane below with arrow gutters, dot navigation, keyboard
+    arrows, and horizontal swipe on touch. The map stays interactive.
+  The mobile-sheet options below apply only to `"panel"`.
 - `sceneTransition` — camera motion between scenes: `"ease"` (straight
   interpolation), `"fly"` (zoom-out-and-in flight), or `"jump"` (instant cut).
   Readers with reduced motion enabled always get an instant jump.
@@ -117,6 +131,9 @@ optional; omitted fields keep the defaults shown here:
 - `legendCollapsed` — the Map layers panel start state: `"auto"` (collapsed on
   mobile only), `"always"`, or `"never"`.
 
+`public/data/projects/roadless-areas-bc-ecoregions.json` uses
+`layout: "slides"` and `public/data/projects/bc-population-distribution.json`
+uses `layout: "scrolly"` as working examples of the replicated layouts.
 `public/data/projects/where-is-north-bc.json` sets `sceneTransition: "fly"`,
 `mobileSheet: "collapsed"`, `mobilePeekSceneText: true`, and
 `mobilePeekTicker: true` as a working example of the map-first mobile

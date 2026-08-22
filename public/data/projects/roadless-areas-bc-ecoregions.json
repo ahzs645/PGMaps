@@ -224,6 +224,11 @@
       "basemap": "light"
     },
     "accent": "#238443",
+    "options": {
+      "layout": "slides",
+      "sceneTransition": "fly",
+      "sceneTransitionMs": 2000
+    },
     "layers": [
       {
         "id": "roadless-ecoregions",

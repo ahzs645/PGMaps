@@ -5352,7 +5352,7 @@
     },
     {
       "file": "roadless-areas-bc-ecoregions.json",
-      "revision": "8d33903c6ccd",
+      "revision": "7b1a4d0833dc",
       "catalog": {
         "slug": "roadless-areas-bc-ecoregions",
         "title": "Roadless Areas within B.C.'s Ecoregions",
@@ -5823,7 +5823,7 @@
     },
     {
       "file": "bc-population-distribution.json",
-      "revision": "7927d499e50c",
+      "revision": "a8c6c1de121a",
       "catalog": {
         "slug": "bc-population-distribution",
         "title": "B.C. Population Size & Distribution",

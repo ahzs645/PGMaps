@@ -145,6 +145,7 @@ describe('story project packages', () => {
     const workspace = normalizeProjectPackage(storyPackage())?.workspace
     expect(workspace).toMatchObject({
       options: {
+        layout: 'panel',
         sceneTransition: 'ease',
         sceneTransitionMs: 1150,
         mobileSheet: 'half',
@@ -158,6 +159,7 @@ describe('story project packages', () => {
   it('keeps valid story options and clamps the transition duration', () => {
     const raw = storyPackage()
     raw.workspace.options = {
+      layout: 'slides',
       sceneTransition: 'fly',
       sceneTransitionMs: 99999,
       mobileSheet: 'collapsed',
@@ -167,6 +169,7 @@ describe('story project packages', () => {
     }
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
       options: {
+        layout: 'slides',
         sceneTransition: 'fly',
         sceneTransitionMs: 5000,
         mobileSheet: 'collapsed',
@@ -180,6 +183,7 @@ describe('story project packages', () => {
   it('falls back to option defaults on unknown values', () => {
     const raw = storyPackage()
     raw.workspace.options = {
+      layout: 'carousel',
       sceneTransition: 'teleport',
       mobileSheet: 'giant',
       mobilePeekSceneText: 'yes',
@@ -187,6 +191,7 @@ describe('story project packages', () => {
     }
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
       options: {
+        layout: 'panel',
         sceneTransition: 'ease',
         sceneTransitionMs: 1150,
         mobileSheet: 'half',

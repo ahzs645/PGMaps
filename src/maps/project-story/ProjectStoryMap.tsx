@@ -350,6 +350,295 @@ function StoryNarrative({
 }
 
 /* -------------------------------------------------------------------------- */
+/* Alternate story layouts                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mapbox/MapLibre storytelling-template layout: the map is a fullscreen
+ * backdrop and chapter cards scroll over it, with scroll position driving the
+ * active scene. Cards align left on wide screens and collapse to center on
+ * phones, as the template does below its mobile breakpoint. The scroll layer
+ * owns the pointer, so the map is not directly interactive mid-story.
+ */
+function ScrollyStory({
+  project,
+  scenes,
+  activeSceneIndex,
+  accent,
+  onBack,
+  onSelectScene,
+  scrollRef,
+  cardRefs,
+  chrome,
+  children,
+}: {
+  project: ProjectPackage
+  scenes: ProjectSceneDef[]
+  activeSceneIndex: number
+  accent: string
+  onBack: () => void
+  onSelectScene: (index: number) => void
+  scrollRef: React.RefObject<HTMLDivElement>
+  cardRefs: React.MutableRefObject<Array<HTMLElement | null>>
+  chrome: React.ReactNode
+  children: React.ReactNode
+}) {
+  const progress = scenes.length > 0 ? ((activeSceneIndex + 1) / scenes.length) * 100 : 0
+
+  return (
+    <div className="relative h-full min-h-0 overflow-hidden">
+      <div className="absolute inset-0">{children}</div>
+
+      <div ref={scrollRef} className="absolute inset-0 z-10 overflow-y-auto overscroll-contain">
+        <header className="flex min-h-[55svh] items-end justify-center px-4 pb-[10svh] pt-24 md:justify-start md:pl-12">
+          <div className="w-full max-w-md rounded-lg border bg-background/90 p-5 shadow-lg backdrop-blur">
+            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
+              Map story
+            </div>
+            <h1 className="mt-1 text-xl font-bold leading-tight text-foreground">{project.title}</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{project.summary}</p>
+            <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              Scroll to move through the story
+              <ArrowDown className="h-3.5 w-3.5" />
+            </div>
+          </div>
+        </header>
+
+        {scenes.map((scene, index) => {
+          const active = index === activeSceneIndex
+          return (
+            <section
+              key={`${scene.label}-${index}`}
+              className="flex min-h-[85svh] items-center justify-center px-4 md:justify-start md:pl-12"
+            >
+              <article
+                ref={(node) => {
+                  cardRefs.current[index] = node
+                }}
+                data-scene-index={index}
+                className={cn(
+                  'w-full max-w-md transition-opacity duration-300',
+                  active ? 'opacity-100' : 'opacity-45',
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelectScene(index)}
+                  aria-current={active ? 'step' : undefined}
+                  className="w-full rounded-lg border bg-background/90 p-4 text-left shadow-lg backdrop-blur"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="truncate text-xs font-semibold uppercase tracking-wide"
+                      style={{ color: active ? accent : undefined }}
+                    >
+                      <span className={cn(!active && 'text-muted-foreground')}>{scene.kicker ?? scene.label}</span>
+                    </span>
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <h2 className="mt-2 text-sm font-bold leading-snug text-foreground">{scene.title}</h2>
+                  <p className="mt-2 text-xs leading-6 text-muted-foreground">{scene.text}</p>
+                  {scene.callout && (
+                    <div className="mt-3 rounded-md border bg-muted/30 p-2.5">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {scene.callout.label}
+                      </div>
+                      <div className="mt-0.5 text-sm font-bold text-foreground">{scene.callout.value}</div>
+                      {scene.callout.detail && (
+                        <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{scene.callout.detail}</div>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-center gap-1.5 border-t pt-2.5 text-xs font-medium text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
+                    <span className="truncate">{scene.focus}</span>
+                  </div>
+                </button>
+              </article>
+            </section>
+          )
+        })}
+
+        <footer className="flex min-h-[45svh] items-start justify-center px-4 pb-[30svh] pt-10 md:justify-start md:pl-12">
+          <div className="w-full max-w-md rounded-lg border bg-background/90 p-4 text-xs leading-5 text-muted-foreground shadow-lg backdrop-blur">
+            {project.sourceNote}
+          </div>
+        </footer>
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-muted/40">
+        <div
+          className="h-full transition-[width] duration-300"
+          style={{ width: `${progress}%`, backgroundColor: accent }}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="absolute left-3 top-3 z-20 hidden h-8 items-center gap-2 rounded-md border bg-background/90 px-2.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted md:inline-flex"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        All projects
+      </button>
+      <div className="pointer-events-none absolute inset-0 z-20">{chrome}</div>
+    </div>
+  )
+}
+
+/**
+ * KnightLab StoryMapJS layout: map on top, a slide pane below with arrow
+ * gutters at its edges, dot navigation, keyboard arrows, and horizontal
+ * swipe on touch. Slides step discretely; the camera flies between them.
+ */
+function SlidesStory({
+  project,
+  scenes,
+  activeSceneIndex,
+  accent,
+  onBack,
+  onStepScene,
+  onSelectScene,
+  chrome,
+  children,
+}: {
+  project: ProjectPackage
+  scenes: ProjectSceneDef[]
+  activeSceneIndex: number
+  accent: string
+  onBack: () => void
+  onStepScene: (direction: number) => void
+  onSelectScene: (index: number) => void
+  chrome: React.ReactNode
+  children: React.ReactNode
+}) {
+  const scene = scenes[activeSceneIndex]
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return
+      if (event.key === 'ArrowRight') onStepScene(1)
+      if (event.key === 'ArrowLeft') onStepScene(-1)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onStepScene])
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="relative min-h-0 flex-1">
+        {children}
+        <button
+          type="button"
+          onClick={onBack}
+          className="absolute left-3 top-3 z-20 hidden h-8 items-center gap-2 rounded-md border bg-background/90 px-2.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted md:inline-flex"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          All projects
+        </button>
+        <div className="pointer-events-none absolute inset-x-0 top-3 z-10 hidden justify-center md:flex">
+          <div className="max-w-md truncate rounded-md border bg-background/90 px-3 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur">
+            {project.title}
+          </div>
+        </div>
+        <div className="pointer-events-none absolute inset-0 z-20">{chrome}</div>
+      </div>
+
+      <div
+        className="relative flex h-[42svh] shrink-0 flex-col border-t bg-background md:h-[38%]"
+        onTouchStart={(event) => {
+          const touch = event.touches[0]
+          touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+        }}
+        onTouchEnd={(event) => {
+          const start = touchStartRef.current
+          touchStartRef.current = null
+          if (!start) return
+          const touch = event.changedTouches[0]
+          const dx = touch.clientX - start.x
+          const dy = touch.clientY - start.y
+          // A mostly-horizontal swipe advances the slide; vertical stays a scroll.
+          if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) onStepScene(dx < 0 ? 1 : -1)
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => onStepScene(-1)}
+          disabled={activeSceneIndex === 0}
+          aria-label="Previous scene"
+          className="absolute inset-y-0 left-0 z-10 flex w-11 items-center justify-center border-r bg-muted/20 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 md:w-16"
+        >
+          <ChevronLeft className="h-6 w-6" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onStepScene(1)}
+          disabled={activeSceneIndex >= scenes.length - 1}
+          aria-label="Next scene"
+          className="absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-center border-l bg-muted/20 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 md:w-16"
+        >
+          <ChevronRight className="h-6 w-6" />
+        </button>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-14 py-5 md:px-24">
+          <div className="mx-auto max-w-2xl text-center">
+            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
+              {scene?.kicker ?? scene?.label}
+            </div>
+            <h2 className="mt-1 text-lg font-bold leading-snug text-foreground md:text-2xl">{scene?.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground md:leading-7">{scene?.text}</p>
+            {scene?.callout && (
+              <div className="mx-auto mt-3 max-w-md rounded-md border bg-muted/30 p-2.5 text-left">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {scene.callout.label}
+                </div>
+                <div className="mt-0.5 text-sm font-bold text-foreground">{scene.callout.value}</div>
+                {scene.callout.detail && (
+                  <div className="mt-0.5 text-xs leading-5 text-muted-foreground">{scene.callout.detail}</div>
+                )}
+              </div>
+            )}
+            {scene?.focus && (
+              <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: accent }} />
+                <span>{scene.focus}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 border-t px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
+          {scenes.map((item, index) => (
+            <button
+              key={`${item.label}-${index}`}
+              type="button"
+              onClick={() => onSelectScene(index)}
+              aria-label={`Go to scene ${index + 1}`}
+              aria-current={index === activeSceneIndex ? 'step' : undefined}
+              className="flex h-6 w-6 items-center justify-center"
+            >
+              <span
+                className={cn(
+                  'h-2 w-2 rounded-full transition-colors',
+                  index === activeSceneIndex ? '' : 'bg-muted-foreground/30',
+                )}
+                style={index === activeSceneIndex ? { backgroundColor: accent } : undefined}
+              />
+            </button>
+          ))}
+          <span className="ml-1 text-xs tabular-nums text-muted-foreground">
+            {activeSceneIndex + 1}/{scenes.length}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
 /* Story map                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -584,80 +873,8 @@ export function ProjectStoryMap({
     })
   }
 
-  return (
-    <MapSectionLayout
-      sidebar={
-        <StoryNarrative
-          project={project}
-          scenes={scenes}
-          activeSceneIndex={activeSceneIndex}
-          accent={accent}
-          scrollRef={scrollRef}
-          cardRefs={cardRefs}
-          onBack={onBack}
-          onSelectScene={goToScene}
-          onStepScene={stepScene}
-        />
-      }
-      desktopSidebarWidth={sidebarWidth}
-      onDesktopSidebarWidthChange={setSidebarWidth}
-      mobileInitialSheetState={options.mobileSheet}
-      showMobileSheetChevron={!options.mobilePeekTicker}
-      mobileCollapsedVisibleHeight={options.mobilePeekSceneText ? 128 : 68}
-      showMobilePeek
-      mobilePeek={
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <div className="min-w-0 flex-1 text-left">
-              {options.mobilePeekTicker ? (
-                <TickerText
-                  key={activeSceneIndex}
-                  text={activeScene?.title ?? project.title}
-                  className="text-xs font-semibold text-foreground"
-                />
-              ) : (
-                <div className="truncate text-xs font-semibold text-foreground">
-                  {activeScene?.title ?? project.title}
-                </div>
-              )}
-              <div className="truncate text-xs text-muted-foreground">
-                {activeSceneIndex + 1}/{scenes.length} · {activeScene?.focus ?? project.region}
-              </div>
-            </div>
-            {/* stopPropagation keeps taps from starting a sheet drag or toggle. */}
-            <button
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation()
-                stepScene(-1)
-              }}
-              disabled={activeSceneIndex === 0}
-              aria-label="Previous scene"
-              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation()
-                stepScene(1)
-              }}
-              disabled={activeSceneIndex >= scenes.length - 1}
-              aria-label="Next scene"
-              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-          {options.mobilePeekSceneText && activeScene?.text && (
-            <p className="mt-1.5 line-clamp-3 text-xs leading-5 text-muted-foreground">{activeScene.text}</p>
-          )}
-        </div>
-      }
-    >
+  const mapCanvas = (
+    <>
       <Map
         ref={mapRef}
         className="h-full w-full"
@@ -773,7 +990,11 @@ export function ProjectStoryMap({
           </MapMarker>
         ))}
       </Map>
+    </>
+  )
 
+  const mapChrome = (
+    <>
       {selectedFeature && (
         <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex justify-center">
           <div className="pointer-events-auto flex max-h-[min(60vh,32rem)] w-full max-w-md items-start gap-3 rounded-lg border bg-background/95 px-3 py-2.5 text-sm shadow-lg backdrop-blur">
@@ -802,6 +1023,9 @@ export function ProjectStoryMap({
         title="Map layers"
         description={activeScene?.label}
         icon={<Layers className="h-3.5 w-3.5" />}
+        // The scrolly/slides layouts hang the chrome in a pointer-events-none
+        // overlay, so the panel re-enables its own pointer events.
+        className="pointer-events-auto"
         collapsible
         // 'auto' collapses on mobile, where the expanded panel would cover
         // most of a phone-sized map.
@@ -836,6 +1060,120 @@ export function ProjectStoryMap({
           ))}
         </MapLegendSection>
       </MapLegendPanel>
+    </>
+  )
+
+  if (options.layout === 'scrolly') {
+    return (
+      <ScrollyStory
+        project={project}
+        scenes={scenes}
+        activeSceneIndex={activeSceneIndex}
+        accent={accent}
+        onBack={onBack}
+        onSelectScene={goToScene}
+        scrollRef={scrollRef}
+        cardRefs={cardRefs}
+        chrome={mapChrome}
+      >
+        {mapCanvas}
+      </ScrollyStory>
+    )
+  }
+
+  if (options.layout === 'slides') {
+    return (
+      <SlidesStory
+        project={project}
+        scenes={scenes}
+        activeSceneIndex={activeSceneIndex}
+        accent={accent}
+        onBack={onBack}
+        onStepScene={stepScene}
+        onSelectScene={goToScene}
+        chrome={mapChrome}
+      >
+        {mapCanvas}
+      </SlidesStory>
+    )
+  }
+
+  return (
+    <MapSectionLayout
+      sidebar={
+        <StoryNarrative
+          project={project}
+          scenes={scenes}
+          activeSceneIndex={activeSceneIndex}
+          accent={accent}
+          scrollRef={scrollRef}
+          cardRefs={cardRefs}
+          onBack={onBack}
+          onSelectScene={goToScene}
+          onStepScene={stepScene}
+        />
+      }
+      desktopSidebarWidth={sidebarWidth}
+      onDesktopSidebarWidthChange={setSidebarWidth}
+      mobileInitialSheetState={options.mobileSheet}
+      showMobileSheetChevron={!options.mobilePeekTicker}
+      mobileCollapsedVisibleHeight={options.mobilePeekSceneText ? 128 : 68}
+      showMobilePeek
+      mobilePeek={
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <div className="min-w-0 flex-1 text-left">
+              {options.mobilePeekTicker ? (
+                <TickerText
+                  key={activeSceneIndex}
+                  text={activeScene?.title ?? project.title}
+                  className="text-xs font-semibold text-foreground"
+                />
+              ) : (
+                <div className="truncate text-xs font-semibold text-foreground">
+                  {activeScene?.title ?? project.title}
+                </div>
+              )}
+              <div className="truncate text-xs text-muted-foreground">
+                {activeSceneIndex + 1}/{scenes.length} · {activeScene?.focus ?? project.region}
+              </div>
+            </div>
+            {/* stopPropagation keeps taps from starting a sheet drag or toggle. */}
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                stepScene(-1)
+              }}
+              disabled={activeSceneIndex === 0}
+              aria-label="Previous scene"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                stepScene(1)
+              }}
+              disabled={activeSceneIndex >= scenes.length - 1}
+              aria-label="Next scene"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          {options.mobilePeekSceneText && activeScene?.text && (
+            <p className="mt-1.5 line-clamp-3 text-xs leading-5 text-muted-foreground">{activeScene.text}</p>
+          )}
+        </div>
+      }
+    >
+      {mapCanvas}
+      {mapChrome}
     </MapSectionLayout>
   )
 }
