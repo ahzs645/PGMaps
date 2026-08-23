@@ -792,7 +792,10 @@ type MapLegendPanelProps = {
   onCollapsedChange?: (collapsed: boolean) => void
   contentClassName?: string
   elevated?: boolean
-  width?: 'sm' | 'md' | 'lg'
+  /** 'fit' sizes the panel to its content (capped at the 'md' footprint)
+   *  whether collapsed or expanded; the fixed sizes reserve their full width
+   *  while expanded. */
+  width?: 'sm' | 'md' | 'lg' | 'fit'
 }
 
 export function MapLegendPanel({
@@ -852,9 +855,16 @@ export function MapLegendPanel({
         elevated
           ? 'bottom-[calc(var(--map-mobile-sheet-visible-height,0px)_+_var(--map-timeline-height,0px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-[calc(var(--map-timeline-height,0px)_+_1.5rem)]'
           : 'bottom-[calc(var(--map-mobile-sheet-visible-height,0px)_+_var(--map-safe-bottom-offset,0px)_+_0.75rem)] md:bottom-6',
-        width === 'sm' && 'w-[min(14rem,calc(100vw-2rem))] md:w-56',
-        width === 'md' && 'w-[min(18rem,calc(100vw-2rem))] md:w-auto',
-        width === 'lg' && 'w-[min(22rem,calc(100vw-2rem))] md:w-88',
+        // Collapsed, the pill shrinks to its title instead of keeping the
+        // expanded panel's width as an empty box; the cap still stops long
+        // descriptions from outgrowing the expanded footprint.
+        width === 'sm' &&
+          (isCollapsed ? 'w-auto max-w-[min(14rem,calc(100vw-2rem))]' : 'w-[min(14rem,calc(100vw-2rem))] md:w-56'),
+        width === 'md' &&
+          (isCollapsed ? 'w-auto max-w-[min(18rem,calc(100vw-2rem))]' : 'w-[min(18rem,calc(100vw-2rem))] md:w-auto'),
+        width === 'lg' &&
+          (isCollapsed ? 'w-auto max-w-[min(22rem,calc(100vw-2rem))]' : 'w-[min(22rem,calc(100vw-2rem))] md:w-88'),
+        width === 'fit' && 'w-auto max-w-[min(18rem,calc(100vw-2rem))]',
         className,
       )}
     >

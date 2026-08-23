@@ -233,6 +233,42 @@ export interface ProjectStoryPlaceDef {
   color?: string
 }
 
+/** Per-story presentation options. Authored in the package JSON; every field
+ *  is optional there and normalized to these defaults. */
+export interface ProjectStoryOptionsDef {
+  /**
+   * Overall presentation. 'panel' is the native PGMaps shell (desktop sidebar,
+   * mobile bottom sheet). 'scrolly' replicates the Mapbox/MapLibre storytelling
+   * template: fullscreen map with chapter cards scrolling over it. 'slides'
+   * replicates KnightLab StoryMapJS: map on top, slide pane below, arrow/swipe
+   * navigation.
+   */
+  layout: 'panel' | 'scrolly' | 'slides'
+  /** Camera motion between scenes. Reduced-motion readers always jump. */
+  sceneTransition: 'ease' | 'fly' | 'jump'
+  /** Duration of ease/fly camera transitions, in milliseconds. */
+  sceneTransitionMs: number
+  /** Where the mobile bottom sheet opens when the story loads. */
+  mobileSheet: 'collapsed' | 'half' | 'full'
+  /** Show the active scene's narrative text in the collapsed mobile peek,
+   *  so the story reads while the map stays visible. */
+  mobilePeekSceneText: boolean
+  /** Marquee-scroll a too-long scene title in the mobile peek instead of
+   *  truncating it, and hide the sheet chevron to give the title the room.
+   *  Reduced-motion readers keep the static truncated title. */
+  mobilePeekTicker: boolean
+  /** Layers panel start state. 'auto' collapses it on mobile only. */
+  legendCollapsed: 'auto' | 'always' | 'never'
+  /** Map zoom/compass controls. 'hidden' removes them entirely; scrolly
+   *  layouts drop them regardless, since the scroll overlay owns the pointer. */
+  mapControls: 'auto' | 'hidden'
+  /** Slides layout only: KnightLab-style "swipe to navigate" intro overlay on
+   *  touch screens, dismissed by tapping OK or swiping. 'fullscreen' dims the
+   *  whole story, 'pane' dims only the slide pane (as KnightLab does). The
+   *  JSON also accepts true as an alias for 'fullscreen'. */
+  slidesSwipeHint: 'off' | 'fullscreen' | 'pane'
+}
+
 export interface ProjectStoryWorkspaceDef {
   type: 'story-map'
   schema: 'story-map-v1'
@@ -246,6 +282,7 @@ export interface ProjectStoryWorkspaceDef {
   }
   /** Accent colour for scene chrome and default highlight outlines. */
   accent: string
+  options: ProjectStoryOptionsDef
   layers: ProjectStoryLayerDef[]
   places: ProjectStoryPlaceDef[]
 }
@@ -417,6 +454,30 @@ function isProjectDataUrl(value: unknown): value is string {
   return typeof value === 'string' && ((value.startsWith('/') && !value.startsWith('//')) || isHttpsUrl(value))
 }
 
+function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
+  const raw = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+  return {
+    layout: raw.layout === 'scrolly' || raw.layout === 'slides' ? raw.layout : 'panel',
+    sceneTransition:
+      raw.sceneTransition === 'fly' || raw.sceneTransition === 'jump' ? raw.sceneTransition : 'ease',
+    sceneTransitionMs: isFiniteNumber(raw.sceneTransitionMs)
+      ? Math.max(0, Math.min(5000, Math.round(raw.sceneTransitionMs)))
+      : 1150,
+    mobileSheet: raw.mobileSheet === 'collapsed' || raw.mobileSheet === 'full' ? raw.mobileSheet : 'half',
+    mobilePeekSceneText: raw.mobilePeekSceneText === true,
+    mobilePeekTicker: raw.mobilePeekTicker === true,
+    legendCollapsed:
+      raw.legendCollapsed === 'always' || raw.legendCollapsed === 'never' ? raw.legendCollapsed : 'auto',
+    mapControls: raw.mapControls === 'hidden' ? 'hidden' : 'auto',
+    slidesSwipeHint:
+      raw.slidesSwipeHint === true || raw.slidesSwipeHint === 'fullscreen'
+        ? 'fullscreen'
+        : raw.slidesSwipeHint === 'pane'
+          ? 'pane'
+          : 'off',
+  }
+}
+
 function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWorkspaceDef | undefined {
   if (value.type !== 'story-map' || value.schema !== 'story-map-v1') return undefined
   const map = value.map as Record<string, unknown> | undefined
@@ -495,6 +556,7 @@ function normalizeStoryWorkspace(value: Record<string, unknown>): ProjectStoryWo
       basemap: basemap === 'light' || basemap === 'dark' ? basemap : 'auto',
     },
     accent: typeof value.accent === 'string' ? value.accent : '#0e7490',
+    options: normalizeStoryOptions(value.options),
     layers,
     places,
   }

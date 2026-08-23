@@ -80,6 +80,74 @@ appears while the stack differs from the scene's own.
 outline. `workspace.map.basemap` is `"auto"` (follow the app's light/dark
 theme), `"light"`, or `"dark"`.
 
+## Story options
+
+`workspace.options` tunes how the renderer presents the story. Every field is
+optional; omitted fields keep the defaults shown here:
+
+```json
+{
+  "options": {
+    "layout": "panel",
+    "sceneTransition": "ease",
+    "sceneTransitionMs": 1150,
+    "mobileSheet": "half",
+    "mobilePeekSceneText": false,
+    "mobilePeekTicker": false,
+    "legendCollapsed": "auto",
+    "mapControls": "auto",
+    "slidesSwipeHint": "off"
+  }
+}
+```
+
+- `layout` — the overall presentation:
+  - `"panel"` (default) — the native PGMaps shell: scrollytelling sidebar on
+    desktop, drag-to-expand bottom sheet on mobile.
+  - `"scrolly"` — replicates the Mapbox/MapLibre storytelling template
+    ([mapbox/storytelling](https://github.com/mapbox/storytelling),
+    [opengeos/maplibre-gl-storymaps](https://github.com/opengeos/maplibre-gl-storymaps)):
+    fullscreen map with chapter cards scrolling over it, left-aligned on wide
+    screens and centered on phones, scroll position driving the camera. The
+    scroll layer owns the pointer, so the map is a backdrop during the story.
+  - `"slides"` — replicates [KnightLab StoryMapJS](https://storymap.knightlab.com/):
+    map on top, a slide pane below with arrow gutters, dot navigation, keyboard
+    arrows, and horizontal swipe on touch. The map stays interactive.
+  The mobile-sheet options below apply only to `"panel"`.
+- `sceneTransition` — camera motion between scenes: `"ease"` (straight
+  interpolation), `"fly"` (zoom-out-and-in flight), or `"jump"` (instant cut).
+  Readers with reduced motion enabled always get an instant jump.
+- `sceneTransitionMs` — duration of `ease`/`fly` transitions in milliseconds,
+  clamped to 0-5000.
+- `mobileSheet` — where the mobile bottom sheet opens when the story loads:
+  `"collapsed"` (map-first, narrative in the peek bar), `"half"`, or `"full"`.
+  Desktop is unaffected.
+- `mobilePeekSceneText` — when `true`, the collapsed mobile peek grows to show
+  the active scene's narrative text (up to three lines), so the story can be
+  read scene by scene with the map fully visible. Pairs well with
+  `"mobileSheet": "collapsed"`.
+- `mobilePeekTicker` — when `true`, a scene title too long for the peek bar
+  marquee-scrolls instead of truncating, and the sheet chevron button is hidden
+  to give the title the full width (the drag handle still expands the sheet).
+  Reduced-motion readers keep the static truncated title.
+- `legendCollapsed` — the Map layers panel start state: `"auto"` (collapsed on
+  mobile only), `"always"`, or `"never"`.
+- `mapControls` — `"hidden"` removes the zoom/compass map controls. Scrolly
+  layouts drop them regardless, since the scroll overlay owns the pointer.
+- `slidesSwipeHint` — slides layout only: on touch screens, show a
+  KnightLab-style "Swipe to navigate" intro overlay until the reader taps OK
+  or swipes. `"fullscreen"` dims the whole story; `"pane"` dims only the slide
+  pane, as KnightLab itself does. `true` is accepted as an alias for
+  `"fullscreen"`; the default is `"off"`.
+
+`public/data/projects/roadless-areas-bc-ecoregions.json` uses
+`layout: "slides"` and `public/data/projects/bc-population-distribution.json`
+uses `layout: "scrolly"` as working examples of the replicated layouts.
+`public/data/projects/where-is-north-bc.json` sets `sceneTransition: "fly"`,
+`mobileSheet: "collapsed"`, `mobilePeekSceneText: true`, and
+`mobilePeekTicker: true` as a working example of the map-first mobile
+presentation.
+
 ## GeoJSON layers
 
 Every `workspace.layers` entry references polygon GeoJSON and shares its `id`

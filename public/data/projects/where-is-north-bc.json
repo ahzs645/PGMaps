@@ -476,6 +476,14 @@
     "type": "story-map",
     "schema": "story-map-v1",
     "accent": "#047857",
+    "options": {
+      "sceneTransition": "fly",
+      "sceneTransitionMs": 1500,
+      "mobileSheet": "collapsed",
+      "mobilePeekSceneText": true,
+      "mobilePeekTicker": true,
+      "legendCollapsed": "auto"
+    },
     "map": {
       "center": [
         -125.2,

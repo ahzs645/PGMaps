@@ -109,6 +109,9 @@
     "schema": "story-map-v1",
     "map": { "center": [-126.5, 54.5], "zoom": 4.25, "minZoom": 3.5, "maxZoom": 10, "basemap": "light" },
     "accent": "#c2410c",
+    "options": {
+      "layout": "scrolly"
+    },
     "layers": [
       {
         "id": "population-density",

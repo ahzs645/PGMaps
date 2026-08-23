@@ -141,6 +141,83 @@ describe('story project packages', () => {
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({ map: { basemap: 'dark' } })
   })
 
+  it('defaults the story options when a package omits them', () => {
+    const workspace = normalizeProjectPackage(storyPackage())?.workspace
+    expect(workspace).toMatchObject({
+      options: {
+        layout: 'panel',
+        sceneTransition: 'ease',
+        sceneTransitionMs: 1150,
+        mobileSheet: 'half',
+        mobilePeekSceneText: false,
+        mobilePeekTicker: false,
+        legendCollapsed: 'auto',
+        mapControls: 'auto',
+        slidesSwipeHint: 'off',
+      },
+    })
+  })
+
+  it('keeps valid story options and clamps the transition duration', () => {
+    const raw = storyPackage()
+    raw.workspace.options = {
+      layout: 'slides',
+      sceneTransition: 'fly',
+      sceneTransitionMs: 99999,
+      mobileSheet: 'collapsed',
+      mobilePeekSceneText: true,
+      mobilePeekTicker: true,
+      legendCollapsed: 'never',
+      mapControls: 'hidden',
+      slidesSwipeHint: 'pane',
+    }
+    expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
+      options: {
+        layout: 'slides',
+        sceneTransition: 'fly',
+        sceneTransitionMs: 5000,
+        mobileSheet: 'collapsed',
+        mobilePeekSceneText: true,
+        mobilePeekTicker: true,
+        legendCollapsed: 'never',
+        mapControls: 'hidden',
+        slidesSwipeHint: 'pane',
+      },
+    })
+
+    // Boolean true predates the scoped variants and keeps meaning fullscreen.
+    const legacy = storyPackage()
+    legacy.workspace.options = { slidesSwipeHint: true }
+    expect(normalizeProjectPackage(legacy)?.workspace).toMatchObject({
+      options: { slidesSwipeHint: 'fullscreen' },
+    })
+  })
+
+  it('falls back to option defaults on unknown values', () => {
+    const raw = storyPackage()
+    raw.workspace.options = {
+      layout: 'carousel',
+      sceneTransition: 'teleport',
+      mobileSheet: 'giant',
+      mobilePeekSceneText: 'yes',
+      legendCollapsed: 'sometimes',
+      mapControls: 'invisible',
+      slidesSwipeHint: 'always',
+    }
+    expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
+      options: {
+        layout: 'panel',
+        sceneTransition: 'ease',
+        sceneTransitionMs: 1150,
+        mobileSheet: 'half',
+        mobilePeekSceneText: false,
+        legendCollapsed: 'auto',
+        mapControls: 'auto',
+        slidesSwipeHint: 'off',
+      },
+    })
+  })
+
   it('normalizes scene highlights and clamps their dim opacity', () => {
     const raw = storyPackage()
     raw.scenes[0].highlights = [
