@@ -280,12 +280,47 @@ derived one would be noisy:
 7. Use the built-in JSON button to download the normalized project package and
    confirm it can be imported again.
 
+## Changing the renderer
+
+`src/maps/project-story/ProjectStoryMap.tsx` renders every layout; the pure
+parts (paint resolution, legend derivation, camera fitting) live beside it in
+`storyScene.ts`, which is where new logic belongs if it can be unit tested
+without a browser.
+
+Adding a `workspace.options` field means four edits, in this order:
+
+1. `ProjectStoryOptionsDef` in `src/lib/projectPackages.ts` — the field and a
+   comment saying what it is for.
+2. `normalizeStoryOptions` in the same file — validate the authored value and
+   fall back to the default. Unknown values must never reach the renderer.
+3. `src/lib/projectPackages.test.ts` — the three option tests assert with
+   `toMatchObject`, so a field left out of them is silently untested. Add it to
+   all three: defaults, valid values, and unknown-value fallback.
+4. A bullet under [Story options](#story-options) above.
+
+Three renderer invariants are load-bearing and easy to undo by accident:
+
+- **Scene cameras are not used verbatim.** `paneZoomOffset` zooms out to keep
+  the authored ground extent in frame on a smaller map pane, so the live zoom
+  legitimately differs from `scene.camera.zoom` — most visibly on a phone. See
+  `cameraFit` above.
+- **Who owns the pointer differs by layout.** `panel` renders the legend and
+  feature card inline over an interactive map; `scrolly` and `slides` pass the
+  same chrome in as a `chrome` prop and hang it in a `pointer-events-none`
+  overlay above the story. Interactive chrome added there needs its own
+  `pointer-events-auto`, or it will look right and do nothing.
+- **The slides pane renders every slide, not just the active one.** They stack
+  in one CSS grid cell so the pane is as tall as the longest slide: that is
+  what stops slides being clipped and stops the map resizing as the reader
+  steps. Rendering only the active slide reintroduces both bugs.
+
 ## Tests
 
 - `src/lib/projectPackages.test.ts` covers schema normalization, including the
   clamping and dropping of malformed scene fields.
 - `src/maps/project-story/storyScene.test.ts` covers scene resolution: paint
-  expressions for highlights and overrides, and legend derivation.
+  expressions for highlights and overrides, legend derivation, and the camera
+  pane fit.
 - `src/maps/project-story/whereIsNorthBc.test.ts` is the authoring guard for the
   shipped story — it fails if a scene references a layer, place, or highlight
   target that does not exist.
