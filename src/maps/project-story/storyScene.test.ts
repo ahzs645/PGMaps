@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ProjectSceneDef, ProjectStoryLayerDef } from '@/lib/projectPackages'
-import { buildLegend, resolveLayer, sameLayerSet } from './storyScene'
+import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet } from './storyScene'
 
 const ACCENT = '#047857'
 
@@ -160,5 +160,30 @@ describe('sameLayerSet', () => {
     expect(sameLayerSet(new Set(['a', 'b']), ['b', 'a'])).toBe(true)
     expect(sameLayerSet(new Set(['a']), ['a', 'b'])).toBe(false)
     expect(sameLayerSet(new Set(['a', 'c']), ['a', 'b'])).toBe(false)
+  })
+})
+
+describe('paneZoomOffset', () => {
+  it('leaves the authored zoom alone on a pane at or above the reference size', () => {
+    // A desktop story's map pane (1440x900 viewport, panel layout).
+    expect(paneZoomOffset({ width: 1060, height: 836 })).toBe(0)
+    expect(paneZoomOffset({ width: 4000, height: 3000 })).toBe(0)
+  })
+
+  it('costs one zoom level per halving of the tighter axis', () => {
+    expect(paneZoomOffset({ width: 500, height: 700 })).toBeCloseTo(-1, 5)
+    expect(paneZoomOffset({ width: 1000, height: 350 })).toBeCloseTo(-1, 5)
+    // The tighter axis wins: width is halved, height is not.
+    expect(paneZoomOffset({ width: 500, height: 3500 })).toBeCloseTo(-1, 5)
+  })
+
+  it('stops zooming out past the ceiling, however small the pane', () => {
+    expect(paneZoomOffset({ width: 320, height: 260 })).toBe(-1.5)
+    expect(paneZoomOffset({ width: 1, height: 1 })).toBe(-1.5)
+  })
+
+  it('treats a pane with no size yet as no correction', () => {
+    expect(paneZoomOffset({ width: 0, height: 0 })).toBe(0)
+    expect(paneZoomOffset({ width: 390, height: 0 })).toBe(0)
   })
 })

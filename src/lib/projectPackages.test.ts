@@ -153,6 +153,7 @@ describe('story project packages', () => {
         mobilePeekTicker: false,
         legendCollapsed: 'auto',
         mapControls: 'auto',
+        cameraFit: 'auto',
         slidesSwipeHint: 'off',
       },
     })
@@ -169,6 +170,7 @@ describe('story project packages', () => {
       mobilePeekTicker: true,
       legendCollapsed: 'never',
       mapControls: 'hidden',
+      cameraFit: 'off',
       slidesSwipeHint: 'pane',
     }
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
@@ -181,6 +183,7 @@ describe('story project packages', () => {
         mobilePeekTicker: true,
         legendCollapsed: 'never',
         mapControls: 'hidden',
+        cameraFit: 'off',
         slidesSwipeHint: 'pane',
       },
     })
@@ -202,6 +205,7 @@ describe('story project packages', () => {
       mobilePeekSceneText: 'yes',
       legendCollapsed: 'sometimes',
       mapControls: 'invisible',
+      cameraFit: 'maybe',
       slidesSwipeHint: 'always',
     }
     expect(normalizeProjectPackage(raw)?.workspace).toMatchObject({
@@ -213,6 +217,7 @@ describe('story project packages', () => {
         mobilePeekSceneText: false,
         legendCollapsed: 'auto',
         mapControls: 'auto',
+        cameraFit: 'auto',
         slidesSwipeHint: 'off',
       },
     })

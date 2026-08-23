@@ -96,6 +96,7 @@ optional; omitted fields keep the defaults shown here:
     "mobilePeekTicker": false,
     "legendCollapsed": "auto",
     "mapControls": "auto",
+    "cameraFit": "auto",
     "slidesSwipeHint": "off"
   }
 }
@@ -108,11 +109,19 @@ optional; omitted fields keep the defaults shown here:
     ([mapbox/storytelling](https://github.com/mapbox/storytelling),
     [opengeos/maplibre-gl-storymaps](https://github.com/opengeos/maplibre-gl-storymaps)):
     fullscreen map with chapter cards scrolling over it, left-aligned on wide
-    screens and centered on phones, scroll position driving the camera. The
-    scroll layer owns the pointer, so the map is a backdrop during the story.
+    screens and centered on phones, scroll position driving the camera. On
+    desktop the story layer only claims the pointer where a card actually is,
+    so the map behind stays pannable and keeps its zoom controls; a wheel over
+    the bare map still scrolls the story. On phones the card lane covers the
+    map, so the story layer keeps the whole surface — otherwise every swipe
+    would pan the map instead of moving the story.
   - `"slides"` — replicates [KnightLab StoryMapJS](https://storymap.knightlab.com/):
     map on top, a slide pane below with arrow gutters, dot navigation, keyboard
-    arrows, and horizontal swipe on touch. The map stays interactive.
+    arrows, and horizontal swipe on touch. The map stays interactive. The pane
+    is as tall as the story's longest slide rather than a fixed fraction of the
+    screen, so no slide is cut off and stepping never resizes the map; on a
+    short screen it stops at 58% and the slide scrolls, with a fade at its foot
+    marking the overflow.
   The mobile-sheet options below apply only to `"panel"`.
 - `sceneTransition` — camera motion between scenes: `"ease"` (straight
   interpolation), `"fly"` (zoom-out-and-in flight), or `"jump"` (instant cut).
@@ -131,9 +140,21 @@ optional; omitted fields keep the defaults shown here:
   to give the title the full width (the drag handle still expands the sheet).
   Reduced-motion readers keep the static truncated title.
 - `legendCollapsed` — the Map layers panel start state: `"auto"` (collapsed on
-  mobile only), `"always"`, or `"never"`.
+  mobile only), `"always"`, or `"never"`. In `scrolly` the panel sits top-right
+  on phones, the one corner the centred card lane never reaches.
 - `mapControls` — `"hidden"` removes the zoom/compass map controls. Scrolly
-  layouts drop them regardless, since the scroll overlay owns the pointer.
+  layouts keep them on desktop only, where the pointer reaches the map.
+- `cameraFit` — `"auto"` (default) re-fits every scene camera to the map pane
+  it actually got. Scene zooms are authored against a desktop-sized map, and
+  the same zoom on a phone — or in the short map pane of a `slides` story —
+  crops the frame, so a province-wide scene arrives with the province running
+  off the edges. `"auto"` zooms out by however much brings the authored ground
+  extent back into view — one level per halving of the tighter axis, at most
+  1.5 levels — and never zooms in past what the scene asked for. `map.minZoom`
+  does not cap it: that floor is about how far a reader may pinch out, so a fit
+  that needs to go under it lowers the floor by exactly that much rather than
+  letting the scene arrive cropped. Nothing needs tuning per screen size in the
+  JSON. `"off"` uses the authored zoom on every screen.
 - `slidesSwipeHint` — slides layout only: on touch screens, show a
   KnightLab-style "Swipe to navigate" intro overlay until the reader taps OK
   or swipes. `"fullscreen"` dims the whole story; `"pane"` dims only the slide
@@ -260,12 +281,48 @@ derived one would be noisy:
 7. Use the built-in JSON button to download the normalized project package and
    confirm it can be imported again.
 
+## Changing the renderer
+
+`src/maps/project-story/ProjectStoryMap.tsx` renders every layout; the pure
+parts (paint resolution, legend derivation, camera fitting) live beside it in
+`storyScene.ts`, which is where new logic belongs if it can be unit tested
+without a browser.
+
+Adding a `workspace.options` field means four edits, in this order:
+
+1. `ProjectStoryOptionsDef` in `src/lib/projectPackages.ts` — the field and a
+   comment saying what it is for.
+2. `normalizeStoryOptions` in the same file — validate the authored value and
+   fall back to the default. Unknown values must never reach the renderer.
+3. `src/lib/projectPackages.test.ts` — the three option tests assert with
+   `toMatchObject`, so a field left out of them is silently untested. Add it to
+   all three: defaults, valid values, and unknown-value fallback.
+4. A bullet under [Story options](#story-options) above.
+
+Three renderer invariants are load-bearing and easy to undo by accident:
+
+- **Scene cameras are not used verbatim.** `paneZoomOffset` zooms out to keep
+  the authored ground extent in frame on a smaller map pane, so the live zoom
+  legitimately differs from `scene.camera.zoom` — most visibly on a phone —
+  and `allowZoomFloor` lowers the map's `minZoom` when the fit needs to go
+  under it. Both are deliberate; see `cameraFit` above.
+- **Who owns the pointer differs by layout.** `panel` renders the legend and
+  feature card inline over an interactive map; `scrolly` and `slides` pass the
+  same chrome in as a `chrome` prop and hang it in a `pointer-events-none`
+  overlay above the story. Interactive chrome added there needs its own
+  `pointer-events-auto`, or it will look right and do nothing.
+- **The slides pane renders every slide, not just the active one.** They stack
+  in one CSS grid cell so the pane is as tall as the longest slide: that is
+  what stops slides being clipped and stops the map resizing as the reader
+  steps. Rendering only the active slide reintroduces both bugs.
+
 ## Tests
 
 - `src/lib/projectPackages.test.ts` covers schema normalization, including the
   clamping and dropping of malformed scene fields.
 - `src/maps/project-story/storyScene.test.ts` covers scene resolution: paint
-  expressions for highlights and overrides, and legend derivation.
+  expressions for highlights and overrides, legend derivation, and the camera
+  pane fit.
 - `src/maps/project-story/whereIsNorthBc.test.ts` is the authoring guard for the
   shipped story — it fails if a scene references a layer, place, or highlight
   target that does not exist.

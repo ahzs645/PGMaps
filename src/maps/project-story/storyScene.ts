@@ -9,6 +9,29 @@ import type {
  * Kept out of the renderer so the story contract can be unit tested.
  */
 
+/** Map pane the authored scene cameras assume — roughly a desktop story's map
+ *  at 1440x900. A smaller pane shows less ground at the same zoom, so it is
+ *  zoomed out to bring the authored extent back into frame. */
+const CAMERA_REFERENCE_PANE = { width: 1000, height: 700 }
+/** Ceiling on that correction, however small the pane gets. Past ~1.5 levels a
+ *  province-wide frame stops reading as a place and starts reading as a globe. */
+const MAX_CAMERA_ZOOM_OUT = 1.5
+
+/**
+ * Zoom correction that keeps the authored ground extent in frame on a map pane
+ * smaller than the one the story was written against. Zoom is log2 of scale, so
+ * a pane at half the reference size costs exactly one level; taking the smaller
+ * of the two axis ratios guarantees both the authored width and height still
+ * fit. Never positive — a roomier pane keeps the author's own framing.
+ */
+export function paneZoomOffset(pane: { width: number; height: number }): number {
+  if (!(pane.width > 0) || !(pane.height > 0)) return 0
+  const fit = Math.log2(
+    Math.min(pane.width / CAMERA_REFERENCE_PANE.width, pane.height / CAMERA_REFERENCE_PANE.height),
+  )
+  return Math.max(-MAX_CAMERA_ZOOM_OUT, Math.min(0, fit))
+}
+
 /** MapLibre paint expression. The shared map layers type these as `any` too. */
 export type PaintValue = string | number | unknown[]
 

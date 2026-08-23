@@ -262,6 +262,12 @@ export interface ProjectStoryOptionsDef {
   /** Map zoom/compass controls. 'hidden' removes them entirely; scrolly
    *  layouts drop them regardless, since the scroll overlay owns the pointer. */
   mapControls: 'auto' | 'hidden'
+  /** Re-fit each scene camera to the real map pane. Authored zooms assume a
+   *  desktop-sized pane, so on a phone (or the short pane of a slides story)
+   *  the same zoom crops the framing; 'auto' zooms out far enough to keep the
+   *  authored ground extent in view, never past the story's own minZoom.
+   *  'off' uses the authored zoom on every screen. */
+  cameraFit: 'auto' | 'off'
   /** Slides layout only: KnightLab-style "swipe to navigate" intro overlay on
    *  touch screens, dismissed by tapping OK or swiping. 'fullscreen' dims the
    *  whole story, 'pane' dims only the slide pane (as KnightLab does). The
@@ -469,6 +475,7 @@ function normalizeStoryOptions(value: unknown): ProjectStoryOptionsDef {
     legendCollapsed:
       raw.legendCollapsed === 'always' || raw.legendCollapsed === 'never' ? raw.legendCollapsed : 'auto',
     mapControls: raw.mapControls === 'hidden' ? 'hidden' : 'auto',
+    cameraFit: raw.cameraFit === 'off' ? 'off' : 'auto',
     slidesSwipeHint:
       raw.slidesSwipeHint === true || raw.slidesSwipeHint === 'fullscreen'
         ? 'fullscreen'
