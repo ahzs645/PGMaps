@@ -792,7 +792,10 @@ type MapLegendPanelProps = {
   onCollapsedChange?: (collapsed: boolean) => void
   contentClassName?: string
   elevated?: boolean
-  width?: 'sm' | 'md' | 'lg'
+  /** 'fit' sizes the panel to its content (capped at the 'md' footprint)
+   *  whether collapsed or expanded; the fixed sizes reserve their full width
+   *  while expanded. */
+  width?: 'sm' | 'md' | 'lg' | 'fit'
 }
 
 export function MapLegendPanel({
@@ -861,6 +864,7 @@ export function MapLegendPanel({
           (isCollapsed ? 'w-auto max-w-[min(18rem,calc(100vw-2rem))]' : 'w-[min(18rem,calc(100vw-2rem))] md:w-auto'),
         width === 'lg' &&
           (isCollapsed ? 'w-auto max-w-[min(22rem,calc(100vw-2rem))]' : 'w-[min(22rem,calc(100vw-2rem))] md:w-88'),
+        width === 'fit' && 'w-auto max-w-[min(18rem,calc(100vw-2rem))]',
         className,
       )}
     >

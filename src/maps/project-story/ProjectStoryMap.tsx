@@ -1100,10 +1100,10 @@ export function ProjectStoryMap({
         // so the legend moves to the opposite corner there.
         className={cn('pointer-events-auto', options.layout === 'slides' && 'max-md:left-3 max-md:right-auto')}
         collapsible
+        width="fit"
         // 'auto' collapses on mobile, where the expanded panel would cover
         // most of a phone-sized map.
         defaultCollapsed={options.legendCollapsed === 'auto' ? isMobile : options.legendCollapsed === 'always'}
-        width="md"
         contentClassName="space-y-3"
         actions={
           sceneOverridden ? (
