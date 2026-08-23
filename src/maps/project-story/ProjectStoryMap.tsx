@@ -116,6 +116,18 @@ function useStoryLayerData(layers: ProjectStoryLayerDef[]) {
   return joinedData
 }
 
+/**
+ * The authored `map.minZoom` says how far a reader may pinch out; it is not a
+ * statement about how the renderer may frame a scene. So when the pane fit
+ * needs to go below it, lower the floor by exactly that much rather than let a
+ * story arrive cropped on a phone — otherwise every author would have to
+ * anticipate every screen size in the JSON. Only ever lowers, so it can never
+ * yank the camera the way raising a floor does.
+ */
+function allowZoomFloor(map: MapLibreGL.Map, zoom: number) {
+  if (zoom < map.getMinZoom()) map.setMinZoom(zoom)
+}
+
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 }
@@ -839,12 +851,12 @@ export function ProjectStoryMap({
           : 0
       return {
         center: camera.center,
-        zoom: Math.max(config.map.minZoom, Math.min(config.map.maxZoom, camera.zoom + offset)),
+        zoom: Math.min(config.map.maxZoom, camera.zoom + offset),
         bearing: camera.bearing ?? 0,
         pitch: camera.pitch ?? 0,
       }
     },
-    [config.map.maxZoom, config.map.minZoom, options.cameraFit, scenes],
+    [config.map.maxZoom, options.cameraFit, scenes],
   )
 
   const attachMap = useCallback(
@@ -859,7 +871,10 @@ export function ProjectStoryMap({
       // Re-fit it now that one exists, so scene 1 is framed like every scene
       // after it. The style is still loading here, so nothing visibly moves.
       const opening = sceneCamera(instance, activeSceneIndexRef.current)
-      if (opening) instance.jumpTo(opening)
+      if (opening) {
+        allowZoomFloor(instance, opening.zoom)
+        instance.jumpTo(opening)
+      }
     },
     [options.layout, sceneCamera],
   )
@@ -921,6 +936,7 @@ export function ProjectStoryMap({
       const map = mapRef.current
       const camera = sceneCamera(map, index)
       if (!map || !camera) return
+      allowZoomFloor(map, camera.zoom)
       const { sceneTransition, sceneTransitionMs } = options
       if (prefersReducedMotion() || sceneTransition === 'jump') map.jumpTo(camera)
       else if (sceneTransition === 'fly') map.flyTo({ ...camera, duration: sceneTransitionMs })

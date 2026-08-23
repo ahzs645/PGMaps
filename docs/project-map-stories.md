@@ -149,11 +149,12 @@ optional; omitted fields keep the defaults shown here:
   the same zoom on a phone — or in the short map pane of a `slides` story —
   crops the frame, so a province-wide scene arrives with the province running
   off the edges. `"auto"` zooms out by however much brings the authored ground
-  extent back into view (one level per halving of the tighter axis, at most
-  1.5 levels), never below the story's own `map.minZoom`, and never zooms in
-  past what the scene asked for. Set a lower `map.minZoom` if a story still
-  cannot fit its subject on a phone. `"off"` uses the authored zoom on every
-  screen.
+  extent back into view — one level per halving of the tighter axis, at most
+  1.5 levels — and never zooms in past what the scene asked for. `map.minZoom`
+  does not cap it: that floor is about how far a reader may pinch out, so a fit
+  that needs to go under it lowers the floor by exactly that much rather than
+  letting the scene arrive cropped. Nothing needs tuning per screen size in the
+  JSON. `"off"` uses the authored zoom on every screen.
 - `slidesSwipeHint` — slides layout only: on touch screens, show a
   KnightLab-style "Swipe to navigate" intro overlay until the reader taps OK
   or swipes. `"fullscreen"` dims the whole story; `"pane"` dims only the slide
@@ -302,8 +303,9 @@ Three renderer invariants are load-bearing and easy to undo by accident:
 
 - **Scene cameras are not used verbatim.** `paneZoomOffset` zooms out to keep
   the authored ground extent in frame on a smaller map pane, so the live zoom
-  legitimately differs from `scene.camera.zoom` — most visibly on a phone. See
-  `cameraFit` above.
+  legitimately differs from `scene.camera.zoom` — most visibly on a phone —
+  and `allowZoomFloor` lowers the map's `minZoom` when the fit needs to go
+  under it. Both are deliberate; see `cameraFit` above.
 - **Who owns the pointer differs by layout.** `panel` renders the legend and
   feature card inline over an interactive map; `scrolly` and `slides` pass the
   same chrome in as a `chrome` prop and hang it in a `pointer-events-none`
