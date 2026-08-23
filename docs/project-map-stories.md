@@ -96,6 +96,7 @@ optional; omitted fields keep the defaults shown here:
     "mobilePeekTicker": false,
     "legendCollapsed": "auto",
     "mapControls": "auto",
+    "cameraFit": "auto",
     "slidesSwipeHint": "off"
   }
 }
@@ -143,6 +144,16 @@ optional; omitted fields keep the defaults shown here:
   on phones, the one corner the centred card lane never reaches.
 - `mapControls` — `"hidden"` removes the zoom/compass map controls. Scrolly
   layouts keep them on desktop only, where the pointer reaches the map.
+- `cameraFit` — `"auto"` (default) re-fits every scene camera to the map pane
+  it actually got. Scene zooms are authored against a desktop-sized map, and
+  the same zoom on a phone — or in the short map pane of a `slides` story —
+  crops the frame, so a province-wide scene arrives with the province running
+  off the edges. `"auto"` zooms out by however much brings the authored ground
+  extent back into view (one level per halving of the tighter axis, at most
+  1.5 levels), never below the story's own `map.minZoom`, and never zooms in
+  past what the scene asked for. Set a lower `map.minZoom` if a story still
+  cannot fit its subject on a phone. `"off"` uses the authored zoom on every
+  screen.
 - `slidesSwipeHint` — slides layout only: on touch screens, show a
   KnightLab-style "Swipe to navigate" intro overlay until the reader taps OK
   or swipes. `"fullscreen"` dims the whole story; `"pane"` dims only the slide

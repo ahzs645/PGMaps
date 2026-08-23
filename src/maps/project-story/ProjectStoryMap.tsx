@@ -38,7 +38,7 @@ import {
   type ProjectStoryWorkspaceDef,
 } from '@/lib/projectPackages'
 import { withBase } from '@/lib/dataUrl'
-import { buildLegend, resolveLayer, sameLayerSet } from './storyScene'
+import { buildLegend, paneZoomOffset, resolveLayer, sameLayerSet } from './storyScene'
 import { escapeHtml } from '@/lib/escapeHtml'
 
 /** Crossfade duration when scene changes swap map layers. */
@@ -809,6 +809,7 @@ export function ProjectStoryMap({
   const programmaticScrollUntilRef = useRef(0)
   /** Scene a stepper click is scrolling toward; null when the reader drives. */
   const pendingSceneRef = useRef<number | null>(null)
+  const activeSceneIndexRef = useRef(0)
 
   const [activeSceneIndex, setActiveSceneIndex] = useState(0)
   const [visibleLayerIds, setVisibleLayerIds] = useState(
@@ -828,17 +829,39 @@ export function ProjectStoryMap({
 
   const activeScene = scenes[activeSceneIndex]
 
+  const sceneCamera = useCallback(
+    (map: MapLibreGL.Map | null | undefined, index: number) => {
+      const camera = scenes[index]?.camera
+      if (!camera) return null
+      const offset =
+        map && options.cameraFit === 'auto'
+          ? paneZoomOffset(map.getContainer().getBoundingClientRect())
+          : 0
+      return {
+        center: camera.center,
+        zoom: Math.max(config.map.minZoom, Math.min(config.map.maxZoom, camera.zoom + offset)),
+        bearing: camera.bearing ?? 0,
+        pitch: camera.pitch ?? 0,
+      }
+    },
+    [config.map.maxZoom, config.map.minZoom, options.cameraFit, scenes],
+  )
+
   const attachMap = useCallback(
     (instance: MapLibreGL.Map | null) => {
       mapRef.current = instance
+      if (!instance) return
       // Scrolly hands the wheel to the story; a map that also zoomed on wheel
       // would fight it. Every other layout keeps the standard behaviour.
-      if (instance) {
-        if (options.layout === 'scrolly') instance.scrollZoom.disable()
-        else instance.scrollZoom.enable()
-      }
+      if (options.layout === 'scrolly') instance.scrollZoom.disable()
+      else instance.scrollZoom.enable()
+      // The opening camera is a plain prop, set before the pane had a size.
+      // Re-fit it now that one exists, so scene 1 is framed like every scene
+      // after it. The style is still loading here, so nothing visibly moves.
+      const opening = sceneCamera(instance, activeSceneIndexRef.current)
+      if (opening) instance.jumpTo(opening)
     },
-    [options.layout],
+    [options.layout, sceneCamera],
   )
 
   // NB: `Map` here is the map component, so use a record rather than a global Map.
@@ -883,8 +906,6 @@ export function ProjectStoryMap({
 
   const sceneOverridden = activeScene ? !sameLayerSet(visibleLayerIds, activeScene.visibleLayerIds) : false
 
-  const activeSceneIndexRef = useRef(0)
-
   const applyScene = useCallback(
     (index: number, { force = false } = {}) => {
       const scene = scenes[index]
@@ -898,19 +919,14 @@ export function ProjectStoryMap({
       setSelectedFeature(null)
 
       const map = mapRef.current
-      if (!map || !scene.camera) return
-      const camera = {
-        center: scene.camera.center,
-        zoom: scene.camera.zoom,
-        bearing: scene.camera.bearing ?? 0,
-        pitch: scene.camera.pitch ?? 0,
-      }
+      const camera = sceneCamera(map, index)
+      if (!map || !camera) return
       const { sceneTransition, sceneTransitionMs } = options
       if (prefersReducedMotion() || sceneTransition === 'jump') map.jumpTo(camera)
       else if (sceneTransition === 'fly') map.flyTo({ ...camera, duration: sceneTransitionMs })
       else map.easeTo({ ...camera, duration: sceneTransitionMs })
     },
-    [options, scenes],
+    [options, sceneCamera, scenes],
   )
 
   // Scrolls only the narrative container. scrollIntoView would also scroll
